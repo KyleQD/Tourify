@@ -63,8 +63,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
         audioRef.current.pause()
       } else {
         // Try to play, but handle errors gracefully
-        audioRef.current.play().catch(error => {
-          console.log('Audio playback not available:', error)
+        audioRef.current.play().catch(() => {
           // Still update UI state for demo purposes
           setIsPlaying(true)
           // Simulate audio progress for demo
@@ -97,8 +96,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
     if (audioRef.current) {
       audioRef.current.src = jukeboxService.getAudioUrl(song.id)
       // Try to play the audio
-      audioRef.current.play().catch(error => {
-        console.log('Audio playback not available:', error)
+      audioRef.current.play().catch(() => {
         // Still update UI state for demo purposes
         setIsPlaying(true)
         // Simulate audio progress for demo
@@ -254,7 +252,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
               {currentSong?.albumArt ? (
                 <img 
                   src={currentSong.albumArt} 
-                  alt={currentSong.title}
+                  alt={`${currentSong.title} album art by ${currentSong.artist}`}
                   className="w-full h-full object-cover"
                 />
               ) : (
@@ -306,6 +304,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
               variant="ghost"
               size="sm"
               onClick={toggleShuffle}
+              aria-label={isShuffled ? "Disable shuffle" : "Enable shuffle"}
               className={cn(
                 "w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-all",
                 isShuffled && "bg-purple-500/30 text-purple-300"
@@ -317,6 +316,9 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Previous track"
+              disabled
+              title="Previous track is coming soon"
               className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 transition-all"
             >
               <SkipBack className="h-5 w-5" />
@@ -324,6 +326,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
             
             <Button
               onClick={togglePlay}
+              aria-label={isPlaying ? "Pause playback" : "Start playback"}
               className="w-16 h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg hover:scale-105"
             >
               {isPlaying ? (
@@ -336,6 +339,9 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Next track"
+              disabled
+              title="Next track is coming soon"
               className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 transition-all"
             >
               <SkipForward className="h-5 w-5" />
@@ -345,6 +351,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
               variant="ghost"
               size="sm"
               onClick={toggleRepeat}
+              aria-label={`Change repeat mode (current: ${repeatMode})`}
               className={cn(
                 "w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 transition-all",
                 repeatMode !== 'none' && "bg-purple-500/30 text-purple-300"
@@ -363,6 +370,7 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
               variant="ghost"
               size="sm"
               onClick={toggleMute}
+              aria-label={isMuted ? "Unmute audio" : "Mute audio"}
               className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-all"
             >
               {isMuted ? (
@@ -412,6 +420,9 @@ export function JukeboxPlayer({ className }: JukeboxPlayerProps) {
             <Button
               variant="ghost"
               size="sm"
+              aria-label="Add track"
+              disabled
+              title="Add track is coming soon"
               className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 transition-all"
             >
               <Plus className="h-4 w-4" />

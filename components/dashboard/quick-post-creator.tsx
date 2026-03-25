@@ -6,21 +6,32 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
+import { PhotoUpload } from '@/components/ui/photo-upload'
 import { Send, Globe, Users, Lock, Loader2 } from 'lucide-react'
+import { uploadFeedPhotos } from '@/lib/utils/feed-photo-upload'
+import { useAuth } from '@/contexts/auth-context'
 
 export function QuickPostCreator() {
+  const { user } = useAuth()
   const [content, setContent] = useState('')
   const [visibility, setVisibility] = useState('public')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 })
   const { toast } = useToast()
+
+  const handlePhotosSelected = (files: File[]) => {
+    setSelectedFiles(files)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!content.trim()) {
+    if (!content.trim() && selectedFiles.length === 0) {
       toast({
         title: "Content Required",
-        description: "Please write something to post!",
+        description: "Please write something or add photos to post!",
         variant: "destructive"
       })
       return
@@ -38,15 +49,44 @@ export function QuickPostCreator() {
     setIsSubmitting(true)
     
     try {
-      const response = await fetch('/api/posts/create', {
+      let mediaUrls: string[] = []
+      
+      // Upload photos if any
+      if (selectedFiles.length > 0) {
+        setIsUploadingMedia(true)
+        
+        // Get current user ID from auth context
+        if (!user?.id) {
+          throw new Error('User not authenticated')
+        }
+        const userId = user.id
+        
+        const uploadResult = await uploadFeedPhotos(
+          selectedFiles,
+          userId,
+          (completed, total) => {
+            setUploadProgress({ completed, total })
+          }
+        )
+        
+        if (uploadResult.success) {
+          mediaUrls = uploadResult.urls
+        } else {
+          throw new Error(`Photo upload failed: ${uploadResult.errors.join(', ')}`)
+        }
+        
+        setIsUploadingMedia(false)
+      }
+      const response = await fetch('/api/feed/posts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           content: content.trim(),
-          type: 'text',
-          visibility: visibility
+          type: mediaUrls.length > 0 ? 'media' : 'text',
+          visibility: visibility,
+          media_urls: mediaUrls
         })
       })
 
@@ -59,15 +99,18 @@ export function QuickPostCreator() {
       
       toast({
         title: "Post Created! 🎉",
-        description: "Your post has been published successfully.",
+        description: mediaUrls.length > 0 
+          ? `Your post with ${mediaUrls.length} photo(s) has been published!`
+          : "Your post has been published successfully.",
         className: "bg-green-500 text-white"
       })
       
       setContent('')
+      setSelectedFiles([])
       setVisibility('public')
-      
-      // Refresh the page to show the new post count
-      window.location.reload()
+
+      // Notify dashboard surfaces to refresh without a full page reload.
+      window.dispatchEvent(new CustomEvent('dashboard:post-created', { detail: data?.data || null }))
       
     } catch (error) {
       console.error('Error creating post:', error)
@@ -78,8 +121,10 @@ export function QuickPostCreator() {
       })
     } finally {
       setIsSubmitting(false)
+      setIsUploadingMedia(false)
     }
   }
+
 
   const getVisibilityIcon = (vis: string) => {
     switch (vis) {
@@ -108,9 +153,27 @@ export function QuickPostCreator() {
             placeholder="What's happening? Share your thoughts..."
             className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/50 resize-none"
             rows={3}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isUploadingMedia}
             maxLength={2000}
           />
+
+          {/* Photo Upload Section */}
+          <div className="space-y-3">
+            <PhotoUpload
+              onPhotosSelected={handlePhotosSelected}
+              maxFiles={5}
+              maxSize={5}
+              disabled={isSubmitting || isUploadingMedia}
+              showPreview={true}
+            />
+            
+            {isUploadingMedia && (
+              <div className="flex items-center gap-2 text-sm text-purple-300">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Uploading {uploadProgress.completed}/{uploadProgress.total}...
+              </div>
+            )}
+          </div>
           
           <div className="flex items-center justify-between">
             <Select value={visibility} onValueChange={setVisibility} disabled={isSubmitting}>
@@ -150,13 +213,13 @@ export function QuickPostCreator() {
               </span>
               <Button
                 type="submit"
-                disabled={isSubmitting || !content.trim()}
+                disabled={isSubmitting || isUploadingMedia || (!content.trim() && selectedFiles.length === 0)}
                 className="bg-purple-600 hover:bg-purple-700 text-white"
               >
-                {isSubmitting ? (
+                {isSubmitting || isUploadingMedia ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Posting...
+                    {isUploadingMedia ? 'Uploading...' : 'Posting...'}
                   </>
                 ) : (
                   <>

@@ -286,104 +286,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Search events
-    if (type === 'all' || type === 'events') {
-      let eventQuery = supabase
-        .from('demo_events')
-        .select(`
-          *,
-          profile:demo_profiles(
-            id,
-            username,
-            account_type,
-            profile_data,
-            avatar_url,
-            verified
-          )
-        `)
-        .order('event_date', { ascending: true })
+    // Search events - TODO: Implement when events table is ready
+    // if (type === 'all' || type === 'events') {
+    //   results.events = []
+    // }
 
-      if (query) {
-        eventQuery = eventQuery.or(`title.ilike.%${query}%,description.ilike.%${query}%,location.ilike.%${query}%`)
-      }
+    // Search music releases - TODO: Implement when music_releases table is ready
+    // if (type === 'all' || type === 'music') {
+    //   results.music = []
+    // }
 
-      if (location) {
-        eventQuery = eventQuery.ilike('location', `%${location}%`)
-      }
-
-      if (genre) {
-        eventQuery = eventQuery.contains('genres', [genre])
-      }
-
-      const { data: events, error: eventError } = await eventQuery
-        .range(offset, offset + limit - 1)
-
-      if (!eventError && events) {
-        results.events = events
-      }
-    }
-
-    // Search music releases
-    if (type === 'all' || type === 'music') {
-      let musicQuery = supabase
-        .from('demo_music_releases')
-        .select(`
-          *,
-          profile:demo_profiles(
-            id,
-            username,
-            account_type,
-            profile_data,
-            avatar_url,
-            verified
-          )
-        `)
-        .order('release_date', { ascending: false })
-
-      if (query) {
-        musicQuery = musicQuery.or(`title.ilike.%${query}%,artist_name.ilike.%${query}%,album_name.ilike.%${query}%`)
-      }
-
-      if (genre) {
-        musicQuery = musicQuery.contains('genres', [genre])
-      }
-
-      const { data: music, error: musicError } = await musicQuery
-        .range(offset, offset + limit - 1)
-
-      if (!musicError && music) {
-        results.music = music
-      }
-    }
-
-    // Search posts
-    if (type === 'all' || type === 'posts') {
-      let postQuery = supabase
-        .from('demo_posts')
-        .select(`
-          *,
-          profile:demo_profiles(
-            id,
-            username,
-            account_type,
-            profile_data,
-            avatar_url,
-            verified
-          )
-        `)
-        .order('created_at', { ascending: false })
-
-      if (query) {
-        postQuery = postQuery.ilike('content', `%${query}%`)
-      }
-
-      const { data: posts, error: postError } = await postQuery
-        .range(offset, offset + limit - 1)
-
-      if (!postError && posts) {
-        results.posts = posts
-      }
-    }
+    // Search posts - TODO: Implement when posts table structure is ready
+    // if (type === 'all' || type === 'posts') {
+    //   results.posts = []
+    // }
 
     // Calculate total results
     results.total = results.artists.length + results.venues.length + 

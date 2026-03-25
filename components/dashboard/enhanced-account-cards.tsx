@@ -204,13 +204,22 @@ export function EnhancedAccountCards() {
                      card.isCurrent ? 'ring-2 ring-purple-500/50' : ''
                    } ${isSwitching ? 'opacity-50 pointer-events-none' : ''}`}
                    onClick={() => handleCardClick(card)}
+                   role="button"
+                   tabIndex={card.isCurrent || isSwitching ? -1 : 0}
+                   onKeyDown={(event) => {
+                     if (card.isCurrent || isSwitching) return
+                     if (event.key === 'Enter' || event.key === ' ') {
+                       event.preventDefault()
+                       handleCardClick(card)
+                     }
+                   }}
                  >
                    <CardContent className="p-4">
                      <div className="flex items-center space-x-3">
                        {/* Account Avatar & Status */}
                        <div className="relative">
                          <Avatar className="h-12 w-12 border-2 border-white/20">
-                           <AvatarImage src={card.avatarUrl} />
+                          <AvatarImage src={card.avatarUrl} alt={`${card.name} account avatar`} />
                            <AvatarFallback className={`bg-gradient-to-br ${accountColor}`}>
                              <AccountIcon className="h-6 w-6 text-white" />
                            </AvatarFallback>

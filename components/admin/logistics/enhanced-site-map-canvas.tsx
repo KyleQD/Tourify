@@ -85,13 +85,13 @@ interface CanvasState {
 }
 
 const CANVAS_TOOLS: CanvasToolConfig[] = [
-  { id: 'select', name: 'Select', icon: 'MousePointer', type: 'select', cursor: 'default', enabled: true },
-  { id: 'pan', name: 'Pan', icon: 'Hand', type: 'pan', cursor: 'grab', enabled: true },
-  { id: 'measure', name: 'Measure', icon: 'Ruler', type: 'measure', cursor: 'crosshair', enabled: true },
-  { id: 'rectangle', name: 'Rectangle', icon: 'Square', type: 'shape', cursor: 'crosshair', enabled: true },
-  { id: 'circle', name: 'Circle', icon: 'Circle', type: 'shape', cursor: 'crosshair', enabled: true },
-  { id: 'text', name: 'Text', icon: 'Type', type: 'text', cursor: 'text', enabled: true },
-  { id: 'issue', name: 'Report Issue', icon: 'AlertTriangle', type: 'draw', cursor: 'crosshair', enabled: true },
+  { id: 'select', name: 'Select', icon: MousePointer, type: 'select', cursor: 'default', enabled: true },
+  { id: 'pan', name: 'Pan', icon: Hand, type: 'pan', cursor: 'grab', enabled: true },
+  { id: 'measure', name: 'Measure', icon: Ruler, type: 'measure', cursor: 'crosshair', enabled: true },
+  { id: 'rectangle', name: 'Rectangle', icon: Square, type: 'shape', cursor: 'crosshair', enabled: true },
+  { id: 'circle', name: 'Circle', icon: Circle, type: 'shape', cursor: 'crosshair', enabled: true },
+  { id: 'text', name: 'Text', icon: Type, type: 'text', cursor: 'text', enabled: true },
+  { id: 'issue', name: 'Report Issue', icon: AlertTriangle, type: 'draw', cursor: 'crosshair', enabled: true },
 ]
 
 const LAYER_ICONS = {
@@ -557,7 +557,7 @@ export function EnhancedSiteMapCanvas({
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 border border-gray-300 rounded-md">
                   {CANVAS_TOOLS.map((tool) => {
-                    const IconComponent = tool.icon as any
+                    const IconComponent = tool.icon
                     return (
                       <Button
                         key={tool.id}

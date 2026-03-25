@@ -20,8 +20,6 @@ import {
   RefreshCw,
   Loader2,
   MapPin,
-  Calendar,
-  UserPlus,
   Check,
   ArrowRight
 } from 'lucide-react'
@@ -31,8 +29,7 @@ import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useIsMobile } from '@/hooks/use-mobile'
-import { MobileOptimizedCard } from '@/components/mobile/mobile-optimized-card'
+import { usePhotoViewer } from '@/hooks/use-photo-viewer'
 
 interface PostData {
   id: string
@@ -42,6 +39,7 @@ interface PostData {
   visibility: string
   location?: string
   hashtags?: string[]
+  media_urls?: string[]
   likes_count: number
   comments_count: number
   shares_count: number
@@ -76,26 +74,48 @@ function getProfileUrl(username: string) {
   return `/profile/${username}`
 }
 
+function dedupePostsById(posts: PostData[]) {
+  const seen = new Set<string>()
+  return posts.filter((post) => {
+    if (!post?.id || seen.has(post.id)) return false
+    seen.add(post.id)
+    return true
+  })
+}
+
 export function DashboardFeed() {
+  const pageSize = 20
   const [posts, setPosts] = useState<PostData[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState('following')
+  const [page, setPage] = useState(0)
+  const [isFetchingMore, setIsFetchingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [comments, setComments] = useState<{ [postId: string]: Comment[] }>({})
   const [showComments, setShowComments] = useState<{ [postId: string]: boolean }>({})
   const [loadingComments, setLoadingComments] = useState<{ [postId: string]: boolean }>({})
-  const [followingUsers, setFollowingUsers] = useState(new Set<string>())
   const [feedMessage, setFeedMessage] = useState<string | null>(null)
+  const [feedError, setFeedError] = useState<string | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   
   const { user } = useAuth()
   const router = useRouter()
   const supabase = createClientComponentClient<Database>()
-  const { isMobile } = useIsMobile()
+  const photoViewer = usePhotoViewer()
 
-  const loadPosts = async (feedType = activeTab) => {
+  const loadPosts = async ({
+    feedType = activeTab,
+    pageIndex = 0,
+    append = false
+  }: {
+    feedType?: string
+    pageIndex?: number
+    append?: boolean
+  } = {}) => {
     try {
-      const response = await fetch(`/api/feed/posts?type=${feedType}&limit=20`, {
+      const offset = pageIndex * pageSize
+      const response = await fetch(`/api/feed/posts?type=${feedType}&limit=${pageSize}&offset=${offset}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -106,11 +126,17 @@ export function DashboardFeed() {
       
       if (result.error) {
         console.error('Error loading posts:', result.error)
+        setFeedError(result.error)
         return
       }
       
       // Standardize on { posts } but gracefully support { data }
-      setPosts(result.posts || result.data || [])
+      const postsData = result.posts || result.data || []
+      
+      setPosts((prev) => append ? dedupePostsById([...prev, ...postsData]) : dedupePostsById(postsData))
+      setPage(pageIndex)
+      setHasMore(postsData.length === pageSize)
+      setFeedError(null)
       
       // Handle API messages (like empty feed guidance)
       if (result.message) {
@@ -120,16 +146,17 @@ export function DashboardFeed() {
       }
     } catch (error) {
       console.error('Error loading posts:', error)
+      setFeedError('Failed to load your feed. Please try again.')
     }
   }
 
   const handlePostCreated = (newPost: PostData) => {
-    setPosts(prev => [newPost, ...prev])
+    setPosts(prev => dedupePostsById([newPost, ...prev]))
   }
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await loadPosts()
+    await loadPosts({ feedType: activeTab, pageIndex: 0, append: false })
     setRefreshing(false)
   }
 
@@ -137,13 +164,18 @@ export function DashboardFeed() {
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
       const first = entries[0]
-      if (first.isIntersecting) loadPosts()
+      if (!first.isIntersecting || loading || refreshing || isFetchingMore || !hasMore) return
+
+      setIsFetchingMore(true)
+      const nextPage = page + 1
+      loadPosts({ feedType: activeTab, pageIndex: nextPage, append: true })
+        .finally(() => setIsFetchingMore(false))
     }, { rootMargin: '200px' })
 
     const current = loadMoreRef.current
     if (current) observer.observe(current)
     return () => { if (current) observer.unobserve(current) }
-  }, [])
+  }, [activeTab, hasMore, isFetchingMore, loading, page, refreshing])
 
   const handleLike = async (postId: string) => {
     if (!user) return
@@ -180,7 +212,6 @@ export function DashboardFeed() {
         throw new Error('Failed to toggle like')
       }
 
-      console.log('✅ Successfully toggled like')
     } catch (error) {
       // Revert on error
       setPosts(prev => prev.map(post => 
@@ -211,7 +242,6 @@ export function DashboardFeed() {
       const result = await response.json()
       setComments(prev => ({ ...prev, [postId]: result.comments || [] }))
       
-      console.log('✅ Successfully loaded comments for post:', postId)
     } catch (error) {
       console.error('Error loading comments:', error)
     } finally {
@@ -236,8 +266,6 @@ export function DashboardFeed() {
     if (!user || !content.trim()) return
 
     try {
-      console.log('💬 Adding comment to post:', postId)
-
       const response = await fetch(`/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: {
@@ -272,7 +300,6 @@ export function DashboardFeed() {
       // Ensure comments are shown after adding one
       setShowComments(prev => ({ ...prev, [postId]: true }))
 
-      console.log('✅ Successfully added comment')
       return result.comment
     } catch (error) {
       console.error('Error adding comment:', error)
@@ -282,14 +309,42 @@ export function DashboardFeed() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    loadPosts(value)
   }
 
   useEffect(() => {
-    if (user) {
-      loadPosts()
+    let isMounted = true
+
+    const loadInitialFeed = async () => {
+      if (!user) {
+        if (isMounted) setLoading(false)
+        return
+      }
+
+      if (isMounted) setLoading(true)
+      await loadPosts({ feedType: activeTab, pageIndex: 0, append: false })
+      if (isMounted) setLoading(false)
     }
-    setLoading(false)
+
+    loadInitialFeed()
+
+    return () => {
+      isMounted = false
+    }
+  }, [user, activeTab])
+
+  useEffect(() => {
+    if (!user) return
+
+    const handleDashboardPostCreated = (event: Event) => {
+      const customEvent = event as CustomEvent<PostData | null>
+      if (customEvent.detail?.id) {
+        handlePostCreated(customEvent.detail)
+      }
+      loadPosts({ feedType: activeTab, pageIndex: 0, append: false })
+    }
+
+    window.addEventListener('dashboard:post-created', handleDashboardPostCreated)
+    return () => window.removeEventListener('dashboard:post-created', handleDashboardPostCreated)
   }, [user, activeTab])
 
   // Subscribe to real-time updates
@@ -303,10 +358,9 @@ export function DashboardFeed() {
         schema: 'public',
         table: 'posts'
       }, (payload) => {
-        // Only add if it's a public post or from someone we follow
-        if (payload.new.visibility === 'public' || 
-           (activeTab === 'following' && followingUsers.has(payload.new.user_id))) {
-          loadPosts() // Reload to get proper joins
+        // Refresh on public posts to keep feed up to date.
+        if (payload.new.visibility === 'public') {
+          loadPosts({ feedType: activeTab, pageIndex: 0, append: false }) // Reload to get proper joins
         }
       })
       .subscribe()
@@ -314,7 +368,7 @@ export function DashboardFeed() {
     return () => {
       subscription.unsubscribe()
     }
-  }, [user, activeTab, followingUsers])
+  }, [user, activeTab])
 
   if (!user) {
     return null
@@ -349,6 +403,7 @@ export function DashboardFeed() {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
+              aria-label="Refresh feed"
               className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20 rounded-xl"
             >
               <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -366,6 +421,19 @@ export function DashboardFeed() {
         </div>
       </CardHeader>
       <CardContent>
+        {feedError && (
+          <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3">
+            <p className="text-sm text-red-200">{feedError}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              className="mt-2 h-7 px-2 text-red-200 hover:bg-red-500/20"
+            >
+              Retry
+            </Button>
+          </div>
+        )}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm rounded-2xl p-1">
             <TabsTrigger value="following" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-xl">
@@ -398,7 +466,10 @@ export function DashboardFeed() {
                         <div className="flex items-start gap-3 mb-3">
                           <Link href={getProfileUrl(post.profiles.username)} className="flex-shrink-0">
                             <Avatar className="cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200 h-10 w-10">
-                              <AvatarImage src={post.profiles.avatar_url || ''} />
+                              <AvatarImage
+                                src={post.profiles.avatar_url || ''}
+                                alt={`${post.profiles.full_name || post.profiles.username} profile photo`}
+                              />
                               <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-sm">
                                 {post.profiles.full_name?.[0] || post.profiles.username?.[0] || 'U'}
                               </AvatarFallback>
@@ -432,7 +503,14 @@ export function DashboardFeed() {
                               </div>
                             )}
                           </div>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label="More post options (coming soon)"
+                            disabled
+                            title="More options coming soon"
+                            className="h-8 w-8 p-0 opacity-50"
+                          >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </div>
@@ -449,6 +527,71 @@ export function DashboardFeed() {
                               url={extractUrls(post.content)[0]} 
                               className="mt-2"
                             />
+                          )}
+                          
+                          {/* Media Display */}
+                          {post.media_urls && post.media_urls.length > 0 && post.media_urls[0] && (
+                            <div className="mt-3">
+                              {post.media_urls.length === 1 ? (
+                                // Single image - full width with natural aspect ratio
+                                <div 
+                                  className="relative bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => {
+                                    if (post.media_urls && post.media_urls.length > 0) {
+                                      photoViewer.openPhotoViewer(post.media_urls, 0, post)
+                                    } else {
+                                      console.error('❌ No media URLs available for this post')
+                                    }
+                                  }}
+                                >
+                                  <img
+                                    src={post.media_urls?.[0] || ''}
+                                    alt={`${post.profiles.full_name || post.profiles.username} post image`}
+                                    className="w-full h-auto max-h-96 object-cover"
+                                    loading="lazy"
+                                    onError={(e) => {
+                                      console.error('❌ Failed to load image:', post.media_urls?.[0])
+                                      e.currentTarget.style.display = 'none'
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                // Multiple images - grid layout
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  {post.media_urls.slice(0, 4).map((url, index) => (
+                                    url && (
+                                      <div 
+                                        key={`${post.id}-${url}-${index}`}
+                                        className="relative aspect-square bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => {
+                                          if (post.media_urls && post.media_urls.length > 0) {
+                                            photoViewer.openPhotoViewer(post.media_urls, index, post)
+                                          } else {
+                                            console.error('❌ No media URLs available for this post')
+                                          }
+                                        }}
+                                      >
+                                        <img
+                                          src={url}
+                                          alt={`${post.profiles.full_name || post.profiles.username} post image ${index + 1}`}
+                                          className="w-full h-full object-cover"
+                                          loading="lazy"
+                                          onError={(e) => {
+                                            console.error('❌ Failed to load image:', url)
+                                            e.currentTarget.style.display = 'none'
+                                          }}
+                                        />
+                                      </div>
+                                    )
+                                  ))}
+                                </div>
+                              )}
+                              {post.media_urls.length > 4 && (
+                                <p className="text-gray-400 text-xs mt-2">
+                                  +{post.media_urls.length - 4} more photos
+                                </p>
+                              )}
+                            </div>
                           )}
                           
                           {post.hashtags && post.hashtags.length > 0 && (
@@ -494,7 +637,14 @@ export function DashboardFeed() {
                               <MessageCircle className="h-4 w-4 mr-1" />
                               <span className="text-xs">{post.comments_count}</span>
                             </Button>
-                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-green-400 h-8 px-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              aria-label="Share post (coming soon)"
+                              disabled
+                              title="Share is coming soon"
+                              className="text-gray-400 h-8 px-2 opacity-50"
+                            >
                               <Share className="h-4 w-4 mr-1" />
                               <span className="text-xs">{post.shares_count}</span>
                             </Button>
@@ -523,7 +673,10 @@ export function DashboardFeed() {
                                 {comments[post.id].slice(0, 2).map((comment) => (
                                   <div key={comment.id} className="flex gap-2">
                                     <Avatar className="h-6 w-6 flex-shrink-0">
-                                      <AvatarImage src={comment.user.avatar_url} />
+                                      <AvatarImage
+                                        src={comment.user.avatar_url}
+                                        alt={`${comment.user.full_name || comment.user.username} profile photo`}
+                                      />
                                       <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
                                         {comment.user.full_name?.charAt(0) || comment.user.username?.charAt(0) || 'U'}
                                       </AvatarFallback>
@@ -550,7 +703,13 @@ export function DashboardFeed() {
                                 ))}
                                 {comments[post.id].length > 2 && (
                                   <div className="text-center">
-                                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white text-xs">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      disabled
+                                      title="Expanded comment thread is coming soon"
+                                      className="text-gray-400 text-xs opacity-50"
+                                    >
                                       View {comments[post.id].length - 2} more comments
                                     </Button>
                                   </div>
@@ -565,7 +724,7 @@ export function DashboardFeed() {
                             {/* Comment Input */}
                             <div className="flex gap-2 pt-1">
                               <Avatar className="h-6 w-6 flex-shrink-0">
-                                <AvatarImage src={user?.user_metadata?.avatar_url} />
+                                <AvatarImage src={user?.user_metadata?.avatar_url} alt="Your profile photo" />
                                 <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
                                   {user?.user_metadata?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
                                 </AvatarFallback>
@@ -627,10 +786,17 @@ export function DashboardFeed() {
               )}
             </AnimatePresence>
             {/* Load more sentinel */}
-            <div ref={loadMoreRef} />
+            {hasMore && (
+              <div ref={loadMoreRef} className="py-2 text-center">
+                {isFetchingMore && (
+                  <span className="text-xs text-gray-400">Loading more posts...</span>
+                )}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
+
     </Card>
   )
 } 

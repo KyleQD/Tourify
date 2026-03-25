@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { EnhancedFriendSearch } from '@/components/social/enhanced-friend-search'
-import { SimpleSuggestedConnections } from '@/components/social/simple-suggested-connections'
+import { AllUsersDisplay } from '@/components/social/all-users-display'
 import { useRouter } from 'next/navigation'
 
 export default function FriendSearchPage() {
@@ -151,11 +151,9 @@ export default function FriendSearchPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <SimpleSuggestedConnections 
-                    limit={5}
-                    onConnect={(userId) => {
-                      console.log('Connected with:', userId)
-                    }}
+                  <AllUsersDisplay 
+                    limit={10}
+                    className="bg-transparent border-0 shadow-none"
                   />
                 </CardContent>
               </Card>

@@ -1,19 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { ProductionAuthService } from '@/lib/auth/production-auth'
 
 export async function GET(
   request: NextRequest,
   { params }: any
 ) {
   try {
-    const authResult = await authenticateApiRequest(request)
+    const authResult = await ProductionAuthService.authenticateRequest(request)
     const username = decodeURIComponent(params.username)
 
     console.log('[Profile Username API] Fetching profile for username:', username)
 
     // Use the authenticated supabase client if available, otherwise create a service client
     let supabase
-    if (authResult) {
+    if (!('error' in authResult)) {
       supabase = authResult.supabase
       console.log('[Profile Username API] Using authenticated client')
     } else {
@@ -45,44 +45,16 @@ export async function GET(
       .eq('username', username)
       .single()
 
-    // If not found in main profiles table, try demo_profiles table
+    // Check if profile was found in main profiles table
     if (profileError || !profile) {
-      console.log('[Profile Username API] Profile not found in main table, checking demo_profiles...')
-      
-      const { data: demoProfile, error: demoProfileError } = await supabase
-        .from('demo_profiles')
-        .select(`
-          id,
-          username,
-          full_name,
-          bio,
-          avatar_url,
-          location,
-          website,
-          is_verified,
-          followers_count,
-          following_count,
-          posts_count,
-          stats,
-          created_at,
-          updated_at
-        `)
-        .eq('username', username)
-        .single()
-
-      if (demoProfileError || !demoProfile) {
-        console.log('[Profile Username API] Profile not found in either table for username:', username)
-        return NextResponse.json(
-          { error: 'Profile not found' },
-          { status: 404 }
-        )
-      }
-
-      console.log('[Profile Username API] Found profile in demo_profiles table:', demoProfile.username)
-      profile = demoProfile
-    } else {
-      console.log('[Profile Username API] Found profile in main profiles table:', profile.username)
+      console.log('[Profile Username API] Profile not found for username:', username)
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 404 }
+      )
     }
+
+    console.log('[Profile Username API] Found profile in main profiles table:', profile.username)
 
     console.log('[Profile Username API] Found profile:', profile.username)
 
@@ -100,14 +72,8 @@ export async function GET(
       engagement_rate: 0
     }
 
-    // If profile has stats from demo_profiles, use them
-    if (profile.stats) {
-      stats = {
-        ...stats,
-        ...profile.stats
-      }
-      console.log('[Profile Username API] Using stats from demo profile:', stats)
-    } else {
+    // Stats are now managed by the profiles table directly
+    if (true) {
       // Try to get additional stats from posts table if it exists
       try {
         const { count: postCount } = await supabase
@@ -313,7 +279,15 @@ export async function GET(
 
     console.log('[Profile Username API] Returning profile with content')
 
-    return NextResponse.json({ profile: profileWithStats, portfolio, experiences, certifications, top_skills: topSkills })
+    return NextResponse.json({ 
+      profile: profileWithStats, 
+      profileData,
+      accountType,
+      portfolio, 
+      experiences, 
+      certifications, 
+      top_skills: topSkills 
+    })
   } catch (error) {
     console.error('[Profile Username API] Error:', error)
     return NextResponse.json(

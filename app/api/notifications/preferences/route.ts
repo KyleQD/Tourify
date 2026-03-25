@@ -1,31 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
-import { NotificationService } from '@/lib/services/notification-service'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Validation schemas
-const updatePreferencesSchema = z.object({
+// =============================================================================
+// VALIDATION SCHEMAS
+// =============================================================================
+
+const notificationPreferencesSchema = z.object({
   emailEnabled: z.boolean().optional(),
   pushEnabled: z.boolean().optional(),
-  smsEnabled: z.boolean().optional(),
   inAppEnabled: z.boolean().optional(),
-  preferences: z.record(z.object({
-    email: z.boolean(),
-    push: z.boolean(),
-    sms: z.boolean()
-  })).optional(),
-  digestFrequency: z.enum(['never', 'hourly', 'daily', 'weekly']).optional(),
+  enableLikes: z.boolean().optional(),
+  enableComments: z.boolean().optional(),
+  enableShares: z.boolean().optional(),
+  enableFollows: z.boolean().optional(),
+  enableMessages: z.boolean().optional(),
+  enableEvents: z.boolean().optional(),
+  enableSystem: z.boolean().optional(),
   quietHoursEnabled: z.boolean().optional(),
   quietHoursStart: z.string().optional(),
-  quietHoursEnd: z.string().optional()
+  quietHoursEnd: z.string().optional(),
+  digestFrequency: z.enum(['never', 'hourly', 'daily', 'weekly']).optional(),
+  preferences: z.record(z.any()).optional()
 })
 
-// Helper function to get authenticated user
+// =============================================================================
+// HELPER FUNCTIONS
+// =============================================================================
+
 async function getAuthenticatedUser(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   if (!authHeader?.startsWith('Bearer ')) {
@@ -42,6 +50,10 @@ async function getAuthenticatedUser(request: NextRequest) {
   return user
 }
 
+// =============================================================================
+// API ENDPOINTS
+// =============================================================================
+
 // GET /api/notifications/preferences - Get user's notification preferences
 export async function GET(request: NextRequest) {
   try {
@@ -50,8 +62,35 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const preferences = await NotificationService.getNotificationPreferences(user.id)
-    return NextResponse.json({ preferences })
+    const preferences = await OptimizedNotificationService.getPreferences(user.id)
+
+    if (!preferences) {
+      // Create default preferences if they don't exist
+      const defaultPreferences = await OptimizedNotificationService.updatePreferences(user.id, {
+        emailEnabled: true,
+        pushEnabled: true,
+        inAppEnabled: true,
+        enableLikes: true,
+        enableComments: true,
+        enableShares: true,
+        enableFollows: true,
+        enableMessages: true,
+        enableEvents: true,
+        enableSystem: true,
+        quietHoursEnabled: false,
+        digestFrequency: 'daily'
+      })
+
+      return NextResponse.json({
+        preferences: defaultPreferences,
+        isDefault: true
+      })
+    }
+
+    return NextResponse.json({
+      preferences,
+      isDefault: false
+    })
   } catch (error) {
     console.error('Error fetching notification preferences:', error)
     return NextResponse.json(
@@ -70,10 +109,32 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const validatedData = updatePreferencesSchema.parse(body)
+    const validatedData = notificationPreferencesSchema.parse(body)
 
-    const preferences = await NotificationService.updateNotificationPreferences(user.id, validatedData)
-    return NextResponse.json({ preferences })
+    // Validate time format if provided
+    if (validatedData.quietHoursStart && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(validatedData.quietHoursStart)) {
+      return NextResponse.json(
+        { error: 'Invalid quiet hours start time format. Use HH:MM' },
+        { status: 400 }
+      )
+    }
+
+    if (validatedData.quietHoursEnd && !/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(validatedData.quietHoursEnd)) {
+      return NextResponse.json(
+        { error: 'Invalid quiet hours end time format. Use HH:MM' },
+        { status: 400 }
+      )
+    }
+
+    const updatedPreferences = await OptimizedNotificationService.updatePreferences(
+      user.id,
+      validatedData
+    )
+
+    return NextResponse.json({
+      preferences: updatedPreferences,
+      message: 'Notification preferences updated successfully'
+    })
   } catch (error) {
     console.error('Error updating notification preferences:', error)
     
@@ -89,4 +150,53 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}
+
+// POST /api/notifications/preferences - Reset to default preferences
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getAuthenticatedUser(request)
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { action } = body
+
+    if (action === 'reset') {
+      const defaultPreferences = await OptimizedNotificationService.updatePreferences(user.id, {
+        emailEnabled: true,
+        pushEnabled: true,
+        inAppEnabled: true,
+        enableLikes: true,
+        enableComments: true,
+        enableShares: true,
+        enableFollows: true,
+        enableMessages: true,
+        enableEvents: true,
+        enableSystem: true,
+        quietHoursEnabled: false,
+        quietHoursStart: '22:00:00',
+        quietHoursEnd: '08:00:00',
+        digestFrequency: 'daily',
+        preferences: {}
+      })
+
+      return NextResponse.json({
+        preferences: defaultPreferences,
+        message: 'Notification preferences reset to defaults'
+      })
+    } else {
+      return NextResponse.json(
+        { error: 'Invalid action. Use "reset"' },
+        { status: 400 }
+      )
+    }
+  } catch (error) {
+    console.error('Error resetting notification preferences:', error)
+    return NextResponse.json(
+      { error: 'Failed to reset notification preferences' },
+      { status: 500 }
+    )
+  }
+}

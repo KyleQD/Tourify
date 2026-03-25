@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { ProductionAuthService } from '@/lib/auth/production-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(request)
+    const authResult = await ProductionAuthService.authenticateRequest(request)
     
-    if (!authResult) {
-      console.error('❌ Authentication failed - no user from cookies')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if ('error' in authResult) {
+      console.error('❌ Authentication failed:', authResult.error)
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
     const { user, supabase } = authResult
@@ -243,11 +243,11 @@ export async function GET(request: NextRequest) {
     const action = searchParams.get('action')
     const targetUserId = searchParams.get('targetUserId')
 
-    const authResult = await authenticateApiRequest(request)
+    const authResult = await ProductionAuthService.authenticateRequest(request)
     
-    if (!authResult) {
-      console.error('❌ Authentication failed - no user from cookies')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if ('error' in authResult) {
+      console.error('❌ Authentication failed:', authResult.error)
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
     const { user, supabase } = authResult

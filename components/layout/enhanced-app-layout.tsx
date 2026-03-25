@@ -66,17 +66,17 @@ export function EnhancedAppLayout({
   // =============================================================================
 
   const getLoadingMessage = () => {
-    if (loadingProgress < 30) return 'Initializing Tourify...'
-    if (loadingProgress < 60) return 'Loading your workspace...'
-    if (loadingProgress < 90) return 'Preparing your dashboard...'
-    return 'Almost ready!'
+    if (loadingProgress < 30) return 'Starting Tourify...'
+    if (loadingProgress < 60) return 'Loading Your Experience...'
+    if (loadingProgress < 90) return 'Finalizing Setup...'
+    return 'Welcome!'
   }
 
   const getLoadingSubMessage = () => {
-    if (loadingProgress < 30) return 'Starting up your tour management platform'
-    if (loadingProgress < 60) return 'Gathering your tours, events, and team data'
-    if (loadingProgress < 90) return 'Setting up your personalized experience'
-    return 'Welcome back to Tourify!'
+    if (loadingProgress < 30) return 'Powering up your tour management platform'
+    if (loadingProgress < 60) return 'Syncing your tours, events, and team'
+    if (loadingProgress < 90) return 'Personalizing your workspace'
+    return 'Ready to rock your next tour!'
   }
 
   // =============================================================================
@@ -87,10 +87,8 @@ export function EnhancedAppLayout({
   if (showBrandLoading) {
     return (
       <BrandLoadingScreen
-        variant={loadingVariant}
-        logoSrc={customLogo}
+        logoSrc={customLogo || '/tourify-logo-white.svg'}
         message={getLoadingMessage()}
-        subMessage={getLoadingSubMessage()}
         showProgress={true}
         progress={loadingProgress}
         fullScreen={true}
@@ -103,10 +101,8 @@ export function EnhancedAppLayout({
   if (authLoading) {
     return (
       <BrandLoadingScreen
-        variant="pulse"
-        logoSrc={customLogo}
-        message="Verifying your access..."
-        subMessage="Please wait while we confirm your permissions"
+        logoSrc={customLogo || '/tourify-logo-white.svg'}
+        message="Loading..."
         fullScreen={true}
       />
     )
@@ -116,10 +112,8 @@ export function EnhancedAppLayout({
   if (!isConnected) {
     return (
       <BrandLoadingScreen
-        variant="waves"
-        logoSrc={customLogo}
-        message="Connecting to server..."
-        subMessage="Establishing secure connection to Tourify"
+        logoSrc={customLogo || '/tourify-logo-white.svg'}
+        message="Connecting..."
         fullScreen={true}
       />
     )

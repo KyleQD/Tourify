@@ -979,7 +979,7 @@ export interface CanvasElement {
 export interface CanvasToolConfig {
   id: string
   name: string
-  icon: string
+  icon: React.ComponentType<any>
   type: 'select' | 'pan' | 'zoom' | 'measure' | 'draw' | 'text' | 'shape'
   cursor: string
   enabled: boolean

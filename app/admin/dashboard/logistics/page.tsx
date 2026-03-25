@@ -19,6 +19,7 @@ import { TravelCoordinationHub } from "@/components/admin/travel-coordination-hu
 import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
 import { LogisticsCollaboration } from "@/components/admin/logistics-collaboration"
 import { SiteMapManager } from "@/components/admin/logistics/site-map-manager"
+import { SiteMapManagerEnhanced } from "@/components/admin/logistics/site-map-manager-enhanced"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -902,13 +903,8 @@ export default function LogisticsPage() {
 
         <TabsContent value="site-maps" className="mt-0">
           <div className="space-y-6">
-            {/* Interactive Site Maps */}
-            <SiteMapManager
-              eventId={selectedEvent || undefined}
-              tourId={selectedTour || undefined}
-              vendorId={user?.id}
-              isVendorView={true}
-            />
+            {/* Interactive Site Maps - Enhanced with Fallback */}
+            <SiteMapManagerEnhanced />
           </div>
         </TabsContent>
       </Tabs>

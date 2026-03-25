@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Tourify</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #ffffff;
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 25%, #16213e 50%, #0f0f23 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: rgba(15, 15, 35, 0.95);
+            border-radius: 24px;
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            box-shadow: 
+                0 25px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 0 1px rgba(139, 92, 246, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .email-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+        }
+        
+        .header {
+            text-align: center;
+            padding: 60px 40px 40px;
+            position: relative;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+        }
+        
+        .logo-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 30px;
+        }
+        
+        .tourify-logo {
+            height: 60px;
+            width: auto;
+            max-width: 200px;
+            filter: drop-shadow(0 10px 20px rgba(139, 92, 246, 0.3));
+            transition: transform 0.3s ease;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        .tourify-logo:hover {
+            transform: scale(1.05);
+        }
+        
+        /* Fallback text logo if image fails to load */
+        .logo-fallback {
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #a5b4fc;
+            font-size: 18px;
+            font-weight: 500;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        
+        .content {
+            padding: 0 40px 40px;
+        }
+        
+        .welcome-text {
+            font-size: 24px;
+            color: #ffffff;
+            margin-bottom: 24px;
+            font-weight: 600;
+        }
+        
+        .description {
+            color: #cbd5e1;
+            margin-bottom: 32px;
+            font-size: 16px;
+            line-height: 1.7;
+        }
+        
+        .cta-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 50%, #06b6d4 100%);
+            color: white;
+            text-decoration: none;
+            padding: 18px 40px;
+            border-radius: 16px;
+            font-weight: 700;
+            font-size: 18px;
+            text-align: center;
+            position: relative;
+            box-shadow: 
+                0 10px 30px rgba(139, 92, 246, 0.4),
+                0 0 0 1px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            letter-spacing: 0.02em;
+        }
+        
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6, #06b6d4);
+            border-radius: 18px;
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .cta-button:hover::before {
+            opacity: 0.7;
+        }
+        
+        .features {
+            background: rgba(15, 15, 35, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 20px;
+            padding: 32px;
+            margin: 40px 0;
+            position: relative;
+        }
+        
+        .features::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+        }
+        
+        .features h3 {
+            color: #ffffff;
+            margin: 0 0 24px 0;
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .feature-list li {
+            padding: 12px 0;
+            color: #cbd5e1;
+            position: relative;
+            padding-left: 32px;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .feature-list li:before {
+            content: "✨";
+            position: absolute;
+            left: 0;
+            top: 12px;
+            font-size: 16px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 40px;
+            border-top: 1px solid rgba(139, 92, 246, 0.2);
+            background: rgba(15, 15, 35, 0.3);
+        }
+        
+        .footer p {
+            color: #94a3b8;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .social-links {
+            margin: 24px 0;
+        }
+        
+        .social-links a {
+            display: inline-block;
+            margin: 0 12px;
+            color: #a5b4fc;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .social-links a:hover {
+            color: #8b5cf6;
+        }
+        
+        .contact-link {
+            color: #8b5cf6 !important;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .contact-link:hover {
+            color: #a5b4fc !important;
+        }
+        
+        .grid-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(139, 92, 246, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 10px;
+                border-radius: 20px;
+            }
+            
+            .header, .content, .footer {
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+            
+            .tourify-logo {
+                height: 48px;
+            }
+            
+            .cta-button {
+                padding: 16px 32px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="grid-pattern"></div>
+        
+        <div class="header">
+            <div class="logo-container">
+                <img src="https://demo.tourify.live/tourify-logo-white.png" alt="Tourify" class="tourify-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                <div class="logo-fallback" style="display: none;">TOURIFY</div>
+            </div>
+            <p class="subtitle">Connect. Create. Tour.</p>
+        </div>
+
+        <div class="content">
+            <p class="welcome-text">Welcome to the future of music! 🚀</p>
+            
+            <p class="description">
+                You've just joined the most advanced platform for artists, venues, and music professionals. We're thrilled to have you as part of our innovative community.
+            </p>
+
+            <p class="description">
+                To activate your account and unlock the full potential of Tourify, please confirm your email address:
+            </p>
+
+            <div class="cta-container">
+                <a href="{{ .ConfirmationURL }}" class="cta-button">
+                    Activate Account
+                </a>
+            </div>
+
+            <div class="features">
+                <h3>Unlock Your Potential</h3>
+                <ul class="feature-list">
+                    <li>Create stunning artist or venue profiles with AI-powered optimization</li>
+                    <li>Discover and connect with industry professionals worldwide</li>
+                    <li>Manage tours and events with advanced analytics</li>
+                    <li>Access real-time insights and performance metrics</li>
+                    <li>Join exclusive networking opportunities and collaborations</li>
+                </ul>
+            </div>
+
+            <p class="description">
+                After confirming your email, you'll be redirected to our sleek login interface where you can access your personalized dashboard and start building your music empire.
+            </p>
+
+            <p class="description">
+                If you didn't create an account with Tourify, you can safely ignore this email.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p>© 2025 Tourify. All rights reserved.</p>
+            <div class="social-links">
+                <a href="https://twitter.com/tourify">Twitter</a>
+                <a href="https://instagram.com/tourify">Instagram</a>
+                <a href="https://linkedin.com/company/tourify">LinkedIn</a>
+            </div>
+            <p>
+                Questions? Contact us at <a href="mailto:support@tourify.live" class="contact-link">support@tourify.live</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,55 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Debug Auth API] Starting debug authentication test')
+    console.log('=== AUTH DEBUG START ===')
     
-    const authResult = await authenticateApiRequest()
+    // Check cookies
+    const cookies = request.cookies.getAll()
+    console.log('Available cookies:', cookies.map(c => `${c.name}: ${c.value.substring(0, 50)}...`))
     
-    if (!authResult) {
-      return NextResponse.json({ 
-        error: 'Authentication failed',
-        authenticated: false,
-        user: null,
-        hasAdminAccess: false
-      }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-    console.log('[Debug Auth API] User authenticated:', user.id, user.email)
-
-    // Check admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    console.log('[Debug Auth API] Admin access check:', hasAdminAccess)
-
-    // Check profiles table
-    const { data: profiles, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', user.email)
-
-    if (profileError) {
-      console.error('[Debug Auth API] Profile query error:', profileError)
-    }
-
-    return NextResponse.json({
-      authenticated: true,
-      user: {
+    // Try to create Supabase client
+    const supabase = await createClient()
+    console.log('Supabase client created successfully')
+    
+    // Check user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    console.log('Auth result:', { user: !!user, error: authError?.message })
+    
+    if (user) {
+      console.log('User details:', {
         id: user.id,
-        email: user.email
-      },
-      hasAdminAccess,
-      profiles: profiles || [],
-      profileError: profileError?.message || null,
-      timestamp: new Date().toISOString()
+        email: user.email,
+        created_at: user.created_at
+      })
+    }
+    
+    // Test database connection
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .limit(1)
+    
+    console.log('Database test:', { 
+      hasProfile: !!profile, 
+      error: profileError?.message 
     })
-
-  } catch (error) {
-    console.error('[Debug Auth API] Error:', error)
-    return NextResponse.json({ 
-      error: 'Internal server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+    
+    return NextResponse.json({
+      success: true,
+      authentication: {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email,
+        authError: authError?.message
+      },
+      cookies: cookies.map(c => ({ name: c.name, length: c.value.length })),
+      database: {
+        connected: !profileError,
+        error: profileError?.message
+      }
+    })
+  } catch (error: any) {
+    console.error('Auth debug error:', error)
+    return NextResponse.json({
+      success: false,
+      error: error.message,
+      stack: error.stack
     }, { status: 500 })
   }
-} 
+}

@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || 'all'
     const user_id = searchParams.get('user_id')
     const limit = parseInt(searchParams.get('limit') || '20')
+    const offset = parseInt(searchParams.get('offset') || '0')
     
     // Use the authenticated supabase client if available, otherwise create a service client
     let supabase
@@ -23,7 +24,30 @@ export async function GET(request: NextRequest) {
       console.log('[Feed Posts API] Using service client for public access')
     }
 
-    console.log('[Feed Posts API] Fetching posts with type:', type, 'limit:', limit)
+    console.log('[Feed Posts API] Fetching posts with type:', type, 'limit:', limit, 'offset:', offset)
+    
+    // Get all user accounts for multi-account feed
+    let userAccountIds: string[] = []
+    if (authResult?.user) {
+      try {
+        // Try to fetch from user_accounts table if it exists
+        const { data: accounts, error: accountsError } = await supabase
+          .from('user_accounts')
+          .select('profile_id')
+          .eq('user_id', authResult.user.id)
+        
+        if (accountsError) {
+          console.log('[Feed Posts API] user_accounts table not available, skipping multi-account feature:', accountsError.message)
+          // Continue without multi-account support
+        } else if (accounts) {
+          userAccountIds = accounts.map((acc: any) => acc.profile_id)
+          console.log('[Feed Posts API] Found user accounts:', userAccountIds.length)
+        }
+      } catch (error) {
+        console.log('[Feed Posts API] user_accounts table not available, skipping multi-account feature')
+        // Continue without multi-account support
+      }
+    }
 
     // Check if posts table exists and has the correct structure
     try {
@@ -76,29 +100,35 @@ export async function GET(request: NextRequest) {
       // Select only guaranteed columns to prevent "column does not exist" errors
       let baseQuery = supabase
         .from('posts')
-        .select(
-          [
-            'id',
-            'user_id',
-            'content',
-            'media_urls',
-            'likes_count',
-            'comments_count',
-            'shares_count',
-            'created_at',
-            'updated_at',
-            // Optional content enrichment; if these columns are absent Supabase will still return null values
-            'type',
-            'visibility',
-            'location',
-            'hashtags'
-          ].join(',')
-        )
+        .select(`
+          id,
+          user_id,
+          content,
+          media_urls,
+          likes_count,
+          comments_count,
+          shares_count,
+          created_at,
+          updated_at,
+          type,
+          visibility,
+          location,
+          hashtags
+        `)
         .order('created_at', { ascending: false })
         .limit(limit)
+        .range(offset, offset + limit - 1)
 
       // Filter by user when explicitly requested
-      if (type === 'user' && user_id) baseQuery = baseQuery.eq('user_id', user_id)
+      if (type === 'user' && user_id) {
+        baseQuery = baseQuery.eq('user_id', user_id)
+      } else if (type === 'all' && authResult?.user) {
+        // For 'all' feed, include posts from all user accounts plus followed accounts
+        const allUserIds = [authResult.user.id, ...userAccountIds]
+        if (allUserIds.length > 1) {
+          baseQuery = baseQuery.in('user_id', allUserIds)
+        }
+      }
       
       // Handle following feed - only show posts from users the current user follows
       if (type === 'following' && authResult?.user) {
@@ -120,10 +150,16 @@ export async function GET(request: NextRequest) {
 
         if (followingData && followingData.length > 0) {
           const followingIds = followingData.map((f: { following_id: string }) => f.following_id)
-          console.log('[Feed Posts API] User follows', followingIds.length, 'users')
-          baseQuery = baseQuery.in('user_id', followingIds)
+          // Include posts from followed users AND user's own accounts
+          const allFollowingIds = Array.from(new Set([...followingIds, ...userAccountIds]))
+          console.log('[Feed Posts API] User follows', followingIds.length, 'users, has', userAccountIds.length, 'accounts')
+          baseQuery = baseQuery.in('user_id', allFollowingIds)
+        } else if (userAccountIds.length > 0) {
+          // If not following anyone but has other accounts, show posts from own accounts
+          console.log('[Feed Posts API] User has', userAccountIds.length, 'accounts but follows no one')
+          baseQuery = baseQuery.in('user_id', userAccountIds)
         } else {
-          console.log('[Feed Posts API] User follows no one, returning empty feed with message')
+          console.log('[Feed Posts API] User follows no one and has no other accounts, returning empty feed with message')
           return NextResponse.json({ 
             data: [],
             message: "You're not following anyone yet. Start following other users to see their posts in your feed!"
@@ -305,9 +341,10 @@ export async function POST(request: NextRequest) {
     // Handle post creation
     const { content, type = 'text', visibility = 'public', location, hashtags = [], media_urls = [] } = body
 
-    if (!content?.trim()) {
+    // Allow posts with either content or media
+    if (!content?.trim() && (!media_urls || media_urls.length === 0)) {
       return NextResponse.json(
-        { data: null, error: 'Content is required' },
+        { data: null, error: 'Content or media is required' },
         { status: 400 }
       )
     }
@@ -315,8 +352,8 @@ export async function POST(request: NextRequest) {
     // Create post data
     const postData = {
       user_id: user.id,
-      content: content.trim(),
-      type,
+      content: content?.trim() || (media_urls && media_urls.length > 0 ? 'Shared a photo' : null),
+      type: media_urls && media_urls.length > 0 ? 'media' : type,
       visibility,
       location,
       hashtags,

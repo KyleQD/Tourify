@@ -35,6 +35,7 @@ import {
 } from "lucide-react"
 import { SiteMapCanvas } from "./site-map-canvas"
 import { EnhancedSiteMapCanvas } from "./enhanced-site-map-canvas"
+import { EnhancedSiteMapBuilder } from "./site-map-builder/enhanced-site-map-builder"
 import { LayerManager } from "./layer-manager"
 import { MeasurementTools } from "./measurement-tools"
 import { EquipmentCatalog } from "./equipment-catalog"
@@ -52,7 +53,8 @@ import {
   MapLayer,
   MapMeasurement,
   MapIssue,
-  CanvasElement
+  CanvasElement,
+  CanvasMeasurement
 } from "@/types/site-map"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
@@ -90,6 +92,7 @@ export function SiteMapManager({
   const [issues, setIssues] = useState<MapIssue[]>([])
   const [selectedElement, setSelectedElement] = useState<CanvasElement | null>(null)
   const [activeTab, setActiveTab] = useState("design")
+  const [useEnhancedBuilder, setUseEnhancedBuilder] = useState(true)
   
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -169,26 +172,42 @@ export function SiteMapManager({
   }
 
   const loadSiteMaps = async () => {
-    if (!user) {
-      console.error('User not authenticated')
-      return
-    }
-
     setIsLoading(true)
     try {
+      console.log('Loading site maps...', { user: !!user, eventId, tourId })
+      
       const params = new URLSearchParams()
       if (eventId) params.append('eventId', eventId)
       if (tourId) params.append('tourId', tourId)
       params.append('includeData', 'true')
 
-      const response = await fetch(`/api/admin/logistics/site-maps?${params}`)
+      const response = await fetch(`/api/admin/logistics/site-maps?${params}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      console.log('Response status:', response.status)
       const data = await response.json()
+      console.log('Response data:', data)
 
       if (!response.ok) {
         if (response.status === 401) {
+          console.error('Authentication failed - trying debug endpoint')
+          
+          // Try the debug endpoint to see what's happening
+          try {
+            const debugResponse = await fetch('/api/debug-auth', { credentials: 'include' })
+            const debugData = await debugResponse.json()
+            console.log('Debug auth result:', debugData)
+          } catch (debugError) {
+            console.error('Debug auth failed:', debugError)
+          }
+          
           toast({
             title: "Authentication Error",
-            description: "Please log in again to access site maps",
+            description: "Authentication failed. Check console for details.",
             variant: "destructive"
           })
           return
@@ -261,6 +280,7 @@ export function SiteMapManager({
 
       const response = await fetch('/api/admin/logistics/site-maps', {
         method: 'POST',
+        credentials: 'include',
         body: formData
       })
 
@@ -343,6 +363,101 @@ export function SiteMapManager({
       toast({
         title: "Error",
         description: "Failed to update site map",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Alias for enhanced site map builder compatibility
+  const handleSiteMapUpdate = updateSiteMap
+
+  // Element handlers for enhanced site map builder
+  const handleElementCreate = async (elementData: Partial<SiteMapElement>) => {
+    if (!selectedSiteMap) return
+
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${selectedSiteMap.id}/elements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...elementData,
+          siteMapId: selectedSiteMap.id
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Element created successfully"
+        })
+      } else {
+        throw new Error(data.error || 'Failed to create element')
+      }
+    } catch (error) {
+      console.error('Error creating element:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create element",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleElementUpdate = async (elementId: string, updates: Partial<SiteMapElement>) => {
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${selectedSiteMap?.id}/elements/${elementId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates)
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Element updated successfully"
+        })
+      } else {
+        throw new Error(data.error || 'Failed to update element')
+      }
+    } catch (error) {
+      console.error('Error updating element:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update element",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleElementDelete = async (elementId: string) => {
+    if (!confirm('Are you sure you want to delete this element?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${selectedSiteMap?.id}/elements/${elementId}`, {
+        method: 'DELETE'
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Success",
+          description: "Element deleted successfully"
+        })
+      } else {
+        throw new Error(data.error || 'Failed to delete element')
+      }
+    } catch (error) {
+      console.error('Error deleting element:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete element",
         variant: "destructive"
       })
     }
@@ -585,6 +700,34 @@ export function SiteMapManager({
     }
   }
 
+  const handleCanvasMeasurementCreate = (measurement: Partial<CanvasMeasurement>) => {
+    // Convert CanvasMeasurement to MapMeasurement format
+    // Map canvas measurement types to MapMeasurement types
+    const typeMapping: Record<string, 'distance' | 'area' | 'clearance' | 'fire_lane' | 'ada_access' | 'emergency_route'> = {
+      'distance': 'distance',
+      'area': 'area',
+      'angle': 'distance' // Map angle to distance as fallback
+    }
+    const measurementData: Omit<MapMeasurement, 'id' | 'createdAt' | 'updatedAt'> = {
+      siteMapId: selectedSiteMap?.id || '',
+      measurementType: typeMapping[measurement.type || 'distance'] || 'distance',
+      startX: measurement.startX || 0,
+      startY: measurement.startY || 0,
+      endX: measurement.endX,
+      endY: measurement.endY,
+      width: measurement.endX && measurement.startX ? Math.abs(measurement.endX - measurement.startX) : undefined,
+      height: measurement.endY && measurement.startY ? Math.abs(measurement.endY - measurement.startY) : undefined,
+      value: measurement.value,
+      unit: measurement.unit || 'meters',
+      label: measurement.label || '',
+      color: measurement.color || '#3b82f6',
+      isCompliant: true,
+      complianceNotes: ''
+    }
+    
+    handleMeasurementCreate(measurementData)
+  }
+
   const handleMeasurementUpdate = async (id: string, updates: Partial<MapMeasurement>) => {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/measurements/${id}`, {
@@ -663,6 +806,36 @@ export function SiteMapManager({
         variant: "destructive"
       })
     }
+  }
+
+  const handleCanvasIssueCreate = (issue: Partial<MapIssue>) => {
+    // Create issue with all required fields
+    if (!issue.status || !issue.severity || !issue.title || !issue.issueType) {
+      toast({
+        title: "Error",
+        description: "Missing required issue fields",
+        variant: "destructive"
+      })
+      return
+    }
+
+    const issueData: Omit<MapIssue, 'id' | 'createdAt' | 'updatedAt'> = {
+      siteMapId: selectedSiteMap?.id || '',
+      issueType: issue.issueType,
+      severity: issue.severity,
+      title: issue.title,
+      description: issue.description,
+      x: issue.x || 0,
+      y: issue.y || 0,
+      status: issue.status,
+      assignedTo: issue.assignedTo,
+      reportedBy: user?.id || '',
+      photos: issue.photos,
+      notes: issue.notes,
+      resolvedAt: issue.resolvedAt
+    }
+    
+    handleIssueCreate(issueData)
   }
 
   const handleElementSelect = (element: CanvasElement | null) => {
@@ -764,12 +937,15 @@ export function SiteMapManager({
                 New Site Map
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl" aria-describedby="site-map-description">
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Map className="h-5 w-5" />
                   Create New Site Map
                 </DialogTitle>
+                <p id="site-map-description" className="text-sm text-muted-foreground">
+                  Create a new site map for your event or tour. Fill out the basic information, configure the layout, and assign it to an event if needed.
+                </p>
                 <div className="flex items-center gap-4 mt-4">
                   <div className="flex items-center gap-2">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -1143,37 +1319,73 @@ export function SiteMapManager({
                 
                 <TabsContent value="design" className="mt-0">
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      <div className="lg:col-span-2">
-                        <Card className="h-[600px]">
-                          <EnhancedSiteMapCanvas
-                            siteMapId={selectedSiteMap.id}
-                            onLayerUpdate={setLayers}
-                            onMeasurementCreate={handleMeasurementCreate}
-                            onIssueCreate={handleIssueCreate}
-                            onElementSelect={handleElementSelect}
-                            selectedElement={selectedElement}
-                          />
-                        </Card>
+                    {/* Builder Toggle */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-semibold">Site Map Builder</h3>
+                        <Badge variant={useEnhancedBuilder ? "default" : "secondary"}>
+                          {useEnhancedBuilder ? "Enhanced" : "Legacy"}
+                        </Badge>
                       </div>
-                      <div className="space-y-4">
-                        <LayerManager
-                          siteMapId={selectedSiteMap?.id || ''}
-                          layers={layers}
-                          onLayerCreate={handleLayerCreate}
-                          onLayerUpdate={handleLayerUpdate}
-                          onLayerDelete={handleLayerDelete}
-                          onLayerReorder={handleLayerReorder}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setUseEnhancedBuilder(!useEnhancedBuilder)}
+                      >
+                        {useEnhancedBuilder ? "Use Legacy Builder" : "Use Enhanced Builder"}
+                      </Button>
+                    </div>
+                    
+                    {useEnhancedBuilder ? (
+                      <div className="h-[800px]">
+                        <EnhancedSiteMapBuilder
+                          siteMap={selectedSiteMap}
+                          onUpdate={handleSiteMapUpdate}
+                          onElementCreate={handleElementCreate}
+                          onElementUpdate={handleElementUpdate}
+                          onElementDelete={handleElementDelete}
+                          onMeasurementCreate={handleCanvasMeasurementCreate}
+                          onIssueCreate={handleCanvasIssueCreate}
+                          collaborators={[]}
+                          isReadOnly={isVendorView}
                         />
                       </div>
-                    </div>
-                    <MeasurementTools
-                      siteMapId={selectedSiteMap?.id || ''}
-                      measurements={measurements}
-                      onMeasurementCreate={handleMeasurementCreate}
-                      onMeasurementUpdate={handleMeasurementUpdate}
-                      onMeasurementDelete={handleMeasurementDelete}
-                    />
+                    ) : (
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <div className="lg:col-span-2">
+                          <Card className="h-[600px]">
+                            <EnhancedSiteMapCanvas
+                              siteMapId={selectedSiteMap.id}
+                              onLayerUpdate={setLayers}
+                              onMeasurementCreate={handleCanvasMeasurementCreate}
+                              onIssueCreate={handleCanvasIssueCreate}
+                              onElementSelect={handleElementSelect}
+                              selectedElement={selectedElement}
+                            />
+                          </Card>
+                        </div>
+                        <div className="space-y-4">
+                          <LayerManager
+                            siteMapId={selectedSiteMap?.id || ''}
+                            layers={layers}
+                            onLayerCreate={handleLayerCreate}
+                            onLayerUpdate={handleLayerUpdate}
+                            onLayerDelete={handleLayerDelete}
+                            onLayerReorder={handleLayerReorder}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {!useEnhancedBuilder && (
+                      <MeasurementTools
+                        siteMapId={selectedSiteMap?.id || ''}
+                        measurements={measurements}
+                        onMeasurementCreate={handleMeasurementCreate}
+                        onMeasurementUpdate={handleMeasurementUpdate}
+                        onMeasurementDelete={handleMeasurementDelete}
+                      />
+                    )}
                   </div>
                 </TabsContent>
                 

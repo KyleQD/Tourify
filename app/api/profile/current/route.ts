@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { ProductionAuthService } from '@/lib/auth/production-auth'
 
 export async function GET(request: NextRequest) {
   try {
     console.log('[Profile Current API] GET request started')
     
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const authResult = await ProductionAuthService.authenticateRequest(request)
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
     const { user, supabase } = authResult

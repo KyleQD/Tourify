@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { NotificationService } from '@/lib/services/notification-service'
+import { ProductionAuthService } from '@/lib/auth/production-auth'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -39,21 +40,15 @@ const updatePreferencesSchema = z.object({
   quietHoursEnd: z.string().optional()
 })
 
-// Helper function to get authenticated user
+// Helper function to get authenticated user using unified auth service
 async function getAuthenticatedUser(request: NextRequest) {
-  const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null
-  }
-
-  const token = authHeader.substring(7)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
+  const authResult = await ProductionAuthService.authenticateRequest(request)
   
-  if (error || !user) {
+  if ('error' in authResult) {
     return null
   }
-
-  return user
+  
+  return authResult.user
 }
 
 // GET /api/notifications - Get user's notifications

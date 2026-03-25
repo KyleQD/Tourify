@@ -1,22 +1,18 @@
 "use client"
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Progress } from '@/components/ui/progress'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { BrandLoadingScreen } from '@/components/ui/brand-loading-screen'
 import { EnhancedAccountCards } from '@/components/dashboard/enhanced-account-cards'
 import { DashboardFeed } from '@/components/dashboard/dashboard-feed'
-// import { QuickActions } from '@/components/dashboard/quick-actions'
-// import { RecentActivity } from '@/components/dashboard/recent-activity'
-import { EnhancedAccountStatusBar } from '@/components/dashboard/enhanced-account-status-bar'
 import { QuickPostCreator } from '@/components/dashboard/quick-post-creator'
 import { UnifiedActivityFeed } from '@/components/dashboard/unified-activity-feed'
 import { EnhancedQuickActions } from '@/components/dashboard/enhanced-quick-actions'
@@ -24,53 +20,23 @@ import { getProfileUsername } from '@/lib/utils/profile-utils'
 import { DashboardService } from '@/lib/services/dashboard.service'
 import {
   User,
-  MapPin,
   Calendar,
-  Briefcase,
   Award,
   Users,
-  Mail,
-  Phone,
-  Globe,
   Star,
   CheckCircle,
   ExternalLink,
-  Share2,
   Share,
-  BookOpen,
-  GraduationCap,
   Target,
   TrendingUp,
-  Camera,
-  FileText,
-  Code,
-  Palette,
-  Music,
-  Video,
-  Building,
   Clock,
-  ThumbsUp,
-  MessageCircle,
-  Network,
-  Play,
-  Pause,
   Eye,
   Heart,
-  Download,
-  Disc3,
-  Radio,
-  Headphones,
-  Volume2,
-  Plus,
-  Edit,
-  Settings,
   BarChart3,
   ArrowRight,
   Activity,
   ChevronRight
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import Link from 'next/link'
 
 interface DashboardData {
   stats: {
@@ -125,7 +91,7 @@ interface UserProfile {
 
 export default function DashboardPage() {
   const { user, loading } = useAuth()
-  const { accounts, currentAccount, switchAccount } = useMultiAccount()
+  const { currentAccount } = useMultiAccount()
   const router = useRouter()
   const searchParams = useSearchParams()
   const isNewUser = searchParams.get('welcome') === 'true'
@@ -133,17 +99,19 @@ export default function DashboardPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClientComponentClient()
-
   // Force load state for handling redirect scenarios
   const [forceLoad, setForceLoad] = useState(false)
 
-  // Use current user or create a fallback user for dashboard rendering
-  const dashboardUser = user || (forceLoad ? {
-    id: 'temp-user',
-    email: 'user@example.com',
-    user_metadata: { full_name: 'User' }
-  } as any : null)
+  // Keep a stable fallback user object to avoid effect churn.
+  const dashboardUser = useMemo(() => {
+    if (user) return user
+    if (!forceLoad) return null
+    return {
+      id: 'temp-user',
+      email: 'user@example.com',
+      user_metadata: { full_name: 'User' }
+    } as any
+  }, [user, forceLoad])
 
   // Get the username for profile viewing
   const getUserUsername = () => {
@@ -186,7 +154,6 @@ export default function DashboardPage() {
     }
 
     try {
-      console.log('Fetching profile for user:', dashboardUser.id)
       const response = await fetch('/api/profile/current')
       
       if (response.ok) {
@@ -217,10 +184,8 @@ export default function DashboardPage() {
             updated_at: profile.updated_at || profile.created_at
           }
           
-          console.log('Profile transformed:', transformedProfile)
           setUserProfile(transformedProfile)
         } else {
-          console.log('No profile data returned, using fallback')
           // Set fallback profile to prevent hanging
           setUserProfile({
             id: dashboardUser.id,
@@ -231,7 +196,6 @@ export default function DashboardPage() {
           } as UserProfile)
         }
       } else {
-        console.log('Profile API returned status:', response.status, '- using fallback profile')
         // Set fallback profile to prevent hanging
         setUserProfile({
           id: dashboardUser.id,
@@ -263,13 +227,15 @@ export default function DashboardPage() {
     }
   }
 
+  const dashboardUserId = dashboardUser?.id
+
   useEffect(() => {
     if (!loading && !user && !forceLoad) {
       router.push('/login')
       return
     }
 
-    if (!dashboardUser) {
+    if (!dashboardUserId) {
       return
     }
 
@@ -279,10 +245,10 @@ export default function DashboardPage() {
         setIsLoadingData(true)
         setError(null)
         
-        if (!dashboardUser?.id) return
+        if (!dashboardUserId) return
         
         // Add timeout to prevent hanging
-        const statsPromise = DashboardService.getDashboardStats(dashboardUser.id)
+        const statsPromise = DashboardService.getDashboardStats(dashboardUserId)
         const timeoutPromise = new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Dashboard stats timeout')), 5000)
         )
@@ -446,11 +412,10 @@ export default function DashboardPage() {
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('storage', handleStorageChange)
     }
-  }, [user, loading, router, dashboardUser, forceLoad])
+  }, [user, loading, router, dashboardUserId, forceLoad])
 
   useEffect(() => {
     const forceLoadTimer = setTimeout(() => {
-      console.log('Force loading dashboard after timeout')
       setForceLoad(true)
     }, 3000)
     
@@ -459,18 +424,11 @@ export default function DashboardPage() {
 
   if (loading && !forceLoad) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <div className="relative mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
-              <Music className="h-8 w-8 text-white" />
-            </div>
-            <div className="absolute -inset-2 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl blur opacity-20 animate-ping"></div>
-          </div>
-          <h2 className="text-2xl font-bold mb-2">Loading Dashboard</h2>
-          <p className="text-gray-400">Preparing your creative workspace...</p>
-        </div>
-      </div>
+      <BrandLoadingScreen
+        message="Loading..."
+        logoSrc="/tourify-logo-white.svg"
+        fullScreen={true}
+      />
     )
   }
 
@@ -497,7 +455,10 @@ export default function DashboardPage() {
               <div className="flex items-center space-x-4">
                 <div className="relative">
                   <Avatar className="h-16 w-16 border-2 border-white/20">
-                    <AvatarImage src={userProfile?.avatar_url || dashboardUser.user_metadata?.avatar_url} />
+                    <AvatarImage
+                      src={userProfile?.avatar_url || dashboardUser.user_metadata?.avatar_url}
+                      alt={`${getDisplayName()} profile photo`}
+                    />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-lg font-semibold">
                       {getDisplayName().charAt(0).toUpperCase()}
                     </AvatarFallback>
@@ -562,7 +523,7 @@ export default function DashboardPage() {
         )}
 
         {/* Main Content */}
-        <div className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">
+        <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
             
             {/* Left Column - Account Cards */}
@@ -639,9 +600,6 @@ export default function DashboardPage() {
               {/* Dashboard Feed */}
               <DashboardFeed />
 
-              {/* Unified Activity Feed */}
-              <UnifiedActivityFeed />
-
               {/* Content Tabs */}
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm rounded-2xl p-1">
@@ -716,40 +674,7 @@ export default function DashboardPage() {
                 </TabsContent>
                 
                 <TabsContent value="activity" className="mt-6">
-                  <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl">
-                    <CardHeader>
-                      <CardTitle className="text-white flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-green-400" />
-                        Recent Activity
-                      </CardTitle>
-                      <CardDescription className="text-gray-400">
-                        What's been happening with your account
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {dashboardData?.recentActivity.length ? (
-                        <div className="space-y-4">
-                          {dashboardData.recentActivity.map((activity) => (
-                            <div key={activity.id} className="flex items-center gap-4 p-4 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-                              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                                <activity.icon className="h-5 w-5 text-white" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-white text-sm">{activity.description}</p>
-                                <p className="text-gray-400 text-xs">{activity.timestamp}</p>
-                              </div>
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-400">
-                          <Activity className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No recent activity</p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                  <UnifiedActivityFeed />
                 </TabsContent>
                 
                 <TabsContent value="insights" className="mt-6">
@@ -797,55 +722,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Mobile Navigation Test Links */}
-        <div className="mb-6 space-y-3">
-          <div className="p-4 bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Mobile Optimization Test</h3>
-                <p className="text-slate-400 text-sm">Test the new mobile optimization features</p>
-              </div>
-              <Link 
-                href="/mobile-test"
-                className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white rounded-lg transition-all duration-200"
-              >
-                Test Mobile Features
-              </Link>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-gradient-to-r from-blue-500/10 to-green-500/10 border border-blue-500/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Mobile Navigation Audit</h3>
-                <p className="text-slate-400 text-sm">Audit and test mobile navigation across the platform</p>
-              </div>
-              <Link 
-                href="/mobile-navigation-test"
-                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-green-500 hover:from-blue-600 hover:to-green-600 text-white rounded-lg transition-all duration-200"
-              >
-                Test Navigation
-              </Link>
-            </div>
-          </div>
-
-          <div className="p-4 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Venue Discovery</h3>
-                <p className="text-slate-400 text-sm">Browse and view public venue profiles</p>
-              </div>
-              <Link 
-                href="/venues"
-                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-lg transition-all duration-200"
-              >
-                Discover Venues
-              </Link>
-            </div>
-          </div>
-        </div>
+        </main>
       </div>
 
       <style jsx>{`

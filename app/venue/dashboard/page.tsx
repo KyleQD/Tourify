@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic'
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -16,6 +16,9 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { useProfile } from "../context/profile-context"
 import Link from "next/link"
+import { PhotoViewer } from '@/components/photos/photo-viewer'
+import { usePhotoViewer } from '@/hooks/use-photo-viewer'
+import { TestPhotoViewer } from '@/components/photos/test-photo-viewer'
 import {
   Music,
   Calendar,
@@ -38,36 +41,10 @@ export default function HomePage() {
   const { profile } = useProfile()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("feed")
-  const [postType, setPostType] = useState("text")
-  const [postContent, setPostContent] = useState("")
-  const [postImage, setPostImage] = useState<string | null>(null)
-  const [eventTitle, setEventTitle] = useState("")
-  const [eventDate, setEventDate] = useState("")
-  const [eventLocation, setEventLocation] = useState("")
-  const [isPostingContent, setIsPostingContent] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [isSearching, setIsSearching] = useState(false)
-  const [activeFilter, setActiveFilter] = useState("all")
-  const [darkMode, setDarkMode] = useState(true)
+  const photoViewer = usePhotoViewer()
 
-  // Mock user data
-  const [user, setUser] = useState({
-    fullName: "Alex Johnson",
-    username: "alexj",
-    avatar: "/images/alex-profile.jpeg",
-    title: "Electronic Music Artist & Producer",
-    location: "Los Angeles, CA",
-    bio: "Electronic music producer with 5+ years of experience. Creating immersive soundscapes and high-energy performances for festivals and clubs worldwide.",
-    skills: ["Music Production", "DJing", "Sound Design", "Live Performance", "Mixing & Mastering"],
-    stats: {
-      posts: 128,
-      followers: 12430,
-      following: 567,
-    },
-  })
-
-  // Mock posts data
-  const [posts, setPosts] = useState([
+  // Mock posts data for fallback
+  const mockPosts = [
     {
       id: 1,
       author: {
@@ -114,7 +91,99 @@ export default function HomePage() {
       shares: 23,
       isLiked: false,
     },
-  ])
+  ]
+
+  // Fetch real posts from the API
+  useEffect(() => {
+    const fetchPosts = async () => {
+      try {
+        setPostsLoading(true)
+        const response = await fetch('/api/feed/posts?type=all&limit=20')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch posts')
+        }
+        
+        const data = await response.json()
+        
+        if (data.data && Array.isArray(data.data)) {
+          // Transform API data to match the expected format
+          const transformedPosts = data.data.map((post: any) => ({
+            id: post.id,
+            author: {
+              name: post.profiles?.full_name || post.profiles?.username || 'Unknown User',
+              username: post.profiles?.username || 'unknown',
+              avatar: post.profiles?.avatar_url || '/placeholder.svg?height=40&width=40',
+            },
+            content: post.content,
+            timestamp: new Date(post.created_at).toLocaleDateString(),
+            likes: post.likes_count || 0,
+            comments: post.comments_count || 0,
+            shares: post.shares_count || 0,
+            media: post.media_urls || [],
+            isLiked: false, // TODO: Check if current user liked this post
+          }))
+          
+          // Debug: Log posts with media
+          const postsWithMedia = transformedPosts.filter((post: any) => post.media && post.media.length > 0)
+          if (postsWithMedia.length > 0) {
+            console.log('Posts with media found:', postsWithMedia.length)
+            postsWithMedia.forEach((post: any) => {
+              console.log(`Post ${post.id}:`, post.media)
+            })
+          } else {
+            console.log('No posts with media found')
+          }
+          
+          setPosts(transformedPosts)
+        } else {
+          // Fallback to mock data if API returns no data
+          setPosts(mockPosts)
+        }
+      } catch (error) {
+        console.error('Error fetching posts:', error)
+        setPostsError(error)
+        // Fallback to mock data on error
+        setPosts(mockPosts)
+      } finally {
+        setPostsLoading(false)
+      }
+    }
+
+    fetchPosts()
+  }, [])
+  const [postType, setPostType] = useState("text")
+  const [postContent, setPostContent] = useState("")
+  const [postImage, setPostImage] = useState<string | null>(null)
+  const [eventTitle, setEventTitle] = useState("")
+  const [eventDate, setEventDate] = useState("")
+  const [eventLocation, setEventLocation] = useState("")
+  const [isPostingContent, setIsPostingContent] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [isSearching, setIsSearching] = useState(false)
+  const [activeFilter, setActiveFilter] = useState("all")
+  const [darkMode, setDarkMode] = useState(true)
+
+  // Mock user data
+  const [user, setUser] = useState({
+    fullName: "Alex Johnson",
+    username: "alexj",
+    avatar: "/images/alex-profile.jpeg",
+    title: "Electronic Music Artist & Producer",
+    location: "Los Angeles, CA",
+    bio: "Electronic music producer with 5+ years of experience. Creating immersive soundscapes and high-energy performances for festivals and clubs worldwide.",
+    skills: ["Music Production", "DJing", "Sound Design", "Live Performance", "Mixing & Mastering"],
+    stats: {
+      posts: 128,
+      followers: 12430,
+      following: 567,
+    },
+  })
+
+  // Real posts data
+  const [posts, setPosts] = useState<any[]>([])
+  const [postsLoading, setPostsLoading] = useState(true)
+  const [postsError, setPostsError] = useState<any>(null)
 
   // Mock notifications
   const [notifications, setNotifications] = useState([
@@ -631,7 +700,19 @@ export default function HomePage() {
 
             {/* Posts */}
             <div className="space-y-4">
-              {filteredPosts.map((post) => (
+              {postsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+                    <span>Loading posts...</span>
+                  </div>
+                </div>
+              ) : filteredPosts.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-400">No posts yet. Be the first to share something!</p>
+                </div>
+              ) : (
+                filteredPosts.map((post) => (
                 <Card key={post.id} className="bg-gray-800 border-gray-700">
                   <CardContent className="p-4">
                     <div className="flex space-x-3">
@@ -668,8 +749,58 @@ export default function HomePage() {
                         </div>
                         <p className="mt-2 text-sm">{post.content}</p>
                         {post.media && post.media.length > 0 && (
-                          <div className="mt-3 rounded-md overflow-hidden">
-                            <img src={post.media[0] || "/placeholder.svg"} alt="Post media" className="w-full h-auto" />
+                          <div className="mt-3">
+                            {post.media.length === 1 ? (
+                              // Single image - full width with natural aspect ratio
+                              <div 
+                                className="relative bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => photoViewer.openPhotoViewer(post.media, 0, post)}
+                              >
+                                <img 
+                                  src={post.media[0]} 
+                                  alt="Post media"
+                                  className="w-full h-auto max-h-96 object-cover"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    console.error('Failed to load image:', post.media[0])
+                                    e.currentTarget.style.display = 'none'
+                                  }}
+                                  onLoad={() => {
+                                    console.log('Successfully loaded image:', post.media[0])
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              // Multiple images - grid layout
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {post.media.slice(0, 4).map((url: any, index: number) => (
+                                  <div 
+                                    key={index} 
+                                    className="relative aspect-square bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => photoViewer.openPhotoViewer(post.media, index, post)}
+                                  >
+                                    <img 
+                                      src={url} 
+                                      alt={`Post media ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                      loading="lazy"
+                                      onError={(e) => {
+                                        console.error('Failed to load image:', url)
+                                        e.currentTarget.style.display = 'none'
+                                      }}
+                                      onLoad={() => {
+                                        console.log('Successfully loaded image:', url)
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {post.media.length > 4 && (
+                              <p className="text-gray-400 text-xs mt-2">
+                                +{post.media.length - 4} more photos
+                              </p>
+                            )}
                           </div>
                         )}
                         {"eventDetails" in post && (
@@ -704,12 +835,15 @@ export default function HomePage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                ))
+              )}
             </div>
 
             <div className="text-center">
               <Button variant="outline">Load More</Button>
             </div>
+            {/* Test Photo Viewer */}
+            <TestPhotoViewer />
           </>
         )}
       </div>
@@ -771,6 +905,15 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Photo Viewer Modal */}
+      <PhotoViewer
+        isOpen={photoViewer.isOpen}
+        onClose={photoViewer.closePhotoViewer}
+        photos={photoViewer.photos}
+        initialIndex={photoViewer.initialIndex}
+        post={photoViewer.post}
+      />
     </div>
   )
 }

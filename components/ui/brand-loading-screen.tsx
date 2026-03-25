@@ -275,7 +275,7 @@ export function BrandLoadingScreen({
   showProgress = false,
   progress = 0,
   fullScreen = true,
-  logoSrc,
+  logoSrc = '/tourify-logo-white.svg',
   primaryColor = 'rgb(139, 92, 246)',
   secondaryColor = 'rgb(59, 130, 246)',
   onComplete
@@ -325,117 +325,91 @@ export function BrandLoadingScreen({
 
   // Get phase-specific messages
   const getPhaseMessage = () => {
+    // If message is provided and doesn't look like a default, use it
+    if (message && message !== "Loading Tourify..." && !showProgress) {
+      return message
+    }
+    
+    // Otherwise use phase-based messages
     switch (loadingPhase) {
       case 'initializing':
-        return 'Initializing platform...'
+        return message || 'Starting Up...'
       case 'loading':
-        return 'Loading your data...'
+        return message || 'Loading...'
       case 'finalizing':
-        return 'Almost ready...'
+        return message || 'Almost Ready...'
       case 'complete':
-        return 'Welcome to Tourify!'
+        return 'All Set!'
       default:
         return message
     }
   }
 
-  // Main loading content
+  // Main loading content - Simplified
   const LoadingContent = () => (
-    <div className="flex flex-col items-center justify-center text-center space-y-8 relative">
-      {/* Logo Container with Effects */}
+    <div className="flex flex-col items-center justify-center text-center space-y-6 relative">
+      {/* Logo Container with Shine Effect */}
       <div className="relative">
-        {/* Progress Ring */}
-        {showProgress && <ProgressRing progress={currentProgress} size={160} />}
-        
-        {/* Particle Effects */}
-        <ParticleEffect variant={variant} />
-        
-        {/* Wave Effects */}
-        <WaveEffect variant={variant} />
-        
-        {/* Orbital Icons */}
-        <OrbitalIcons variant={variant} />
-        
-        {/* Main Logo */}
-        <div className={`relative z-10 ${variant === 'pulse' ? 'logo-pulse' : ''} ${variant === 'rotate' ? 'logo-rotate' : ''} ${variant === 'glow' ? 'logo-glow' : ''} ${variant === 'breathe' ? 'logo-breathe' : ''}`}>
-          {logoSrc ? (
+        {/* Main Logo with Shine Effect */}
+        <div className="relative z-10 logo-container">
+          <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-slate-900/50 via-slate-800/50 to-slate-900/50 backdrop-blur-sm border border-purple-500/30 flex items-center justify-center shadow-2xl p-4 overflow-hidden">
+            {/* Shine overlay */}
+            <div className="absolute inset-0 shine-effect" />
+            
+            {/* Logo */}
             <img
               src={logoSrc}
               alt="Tourify Logo"
-              className="w-20 h-20 rounded-2xl object-contain"
+              className="w-full h-full object-contain drop-shadow-2xl relative z-10"
+              onError={(e) => {
+                // Fallback to Zap icon if logo fails to load
+                const target = e.target as HTMLImageElement
+                target.style.display = 'none'
+                const parent = target.parentElement
+                if (parent) {
+                  const fallback = document.createElement('div')
+                  fallback.className = 'w-full h-full flex items-center justify-center'
+                  fallback.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-purple-400"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>'
+                  parent.appendChild(fallback)
+                }
+              }}
             />
-          ) : (
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500 via-blue-600 to-purple-700 flex items-center justify-center shadow-2xl">
-              <Zap className="w-10 h-10 text-white drop-shadow-lg" />
-            </div>
-          )}
+          </div>
+          
+          {/* Subtle glow behind logo */}
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-purple-500/10 rounded-2xl blur-xl -z-10 animate-pulse" />
         </div>
-        
-        {/* Inner glow effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-purple-500/20 rounded-full blur-xl -z-10" />
       </div>
 
-      {/* Brand Name */}
-      <div className="space-y-2">
-        <h1 className="text-4xl font-bold text-white tracking-tight">
+      {/* Brand Name - Simplified */}
+      <div className="space-y-1">
+        <h1 className="text-3xl font-bold text-white tracking-tight">
           <span className="bg-gradient-to-r from-purple-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
             Tourify
           </span>
         </h1>
-        <p className="text-lg text-slate-400 font-medium">
-          Tour Management Platform
-        </p>
       </div>
 
-      {/* Loading Message */}
-      <div className="space-y-3 min-h-[4rem] flex flex-col justify-center">
-        <h2 className="text-xl font-semibold text-white">
-          {getPhaseMessage()}{dots}
-        </h2>
-        <p className="text-slate-400 max-w-md leading-relaxed">
-          {loadingPhase === 'complete' ? 
-            "Get ready to manage your tours like never before" : 
-            subMessage
-          }
-        </p>
-        
-        {/* Progress Bar */}
-        {showProgress && (
-          <div className="w-80 max-w-sm mx-auto space-y-2">
-            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-300 ease-out relative"
-                style={{ width: `${currentProgress}%` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+      {/* Loading Message - Simplified */}
+      {message && (
+        <div className="space-y-2">
+          <p className="text-base text-slate-400 font-light">
+            {getPhaseMessage()}{dots}
+          </p>
+          
+          {/* Progress Bar - Only show if explicitly requested */}
+          {showProgress && (
+            <div className="w-48 max-w-sm mx-auto">
+              <div className="w-full bg-slate-800/50 rounded-full h-1 overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${currentProgress}%` }}
+                />
               </div>
             </div>
-            <div className="flex justify-between text-xs text-slate-500">
-              <span>{Math.round(currentProgress)}%</span>
-              <span>Loading...</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Feature Icons */}
-      <div className="flex items-center justify-center space-x-6 opacity-60">
-        {[
-          { icon: Calendar, label: 'Tours' },
-          { icon: Music, label: 'Artists' },
-          { icon: Users, label: 'Teams' },
-          { icon: MapPin, label: 'Venues' }
-        ].map(({ icon: Icon, label }, i) => (
-          <div 
-            key={label}
-            className="flex flex-col items-center space-y-1 animate-fade-in"
-            style={{ animationDelay: `${i * 0.2}s` }}
-          >
-            <Icon className="w-5 h-5 text-slate-400" />
-            <span className="text-xs text-slate-500">{label}</span>
-          </div>
-        ))}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   )
 
@@ -443,7 +417,47 @@ export function BrandLoadingScreen({
   useEffect(() => {
     const style = document.createElement('style')
     style.textContent = `
-      ${LogoAnimations[variant]}
+      /* Shine effect animation */
+      @keyframes shine {
+        0% {
+          transform: translateX(-100%) translateY(-100%) rotate(30deg);
+        }
+        100% {
+          transform: translateX(100%) translateY(100%) rotate(30deg);
+        }
+      }
+      
+      .shine-effect {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: linear-gradient(
+          120deg,
+          transparent,
+          transparent 40%,
+          rgba(255, 255, 255, 0.1) 50%,
+          rgba(255, 255, 255, 0.2) 55%,
+          transparent 70%,
+          transparent
+        );
+        animation: shine 3s ease-in-out infinite;
+      }
+      
+      /* Logo container subtle pulse */
+      .logo-container {
+        animation: logoPulse 3s ease-in-out infinite;
+      }
+      
+      @keyframes logoPulse {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.02);
+        }
+      }
       
       @keyframes fade-in {
         from { opacity: 0; transform: translateY(10px); }
@@ -454,60 +468,20 @@ export function BrandLoadingScreen({
         animation: fade-in 0.6s ease-out forwards;
         opacity: 0;
       }
-      
-      @keyframes shimmer {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(100%); }
-      }
-      
-      .shimmer {
-        position: relative;
-        overflow: hidden;
-      }
-      
-      .shimmer::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
-        animation: shimmer 2s infinite;
-      }
     `
     document.head.appendChild(style)
 
     return () => {
       document.head.removeChild(style)
     }
-  }, [variant])
+  }, [])
 
   // Full screen variant
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center">
-        {/* Animated Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/3 to-transparent" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-500/5 via-transparent to-transparent" />
-          
-          {/* Floating particles in background */}
-          <div className="absolute inset-0 overflow-hidden">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-1 h-1 bg-purple-400/20 rounded-full animate-pulse"
-                style={{
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animationDelay: `${Math.random() * 3}s`,
-                  animationDuration: `${2 + Math.random() * 2}s`
-                }}
-              />
-            ))}
-          </div>
-        </div>
+      <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center overflow-hidden">
+        {/* Simple gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-black" />
         
         {/* Content */}
         <div className="relative z-10 w-full max-w-md p-6">

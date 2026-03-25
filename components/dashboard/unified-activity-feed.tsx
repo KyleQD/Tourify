@@ -296,7 +296,7 @@ export function UnifiedActivityFeed() {
                 return (
                   <div
                     key={activity.id}
-                    className={`p-4 rounded-2xl transition-all duration-300 cursor-pointer group ${
+                    className={`p-4 rounded-2xl transition-all duration-300 group ${
                       activity.actionRequired 
                         ? 'bg-red-500/10 border border-red-500/20 hover:bg-red-500/15' 
                         : 'bg-white/5 hover:bg-white/10'

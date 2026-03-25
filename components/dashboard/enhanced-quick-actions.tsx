@@ -68,19 +68,11 @@ export function EnhancedQuickActions() {
     const loadQuickActions = () => {
       const baseActions: QuickAction[] = [
         {
-          id: 'create-post',
-          title: 'Create Post',
-          description: 'Share content with your audience',
-          icon: Plus,
-          href: '/feed',
-          priority: 'high'
-        },
-        {
           id: 'view-analytics',
-          title: 'View Analytics',
-          description: 'Check your performance metrics',
+          title: 'Dashboard Analytics',
+          description: 'Check your dashboard performance metrics',
           icon: BarChart3,
-          href: '/analytics',
+          href: `/analytics?scope=dashboard&accountId=${currentAccount?.profile_id || ''}`,
           priority: 'medium'
         },
         {

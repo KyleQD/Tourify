@@ -663,11 +663,15 @@ export function useLodging() {
       })
 
       const response = await fetch(`/api/admin/lodging?${searchParams}`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        console.error('Analytics fetch failed:', response.status, response.statusText)
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
       const result = await response.json()
