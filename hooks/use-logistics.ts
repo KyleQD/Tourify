@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/contexts/auth-context'
-import type { Transportation, Equipment, EquipmentAssignment } from '@/types/admin'
+
+interface Transportation {
+  id: string
+  [key: string]: unknown
+}
+
+interface Equipment {
+  id: string
+  [key: string]: unknown
+}
+
+interface EquipmentAssignment {
+  id: string
+  [key: string]: unknown
+}
 
 interface LogisticsData {
   transportation: Transportation[]
