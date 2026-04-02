@@ -188,7 +188,7 @@ function normalizeProfilesFromSearch(payload: any): DiscoverProfile[] {
 
   return [...artists, ...venues, ...users]
     .map((item: any) => {
-      const accountType =
+      const accountType: DiscoverProfile['account_type'] =
         item.account_type === 'artist' || item.artist_name ? 'artist' :
         item.account_type === 'venue' || item.venue_name ? 'venue' :
         'general'
