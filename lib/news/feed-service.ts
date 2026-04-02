@@ -353,7 +353,9 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
       .order('published_at', { ascending: false })
       .limit(params.limit)
 
-    return (data || []).map(blog => ({
+    return (data || []).map(blog => {
+      const profile = Array.isArray(blog.profiles) ? blog.profiles[0] : blog.profiles
+      return ({
       id: `blog_${blog.id}`,
       originType: 'internal_blog',
       sourceType: 'community',
@@ -366,10 +368,10 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
       topics: normalizeTopics([...(blog.categories || []), ...(blog.tags || []), 'Industry']),
       author: {
         id: String(blog.user_id),
-        name: blog.profiles?.full_name || blog.profiles?.username || 'Author',
-        username: blog.profiles?.username || undefined,
-        avatarUrl: blog.profiles?.avatar_url || undefined,
-        isVerified: blog.profiles?.verified || false
+        name: profile?.full_name || profile?.username || 'Author',
+        username: profile?.username || undefined,
+        avatarUrl: profile?.avatar_url || undefined,
+        isVerified: profile?.verified || false
       },
       metrics: {
         likes: blog.stats?.likes || 0,
@@ -384,7 +386,8 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
       },
       relevanceScore: 0,
       score: 0
-    }))
+    })
+    })
   } catch {
     return []
   }
