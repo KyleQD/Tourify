@@ -495,7 +495,7 @@ const CACHE_DURATION = 10 * 60 * 1000 // 10 minutes
 
 function decodeXmlText(value: string) {
   return String(value || '')
-    .replace(/^<!\[CDATA\[(.*)\]\]>$/s, '$1')
+    .replace(/^<!\[CDATA\[([\s\S]*)\]\]>$/, '$1')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
