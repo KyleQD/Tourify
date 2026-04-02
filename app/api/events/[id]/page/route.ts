@@ -84,6 +84,13 @@ export async function GET(
       } as Record<string, any>
     }
 
+    if (!event) {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      )
+    }
+
     const { data: attendanceData, error: attendanceError } = await supabase
       .from('event_attendance')
       .select('*')
