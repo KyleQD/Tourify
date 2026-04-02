@@ -164,11 +164,12 @@ async function getUserOpportunitySignal(params: {
       .limit(80)
 
     for (const row of interactions || []) {
-      const opportunityType = row?.opportunities?.opportunity_type
+      const opportunity = Array.isArray(row?.opportunities) ? row.opportunities[0] : row?.opportunities
+      const opportunityType = opportunity?.opportunity_type
       if (typeof opportunityType === 'string')
         preferredTypes.add(opportunityType)
 
-      const tags = Array.isArray(row?.opportunities?.tags) ? row.opportunities.tags : []
+      const tags = Array.isArray(opportunity?.tags) ? opportunity.tags : []
       for (const tag of tags)
         tokenize(String(tag)).forEach(token => topicTokens.add(token))
     }
@@ -208,6 +209,8 @@ function toOpportunity(item: RSSNewsItem): OpportunityRecordInput | null {
   const combined = `${title} ${summary}`.toLowerCase()
   const opportunityType = detectOpportunityType(combined)
   if (!opportunityType) return null
+  const safeUrl = normalizeExternalUrl(item.link)
+  if (!safeUrl) return null
 
   const locationText = detectLocation(combined)
   const tags = detectTags(combined)
@@ -218,7 +221,7 @@ function toOpportunity(item: RSSNewsItem): OpportunityRecordInput | null {
     sourceCategory: String(item.category || 'Music News'),
     title,
     summary,
-    url: String(item.link || ''),
+    url: safeUrl,
     locationText,
     opportunityType,
     tags,
@@ -304,4 +307,15 @@ function toPlainText(value: string) {
     .replace(/&#8221;/g, '"')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function normalizeExternalUrl(value: string | undefined) {
+  if (!value) return null
+  try {
+    const parsed = new URL(String(value))
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
+    return parsed.toString()
+  } catch {
+    return null
+  }
 }
