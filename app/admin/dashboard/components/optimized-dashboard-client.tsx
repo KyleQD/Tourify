@@ -723,7 +723,7 @@ export default function OptimizedDashboardClient() {
                                 <div
                                   key={`event-${idx}`}
                                   className="h-1 bg-blue-500 rounded-full"
-                                  title={event.name || event.title || 'Event'}
+                                  title={event.name || "Event"}
                                 />
                               ))}
                               {dayTasks.slice(0, 2).map((task, idx) => (
