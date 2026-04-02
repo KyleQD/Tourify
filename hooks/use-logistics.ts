@@ -3,17 +3,17 @@ import { useAuth } from '@/contexts/auth-context'
 
 interface Transportation {
   id: string
-  [key: string]: unknown
+  [key: string]: any
 }
 
 interface Equipment {
   id: string
-  [key: string]: unknown
+  [key: string]: any
 }
 
 interface EquipmentAssignment {
   id: string
-  [key: string]: unknown
+  [key: string]: any
 }
 
 interface LogisticsData {
