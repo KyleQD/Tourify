@@ -245,7 +245,7 @@ function detectOpportunityType(text: string): OpportunityRecordInput['opportunit
 }
 
 function detectLocation(text: string): string | null {
-  const tokens = text.match(/\b[a-z]{3,}\b/g) || []
+  const tokens: string[] = text.match(/\b[a-z]{3,}\b/g) || []
   const locationHints = ['los', 'angeles', 'new', 'york', 'london', 'berlin', 'atlanta', 'nashville', 'austin', 'chicago', 'miami']
   const hit = locationHints.find(token => tokens.includes(token))
   if (!hit) return null
