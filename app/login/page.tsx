@@ -98,7 +98,7 @@ export default function LoginPage() {
       // Give the auth state a moment to fully propagate
       setTimeout(() => {
         console.log('[Login] Executing redirect to:', validRedirectTo)
-        router.push(validRedirectTo)
+        window.location.assign(validRedirectTo)
       }, 1000)
     }
   }, [isAuthenticated, success, redirectTo, router, isRedirecting])

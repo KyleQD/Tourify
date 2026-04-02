@@ -57,7 +57,8 @@ const cookieStorage = {
     const expires = new Date()
     expires.setFullYear(expires.getFullYear() + 1) // 1 year expiry
     
-    document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax; Secure=${window.location.protocol === 'https:'}`
+    const secureAttribute = window.location.protocol === 'https:' ? '; Secure' : ''
+    document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secureAttribute}`
     
     // Also set in localStorage as backup
     try {
