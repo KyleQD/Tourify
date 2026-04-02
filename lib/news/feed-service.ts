@@ -422,7 +422,9 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
       .order('created_at', { ascending: false })
       .limit(params.limit)
 
-    return (data || []).map(track => ({
+    return (data || []).map(track => {
+      const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles
+      return ({
       id: `music_${track.id}`,
       originType: 'internal_post',
       sourceType: 'community',
@@ -434,10 +436,10 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
       topics: normalizeTopics([track.genre, ...(Array.isArray(track.tags) ? track.tags : []), 'Music Release']),
       author: {
         id: String(track.user_id),
-        name: track.profiles?.full_name || track.profiles?.username || 'Artist',
-        username: track.profiles?.username || undefined,
-        avatarUrl: track.profiles?.avatar_url || undefined,
-        isVerified: track.profiles?.verified || false
+        name: profile?.full_name || profile?.username || 'Artist',
+        username: profile?.username || undefined,
+        avatarUrl: profile?.avatar_url || undefined,
+        isVerified: profile?.verified || false
       },
       metrics: {
         likes: track.likes_count || 0,
@@ -452,7 +454,8 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
       },
       relevanceScore: 0,
       score: 0
-    }))
+    })
+    })
   } catch {
     return []
   }
