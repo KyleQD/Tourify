@@ -27,7 +27,11 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [newsHighlights, setNewsHighlights] = useState<LoginNewsItem[]>([])
+  const [discoverHighlights, setDiscoverHighlights] = useState<LoginDiscoverItem[]>([])
   const [isLoadingNews, setIsLoadingNews] = useState(true)
+  const [locationInput, setLocationInput] = useState("")
+  const [appliedLocation, setAppliedLocation] = useState("")
+  const [isLocating, setIsLocating] = useState(false)
   
   // Sign In form
   const [signInData, setSignInData] = useState({
@@ -99,16 +103,28 @@ export default function LoginPage() {
   useEffect(() => {
     let hasMounted = true
 
-    async function fetchNewsHighlights() {
+    async function fetchNewsHighlights(location: string) {
       setIsLoadingNews(true)
       try {
-        const response = await fetch("/api/news/feed?facet=top&limit=6")
-        if (!response.ok) throw new Error("Unable to fetch news highlights")
+        const locationQuery = location.trim()
+        const newsQueryParam = locationQuery ? `&query=${encodeURIComponent(locationQuery)}` : ""
+        const discoverLocationParam = locationQuery ? `&location=${encodeURIComponent(locationQuery)}` : ""
 
-        const data: LoginNewsResponse = await response.json()
+        const [newsResponse, discoverResponse] = await Promise.all([
+          fetch(`/api/news/feed?facet=top&limit=6${newsQueryParam}`),
+          fetch(`/api/discover?limit=6&intent=grow${discoverLocationParam}`),
+        ])
+
+        if (!newsResponse.ok) throw new Error("Unable to fetch news highlights")
+
+        const newsData: LoginNewsResponse = await newsResponse.json()
+        const discoverData: LoginDiscoverResponse | null = discoverResponse.ok
+          ? await discoverResponse.json()
+          : null
+
         if (!hasMounted) return
 
-        const mappedHighlights = (data.items || []).slice(0, 6).map(item => ({
+        const mappedHighlights = (newsData.items || []).slice(0, 6).map(item => ({
           id: item.id,
           title: decodeTextEntity(item.title),
           sourceName: decodeTextEntity(item.sourceName),
@@ -117,22 +133,59 @@ export default function LoginPage() {
           summary: decodeTextEntity(item.summary || "Fresh movement across the music industry.")
         }))
 
+        const discoverItems = (discoverData?.sections?.upcoming || []).slice(0, 4).map((item) => ({
+          id: String(item.id),
+          title: decodeTextEntity(item.title || "Live opportunity"),
+          summary: decodeTextEntity(item.description || "High-signal demand from Discover."),
+          venue: [item.venue_name, item.venue_city, item.venue_state].filter(Boolean).join(", "),
+          eventDate: item.event_date || null,
+        }))
+
         setNewsHighlights(mappedHighlights)
+        setDiscoverHighlights(discoverItems)
       } catch (newsError) {
         console.error("[Login] News highlights fetch failed:", newsError)
         if (!hasMounted) return
         setNewsHighlights(FALLBACK_NEWS_HIGHLIGHTS)
+        setDiscoverHighlights(FALLBACK_DISCOVER_HIGHLIGHTS)
       } finally {
         if (hasMounted) setIsLoadingNews(false)
       }
     }
 
-    void fetchNewsHighlights()
+    void fetchNewsHighlights(appliedLocation)
 
     return () => {
       hasMounted = false
     }
-  }, [])
+  }, [appliedLocation])
+
+  async function handleUseCurrentLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return
+
+    setIsLocating(true)
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 300000,
+        })
+      })
+
+      const location = await reverseGeocode({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      })
+
+      setLocationInput(location)
+      setAppliedLocation(location)
+    } catch (error) {
+      console.error("[Login] Failed to detect location:", error)
+    } finally {
+      setIsLocating(false)
+    }
+  }
 
   const handleRetry = () => {
     setError(null)
@@ -257,6 +310,8 @@ export default function LoginPage() {
         <div className="absolute top-0 left-0 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
         <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
+        <div className="absolute left-[-14%] top-24 h-24 w-[130%] rotate-[-12deg] border border-white/20 bg-white/10 backdrop-blur-2xl" />
+        <div className="absolute right-[-16%] bottom-28 h-20 w-[135%] rotate-[11deg] border border-cyan-200/30 bg-cyan-200/10 backdrop-blur-2xl" />
       </div>
       
       {/* Content */}
@@ -315,6 +370,46 @@ export default function LoginPage() {
                   ))}
                 </div>
               </div>
+            </div>
+
+            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-2xl">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-purple-100">
+                  <Globe className="h-3.5 w-3.5" />
+                  Localized Signal Mode
+                </div>
+                {appliedLocation ? (
+                  <span className="rounded-full border border-emerald-300/40 bg-emerald-300/15 px-2 py-0.5 text-[11px] text-emerald-100">
+                    Near {appliedLocation}
+                  </span>
+                ) : null}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                <Input
+                  value={locationInput}
+                  onChange={(event) => setLocationInput(event.target.value)}
+                  placeholder="City, state"
+                  className="border-white/25 bg-black/30 text-white placeholder:text-slate-400"
+                />
+                <Button
+                  variant="outline"
+                  className="border-white/25 bg-white/5 text-slate-100 hover:bg-white/10"
+                  onClick={() => setAppliedLocation(locationInput.trim())}
+                >
+                  Apply
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-white/25 bg-white/5 text-slate-100 hover:bg-white/10"
+                  onClick={handleUseCurrentLocation}
+                  disabled={isLocating}
+                >
+                  {isLocating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-slate-300">
+                Pulling location-aware Discover opportunities + Pulse stories.
+              </p>
             </div>
 
             {/* Features Grid */}
@@ -408,6 +503,34 @@ export default function LoginPage() {
               </p>
             </div>
 
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white">Discover Opportunities Near You</h2>
+                <Link href="/discover" className="text-sm font-medium text-purple-200 hover:text-purple-100">
+                  Explore discover
+                </Link>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {(discoverHighlights.length ? discoverHighlights : FALLBACK_DISCOVER_HIGHLIGHTS).slice(0, 4).map((item, index) => (
+                  <article
+                    key={item.id}
+                    className="group relative overflow-hidden border border-white/20 bg-white/10 p-4 backdrop-blur-2xl transition hover:border-purple-200/50 hover:bg-white/15"
+                    style={{ clipPath: LOGIN_DISCOVER_CLIP_PATHS[index % LOGIN_DISCOVER_CLIP_PATHS.length] }}
+                  >
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
+                    <div className="relative space-y-3">
+                      <h3 className="line-clamp-2 text-base font-semibold text-white">{item.title}</h3>
+                      <p className="line-clamp-2 text-sm text-slate-200">{item.summary}</p>
+                      <div className="flex items-center justify-between gap-2 text-xs text-slate-300">
+                        <span className="line-clamp-1">{item.venue || "Tourify network signal"}</span>
+                        <span>{formatSafeDate(item.eventDate)}</span>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-3">
               {SIGNUP_STATS.map((item) => (
                 <div
@@ -430,7 +553,7 @@ export default function LoginPage() {
           
           {/* Right Side - Auth Forms */}
           <div className="w-full max-w-md mx-auto">
-            <Card className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
+            <Card className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden" style={{ clipPath: "polygon(4% 0, 100% 2%, 96% 100%, 0 98%)" }}>
               <CardHeader className="text-center pb-6">
                 <div className="flex justify-center mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
@@ -773,6 +896,28 @@ interface LoginNewsResponse {
   }>
 }
 
+interface LoginDiscoverResponse {
+  sections?: {
+    upcoming?: Array<{
+      id: string
+      title: string
+      description?: string
+      venue_name?: string
+      venue_city?: string
+      venue_state?: string
+      event_date?: string | null
+    }>
+  }
+}
+
+interface LoginDiscoverItem {
+  id: string
+  title: string
+  summary: string
+  venue: string
+  eventDate: string | null
+}
+
 function decodeTextEntity(value: string): string {
   return value
     .replace(/&#8217;/g, "'")
@@ -788,6 +933,13 @@ const LOGIN_NEWS_CLIP_PATHS = [
   "polygon(0 4%, 95% 0, 100% 88%, 7% 100%)",
   "polygon(4% 0, 100% 8%, 92% 100%, 0 94%)",
   "polygon(0 0, 92% 5%, 100% 100%, 8% 92%)"
+]
+
+const LOGIN_DISCOVER_CLIP_PATHS = [
+  "polygon(0 10%, 90% 0, 100% 85%, 12% 100%)",
+  "polygon(0 0, 100% 12%, 90% 100%, 2% 88%)",
+  "polygon(6% 2%, 100% 0, 96% 95%, 0 100%)",
+  "polygon(0 4%, 95% 0, 100% 88%, 7% 100%)",
 ]
 
 const FALLBACK_NEWS_HIGHLIGHTS: LoginNewsItem[] = [
@@ -817,8 +969,73 @@ const FALLBACK_NEWS_HIGHLIGHTS: LoginNewsItem[] = [
   }
 ]
 
+const FALLBACK_DISCOVER_HIGHLIGHTS: LoginDiscoverItem[] = [
+  {
+    id: "discover-fallback-1",
+    title: "Venue demand climbing for hybrid showcases this month",
+    summary: "Promoters are prioritizing artists with strong fan engagement and fast response times.",
+    venue: "Regional venue circuit",
+    eventDate: new Date().toISOString(),
+  },
+  {
+    id: "discover-fallback-2",
+    title: "Independent collectives opening more support slots",
+    summary: "Curated lineups are expanding in major and secondary markets for rising talent.",
+    venue: "Tourify Discover",
+    eventDate: new Date().toISOString(),
+  },
+  {
+    id: "discover-fallback-3",
+    title: "Local event collaborations gaining momentum",
+    summary: "Cross-city partnerships are creating faster paths to booked dates and repeat shows.",
+    venue: "Local Opportunity Radar",
+    eventDate: new Date().toISOString(),
+  },
+  {
+    id: "discover-fallback-4",
+    title: "New artist-venue matching signals surfaced",
+    summary: "Availability windows and audience fit are powering better booking outcomes.",
+    venue: "Tourify Signals",
+    eventDate: new Date().toISOString(),
+  },
+]
+
 const SIGNUP_STATS = [
   { value: "50K+", label: "Verified music professionals" },
   { value: "12K+", label: "Active venue partnerships" },
   { value: "2.8K", label: "New weekly collaboration matches" }
 ]
+
+async function reverseGeocode({
+  latitude,
+  longitude,
+}: {
+  latitude: number
+  longitude: number
+}) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+      {
+        headers: {
+          "Accept-Language": "en",
+        },
+      }
+    )
+
+    if (!response.ok) throw new Error("Reverse geocode failed")
+
+    const data = await response.json()
+    const address = data?.address || {}
+    const city = address.city || address.town || address.village || address.hamlet || address.county || ""
+    const state = address.state || address.region || ""
+
+    if (city && state) return `${city}, ${state}`
+    if (city) return String(city)
+    if (state) return String(state)
+  } catch (error) {
+    console.warn("Reverse geocode fallback to coordinates:", error)
+  }
+
+  return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
+}

@@ -1,6 +1,7 @@
 "use client"
 
 import { cn } from "@/lib/utils"
+import { BrandLoadingScreen } from "@/components/ui/brand-loading-screen"
 
 interface LoadingProps {
   className?: string
@@ -105,46 +106,10 @@ export function Loading({ className, variant = 'default', size = 'md', text }: L
 
 // Full page loading overlay
 export function LoadingOverlay({ text = "Loading..." }: { text?: string }) {
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center">
-      <div className="bg-slate-800/90 backdrop-blur-xl border border-purple-400/20 rounded-2xl p-8 shadow-xl shadow-purple-500/10">
-        <Loading variant="glow" size="lg" text={text} />
-      </div>
-    </div>
-  )
+  return <BrandLoadingScreen message={text} logoSrc="/tourify-logo-white.svg" fullScreen={true} />
 }
 
 // Page transition loading
 export function PageLoading() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-      <div className="text-center space-y-6">
-        <div className="relative">
-          <div className="absolute inset-0 w-20 h-20 bg-gradient-to-r from-purple-400 to-pink-400 opacity-75 blur-xl animate-pulse" />
-          <div className="relative w-20 h-20 bg-slate-900 rounded-full p-4 border-4 border-purple-400/30">
-            <div className="w-full h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-spin">
-              <div className="absolute inset-2 bg-slate-900 rounded-full" />
-            </div>
-          </div>
-        </div>
-        <div>
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent mb-2">
-            Loading Tourify
-          </h2>
-          <div className="flex items-center justify-center space-x-1">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-2 w-2 rounded-full bg-purple-400 animate-pulse"
-                style={{
-                  animationDelay: `${i * 0.3}s`,
-                  animationDuration: '1.5s'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  )
+  return <BrandLoadingScreen message="Loading..." logoSrc="/tourify-logo-white.svg" fullScreen={true} />
 } 
