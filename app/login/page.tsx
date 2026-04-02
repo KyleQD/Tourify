@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AuthErrorDisplay } from "@/components/ui/auth-error-display"
 import { mapAuthError, AuthErrorInfo } from "@/lib/auth-errors"
-import { Building, Users, Star, ArrowRight, Loader2, Eye, EyeOff, Sparkles, Zap, Globe, Shield, CheckCircle } from "lucide-react"
+import { Building, Users, Star, ArrowRight, Loader2, Eye, EyeOff, Sparkles, Zap, Globe, Shield, CheckCircle, ExternalLink, Radio, TrendingUp } from "lucide-react"
 import Link from "next/link"
 import { TourifyLogo } from "@/components/tourify-logo"
 
@@ -26,6 +26,8 @@ export default function LoginPage() {
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [newsHighlights, setNewsHighlights] = useState<LoginNewsItem[]>([])
+  const [isLoadingNews, setIsLoadingNews] = useState(true)
   
   // Sign In form
   const [signInData, setSignInData] = useState({
@@ -93,6 +95,44 @@ export default function LoginPage() {
       }, 1000)
     }
   }, [isAuthenticated, success, redirectTo, router, isRedirecting])
+
+  useEffect(() => {
+    let hasMounted = true
+
+    async function fetchNewsHighlights() {
+      setIsLoadingNews(true)
+      try {
+        const response = await fetch("/api/news/feed?facet=top&limit=6")
+        if (!response.ok) throw new Error("Unable to fetch news highlights")
+
+        const data: LoginNewsResponse = await response.json()
+        if (!hasMounted) return
+
+        const mappedHighlights = (data.items || []).slice(0, 6).map(item => ({
+          id: item.id,
+          title: decodeTextEntity(item.title),
+          sourceName: decodeTextEntity(item.sourceName),
+          topic: decodeTextEntity(item.topics?.[0] || "Music"),
+          url: item.url || "#",
+          summary: decodeTextEntity(item.summary || "Fresh movement across the music industry.")
+        }))
+
+        setNewsHighlights(mappedHighlights)
+      } catch (newsError) {
+        console.error("[Login] News highlights fetch failed:", newsError)
+        if (!hasMounted) return
+        setNewsHighlights(FALLBACK_NEWS_HIGHLIGHTS)
+      } finally {
+        if (hasMounted) setIsLoadingNews(false)
+      }
+    }
+
+    void fetchNewsHighlights()
+
+    return () => {
+      hasMounted = false
+    }
+  }, [])
 
   const handleRetry = () => {
     setError(null)
@@ -206,6 +246,9 @@ export default function LoginPage() {
     }
   }
 
+  const highlights = newsHighlights.length ? newsHighlights : FALLBACK_NEWS_HIGHLIGHTS
+  const tickerHighlights = [...highlights, ...highlights]
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
       {/* Animated Background */}
@@ -251,6 +294,29 @@ export default function LoginPage() {
               </p>
             </div>
             
+            <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-2xl">
+              <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-cyan-100">
+                <Radio className="h-3.5 w-3.5" />
+                Live Industry Pulse
+              </div>
+              <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
+                <div className="login-ticker-track flex w-[200%] gap-3 px-3 py-2">
+                  {tickerHighlights.map((item, index) => (
+                    <a
+                      key={`ticker-${item.id}-${index}`}
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="login-ticker-chip shrink-0 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-slate-100 transition hover:border-cyan-200/60 hover:bg-cyan-300/20 hover:text-white"
+                    >
+                      <span className="mr-2 rounded-full bg-black/40 px-1.5 py-0.5 text-[10px] text-cyan-100">{item.topic}</span>
+                      {item.sourceName} // {item.title}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             {/* Features Grid */}
             <div className="hidden lg:grid grid-cols-2 gap-6">
               <div className="group p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300">
@@ -300,6 +366,65 @@ export default function LoginPage() {
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-white">Trending News to Spark Your Next Move</h2>
+                <Link href="/feed" className="text-sm font-medium text-cyan-200 hover:text-cyan-100">
+                  Explore full news feed
+                </Link>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {highlights.slice(0, 3).map((story, index) => (
+                  <article
+                    key={story.id}
+                    className="group relative overflow-hidden border border-white/20 bg-white/10 p-4 backdrop-blur-2xl transition hover:border-cyan-200/40 hover:bg-white/15"
+                    style={{ clipPath: LOGIN_NEWS_CLIP_PATHS[index % LOGIN_NEWS_CLIP_PATHS.length] }}
+                  >
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
+                    <div className="relative space-y-3">
+                      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-slate-300">
+                        <span>{story.topic}</span>
+                        <span>{story.sourceName}</span>
+                      </div>
+                      <h3 className="line-clamp-2 text-base font-semibold text-white">{story.title}</h3>
+                      <p className="line-clamp-2 text-sm text-slate-200">{story.summary}</p>
+                      <a
+                        href={story.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-sm font-medium text-cyan-200 transition hover:text-cyan-100"
+                      >
+                        Read story
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </div>
+                  </article>
+                ))}
+              </div>
+              <p className="text-xs text-slate-300">
+                {isLoadingNews ? "Loading fresh headlines..." : "Updated continuously with real-time music industry headlines."}
+              </p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              {SIGNUP_STATS.map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-xl border border-white/20 bg-white/10 p-4 backdrop-blur-xl transition hover:border-purple-300/40 hover:bg-white/15"
+                >
+                  <p className="text-2xl font-bold text-white">{item.value}</p>
+                  <p className="mt-1 text-xs uppercase tracking-[0.14em] text-slate-300">{item.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 rounded-xl border border-purple-300/30 bg-purple-300/10 p-3 backdrop-blur-xl">
+              <TrendingUp className="h-4 w-4 text-purple-200" />
+              <p className="text-sm text-purple-100">
+                This week: <span className="font-semibold">2,800+ new collaboration requests</span> and rising.
+              </p>
             </div>
           </div>
           
@@ -601,7 +726,99 @@ export default function LoginPage() {
         .animation-delay-4000 {
           animation-delay: 4s;
         }
+        .login-ticker-track {
+          animation: login-ticker-scroll 26s linear infinite;
+        }
+        .login-ticker-chip {
+          animation: login-chip-pulse 1200ms ease-in-out infinite alternate;
+        }
+        @keyframes login-ticker-scroll {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        @keyframes login-chip-pulse {
+          0% {
+            transform: translateY(0);
+          }
+          100% {
+            transform: translateY(-2px);
+          }
+        }
       `}</style>
     </div>
   )
-} 
+}
+
+interface LoginNewsItem {
+  id: string
+  title: string
+  sourceName: string
+  topic: string
+  url: string
+  summary: string
+}
+
+interface LoginNewsResponse {
+  items: Array<{
+    id: string
+    title: string
+    sourceName: string
+    topics: string[]
+    url?: string
+    summary?: string
+  }>
+}
+
+function decodeTextEntity(value: string): string {
+  return value
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8216;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8211;/g, '-')
+    .replace(/&#8212;/g, '-')
+    .replace(/&amp;/g, '&')
+}
+
+const LOGIN_NEWS_CLIP_PATHS = [
+  "polygon(0 4%, 95% 0, 100% 88%, 7% 100%)",
+  "polygon(4% 0, 100% 8%, 92% 100%, 0 94%)",
+  "polygon(0 0, 92% 5%, 100% 100%, 8% 92%)"
+]
+
+const FALLBACK_NEWS_HIGHLIGHTS: LoginNewsItem[] = [
+  {
+    id: "fallback-1",
+    title: "Festival bookings surge as independent artists scale international tours",
+    sourceName: "Pulse Wire",
+    topic: "Touring",
+    url: "/feed",
+    summary: "Tour routing and fan demand are creating bigger opportunities for emerging acts."
+  },
+  {
+    id: "fallback-2",
+    title: "New venue partnerships open premium slots for rising talent",
+    sourceName: "Venue Insider",
+    topic: "Venues",
+    url: "/feed",
+    summary: "Regional venue networks are collaborating to prioritize trusted artist profiles."
+  },
+  {
+    id: "fallback-3",
+    title: "Fan engagement tech becomes a key driver for sponsorship deals",
+    sourceName: "Creator Daily",
+    topic: "Growth",
+    url: "/feed",
+    summary: "Data-rich fan communities are helping artists unlock better offers and visibility."
+  }
+]
+
+const SIGNUP_STATS = [
+  { value: "50K+", label: "Verified music professionals" },
+  { value: "12K+", label: "Active venue partnerships" },
+  { value: "2.8K", label: "New weekly collaboration matches" }
+]
