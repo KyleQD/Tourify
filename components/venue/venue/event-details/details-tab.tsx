@@ -9,6 +9,13 @@ interface DetailsTabProps {
 }
 
 export default function DetailsTab({ event }: DetailsTabProps) {
+  const normalizedEventDate =
+    typeof event.date === "string"
+      ? event.date
+      : event.date instanceof Date
+        ? event.date.toISOString()
+        : new Date().toISOString()
+
   return (
     <div className="space-y-6">
       {/* Description */}
@@ -80,7 +87,7 @@ export default function DetailsTab({ event }: DetailsTabProps) {
               <div>
                 <p className="font-medium">Date</p>
                 <p className="text-muted-foreground">
-                  {formatSafeDate(event.date || new Date().toISOString())}
+                  {formatSafeDate(normalizedEventDate)}
                 </p>
               </div>
             </div>
