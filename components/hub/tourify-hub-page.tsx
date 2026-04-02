@@ -135,6 +135,8 @@ export function TourifyHubPage() {
   const metricData = hubData?.metrics
   const tickerItems = sectionData?.pulse?.length ? sectionData.pulse : []
   const tickerLoop = [...tickerItems, ...tickerItems]
+  const pulseTicker = tickerItems.slice(0, 10)
+  const pulseTickerLoop = [...pulseTicker, ...pulseTicker]
   const heroSubtitle = useMemo(() => {
     if (appliedLocation) return `Connected live signals near ${appliedLocation}.`
     return "One command center for Discover, Pulse, Events, Jobs, and your profile network."
@@ -146,23 +148,64 @@ export function TourifyHubPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-black via-slate-950 to-black text-white">
+      {pulseTickerLoop.length > 0 ? (
+        <>
+          <div className="pointer-events-none fixed inset-x-0 top-0 z-40 h-9 overflow-hidden border-y border-fuchsia-200/40 bg-gradient-to-r from-fuchsia-900/45 via-violet-900/35 to-cyan-900/45 backdrop-blur-xl">
+            <div className="edge-ticker-forward flex w-[200%] gap-3 px-3 py-1.5">
+              {pulseTickerLoop.map((item, index) => (
+                <a
+                  key={`hub-top-${item.id}-${index}`}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
+                >
+                  <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topics?.[0] || "Signal"}</span>
+                  {item.sourceName} // {item.title}
+                </a>
+              ))}
+            </div>
+          </div>
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-9 overflow-hidden border-y border-cyan-200/40 bg-gradient-to-r from-cyan-900/45 via-indigo-900/35 to-fuchsia-900/45 backdrop-blur-xl">
+            <div className="edge-ticker-reverse flex w-[200%] gap-3 px-3 py-1.5">
+              {pulseTickerLoop.map((item, index) => (
+                <a
+                  key={`hub-bottom-${item.id}-${index}`}
+                  href={item.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
+                >
+                  <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topics?.[0] || "Signal"}</span>
+                  {item.sourceName} // {item.title}
+                </a>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : null}
+
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-24 top-24 h-24 w-[120%] rotate-[-14deg] border border-white/20 bg-white/10 backdrop-blur-2xl" />
-        <div className="absolute -right-20 top-2/3 h-20 w-[120%] rotate-[12deg] border border-cyan-200/25 bg-cyan-200/10 backdrop-blur-2xl" />
+        <div className="hub-shard-a absolute -left-24 top-24 h-24 w-[120%] rotate-[-14deg] border border-white/20 bg-white/10 backdrop-blur-2xl" />
+        <div className="hub-shard-b absolute -right-20 top-2/3 h-20 w-[120%] rotate-[12deg] border border-cyan-200/25 bg-cyan-200/10 backdrop-blur-2xl" />
+        <div className="hub-shard-c absolute -left-16 top-1/2 h-14 w-[118%] rotate-[-7deg] border border-fuchsia-200/20 bg-fuchsia-200/10 backdrop-blur-xl" />
         <div className="absolute left-0 top-12 h-80 w-80 rounded-full bg-purple-500/20 blur-[120px]" />
         <div className="absolute right-0 top-1/3 h-80 w-80 rounded-full bg-blue-500/20 blur-[120px]" />
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pb-16 pt-8 md:px-8">
+      <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pb-20 pt-16 md:px-8">
         <SurfaceHero className="space-y-6 p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-4xl space-y-3">
               <Badge className="border-cyan-300/30 bg-cyan-300/10 text-cyan-100">
                 <Sparkles className="mr-2 h-3.5 w-3.5" />
-                Tourify Connected Hub
+                Tourify Connected Hub // 2026
               </Badge>
               <h1 className="text-3xl font-black tracking-tight md:text-5xl">Connect Everything. Move Faster.</h1>
               <p className="text-base text-slate-200 md:text-lg">{heroSubtitle}</p>
+              <p className="text-sm text-slate-300">
+                Built for the <span className="font-semibold text-white">2026 music operations cycle</span> with unified market signals.
+              </p>
             </div>
             <div className="flex gap-2">
               {user ? (
@@ -170,7 +213,7 @@ export function TourifyHubPage() {
                   Open Dashboard
                 </Button>
               ) : (
-                <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/30">
                   <Link href="/login">Sign In</Link>
                 </Button>
               )}
@@ -211,6 +254,14 @@ export function TourifyHubPage() {
             <HubMetric label="NetworkSignals" value={metricData?.network || 0} icon={<Users className="h-4 w-4" />} />
             <HubMetric label="Headlines" value={metricData?.headlines || 0} icon={<Newspaper className="h-4 w-4" />} />
           </div>
+
+          {!user ? (
+            <div className="grid gap-3 md:grid-cols-3">
+              <SignupEnticer title="Build your 2026 EPK" value="12 min" subtitle="Average time to publish" />
+              <SignupEnticer title="Get booked faster" value="2.8K+" subtitle="Weekly active collaboration requests" />
+              <SignupEnticer title="Unlock signal matching" value="50K+" subtitle="Verified pros across Tourify" />
+            </div>
+          ) : null}
         </SurfaceHero>
 
         {tickerLoop.length > 0 ? (
@@ -308,11 +359,38 @@ export function TourifyHubPage() {
             </div>
           </section>
         </div>
+
+        {!user ? (
+          <div className="grid gap-4 md:grid-cols-3">
+            <ConversionShard title="Go Live Fast" value="12 min" detail="Average setup from signup to complete 2026-ready profile." />
+            <ConversionShard title="Stay Visible" value="24/7" detail="Continuous Pulse and Discover signal updates." />
+            <ConversionShard title="Book Smarter" value="50K+" detail="Verified professionals and venues in the live network." />
+          </div>
+        ) : null}
+
+        <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-center text-xs text-slate-300 backdrop-blur-2xl">
+          <span className="font-semibold text-white">2026 Tourify Live Network</span> — Freshly ranked signals from Discover, Pulse, and Jobs.
+        </div>
       </div>
 
       <style jsx>{`
+        .edge-ticker-forward {
+          animation: edgeTickerForward 38s linear infinite;
+        }
+        .edge-ticker-reverse {
+          animation: edgeTickerReverse 42s linear infinite;
+        }
         .hub-ticker-track {
           animation: hubTickerScroll 34s linear infinite;
+        }
+        .hub-shard-a {
+          animation: hubShardA 10s ease-in-out infinite;
+        }
+        .hub-shard-b {
+          animation: hubShardB 12s ease-in-out infinite;
+        }
+        .hub-shard-c {
+          animation: hubShardC 14s ease-in-out infinite;
         }
         .hub-ticker-chip {
           animation: hubChipFloat 1300ms ease-in-out infinite alternate;
@@ -325,6 +403,49 @@ export function TourifyHubPage() {
             transform: translateX(-50%);
           }
         }
+        @keyframes edgeTickerForward {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        @keyframes edgeTickerReverse {
+          0% {
+            transform: translateX(-50%);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+        @keyframes hubShardA {
+          0%,
+          100% {
+            transform: rotate(-14deg) translateY(0px);
+          }
+          50% {
+            transform: rotate(-12deg) translateY(-10px);
+          }
+        }
+        @keyframes hubShardB {
+          0%,
+          100% {
+            transform: rotate(12deg) translateY(0px);
+          }
+          50% {
+            transform: rotate(10deg) translateY(9px);
+          }
+        }
+        @keyframes hubShardC {
+          0%,
+          100% {
+            transform: rotate(-7deg) translateY(0px);
+          }
+          50% {
+            transform: rotate(-5deg) translateY(-7px);
+          }
+        }
         @keyframes hubChipFloat {
           0% {
             transform: translateY(0);
@@ -335,6 +456,46 @@ export function TourifyHubPage() {
         }
       `}</style>
     </div>
+  )
+}
+
+function ConversionShard({
+  title,
+  value,
+  detail,
+}: {
+  title: string
+  value: string
+  detail: string
+}) {
+  return (
+    <SurfaceCard className="bg-white/5">
+      <CardContent className="space-y-1 p-4">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{title}</p>
+        <p className="text-2xl font-black text-white">{value}</p>
+        <p className="text-xs text-slate-300">{detail}</p>
+      </CardContent>
+    </SurfaceCard>
+  )
+}
+
+function SignupEnticer({
+  title,
+  value,
+  subtitle,
+}: {
+  title: string
+  value: string
+  subtitle: string
+}) {
+  return (
+    <SurfaceCard className="bg-white/5">
+      <CardContent className="space-y-1 p-4">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{title}</p>
+        <p className="text-2xl font-black text-white">{value}</p>
+        <p className="text-xs text-slate-300">{subtitle}</p>
+      </CardContent>
+    </SurfaceCard>
   )
 }
 

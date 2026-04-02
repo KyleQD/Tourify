@@ -296,18 +296,53 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white overflow-hidden">
+      <div className="pointer-events-none fixed inset-x-0 top-0 z-40 h-9 overflow-hidden border-y border-fuchsia-200/40 bg-gradient-to-r from-fuchsia-900/45 via-violet-900/35 to-cyan-900/45 backdrop-blur-xl">
+        <div className="edge-login-ticker-forward flex w-[200%] gap-3 px-3 py-1.5">
+          {tickerHighlights.map((item, index) => (
+            <a
+              key={`login-top-${item.id}-${index}`}
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
+            >
+              <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topic}</span>
+              {item.sourceName} // {item.title}
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 h-9 overflow-hidden border-y border-cyan-200/40 bg-gradient-to-r from-cyan-900/45 via-indigo-900/35 to-fuchsia-900/45 backdrop-blur-xl">
+        <div className="edge-login-ticker-reverse flex w-[200%] gap-3 px-3 py-1.5">
+          {tickerHighlights.map((item, index) => (
+            <a
+              key={`login-bottom-${item.id}-${index}`}
+              href={item.url}
+              target="_blank"
+              rel="noreferrer"
+              className="pointer-events-auto shrink-0 rounded-full border border-white/25 bg-white/10 px-3 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-100 transition hover:bg-white/20"
+            >
+              <span className="mr-2 rounded-full bg-black/35 px-1.5 py-0 text-[9px]">{item.topic}</span>
+              {item.sourceName} // {item.title}
+            </a>
+          ))}
+        </div>
+      </div>
+
       {/* Animated Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-center bg-repeat opacity-10"></div>
         <div className="absolute top-0 left-0 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob"></div>
         <div className="absolute top-0 right-0 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-2000"></div>
         <div className="absolute bottom-0 left-1/2 w-72 h-72 bg-indigo-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000"></div>
-        <div className="absolute left-[-14%] top-24 h-24 w-[130%] rotate-[-12deg] border border-white/20 bg-white/10 backdrop-blur-2xl" />
-        <div className="absolute right-[-16%] bottom-28 h-20 w-[135%] rotate-[11deg] border border-cyan-200/30 bg-cyan-200/10 backdrop-blur-2xl" />
+        <div className="login-shard-drift-a absolute left-[-14%] top-24 h-24 w-[130%] rotate-[-12deg] border border-white/20 bg-white/10 backdrop-blur-2xl" />
+        <div className="login-shard-drift-b absolute right-[-16%] bottom-28 h-20 w-[135%] rotate-[11deg] border border-cyan-200/30 bg-cyan-200/10 backdrop-blur-2xl" />
+        <div className="login-shard-drift-c absolute left-[-12%] top-[58%] h-16 w-[125%] rotate-[-8deg] border border-fuchsia-200/20 bg-fuchsia-200/10 backdrop-blur-xl" />
       </div>
       
       {/* Content */}
-      <div className="relative flex items-center justify-center min-h-screen p-4">
+      <div className="relative flex items-center justify-center min-h-screen p-4 pt-16 pb-14">
         <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
           {/* Left Side - Branding & Info */}
@@ -541,11 +576,29 @@ export default function LoginPage() {
                 This week: <span className="font-semibold">2,800+ new collaboration requests</span> and rising.
               </p>
             </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl border border-cyan-200/30 bg-cyan-300/10 p-4 backdrop-blur-xl">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-cyan-100">Fast Launch</p>
+                <p className="mt-1 text-2xl font-bold text-white">12 min</p>
+                <p className="mt-1 text-xs text-slate-200">Average setup time for a 2026-ready profile.</p>
+              </div>
+              <div className="rounded-xl border border-fuchsia-200/30 bg-fuchsia-300/10 p-4 backdrop-blur-xl">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-fuchsia-100">Momentum</p>
+                <p className="mt-1 text-2xl font-bold text-white">24/7</p>
+                <p className="mt-1 text-xs text-slate-200">Live signal updates from Pulse and Discover streams.</p>
+              </div>
+              <div className="rounded-xl border border-emerald-200/30 bg-emerald-300/10 p-4 backdrop-blur-xl">
+                <p className="text-[11px] uppercase tracking-[0.14em] text-emerald-100">Network Reach</p>
+                <p className="mt-1 text-2xl font-bold text-white">Global</p>
+                <p className="mt-1 text-xs text-slate-200">Venue, artist, and ops pipeline built for 2026 touring.</p>
+              </div>
+            </div>
           </div>
           
           {/* Right Side - Auth Forms */}
           <div className="w-full max-w-md mx-auto">
-            <Card className="bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden" style={{ clipPath: "polygon(4% 0, 100% 2%, 96% 100%, 0 98%)" }}>
+            <Card className="login-auth-shard bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden" style={{ clipPath: "polygon(3% 0, 100% 1%, 97% 100%, 0 96%, 1% 18%)" }}>
               <CardHeader className="text-center pb-6">
                 <div className="flex justify-center mb-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
@@ -556,6 +609,9 @@ export default function LoginPage() {
                 <CardDescription className="text-gray-300">
                   Sign in to your account or create a new one
                 </CardDescription>
+                <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-cyan-100">
+                  2026 Creator Access
+                </p>
               </CardHeader>
               
               <CardContent>
@@ -800,6 +856,9 @@ export default function LoginPage() {
                         Privacy Policy
                       </Link>
                     </div>
+                    <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-center text-xs text-emerald-100">
+                      Start free in 2026 and unlock live opportunity matching instantly.
+                    </div>
                   </TabsContent>
                 </Tabs>
               </CardContent>
@@ -811,7 +870,7 @@ export default function LoginPage() {
                 <Shield className="h-4 w-4" />
                 <span>Secured by enterprise-grade encryption</span>
               </div>
-              <p>© 2024 Tourify. The future of music networking.</p>
+              <p>© 2026 Tourify. The future of music networking.</p>
             </div>
           </div>
         </div>
@@ -844,6 +903,24 @@ export default function LoginPage() {
         .login-ticker-track {
           animation: login-ticker-scroll 26s linear infinite;
         }
+        .login-auth-shard {
+          box-shadow: 0 20px 70px rgba(139, 92, 246, 0.35);
+        }
+        .login-shard-drift-a {
+          animation: shardDriftA 9s ease-in-out infinite;
+        }
+        .login-shard-drift-b {
+          animation: shardDriftB 11s ease-in-out infinite;
+        }
+        .login-shard-drift-c {
+          animation: shardDriftC 13s ease-in-out infinite;
+        }
+        .edge-login-ticker-forward {
+          animation: edgeLoginForward 40s linear infinite;
+        }
+        .edge-login-ticker-reverse {
+          animation: edgeLoginReverse 44s linear infinite;
+        }
         .login-ticker-chip {
           animation: login-chip-pulse 1200ms ease-in-out infinite alternate;
         }
@@ -861,6 +938,49 @@ export default function LoginPage() {
           }
           100% {
             transform: translateY(-2px);
+          }
+        }
+        @keyframes edgeLoginForward {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+        @keyframes edgeLoginReverse {
+          0% {
+            transform: translateX(-50%);
+          }
+          100% {
+            transform: translateX(0);
+          }
+        }
+        @keyframes shardDriftA {
+          0%,
+          100% {
+            transform: rotate(-12deg) translateY(0px);
+          }
+          50% {
+            transform: rotate(-10deg) translateY(-8px);
+          }
+        }
+        @keyframes shardDriftB {
+          0%,
+          100% {
+            transform: rotate(11deg) translateY(0px);
+          }
+          50% {
+            transform: rotate(9deg) translateY(10px);
+          }
+        }
+        @keyframes shardDriftC {
+          0%,
+          100% {
+            transform: rotate(-8deg) translateY(0px);
+          }
+          50% {
+            transform: rotate(-6deg) translateY(-6px);
           }
         }
       `}</style>
