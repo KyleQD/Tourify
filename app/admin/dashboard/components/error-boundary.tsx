@@ -306,21 +306,26 @@ Timestamp: ${new Date().toISOString()}
     const canRetry = retryCount < maxRetries && isRetryable
 
     return (
-      <div className={`min-h-screen flex items-center justify-center p-4 ${className}`}>
+      <div className={`relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 p-4 ${className}`}>
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -left-24 top-16 h-64 w-64 rotate-12 rounded-[2rem] bg-purple-500/15 blur-3xl" />
+          <div className="absolute -right-20 bottom-8 h-72 w-72 -rotate-12 rounded-[2rem] bg-cyan-400/10 blur-3xl" />
+        </div>
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="w-full max-w-2xl"
+          className="relative z-10 w-full max-w-2xl"
         >
-          <Card className="bg-red-900/20 border-red-700/50">
+          <Card className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl shadow-purple-900/20 backdrop-blur-2xl">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
             <CardHeader>
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-red-500/20 rounded-lg">
-                  <AlertTriangle className="h-6 w-6 text-red-400" />
+                <div className="rounded-lg bg-rose-500/20 p-2">
+                  <AlertTriangle className="h-6 w-6 text-rose-300" />
                 </div>
                 <div>
-                  <CardTitle className="text-red-400">Something went wrong</CardTitle>
-                  <p className="text-red-300 text-sm">
+                  <CardTitle className="text-rose-200">Something went wrong</CardTitle>
+                  <p className="text-sm text-slate-200">
                     {isRetryable ? 'Network or loading error detected' : 'An unexpected error occurred'}
                   </p>
                 </div>
@@ -329,10 +334,10 @@ Timestamp: ${new Date().toISOString()}
 
             <CardContent className="space-y-4">
               {/* Error Message */}
-              <div className="bg-red-950/50 rounded-lg p-4">
-                <p className="text-red-200 font-medium">{error?.message}</p>
+              <div className="rounded-xl border border-white/10 bg-slate-950/35 p-4">
+                <p className="font-medium text-slate-100">{error?.message}</p>
                 {error?.name && (
-                  <Badge variant="outline" className="mt-2 bg-red-500/20 text-red-300 border-red-500/30">
+                  <Badge variant="outline" className="mt-2 border-white/25 bg-white/10 text-slate-100">
                     {error.name}
                   </Badge>
                 )}
@@ -345,7 +350,7 @@ Timestamp: ${new Date().toISOString()}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="bg-slate-900/50 rounded-lg p-4 space-y-3"
+                    className="space-y-3 rounded-xl border border-white/10 bg-slate-950/35 p-4"
                   >
                     <div className="flex items-center justify-between">
                       <h4 className="text-sm font-medium text-slate-300">Error Details</h4>
@@ -354,7 +359,7 @@ Timestamp: ${new Date().toISOString()}
                           variant="ghost"
                           size="sm"
                           onClick={this.copyErrorDetails}
-                          className="text-slate-400 hover:text-slate-200"
+                          className="text-slate-300 hover:text-white"
                         >
                           <Copy className="h-4 w-4 mr-1" />
                           Copy
@@ -363,7 +368,7 @@ Timestamp: ${new Date().toISOString()}
                           variant="ghost"
                           size="sm"
                           onClick={this.downloadErrorReport}
-                          className="text-slate-400 hover:text-slate-200"
+                          className="text-slate-300 hover:text-white"
                         >
                           <Download className="h-4 w-4 mr-1" />
                           Download
@@ -375,7 +380,7 @@ Timestamp: ${new Date().toISOString()}
                       {error?.stack && (
                         <div>
                           <p className="text-xs font-medium text-slate-400 mb-1">Stack Trace:</p>
-                          <pre className="text-xs text-slate-300 bg-slate-800/50 p-2 rounded overflow-auto max-h-32">
+                          <pre className="max-h-32 overflow-auto rounded bg-slate-950/50 p-2 text-xs text-slate-200">
                             {error.stack}
                           </pre>
                         </div>
@@ -384,7 +389,7 @@ Timestamp: ${new Date().toISOString()}
                       {errorInfo?.componentStack && (
                         <div>
                           <p className="text-xs font-medium text-slate-400 mb-1">Component Stack:</p>
-                          <pre className="text-xs text-slate-300 bg-slate-800/50 p-2 rounded overflow-auto max-h-32">
+                          <pre className="max-h-32 overflow-auto rounded bg-slate-950/50 p-2 text-xs text-slate-200">
                             {errorInfo.componentStack}
                           </pre>
                         </div>
@@ -401,7 +406,7 @@ Timestamp: ${new Date().toISOString()}
                     <Button
                       onClick={this.resetError}
                       disabled={!canRetry}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500"
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
                       {canRetry ? `Retry (${retryCount + 1}/${maxRetries})` : 'Retry Failed'}
@@ -410,7 +415,7 @@ Timestamp: ${new Date().toISOString()}
                     <Button
                       variant="outline"
                       onClick={this.goBack}
-                      className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                      className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
                     >
                       <ArrowLeft className="h-4 w-4 mr-2" />
                       Go Back
@@ -419,7 +424,7 @@ Timestamp: ${new Date().toISOString()}
                     <Button
                       variant="outline"
                       onClick={this.goHome}
-                      className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                      className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
                     >
                       <Home className="h-4 w-4 mr-2" />
                       Go Home
@@ -430,7 +435,7 @@ Timestamp: ${new Date().toISOString()}
                 <Button
                   variant="outline"
                   onClick={this.toggleDetails}
-                  className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                  className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
                 >
                   {showDetails ? (
                     <>
@@ -450,7 +455,7 @@ Timestamp: ${new Date().toISOString()}
                     variant="outline"
                     onClick={() => this.reportError(error!, errorInfo!)}
                     disabled={isReporting || reported}
-                    className="border-slate-600 text-slate-300 hover:bg-slate-800"
+                    className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
                   >
                     {isReporting ? (
                       <>
@@ -473,7 +478,7 @@ Timestamp: ${new Date().toISOString()}
               </div>
 
               {/* Additional Info */}
-              <div className="flex items-center space-x-2 text-xs text-slate-400">
+              <div className="flex items-center space-x-2 text-xs text-slate-300">
                 <Info className="h-3 w-3" />
                 <span>
                   {isRetryable 

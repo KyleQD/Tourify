@@ -75,35 +75,37 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
 
       // Default error UI
       return (
-        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-950">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-500/5 to-transparent" />
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 p-4">
+          <div className="pointer-events-none fixed inset-0">
+            <div className="absolute -left-24 top-16 h-64 w-64 rotate-12 rounded-[2rem] bg-purple-500/15 blur-3xl" />
+            <div className="absolute -right-20 bottom-8 h-72 w-72 -rotate-12 rounded-[2rem] bg-cyan-400/10 blur-3xl" />
           </div>
           
-          <Card className="relative z-10 w-full max-w-lg bg-slate-800/50 border-red-700/50">
+          <Card className="relative z-10 w-full max-w-lg overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl shadow-purple-900/20 backdrop-blur-2xl">
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
             <CardHeader className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center">
-                <AlertTriangle className="w-8 h-8 text-red-400" />
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-rose-500/20">
+                <AlertTriangle className="h-8 w-8 text-rose-300" />
               </div>
               <CardTitle className="text-2xl text-white">Something went wrong</CardTitle>
-              <CardDescription className="text-slate-400">
+              <CardDescription className="text-slate-300">
                 We encountered an unexpected error. This has been logged and our team will investigate.
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="space-y-4">
+            <CardContent className="relative space-y-4">
               {/* Error Details (if enabled) */}
               {this.props.showDetails && this.state.error && (
-                <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4">
+                <div className="rounded-xl border border-white/15 bg-slate-950/40 p-4">
                   <div className="flex items-center space-x-2 mb-2">
-                    <Bug className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium text-slate-300">Error Details</span>
+                    <Bug className="w-4 h-4 text-slate-300" />
+                    <span className="text-sm font-medium text-slate-200">Error Details</span>
                   </div>
-                  <div className="text-xs text-slate-400 font-mono">
-                    <p className="font-semibold text-red-400 mb-1">{this.state.error.name}</p>
+                  <div className="font-mono text-xs text-slate-300">
+                    <p className="mb-1 font-semibold text-rose-300">{this.state.error.name}</p>
                     <p className="break-all">{this.state.error.message}</p>
                     {this.state.errorInfo?.componentStack && (
-                      <pre className="mt-2 text-xs overflow-x-auto whitespace-pre-wrap">
+                      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-xs">
                         {this.state.errorInfo.componentStack.slice(0, 500)}
                         {this.state.errorInfo.componentStack.length > 500 && '...'}
                       </pre>
@@ -116,7 +118,7 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={this.handleRetry}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
+                  className="flex-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Try Again
@@ -125,7 +127,7 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
                 <Button
                   onClick={this.handleGoHome}
                   variant="outline"
-                  className="flex-1 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
+                  className="flex-1 border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
                 >
                   <Home className="w-4 h-4 mr-2" />
                   Go Home
@@ -133,12 +135,12 @@ class ErrorBoundaryClass extends Component<ErrorBoundaryProps, ErrorBoundaryStat
               </div>
               
               {/* Report Issue */}
-              <div className="text-center text-sm text-slate-400">
+              <div className="text-center text-sm text-slate-300">
                 <p>
                   If this problem persists, please{' '}
                   <button 
                     onClick={() => window.open('mailto:support@tourify.com?subject=Error Report')}
-                    className="text-purple-400 hover:text-purple-300 underline"
+                    className="text-fuchsia-200 underline hover:text-fuchsia-100"
                   >
                     contact support
                   </button>
@@ -179,14 +181,14 @@ export function ErrorMessage({
   className?: string
 }) {
   return (
-    <div className={`flex flex-col items-center justify-center text-center p-8 ${className}`}>
-      <AlertTriangle className="w-12 h-12 text-red-400 mb-4" />
-      <h3 className="text-lg font-semibold text-white mb-2">{title}</h3>
+    <div className={`rounded-2xl border border-white/20 bg-white/10 p-8 text-center shadow-xl backdrop-blur-2xl ${className}`}>
+      <AlertTriangle className="mx-auto mb-4 h-12 w-12 text-rose-300" />
+      <h3 className="mb-2 text-lg font-semibold text-white">{title}</h3>
       {message && (
-        <p className="text-slate-400 mb-4 max-w-md">{message}</p>
+        <p className="mx-auto mb-4 max-w-md text-slate-300">{message}</p>
       )}
       {onRetry && (
-        <Button onClick={onRetry} variant="outline" size="sm">
+        <Button onClick={onRetry} variant="outline" size="sm" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15">
           <RefreshCw className="w-4 h-4 mr-2" />
           Try Again
         </Button>
@@ -215,18 +217,18 @@ export function NotFoundError({
   onGoBack?: () => void 
 }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8">
-      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-slate-800 flex items-center justify-center">
+    <div className="rounded-2xl border border-white/20 bg-white/10 p-8 text-center shadow-xl backdrop-blur-2xl">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800/70">
         <span className="text-2xl font-bold text-slate-400">404</span>
       </div>
-      <h3 className="text-lg font-semibold text-white mb-2">
+      <h3 className="mb-2 text-lg font-semibold text-white">
         {resource.charAt(0).toUpperCase() + resource.slice(1)} Not Found
       </h3>
-      <p className="text-slate-400 mb-4 max-w-md">
+      <p className="mx-auto mb-4 max-w-md text-slate-300">
         The {resource} you're looking for doesn't exist or has been moved.
       </p>
       {onGoBack && (
-        <Button onClick={onGoBack} variant="outline" size="sm">
+        <Button onClick={onGoBack} variant="outline" size="sm" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15">
           <Home className="w-4 h-4 mr-2" />
           Go Back
         </Button>
@@ -238,16 +240,16 @@ export function NotFoundError({
 // Unauthorized error component
 export function UnauthorizedError({ onSignIn }: { onSignIn?: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8">
-      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/10 flex items-center justify-center">
+    <div className="rounded-2xl border border-white/20 bg-white/10 p-8 text-center shadow-xl backdrop-blur-2xl">
+      <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-amber-500/20">
         <AlertTriangle className="w-8 h-8 text-amber-400" />
       </div>
-      <h3 className="text-lg font-semibold text-white mb-2">Access Denied</h3>
-      <p className="text-slate-400 mb-4 max-w-md">
+      <h3 className="mb-2 text-lg font-semibold text-white">Access Denied</h3>
+      <p className="mx-auto mb-4 max-w-md text-slate-300">
         You don't have permission to access this resource. Please sign in or contact an administrator.
       </p>
       {onSignIn && (
-        <Button onClick={onSignIn} size="sm">
+        <Button onClick={onSignIn} size="sm" className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500">
           Sign In
         </Button>
       )}

@@ -39,15 +39,15 @@ export class CollaborationErrorBoundary extends React.Component<
       }
 
       return (
-        <Card className="bg-slate-950/90 border-slate-800 text-white">
+        <Card className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 text-white shadow-2xl shadow-purple-900/20 backdrop-blur-2xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-red-400">
+            <CardTitle className="flex items-center gap-2 text-rose-300">
               <AlertCircle className="h-5 w-5" />
               Collaboration Feature Unavailable
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-slate-400">
+            <p className="rounded-xl border border-white/10 bg-slate-950/30 p-3 text-slate-200">
               The collaboration feature encountered an error and couldn't load properly.
             </p>
             
@@ -56,7 +56,7 @@ export class CollaborationErrorBoundary extends React.Component<
                 variant="outline" 
                 size="sm"
                 onClick={() => this.setState({ hasError: false })}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
               >
                 <RefreshCw className="h-4 w-4" />
                 Try Again
@@ -66,7 +66,7 @@ export class CollaborationErrorBoundary extends React.Component<
                 variant="outline" 
                 size="sm"
                 onClick={() => window.location.reload()}
-                className="flex items-center gap-2"
+                className="flex items-center gap-2 border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
               >
                 <RefreshCw className="h-4 w-4" />
                 Reload Page
@@ -75,10 +75,10 @@ export class CollaborationErrorBoundary extends React.Component<
 
             {process.env.NODE_ENV === 'development' && this.state.error && (
               <details className="mt-4">
-                <summary className="text-sm text-slate-500 cursor-pointer">
+                <summary className="cursor-pointer text-sm text-slate-300">
                   Error Details (Development)
                 </summary>
-                <pre className="text-xs text-red-400 mt-2 p-2 bg-slate-900 rounded overflow-auto">
+                <pre className="mt-2 overflow-auto rounded bg-slate-950/50 p-2 text-xs text-rose-200">
                   {this.state.error.stack}
                 </pre>
               </details>

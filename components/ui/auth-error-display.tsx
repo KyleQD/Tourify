@@ -43,17 +43,17 @@ export function AuthErrorDisplay({
   }
 
   return (
-    <Alert className={`${getAuthErrorSeverityColor(error.severity)} backdrop-blur-sm ${className}`}>
+    <Alert className={`${getAuthErrorSeverityColor(error.severity)} rounded-2xl border-white/20 shadow-xl backdrop-blur-2xl ${className}`}>
       <div className={getIconColor()}>
         {getIcon()}
       </div>
-      <AlertDescription className="space-y-3">
+      <AlertDescription className="space-y-3 text-slate-100">
         <div>
           <div className="font-semibold text-white">
             {error.message}
           </div>
           {error.description && (
-            <div className="text-sm opacity-90 mt-1">
+            <div className="mt-1 text-sm text-slate-200/90">
               {error.description}
             </div>
           )}
@@ -98,7 +98,7 @@ export function AuthErrorDisplay({
         )}
         
         {error.action && (
-          <div className="text-xs opacity-75 italic">
+          <div className="text-xs italic text-slate-200/80">
             💡 {error.action}
           </div>
         )}

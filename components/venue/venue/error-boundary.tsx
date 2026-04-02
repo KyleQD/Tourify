@@ -40,14 +40,14 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <Card className="bg-gray-900 border-gray-800">
+        <Card className="overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl shadow-purple-900/20 backdrop-blur-2xl">
           <CardContent className="pt-6 flex flex-col items-center text-center">
-            <AlertTriangle className="h-12 w-12 text-yellow-500 mb-4" />
+            <AlertTriangle className="mb-4 h-12 w-12 text-amber-300" />
             <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
-            <p className="text-gray-400 mb-4 max-w-md">
+            <p className="mb-4 max-w-md rounded-xl border border-white/10 bg-slate-950/30 p-3 text-slate-200">
               {this.state.error?.message || "An unexpected error occurred while rendering this component."}
             </p>
-            <Button onClick={this.handleReset}>Try Again</Button>
+            <Button onClick={this.handleReset} className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500">Try Again</Button>
           </CardContent>
         </Card>
       )
