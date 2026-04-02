@@ -319,7 +319,7 @@ export default function TicketingPage() {
                         className="h-8 border-slate-700"
                         onClick={() => {
                           const header = 'Order,Customer,Event,Amount,Date,Status\n'
-                          const rows = sales.map(s => [s.order_number, s.customer_name, s.event_title, s.total_amount, s.purchase_date, s.payment_status].join(',')).join('\n')
+                          const rows = sales.map(s => [s.order_number, s.customer_name, getSaleEventTitle(s), s.total_amount, s.purchase_date, s.payment_status].join(',')).join('\n')
                           const blob = new Blob([header + rows], { type: 'text/csv' })
                           const u = URL.createObjectURL(blob)
                           const a = document.createElement('a'); a.href = u; a.download = 'ticket-sales.csv'; a.click()
