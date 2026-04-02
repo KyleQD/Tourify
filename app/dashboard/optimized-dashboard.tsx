@@ -21,6 +21,7 @@ import { UnifiedActivityFeed } from '@/components/dashboard/unified-activity-fee
 import { EnhancedQuickActions } from '@/components/dashboard/enhanced-quick-actions'
 import { getProfileUsername } from '@/lib/utils/profile-utils'
 import { DashboardService } from '@/lib/services/dashboard.service'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import {
   User,
   MapPin,
@@ -303,12 +304,7 @@ export default function OptimizedDashboard() {
                   </h1>
                   <p className="text-gray-400 flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    {new Date().toLocaleDateString('en-US', { 
-                      weekday: 'long',
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
+                    {formatSafeDate(new Date().toISOString())}
                   </p>
                 </div>
               </div>

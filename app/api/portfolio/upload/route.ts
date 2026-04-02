@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Ensure storage bucket exists
+    // Storage bucket must be provisioned through setup/migrations, not user uploads
     console.log('Checking for portfolio storage bucket...')
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
     
@@ -70,26 +70,9 @@ export async function POST(request: NextRequest) {
     const bucket = buckets?.find((b: any) => b.name === 'portfolio')
     
     if (!bucket) {
-      console.log('Portfolio bucket not found, creating...')
-      const { error: bucketError } = await supabase.storage.createBucket('portfolio', {
-        public: true,
-        fileSizeLimit: tier === 'free' ? `${100 * MB}` : `${500 * MB}`,
-        allowedMimeTypes: [
-          'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-          'video/mp4', 'video/webm', 'video/ogg',
-          'audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/m4a', 'audio/ogg'
-        ]
-      })
-      
-      if (bucketError) {
-        console.error('Bucket creation error:', bucketError)
-        return NextResponse.json({ 
-          error: 'Failed to prepare storage. Please contact support if this issue persists.',
-          details: bucketError.message 
-        }, { status: 500 })
-      }
-      
-      console.log('Portfolio bucket created successfully')
+      return NextResponse.json({
+        error: 'Portfolio storage is not configured. Please contact support.'
+      }, { status: 503 })
     }
 
     // Upload file

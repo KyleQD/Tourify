@@ -54,6 +54,7 @@ import {
   Mail as MailIcon,
   ExternalLink as ExternalLinkIcon
 } from 'lucide-react'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import type { JobApplication, JobPostingTemplate } from '@/types/admin-onboarding'
 
 interface EnhancedApplicationReviewProps {
@@ -674,7 +675,7 @@ export default function EnhancedApplicationReview({
                           )}
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {new Date(application.applied_at).toLocaleDateString()}
+                            {formatSafeDate(application.applied_at)}
                           </div>
                         </div>
                         
@@ -785,7 +786,7 @@ export default function EnhancedApplicationReview({
                     <div className="flex justify-between">
                       <span className="text-slate-400">Applied:</span>
                       <span className="text-white">
-                        {new Date(selectedApplication.applied_at).toLocaleDateString()}
+                        {formatSafeDate(selectedApplication.applied_at)}
                       </span>
                     </div>
                     <div className="flex justify-between">

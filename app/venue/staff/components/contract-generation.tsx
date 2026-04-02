@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   FileText,
   Plus,
@@ -301,7 +302,7 @@ export default function ContractGeneration() {
                     <span className="text-slate-400">Start Date:</span>
                     <div className="flex items-center space-x-1 text-blue-400">
                       <Calendar className="h-4 w-4" />
-                      <span>{new Date(contract.terms.startDate).toLocaleDateString()}</span>
+                      <span>{formatSafeDate(contract.terms.startDate)}</span>
                     </div>
                   </div>
 
@@ -313,7 +314,7 @@ export default function ContractGeneration() {
                   {contract.signedDate && (
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-400">Signed:</span>
-                      <span className="text-green-400">{new Date(contract.signedDate).toLocaleDateString()}</span>
+                      <span className="text-green-400">{formatSafeDate(contract.signedDate)}</span>
                     </div>
                   )}
                 </div>

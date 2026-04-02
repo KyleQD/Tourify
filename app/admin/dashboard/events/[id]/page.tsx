@@ -102,7 +102,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
-import { format, parseISO, addDays, differenceInDays } from "date-fns"
+import { differenceInDays } from "date-fns"
+import {
+  formatSafeDate,
+  formatSafeDateTime,
+  mapAdminEventStatus,
+  normalizeAdminEvent,
+} from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 
 interface Event {
   id: string
@@ -176,6 +183,185 @@ interface Vendor {
   requirements?: string
 }
 
+function normalizeEventDetails(input: any, eventId: string): Event {
+  const normalized = normalizeAdminEvent(input || {})
+  return {
+    id: normalized.id || input?.id || eventId,
+    name: normalized.name || input?.name || input?.title || "Event",
+    description: normalized.description || input?.description || "",
+    tour_id: input?.tour_id || undefined,
+    venue_name: normalized.venue_name || input?.venue_name || "Venue TBD",
+    venue_address: input?.venue_address || "",
+    event_date: normalized.event_date || input?.event_date || "",
+    event_time: normalized.event_time || input?.event_time || "",
+    doors_open: input?.doors_open || "",
+    duration_minutes: Number(input?.duration_minutes || 0),
+    status: mapAdminEventStatus(input?.status) as Event["status"],
+    capacity: Number(normalized.capacity || input?.capacity || 0),
+    tickets_sold: Number(normalized.tickets_sold || input?.tickets_sold || 0),
+    ticket_price: Number(normalized.ticket_price || input?.ticket_price || 0),
+    vip_price: Number(input?.vip_price || 0),
+    expected_revenue: Number(normalized.expected_revenue || input?.expected_revenue || 0),
+    actual_revenue: Number(normalized.actual_revenue || input?.actual_revenue || 0),
+    expenses: Number(normalized.expenses || input?.expenses || 0),
+    venue_contact_name: input?.venue_contact_name || "",
+    venue_contact_email: input?.venue_contact_email || "",
+    venue_contact_phone: input?.venue_contact_phone || "",
+    sound_requirements: input?.sound_requirements || "",
+    lighting_requirements: input?.lighting_requirements || "",
+    stage_requirements: input?.stage_requirements || "",
+    special_requirements: input?.special_requirements || "",
+    load_in_time: input?.load_in_time || "",
+    sound_check_time: input?.sound_check_time || "",
+    tour: input?.tour,
+  }
+}
+
+function EventIncidentsTab({ eventId }: { eventId: string }) {
+  const [incidents, setIncidents] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showCreate, setShowCreate] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [newIncident, setNewIncident] = useState({ title: '', notes: '', severity: 'info' })
+
+  useEffect(() => {
+    fetchIncidents()
+  }, [eventId])
+
+  async function fetchIncidents() {
+    try {
+      setLoading(true)
+      const res = await fetch(`/api/events/${eventId}/incidents`)
+      if (res.ok) {
+        const data = await res.json()
+        setIncidents(data.incidents || [])
+      }
+    } catch { /* */ } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleCreate() {
+    if (!newIncident.title.trim()) {
+      toast.error('Title is required')
+      return
+    }
+    setCreating(true)
+    try {
+      const res = await fetch(`/api/events/${eventId}/incidents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newIncident),
+      })
+      if (!res.ok) throw new Error()
+      toast.success('Incident logged')
+      setShowCreate(false)
+      setNewIncident({ title: '', notes: '', severity: 'info' })
+      fetchIncidents()
+    } catch {
+      toast.error('Failed to log incident')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const severityColor = (s: string) => {
+    switch (s) {
+      case 'critical': return 'bg-red-500/20 text-red-400 border-red-500/30'
+      case 'major': return 'bg-orange-500/20 text-orange-400 border-orange-500/30'
+      case 'minor': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+      default: return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">Incident Reports</h3>
+        <Dialog open={showCreate} onOpenChange={setShowCreate}>
+          <Button onClick={() => setShowCreate(true)} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white">
+            <Plus className="mr-2 h-4 w-4" /> Log Incident
+          </Button>
+          <DialogContent className="bg-slate-800 border-slate-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Log Incident</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-slate-300">Severity</Label>
+                <Select value={newIncident.severity} onValueChange={(v) => setNewIncident(p => ({ ...p, severity: v }))}>
+                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-slate-800 border-slate-600">
+                    <SelectItem value="info">Info</SelectItem>
+                    <SelectItem value="minor">Minor</SelectItem>
+                    <SelectItem value="major">Major</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-slate-300">Title</Label>
+                <Input
+                  value={newIncident.title}
+                  onChange={(e) => setNewIncident(p => ({ ...p, title: e.target.value }))}
+                  placeholder="Brief description of the incident"
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-300">Notes</Label>
+                <Textarea
+                  value={newIncident.notes}
+                  onChange={(e) => setNewIncident(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="Details, actions taken, etc."
+                  rows={3}
+                  className="bg-slate-700 border-slate-600 text-white"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setShowCreate(false)} className="border-slate-600 text-slate-300">Cancel</Button>
+                <Button onClick={handleCreate} disabled={creating} className="bg-purple-600 hover:bg-purple-700">
+                  {creating ? 'Logging...' : 'Log Incident'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-8 text-slate-400">Loading incidents...</div>
+      ) : incidents.length === 0 ? (
+        <Card className="bg-slate-900/50 border-slate-700/50">
+          <CardContent className="flex flex-col items-center gap-2 py-12 text-center">
+            <Shield className="h-10 w-10 text-slate-500" />
+            <p className="text-lg font-medium text-white">No incidents reported</p>
+            <p className="text-sm text-slate-400">Log incidents during the event for records and analysis</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-2">
+          {incidents.map((inc: any) => (
+            <Card key={inc.id} className="bg-slate-900/50 border-slate-700/50">
+              <CardContent className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className={`h-5 w-5 flex-shrink-0 ${inc.severity === 'critical' ? 'text-red-400' : inc.severity === 'major' ? 'text-orange-400' : inc.severity === 'minor' ? 'text-yellow-400' : 'text-blue-400'}`} />
+                  <div>
+                    <p className="text-sm font-medium text-white">{inc.title}</p>
+                    {inc.notes && <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{inc.notes}</p>}
+                    <p className="text-xs text-slate-500 mt-1">{formatSafeDateTime(inc.created_at)}</p>
+                  </div>
+                </div>
+                <Badge className={severityColor(inc.severity)}>{inc.severity}</Badge>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function EventManagementPage() {
   const params = useParams()
   const router = useRouter()
@@ -214,23 +400,71 @@ export default function EventManagementPage() {
         setIsLoading(true)
         
         // Fetch event details
-        const response = await fetch(`/api/events/${eventId}`)
+        const response = await fetch(`/api/events/${eventId}`, {
+          credentials: 'include',
+        })
         if (!response.ok) {
           throw new Error('Failed to fetch event data')
         }
         
         const data = await response.json()
-        setEvent(data.event)
-        setEditForm(data.event) // Initialize edit form with current event data
-        
-        // In a real app, you would fetch related data here
-        // For now, we'll use mock data
-        setTasks(mockTasks)
-        setStaff(mockStaff)
-        setVendors(mockVendors)
-        setTicketSales(mockTicketSales)
-        setExpenses(mockExpenses)
-        setNotifications(mockNotifications)
+        const normalizedEvent = normalizeEventDetails(data.event, eventId)
+        setEvent(normalizedEvent)
+        setEditForm(normalizedEvent)
+
+        const [tasksRes, staffRes, vendorsRes, financesRes] = await Promise.allSettled([
+          fetch(`/api/events/${eventId}/tasks`, { credentials: 'include' }).then(r => r.json()),
+          fetch(`/api/events/${eventId}/staff`, { credentials: 'include' }).then(r => r.json()),
+          fetch(`/api/events/${eventId}/vendors`, { credentials: 'include' }).then(r => r.json()),
+          fetch(`/api/events/${eventId}/finances`, { credentials: 'include' }).then(r => r.json()),
+        ])
+
+        if (tasksRes.status === 'fulfilled' && tasksRes.value?.tasks) {
+          setTasks(tasksRes.value.tasks.map((t: any) => ({
+            id: t.id,
+            name: t.title || t.name,
+            description: t.description,
+            status: t.status === 'todo' ? 'not_started' : t.status === 'doing' ? 'in_progress' : t.status === 'done' ? 'completed' : t.status === 'blocked' ? 'cancelled' : 'not_started',
+            priority: t.priority === 'critical' ? 'high' : t.priority || 'medium',
+            due_date: t.due_at,
+            assigned_to: t.assignee_id,
+            category: (t.labels && t.labels[0]) || 'logistics',
+          })))
+        }
+
+        if (staffRes.status === 'fulfilled' && staffRes.value?.shifts) {
+          setStaff(staffRes.value.shifts.map((s: any) => ({
+            id: s.id,
+            name: s.staff_name || s.role || 'Staff',
+            role: s.role || 'crew',
+            email: s.staff_email || '',
+            phone: s.phone || undefined,
+            avatar: undefined,
+            status: s.status === 'assigned' ? 'confirmed' : s.status === 'declined' ? 'declined' : 'pending',
+            arrival_time: s.start_time,
+            departure_time: s.end_time,
+          })))
+        }
+
+        if (vendorsRes.status === 'fulfilled' && vendorsRes.value?.vendors) {
+          setVendors(vendorsRes.value.vendors.map((v: any) => ({
+            id: v.id,
+            name: v.vendor_name || v.name,
+            type: v.service_type || v.type || 'general',
+            contact_name: v.contact_email || v.contact_name || '',
+            contact_email: v.contact_email || '',
+            contact_phone: v.contact_phone || undefined,
+            status: v.status === 'confirmed' ? 'confirmed' : v.status === 'declined' ? 'declined' : 'pending',
+            requirements: v.requirements || v.notes,
+          })))
+        }
+
+        if (financesRes.status === 'fulfilled' && financesRes.value?.summary) {
+          setExpenses(financesRes.value.summary.recent_transactions || [])
+          setTicketSales([])
+        }
+
+        setNotifications([])
         
       } catch (error) {
         console.error('Error fetching event data:', error)
@@ -278,18 +512,24 @@ export default function EventManagementPage() {
     if (!event) return
     
     try {
-      const duplicateData = {
-        ...event,
-        name: `${event.name} (Copy)`,
-        status: 'scheduled' as const,
-        tickets_sold: 0,
-        actual_revenue: 0
-      }
-      
+      const date = event.event_date || new Date().toISOString().slice(0, 10)
+      const time = (event.event_time || '00:00').slice(0, 5)
+      const startAt = new Date(`${date}T${time}:00`).toISOString()
+      const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(duplicateData)
+        credentials: 'include',
+        body: JSON.stringify({
+          title: `${event.name} (Copy)`,
+          description: event.description || '',
+          start_at: startAt,
+          end_at: endAt,
+          venue_id: null,
+          capacity: event.capacity ?? null,
+          status: 'draft',
+        }),
       })
       
       if (!response.ok) throw new Error('Failed to duplicate event')
@@ -309,13 +549,14 @@ export default function EventManagementPage() {
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(editForm)
       })
       
       if (!response.ok) throw new Error('Failed to update event')
       
       const updatedEvent = await response.json()
-      setEvent(updatedEvent.event)
+      setEvent(normalizeEventDetails(updatedEvent.event, eventId))
       setIsEditing(false)
       toast.success("Event updated successfully")
     } catch (error) {
@@ -330,6 +571,7 @@ export default function EventManagementPage() {
       const response = await fetch(`/api/events/${eventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status: newStatus })
       })
       
@@ -345,7 +587,8 @@ export default function EventManagementPage() {
   const handleDeleteEvent = async () => {
     try {
       const response = await fetch(`/api/events/${eventId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
       
       if (!response.ok) throw new Error('Failed to delete event')
@@ -411,7 +654,9 @@ export default function EventManagementPage() {
     )
   }
 
-  const daysUntilEvent = differenceInDays(new Date(event.event_date), new Date())
+  const parsedEventDate = event.event_date ? new Date(event.event_date) : null
+  const hasValidEventDate = parsedEventDate && !Number.isNaN(parsedEventDate.getTime())
+  const daysUntilEvent = hasValidEventDate ? differenceInDays(parsedEventDate, new Date()) : 0
   const ticketSalesPercentage = event.capacity > 0 ? (event.tickets_sold / event.capacity) * 100 : 0
   const revenuePercentage = event.expected_revenue > 0 ? (event.actual_revenue / event.expected_revenue) * 100 : 0
 
@@ -434,7 +679,7 @@ export default function EventManagementPage() {
               <div className="flex items-center space-x-4 mt-2 text-slate-400">
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-1" />
-                  {format(new Date(event.event_date), 'MMM dd, yyyy')}
+                  {formatSafeDate(event.event_date)}
                   {event.event_time && ` at ${event.event_time}`}
                 </div>
                 <div className="flex items-center">
@@ -505,8 +750,8 @@ export default function EventManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-400">Ticket Sales</p>
-                  <p className="text-2xl font-bold text-white">{event.tickets_sold.toLocaleString()}</p>
-                  <p className="text-sm text-slate-400">of {event.capacity.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-white">{formatSafeNumber(event.tickets_sold)}</p>
+                  <p className="text-sm text-slate-400">of {formatSafeNumber(event.capacity)}</p>
                 </div>
                 <Ticket className="h-8 w-8 text-green-500" />
               </div>
@@ -518,8 +763,8 @@ export default function EventManagementPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-400">Revenue</p>
-                  <p className="text-2xl font-bold text-white">${event.actual_revenue.toLocaleString()}</p>
-                  <p className="text-sm text-slate-400">of ${event.expected_revenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-white">{formatSafeCurrency(event.actual_revenue)}</p>
+                  <p className="text-sm text-slate-400">of {formatSafeCurrency(event.expected_revenue)}</p>
                 </div>
                 <DollarSign className="h-8 w-8 text-blue-500" />
               </div>
@@ -542,18 +787,19 @@ export default function EventManagementPage() {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-11 bg-slate-800/50 border-slate-700/50">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-purple-600">Overview</TabsTrigger>
-            <TabsTrigger value="tasks" className="data-[state=active]:bg-purple-600">Tasks</TabsTrigger>
-            <TabsTrigger value="staff" className="data-[state=active]:bg-purple-600">Staff</TabsTrigger>
-            <TabsTrigger value="vendors" className="data-[state=active]:bg-purple-600">Vendors</TabsTrigger>
-            <TabsTrigger value="tickets" className="data-[state=active]:bg-purple-600">Tickets</TabsTrigger>
-            <TabsTrigger value="finances" className="data-[state=active]:bg-purple-600">Finances</TabsTrigger>
-            <TabsTrigger value="logistics" className="data-[state=active]:bg-purple-600">Logistics</TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-purple-600">Analytics</TabsTrigger>
-            <TabsTrigger value="locations" className="data-[state=active]:bg-purple-600">Locations</TabsTrigger>
-            <TabsTrigger value="participants" className="data-[state=active]:bg-purple-600">Participants</TabsTrigger>
-            <TabsTrigger value="access" className="data-[state=active]:bg-purple-600">Access</TabsTrigger>
+          <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Overview</TabsTrigger>
+            <TabsTrigger value="tasks" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tasks</TabsTrigger>
+            <TabsTrigger value="staff" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Staff</TabsTrigger>
+            <TabsTrigger value="vendors" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Vendors</TabsTrigger>
+            <TabsTrigger value="tickets" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tickets</TabsTrigger>
+            <TabsTrigger value="finances" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Finances</TabsTrigger>
+            <TabsTrigger value="logistics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Logistics</TabsTrigger>
+            <TabsTrigger value="incidents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Incidents</TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Analytics</TabsTrigger>
+            <TabsTrigger value="locations" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Locations</TabsTrigger>
+            <TabsTrigger value="participants" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Participants</TabsTrigger>
+            <TabsTrigger value="access" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Access</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -734,11 +980,11 @@ export default function EventManagementPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white">{event.tickets_sold.toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-white">{formatSafeNumber(event.tickets_sold)}</h3>
                     <p className="text-slate-400">Tickets Sold</p>
                   </div>
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white">${event.actual_revenue.toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-white">{formatSafeCurrency(event.actual_revenue)}</h3>
                     <p className="text-slate-400">Total Revenue</p>
                   </div>
                   <div className="text-center">
@@ -759,15 +1005,15 @@ export default function EventManagementPage() {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-green-400">${event.actual_revenue.toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-green-400">{formatSafeCurrency(event.actual_revenue)}</h3>
                     <p className="text-slate-400">Revenue</p>
                   </div>
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-red-400">${event.expenses.toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-red-400">{formatSafeCurrency(event.expenses)}</h3>
                     <p className="text-slate-400">Expenses</p>
                   </div>
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-blue-400">${(event.actual_revenue - event.expenses).toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-blue-400">{formatSafeCurrency(event.actual_revenue - event.expenses)}</h3>
                     <p className="text-slate-400">Profit</p>
                   </div>
                 </div>
@@ -841,6 +1087,11 @@ export default function EventManagementPage() {
           {/* Participants Tab */}
           <TabsContent value="participants" className="space-y-6">
             <EventParticipantsTab eventId={eventId} />
+          </TabsContent>
+
+          {/* Incidents Tab */}
+          <TabsContent value="incidents" className="space-y-6">
+            <EventIncidentsTab eventId={eventId} />
           </TabsContent>
 
           {/* Access & Audit Tab */}
@@ -919,7 +1170,12 @@ export default function EventManagementPage() {
                   id="capacity"
                   type="number"
                   value={editForm.capacity || 0}
-                  onChange={(e) => setEditForm({ ...editForm, capacity: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      capacity: Number.isNaN(parseInt(e.target.value, 10)) ? 0 : parseInt(e.target.value, 10),
+                    })
+                  }
                   className="bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -930,7 +1186,12 @@ export default function EventManagementPage() {
                   type="number"
                   step="0.01"
                   value={editForm.ticket_price || 0}
-                  onChange={(e) => setEditForm({ ...editForm, ticket_price: parseFloat(e.target.value) })}
+                  onChange={(e) =>
+                    setEditForm({
+                      ...editForm,
+                      ticket_price: Number.isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value),
+                    })
+                  }
                   className="bg-slate-700 border-slate-600 text-white"
                 />
               </div>
@@ -1119,89 +1380,3 @@ export default function EventManagementPage() {
     </div>
   )
 }
-
-// Mock data for development
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    name: 'Venue Setup',
-    description: 'Coordinate with venue for setup requirements',
-    status: 'completed',
-    priority: 'high',
-    category: 'logistics',
-    due_date: '2024-01-15'
-  },
-  {
-    id: '2',
-    name: 'Sound Check',
-    description: 'Schedule and conduct sound check',
-    status: 'in_progress',
-    priority: 'medium',
-    category: 'technical',
-    due_date: '2024-01-20'
-  },
-  {
-    id: '3',
-    name: 'Staff Briefing',
-    description: 'Brief all staff on event procedures',
-    status: 'not_started',
-    priority: 'high',
-    category: 'staffing',
-    due_date: '2024-01-25'
-  }
-]
-
-const mockStaff: Staff[] = [
-  {
-    id: '1',
-    name: 'John Smith',
-    role: 'Event Manager',
-    email: 'john@example.com',
-    status: 'confirmed'
-  },
-  {
-    id: '2',
-    name: 'Sarah Johnson',
-    role: 'Technical Director',
-    email: 'sarah@example.com',
-    status: 'confirmed'
-  },
-  {
-    id: '3',
-    name: 'Mike Wilson',
-    role: 'Security Lead',
-    email: 'mike@example.com',
-    status: 'pending'
-  }
-]
-
-const mockVendors: Vendor[] = [
-  {
-    id: '1',
-    name: 'SoundMasters Pro',
-    type: 'Audio Equipment',
-    contact_name: 'David Brown',
-    contact_email: 'david@soundmasters.com',
-    status: 'confirmed'
-  },
-  {
-    id: '2',
-    name: 'LightWorks',
-    type: 'Lighting',
-    contact_name: 'Lisa Chen',
-    contact_email: 'lisa@lightworks.com',
-    status: 'confirmed'
-  },
-  {
-    id: '3',
-    name: 'FoodTruck Collective',
-    type: 'Food & Beverage',
-    contact_name: 'Tom Garcia',
-    contact_email: 'tom@foodtruck.com',
-    status: 'pending'
-  }
-]
-
-const mockTicketSales: any[] = []
-const mockExpenses: any[] = []
-const mockNotifications: any[] = []

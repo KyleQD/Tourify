@@ -134,7 +134,7 @@ export function MessagingSystem() {
       sender: "me",
       name: "You",
       content: message,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(new Date()),
     }
 
     setMessages([...messages, newMessage])

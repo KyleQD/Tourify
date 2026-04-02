@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 // Validation schemas for each step
 const tourInitiationSchema = z.object({
@@ -101,22 +101,9 @@ const completeTourDataSchema = z.object({
   step6: ticketingFinancialsSchema
 })
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
     console.log('[Tour Planner API] POST request started')
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
 
     const body = await request.json()
     const validatedData = completeTourDataSchema.parse(body)
@@ -187,9 +174,74 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create tour' }, { status: 500 })
     }
 
-    // Create events
+    // Create events (prefer canonical events_v2 + tour_events links)
     const events = []
+    let eventOrdinal = 0
     for (const eventData of validatedData.step3.events) {
+      let eventCreated = false
+
+      if (tour.org_id) {
+        const baseSlug = eventData.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)/g, '')
+          .slice(0, 48)
+        const slug = `${baseSlug || 'tour-event'}-${Date.now().toString(36)}-${eventOrdinal}`
+        const startAt = eventData.time
+          ? new Date(`${eventData.date}T${eventData.time}`).toISOString()
+          : new Date(`${eventData.date}T19:00:00`).toISOString()
+        const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+
+        const { data: eventV2, error: eventV2Error } = await supabase
+          .from('events_v2')
+          .insert({
+            org_id: tour.org_id,
+            venue_id: null,
+            title: eventData.name,
+            slug,
+            status: 'inquiry',
+            start_at: startAt,
+            end_at: endAt,
+            capacity: eventData.capacity || 0,
+            settings: {
+              description: eventData.description || '',
+              venue_label: eventData.venue,
+              planned_time: eventData.time || null,
+            },
+            created_by: user.id,
+          })
+          .select('id, title, status, start_at, settings, capacity')
+          .single()
+
+        if (!eventV2Error && eventV2?.id) {
+          const { error: linkError } = await supabase
+            .from('tour_events')
+            .insert({ tour_id: tour.id, event_id: eventV2.id, ordinal: eventOrdinal })
+
+          if (!linkError) {
+            const settings = eventV2.settings && typeof eventV2.settings === 'object'
+              ? (eventV2.settings as Record<string, unknown>)
+              : {}
+            events.push({
+              id: eventV2.id,
+              name: eventV2.title,
+              venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : eventData.venue,
+              event_date: eventV2.start_at ? String(eventV2.start_at).slice(0, 10) : eventData.date,
+              event_time: typeof settings.planned_time === 'string' ? settings.planned_time : eventData.time,
+              status: eventV2.status || 'scheduled',
+              capacity: eventV2.capacity || eventData.capacity || 0,
+              event_table: 'events_v2'
+            })
+            eventCreated = true
+            eventOrdinal += 1
+          }
+        } else {
+          console.error('[Tour Planner API] Error creating events_v2 event:', eventV2Error)
+        }
+      }
+
+      if (eventCreated) continue
+
       const { data: event, error: eventError } = await supabase
         .from('events')
         .insert({
@@ -209,12 +261,16 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (eventError) {
-        console.error('[Tour Planner API] Error creating event:', eventError)
+        console.error('[Tour Planner API] Error creating legacy event:', eventError)
         // Continue with other events, don't fail the entire tour
         continue
       }
 
-      events.push(event)
+      events.push({
+        ...event,
+        event_table: 'events'
+      })
+      eventOrdinal += 1
     }
 
     // Create team members (artists and crew)
@@ -387,24 +443,11 @@ export async function POST(request: NextRequest) {
     console.error('[Tour Planner API] Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-}
+})
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
     console.log('[Tour Planner API] GET request started')
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
 
     const { searchParams } = new URL(request.url)
     const tourId = searchParams.get('tour_id')
@@ -413,15 +456,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Tour ID is required' }, { status: 400 })
     }
 
-    // Fetch tour with all related data
+    // Fetch tour
     const { data: tour, error } = await supabase
       .from('tours')
       .select(`
         *,
-        events(
-          id, name, description, venue_name, event_date, event_time, 
-          capacity, status, created_at
-        ),
         tour_team_members(
           id, role, contact_email, contact_phone, status, created_at
         ),
@@ -430,6 +469,7 @@ export async function GET(request: NextRequest) {
         )
       `)
       .eq('id', tourId)
+      .eq('user_id', user.id)
       .single()
 
     if (error) {
@@ -440,19 +480,69 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
     }
 
+    const { data: tourEventLinks } = await supabase
+      .from('tour_events')
+      .select(`
+        ordinal,
+        events_v2 (
+          id,
+          title,
+          status,
+          start_at,
+          capacity,
+          settings
+        )
+      `)
+      .eq('tour_id', tourId)
+      .order('ordinal', { ascending: true })
+
+    const linkedEvents = (tourEventLinks || [])
+      .map((link: any) => {
+        const event = link.events_v2
+        if (!event) return null
+        const settings = event.settings && typeof event.settings === 'object'
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        return {
+          id: event.id,
+          name: event.title,
+          description: typeof settings.description === 'string' ? settings.description : '',
+          venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : '',
+          event_date: event.start_at ? String(event.start_at).slice(0, 10) : '',
+          event_time: typeof settings.planned_time === 'string'
+            ? settings.planned_time
+            : (event.start_at ? String(event.start_at).slice(11, 16) : ''),
+          capacity: event.capacity || 0,
+          status: event.status || 'scheduled',
+          created_at: null,
+          event_table: 'events_v2'
+        }
+      })
+      .filter(Boolean)
+
+    const { data: legacyEvents } = await supabase
+      .from('events')
+      .select('id, name, description, venue_name, event_date, event_time, capacity, status, created_at')
+      .eq('tour_id', tourId)
+      .order('event_date', { ascending: true })
+
+    const eventsForPlanner = linkedEvents.length > 0
+      ? linkedEvents
+      : (legacyEvents || [])
+
     // Transform data for the planner
     const plannerData = {
       step1: {
         name: tour.name,
         description: tour.description,
-        mainArtist: tour.artist_id,
+        mainArtist: tour.artist_id || tour.user_id,
         genre: '', // Not stored in current schema
         coverImage: '' // Not stored in current schema
       },
       step2: {
         startDate: tour.start_date,
         endDate: tour.end_date,
-        route: tour.events?.map((event: any) => ({
+        route: eventsForPlanner?.map((event: any) => ({
           city: event.venue_name?.split(',')[0] || '',
           venue: event.venue_name || '',
           date: event.event_date,
@@ -460,7 +550,7 @@ export async function GET(request: NextRequest) {
         })) || []
       },
       step3: {
-        events: tour.events?.map((event: any) => ({
+        events: eventsForPlanner?.map((event: any) => ({
           id: event.id,
           name: event.name,
           venue: event.venue_name || '',
@@ -525,4 +615,9 @@ export async function GET(request: NextRequest) {
     console.error('[Tour Planner API] Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}, {
+  tourIdFromRequest: (request: NextRequest) => {
+    const { searchParams } = new URL(request.url)
+    return searchParams.get('tour_id') || undefined
+  }
+})

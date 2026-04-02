@@ -19,6 +19,7 @@ import Link from "next/link"
 import { PhotoViewer } from '@/components/photos/photo-viewer'
 import { usePhotoViewer } from '@/hooks/use-photo-viewer'
 import { TestPhotoViewer } from '@/components/photos/test-photo-viewer'
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   Music,
   Calendar,
@@ -116,7 +117,7 @@ export default function HomePage() {
               avatar: post.profiles?.avatar_url || '/placeholder.svg?height=40&width=40',
             },
             content: post.content,
-            timestamp: new Date(post.created_at).toLocaleDateString(),
+            timestamp: formatSafeDate(post.created_at),
             likes: post.likes_count || 0,
             comments: post.comments_count || 0,
             shares: post.shares_count || 0,

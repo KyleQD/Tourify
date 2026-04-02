@@ -50,7 +50,13 @@ export function EntityAccessAudit({ entityType, entityId }: { entityType: string
                 {log.permission_name ? <Badge className="rounded-full">{log.permission_name}</Badge> : null}
               </div>
               <div className="text-sm text-slate-400">
-                {new Date(log.created_at).toLocaleString()} • actor: {log.actor_id || 'n/a'} • target: {log.target_user_id || 'n/a'}
+                {new Intl.DateTimeFormat("en-US", {
+                  year: "numeric",
+                  month: "numeric",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                }).format(new Date(log.created_at))} • actor: {log.actor_id || 'n/a'} • target: {log.target_user_id || 'n/a'}
               </div>
             </div>
             <div className="text-xs text-slate-500">{log.entity_type}:{log.entity_id}</div>

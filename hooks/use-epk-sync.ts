@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useArtist } from '@/contexts/artist-context'
 import { epkService, type EPKData } from '@/lib/services/epk.service'
+import { getDefaultEpkAppearance } from '@/lib/epk/epk-appearance'
 import { useToast } from '@/components/ui/use-toast'
 
 interface UseEPKSyncReturn {
@@ -37,6 +38,9 @@ export function useEPKSync(): UseEPKSyncReturn {
       // Create default EPK data if loading fails
       if (profile) {
         const defaultEPKData: EPKData = {
+          epkSlug: profile.artist_name
+            ? profile.artist_name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
+            : '',
           artistName: profile.artist_name || "",
           bio: profile.bio || "",
           genre: profile.genres?.[0] || "",
@@ -72,6 +76,34 @@ export function useEPKSync(): UseEPKSyncReturn {
           customDomain: "",
           seoTitle: "",
           seoDescription: "",
+          layout: {
+            preset: 'booker',
+            sectionOrder: ['hero', 'one-liner', 'bio', 'music', 'stats', 'shows', 'press', 'media', 'contact', 'social', 'booking'],
+            sectionVisibility: {
+              hero: true,
+              'one-liner': true,
+              bio: true,
+              music: true,
+              stats: true,
+              shows: true,
+              press: true,
+              media: true,
+              contact: true,
+              social: true,
+              booking: true
+            }
+          },
+          bookingAssets: {
+            techRiderUrl: "",
+            stagePlotUrl: "",
+            oneLiner: ""
+          },
+          quality: {
+            score: 0,
+            missing: []
+          },
+          epkFont: "sans",
+          epkAppearance: getDefaultEpkAppearance("modern"),
         }
         setEpkData(defaultEPKData)
       }

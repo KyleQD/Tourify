@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ChevronRight, FileText, Upload } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueDocumentsProps {
   venue: any
@@ -57,7 +58,7 @@ export function VenueDocuments({ venue }: VenueDocumentsProps) {
                     <h3 className="font-medium text-white">{doc.name}</h3>
                     <p className="text-xs text-gray-400">
                       {doc.type.toUpperCase()} • {doc.size}
-                      {doc.uploadDate && ` • ${new Date(doc.uploadDate).toLocaleDateString()}`}
+                      {doc.uploadDate && ` • ${formatSafeDate(doc.uploadDate)}`}
                     </p>
                   </div>
                 </div>

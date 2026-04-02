@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CheckCircle, Download, Mail, Ticket, Calendar, MapPin } from 'lucide-react'
 import Link from 'next/link'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface TicketPurchase {
   order_number: string
@@ -138,7 +139,7 @@ export default function TicketSuccessPage() {
             <div className="flex justify-between items-center">
               <span className="text-slate-400">Purchase Date:</span>
               <span className="text-white">
-                {new Date(purchase.purchase_date).toLocaleDateString()}
+                {formatSafeDate(purchase.purchase_date)}
               </span>
             </div>
           </CardContent>
@@ -153,12 +154,7 @@ export default function TicketSuccessPage() {
             <div className="flex items-center space-x-3">
               <Calendar className="h-5 w-5 text-purple-500" />
               <span className="text-slate-300">
-                {new Date(purchase.event.date).toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
+                {formatSafeDate(purchase.event.date)}
               </span>
             </div>
             <div className="flex items-center space-x-3">

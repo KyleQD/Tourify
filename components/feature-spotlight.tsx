@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Calendar, MapPin, Music2 } from 'lucide-react'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface FeatureSpotlightProps {
   title: string
@@ -33,7 +34,7 @@ export default function FeatureSpotlight({
         <div className="flex flex-wrap gap-4 text-sm text-slate-400">
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4" />
-            <span>{new Date(date).toLocaleDateString()}</span>
+            <span>{formatSafeDate(date)}</span>
           </div>
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4" />

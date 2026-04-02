@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { Calendar, Clock, Users, Music, FileText, ArrowLeft } from "lucide-react"
 import { LoadingSpinner } from "../../../../components/loading-spinner"
+import { NeoDateInput } from "@/components/ui/neo-date-input"
 
 export default function BookingRequestPage() {
   const params = useParams()
@@ -58,8 +59,42 @@ export default function BookingRequestPage() {
     setIsSubmitting(true)
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      const venueId = Array.isArray(params.id) ? params.id[0] : params.id
+      const response = await fetch("/api/booking-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId,
+          email: formData.contactEmail,
+          phone: formData.contactPhone,
+          eventName: formData.artistName,
+          eventType: formData.eventType,
+          eventDate: formData.eventDate,
+          expectedAttendance: Number(formData.expectedAttendance || 0),
+          bookingDetails: {
+            performanceType: formData.eventType,
+            description: formData.additionalInfo || `${formData.artistName} booking request`,
+            performanceDate: formData.eventDate,
+            soundcheckTime: "",
+            performanceTime: formData.startTime,
+            duration: `${formData.startTime}-${formData.endTime}`,
+            venue: `venue-${venueId}`,
+            location: "TBD",
+            compensation: "TBD",
+            requirements: "",
+            additionalNotes: [
+              `contact_name:${formData.contactName}`,
+              `artist_name:${formData.artistName}`,
+              `expected_attendance:${formData.expectedAttendance}`,
+              `alternative_date:${formData.alternativeDate || "none"}`,
+            ].join(" | "),
+          },
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to submit booking request")
+      }
 
       toast({
         title: "Booking Request Submitted",
@@ -169,10 +204,9 @@ export default function BookingRequestPage() {
                   <Label htmlFor="eventDate">Preferred Date *</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
+                    <NeoDateInput
                       id="eventDate"
                       name="eventDate"
-                      type="date"
                       value={formData.eventDate}
                       onChange={handleChange}
                       className="pl-10 bg-gray-800 border-gray-700"
@@ -185,10 +219,9 @@ export default function BookingRequestPage() {
                   <Label htmlFor="alternativeDate">Alternative Date</Label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
+                    <NeoDateInput
                       id="alternativeDate"
                       name="alternativeDate"
-                      type="date"
                       value={formData.alternativeDate}
                       onChange={handleChange}
                       className="pl-10 bg-gray-800 border-gray-700"

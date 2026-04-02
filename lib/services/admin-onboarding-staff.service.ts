@@ -918,6 +918,42 @@ export class AdminOnboardingStaffService {
   }
 
   /**
+   * Update a staff member's status (venue-scoped)
+   */
+  static async updateStaffMemberStatus(
+    venueId: string,
+    staffId: string,
+    status: string
+  ): Promise<StaffMember> {
+    const allowed: StaffMember['status'][] = ['active', 'inactive', 'on_leave', 'terminated']
+    if (!allowed.includes(status as StaffMember['status'])) {
+      throw new Error('Invalid staff status')
+    }
+
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const tableExists = await checkTableExists('staff_members')
+    if (!tableExists) {
+      throw new Error('staff_members table does not exist')
+    }
+
+    const { data, error } = await supabase
+      .from('staff_members')
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', staffId)
+      .eq('venue_id', venueId)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data as StaffMember
+  }
+
+  /**
    * Send team communication
    */
   static async sendTeamCommunication(

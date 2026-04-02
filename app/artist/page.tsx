@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import type { ComponentType } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -49,16 +50,22 @@ import {
   Bell,
   CheckCircle,
   CalendarDays,
-  TrendingDown
+  TrendingDown,
+  ExternalLink
 } from "lucide-react"
 import { cn } from "@/utils"
 import { useArtist } from "@/contexts/artist-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useAuth } from "@/contexts/auth-context"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { format, addDays, isToday, isTomorrow, differenceInDays } from "date-fns"
+import { format, isToday, isTomorrow, differenceInDays } from "date-fns"
+import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { artistContentService } from '@/lib/services/artist-content.service'
+import { buildAnalyticsDataFromArtistStats } from '@/lib/artist/build-analytics-from-stats'
+import { buildDashboardActionItems } from '@/lib/artist/build-action-items'
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 
 // Import Phase 2 components
 import { ArtistEventsOverview } from '@/components/dashboard/artist-events-overview'
@@ -68,6 +75,8 @@ import { ArtistBusinessInsights } from '@/components/dashboard/artist-business-i
 import { ArtistSmartRecommendations } from '@/components/dashboard/artist-smart-recommendations'
 import { ArtistNotifications } from '@/components/dashboard/artist-notifications'
 import { ArtistAnalyticsOverview } from '@/components/dashboard/artist-analytics-overview'
+import { ArtistDashboardBottomSections } from '@/components/dashboard/artist-dashboard-bottom-sections'
+import { DashboardContractsCard } from '@/components/dashboard/dashboard-contracts-card'
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
@@ -115,114 +124,29 @@ const quickActions = [
   }
 ]
 
-// Mock upcoming events data - used as fallback when no data available
-const mockUpcomingEvents = [
-  {
-    id: "1",
-    title: "Summer Festival 2024",
-    date: addDays(new Date(), 7),
-    venue: "Central Park",
-    city: "New York",
-    status: "confirmed",
-    ticketSales: 450,
-    capacity: 1000,
-    revenue: 22500,
-    type: "festival"
-  },
-  {
-    id: "2", 
-    title: "Album Release Party",
-    date: addDays(new Date(), 14),
-    venue: "The Grand Hall",
-    city: "Los Angeles",
-    status: "confirmed",
-    ticketSales: 180,
-    capacity: 300,
-    revenue: 18000,
-    type: "concert"
-  },
-  {
-    id: "3",
-    title: "Acoustic Night",
-    date: addDays(new Date(), 21),
-    venue: "Blue Note Jazz Club",
-    city: "Chicago",
-    status: "pending",
-    ticketSales: 0,
-    capacity: 150,
-    revenue: 0,
-    type: "concert"
-  }
-]
-
-// Mock content performance data - used as fallback when no data available
-const mockContentPerformance = [
-  {
-    id: "1",
-    title: "Midnight Dreams",
-    type: "track",
-    plays: 15420,
-    likes: 892,
-    shares: 156,
-    uploadDate: addDays(new Date(), -5),
-    trend: "up"
-  },
-  {
-    id: "2",
-    title: "Live at Central Park",
-    type: "video",
-    views: 8920,
-    likes: 445,
-    shares: 89,
-    uploadDate: addDays(new Date(), -3),
-    trend: "up"
-  },
-  {
-    id: "3",
-    title: "Behind the Scenes",
-    type: "photo",
-    views: 3240,
-    likes: 234,
-    shares: 45,
-    uploadDate: addDays(new Date(), -1),
-    trend: "down"
-  }
-]
-
-// Action items and tasks
-const mockActionItems = [
-  {
-    id: "1",
-    title: "Complete EPK",
-    description: "Your Electronic Press Kit is 60% complete",
-    priority: "high",
-    dueDate: addDays(new Date(), 3),
-    type: "profile"
-  },
-  {
-    id: "2",
-    title: "Review Collaboration Request",
-    description: "Producer Mike Stevens wants to collaborate",
-    priority: "medium",
-    dueDate: addDays(new Date(), 7),
-    type: "collaboration"
-  },
-  {
-    id: "3",
-    title: "Update Social Links",
-    description: "Add your latest social media profiles",
-    priority: "low",
-    dueDate: addDays(new Date(), 14),
-    type: "profile"
-  }
-]
+const STATS_REFRESH_MS = 15 * 60 * 1000
 
 export default function ArtistDashboard() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [isRetrying, setIsRetrying] = useState(false)
   const { user: authUser } = useAuth()
   const { currentAccount, userAccounts, switchAccount } = useMultiAccount()
   const { user, profile, stats, isLoading, features, displayName, avatarInitial, syncArtistName, refreshStats } = useArtist()
+
+  const artistPublicPath = useMemo(
+    () => getArtistPublicProfilePath(profile?.artist_name),
+    [profile?.artist_name]
+  )
+
+  function handleViewPublicProfile() {
+    if (!artistPublicPath) {
+      console.warn("[Artist Dashboard] View Public Profile: artist_name missing")
+      return
+    }
+    console.log("[Artist Dashboard] Routing to public artist profile:", artistPublicPath)
+    router.push(artistPublicPath)
+  }
   
   // Real data state
   interface UpcomingEventItem {
@@ -247,84 +171,136 @@ export default function ArtistDashboard() {
     uploadDate?: Date
     trend?: 'up' | 'down'
   }
+
+  interface DynamicStat {
+    title: string
+    value: string
+    change: string | null
+    trend: 'up' | 'down' | 'neutral'
+    icon: ComponentType<{ className?: string }>
+    progress: number
+    color: string
+    glowColor: string
+    dataSource: string
+  }
   const [upcomingEvents, setUpcomingEvents] = useState<UpcomingEventItem[]>([])
   const [recentContent, setRecentContent] = useState<ContentItem[]>([])
+  const [lastDashboardRefresh, setLastDashboardRefresh] = useState<Date | null>(null)
 
   // Check if we need to switch to artist account
   const artistAccount = userAccounts.find(acc => acc.account_type === 'artist')
   const isInArtistMode = currentAccount?.account_type === 'artist'
 
-  // Generate dynamic stats from context
-  const dynamicStats = [
-    {
-      title: "Total Revenue",
-      value: `$${(stats.totalRevenue / 1000).toFixed(1)}K`,
-      change: "+12.5%",
-      trend: "up",
-      icon: DollarSign,
-      progress: Math.min((stats.totalRevenue / 100000) * 100, 100),
-      color: "from-emerald-400 via-teal-500 to-cyan-600",
-      glowColor: "shadow-emerald-500/25",
-      hasData: true,
-      dataSource: "Connected platforms"
-    },
-    {
-      title: "Total Fans",
-      value: `${(stats.totalFans / 1000).toFixed(1)}K`,
-      change: "+8.2%",
-      trend: "up",
-      icon: Users,
-      progress: Math.min((stats.totalFans / 200000) * 100, 100),
-      color: "from-blue-400 via-indigo-500 to-purple-600",
-      glowColor: "shadow-blue-500/25",
-      hasData: true,
-      dataSource: "Social media platforms"
-    },
-    {
-      title: "Streams",
-      value: `${(stats.totalStreams / 1000000).toFixed(1)}M`,
-      change: stats.totalStreams > 500000 ? "+15.3%" : "-2.1%",
-      trend: stats.totalStreams > 500000 ? "up" : "down",
-      icon: Headphones,
-      progress: Math.min((stats.totalStreams / 2000000) * 100, 100),
-      color: "from-purple-400 via-fuchsia-500 to-pink-600",
-      glowColor: "shadow-purple-500/25",
-      hasData: true,
-      dataSource: "Streaming platforms"
-    },
-    {
-      title: "Engagement",
-      value: `${stats.engagementRate}%`,
-      change: "+5.3%",
-      trend: "up",
-      icon: Heart,
-      progress: stats.engagementRate,
-      color: "from-pink-400 via-rose-500 to-red-600",
-      glowColor: "shadow-pink-500/25",
-      hasData: true,
-      dataSource: "Social media analytics"
+  function formatMetricValue(n: number, mode: 'currency' | 'compact' | 'percent'): string {
+    if (mode === 'currency') {
+      if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
+      if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`
+      return formatSafeCurrency(Math.round(n))
     }
-  ]
-
-  // Calculate upcoming events summary (prefer real data, fallback to mocks)
-  const eventsSource = upcomingEvents.length > 0 ? upcomingEvents : mockUpcomingEvents
-  const upcomingEventsSummary = {
-    total: eventsSource.length,
-    confirmed: eventsSource.filter((e: any) => e.status === 'confirmed').length,
-    pending: eventsSource.filter((e: any) => e.status === 'pending').length,
-    totalRevenue: eventsSource.reduce((sum: number, e: any) => sum + (e.revenue || 0), 0),
-    nextEvent: eventsSource[0]
+    if (mode === 'percent') return `${Math.round(n * 10) / 10}%`
+    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+    if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
+    return formatSafeNumber(Math.round(n))
   }
 
-  // Calculate content performance summary (prefer real data)
-  const contentItems: any[] = recentContent.length > 0 ? recentContent : mockContentPerformance as any
+  // Metrics from `get_enhanced_artist_stats` / fallback counts only — no fabricated period-over-period deltas
+  const dynamicStats = useMemo<DynamicStat[]>(
+    () => [
+      {
+        title: "Total Revenue",
+        value: formatMetricValue(stats.totalRevenue, "currency"),
+        change: null,
+        trend: "neutral",
+        icon: DollarSign,
+        progress: Math.min((stats.totalRevenue / 100000) * 100, 100),
+        color: "from-emerald-400 via-teal-500 to-cyan-600",
+        glowColor: "shadow-emerald-500/25",
+        dataSource: "Aggregated from your connected data",
+      },
+      {
+        title: "Total Fans",
+        value: formatMetricValue(stats.totalFans, "compact"),
+        change: null,
+        trend: "neutral",
+        icon: Users,
+        progress: Math.min((stats.totalFans / 200000) * 100, 100),
+        color: "from-blue-400 via-indigo-500 to-purple-600",
+        glowColor: "shadow-blue-500/25",
+        dataSource: "Social integrations & profile",
+      },
+      {
+        title: "Streams",
+        value: formatMetricValue(stats.totalStreams, "compact"),
+        change: null,
+        trend: "neutral",
+        icon: Headphones,
+        progress: Math.min((stats.totalStreams / 2000000) * 100, 100),
+        color: "from-purple-400 via-fuchsia-500 to-pink-600",
+        glowColor: "shadow-purple-500/25",
+        dataSource: "Streaming integrations",
+      },
+      {
+        title: "Engagement",
+        value: formatMetricValue(stats.engagementRate, "percent"),
+        change: null,
+        trend: "neutral",
+        icon: Heart,
+        progress: Math.min(stats.engagementRate, 100),
+        color: "from-pink-400 via-rose-500 to-red-600",
+        glowColor: "shadow-pink-500/25",
+        dataSource: "Social analytics",
+      },
+    ],
+    [stats]
+  )
+
+  const isActiveEventStatus = (s?: string) =>
+    s === "upcoming" || s === "in_progress"
+
+  const eventsSource = upcomingEvents
+  const upcomingEventsSummary = {
+    total: eventsSource.length,
+    confirmed: eventsSource.filter((e) => isActiveEventStatus(e.status)).length,
+    pending: eventsSource.filter((e) => e.status === "postponed").length,
+    totalRevenue: eventsSource.reduce((sum, e) => sum + (e.revenue || 0), 0),
+    nextEvent: eventsSource[0],
+  }
+
+  const contentItems = recentContent
   const contentSummary = {
     totalTracks: stats.musicCount,
     totalVideos: stats.videoCount,
     totalPhotos: stats.photoCount,
     totalViews: contentItems.reduce((sum, c) => sum + (c.views || c.plays || 0), 0),
-    totalLikes: contentItems.reduce((sum, c) => sum + (c.likes || 0), 0)
+    totalLikes: contentItems.reduce((sum, c) => sum + (c.likes || 0), 0),
   }
+
+  const topTrackTitle = useMemo(() => {
+    const tracks = recentContent.filter((c) => c.type === "track")
+    const top = tracks.sort((a, b) => (b.plays || 0) - (a.plays || 0))[0]
+    return top?.title
+  }, [recentContent])
+
+  const topVideoTitle = useMemo(() => {
+    const videos = recentContent.filter((c) => c.type === "video")
+    const top = videos.sort((a, b) => (b.views || 0) - (a.views || 0))[0]
+    return top?.title
+  }, [recentContent])
+
+  const analyticsData = useMemo(
+    () => buildAnalyticsDataFromArtistStats(stats, { topTrackTitle, topVideoTitle }),
+    [stats, topTrackTitle, topVideoTitle]
+  )
+
+  const dashboardActionItems = useMemo(
+    () =>
+      buildDashboardActionItems({
+        profile,
+        musicCount: stats.musicCount,
+        eventCount: stats.eventCount,
+      }),
+    [profile, stats.musicCount, stats.eventCount]
+  )
 
   // Handle account switching
   const handleSwitchToArtist = async () => {
@@ -353,74 +329,78 @@ export default function ArtistDashboard() {
     }
   }, [profile, user, syncArtistName, isInArtistMode])
 
-  // Load dashboard data (events + recent content) when authenticated in artist mode
+  const loadDashboardLists = useCallback(async () => {
+    if (!user?.id || !isInArtistMode) return
+    try {
+      const [events, music, videos, photos] = await Promise.all([
+        artistContentService.getEvents(user.id, { upcoming: true, limit: 8, ownerScope: true }).catch(() => []),
+        artistContentService.getMusic(user.id, { limit: 5, ownerScope: true }).catch(() => []),
+        artistContentService.getVideos(user.id, { limit: 5, ownerScope: true }).catch(() => []),
+        artistContentService.getPhotos(user.id, { limit: 5, ownerScope: true }).catch(() => []),
+      ])
+
+      const mappedEvents: UpcomingEventItem[] = (events || []).map((e: Record<string, unknown>) => ({
+        id: String(e.id),
+        title: String(e.title),
+        date: new Date(String(e.event_date)),
+        venue: e.venue_name ? String(e.venue_name) : undefined,
+        city: e.venue_city ? String(e.venue_city) : undefined,
+        status: e.status ? String(e.status) : undefined,
+        capacity: typeof e.capacity === "number" ? e.capacity : undefined,
+        revenue: undefined,
+        type: e.type ? String(e.type) : undefined,
+      }))
+      setUpcomingEvents(mappedEvents.slice(0, 8))
+
+      const mappedContent: ContentItem[] = [
+        ...(music || []).map((m: Record<string, unknown>) => ({
+          id: String(m.id),
+          title: String(m.title),
+          type: "track" as const,
+          plays: (m.metadata as Record<string, number> | undefined)?.plays ?? 0,
+          likes: (m.metadata as Record<string, number> | undefined)?.likes ?? 0,
+          uploadDate: m.created_at ? new Date(String(m.created_at)) : undefined,
+          trend: "up" as const,
+        })),
+        ...(videos || []).map((v: Record<string, unknown>) => ({
+          id: String(v.id),
+          title: String(v.title),
+          type: "video" as const,
+          views: (v.metadata as Record<string, number> | undefined)?.views ?? 0,
+          likes: (v.metadata as Record<string, number> | undefined)?.likes ?? 0,
+          uploadDate: v.created_at ? new Date(String(v.created_at)) : undefined,
+          trend: "up" as const,
+        })),
+        ...(photos || []).map((p: Record<string, unknown>) => ({
+          id: String(p.id),
+          title: p.title ? String(p.title) : "Photo",
+          type: "photo" as const,
+          views: (p.metadata as Record<string, number> | undefined)?.views ?? 0,
+          likes: (p.metadata as Record<string, number> | undefined)?.likes ?? 0,
+          uploadDate: p.created_at ? new Date(String(p.created_at)) : undefined,
+          trend: "down" as const,
+        })),
+      ]
+
+      setRecentContent(mappedContent.slice(0, 6))
+      setLastDashboardRefresh(new Date())
+    } catch (err) {
+      console.error("Error loading dashboard data:", err)
+    }
+  }, [user?.id, isInArtistMode])
+
+  useEffect(() => {
+    loadDashboardLists()
+  }, [loadDashboardLists])
+
   useEffect(() => {
     if (!user?.id || !isInArtistMode) return
-
-    let aborted = false
-
-    async function loadData() {
-      try {
-        const [events, music, videos, photos] = await Promise.all([
-          artistContentService.getEvents(user.id, { upcoming: true, limit: 3 }).catch(() => []),
-          artistContentService.getMusic(user.id, { limit: 5 }).catch(() => []),
-          artistContentService.getVideos(user.id, { limit: 5 }).catch(() => []),
-          artistContentService.getPhotos(user.id, { limit: 5 }).catch(() => []),
-        ])
-
-        if (aborted) return
-
-        const mappedEvents: UpcomingEventItem[] = (events || []).map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          date: new Date(e.event_date),
-          venue: e.venue_name,
-          city: e.venue_city,
-          status: e.status,
-          capacity: e.capacity ?? undefined,
-          type: e.type,
-        }))
-        setUpcomingEvents(mappedEvents)
-
-        const mappedContent: ContentItem[] = [
-          ...(music || []).map((m: any) => ({
-            id: m.id,
-            title: m.title,
-            type: 'track' as const,
-            plays: m.metadata?.plays ?? 0,
-            likes: m.metadata?.likes ?? 0,
-            uploadDate: m.created_at ? new Date(m.created_at) : undefined,
-            trend: 'up' as const,
-          })),
-          ...(videos || []).map((v: any) => ({
-            id: v.id,
-            title: v.title,
-            type: 'video' as const,
-            views: v.metadata?.views ?? 0,
-            likes: v.metadata?.likes ?? 0,
-            uploadDate: v.created_at ? new Date(v.created_at) : undefined,
-            trend: 'up' as const,
-          })),
-          ...(photos || []).map((p: any) => ({
-            id: p.id,
-            title: p.title || 'Photo',
-            type: 'photo' as const,
-            views: p.metadata?.views ?? 0,
-            likes: p.metadata?.likes ?? 0,
-            uploadDate: p.created_at ? new Date(p.created_at) : undefined,
-            trend: 'down' as const,
-          })),
-        ]
-
-        setRecentContent(mappedContent.slice(0, 6))
-      } catch (err) {
-        console.error('Error loading dashboard data:', err)
-      }
-    }
-
-    loadData()
-    return () => { aborted = true }
-  }, [user?.id, isInArtistMode])
+    const id = window.setInterval(() => {
+      refreshStats()
+      loadDashboardLists()
+    }, STATS_REFRESH_MS)
+    return () => window.clearInterval(id)
+  }, [user?.id, isInArtistMode, refreshStats, loadDashboardLists])
 
   // Show account switching prompt if not in artist mode
   if (!isInArtistMode && artistAccount) {
@@ -564,12 +544,31 @@ export default function ArtistDashboard() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => refreshStats()}
+                onClick={handleViewPublicProfile}
+                disabled={!artistPublicPath}
+                className="border-slate-700 text-gray-300 hover:text-white disabled:opacity-50"
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Public Profile
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void refreshStats()
+                  void loadDashboardLists()
+                }}
                 className="border-slate-700 text-gray-300 hover:text-white"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
+              {lastDashboardRefresh && (
+                <span className="text-xs text-gray-500 hidden sm:inline">
+                  Lists updated {format(lastDashboardRefresh, "HH:mm")}
+                </span>
+              )}
               <Button asChild variant="outline" size="sm" className="border-slate-700 text-gray-300 hover:text-white">
                 <Link href="/artist/settings">
                   <Settings className="h-4 w-4 mr-2" />
@@ -635,15 +634,31 @@ export default function ArtistDashboard() {
                     <div className={`p-3 rounded-2xl bg-gradient-to-r ${stat.color} ${stat.glowColor}`}>
                       <stat.icon className="h-6 w-6 text-white" />
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 min-h-[20px]">
+                      {stat.change ? (
+                        <>
                       {stat.trend === "up" ? (
                         <ArrowUpRight className="h-4 w-4 text-green-400" />
-                      ) : (
+                      ) : stat.trend === "down" ? (
                         <ArrowDownRight className="h-4 w-4 text-red-400" />
+                      ) : (
+                        <Activity className="h-4 w-4 text-gray-400" />
                       )}
-                      <span className={`text-sm font-medium ${stat.trend === "up" ? "text-green-400" : "text-red-400"}`}>
-                        {stat.change}
-                      </span>
+                          <span
+                            className={`text-sm font-medium ${
+                          stat.trend === "up"
+                            ? "text-green-400"
+                            : stat.trend === "down"
+                              ? "text-red-400"
+                              : "text-gray-400"
+                            }`}
+                          >
+                            {stat.change}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-gray-500">Live aggregate</span>
+                      )}
                     </div>
                   </div>
                   
@@ -723,18 +738,26 @@ export default function ArtistDashboard() {
                           <h4 className="text-lg font-semibold text-white mb-2">
                             {upcomingEventsSummary.nextEvent.title}
                           </h4>
-                          <div className="flex items-center gap-4 text-sm text-gray-400">
+                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                             <div className="flex items-center gap-1">
                               <MapPin className="h-4 w-4" />
-                              {upcomingEventsSummary.nextEvent.venue}, {upcomingEventsSummary.nextEvent.city}
+                              {[upcomingEventsSummary.nextEvent.venue, upcomingEventsSummary.nextEvent.city]
+                                .filter(Boolean)
+                                .join(", ") || "—"}
                             </div>
                             <div className="flex items-center gap-1">
                               <Users className="h-4 w-4" />
-                              {upcomingEventsSummary.nextEvent.ticketSales}/{upcomingEventsSummary.nextEvent.capacity}
+                              {upcomingEventsSummary.nextEvent.ticketSales != null &&
+                              upcomingEventsSummary.nextEvent.capacity != null
+                                ? `${upcomingEventsSummary.nextEvent.ticketSales}/${upcomingEventsSummary.nextEvent.capacity}`
+                                : "Tickets: —"}
                             </div>
                             <div className="flex items-center gap-1">
                               <DollarSign className="h-4 w-4" />
-                              ${((upcomingEventsSummary.nextEvent?.revenue || 0)).toLocaleString()}
+                              {upcomingEventsSummary.nextEvent.revenue != null &&
+                              upcomingEventsSummary.nextEvent.revenue > 0
+                                ? formatSafeCurrency(upcomingEventsSummary.nextEvent.revenue)
+                                : "Revenue: —"}
                             </div>
                           </div>
                         </div>
@@ -748,14 +771,18 @@ export default function ArtistDashboard() {
                         </div>
                         <div className="text-center p-3 bg-slate-800/50 rounded-lg">
                           <div className="text-2xl font-bold text-green-400">{upcomingEventsSummary.confirmed}</div>
-                          <div className="text-sm text-gray-400">Confirmed</div>
+                          <div className="text-sm text-gray-400">Active</div>
                         </div>
                         <div className="text-center p-3 bg-slate-800/50 rounded-lg">
                           <div className="text-2xl font-bold text-yellow-400">{upcomingEventsSummary.pending}</div>
-                          <div className="text-sm text-gray-400">Pending</div>
+                          <div className="text-sm text-gray-400">Postponed</div>
                         </div>
                         <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-                          <div className="text-2xl font-bold text-purple-400">${(upcomingEventsSummary.totalRevenue / 1000).toFixed(1)}K</div>
+                          <div className="text-2xl font-bold text-purple-400">
+                            {upcomingEventsSummary.totalRevenue > 0
+                              ? `$${(upcomingEventsSummary.totalRevenue / 1000).toFixed(1)}K`
+                              : "—"}
+                          </div>
                           <div className="text-sm text-gray-400">Projected Revenue</div>
                         </div>
                       </div>
@@ -817,13 +844,22 @@ export default function ArtistDashboard() {
                       <div className="text-sm text-gray-400">Photos</div>
                     </div>
                     <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-                      <div className="text-2xl font-bold text-pink-400">{(contentSummary.totalViews / 1000).toFixed(1)}K</div>
+                      <div className="text-2xl font-bold text-pink-400">
+                        {contentSummary.totalViews >= 1000
+                          ? `${(contentSummary.totalViews / 1000).toFixed(1)}K`
+                          : formatSafeNumber(contentSummary.totalViews)}
+                      </div>
                       <div className="text-sm text-gray-400">Total Views</div>
                     </div>
                   </div>
                   
                   <div className="space-y-3">
-                    {(contentItems as any[]).map((content, index) => (
+                    {contentItems.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-6">
+                        No recent content rows yet. Upload tracks or media to see performance here.
+                      </p>
+                    ) : (
+                      contentItems.map((content) => (
                       <div key={content.id} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="p-2 bg-slate-700/50 rounded-lg">
@@ -834,14 +870,16 @@ export default function ArtistDashboard() {
                           <div>
                             <h4 className="font-medium text-white">{content.title}</h4>
                             <p className="text-sm text-gray-400">
-                              {content.plays ? `${(content.plays / 1000).toFixed(1)}K plays` : `${(content.views / 1000).toFixed(1)}K views`}
+                              {content.type === "track"
+                                ? `${formatSafeNumber(content.plays ?? 0)} plays`
+                                : `${formatSafeNumber(content.views ?? 0)} views`}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1 text-sm">
                             <Heart className="h-4 w-4 text-red-400" />
-                            {content.likes}
+                            {content.likes ?? 0}
                           </div>
                           {content.trend === 'up' ? (
                             <TrendingUp className="h-4 w-4 text-green-400" />
@@ -850,7 +888,8 @@ export default function ArtistDashboard() {
                           )}
                         </div>
                       </div>
-                    ))}
+                    ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -922,8 +961,16 @@ export default function ArtistDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {mockActionItems.map((item, index) => (
-                      <div key={item.id} className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg">
+                    {dashboardActionItems.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-4">You&apos;re caught up.</p>
+                    ) : (
+                      dashboardActionItems.map((item) => (
+                      <Link
+                        key={item.id}
+                        href={item.href ?? "/artist/profile"}
+                        className="block"
+                      >
+                      <div className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors">
                         <div className={`p-2 rounded-lg ${
                           item.priority === 'high' ? 'bg-red-500/20' :
                           item.priority === 'medium' ? 'bg-yellow-500/20' :
@@ -952,11 +999,23 @@ export default function ArtistDashboard() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      </Link>
+                    ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
+
+            {user?.id && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.35 }}
+              >
+                <DashboardContractsCard userId={user.id} />
+              </motion.div>
+            )}
 
             {/* Business Insights */}
             <motion.div
@@ -979,30 +1038,36 @@ export default function ArtistDashboard() {
                     <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="h-4 w-4 text-green-400" />
-                        <span className="text-sm font-medium text-green-400">Revenue Growth</span>
+                        <span className="text-sm font-medium text-green-400">Revenue</span>
                       </div>
                       <p className="text-xs text-gray-400">
-                        Your revenue is up 12.5% this month. Consider releasing new content to maintain momentum.
+                        {stats.totalRevenue > 0
+                          ? `Reported revenue: ${formatMetricValue(stats.totalRevenue, "currency")} (from your connected data).`
+                          : "No revenue recorded yet. Connect business integrations or add ticket links to events."}
                       </p>
                     </div>
                     
                     <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Users className="h-4 w-4 text-blue-400" />
-                        <span className="text-sm font-medium text-blue-400">Fan Engagement</span>
+                        <span className="text-sm font-medium text-blue-400">Audience</span>
                       </div>
                       <p className="text-xs text-gray-400">
-                        Your latest track has 15% higher engagement. Share behind-the-scenes content to boost interaction.
+                        {stats.totalFans > 0
+                          ? `You have ${formatSafeNumber(stats.totalFans)} fans across connected platforms.`
+                          : "Grow your audience by connecting social accounts in settings."}
                       </p>
                     </div>
                     
                     <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <CalendarIcon className="h-4 w-4 text-purple-400" />
-                        <span className="text-sm font-medium text-purple-400">Event Opportunity</span>
+                        <span className="text-sm font-medium text-purple-400">Events</span>
                       </div>
                       <p className="text-xs text-gray-400">
-                        You have 3 upcoming events. Promote them on social media to increase ticket sales.
+                        {upcomingEvents.length > 0
+                          ? `You have ${upcomingEvents.length} upcoming event(s) on your calendar.`
+                          : "No upcoming events. Create one to promote releases and shows."}
                       </p>
                     </div>
                   </div>
@@ -1012,68 +1077,42 @@ export default function ArtistDashboard() {
           </div>
         </div>
 
-        {/* Phase 2: Advanced Features */}
-        <div className="mt-12 space-y-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-              <Sparkles className="h-6 w-6 text-purple-400" />
-              Advanced Insights & Analytics
-            </h2>
-          </motion.div>
-
-          {/* Smart Recommendations */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-          >
-            <ArtistSmartRecommendations 
-              artistStats={stats}
-              recentContent={mockContentPerformance.map((c) => ({
-                id: c.id,
-                title: c.title,
-                type: c.type as 'track' | 'video' | 'photo' | 'blog',
-                views: (c as any).views ?? (c as any).plays ?? 0,
-                likes: (c as any).likes ?? 0,
-                shares: (c as any).shares ?? 0,
-                createdAt: new Date((c as any).uploadDate).toISOString()
-              }))}
-              upcomingEvents={mockUpcomingEvents.map(e => ({
-                id: e.id,
-                title: e.title,
-                date: e.date.toISOString(),
-                venue: e.venue,
-                ticketSales: e.ticketSales,
-                capacity: e.capacity
-              }))}
-            />
-          </motion.div>
-
-          {/* Analytics Overview */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
-          >
-            <ArtistAnalyticsOverview 
-              data={undefined} // Will use mock data from component
-              timeRange="30d"
-            />
-          </motion.div>
-
-          {/* Notifications */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-          >
-            <ArtistNotifications />
-          </motion.div>
-        </div>
+        {user?.id && (
+          <ArtistDashboardBottomSections
+            userId={user.id}
+            sections={{
+              recommendations: (
+                <ArtistSmartRecommendations
+                  artistStats={stats}
+                  profileFlags={{
+                    hasBio: Boolean(profile?.bio),
+                    hasGenres: Boolean(profile?.genres?.length),
+                    hasArtistName: Boolean(profile?.artist_name),
+                  }}
+                  recentContent={recentContent.map((c) => ({
+                    id: c.id,
+                    title: c.title,
+                    type: c.type,
+                    views: c.views ?? c.plays ?? 0,
+                    likes: c.likes ?? 0,
+                    shares: 0,
+                    createdAt: (c.uploadDate ?? new Date()).toISOString(),
+                  }))}
+                  upcomingEvents={upcomingEvents.map((e) => ({
+                    id: e.id,
+                    title: e.title,
+                    date: e.date.toISOString(),
+                    venue: e.venue,
+                    ticketSales: e.ticketSales,
+                    capacity: e.capacity,
+                  }))}
+                />
+              ),
+              analytics: <ArtistAnalyticsOverview data={analyticsData} timeRange="30d" />,
+              notifications: <ArtistNotifications userId={user.id} />,
+            }}
+          />
+        )}
       </div>
     </div>
   )

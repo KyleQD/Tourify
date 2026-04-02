@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { NeoDateInput } from "@/components/ui/neo-date-input"
 
 const schema = z.object({
   name: z.string().min(2, "Event name is required"),
@@ -49,7 +50,7 @@ export function EventWizardStep1({ onNext, defaultValues }: EventWizardStep1Prop
         {errors.type && <div className="text-red-500 text-xs mt-1">{errors.type.message}</div>}
       </div>
       <div>
-        <Input type="date" placeholder="Date" {...register("date")}/>
+        <NeoDateInput placeholder="Date" {...register("date")} />
         {errors.date && <div className="text-red-500 text-xs mt-1">{errors.date.message}</div>}
       </div>
       <div>

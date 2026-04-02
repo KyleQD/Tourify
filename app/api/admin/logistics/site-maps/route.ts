@@ -126,9 +126,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
 
-    // Check permissions for event/tour (temporarily bypassed for debugging)
     if (body.eventId) {
-      console.log('[Site Maps API] Checking event permissions for:', body.eventId)
       try {
         const hasPermission = await hasEntityPermission({
           userId: user.id,
@@ -136,19 +134,16 @@ export async function POST(request: NextRequest) {
           entityId: body.eventId,
           permission: 'EDIT_EVENT_LOGISTICS'
         })
-        console.log('[Site Maps API] Event permission result:', hasPermission)
         if (!hasPermission) {
-          console.log('[Site Maps API] Insufficient permissions for event, but allowing for debugging')
-          // return NextResponse.json({ error: 'Insufficient permissions for event' }, { status: 403 })
+          return NextResponse.json({ error: 'Insufficient permissions for event' }, { status: 403 })
         }
       } catch (error) {
         console.error('[Site Maps API] Permission check error:', error)
-        // Continue for debugging
+        return NextResponse.json({ error: 'Permission check failed' }, { status: 500 })
       }
     }
 
     if (body.tourId) {
-      console.log('[Site Maps API] Checking tour permissions for:', body.tourId)
       try {
         const hasPermission = await hasEntityPermission({
           userId: user.id,
@@ -156,14 +151,12 @@ export async function POST(request: NextRequest) {
           entityId: body.tourId,
           permission: 'EDIT_TOUR_LOGISTICS'
         })
-        console.log('[Site Maps API] Tour permission result:', hasPermission)
         if (!hasPermission) {
-          console.log('[Site Maps API] Insufficient permissions for tour, but allowing for debugging')
-          // return NextResponse.json({ error: 'Insufficient permissions for tour' }, { status: 403 })
+          return NextResponse.json({ error: 'Insufficient permissions for tour' }, { status: 403 })
         }
       } catch (error) {
         console.error('[Site Maps API] Permission check error:', error)
-        // Continue for debugging
+        return NextResponse.json({ error: 'Permission check failed' }, { status: 500 })
       }
     }
 

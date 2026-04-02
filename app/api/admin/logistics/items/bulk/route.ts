@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 import { createServerClient } from '@/lib/supabase/client'
 
-export async function PUT(request: NextRequest) {
+export const PUT = withAdminAuth(async (request) => {
   try {
     const supabase = createServerClient()
     const body = await request.json()
@@ -28,6 +29,4 @@ export async function PUT(request: NextRequest) {
     console.error('[Logistics Items Bulk] PUT error:', error)
     return NextResponse.json({ error: 'Failed to perform bulk action' }, { status: 500 })
   }
-}
-
-
+})

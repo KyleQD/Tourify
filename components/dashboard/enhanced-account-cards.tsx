@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { DashboardService } from "@/lib/services/dashboard.service"
 import { useRouter } from "next/navigation"
+import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 import { 
   Music, 
   Building, 
@@ -137,22 +138,8 @@ export function EnhancedAccountCards() {
       const success = await switchAccount(card.accountId, card.accountType)
       
       if (success) {
-        // Then navigate to the appropriate dashboard based on account type
-        let targetRoute = '/dashboard'
-        switch (card.accountType) {
-          case 'artist':
-            targetRoute = '/artist'
-            break
-          case 'venue':
-            targetRoute = '/venue'
-            break
-          case 'admin':
-            targetRoute = '/admin/dashboard'
-            break
-        }
-        
-        // Navigate to the target route
-        router.push(targetRoute)
+        const targetRoute = getDashboardPathForAccountType(card.accountType)
+        router.replace(targetRoute)
       } else {
         console.error('Failed to switch account')
       }

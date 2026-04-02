@@ -11,6 +11,7 @@ import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
 export default function EventMapPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -118,22 +119,11 @@ export default function EventMapPage() {
   const allGenres = ["rock", "pop", "jazz", "hip-hop", "electronic", "dance", "folk", "acoustic", "rap", "classical"]
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   const formatTime = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }
-    return new Date(dateString).toLocaleTimeString("en-US", options)
+    return formatSafeTime(dateString)
   }
 
   const formatCurrency = (amount: number) => {

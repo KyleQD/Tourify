@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface AnalyticsData {
   revenue: number
@@ -238,7 +239,7 @@ export default function AnalyticsPage() {
                 {data.eventPopularity.map((event) => (
                   <tr key={event.id}>
                     <td className="py-2">{event.title}</td>
-                    <td className="text-right">{new Date(event.date).toLocaleDateString()}</td>
+                    <td className="text-right">{formatSafeDate(event.date)}</td>
                     <td className="text-right">{event.capacity}</td>
                     <td className="text-right">{event.bookings}</td>
                     <td className="text-right">{event.occupancyRate.toFixed(1)}%</td>

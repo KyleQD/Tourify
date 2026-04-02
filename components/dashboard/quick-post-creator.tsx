@@ -10,6 +10,7 @@ import { PhotoUpload } from '@/components/ui/photo-upload'
 import { Send, Globe, Users, Lock, Loader2 } from 'lucide-react'
 import { uploadFeedPhotos } from '@/lib/utils/feed-photo-upload'
 import { useAuth } from '@/contexts/auth-context'
+import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
 
 export function QuickPostCreator() {
   const { user } = useAuth()
@@ -27,7 +28,17 @@ export function QuickPostCreator() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    e.stopPropagation()
+
+    if (!user?.id) {
+      toast({
+        title: 'Sign in required',
+        description: 'You must be signed in to post.',
+        variant: 'destructive'
+      })
+      return
+    }
+
     if (!content.trim() && selectedFiles.length === 0) {
       toast({
         title: "Content Required",
@@ -77,17 +88,30 @@ export function QuickPostCreator() {
         
         setIsUploadingMedia(false)
       }
+
+      const payload = {
+        content: content.trim(),
+        type: mediaUrls.length > 0 ? 'media' : 'text',
+        visibility,
+        media_urls: mediaUrls,
+        accountId: user.id
+      }
+
+      console.log('[QuickPostCreator] POST /api/feed/posts payload (sanitized):', {
+        contentLength: payload.content.length,
+        type: payload.type,
+        visibility: payload.visibility,
+        mediaUrlsCount: payload.media_urls.length,
+        accountId: payload.accountId
+      })
+
       const response = await fetch('/api/feed/posts', {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          content: content.trim(),
-          type: mediaUrls.length > 0 ? 'media' : 'text',
-          visibility: visibility,
-          media_urls: mediaUrls
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
@@ -96,7 +120,8 @@ export function QuickPostCreator() {
       }
 
       const data = await response.json()
-      
+      const created = data?.data
+
       toast({
         title: "Post Created! 🎉",
         description: mediaUrls.length > 0 
@@ -110,7 +135,9 @@ export function QuickPostCreator() {
       setVisibility('public')
 
       // Notify dashboard surfaces to refresh without a full page reload.
-      window.dispatchEvent(new CustomEvent('dashboard:post-created', { detail: data?.data || null }))
+      window.dispatchEvent(
+        new CustomEvent('dashboard:post-created', { detail: created ?? null })
+      )
       
     } catch (error) {
       console.error('Error creating post:', error)
@@ -138,7 +165,7 @@ export function QuickPostCreator() {
   }
 
   return (
-    <Card className="bg-white/10 border-white/20 backdrop-blur-sm">
+    <Card className="rounded-2xl border-slate-700/60 bg-slate-900/50 backdrop-blur-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg text-white flex items-center gap-2">
           <Send className="h-5 w-5 text-purple-400" />
@@ -151,7 +178,7 @@ export function QuickPostCreator() {
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What's happening? Share your thoughts..."
-            className="bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus:border-purple-500 focus:ring-purple-500/50 resize-none"
+            className={`${dashboardCreatePattern.input} resize-none`}
             rows={3}
             disabled={isSubmitting || isUploadingMedia}
             maxLength={2000}
@@ -177,7 +204,7 @@ export function QuickPostCreator() {
           
           <div className="flex items-center justify-between">
             <Select value={visibility} onValueChange={setVisibility} disabled={isSubmitting}>
-              <SelectTrigger className="w-36 bg-white/10 border-white/20 text-white focus:border-purple-500 focus:ring-purple-500/50">
+              <SelectTrigger className={`w-36 ${dashboardCreatePattern.selectTrigger}`}>
                 <SelectValue>
                   <div className="flex items-center gap-2">
                     {getVisibilityIcon(visibility)}
@@ -214,7 +241,7 @@ export function QuickPostCreator() {
               <Button
                 type="submit"
                 disabled={isSubmitting || isUploadingMedia || (!content.trim() && selectedFiles.length === 0)}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
+                className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
               >
                 {isSubmitting || isUploadingMedia ? (
                   <>

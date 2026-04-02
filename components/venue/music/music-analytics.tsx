@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { BarChart3, Headphones, Heart, Share2, Download, Calendar, ChevronDown, ChevronUp, Users } from "lucide-react"
 import Image from "next/image"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 export function MusicAnalytics() {
   const [timeRange, setTimeRange] = useState("30days")
@@ -178,7 +179,7 @@ export function MusicAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Total Plays</p>
-                <p className="text-2xl font-bold">{overviewStats.plays.total.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatSafeNumber(overviewStats.plays.total)}</p>
               </div>
               <Headphones className="h-8 w-8 text-purple-500 opacity-80" />
             </div>
@@ -208,7 +209,7 @@ export function MusicAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Unique Listeners</p>
-                <p className="text-2xl font-bold">{overviewStats.listeners.total.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatSafeNumber(overviewStats.listeners.total)}</p>
               </div>
               <Users className="h-8 w-8 text-blue-500 opacity-80" />
             </div>
@@ -238,7 +239,7 @@ export function MusicAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Saves/Likes</p>
-                <p className="text-2xl font-bold">{overviewStats.saves.total.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatSafeNumber(overviewStats.saves.total)}</p>
               </div>
               <Heart className="h-8 w-8 text-red-500 opacity-80" />
             </div>
@@ -268,7 +269,7 @@ export function MusicAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Shares</p>
-                <p className="text-2xl font-bold">{overviewStats.shares.total.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatSafeNumber(overviewStats.shares.total)}</p>
               </div>
               <Share2 className="h-8 w-8 text-green-500 opacity-80" />
             </div>
@@ -332,7 +333,7 @@ export function MusicAnalytics() {
                     <p className="text-xs text-gray-400 truncate">{track.album}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">{track.plays.toLocaleString()}</p>
+                    <p className="font-medium">{formatSafeNumber(track.plays)}</p>
                     <p
                       className={`text-xs ${
                         track.change >= 0 ? "text-green-500" : "text-red-500"

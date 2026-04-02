@@ -59,11 +59,7 @@ begin
   refresh materialized view concurrently forum_threads_top_mv;
 end $$;
 
--- Schedule refresh every 1 minute (adjust in prod)
-select cron.schedule(
-  'refresh_forum_mviews_every_min',
-  '*/1 * * * *',
-  $$ select refresh_forum_mviews(); $$
-) on conflict do nothing;
+-- pg_cron: register in dashboard or run once (invalid to append ON CONFLICT to SELECT cron.schedule)
+-- select cron.schedule('refresh_forum_mviews_every_min', '*/1 * * * *', $$ select refresh_forum_mviews(); $$);
 
 

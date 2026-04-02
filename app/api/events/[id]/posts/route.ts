@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import {
+  canAccessEventAsViewer,
+  resolveEventReference,
+} from '../../_lib/event-reference'
 
 export async function GET(
   request: NextRequest,
@@ -8,6 +12,14 @@ export async function GET(
   try {
     const { id: eventId } = await params
     const supabase = await createClient()
+    const reference = await resolveEventReference(supabase, eventId)
+
+    if (!reference) {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      )
+    }
 
     const { data: posts, error } = await supabase
       .from('event_posts')
@@ -21,8 +33,8 @@ export async function GET(
           is_verified
         )
       `)
-      .eq('event_id', eventId)
-      .eq('event_table', 'artist_events')
+      .eq('event_id', reference.id)
+      .eq('event_table', reference.table)
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
 
@@ -70,21 +82,15 @@ export async function POST(
       )
     }
 
-    // Check if user can post (is creator or attending)
-    const { data: event } = await supabase
-      .from('artist_events')
-      .select('user_id')
-      .eq('id', eventId)
-      .single()
-
-    if (!event) {
+    const reference = await resolveEventReference(supabase, eventId)
+    if (!reference) {
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
       )
     }
 
-    const isCreator = event.user_id === user.id
+    const isCreator = reference.ownerUserId === user.id
     
     // Check if user is attending (for non-creators)
     let isAttending = false
@@ -92,9 +98,9 @@ export async function POST(
       const { data: attendance } = await supabase
         .from('event_attendance')
         .select('status')
-        .eq('event_id', eventId)
+        .eq('event_id', reference.id)
         .eq('user_id', user.id)
-        .eq('event_table', 'artist_events')
+        .eq('event_table', reference.table)
         .single()
       
       isAttending = attendance?.status === 'attending'
@@ -107,12 +113,19 @@ export async function POST(
       )
     }
 
+    if (!canAccessEventAsViewer(reference, user.id) && !isCreator) {
+      return NextResponse.json(
+        { error: 'Cannot post in unpublished events' },
+        { status: 403 }
+      )
+    }
+
     // Create the post
     const { data: newPost, error } = await supabase
       .from('event_posts')
       .insert({
-        event_id: eventId,
-        event_table: 'artist_events',
+        event_id: reference.id,
+        event_table: reference.table,
         user_id: user.id,
         content: content.trim(),
         type,

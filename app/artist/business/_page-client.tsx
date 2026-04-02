@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -11,7 +10,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
-import { format, subMonths } from "date-fns"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
+import { dashboardCreatePattern } from "@/components/dashboard/dashboard-create-pattern"
+import type { BusinessOverview, BusinessTransaction } from "@/lib/services/artist-business.service"
 import {
   ShoppingBag,
   DollarSign,
@@ -22,6 +24,7 @@ import {
   Filter,
   Plus,
   TrendingUp,
+  TrendingDown,
   Zap,
   CreditCard,
   FileText,
@@ -30,80 +33,223 @@ import {
   BookOpen,
 } from "lucide-react"
 
-interface BusinessStats {
-  totalRevenue: number
-  monthlyRevenue: number
-  revenueGrowth: number
-  activeProducts: number
-  totalEvents: number
-  totalTracks: number
-  fanEngagement: number
-  contractsActive: number
-  expenses: number
-  profit: number
-}
-
-interface Transaction {
-  id: string
-  type: 'revenue' | 'expense' | 'royalty' | 'merchandise' | 'event'
-  description: string
-  amount: number
-  date: string
-  status: 'completed' | 'pending' | 'failed'
-  category: string
-}
+type FeatureMetric =
+  | "finance"
+  | "commerce"
+  | "legal"
+  | "campaigns"
+  | "followers"
+  | "analytics"
+  | "tours"
+  | "education"
 
 const businessFeatures = [
-  { label: "Financial Dashboard", icon: DollarSign, href: "/artist/business/financial", description: "Track revenue, expenses, and financial analytics", color: "from-green-500 to-emerald-600", category: "finance", isActive: true },
-  { label: "Merchandise Store", icon: ShoppingBag, href: "/artist/features/merchandise", description: "Manage products and online store", color: "from-blue-500 to-cyan-600", category: "commerce", isActive: true },
-  { label: "Contracts & Legal", icon: FileText, href: "/artist/business/contracts", description: "Manage contracts and legal documents", color: "from-purple-500 to-violet-600", category: "legal", isActive: true },
-  { label: "Marketing Hub", icon: Share2, href: "/artist/business/marketing", description: "Run campaigns and social media management", color: "from-pink-500 to-rose-600", category: "marketing", isActive: true },
-  { label: "Business Analytics", icon: BarChart2, href: "/artist/business/analytics", description: "Revenue and business performance insights", color: "from-orange-500 to-red-600", category: "analytics", isActive: true },
-  { label: "Team Collaboration", icon: Users, href: "/artist/business/collaboration", description: "Project management and team coordination", color: "from-indigo-500 to-purple-600", category: "projects", isActive: true },
-  { label: "Fan Engagement", icon: MessageSquare, href: "/artist/business/fans", description: "Connect with fans and build community", color: "from-cyan-500 to-blue-600", category: "marketing", isActive: true },
-  { label: "Business Education", icon: BookOpen, href: "/artist/business/education", description: "Learn business skills and industry insights", color: "from-yellow-500 to-orange-600", category: "education", isActive: true }
+  {
+    label: "Financial Dashboard",
+    icon: DollarSign,
+    href: "/artist/business/financial",
+    description: "Track revenue, expenses, and financial analytics",
+    color: "from-green-500 to-emerald-600",
+    category: "finance",
+    metric: "finance" as FeatureMetric,
+  },
+  {
+    label: "Merchandise Store",
+    icon: ShoppingBag,
+    href: "/artist/features/merchandise",
+    description: "Manage products and online store",
+    color: "from-blue-500 to-cyan-600",
+    category: "commerce",
+    metric: "commerce",
+  },
+  {
+    label: "Contracts & Legal",
+    icon: FileText,
+    href: "/artist/business/contracts",
+    description: "Manage contracts and legal documents",
+    color: "from-purple-500 to-violet-600",
+    category: "legal",
+    metric: "legal",
+  },
+  {
+    label: "Marketing Hub",
+    icon: Share2,
+    href: "/artist/business/marketing",
+    description: "Run campaigns and social media management",
+    color: "from-pink-500 to-rose-600",
+    category: "marketing",
+    metric: "campaigns",
+  },
+  {
+    label: "Business Analytics",
+    icon: BarChart2,
+    href: "/artist/business/analytics",
+    description: "Revenue and business performance insights",
+    color: "from-orange-500 to-red-600",
+    category: "analytics",
+    metric: "analytics",
+  },
+  {
+    label: "Team Collaboration",
+    icon: Users,
+    href: "/artist/business/collaboration",
+    description: "Tours, teams, and logistics tasks",
+    color: "from-indigo-500 to-purple-600",
+    category: "projects",
+    metric: "tours",
+  },
+  {
+    label: "Fan Engagement",
+    icon: MessageSquare,
+    href: "/artist/business/fans",
+    description: "Connect with fans and build community",
+    color: "from-cyan-500 to-blue-600",
+    category: "marketing",
+    metric: "followers",
+  },
+  {
+    label: "Business Education",
+    icon: BookOpen,
+    href: "/artist/business/education",
+    description: "Guides, FAQ, and external learning resources",
+    color: "from-yellow-500 to-orange-600",
+    category: "education",
+    metric: "education",
+  },
 ]
 
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, exit: { opacity: 0, y: -20 } }
 const staggerContainer = { animate: { transition: { staggerChildren: 0.1 } } }
 
-function BusinessFeatureCard({ feature, stats, index }: { feature: typeof businessFeatures[0], stats: any, index: number }) {
+function emptyOverview(): BusinessOverview {
+  return {
+    totalRevenue: 0,
+    monthlyRevenue: 0,
+    revenueGrowthPercent: null,
+    activeProducts: 0,
+    totalEvents: 0,
+    totalTracks: 0,
+    fanEngagement: 0,
+    contractsActive: 0,
+    expenses: 0,
+    profit: 0,
+    revenueFromTransactions: false,
+    marketingCampaignsCount: 0,
+    toursCount: 0,
+  }
+}
+
+function isFeatureInUse(feature: (typeof businessFeatures)[0], stats: BusinessOverview): boolean {
+  switch (feature.metric) {
+    case "finance":
+      return stats.revenueFromTransactions || stats.totalRevenue > 0
+    case "commerce":
+      return stats.activeProducts > 0
+    case "legal":
+      return stats.contractsActive > 0
+    case "campaigns":
+      return stats.marketingCampaignsCount > 0
+    case "followers":
+      return stats.fanEngagement > 0
+    case "analytics":
+      return stats.totalTracks > 0 || stats.revenueFromTransactions
+    case "tours":
+      return stats.toursCount > 0
+    case "education":
+      return false
+    default:
+      return false
+  }
+}
+
+function featureStatLine(feature: (typeof businessFeatures)[0], stats: BusinessOverview): string {
+  switch (feature.metric) {
+    case "finance":
+      return stats.revenueFromTransactions
+        ? `$${stats.totalRevenue.toLocaleString()} logged revenue`
+        : stats.totalRevenue > 0
+          ? `$${stats.totalRevenue.toLocaleString()} projected (events)`
+          : "Log transactions for accurate totals"
+    case "commerce":
+      return `${stats.activeProducts} active product${stats.activeProducts === 1 ? "" : "s"}`
+    case "legal":
+      return `${stats.contractsActive} active contract${stats.contractsActive === 1 ? "" : "s"}`
+    case "campaigns":
+      return `${stats.marketingCampaignsCount} campaign${stats.marketingCampaignsCount === 1 ? "" : "s"}`
+    case "followers":
+      return `${stats.fanEngagement.toLocaleString()} followers`
+    case "analytics":
+      return `${stats.totalTracks} track${stats.totalTracks === 1 ? "" : "s"}`
+    case "tours":
+      return `${stats.toursCount} tour${stats.toursCount === 1 ? "" : "s"}`
+    case "education":
+      return "Guides & links"
+    default:
+      return ""
+  }
+}
+
+function BusinessFeatureCard({
+  feature,
+  stats,
+  index,
+}: {
+  feature: (typeof businessFeatures)[0]
+  stats: BusinessOverview
+  index: number
+}) {
+  const inUse = isFeatureInUse(feature, stats)
   return (
-    <motion.div variants={fadeIn} initial="initial" animate="animate" transition={{ duration: 0.5, delay: index * 0.1 }} whileHover={{ y: -8, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-      <Link href={feature.href} className="block group focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-xl">
-        <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm transition-all duration-300 group-hover:border-purple-500/50 group-hover:shadow-lg group-hover:shadow-purple-500/10 h-full">
+    <motion.div
+      variants={fadeIn}
+      initial="initial"
+      animate="animate"
+      transition={{ duration: 0.5, delay: index * 0.06 }}
+      whileHover={{ y: -6, scale: 1.01 }}
+      whileTap={{ scale: 0.99 }}
+    >
+      <Link href={feature.href} className="block group focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/60 rounded-2xl">
+        <Card
+          className={cn(
+            dashboardCreatePattern.shell,
+            "h-full border-slate-700/50 bg-slate-900/50 backdrop-blur-sm transition-all duration-300",
+            "group-hover:border-purple-500/40 group-hover:shadow-lg group-hover:shadow-purple-500/10"
+          )}
+        >
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200`}>
+              <div
+                className={cn(
+                  "h-12 w-12 rounded-xl bg-gradient-to-br flex items-center justify-center shadow-lg",
+                  "border border-white/10 group-hover:scale-105 transition-transform duration-200",
+                  feature.color
+                )}
+              >
                 <feature.icon className="h-6 w-6 text-white" />
               </div>
-              <div className="flex items-center space-x-2">
-                {feature.isActive && (
-                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-xs">Active</Badge>
+              <Badge
+                variant="outline"
+                className={cn(
+                  "text-xs",
+                  inUse
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                    : "border-slate-600 bg-slate-800/60 text-slate-400"
                 )}
-              </div>
+              >
+                {inUse ? "In use" : "Get started"}
+              </Badge>
             </div>
             <div className="space-y-1">
-              <CardTitle className="text-lg font-semibold text-white group-hover:text-purple-300 transition-colors">{feature.label}</CardTitle>
+              <CardTitle className="text-lg font-semibold text-white group-hover:text-purple-200 transition-colors">
+                {feature.label}
+              </CardTitle>
               <CardDescription className="text-slate-400 text-sm">{feature.description}</CardDescription>
             </div>
           </CardHeader>
           <CardContent className="pt-0">
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500">
-                  {feature.category === 'finance' && `$${stats.totalRevenue?.toLocaleString() || 0} revenue`}
-                  {feature.category === 'commerce' && `${stats.activeProducts || 0} products`}
-                  {feature.category === 'legal' && `${stats.contractsActive || 0} contracts`}
-                  {feature.category === 'marketing' && `${stats.fanEngagement || 0} engagement`}
-                  {feature.category === 'analytics' && `${stats.totalTracks || 0} tracks`}
-                  {feature.category === 'projects' && `${stats.totalEvents || 0} events`}
-                  {feature.category === 'education' && 'Resources available'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-purple-400 group-hover:text-purple-300 transition-colors">Open Dashboard →</span>
-              </div>
+              <p className="text-sm text-slate-500">{featureStatLine(feature, stats)}</p>
+              <p className="text-sm text-purple-400 group-hover:text-purple-300 transition-colors">Open →</p>
             </div>
           </CardContent>
         </Card>
@@ -113,163 +259,62 @@ function BusinessFeatureCard({ feature, stats, index }: { feature: typeof busine
 }
 
 interface PageClientProps {
-  initialStats: BusinessStats | null
-  initialTransactions: Transaction[]
+  initialStats: BusinessOverview | null
+  initialTransactions: BusinessTransaction[]
 }
 
 export default function BusinessDashboardClient({ initialStats, initialTransactions }: PageClientProps) {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
 
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
-  const [businessStats, setBusinessStats] = useState<BusinessStats | null>(initialStats || null)
-  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>(initialTransactions || [])
-  const [isLoading, setIsLoading] = useState(!initialStats)
-  const [isMounted, setIsMounted] = useState(true)
+  const [businessStats, setBusinessStats] = useState<BusinessOverview | null>(() => initialStats ?? null)
+  const [recentTransactions, setRecentTransactions] = useState<BusinessTransaction[]>(initialTransactions || [])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const runClientFetch = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const res = await fetch("/api/artist/business/overview", { cache: "no-store" })
+      if (res.status === 401) {
+        setBusinessStats(emptyOverview())
+        setRecentTransactions([])
+        return
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setBusinessStats(data.overview ?? emptyOverview())
+      setRecentTransactions(data.transactions ?? [])
+    } catch (e) {
+      console.error(e)
+      toast.error("Could not load business overview")
+      setBusinessStats(emptyOverview())
+      setRecentTransactions([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout
+    setBusinessStats(initialStats ?? null)
+    setRecentTransactions(initialTransactions || [])
+  }, [initialStats, initialTransactions])
 
-    const setDefaultStats = () => {
-      if (!isMounted) return
-      setBusinessStats({
-        totalRevenue: 0,
-        monthlyRevenue: 0,
-        revenueGrowth: 0,
-        activeProducts: 0,
-        totalEvents: 0,
-        totalTracks: 0,
-        fanEngagement: 0,
-        contractsActive: 0,
-        expenses: 0,
-        profit: 0
-      })
+  useEffect(() => {
+    if (!user) {
+      setBusinessStats(emptyOverview())
       setRecentTransactions([])
+      return
     }
-
-    const initializeData = async () => {
-      if (!isMounted) return
-      if (!user) {
-        setDefaultStats()
-        setIsLoading(false)
-        return
-      }
-      // If server provided initial stats, avoid immediate refetch
-      if (initialStats) {
-        setIsLoading(false)
-        return
-      }
-      try {
-        setIsLoading(true)
-        const res = await fetch('/api/artist/business/overview', { cache: 'no-store' })
-        if (res.ok) {
-          const payload = await res.json()
-          if (isMounted) {
-            setBusinessStats(payload.overview)
-            setRecentTransactions(payload.transactions)
-          }
-        } else {
-          await loadBusinessData()
-        }
-      } catch (e) {
-        console.error('Failed to fetch business overview via API, falling back:', e)
-        await loadBusinessData()
-      } finally {
-        if (isMounted) setIsLoading(false)
-      }
-    }
-
-    timeoutId = setTimeout(() => {
-      if (isMounted && isLoading) {
-        console.warn('Business data loading timed out, using default data')
-        setIsLoading(false)
-        setDefaultStats()
-      }
-    }, 10000)
-
-    initializeData()
-
-    return () => { if (timeoutId) clearTimeout(timeoutId) }
-  }, [user])
-
-  useEffect(() => () => { setIsMounted(false) }, [])
-
-  const loadBusinessData = async () => {
-    if (!user || !isMounted) return
-
-    try {
-      if (isMounted) setIsLoading(true)
-
-      const [merchandiseData, eventsData, tracksData] = await Promise.allSettled([
-        supabase.from('artist_merchandise').select('*').eq('user_id', user.id),
-        supabase.from('artist_events').select('*').eq('user_id', user.id),
-        supabase.from('artist_works').select('*').eq('user_id', user.id).eq('type', 'music'),
-      ])
-
-      if (!isMounted) return
-
-      const merchandiseResult = merchandiseData.status === 'fulfilled' ? merchandiseData.value : { data: [], error: null }
-      const eventsResult = eventsData.status === 'fulfilled' ? eventsData.value : { data: [], error: null }
-      const tracksResult = tracksData.status === 'fulfilled' ? tracksData.value : { data: [], error: null }
-
-      const now = new Date()
-      const activeProducts = merchandiseResult.data?.filter((p: any) => p.is_active === true).length || 0
-      const totalEvents = eventsResult.data?.length || 0
-      const totalTracks = tracksResult.data?.length || 0
-
-      const merchandiseRevenue = merchandiseResult.data?.reduce((sum: number, item: any) => sum + ((item.price || 0) * (item.units_sold || 0)), 0) || 0
-      const eventRevenue = eventsResult.data?.reduce((sum: number, event: any) => sum + ((event.ticket_price_min || 0) * (event.expected_attendance || 0)), 0) || 0
-      const totalRevenue = merchandiseRevenue + eventRevenue
-
-      const monthlyRevenue = Math.round(totalRevenue * 0.3)
-      const revenueGrowth = Math.round(Math.random() * 20 + 5)
-      const fanEngagement = Math.round(totalTracks * 150 + Math.random() * 500)
-      const contractsActive = Math.floor(Math.random() * 5) + 1
-      const expenses = Math.round(totalRevenue * 0.4)
-      const profit = totalRevenue - expenses
-
-      if (isMounted) {
-        setBusinessStats({
-          totalRevenue,
-          monthlyRevenue,
-          revenueGrowth,
-          activeProducts,
-          totalEvents,
-          totalTracks,
-          fanEngagement,
-          contractsActive,
-          expenses,
-          profit
-        })
-
-        const transactions: Transaction[] = []
-        eventsResult.data?.slice(0, 2).forEach((event: any) => {
-          if (event.ticket_price_min && event.expected_attendance) {
-            transactions.push({
-              id: `event-${event.id}`,
-              type: 'event',
-              description: `${event.title} tickets`,
-              amount: event.ticket_price_min * Math.min(event.expected_attendance, 50),
-              date: format(new Date(event.event_date), 'yyyy-MM-dd'),
-              status: event.status === 'completed' ? 'completed' : 'pending',
-              category: 'events'
-            })
-          }
-        })
-        setRecentTransactions(transactions.slice(0, 5))
-      }
-    } catch (error) {
-      console.error('Error loading business data:', error)
-      if (isMounted) toast.error('Failed to load business data')
-    } finally {
-      if (isMounted) setIsLoading(false)
-    }
-  }
+    if (initialStats !== null) return
+    runClientFetch()
+  }, [user, initialStats, runClientFetch])
 
   const filteredFeatures = useMemo(() => {
     return businessFeatures.filter(feature => {
-      const matchesSearch = feature.label.toLowerCase().includes(searchQuery.toLowerCase()) || feature.description.toLowerCase().includes(searchQuery.toLowerCase())
+      const matchesSearch =
+        feature.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        feature.description.toLowerCase().includes(searchQuery.toLowerCase())
       const matchesCategory = selectedCategory === "all" || feature.category === selectedCategory
       return matchesSearch && matchesCategory
     })
@@ -280,37 +325,67 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
     return cats.map(cat => ({
       value: cat,
       label: cat.charAt(0).toUpperCase() + cat.slice(1),
-      count: cat === "all" ? businessFeatures.length : businessFeatures.filter(f => f.category === cat).length
+      count: cat === "all" ? businessFeatures.length : businessFeatures.filter(f => f.category === cat).length,
     }))
   }, [])
 
-  const quickStats = useMemo(() => {
-    if (!businessStats) return []
-    const profitPercent = businessStats.totalRevenue > 0 ? Math.round((businessStats.profit / businessStats.totalRevenue) * 100) : 0
-    return [
-      { label: "Total Revenue", value: `$${businessStats.totalRevenue.toLocaleString()}`, change: `+${businessStats.revenueGrowth}%`, icon: DollarSign, progress: Math.min((businessStats.totalRevenue / 10000) * 100, 100) },
-      { label: "Active Products", value: businessStats.activeProducts.toString(), change: `+${businessStats.totalEvents}`, icon: ShoppingBag, progress: Math.min((businessStats.activeProducts / 20) * 100, 100) },
-      { label: "Monthly Profit", value: `$${businessStats.profit.toLocaleString()}`, change: `+${profitPercent}%`, icon: TrendingUp, progress: Math.min((businessStats.profit / 5000) * 100, 100) },
-    ]
-  }, [businessStats])
+  const statsForUi = businessStats ?? emptyOverview()
 
-  if (isLoading) {
+  const quickStats = useMemo(() => {
+    const s = statsForUi
+    const profitMargin = s.totalRevenue > 0 ? Math.round((s.profit / s.totalRevenue) * 100) : null
+    const revSub =
+      s.revenueGrowthPercent != null
+        ? `${s.revenueGrowthPercent >= 0 ? "+" : ""}${s.revenueGrowthPercent}% vs last month`
+        : "MoM — log income to compare"
+    const productsSub = `${s.totalEvents} scheduled event${s.totalEvents === 1 ? "" : "s"}`
+    const profitSub = profitMargin != null ? `${profitMargin >= 0 ? "+" : ""}${profitMargin}% margin` : "— margin until revenue > 0"
+
+    return [
+      {
+        label: "Total Revenue",
+        value: `$${s.totalRevenue.toLocaleString()}`,
+        sub: revSub,
+        trend: s.revenueGrowthPercent != null && s.revenueGrowthPercent < 0 ? ("down" as const) : ("up" as const),
+        icon: DollarSign,
+        progress: Math.min((s.totalRevenue / 10000) * 100, 100),
+      },
+      {
+        label: "Active Products",
+        value: String(s.activeProducts),
+        sub: productsSub,
+        trend: "neutral" as const,
+        icon: ShoppingBag,
+        progress: Math.min((s.activeProducts / 20) * 100, 100),
+      },
+      {
+        label: "Monthly Profit",
+        value: `$${s.profit.toLocaleString()}`,
+        sub: profitSub,
+        trend: s.profit < 0 ? ("down" as const) : ("up" as const),
+        icon: TrendingUp,
+        progress: Math.min((Math.abs(s.profit) / 5000) * 100, 100),
+      },
+    ]
+  }, [statsForUi])
+
+  if (isLoading && !businessStats && user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-        <div className="p-6">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-slate-700 rounded w-1/3"></div>
-            <div className="grid gap-6 md:grid-cols-3">
-              {[...Array(3)].map((_, i) => (<div key={i} className="h-32 bg-slate-700 rounded"></div>))}
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-10 bg-slate-800 rounded-xl w-1/3 max-w-xs" />
+          <div className="grid gap-6 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-32 bg-slate-800 rounded-2xl border border-slate-700/50" />
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="h-44 bg-slate-800 rounded-2xl border border-slate-700/50" />
+              ))}
             </div>
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {[...Array(6)].map((_, i) => (<div key={i} className="h-48 bg-slate-700 rounded"></div>))}
-                </div>
-              </div>
-              <div className="h-96 bg-slate-700 rounded"></div>
-            </div>
+            <div className="h-96 bg-slate-800 rounded-2xl border border-slate-700/50" />
           </div>
         </div>
       </div>
@@ -319,146 +394,223 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-blue-500">
-            <Briefcase className="h-6 w-6 text-white" />
+          <div className={cn(dashboardCreatePattern.headerIcon, "p-3")}>
+            <Briefcase className="h-6 w-6 text-purple-200" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-white">Business Hub</h1>
-            <p className="text-gray-400">Manage your music business and grow your revenue</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Business Hub</h1>
+            <p className="text-slate-400 text-sm md:text-base">Manage your music business and grow your revenue</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input placeholder="Search business tools..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 w-[250px] bg-slate-800/50 border-slate-700/50 text-white focus:border-purple-500/50" />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
+          <div className="relative flex-1 sm:flex-initial sm:min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Input
+              placeholder="Search business tools..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className={cn("pl-10 w-full bg-slate-900/80", dashboardCreatePattern.input)}
+            />
           </div>
-          <Button className="bg-purple-600 hover:bg-purple-700">
-            <Plus className="mr-2 h-4 w-4" />
-            New Project
+          <Button asChild className={cn("shrink-0", dashboardCreatePattern.btnPrimary)}>
+            <Link href="/artist/business/collaboration?focus=task">
+              <Plus className="mr-2 h-4 w-4" />
+              New task
+            </Link>
           </Button>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      {businessStats && (
-        <div className="grid gap-6 md:grid-cols-3">
-          {quickStats.map((stat, index) => (
-            <motion.div key={stat.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.1 }} whileHover={{ y: -5, scale: 1.02 }}>
-              <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <p className="text-sm font-medium text-slate-400">{stat.label}</p>
-                      <p className="text-2xl font-bold text-white">{stat.value}</p>
-                      <p className="text-xs text-green-400 flex items-center mt-1">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {stat.change}
-                      </p>
-                    </div>
-                    <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                      <stat.icon className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                  <Progress value={stat.progress} className="h-2" />
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+      {!statsForUi.revenueFromTransactions && statsForUi.totalRevenue > 0 && user && (
+        <p className="text-xs text-slate-500 rounded-xl border border-slate-700/60 bg-slate-900/40 px-4 py-2">
+          Revenue shows ticket × expected attendance estimates until you add entries in{" "}
+          <Link href="/artist/business/financial" className="text-purple-400 hover:underline">
+            Financial
+          </Link>
+          .
+        </p>
       )}
 
+      <div className="grid gap-6 md:grid-cols-3">
+        {quickStats.map((stat, index) => (
+          <motion.div
+            key={stat.label}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: index * 0.06 }}
+            whileHover={{ y: -4 }}
+          >
+            <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">{stat.label}</p>
+                    <p className="text-2xl font-bold text-white">{stat.value}</p>
+                    <p
+                      className={cn(
+                        "text-xs flex items-center gap-1 mt-1",
+                        stat.trend === "down" ? "text-rose-400" : stat.trend === "up" ? "text-emerald-400" : "text-slate-400"
+                      )}
+                    >
+                      {stat.trend === "down" ? (
+                        <TrendingDown className="h-3 w-3 shrink-0" />
+                      ) : stat.trend === "up" ? (
+                        <TrendingUp className="h-3 w-3 shrink-0" />
+                      ) : null}
+                      {stat.sub}
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 border border-purple-500/20 flex items-center justify-center">
+                    <stat.icon className="h-6 w-6 text-purple-200" />
+                  </div>
+                </div>
+                <Progress value={stat.progress} className="h-2 bg-slate-800" />
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Business Features */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl">
+          <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
             <CardHeader>
-              <CardTitle className="text-slate-200 flex items-center">
-                <Filter className="h-5 w-5 mr-2 text-purple-400" />
+              <CardTitle className="text-slate-200 flex items-center gap-2">
+                <Filter className="h-5 w-5 text-purple-400" />
                 Business Categories
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {categories.map((category) => (
-                  <Button key={category.value} variant={selectedCategory === category.value ? "default" : "outline"} size="sm" onClick={() => setSelectedCategory(category.value)} className={`transition-all duration-200 ${selectedCategory === category.value ? "bg-purple-600 hover:bg-purple-700 text-white" : "border-slate-700 text-slate-300 hover:bg-slate-800/50"}`}>
+                {categories.map(category => (
+                  <Button
+                    key={category.value}
+                    variant={selectedCategory === category.value ? "default" : "outline"}
+                    size="sm"
+                    type="button"
+                    onClick={() => setSelectedCategory(category.value)}
+                    className={cn(
+                      "transition-all duration-200 rounded-xl",
+                      selectedCategory === category.value
+                        ? dashboardCreatePattern.btnPrimary
+                        : dashboardCreatePattern.btnOutline
+                    )}
+                  >
                     {category.label}
-                    <Badge variant="secondary" className="ml-2 bg-slate-700 text-slate-300">{category.count}</Badge>
+                    <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-300 border-slate-600">
+                      {category.count}
+                    </Badge>
                   </Button>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          <motion.div variants={staggerContainer} initial="initial" animate="animate" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            animate="animate"
+            className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          >
             <AnimatePresence mode="wait">
               {filteredFeatures.map((feature, index) => (
-                <BusinessFeatureCard key={feature.label} feature={feature} stats={businessStats} index={index} />
+                <BusinessFeatureCard key={feature.label} feature={feature} stats={statsForUi} index={index} />
               ))}
             </AnimatePresence>
           </motion.div>
         </div>
 
-        {/* Recent Transactions & Quick Actions */}
         <div className="space-y-6">
-          <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl">
+          <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
             <CardHeader>
-              <CardTitle className="text-slate-200 flex items-center">
-                <CreditCard className="h-5 w-5 mr-2 text-green-400" />
-                Recent Activity
+              <CardTitle className="text-slate-200 flex items-center gap-2">
+                <CreditCard className="h-5 w-5 text-emerald-400" />
+                Recent activity
               </CardTitle>
-              <CardDescription className="text-slate-400">Latest financial transactions</CardDescription>
+              <CardDescription className="text-slate-400">Latest entries from your financial log</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {recentTransactions.length > 0 ? (
                   recentTransactions.map((transaction, index) => (
-                    <motion.div key={transaction.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3, delay: index * 0.1 }} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg hover:bg-slate-700/30 transition-colors">
-                      <div className="flex-1">
-                        <div className="text-sm font-medium text-white">{transaction.description}</div>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <Badge variant="outline" className={`text-xs ${transaction.status === "completed" ? "bg-green-500/10 text-green-400 border-green-500/20" : "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"}`}>{transaction.status}</Badge>
-                          <span className="text-xs text-slate-500">{format(new Date(transaction.date), 'MMM d')}</span>
+                    <motion.div
+                      key={transaction.id}
+                      initial={{ opacity: 0, x: 12 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.25, delay: index * 0.05 }}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-800/30 border border-slate-700/40 hover:bg-slate-800/50 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white truncate">{transaction.description}</div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "text-xs",
+                              transaction.status === "completed"
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                                : transaction.status === "failed"
+                                  ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                  : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                            )}
+                          >
+                            {transaction.status}
+                          </Badge>
+                          <span className="text-xs text-slate-500">
+                            {format(new Date(transaction.date), "MMM d")}
+                          </span>
                         </div>
                       </div>
-                      <div className={`font-bold text-sm ${transaction.amount >= 0 ? 'text-green-400' : 'text-red-400'}`}>{transaction.amount >= 0 ? '+' : ''}${Math.abs(transaction.amount).toLocaleString()}</div>
+                      <div
+                        className={cn(
+                          "font-semibold text-sm shrink-0 ml-2",
+                          transaction.amount >= 0 ? "text-emerald-400" : "text-rose-400"
+                        )}
+                      >
+                        {transaction.amount >= 0 ? "+" : ""}$
+                        {Math.abs(transaction.amount).toLocaleString()}
+                      </div>
                     </motion.div>
                   ))
                 ) : (
                   <div className="text-center py-8">
-                    <CreditCard className="h-8 w-8 text-gray-500 mx-auto mb-2" />
-                    <p className="text-gray-400 text-sm">No recent transactions</p>
+                    <CreditCard className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+                    <p className="text-slate-400 text-sm">No transactions yet</p>
+                    <p className="text-slate-500 text-xs mt-1">Add income and expenses in Financial</p>
                   </div>
                 )}
               </div>
-              <Link href="/artist/business/financial">
-                <Button variant="outline" className="w-full mt-4 border-slate-700 text-slate-300 hover:bg-slate-800/50">View All Transactions</Button>
-              </Link>
+              <Button asChild variant="outline" className={cn("w-full mt-4", dashboardCreatePattern.btnOutline)}>
+                <Link href="/artist/business/financial">View financial log</Link>
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Quick Actions */}
-          <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl">
+          <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
             <CardHeader>
-              <CardTitle className="text-slate-200 flex items-center">
-                <Zap className="h-5 w-5 mr-2 text-yellow-400" />
-                Quick Actions
+              <CardTitle className="text-slate-200 flex items-center gap-2">
+                <Zap className="h-5 w-5 text-amber-400" />
+                Quick actions
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-2">
                 {[
-                  { label: "Add Product", icon: ShoppingBag, href: "/artist/features/merchandise" },
-                  { label: "Create Contract", icon: FileText, href: "/artist/business/contracts" },
-                  { label: "New Campaign", icon: Share2, href: "/artist/business/marketing" },
-                  { label: "View Analytics", icon: BarChart2, href: "/artist/business/analytics" }
-                ].map((action) => (
+                  { label: "Add product", icon: ShoppingBag, href: "/artist/features/merchandise" },
+                  { label: "Contract", icon: FileText, href: "/artist/business/contracts" },
+                  { label: "Campaign", icon: Share2, href: "/artist/business/marketing" },
+                  { label: "Analytics", icon: BarChart2, href: "/artist/business/analytics" },
+                ].map(action => (
                   <Link key={action.label} href={action.href}>
-                    <Button variant="ghost" className="h-16 w-full flex flex-col items-center justify-center space-y-1 hover:bg-slate-800/50 transition-all duration-200">
+                    <Button
+                      variant="ghost"
+                      type="button"
+                      className="h-16 w-full flex flex-col items-center justify-center gap-1 rounded-xl border border-transparent hover:border-slate-700 hover:bg-slate-800/50 text-slate-300"
+                    >
                       <action.icon className="h-5 w-5 text-purple-400" />
-                      <span className="text-xs text-slate-300">{action.label}</span>
+                      <span className="text-xs">{action.label}</span>
                     </Button>
                   </Link>
                 ))}
@@ -470,5 +622,3 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
     </div>
   )
 }
-
-

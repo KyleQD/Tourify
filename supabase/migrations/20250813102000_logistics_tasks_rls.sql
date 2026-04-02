@@ -2,19 +2,26 @@
 
 -- Drop permissive policies if they exist
 do $$ begin
-  if exists (select 1 from pg_policies where polname = 'log_tasks_read_all_auth') then
+  if exists (select 1 from pg_policies where policyname = 'log_tasks_read_all_auth') then
     drop policy "log_tasks_read_all_auth" on logistics_tasks;
   end if;
-  if exists (select 1 from pg_policies where polname = 'log_tasks_write_creator_or_admin') then
+  if exists (select 1 from pg_policies where policyname = 'log_tasks_write_creator_or_admin') then
     drop policy "log_tasks_write_creator_or_admin" on logistics_tasks;
   end if;
-  if exists (select 1 from pg_policies where polname = 'log_task_equipment_read_auth') then
+  if exists (select 1 from pg_policies where policyname = 'log_task_equipment_read_auth') then
     drop policy "log_task_equipment_read_auth" on logistics_task_equipment;
   end if;
-  if exists (select 1 from pg_policies where polname = 'log_task_equipment_write_auth') then
+  if exists (select 1 from pg_policies where policyname = 'log_task_equipment_write_auth') then
     drop policy "log_task_equipment_write_auth" on logistics_task_equipment;
   end if;
 end $$;
+
+drop policy if exists "log_tasks_select_rbacs" on logistics_tasks;
+drop policy if exists "log_tasks_insert_rbacs" on logistics_tasks;
+drop policy if exists "log_tasks_update_rbacs" on logistics_tasks;
+drop policy if exists "log_tasks_delete_rbacs" on logistics_tasks;
+drop policy if exists "log_task_equipment_select_rbacs" on logistics_task_equipment;
+drop policy if exists "log_task_equipment_cud_rbacs" on logistics_task_equipment;
 
 -- Helper expression: permission on event or tour
 -- Usage in policies below

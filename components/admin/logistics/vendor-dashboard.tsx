@@ -26,6 +26,7 @@ import {
   MoreHorizontal
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface VendorDashboardProps {
   vendorId?: string
@@ -280,7 +281,7 @@ export function VendorDashboard({ vendorId, siteMapId }: VendorDashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Revenue</p>
-                <p className="text-2xl font-bold">${stats.revenueThisMonth.toLocaleString()}</p>
+                <p className="text-2xl font-bold">{formatSafeCurrency(stats.revenueThisMonth)}</p>
                 <p className="text-xs text-green-600">+8% from last month</p>
               </div>
               <DollarSign className="h-8 w-8 text-green-600" />

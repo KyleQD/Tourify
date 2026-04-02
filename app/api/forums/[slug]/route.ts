@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: NextRequest, context: any) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
   try {
     const auth = await authenticateApiRequest(request)
-    let supabase
     let userId: string | null = null
     if (auth) {
-      supabase = auth.supabase
       userId = auth.user.id
-    } else {
-      const { createClient } = await import('@/lib/supabase/server')
-      supabase = await createClient()
     }
+    const supabase = await createClient()
+    const { slug } = await context.params
 
     const { data: forum } = await supabase
       .from('forums')
       .select('id, slug, name, description')
-      .eq('slug', context?.params?.slug)
+      .eq('slug', slug)
       .maybeSingle()
     if (!forum) return NextResponse.json({ error: 'Forum not found' }, { status: 404 })
 

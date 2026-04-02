@@ -38,6 +38,7 @@ import { EnhancedSiteMapCanvas } from "./enhanced-site-map-canvas"
 import { EnhancedSiteMapBuilder } from "./site-map-builder/enhanced-site-map-builder"
 import { LayerManager } from "./layer-manager"
 import { MeasurementTools } from "./measurement-tools"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { EquipmentCatalog } from "./equipment-catalog"
 import { VendorDashboard } from "./vendor-dashboard"
 import { EquipmentInventoryManager } from "./equipment-inventory-manager"
@@ -1258,7 +1259,7 @@ export function SiteMapManager({
                       </div>
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {new Date(siteMap.updatedAt).toLocaleDateString()}
+                        {formatSafeDate(siteMap.updatedAt)}
                       </div>
                     </div>
                     

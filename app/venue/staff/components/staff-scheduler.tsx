@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   Calendar,
   Clock,
@@ -378,7 +379,7 @@ export default function StaffScheduler() {
               />
             </div>
             <div className="text-slate-400 text-sm">
-              {todayShifts.length} shifts scheduled for {new Date(selectedDate).toLocaleDateString()}
+              {todayShifts.length} shifts scheduled for {formatSafeDate(selectedDate)}
             </div>
           </div>
         </CardContent>

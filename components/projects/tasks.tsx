@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface User {
   id: string
@@ -314,7 +315,7 @@ export function Tasks({ tasks, users, onAddTask, onUpdateTask }: TasksProps) {
                       <div className="flex items-center space-x-2">
                         {task.dueDate && (
                           <span className="text-slate-400">
-                            {new Date(task.dueDate).toLocaleDateString()}
+                            {formatSafeDate(task.dueDate.toISOString())}
                           </span>
                         )}
                         <Badge

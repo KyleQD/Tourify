@@ -1,10 +1,13 @@
 import { withAuth } from '@/lib/auth/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
-export const POST = withAuth(async (request, { supabase, user }) => {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params
+  return withAuth(async (_request, { supabase, user }) => {
   try {
-    const { params } = (request as any)
-    const id = params?.id || request.url.split('/threads/')[1]?.split('/')[0]
     if (!id) return NextResponse.json({ error: 'Missing thread id' }, { status: 400 })
 
     const payload = await request.json()
@@ -26,12 +29,16 @@ export const POST = withAuth(async (request, { supabase, user }) => {
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-})
+  })(request)
+}
 
-export const DELETE = withAuth(async (request, { supabase, user }) => {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params
+  return withAuth(async (_request, { supabase, user }) => {
   try {
-    const { params } = (request as any)
-    const id = params?.id || request.url.split('/threads/')[1]?.split('/')[0]
     if (!id) return NextResponse.json({ error: 'Missing thread id' }, { status: 400 })
 
     const { error } = await supabase
@@ -51,6 +58,7 @@ export const DELETE = withAuth(async (request, { supabase, user }) => {
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-})
+  })(request)
+}
 
 

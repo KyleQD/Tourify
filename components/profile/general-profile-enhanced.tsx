@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   User,
   MapPin,
@@ -556,7 +557,7 @@ export function GeneralProfileEnhanced({ profile, isOwnProfile = false, onFollow
                         
                         <div className="flex items-center justify-between">
                           <span className="text-white/60 text-sm">
-                            Completed {new Date(project.completion_date).toLocaleDateString()}
+                            Completed {formatSafeDate(project.completion_date)}
                           </span>
                           {project.url && (
                             <Button 
@@ -637,7 +638,7 @@ export function GeneralProfileEnhanced({ profile, isOwnProfile = false, onFollow
                         <div>
                           <h4 className="text-white font-medium">{cert.name}</h4>
                           <p className="text-white/70">{cert.organization}</p>
-                          <p className="text-white/60 text-sm">{new Date(cert.date).toLocaleDateString()}</p>
+                          <p className="text-white/60 text-sm">{formatSafeDate(cert.date)}</p>
                         </div>
                         <div className="flex items-center gap-2">
                           {cert.verified && (

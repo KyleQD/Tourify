@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { ArrowLeft, ArrowRight, Check, Download, FileText, Upload } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export default function ImportWizard() {
   const { toast } = useToast()
@@ -156,7 +157,7 @@ export default function ImportWizard() {
                         <SelectContent>
                           {events.map((event) => (
                             <SelectItem key={event.id} value={event.id}>
-                              {event.name} ({new Date(event.date).toLocaleDateString()})
+                              {event.name} ({formatSafeDate(event.date)})
                             </SelectItem>
                           ))}
                         </SelectContent>

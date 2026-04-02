@@ -16,8 +16,10 @@ import { DashboardFeed } from '@/components/dashboard/dashboard-feed'
 import { QuickPostCreator } from '@/components/dashboard/quick-post-creator'
 import { UnifiedActivityFeed } from '@/components/dashboard/unified-activity-feed'
 import { EnhancedQuickActions } from '@/components/dashboard/enhanced-quick-actions'
-import { getProfileUsername } from '@/lib/utils/profile-utils'
+import { DashboardContractsCard } from '@/components/dashboard/dashboard-contracts-card'
+import { getGeneralPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { DashboardService } from '@/lib/services/dashboard.service'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import {
   User,
   Calendar,
@@ -113,9 +115,37 @@ export default function DashboardPage() {
     } as any
   }, [user, forceLoad])
 
-  // Get the username for profile viewing
-  const getUserUsername = () => {
-    return getProfileUsername(userProfile)
+  const publicProfileRoute = useMemo(() => {
+    const customUrl = userProfile?.custom_url
+
+    // For general account, use the active general account profile username if the transformed profile is missing it.
+    const usernameFallback =
+      currentAccount?.account_type === 'general'
+        ? (currentAccount.profile_data as { username?: string })?.username
+        : undefined
+
+    const username = userProfile?.username || usernameFallback
+
+    const slug = customUrl || username
+
+    if (!slug || slug === 'user') {
+      return { path: null, slug: null as string | null, source: null as string | null }
+    }
+
+    return {
+      path: `/profile/${encodeURIComponent(slug)}`,
+      slug,
+      source: customUrl ? 'custom_url' : 'username'
+    }
+  }, [userProfile, currentAccount])
+
+  function handleViewPublicProfile() {
+    if (!publicProfileRoute.path) {
+      console.warn('[Dashboard] View Public Profile: no username/custom_url resolved; navigation skipped')
+      return
+    }
+    console.log('[Dashboard] Routing to public profile:', publicProfileRoute.path, "source:", publicProfileRoute.source)
+    router.push(publicProfileRoute.path)
   }
 
   // Get the display name from profile or fallback to user metadata
@@ -473,12 +503,7 @@ export default function DashboardPage() {
                   </h1>
                   <p className="text-gray-400 flex items-center gap-2">
                     <Clock className="h-4 w-4" />
-                    {new Date().toLocaleDateString('en-US', { 
-                      weekday: 'long',
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric' 
-                    })}
+                    {formatSafeDate(new Date().toISOString())}
                   </p>
                 </div>
               </div>
@@ -486,8 +511,9 @@ export default function DashboardPage() {
               {/* View Profile Button */}
               <div className="flex items-center space-x-3">
                 <Button
-                  onClick={() => router.push(`/profile/${getUserUsername()}`)}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 rounded-2xl px-6 py-3 font-medium transition-all duration-300 flex items-center gap-2 hover:scale-105"
+                  onClick={handleViewPublicProfile}
+                  disabled={!publicProfileRoute.path}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 rounded-2xl px-6 py-3 font-medium transition-all duration-300 flex items-center gap-2 hover:scale-105 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <User className="h-4 w-4" />
                   View Public Profile
@@ -717,6 +743,9 @@ export default function DashboardPage() {
 
             {/* Right Column - Quick Actions */}
             <div className="lg:col-span-3 space-y-6">
+              {dashboardUserId && dashboardUserId !== 'temp-user' && (
+                <DashboardContractsCard userId={dashboardUserId} />
+              )}
               <div className="w-full">
                 <EnhancedQuickActions />
               </div>

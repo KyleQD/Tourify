@@ -1,22 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
     console.log('[Tour Planner Artists API] GET request started')
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
 
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('query') || ''
@@ -177,4 +164,4 @@ export async function GET(request: NextRequest) {
     console.error('[Tour Planner Artists API] Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+})

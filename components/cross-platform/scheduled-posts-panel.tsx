@@ -10,6 +10,7 @@ import { useCrossPlatformPosting } from '@/hooks/use-cross-platform-posting'
 import { CalendarDays, Clock3, Copy, Trash2, RotateCcw, Loader2 } from 'lucide-react'
 import { crossPlatformPostingService } from '@/lib/services/cross-platform-posting.service'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 export function ScheduledPostsPanel() {
   const { scheduledPosts, cancelScheduledPost, duplicatePost, getFilteredPosts, refreshData } = useCrossPlatformPosting({ autoRefresh: false })
@@ -80,8 +81,8 @@ export function ScheduledPostsPanel() {
                 </div>
                 <p className="text-slate-200 mt-1 line-clamp-2">{post.content}</p>
                 <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                  <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{new Date(post.scheduled_for).toLocaleDateString()}</span>
-                  <span className="flex items-center gap-1"><Clock3 className="h-3 w-3" />{new Date(post.scheduled_for).toLocaleTimeString()}</span>
+                  <span className="flex items-center gap-1"><CalendarDays className="h-3 w-3" />{formatSafeDate(post.scheduled_for)}</span>
+                  <span className="flex items-center gap-1"><Clock3 className="h-3 w-3" />{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(post.scheduled_for))}</span>
                   <span>{post.target_accounts.length} accounts</span>
                 </div>
                 {/* Per-platform chips (mocked from analytics/status fields if available) */}

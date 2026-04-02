@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useAuth } from "@/contexts/auth-context"
 
 interface Post {
@@ -325,7 +326,7 @@ export function ProfilePosts({
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
     if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`
-    return date.toLocaleDateString()
+    return formatSafeDate(date.toISOString())
   }
 
   if (loading) {

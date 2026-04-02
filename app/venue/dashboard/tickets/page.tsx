@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateEventModal } from "../../components/events/create-event-modal"
 import { TicketGeneratorModal } from "../../components/tickets/ticket-generator-modal"
 import { Calendar, Download, Edit, ExternalLink, QrCode, Search, Share, TicketIcon } from "lucide-react"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
 export default function TicketsPage() {
   const [showCreateEventModal, setShowCreateEventModal] = useState(false)
@@ -130,22 +131,11 @@ export default function TicketsPage() {
   ]
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   const formatTime = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }
-    return new Date(dateString).toLocaleTimeString("en-US", options)
+    return formatSafeTime(dateString)
   }
 
   const formatCurrency = (amount: number) => {

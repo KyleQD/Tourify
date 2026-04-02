@@ -35,7 +35,6 @@ export default function TestIntegration() {
       // Test 1: Dashboard Stats
       try {
         results.dashboardStats = await AdminOnboardingStaffService.getDashboardStats(venueId)
-        console.log('✅ Dashboard stats loaded successfully')
       } catch (error) {
         console.error('❌ Dashboard stats failed:', error)
         results.dashboardStats = { error: (error as Error)?.message ?? 'Unknown error' }
@@ -44,7 +43,6 @@ export default function TestIntegration() {
       // Test 2: Job Postings
       try {
         results.jobPostings = await AdminOnboardingStaffService.getJobPostings(venueId)
-        console.log('✅ Job postings loaded successfully')
       } catch (error) {
         console.error('❌ Job postings failed:', error)
         results.jobPostings = { error: (error as Error)?.message ?? 'Unknown error' }
@@ -53,7 +51,6 @@ export default function TestIntegration() {
       // Test 3: Applications
       try {
         results.applications = await AdminOnboardingStaffService.getJobApplications(venueId)
-        console.log('✅ Applications loaded successfully')
       } catch (error) {
         console.error('❌ Applications failed:', error)
         results.applications = { error: (error as Error)?.message ?? 'Unknown error' }
@@ -62,7 +59,6 @@ export default function TestIntegration() {
       // Test 4: Candidates
       try {
         results.candidates = await AdminOnboardingStaffService.getOnboardingCandidates(venueId)
-        console.log('✅ Candidates loaded successfully')
       } catch (error) {
         console.error('❌ Candidates failed:', error)
         results.candidates = { error: (error as Error)?.message ?? 'Unknown error' }
@@ -71,7 +67,6 @@ export default function TestIntegration() {
       // Test 5: Staff Members
       try {
         results.staffMembers = await AdminOnboardingStaffService.getStaffMembers(venueId)
-        console.log('✅ Staff members loaded successfully')
       } catch (error) {
         console.error('❌ Staff members failed:', error)
         results.staffMembers = { error: (error as Error)?.message ?? 'Unknown error' }
@@ -114,7 +109,6 @@ export default function TestIntegration() {
         }
 
         results.createJobPosting = await AdminOnboardingStaffService.createJobPosting(venueId, mockJobData)
-        console.log('✅ Job posting created successfully')
       } catch (error) {
         console.error('❌ Create job posting failed:', error)
         results.createJobPosting = { error: (error as Error)?.message ?? 'Unknown error' }

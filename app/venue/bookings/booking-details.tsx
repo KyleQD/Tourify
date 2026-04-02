@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { format } from "date-fns"
 import { Calendar, Clock, Users, MapPin, Tag, Mail, Phone, FileText, User } from "lucide-react"
+import { formatSafeDateTime } from "@/lib/events/admin-event-normalization"
 
 interface BookingDetailsProps {
   booking: any
@@ -167,11 +168,11 @@ export function BookingDetails({ booking }: BookingDetailsProps) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <p>Created</p>
-            <p className="text-muted-foreground">{new Date(booking.createdAt).toLocaleString()}</p>
+            <p className="text-muted-foreground">{formatSafeDateTime(booking.createdAt)}</p>
           </div>
           <div className="flex justify-between">
             <p>Last Updated</p>
-            <p className="text-muted-foreground">{new Date(booking.updatedAt).toLocaleString()}</p>
+            <p className="text-muted-foreground">{formatSafeDateTime(booking.updatedAt)}</p>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { parseAuthFromCookies } from '@/lib/auth/api-auth'
+import { achievementEngine } from '@/lib/services/achievement-engine.service'
 
 export async function GET(
   request: NextRequest,
@@ -99,6 +100,22 @@ export async function POST(
       }
 
       // Likes count is derived from post_likes; no direct counter update needed
+      const { data: postRow } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single()
+      if (postRow?.user_id) {
+        await achievementEngine.recordMetricEvent({
+          supabase: supabase as any,
+          userId: postRow.user_id,
+          metricKey: 'post_interactions_total',
+          eventType: 'post_like_received',
+          delta: 1,
+          eventSource: 'api_post_like',
+          eventData: { post_id: postId }
+        })
+      }
 
       console.log('✅ Successfully liked post')
       return NextResponse.json({ success: true, action: 'liked' })

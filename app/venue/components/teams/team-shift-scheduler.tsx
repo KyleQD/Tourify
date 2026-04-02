@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PlusCircle, Clock, MoreHorizontal, Edit, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock data for shifts
 const mockShifts = {
@@ -189,7 +190,7 @@ export function TeamShiftScheduler({ teamId }: TeamShiftSchedulerProps) {
 
   // Format date for display
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+    return formatSafeDate(date.toISOString())
   }
 
   // Navigate to previous/next day or week
@@ -546,8 +547,8 @@ export function TeamShiftScheduler({ teamId }: TeamShiftSchedulerProps) {
         <div className="grid grid-cols-7 gap-2">
           {getWeekDays().map((day, index) => {
             const dayShifts = getShiftsForDay(day)
-            const dateStr = day.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-            const dayName = day.toLocaleDateString("en-US", { weekday: "short" })
+            const dateStr = formatSafeDate(day.toISOString())
+            const dayName = new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(day)
             const isToday = new Date().toDateString() === day.toDateString()
 
             return (

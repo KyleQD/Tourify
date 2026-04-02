@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { supabase } from "@/lib/supabase"
 import type { Project } from "@/types/database.types"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -88,10 +89,10 @@ export default function ProjectsPage() {
                 {project.description || 'No description provided'}
               </p>
               <div className="mt-4 flex items-center text-xs text-slate-400">
-                <span>Created: {new Date(project.created_at).toLocaleDateString()}</span>
+                <span>Created: {formatSafeDate(project.created_at)}</span>
                 {project.start_date && (
                   <span className="ml-4">
-                    Starts: {new Date(project.start_date).toLocaleDateString()}
+                    Starts: {formatSafeDate(project.start_date)}
                   </span>
                 )}
               </div>

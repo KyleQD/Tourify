@@ -10,9 +10,9 @@ export default function AgenciesDashboardPage() {
       <div className="container mx-auto space-y-6">
         <h1 className="text-3xl font-bold text-white">Agencies</h1>
         <Tabs defaultValue="performance" className="space-y-6">
-          <TabsList className="bg-slate-800/50 border-slate-700/50">
-            <TabsTrigger value="performance" className="data-[state=active]:bg-purple-600">Performance Agencies</TabsTrigger>
-            <TabsTrigger value="staffing" className="data-[state=active]:bg-purple-600">Staffing Agencies</TabsTrigger>
+          <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+            <TabsTrigger value="performance" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Performance Agencies</TabsTrigger>
+            <TabsTrigger value="staffing" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Staffing Agencies</TabsTrigger>
           </TabsList>
           <TabsContent value="performance" className="space-y-6">
             <PerformanceAgencyManager />

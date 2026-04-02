@@ -180,7 +180,7 @@ async function testTourPublishingFlow() {
         existingTours.forEach((tour, index) => {
           console.log(`   ${index + 1}. ${tour.name} (${tour.status})`)
           console.log(`      Events: ${tour.events?.length || 0}`)
-          console.log(`      Created: ${new Date(tour.created_at).toLocaleDateString()}`)
+          console.log(`      Created: ${new Intl.DateTimeFormat("en-US").format(new Date(tour.created_at))}`)
         })
       }
     }

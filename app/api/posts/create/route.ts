@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { achievementEngine } from '@/lib/services/achievement-engine.service'
 
 // Create service role client for database operations (bypasses RLS)
 function createServiceRoleClient() {
@@ -312,6 +313,29 @@ export async function POST(request: NextRequest) {
       visibility: post.visibility,
       type: post.type
     })
+
+    if (visibility === 'public') {
+      await achievementEngine.recordMetricEvent({
+        supabase: supabase as any,
+        userId,
+        metricKey: 'posts_public_total',
+        eventType: 'post_created',
+        delta: 1,
+        eventSource: 'api_posts_create',
+        eventData: { post_id: post.id, media_count: cleanMediaUrls.length }
+      })
+      if (cleanMediaUrls.length > 0) {
+        await achievementEngine.recordMetricEvent({
+          supabase: supabase as any,
+          userId,
+          metricKey: 'media_items_total',
+          eventType: 'post_media_added',
+          delta: cleanMediaUrls.length,
+          eventSource: 'api_posts_create',
+          eventData: { post_id: post.id }
+        })
+      }
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronRight } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueUpcomingEventsProps {
   venue: any
@@ -42,6 +43,21 @@ export function VenueUpcomingEvents({ venue }: VenueUpcomingEventsProps) {
 
   const eventsToShow = hasEvents ? upcomingEvents.slice(0, 3) : mockEvents
 
+  function resolveEventDate(event: any) {
+    return (
+      event?.date ||
+      event?.event_date ||
+      event?.start_at ||
+      event?.start_date ||
+      null
+    )
+  }
+
+  function formatEventDate(event: any) {
+    const value = resolveEventDate(event)
+    return formatSafeDate(value)
+  }
+
   return (
     <Card className="bg-gray-900 border-gray-800">
       <CardHeader className="pb-2">
@@ -56,9 +72,9 @@ export function VenueUpcomingEvents({ venue }: VenueUpcomingEventsProps) {
             {eventsToShow.map((event: any) => (
               <div key={event.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition-colors cursor-pointer">
                 <div>
-                  <h3 className="font-medium text-white">{event.title}</h3>
+                  <h3 className="font-medium text-white">{event.title || event.name || 'Event'}</h3>
                   <p className="text-sm text-gray-400">
-                    {new Date(event.date).toLocaleDateString()} • {event.ticketsSold || 0}/{event.capacity || venue?.capacity || 0} tickets
+                    {formatEventDate(event)} • {event.ticketsSold || event.tickets_sold || 0}/{event.capacity || venue?.capacity || 0} tickets
                   </p>
                 </div>
                 <Badge variant="outline" className="bg-green-900/20 text-green-400 border-green-800">

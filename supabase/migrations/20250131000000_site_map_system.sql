@@ -449,21 +449,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_site_maps_updated_at ON site_maps;
 CREATE TRIGGER trigger_update_site_maps_updated_at
     BEFORE UPDATE ON site_maps
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_site_map_zones_updated_at ON site_map_zones;
 CREATE TRIGGER trigger_update_site_map_zones_updated_at
     BEFORE UPDATE ON site_map_zones
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_glamping_tents_updated_at ON glamping_tents;
 CREATE TRIGGER trigger_update_glamping_tents_updated_at
     BEFORE UPDATE ON glamping_tents
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_site_map_elements_updated_at ON site_map_elements;
 CREATE TRIGGER trigger_update_site_map_elements_updated_at
     BEFORE UPDATE ON site_map_elements
     FOR EACH ROW
@@ -496,16 +500,19 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Apply activity logging to relevant tables
+DROP TRIGGER IF EXISTS trigger_log_site_map_zones_activity ON site_map_zones;
 CREATE TRIGGER trigger_log_site_map_zones_activity
     AFTER INSERT OR UPDATE OR DELETE ON site_map_zones
     FOR EACH ROW
     EXECUTE FUNCTION log_site_map_activity();
 
+DROP TRIGGER IF EXISTS trigger_log_glamping_tents_activity ON glamping_tents;
 CREATE TRIGGER trigger_log_glamping_tents_activity
     AFTER INSERT OR UPDATE OR DELETE ON glamping_tents
     FOR EACH ROW
     EXECUTE FUNCTION log_site_map_activity();
 
+DROP TRIGGER IF EXISTS trigger_log_site_map_elements_activity ON site_map_elements;
 CREATE TRIGGER trigger_log_site_map_elements_activity
     AFTER INSERT OR UPDATE OR DELETE ON site_map_elements
     FOR EACH ROW
@@ -823,6 +830,19 @@ ALTER TABLE equipment_setup_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE power_distribution ENABLE ROW LEVEL SECURITY;
 ALTER TABLE equipment_power_connections ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view equipment catalog" ON equipment_catalog;
+DROP POLICY IF EXISTS "Users can manage their own equipment" ON equipment_catalog;
+DROP POLICY IF EXISTS "Users can view equipment instances for accessible site maps" ON equipment_instances;
+DROP POLICY IF EXISTS "Collaborators can manage equipment instances" ON equipment_instances;
+DROP POLICY IF EXISTS "Users can view workflows for accessible site maps" ON equipment_setup_workflows;
+DROP POLICY IF EXISTS "Collaborators can manage workflows" ON equipment_setup_workflows;
+DROP POLICY IF EXISTS "Users can view tasks for accessible workflows" ON equipment_setup_tasks;
+DROP POLICY IF EXISTS "Collaborators can manage tasks" ON equipment_setup_tasks;
+DROP POLICY IF EXISTS "Users can view power distribution for accessible site maps" ON power_distribution;
+DROP POLICY IF EXISTS "Collaborators can manage power distribution" ON power_distribution;
+DROP POLICY IF EXISTS "Users can view power connections for accessible equipment" ON equipment_power_connections;
+DROP POLICY IF EXISTS "Collaborators can manage power connections" ON equipment_power_connections;
+
 -- Equipment catalog policies
 CREATE POLICY "Users can view equipment catalog" ON equipment_catalog
     FOR SELECT USING (auth.uid() IS NOT NULL);
@@ -969,31 +989,37 @@ CREATE POLICY "Collaborators can manage power connections" ON equipment_power_co
 -- =============================================================================
 
 -- Update timestamps triggers for equipment tables
+DROP TRIGGER IF EXISTS trigger_update_equipment_catalog_updated_at ON equipment_catalog;
 CREATE TRIGGER trigger_update_equipment_catalog_updated_at
     BEFORE UPDATE ON equipment_catalog
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_equipment_instances_updated_at ON equipment_instances;
 CREATE TRIGGER trigger_update_equipment_instances_updated_at
     BEFORE UPDATE ON equipment_instances
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_equipment_setup_workflows_updated_at ON equipment_setup_workflows;
 CREATE TRIGGER trigger_update_equipment_setup_workflows_updated_at
     BEFORE UPDATE ON equipment_setup_workflows
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_equipment_setup_tasks_updated_at ON equipment_setup_tasks;
 CREATE TRIGGER trigger_update_equipment_setup_tasks_updated_at
     BEFORE UPDATE ON equipment_setup_tasks
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_power_distribution_updated_at ON power_distribution;
 CREATE TRIGGER trigger_update_power_distribution_updated_at
     BEFORE UPDATE ON power_distribution
     FOR EACH ROW
     EXECUTE FUNCTION update_site_map_updated_at();
 
+DROP TRIGGER IF EXISTS trigger_update_equipment_power_connections_updated_at ON equipment_power_connections;
 CREATE TRIGGER trigger_update_equipment_power_connections_updated_at
     BEFORE UPDATE ON equipment_power_connections
     FOR EACH ROW

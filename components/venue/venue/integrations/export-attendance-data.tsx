@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
 import { AlertCircle, ArrowRight, Calendar, Check, FileText, Info, RefreshCw, Upload, Users, X } from "lucide-react"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
 // Mock data for connected platforms
 const connectedPlatforms = [
@@ -328,7 +329,7 @@ export default function ExportAttendanceData() {
                               <div className="flex flex-col">
                                 <span>{event.title}</span>
                                 <span className="text-xs text-muted-foreground">
-                                  {new Date(event.date).toLocaleDateString()}
+                                  {formatSafeDate(event.date)}
                                 </span>
                               </div>
                             </SelectItem>
@@ -350,7 +351,7 @@ export default function ExportAttendanceData() {
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                        <span>{event ? new Date(event.date).toLocaleDateString() : ""}</span>
+                        <span>{event ? formatSafeDate(event.date) : ""}</span>
                       </div>
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-2 text-muted-foreground" />
@@ -710,8 +711,8 @@ export default function ExportAttendanceData() {
                             <span className="mr-2">{exportItem.platform}</span>
                             <span>•</span>
                             <span className="ml-2">
-                              {new Date(exportItem.exportDate).toLocaleDateString()}{" "}
-                              {new Date(exportItem.exportDate).toLocaleTimeString()}
+                              {formatSafeDate(exportItem.exportDate)}{" "}
+                              {formatSafeTime(exportItem.exportDate)}
                             </span>
                           </div>
                         </div>

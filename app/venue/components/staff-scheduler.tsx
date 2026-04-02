@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { ChevronLeft, ChevronRight, Download, Edit, Plus, Save, Trash2 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock staff data
 const mockStaff = [
@@ -186,12 +187,7 @@ export function StaffScheduler() {
 
   // Format date for display
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-    })
+    return formatSafeDate(date.toISOString())
   }
 
   // Get shifts for the selected date

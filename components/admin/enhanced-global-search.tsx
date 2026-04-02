@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { motion, AnimatePresence } from "framer-motion"
 import { useDebounce } from "@/hooks/use-debounce"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import {
   Search,
   Globe,
@@ -594,7 +595,7 @@ export function EnhancedGlobalSearch({
                                     {result.type === 'event' && result.metadata.capacity && (
                                       <span className="flex items-center">
                                         <Users className="h-3 w-3 mr-1" />
-                                        {result.metadata.ticketsSold?.toLocaleString()}/{result.metadata.capacity?.toLocaleString()}
+                                        {formatSafeNumber(result.metadata.ticketsSold)}/{formatSafeNumber(result.metadata.capacity)}
                                       </span>
                                     )}
                                     {result.type === 'person' && result.metadata.experience && (

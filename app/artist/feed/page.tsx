@@ -39,6 +39,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useArtist } from '@/contexts/artist-context'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface Post {
   id: string
@@ -364,7 +365,7 @@ export default function ArtistFeedPage() {
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
-    return date.toLocaleDateString()
+    return formatSafeDate(date.toISOString())
   }
 
   const getPostTypeIcon = (type: string) => {

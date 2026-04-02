@@ -170,47 +170,47 @@ CREATE TABLE IF NOT EXISTS post_shares (
 -- =============================================================================
 
 -- Notifications indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_user_id_created_at 
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id_created_at 
   ON notifications(user_id, created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_user_id_is_read 
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id_is_read 
   ON notifications(user_id, is_read);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_type_created_at 
+CREATE INDEX IF NOT EXISTS idx_notifications_type_created_at 
   ON notifications(type, created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_related_user_id 
+CREATE INDEX IF NOT EXISTS idx_notifications_related_user_id 
   ON notifications(related_user_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_priority 
+CREATE INDEX IF NOT EXISTS idx_notifications_priority 
   ON notifications(priority);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_notifications_expires_at 
+CREATE INDEX IF NOT EXISTS idx_notifications_expires_at 
   ON notifications(expires_at) WHERE expires_at IS NOT NULL;
 
 -- Social interaction indexes
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_likes_post_id 
+CREATE INDEX IF NOT EXISTS idx_post_likes_post_id 
   ON post_likes(post_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_likes_user_id 
+CREATE INDEX IF NOT EXISTS idx_post_likes_user_id 
   ON post_likes(user_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_likes_created_at 
+CREATE INDEX IF NOT EXISTS idx_post_likes_created_at 
   ON post_likes(created_at DESC);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_comments_post_id 
+CREATE INDEX IF NOT EXISTS idx_post_comments_post_id 
   ON post_comments(post_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_comments_user_id 
+CREATE INDEX IF NOT EXISTS idx_post_comments_user_id 
   ON post_comments(user_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_comments_parent_id 
+CREATE INDEX IF NOT EXISTS idx_post_comments_parent_id 
   ON post_comments(parent_comment_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_shares_post_id 
+CREATE INDEX IF NOT EXISTS idx_post_shares_post_id 
   ON post_shares(post_id);
 
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_post_shares_user_id 
+CREATE INDEX IF NOT EXISTS idx_post_shares_user_id 
   ON post_shares(user_id);
 
 -- =============================================================================
@@ -571,7 +571,7 @@ CREATE OR REPLACE FUNCTION should_send_notification(
 RETURNS BOOLEAN AS $$
 DECLARE
   prefs RECORD;
-  current_time TIME;
+  at_time TIME;
 BEGIN
   -- Get user preferences
   SELECT * INTO prefs FROM notification_preferences WHERE user_id = p_user_id;
@@ -609,16 +609,16 @@ BEGIN
   
   -- Check quiet hours (only for normal priority notifications)
   IF prefs.quiet_hours_enabled AND p_priority = 'normal' THEN
-    current_time := CURRENT_TIME;
+    at_time := CURRENT_TIME;
     
     -- Handle overnight quiet hours (e.g., 22:00 to 08:00)
     IF prefs.quiet_hours_start > prefs.quiet_hours_end THEN
-      IF current_time >= prefs.quiet_hours_start OR current_time <= prefs.quiet_hours_end THEN
+      IF at_time >= prefs.quiet_hours_start OR at_time <= prefs.quiet_hours_end THEN
         RETURN FALSE;
       END IF;
     ELSE
       -- Handle same-day quiet hours (e.g., 22:00 to 23:00)
-      IF current_time >= prefs.quiet_hours_start AND current_time <= prefs.quiet_hours_end THEN
+      IF at_time >= prefs.quiet_hours_start AND at_time <= prefs.quiet_hours_end THEN
         RETURN FALSE;
       END IF;
     END IF;
@@ -647,24 +647,28 @@ GRANT ALL ON notification_preferences TO authenticated;
 -- =============================================================================
 
 -- Function to clean up old notifications
+DROP FUNCTION IF EXISTS cleanup_old_notifications() CASCADE;
 CREATE OR REPLACE FUNCTION cleanup_old_notifications()
 RETURNS INTEGER AS $$
 DECLARE
-  deleted_count INTEGER;
+  deleted_count INTEGER := 0;
+  batch_deleted INTEGER;
 BEGIN
   -- Delete read notifications older than 30 days
   DELETE FROM notifications 
   WHERE is_read = TRUE 
     AND created_at < NOW() - INTERVAL '30 days';
   
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  GET DIAGNOSTICS batch_deleted = ROW_COUNT;
+  deleted_count := deleted_count + batch_deleted;
   
   -- Delete unread notifications older than 90 days
   DELETE FROM notifications 
   WHERE is_read = FALSE 
     AND created_at < NOW() - INTERVAL '90 days';
   
-  GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
+  GET DIAGNOSTICS batch_deleted = ROW_COUNT;
+  deleted_count := deleted_count + batch_deleted;
   
   RETURN deleted_count;
 END;

@@ -5,10 +5,6 @@ import { Database } from "./database.types"
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Log Supabase configuration (without exposing full keys)
-console.log(`[Supabase] Initializing client with URL: ${supabaseUrl}`)
-console.log(`[Supabase] Anon key present: ${!!supabaseAnonKey}`)
-
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }

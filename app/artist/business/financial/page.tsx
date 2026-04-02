@@ -33,6 +33,7 @@ import {
 } from "lucide-react"
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
 import Link from "next/link"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface FinancialData {
   totalRevenue: number
@@ -177,45 +178,16 @@ export default function FinancialDashboard() {
         return
       }
 
-      // Fallback to previous derived method if no transactions
-      const [merchandiseData, eventsData, worksData] = await Promise.all([
-        supabase.from('artist_merchandise').select('*').eq('user_id', user.id),
-        supabase.from('artist_events').select('*').eq('user_id', user.id),
-        supabase.from('artist_works').select('*').eq('user_id', user.id)
-      ])
-
-      const merchandiseRevenue = merchandiseData.data?.reduce((sum, item) => sum + ((item.price || 0) * (item.units_sold || 0)), 0) || 0
-      const eventRevenue = eventsData.data?.reduce((sum, event) => sum + ((event.ticket_price_min || 0) * (event.expected_attendance || 0)), 0) || 0
-      const streamingRevenue = worksData.data?.length ? worksData.data.length * 125 : 0
-      const licensingRevenue = Math.floor(Math.random() * 2000)
-      const totalRevenue = merchandiseRevenue + eventRevenue + streamingRevenue + licensingRevenue
-      const totalExpenses = Math.round(totalRevenue * 0.4)
-      const netProfit = totalRevenue - totalExpenses
-      const monthlyRevenue = Array.from({ length: 12 }, (_, i) => Math.round((totalRevenue / 12) * (0.7 + Math.random() * 0.6)))
-      const monthlyExpenses = Array.from({ length: 12 }, (_, i) => Math.round(monthlyRevenue[i] * (0.3 + Math.random() * 0.2)))
-      const revenueBySource = [
-        { source: 'Merchandise', amount: merchandiseRevenue, color: '#8B5CF6' },
-        { source: 'Live Events', amount: eventRevenue, color: '#10B981' },
-        { source: 'Streaming', amount: streamingRevenue, color: '#F59E0B' },
-        { source: 'Licensing', amount: licensingRevenue, color: '#EF4444' }
-      ].filter(item => item.amount > 0)
-      const expensesByCategory = [
-        { category: 'Marketing', amount: Math.round(totalExpenses * 0.3), color: '#8B5CF6' },
-        { category: 'Equipment', amount: Math.round(totalExpenses * 0.25), color: '#10B981' },
-        { category: 'Studio', amount: Math.round(totalExpenses * 0.2), color: '#F59E0B' },
-        { category: 'Travel', amount: Math.round(totalExpenses * 0.15), color: '#EF4444' },
-        { category: 'Other', amount: Math.round(totalExpenses * 0.1), color: '#6B7280' }
-      ]
-
+      // No transactions in this year: honest empty dataset (no fabricated charts)
       setFinancialData({
-        totalRevenue,
-        totalExpenses,
-        netProfit,
-        monthlyRevenue,
-        monthlyExpenses,
-        revenueBySource,
-        expensesByCategory,
-        recentTransactions: []
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0,
+        monthlyRevenue: Array.from({ length: 12 }, () => 0),
+        monthlyExpenses: Array.from({ length: 12 }, () => 0),
+        revenueBySource: [],
+        expensesByCategory: [],
+        recentTransactions: [],
       })
 
     } catch (error) {
@@ -272,6 +244,9 @@ export default function FinancialDashboard() {
     expenses: financialData.monthlyExpenses[index] || 0,
     profit: (financialData.monthlyRevenue[index] || 0) - (financialData.monthlyExpenses[index] || 0)
   })) : []
+
+  const isEmptyYear =
+    financialData && financialData.totalRevenue === 0 && financialData.totalExpenses === 0
 
   function sumByType(rows: any[], types: string[]) {
     const set = new Set(types)
@@ -345,6 +320,13 @@ export default function FinancialDashboard() {
         </div>
       </div>
 
+      {isEmptyYear && (
+        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+          No transactions for {selectedYear}. Use <strong className="text-white">Add Transaction</strong> to log
+          income and expenses—charts and breakdowns fill in from your data only.
+        </div>
+      )}
+
       {/* Financial Overview */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="bg-slate-900/50 border-slate-700/50">
@@ -352,10 +334,16 @@ export default function FinancialDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-400">${financialData.totalRevenue.toLocaleString()}</p>
-                <p className="text-xs text-green-400 flex items-center mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  +12% vs last year
+                <p className="text-2xl font-bold text-green-400">{formatSafeCurrency(financialData.totalRevenue)}</p>
+                <p className="text-xs text-slate-500 flex items-center mt-1">
+                  {isEmptyYear ? (
+                    '—'
+                  ) : (
+                    <>
+                      <TrendingUp className="h-3 w-3 mr-1 text-green-400" />
+                      Logged in {selectedYear}
+                    </>
+                  )}
                 </p>
               </div>
               <div className="h-12 w-12 bg-green-600 rounded-xl flex items-center justify-center">
@@ -370,10 +358,14 @@ export default function FinancialDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Total Expenses</p>
-                <p className="text-2xl font-bold text-red-400">${financialData.totalExpenses.toLocaleString()}</p>
-                <p className="text-xs text-red-400 flex items-center mt-1">
-                  <TrendingDown className="h-3 w-3 mr-1" />
-                  -5% vs last year
+                <p className="text-2xl font-bold text-red-400">{formatSafeCurrency(financialData.totalExpenses)}</p>
+                <p className="text-xs text-slate-500 flex items-center mt-1">
+                  {isEmptyYear ? '—' : (
+                    <>
+                      <TrendingDown className="h-3 w-3 mr-1 text-red-400" />
+                      Logged in {selectedYear}
+                    </>
+                  )}
                 </p>
               </div>
               <div className="h-12 w-12 bg-red-600 rounded-xl flex items-center justify-center">
@@ -389,10 +381,12 @@ export default function FinancialDashboard() {
               <div>
                 <p className="text-sm text-gray-400">Net Profit</p>
                 <p className={`text-2xl font-bold ${financialData.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ${Math.abs(financialData.netProfit).toLocaleString()}
+                  {formatSafeCurrency(Math.abs(financialData.netProfit))}
                 </p>
                 <p className="text-xs text-gray-400">
-                  {Math.round((financialData.netProfit / financialData.totalRevenue) * 100)}% margin
+                  {financialData.totalRevenue > 0
+                    ? `${Math.round((financialData.netProfit / financialData.totalRevenue) * 100)}% margin`
+                    : '— margin'}
                 </p>
               </div>
               <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
@@ -410,7 +404,7 @@ export default function FinancialDashboard() {
               <div>
                 <p className="text-sm text-gray-400">Avg Monthly</p>
                 <p className="text-2xl font-bold text-blue-400">
-                  ${Math.round(financialData.totalRevenue / 12).toLocaleString()}
+                  {formatSafeCurrency(Math.round(financialData.totalRevenue / 12))}
                 </p>
                 <p className="text-xs text-blue-400">Monthly revenue</p>
               </div>
@@ -547,7 +541,7 @@ export default function FinancialDashboard() {
                     <div key={source.source} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-300">{source.source}</span>
-                        <span className="font-bold text-white">${source.amount.toLocaleString()}</span>
+                        <span className="font-bold text-white">{formatSafeCurrency(source.amount)}</span>
                       </div>
                       <Progress 
                         value={(source.amount / financialData.totalRevenue) * 100} 
@@ -612,7 +606,7 @@ export default function FinancialDashboard() {
                     <div key={expense.category} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-gray-300">{expense.category}</span>
-                        <span className="font-bold text-white">${expense.amount.toLocaleString()}</span>
+                        <span className="font-bold text-white">{formatSafeCurrency(expense.amount)}</span>
                       </div>
                       <Progress 
                         value={(expense.amount / financialData.totalExpenses) * 100} 
@@ -664,7 +658,7 @@ export default function FinancialDashboard() {
                     <div className={`font-bold ${
                       transaction.type === 'income' ? 'text-green-400' : 'text-red-400'
                     }`}>
-                      {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                      {transaction.type === 'income' ? '+' : '-'}{formatSafeCurrency(transaction.amount).replace("$", "")}
                     </div>
                   </div>
                 ))}

@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
       .select(`
         id,
         username,
+        custom_url,
         full_name,
         bio,
         avatar_url,
@@ -93,6 +94,7 @@ export async function GET(request: NextRequest) {
     const profileWithStats = {
       id: profile.id,
       username: profile.username,
+      custom_url: (profile as any).custom_url,
       account_type: 'general' as const,
       profile_data: {
         name: profile.full_name,

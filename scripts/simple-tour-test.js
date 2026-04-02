@@ -538,7 +538,7 @@ The most significant gaps are in comprehensive financial management, team coordi
 
 ---
 
-*Report generated on ${new Date().toLocaleDateString()}*
+*Report generated on ${new Intl.DateTimeFormat("en-US").format(new Date())}*
 *Tour Tested: Super Awesome Tour (20 cities, March-May 2025)*
 *Testing Method: Authenticated Puppeteer Session*
 `;

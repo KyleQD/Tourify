@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Slider } from "@/components/ui/slider"
 import { Header } from "@/components/header"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export default function Dashboard() {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
@@ -161,21 +162,17 @@ export default function Dashboard() {
 
   // Format time
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+    return new Intl.DateTimeFormat("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-    })
+    }).format(date)
   }
 
   // Format date
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    return formatSafeDate(date.toISOString())
   }
 
   // Calculate days until event

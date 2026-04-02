@@ -735,7 +735,7 @@ export function EnhancedProfileSearch({
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-white">
-              {isDiscoverMode ? 'Discover For You' : `Search Results (${filteredProfiles.length})`}
+              {isDiscoverMode ? 'Discover News' : `Search Results (${filteredProfiles.length})`}
             </CardTitle>
             {!loading && filteredProfiles.length > 0 && !isDiscoverMode && (
               <Select value="relevance">

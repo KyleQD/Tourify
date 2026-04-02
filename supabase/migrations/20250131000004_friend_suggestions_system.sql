@@ -67,6 +67,7 @@ END;
 $$ language 'plpgsql';
 
 -- Create trigger for follow_requests updated_at
+DROP TRIGGER IF EXISTS update_follow_requests_updated_at ON follow_requests;
 CREATE TRIGGER update_follow_requests_updated_at
   BEFORE UPDATE ON follow_requests
   FOR EACH ROW
@@ -98,6 +99,7 @@ END;
 $$ language 'plpgsql';
 
 -- Create trigger for follow request acceptance
+DROP TRIGGER IF EXISTS trigger_follow_request_accepted ON follow_requests;
 CREATE TRIGGER trigger_follow_request_accepted
   AFTER UPDATE ON follow_requests
   FOR EACH ROW
@@ -129,6 +131,7 @@ END;
 $$ language 'plpgsql';
 
 -- Create trigger for follow request rejection/deletion
+DROP TRIGGER IF EXISTS trigger_follow_request_rejected ON follow_requests;
 CREATE TRIGGER trigger_follow_request_rejected
   AFTER UPDATE OR DELETE ON follow_requests
   FOR EACH ROW
@@ -167,11 +170,13 @@ END;
 $$ language 'plpgsql';
 
 -- Create triggers for follows table
+DROP TRIGGER IF EXISTS trigger_follows_insert ON follows;
 CREATE TRIGGER trigger_follows_insert
   AFTER INSERT ON follows
   FOR EACH ROW
   EXECUTE FUNCTION update_follower_counts();
 
+DROP TRIGGER IF EXISTS trigger_follows_delete ON follows;
 CREATE TRIGGER trigger_follows_delete
   AFTER DELETE ON follows
   FOR EACH ROW

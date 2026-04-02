@@ -18,6 +18,7 @@ import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import {
   DollarSign,
   TrendingUp,
@@ -386,9 +387,9 @@ const mockTransactions: Transaction[] = [
               <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-500">${summary.totalRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-500">{formatSafeCurrency(summary.totalRevenue)}</div>
             <p className="text-xs text-muted-foreground">
-              Monthly: ${summary.monthlyRevenue.toLocaleString()}
+              Monthly: {formatSafeCurrency(summary.monthlyRevenue)}
             </p>
           </CardContent>
           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-green-500 to-emerald-500" />
@@ -400,9 +401,9 @@ const mockTransactions: Transaction[] = [
               <TrendingDown className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-500">${summary.totalExpenses.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-red-500">{formatSafeCurrency(summary.totalExpenses)}</div>
             <p className="text-xs text-muted-foreground">
-              Monthly: ${summary.monthlyExpenses.toLocaleString()}
+              Monthly: {formatSafeCurrency(summary.monthlyExpenses)}
             </p>
           </CardContent>
           <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-red-500 to-orange-500" />
@@ -415,7 +416,7 @@ const mockTransactions: Transaction[] = [
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${summary.netProfit >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              ${summary.netProfit.toLocaleString()}
+              {formatSafeCurrency(summary.netProfit)}
             </div>
             <div className="flex items-center text-xs text-muted-foreground">
               {summary.netProfit >= 0 ? 
@@ -434,7 +435,7 @@ const mockTransactions: Transaction[] = [
             <CalendarIcon className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-500">${summary.averageEventRevenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-purple-500">{formatSafeCurrency(summary.averageEventRevenue)}</div>
             <p className="text-xs text-muted-foreground">
               Per event booking
             </p>
@@ -471,7 +472,7 @@ const mockTransactions: Transaction[] = [
                     <div key={i} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">{item.category}</span>
-                        <span>${item.amount.toLocaleString()}</span>
+                        <span>{formatSafeCurrency(item.amount)}</span>
               </div>
                       <Progress value={item.percentage} className="h-2" />
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -498,7 +499,7 @@ const mockTransactions: Transaction[] = [
                     <div key={i} className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="font-medium">{item.category}</span>
-                        <span>${item.amount.toLocaleString()}</span>
+                        <span>{formatSafeCurrency(item.amount)}</span>
               </div>
                       <Progress value={item.percentage} className="h-2" />
                       <div className="flex justify-between text-xs text-muted-foreground">
@@ -685,7 +686,7 @@ const mockTransactions: Transaction[] = [
                       <div className={`text-lg font-semibold ${
                             transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                       }`}>
-                            {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                            {transaction.type === 'income' ? '+' : '-'}{formatSafeCurrency(transaction.amount).replace("$", "")}
                       </div>
                           <Badge 
                             variant={transaction.status === 'completed' ? 'default' : 

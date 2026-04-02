@@ -130,6 +130,67 @@ BEGIN
   END IF;
 END $$;
 
+-- Older databases may already have `event_posts` without columns from this migration; align before indexes.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'event_posts') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'event_table') THEN
+      ALTER TABLE public.event_posts ADD COLUMN event_table TEXT NOT NULL DEFAULT 'artist_events';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'user_id') THEN
+      ALTER TABLE public.event_posts ADD COLUMN user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'content') THEN
+      ALTER TABLE public.event_posts ADD COLUMN content TEXT NOT NULL DEFAULT '';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'type') THEN
+      ALTER TABLE public.event_posts ADD COLUMN type TEXT NOT NULL DEFAULT 'text';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'media_urls') THEN
+      ALTER TABLE public.event_posts ADD COLUMN media_urls TEXT[];
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'is_announcement') THEN
+      ALTER TABLE public.event_posts ADD COLUMN is_announcement BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'is_pinned') THEN
+      ALTER TABLE public.event_posts ADD COLUMN is_pinned BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'visibility') THEN
+      ALTER TABLE public.event_posts ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'likes_count') THEN
+      ALTER TABLE public.event_posts ADD COLUMN likes_count INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'comments_count') THEN
+      ALTER TABLE public.event_posts ADD COLUMN comments_count INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'created_at') THEN
+      ALTER TABLE public.event_posts ADD COLUMN created_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_posts' AND column_name = 'updated_at') THEN
+      ALTER TABLE public.event_posts ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'event_post_comments') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_post_comments' AND column_name = 'user_id') THEN
+      ALTER TABLE public.event_post_comments ADD COLUMN user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_post_comments' AND column_name = 'parent_id') THEN
+      ALTER TABLE public.event_post_comments ADD COLUMN parent_id UUID REFERENCES public.event_post_comments(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_post_comments' AND column_name = 'likes_count') THEN
+      ALTER TABLE public.event_post_comments ADD COLUMN likes_count INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'event_post_comments' AND column_name = 'updated_at') THEN
+      ALTER TABLE public.event_post_comments ADD COLUMN updated_at TIMESTAMPTZ DEFAULT NOW();
+    END IF;
+  END IF;
+END $$;
+
 -- =============================================================================
 -- INDEXES FOR PERFORMANCE
 -- =============================================================================
@@ -513,10 +574,5 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- =============================================================================
--- MIGRATION COMPLETE
+-- MIGRATION COMPLETE (history is recorded by Supabase CLI in supabase_migrations)
 -- =============================================================================
-
--- Log successful migration
-INSERT INTO schema_migrations (version, applied_at) 
-VALUES ('20250120000000_event_social_features', NOW())
-ON CONFLICT (version) DO NOTHING;

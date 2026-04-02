@@ -23,6 +23,7 @@ import {
   MapPin,
   Settings
 } from "lucide-react"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface TicketingFinancialsStepProps {
   tourData: {
@@ -626,7 +627,7 @@ export function TicketingFinancialsStep({ tourData, updateTourData }: TicketingF
                     <BarChart3 className="w-4 h-4 text-blue-400" />
                     <h4 className="font-medium text-white">{expense.category}</h4>
                     <Badge variant="secondary" className="text-xs">
-                      ${expense.amount.toLocaleString()}
+                      {formatSafeCurrency(expense.amount)}
                     </Badge>
                   </div>
                   {expense.description && (
@@ -729,7 +730,7 @@ export function TicketingFinancialsStep({ tourData, updateTourData }: TicketingF
                     <CreditCard className="w-4 h-4 text-green-400" />
                     <h4 className="font-medium text-white">{sponsor.name}</h4>
                     <Badge variant="secondary" className="text-xs">
-                      ${sponsor.contribution.toLocaleString()}
+                      {formatSafeCurrency(sponsor.contribution)}
                     </Badge>
                     {sponsor.type && (
                       <Badge variant="outline" className="text-xs">
@@ -761,21 +762,21 @@ export function TicketingFinancialsStep({ tourData, updateTourData }: TicketingF
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Total Ticket Revenue:</span>
-            <span className="text-white">${totalTicketRevenue.toLocaleString()}</span>
+            <span className="text-white">{formatSafeCurrency(totalTicketRevenue)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Total Sponsor Contributions:</span>
-            <span className="text-white">${totalSponsorContributions.toLocaleString()}</span>
+            <span className="text-white">{formatSafeCurrency(totalSponsorContributions)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Total Expenses:</span>
-            <span className="text-red-400">-${totalExpenses.toLocaleString()}</span>
+            <span className="text-red-400">-{formatSafeCurrency(totalExpenses)}</span>
           </div>
           <div className="border-t border-slate-700 pt-3">
             <div className="flex justify-between font-semibold">
               <span className="text-white">Net Profit/Loss:</span>
               <span className={netProfit >= 0 ? "text-green-400" : "text-red-400"}>
-                ${netProfit.toLocaleString()}
+                {formatSafeCurrency(netProfit)}
               </span>
             </div>
           </div>

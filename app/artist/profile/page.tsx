@@ -1,71 +1,129 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { 
-  User, 
-  Camera, 
-  Save, 
-  Globe, 
-  MapPin, 
-  Music, 
-  Instagram, 
-  Twitter, 
-  Youtube, 
-  Music2,
-  Link as LinkIcon,
+import {
+  Globe,
   Mail,
   Phone,
   Calendar,
-  Award,
-  Star,
-  Settings,
-  Shield,
-  Bell,
-  Palette,
-  Loader2,
-  Check,
-  AlertCircle,
   Briefcase,
-  DollarSign
+  DollarSign,
+  Shield,
+  Loader2,
+  Save,
+  X,
+  User
 } from "lucide-react"
 import { useArtist } from "@/contexts/artist-context"
 import { toast } from "sonner"
 import { ProfileAchievementsSection } from "@/components/achievements/profile-achievements-section"
-
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 }
-}
+import { ArtistProfileIdentityCard } from "@/components/artist-profile/artist-profile-identity-card"
+import { dashboardCreatePattern } from "@/components/dashboard/dashboard-create-pattern"
+import { cn } from "@/lib/utils"
 
 const musicGenres = [
-  "Pop", "Rock", "Hip Hop", "Electronic", "Jazz", "Classical", "R&B", "Country", 
+  "Pop", "Rock", "Hip Hop", "Electronic", "Jazz", "Classical", "R&B", "Country",
   "Folk", "Blues", "Reggae", "Punk", "Metal", "Indie", "Alternative", "Funk",
   "Soul", "Gospel", "World", "Ambient", "House", "Techno", "Dubstep", "Other"
 ]
 
+interface FormState {
+  stage_name: string
+  bio: string
+  genres: string[]
+  location: string
+  website: string
+  instagram: string
+  twitter: string
+  youtube: string
+  spotify: string
+  contact_email: string
+  phone: string
+  booking_rate: string
+  availability: string
+  equipment: string
+  music_style: string
+  experience_years: string
+  notable_performances: string
+  record_label: string
+  awards: string
+  upcoming_releases: string
+  collaboration_interest: boolean
+  available_for_hire: boolean
+  newsletter_signup: boolean
+  privacy_settings: string
+  preferred_contact: string
+}
+
+function buildFormFromProfile(
+  profile: NonNullable<ReturnType<typeof useArtist>["profile"]>,
+  publicProfile: ReturnType<typeof useArtist>["publicProfile"]
+): FormState {
+  const settings = profile.settings || {}
+  const professional = settings.professional || {}
+  const preferences = settings.preferences || {}
+  const genres = Array.isArray(profile.genres) ? profile.genres.filter(Boolean) : []
+
+  return {
+    stage_name: profile.artist_name || "",
+    bio: profile.bio || "",
+    genres: genres.length ? genres : [],
+    location: publicProfile?.location ?? professional.location ?? "",
+    website: profile.social_links?.website || publicProfile?.website || "",
+    instagram: profile.social_links?.instagram || "",
+    twitter: profile.social_links?.twitter || "",
+    youtube: profile.social_links?.youtube || "",
+    spotify: profile.social_links?.spotify || "",
+    contact_email: professional.contact_email || "",
+    phone: professional.phone || "",
+    booking_rate: professional.booking_rate || "",
+    availability: professional.availability || "",
+    equipment: professional.equipment || "",
+    music_style: professional.music_style || "",
+    experience_years: professional.experience_years || "",
+    notable_performances: professional.notable_performances || "",
+    record_label: professional.record_label || "",
+    awards: professional.awards || "",
+    upcoming_releases: professional.upcoming_releases || "",
+    collaboration_interest: preferences.collaboration_interest || false,
+    available_for_hire: preferences.available_for_hire || false,
+    newsletter_signup: preferences.newsletter_signup || false,
+    privacy_settings: preferences.privacy_settings || "public",
+    preferred_contact: preferences.preferred_contact || "email"
+  }
+}
+
 export default function ArtistProfilePage() {
-  const { user, profile, updateProfile, displayName, avatarInitial, syncArtistName, updateDetailedProfile, isLoading } = useArtist()
-  const [isEditing, setIsEditing] = useState(false)
+  const {
+    user,
+    profile,
+    publicProfile,
+    displayName,
+    avatarInitial,
+    syncArtistName,
+    updateDetailedProfile,
+    refreshPublicProfile,
+    isLoading
+  } = useArtist()
+
   const [isSaving, setIsSaving] = useState(false)
-  const [saveProgress, setSaveProgress] = useState<string>('')
+  const [saveProgress, setSaveProgress] = useState("")
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
-  const [formData, setFormData] = useState({
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const emptyForm: FormState = {
     stage_name: "",
     bio: "",
-    genre: "",
+    genres: [],
     location: "",
     website: "",
     instagram: "",
@@ -88,766 +146,552 @@ export default function ArtistProfilePage() {
     newsletter_signup: false,
     privacy_settings: "public",
     preferred_contact: "email"
-  })
+  }
+
+  const [formData, setFormData] = useState<FormState>(emptyForm)
 
   useEffect(() => {
     if (profile) {
-      const settings = profile.settings || {}
-      const professional = settings.professional || {}
-      const preferences = settings.preferences || {}
-      
-      console.log('Loading profile data:', profile)
-      console.log('Settings structure:', settings)
-      
-      setFormData({
-        stage_name: profile.artist_name || "",
-        bio: profile.bio || "",
-        genre: profile.genres?.[0] || "",
-        location: professional.location || "",
-        website: profile.social_links?.website || "",
-        instagram: profile.social_links?.instagram || "",
-        twitter: profile.social_links?.twitter || "",
-        youtube: profile.social_links?.youtube || "",
-        spotify: profile.social_links?.spotify || "",
-        contact_email: professional.contact_email || "",
-        phone: professional.phone || "",
-        booking_rate: professional.booking_rate || "",
-        availability: professional.availability || "",
-        equipment: professional.equipment || "",
-        music_style: professional.music_style || "",
-        experience_years: professional.experience_years || "",
-        notable_performances: professional.notable_performances || "",
-        record_label: professional.record_label || "",
-        awards: professional.awards || "",
-        upcoming_releases: professional.upcoming_releases || "",
-        collaboration_interest: preferences.collaboration_interest || false,
-        available_for_hire: preferences.available_for_hire || false,
-        newsletter_signup: preferences.newsletter_signup || false,
-        privacy_settings: preferences.privacy_settings || "public",
-        preferred_contact: preferences.preferred_contact || "email"
-      })
+      setFormData(buildFormFromProfile(profile, publicProfile))
     }
-  }, [profile])
+  }, [profile, publicProfile])
 
-  const handleInputChange = (field: string, value: any) => {
+  const publicProfilePath = useMemo(() => {
+    if (publicProfile?.username) return `/artist/${encodeURIComponent(publicProfile.username)}`
+    if (profile?.artist_name) return `/artist/${encodeURIComponent(profile.artist_name)}`
+    return "/artist"
+  }, [publicProfile?.username, profile?.artist_name])
+
+  const genreLine = useMemo(() => {
+    if (formData.genres.length) return formData.genres.join(" • ")
+    return "Add genres below"
+  }, [formData.genres])
+
+  const handleInputChange = (field: keyof FormState, value: string | boolean | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
     setHasUnsavedChanges(true)
-    // Clear validation errors when user starts typing
-    if (validationErrors.length > 0) {
-      setValidationErrors([])
-    }
+    if (validationErrors.length > 0) setValidationErrors([])
+  }
+
+  const toggleGenre = (g: string) => {
+    setFormData(prev => {
+      const has = prev.genres.includes(g)
+      const next = has
+        ? prev.genres.filter(x => x !== g)
+        : [...prev.genres, g].slice(0, 8)
+      return { ...prev, genres: next }
+    })
+    setHasUnsavedChanges(true)
+    if (validationErrors.length > 0) setValidationErrors([])
   }
 
   const handleSave = async () => {
-    console.log('Save initiated - checking conditions...')
-    console.log('User:', user?.email)
-    console.log('Profile exists:', !!profile)
-    console.log('Profile ID:', profile?.id)
-    
     if (!user) {
-      console.error('No user found')
-      toast.error("Authentication required", {
-        description: "Please log in to save your profile."
-      })
+      toast.error("Authentication required", { description: "Please log in to save your profile." })
       return
     }
-
     if (!profile) {
-      console.error('No profile found')
-      toast.error("Profile not found", {
-        description: "Your artist profile needs to be created first."
-      })
+      toast.error("Profile not found", { description: "Your artist profile needs to be created first." })
       return
     }
 
-    // Client-side validation
-    const clientErrors = []
-    if (!formData.stage_name?.trim()) {
-      clientErrors.push('Artist name is required')
-    }
-    
+    const clientErrors: string[] = []
+    if (!formData.stage_name?.trim()) clientErrors.push("Artist name is required")
     if (clientErrors.length > 0) {
       setValidationErrors(clientErrors)
-      toast.error("Please fix the validation errors", {
-        description: clientErrors[0]
-      })
+      toast.error("Please fix validation errors", { description: clientErrors[0] })
       return
     }
 
-    console.log('Starting save process...')
     setIsSaving(true)
     setValidationErrors([])
-    setSaveProgress('Validating data...')
-
+    setSaveProgress("Saving…")
     try {
-      // Small delay to show progress
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      setSaveProgress('Saving profile...')
-      console.log('Calling updateDetailedProfile with data:', formData)
-      
-      const result = await updateDetailedProfile(formData)
-      console.log('Save result:', result)
-      
-      if (result.success) {
-        setSaveProgress('Profile saved successfully!')
-        toast.success("Profile updated successfully!", {
-          description: "All your changes have been saved.",
-          duration: 4000
-        })
-        setIsEditing(false)
-        setHasUnsavedChanges(false)
-        
-        // Clear progress after a delay
-        setTimeout(() => setSaveProgress(''), 2000)
-      } else {
-        console.error('Save failed with errors:', result.errors)
-        setValidationErrors(result.errors || ['Unknown error occurred'])
-        toast.error("Failed to save profile", {
-          description: result.errors ? result.errors[0] : "Please check the form and try again."
-        })
-        setSaveProgress('')
-      }
-    } catch (error) {
-      console.error('Save exception:', error)
-      
-      // Provide more specific error messages
-      let errorMessage = "An unexpected error occurred. Please try again."
-      if (error instanceof Error) {
-        if (error.message.includes('network')) {
-          errorMessage = "Network connection issue. Please check your internet connection."
-        } else if (error.message.includes('timeout')) {
-          errorMessage = "Request timed out. Please try again."
-        } else if (error.message.includes('unauthorized')) {
-          errorMessage = "Session expired. Please refresh the page and try again."
-        }
-      }
-      
-      toast.error("Failed to save profile", {
-        description: errorMessage
+      const result = await updateDetailedProfile({
+        ...formData,
+        genre: formData.genres[0] ?? "",
+        genres: formData.genres
       })
-      setSaveProgress('')
+      if (result.success) {
+        setSaveProgress("Saved")
+        toast.success("Profile updated", { description: "Your public profile and artist settings are in sync." })
+        setHasUnsavedChanges(false)
+        setTimeout(() => setSaveProgress(""), 2000)
+      } else {
+        setValidationErrors(result.errors || ["Unknown error"])
+        toast.error("Could not save", { description: result.errors?.[0] })
+        setSaveProgress("")
+      }
+    } catch {
+      toast.error("Could not save profile")
+      setSaveProgress("")
     } finally {
       setIsSaving(false)
     }
   }
 
   const handleCancel = () => {
-    if (hasUnsavedChanges) {
-      const confirmCancel = window.confirm("You have unsaved changes. Are you sure you want to cancel?")
-      if (!confirmCancel) return
-    }
-    
-    setIsEditing(false)
+    if (!hasUnsavedChanges) return
+    const ok = window.confirm("Discard unsaved changes?")
+    if (!ok) return
+    if (profile) setFormData(buildFormFromProfile(profile, publicProfile))
     setHasUnsavedChanges(false)
     setValidationErrors([])
-    setSaveProgress('')
-    
-    // Reset form data to profile values
-    if (profile) {
-      const settings = profile.settings || {}
-      const professional = settings.professional || {}
-      const preferences = settings.preferences || {}
-      
-      console.log('Resetting form data with profile:', profile)
-      
-      setFormData({
-        stage_name: profile.artist_name || "",
-        bio: profile.bio || "",
-        genre: profile.genres?.[0] || "",
-        location: professional.location || "",
-        website: profile.social_links?.website || "",
-        instagram: profile.social_links?.instagram || "",
-        twitter: profile.social_links?.twitter || "",
-        youtube: profile.social_links?.youtube || "",
-        spotify: profile.social_links?.spotify || "",
-        contact_email: professional.contact_email || "",
-        phone: professional.phone || "",
-        booking_rate: professional.booking_rate || "",
-        availability: professional.availability || "",
-        equipment: professional.equipment || "",
-        music_style: professional.music_style || "",
-        experience_years: professional.experience_years || "",
-        notable_performances: professional.notable_performances || "",
-        record_label: professional.record_label || "",
-        awards: professional.awards || "",
-        upcoming_releases: professional.upcoming_releases || "",
-        collaboration_interest: preferences.collaboration_interest || false,
-        available_for_hire: preferences.available_for_hire || false,
-        newsletter_signup: preferences.newsletter_signup || false,
-        privacy_settings: preferences.privacy_settings || "public",
-        preferred_contact: preferences.preferred_contact || "email"
-      })
+    setSaveProgress("")
+  }
+
+  const handleAvatarUpload = async (file: File) => {
+    setUploadingAvatar(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: fd, credentials: "include" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast.error(data.error || "Avatar upload failed")
+        return
+      }
+      await refreshPublicProfile()
+      toast.success("Profile photo updated")
+    } catch {
+      toast.error("Avatar upload failed")
+    } finally {
+      setUploadingAvatar(false)
     }
   }
 
-  const handleSyncArtistName = async () => {
-    const success = await syncArtistName()
-    if (success) {
-      toast.success("Artist name synced successfully!")
-      setHasUnsavedChanges(true)
-    } else {
-      toast.info("No changes needed or sync failed")
+  const handleCoverUpload = async (file: File) => {
+    setUploadingCover(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("type", "header")
+      const res = await fetch("/api/upload-profile-image", { method: "POST", body: fd, credentials: "include" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.success) {
+        toast.error(data.error || "Banner upload failed")
+        return
+      }
+      await refreshPublicProfile()
+      toast.success("Banner updated")
+    } catch {
+      toast.error("Banner upload failed")
+    } finally {
+      setUploadingCover(false)
     }
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
         <div className="text-center">
-          <div className="flex items-center gap-3 justify-center mb-4">
-            <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
-            <span className="text-xl">Loading your profile...</span>
-          </div>
-          <p className="text-slate-400 text-sm">
-            {user ? `Authenticated as ${user.email}` : 'Checking authentication...'}
-          </p>
-          {user && !profile && (
-            <p className="text-slate-500 text-xs mt-2">
-              Initializing artist profile...
-            </p>
-          )}
+          <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-purple-400" />
+          <p className="text-lg">Loading your profile…</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
-      {/* Header */}
-      <div className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="p-6">
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex items-center justify-between"
-          >
-            <div className="space-y-1">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-                Artist Profile
-              </h1>
-              <p className="text-sm text-slate-400">Manage your artist profile and public information</p>
-              {saveProgress && (
-                <p className="text-sm text-green-400 flex items-center gap-2">
-                  {isSaving && <Loader2 className="h-3 w-3 animate-spin" />}
-                  {saveProgress}
-                </p>
-              )}
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              {!profile?.artist_name && (
-                <Button
-                  onClick={handleSyncArtistName}
-                  variant="outline"
-                  size="sm"
-                  className="border-blue-500/50 text-blue-400 hover:bg-blue-500/20"
-                >
-                  <User className="h-4 w-4 mr-2" />
-                  Sync Name
-                </Button>
-              )}
-              
-              {isEditing ? (
-                <div className="flex items-center space-x-2">
-                  <Button
-                    onClick={handleCancel}
-                    variant="outline"
-                    size="sm"
-                    className="border-slate-600 text-slate-300 hover:bg-slate-700"
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    size="sm"
-                    className={`${
-                      hasUnsavedChanges 
-                        ? 'bg-green-600 hover:bg-green-700' 
-                        : 'bg-purple-600 hover:bg-purple-700'
-                    } transition-colors duration-200`}
-                  >
-                    {isSaving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        {hasUnsavedChanges ? 'Save Changes' : 'Save Profile'}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={() => {
-                    setIsEditing(true)
-                  }}
-                  size="sm"
-                  className="bg-purple-600 hover:bg-purple-700"
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Edit Profile
-                </Button>
-              )}
-            </div>
-          </motion.div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pb-28 text-white">
+      <header className="sticky top-0 z-30 border-b border-slate-800/60 bg-slate-950/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <h1 className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
+              Artist profile
+            </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              Edit what fans see on your public page and your booking details.
+            </p>
+            {saveProgress ? (
+              <p className="mt-2 text-sm text-emerald-400/90">{saveProgress}</p>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {!profile?.artist_name ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={dashboardCreatePattern.btnOutline}
+                onClick={() => syncArtistName()}
+              >
+                <User className="mr-2 h-4 w-4" />
+                Sync name
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!hasUnsavedChanges || isSaving}
+              className={dashboardCreatePattern.btnOutline}
+              onClick={handleCancel}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Discard
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!hasUnsavedChanges || isSaving}
+              className={dashboardCreatePattern.btnPrimary}
+              onClick={handleSave}
+            >
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save changes
+            </Button>
+          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Validation Errors */}
-      {validationErrors.length > 0 && (
-        <div className="p-6 pb-0">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-red-500/10 border border-red-500/20 rounded-lg p-4"
-          >
-            <div className="flex items-start space-x-3">
-              <AlertCircle className="h-5 w-5 text-red-400 mt-0.5" />
-              <div>
-                <h3 className="text-red-400 font-medium">Please fix the following errors:</h3>
-                <ul className="mt-2 text-sm text-red-300 space-y-1">
-                  {validationErrors.map((error, index) => (
-                    <li key={index}>• {error}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </motion.div>
+      {validationErrors.length > 0 ? (
+        <div className="mx-auto max-w-6xl px-4 pt-4 sm:px-6">
+          <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {validationErrors.map((e, i) => (
+              <div key={i}>{e}</div>
+            ))}
+          </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Save Progress */}
-      {saveProgress && (
-        <div className="p-6 pb-0">
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`border rounded-lg p-4 ${
-              saveProgress.includes('successfully') 
-                ? 'bg-green-500/10 border-green-500/20' 
-                : 'bg-blue-500/10 border-blue-500/20'
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              {saveProgress.includes('successfully') ? (
-                <Check className="h-5 w-5 text-green-400" />
-              ) : (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400"></div>
-              )}
-              <p className={`font-medium ${
-                saveProgress.includes('successfully') ? 'text-green-400' : 'text-blue-400'
-              }`}>
-                {saveProgress}
-              </p>
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      <div className="p-6 max-w-6xl mx-auto">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6">
         <div className="grid gap-8 lg:grid-cols-3">
-          {/* Left Column - Profile Overview */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="lg:col-span-1"
-          >
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl">
-              <CardHeader>
-                <CardTitle className="text-slate-200">Profile Picture</CardTitle>
-              </CardHeader>
-              <CardContent className="text-center">
-                <div className="relative mx-auto w-32 h-32 mb-6">
-                  <Avatar className="w-32 h-32">
-                    <AvatarImage src="" />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl">
-                      {avatarInitial}
-                    </AvatarFallback>
-                  </Avatar>
-                  {isEditing && (
-                    <Button
-                      size="icon"
-                      className="absolute bottom-0 right-0 rounded-full bg-purple-600 hover:bg-purple-700"
-                    >
-                      <Camera className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="text-xl font-semibold text-white">
-                    {displayName}
-                  </h3>
-                  <p className="text-slate-400">{formData.genre || 'Your Genre'}</p>
-                  {profile?.verification_status === 'verified' && (
-                    <Badge className="bg-blue-600 rounded-xl">
-                      <Star className="h-3 w-3 mr-1" />
-                      Verified Artist
-                    </Badge>
-                  )}
-                  
-                  {hasUnsavedChanges && (
-                    <Badge variant="outline" className="border-yellow-500/50 text-yellow-400">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      Unsaved Changes
-                    </Badge>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+          <div className="lg:col-span-1">
+            <ArtistProfileIdentityCard
+              avatarUrl={publicProfile?.avatar_url ?? null}
+              coverImageUrl={publicProfile?.cover_image ?? null}
+              displayName={displayName}
+              avatarInitial={avatarInitial}
+              genreLine={genreLine}
+              username={publicProfile?.username ?? null}
+              isVerified={profile?.verification_status === "verified"}
+              hasUnsavedChanges={hasUnsavedChanges}
+              uploadingAvatar={uploadingAvatar}
+              uploadingCover={uploadingCover}
+              onAvatarFile={handleAvatarUpload}
+              onCoverFile={handleCoverUpload}
+              publicProfilePath={publicProfilePath}
+            />
+          </div>
 
-          {/* Right Column - Profile Form */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="lg:col-span-2"
-          >
+          <div className="lg:col-span-2">
             <Tabs defaultValue="basic" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5 bg-slate-800/50 rounded-xl p-1">
-                <TabsTrigger value="basic" className="rounded-lg">Basic Info</TabsTrigger>
-                <TabsTrigger value="social" className="rounded-lg">Social Links</TabsTrigger>
-                <TabsTrigger value="professional" className="rounded-lg">Professional</TabsTrigger>
-                <TabsTrigger value="achievements" className="rounded-lg">Achievements</TabsTrigger>
-                <TabsTrigger value="settings" className="rounded-lg">Settings</TabsTrigger>
+              <TabsList
+                className={cn(
+                  "flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-2xl border border-slate-700/60 bg-slate-900/50 p-1 md:grid md:grid-cols-5"
+                )}
+              >
+                <TabsTrigger
+                  value="basic"
+                  className={cn(dashboardCreatePattern.stepPill, "shrink-0 rounded-xl data-[state=active]:border-purple-500/50 data-[state=active]:bg-purple-500/15")}
+                >
+                  Basic
+                </TabsTrigger>
+                <TabsTrigger
+                  value="social"
+                  className={cn(dashboardCreatePattern.stepPill, "shrink-0 rounded-xl data-[state=active]:border-purple-500/50 data-[state=active]:bg-purple-500/15")}
+                >
+                  Social
+                </TabsTrigger>
+                <TabsTrigger
+                  value="professional"
+                  className={cn(dashboardCreatePattern.stepPill, "shrink-0 rounded-xl data-[state=active]:border-purple-500/50 data-[state=active]:bg-purple-500/15")}
+                >
+                  Professional
+                </TabsTrigger>
+                <TabsTrigger
+                  value="achievements"
+                  className={cn(dashboardCreatePattern.stepPill, "shrink-0 rounded-xl data-[state=active]:border-purple-500/50 data-[state=active]:bg-purple-500/15")}
+                >
+                  Achievements
+                </TabsTrigger>
+                <TabsTrigger
+                  value="settings"
+                  className={cn(dashboardCreatePattern.stepPill, "shrink-0 rounded-xl data-[state=active]:border-purple-500/50 data-[state=active]:bg-purple-500/15")}
+                >
+                  Settings
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="space-y-6">
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl">
+                <Card className={dashboardCreatePattern.shell}>
                   <CardHeader>
-                    <CardTitle className="text-slate-200">Basic Information</CardTitle>
+                    <CardTitle className="text-white">Basic information</CardTitle>
                     <CardDescription className="text-slate-400">
-                      Your core artist information that will be displayed publicly
+                      Name, genres, bio, and location shown on your public artist page.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="stage_name" className="text-slate-300">Artist/Stage Name</Label>
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label htmlFor="stage_name" className="text-slate-300">
+                          Artist name
+                        </Label>
                         <Input
                           id="stage_name"
                           value={formData.stage_name}
-                          onChange={(e) => handleInputChange('stage_name', e.target.value)}
-                          placeholder="Your stage name"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          onChange={e => handleInputChange("stage_name", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                          placeholder="Stage name"
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="genre" className="text-slate-300">Genre</Label>
-                        <Select
-                          value={formData.genre}
-                          onValueChange={(value) => handleInputChange('genre', value)}
-                          disabled={!isEditing}
-                        >
-                          <SelectTrigger className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg">
-                            <SelectValue placeholder="Select your genre" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-600">
-                            {musicGenres.map((genre) => (
-                              <SelectItem key={genre} value={genre} className="text-white hover:bg-slate-700">
-                                {genre}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label className="text-slate-300">Website</Label>
+                        <Input
+                          value={formData.website}
+                          onChange={e => handleInputChange("website", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                          placeholder="https://…"
+                        />
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="bio" className="text-slate-300">Bio</Label>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label className="text-slate-300">Genres (up to 8)</Label>
+                      <p className={dashboardCreatePattern.subtleText}>Tap to add or remove — shown under your name in the hero.</p>
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {musicGenres.map(g => {
+                          const active = formData.genres.includes(g)
+                          return (
+                            <button
+                              key={g}
+                              type="button"
+                              disabled={isSaving}
+                              onClick={() => toggleGenre(g)}
+                              className={cn(
+                                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                                active
+                                  ? "border-purple-400/50 bg-purple-500/20 text-white"
+                                  : "border-slate-600/80 bg-slate-900/60 text-slate-400 hover:border-slate-500"
+                              )}
+                            >
+                              {g}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label htmlFor="bio">Bio</Label>
                       <Textarea
                         id="bio"
                         value={formData.bio}
-                        onChange={(e) => handleInputChange('bio', e.target.value)}
-                        placeholder="Tell your story, describe your music style, achievements..."
-                        disabled={!isEditing}
-                        rows={4}
-                        className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg resize-none"
+                        onChange={e => handleInputChange("bio", e.target.value)}
+                        disabled={isSaving}
+                        rows={5}
+                        className={cn(dashboardCreatePattern.input, "min-h-[120px] resize-y")}
+                        placeholder="Tell your story…"
                       />
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="location" className="text-slate-300">Location</Label>
-                        <Input
-                          id="location"
-                          value={formData.location}
-                          onChange={(e) => handleInputChange('location', e.target.value)}
-                          placeholder="City, Country"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="website" className="text-slate-300">Website</Label>
-                        <Input
-                          id="website"
-                          value={formData.website}
-                          onChange={(e) => handleInputChange('website', e.target.value)}
-                          placeholder="https://yourwebsite.com"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
-                        />
-                      </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label htmlFor="location">Location</Label>
+                      <Input
+                        id="location"
+                        value={formData.location}
+                        onChange={e => handleInputChange("location", e.target.value)}
+                        disabled={isSaving}
+                        className={dashboardCreatePattern.input}
+                        placeholder="City, Country"
+                      />
+                      <p className={dashboardCreatePattern.subtleText}>Synced to your public profile header.</p>
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="social" className="space-y-6">
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl">
+                <Card className={dashboardCreatePattern.shell}>
                   <CardHeader>
-                    <CardTitle className="text-slate-200 flex items-center">
-                      <Globe className="h-5 w-5 mr-2 text-purple-400" />
-                      Social Media Links
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <Globe className="h-5 w-5 text-purple-400" />
+                      Social links
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Connect your social media profiles to help fans find you
+                      Use @handles or full URLs for Instagram and X.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="instagram" className="text-slate-300 flex items-center">
-                          <Instagram className="h-4 w-4 mr-2" />
-                          Instagram
-                        </Label>
+                  <CardContent className="grid gap-4 md:grid-cols-2">
+                    {(
+                      [
+                        ["instagram", "Instagram"] as const,
+                        ["twitter", "X (Twitter)"] as const,
+                        ["youtube", "YouTube"] as const,
+                        ["spotify", "Spotify"] as const
+                      ] as const
+                    ).map(([key, label]) => (
+                      <div key={key} className={dashboardCreatePattern.fieldGroup}>
+                        <Label className="text-slate-300">{label}</Label>
                         <Input
-                          id="instagram"
-                          value={formData.instagram}
-                          onChange={(e) => handleInputChange('instagram', e.target.value)}
-                          placeholder="@yourusername"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          value={formData[key]}
+                          onChange={e => handleInputChange(key, e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                          placeholder={key === "instagram" || key === "twitter" ? "@handle or URL" : "URL"}
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="twitter" className="text-slate-300 flex items-center">
-                          <Twitter className="h-4 w-4 mr-2" />
-                          Twitter/X
-                        </Label>
-                        <Input
-                          id="twitter"
-                          value={formData.twitter}
-                          onChange={(e) => handleInputChange('twitter', e.target.value)}
-                          placeholder="@yourusername"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="youtube" className="text-slate-300 flex items-center">
-                          <Youtube className="h-4 w-4 mr-2" />
-                          YouTube
-                        </Label>
-                        <Input
-                          id="youtube"
-                          value={formData.youtube}
-                          onChange={(e) => handleInputChange('youtube', e.target.value)}
-                          placeholder="Channel URL"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
-                        />
-                      </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="spotify" className="text-slate-300 flex items-center">
-                          <Music2 className="h-4 w-4 mr-2" />
-                          Spotify
-                        </Label>
-                        <Input
-                          id="spotify"
-                          value={formData.spotify}
-                          onChange={(e) => handleInputChange('spotify', e.target.value)}
-                          placeholder="Artist URL"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </CardContent>
                 </Card>
               </TabsContent>
 
               <TabsContent value="professional" className="space-y-6">
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl">
+                <Card className={dashboardCreatePattern.shell}>
                   <CardHeader>
-                    <CardTitle className="text-slate-200 flex items-center">
-                      <Briefcase className="h-5 w-5 mr-2 text-purple-400" />
-                      Professional Information
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <Briefcase className="h-5 w-5 text-purple-400" />
+                      Professional &amp; booking
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Business details for bookings and collaborations
+                      Used for booking requests, EPK, and industry outreach — not all fields appear on the public hero.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="contact_email" className="text-slate-300 flex items-center">
-                          <Mail className="h-4 w-4 mr-2" />
-                          Contact Email
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label className="flex items-center gap-2 text-slate-300">
+                          <Mail className="h-4 w-4" /> Contact email
                         </Label>
                         <Input
-                          id="contact_email"
                           value={formData.contact_email}
-                          onChange={(e) => handleInputChange('contact_email', e.target.value)}
-                          placeholder="booking@yourname.com"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          onChange={e => handleInputChange("contact_email", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-slate-300 flex items-center">
-                          <Phone className="h-4 w-4 mr-2" />
-                          Phone
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label className="flex items-center gap-2 text-slate-300">
+                          <Phone className="h-4 w-4" /> Phone
                         </Label>
                         <Input
-                          id="phone"
                           value={formData.phone}
-                          onChange={(e) => handleInputChange('phone', e.target.value)}
-                          placeholder="+1 (555) 123-4567"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          onChange={e => handleInputChange("phone", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
                         />
                       </div>
                     </div>
-
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="booking_rate" className="text-slate-300 flex items-center">
-                          <DollarSign className="h-4 w-4 mr-2" />
-                          Booking Rate
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label className="flex items-center gap-2 text-slate-300">
+                          <DollarSign className="h-4 w-4" /> Booking rate
                         </Label>
                         <Input
-                          id="booking_rate"
                           value={formData.booking_rate}
-                          onChange={(e) => handleInputChange('booking_rate', e.target.value)}
-                          placeholder="$500/hour or $2000/event"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          onChange={e => handleInputChange("booking_rate", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="experience_years" className="text-slate-300 flex items-center">
-                          <Calendar className="h-4 w-4 mr-2" />
-                          Years of Experience
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label className="flex items-center gap-2 text-slate-300">
+                          <Calendar className="h-4 w-4" /> Years experience
                         </Label>
                         <Input
-                          id="experience_years"
                           value={formData.experience_years}
-                          onChange={(e) => handleInputChange('experience_years', e.target.value)}
-                          placeholder="5 years"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          onChange={e => handleInputChange("experience_years", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
                         />
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="equipment" className="text-slate-300">Equipment & Setup</Label>
-                      <Textarea
-                        id="equipment"
-                        value={formData.equipment}
-                        onChange={(e) => handleInputChange('equipment', e.target.value)}
-                        placeholder="List your equipment, instruments, technical requirements..."
-                        disabled={!isEditing}
-                        rows={3}
-                        className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg resize-none"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notable_performances" className="text-slate-300">Notable Performances</Label>
-                      <Textarea
-                        id="notable_performances"
-                        value={formData.notable_performances}
-                        onChange={(e) => handleInputChange('notable_performances', e.target.value)}
-                        placeholder="Mention key venues, festivals, or events you've performed at..."
-                        disabled={!isEditing}
-                        rows={3}
-                        className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg resize-none"
-                      />
-                    </div>
-
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="record_label" className="text-slate-300">Record Label</Label>
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label>Availability</Label>
                         <Input
-                          id="record_label"
-                          value={formData.record_label}
-                          onChange={(e) => handleInputChange('record_label', e.target.value)}
-                          placeholder="Independent or label name"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          value={formData.availability}
+                          onChange={e => handleInputChange("availability", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                          placeholder="e.g. Weekends, touring summers"
                         />
                       </div>
-                      
-                      <div className="space-y-2">
-                        <Label htmlFor="awards" className="text-slate-300">Awards & Recognition</Label>
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label>Music style (extra detail)</Label>
                         <Input
-                          id="awards"
-                          value={formData.awards}
-                          onChange={(e) => handleInputChange('awards', e.target.value)}
-                          placeholder="Awards, certifications, achievements"
-                          disabled={!isEditing}
-                          className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg"
+                          value={formData.music_style}
+                          onChange={e => handleInputChange("music_style", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                          placeholder="Subgenres, influences…"
                         />
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="upcoming_releases" className="text-slate-300">Upcoming Releases</Label>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Equipment &amp; setup</Label>
                       <Textarea
-                        id="upcoming_releases"
-                        value={formData.upcoming_releases}
-                        onChange={(e) => handleInputChange('upcoming_releases', e.target.value)}
-                        placeholder="Tell fans about your upcoming music, albums, or projects..."
-                        disabled={!isEditing}
+                        value={formData.equipment}
+                        onChange={e => handleInputChange("equipment", e.target.value)}
+                        disabled={isSaving}
                         rows={3}
-                        className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg resize-none"
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
                       />
                     </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-slate-300">Available for Collaborations</Label>
-                          <p className="text-sm text-slate-400">Let other artists know you're open to collaborating</p>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Notable performances</Label>
+                      <Textarea
+                        value={formData.notable_performances}
+                        onChange={e => handleInputChange("notable_performances", e.target.value)}
+                        disabled={isSaving}
+                        rows={3}
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
+                      />
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label>Record label</Label>
+                        <Input
+                          value={formData.record_label}
+                          onChange={e => handleInputChange("record_label", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                        />
+                      </div>
+                      <div className={dashboardCreatePattern.fieldGroup}>
+                        <Label>Awards</Label>
+                        <Input
+                          value={formData.awards}
+                          onChange={e => handleInputChange("awards", e.target.value)}
+                          disabled={isSaving}
+                          className={dashboardCreatePattern.input}
+                        />
+                      </div>
+                    </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Upcoming releases</Label>
+                      <Textarea
+                        value={formData.upcoming_releases}
+                        onChange={e => handleInputChange("upcoming_releases", e.target.value)}
+                        disabled={isSaving}
+                        rows={3}
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
+                      />
+                    </div>
+                    <div className="space-y-4 rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-200">Open to collaborations</p>
+                          <p className={dashboardCreatePattern.subtleText}>Shown to other artists.</p>
                         </div>
                         <Switch
                           checked={formData.collaboration_interest}
-                          onCheckedChange={(checked) => handleInputChange('collaboration_interest', checked)}
-                          disabled={!isEditing}
+                          onCheckedChange={v => handleInputChange("collaboration_interest", v)}
+                          disabled={isSaving}
                         />
                       </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-slate-300">Available for Hire</Label>
-                          <p className="text-sm text-slate-400">Show that you're accepting booking requests</p>
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="font-medium text-slate-200">Available for hire</p>
+                          <p className={dashboardCreatePattern.subtleText}>Signals you accept bookings.</p>
                         </div>
                         <Switch
                           checked={formData.available_for_hire}
-                          onCheckedChange={(checked) => handleInputChange('available_for_hire', checked)}
-                          disabled={!isEditing}
+                          onCheckedChange={v => handleInputChange("available_for_hire", v)}
+                          disabled={isSaving}
                         />
                       </div>
                     </div>
@@ -856,81 +700,92 @@ export default function ArtistProfilePage() {
               </TabsContent>
 
               <TabsContent value="achievements" className="space-y-6">
-                <ProfileAchievementsSection 
-                  userId={user?.id || ''}
-                  isOwnProfile={true}
-                  className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl"
+                <ProfileAchievementsSection
+                  userId={user?.id || ""}
+                  isOwnProfile
+                  className={cn(dashboardCreatePattern.shell, "border-slate-700/50 bg-slate-900/40 text-slate-100")}
                 />
               </TabsContent>
 
               <TabsContent value="settings" className="space-y-6">
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl">
+                <Card className={dashboardCreatePattern.shell}>
                   <CardHeader>
-                    <CardTitle className="text-slate-200 flex items-center">
-                      <Shield className="h-5 w-5 mr-2 text-purple-400" />
-                      Privacy & Preferences
+                    <CardTitle className="flex items-center gap-2 text-white">
+                      <Shield className="h-5 w-5 text-purple-400" />
+                      Privacy &amp; preferences
                     </CardTitle>
-                    <CardDescription className="text-slate-400">
-                      Control how your profile is displayed and who can contact you
-                    </CardDescription>
+                    <CardDescription className="text-slate-400">Control visibility and contact preferences.</CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-slate-300">Profile Visibility</Label>
-                        <Select
-                          value={formData.privacy_settings}
-                          onValueChange={(value) => handleInputChange('privacy_settings', value)}
-                          disabled={!isEditing}
-                        >
-                          <SelectTrigger className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-600">
-                            <SelectItem value="public" className="text-white hover:bg-slate-700">Public - Anyone can view</SelectItem>
-                            <SelectItem value="verified" className="text-white hover:bg-slate-700">Verified Users Only</SelectItem>
-                            <SelectItem value="private" className="text-white hover:bg-slate-700">Private - Invitation Only</SelectItem>
-                          </SelectContent>
-                        </Select>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Profile visibility</Label>
+                      <Select
+                        value={formData.privacy_settings}
+                        onValueChange={v => handleInputChange("privacy_settings", v)}
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger className={dashboardCreatePattern.selectTrigger}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-700 bg-slate-900 text-white">
+                          <SelectItem value="public">Public — anyone can view</SelectItem>
+                          <SelectItem value="verified">Verified users only</SelectItem>
+                          <SelectItem value="private">Private — invite only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Preferred contact</Label>
+                      <Select
+                        value={formData.preferred_contact}
+                        onValueChange={v => handleInputChange("preferred_contact", v)}
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger className={dashboardCreatePattern.selectTrigger}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-700 bg-slate-900 text-white">
+                          <SelectItem value="email">Email</SelectItem>
+                          <SelectItem value="phone">Phone</SelectItem>
+                          <SelectItem value="platform">Through Tourify</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/50 bg-slate-900/40 p-4">
+                      <div>
+                        <p className="font-medium text-slate-200">Product newsletter</p>
+                        <p className={dashboardCreatePattern.subtleText}>Updates about features and opportunities.</p>
                       </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-slate-300">Preferred Contact Method</Label>
-                        <Select
-                          value={formData.preferred_contact}
-                          onValueChange={(value) => handleInputChange('preferred_contact', value)}
-                          disabled={!isEditing}
-                        >
-                          <SelectTrigger className="bg-slate-800/50 border-slate-600/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20 rounded-lg">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-600">
-                            <SelectItem value="email" className="text-white hover:bg-slate-700">Email</SelectItem>
-                            <SelectItem value="phone" className="text-white hover:bg-slate-700">Phone</SelectItem>
-                            <SelectItem value="platform" className="text-white hover:bg-slate-700">Through Platform</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-1">
-                          <Label className="text-slate-300">Newsletter Subscription</Label>
-                          <p className="text-sm text-slate-400">Receive updates about new features and opportunities</p>
-                        </div>
-                        <Switch
-                          checked={formData.newsletter_signup}
-                          onCheckedChange={(checked) => handleInputChange('newsletter_signup', checked)}
-                          disabled={!isEditing}
-                        />
-                      </div>
+                      <Switch
+                        checked={formData.newsletter_signup}
+                        onCheckedChange={v => handleInputChange("newsletter_signup", v)}
+                        disabled={isSaving}
+                      />
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
             </Tabs>
-          </motion.div>
+          </div>
         </div>
       </div>
+
+      {hasUnsavedChanges ? (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-slate-700/60 bg-slate-950/95 px-4 py-3 backdrop-blur md:py-4">
+          <div className="mx-auto flex max-w-6xl flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+            <p className="text-sm text-amber-200/90">You have unsaved changes.</p>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className={dashboardCreatePattern.btnOutline} onClick={handleCancel} disabled={isSaving}>
+                Discard
+              </Button>
+              <Button type="button" className={dashboardCreatePattern.btnPrimary} onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
-} 
+}

@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Calendar, Mail, Phone, User } from "lucide-react"
 import type { Conversation } from "./types"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface MessageDetailsProps {
   conversation: Conversation
@@ -56,7 +57,7 @@ export default function MessageDetails({ conversation }: MessageDetailsProps) {
             {conversation.eventDate && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                 <Calendar className="h-4 w-4" />
-                <span>{new Date(conversation.eventDate).toLocaleDateString()}</span>
+                <span>{formatSafeDate(conversation.eventDate)}</span>
               </div>
             )}
             <Button variant="outline" className="mt-2">
@@ -74,7 +75,13 @@ export default function MessageDetails({ conversation }: MessageDetailsProps) {
               <span className="font-medium">Source:</span> Website Contact Form
             </div>
             <div className="text-sm mb-2">
-              <span className="font-medium">Received:</span> {new Date(conversation.createdAt).toLocaleString()}
+              <span className="font-medium">Received:</span> {new Intl.DateTimeFormat("en-US", {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              }).format(new Date(conversation.createdAt))}
             </div>
             <div className="text-sm">
               <span className="font-medium">Status:</span> <span className="text-orange-500">Open</span>

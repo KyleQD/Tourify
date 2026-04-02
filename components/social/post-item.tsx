@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export function PostItem({
   post,
@@ -218,7 +219,7 @@ export function PostItem({
             <Badge variant="secondary" className="mb-2">Event</Badge>
             <h3 className="font-semibold">{post.eventDetails.title}</h3>
             <p className="text-sm text-muted-foreground">
-              {new Date(post.eventDetails.date).toLocaleDateString()} at {post.eventDetails.location}
+              {formatSafeDate(post.eventDetails.date)} at {post.eventDetails.location}
             </p>
           </CardContent>
         </Card>

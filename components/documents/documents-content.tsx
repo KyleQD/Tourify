@@ -13,6 +13,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface DocumentsContentProps {
   documents: Document[]
@@ -46,12 +47,7 @@ export function DocumentsContent({
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    return formatSafeDate(dateString)
   }
 
   return (

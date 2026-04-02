@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { createClient } from "@supabase/supabase-js"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -66,13 +67,35 @@ export default function BookingsPage() {
     const bookingId = searchParams.get("booking_id")
     const canceled = searchParams.get("canceled")
 
-    if (success === "true" && bookingId) {
-      toast.success("Payment successful! Your booking has been confirmed.")
-      handleUpdateBookingStatus(bookingId, "confirmed")
+    const sessionId = searchParams.get("session_id")
+    if (success === "true" && bookingId && sessionId) {
+      verifyPaymentAndRefresh({ bookingId, sessionId })
     } else if (canceled === "true") {
       toast.error("Payment was canceled. Please try again.")
     }
   }, [searchParams])
+
+  const verifyPaymentAndRefresh = async ({ bookingId, sessionId }: { bookingId: string; sessionId: string }) => {
+    try {
+      const response = await fetch(`/api/payment?session_id=${encodeURIComponent(sessionId)}&booking_id=${encodeURIComponent(bookingId)}`)
+      const payload = await response.json()
+      if (!response.ok || !payload?.success) {
+        toast.error("Payment could not be verified yet. Please refresh in a moment.")
+        return
+      }
+
+      toast.success("Payment successful! Your booking has been confirmed.")
+      setBookings((current) =>
+        current.map((booking) =>
+          booking.id === bookingId ? { ...booking, status: "confirmed" } : booking
+        )
+      )
+      fetchBookings()
+    } catch (error) {
+      console.error("Error verifying payment:", error)
+      toast.error("Payment verification failed. Please try again.")
+    }
+  }
 
   const fetchBookings = async () => {
     try {
@@ -229,7 +252,7 @@ export default function BookingsPage() {
                     <SelectContent>
                       {events.map((event) => (
                         <SelectItem key={event.id} value={event.id}>
-                          {event.title} - {new Date(event.date).toLocaleDateString()}
+                          {event.title} - {formatSafeDate(event.date)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -274,7 +297,7 @@ export default function BookingsPage() {
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4 text-gray-500" />
-                  <span>{new Date(booking.event?.date || "").toLocaleDateString()}</span>
+                  <span>{formatSafeDate(booking.event?.date || "")}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <User className="h-4 w-4 text-gray-500" />

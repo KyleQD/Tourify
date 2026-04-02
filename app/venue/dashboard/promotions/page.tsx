@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreatePromotionModal } from "../../components/promotions/create-promotion-modal"
 import { BarChart3, Calendar, Clock, DollarSign, Eye, MousePointer, Plus, Search, ShoppingCart } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 export default function PromotionsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -144,12 +146,7 @@ export default function PromotionsPage() {
 
   const formatDate = (dateString: string) => {
     if (dateString === "N/A") return "N/A"
-    const options: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   const formatCurrency = (amount: number) => {
@@ -299,7 +296,7 @@ export default function PromotionsPage() {
                             <h3 className="font-medium">Impressions</h3>
                           </div>
                           <Badge variant="outline" className="border-gray-700">
-                            {promo.metrics.impressions.toLocaleString()}
+                            {formatSafeNumber(promo.metrics.impressions)}
                           </Badge>
                         </div>
                       </div>
@@ -311,7 +308,7 @@ export default function PromotionsPage() {
                             <h3 className="font-medium">Clicks</h3>
                           </div>
                           <Badge variant="outline" className="border-gray-700">
-                            {promo.metrics.clicks.toLocaleString()}
+                            {formatSafeNumber(promo.metrics.clicks)}
                           </Badge>
                         </div>
                       </div>
@@ -323,7 +320,7 @@ export default function PromotionsPage() {
                             <h3 className="font-medium">Conversions</h3>
                           </div>
                           <Badge variant="outline" className="border-gray-700">
-                            {promo.metrics.conversions.toLocaleString()}
+                            {formatSafeNumber(promo.metrics.conversions)}
                           </Badge>
                         </div>
                       </div>

@@ -5,6 +5,7 @@ import { Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 
 interface Event {
   id: string
@@ -46,7 +47,17 @@ export function EventSelector({ selectedEvent, onEventChange, showNewEventButton
       
       if (response.ok) {
         const data = await response.json()
-        setEvents(data.events || [])
+        const normalizedEvents = (data.events || []).map((event: any) => {
+          const normalized = normalizeAdminEvent(event)
+          return {
+            id: normalized.id,
+            title: normalized.name,
+            event_date: normalized.event_date,
+            status: normalized.status,
+            venue_name: normalized.venue_name,
+          } as Event
+        })
+        setEvents(normalizedEvents)
       } else {
         console.error('Failed to fetch events')
         setEvents([])
@@ -75,10 +86,11 @@ export function EventSelector({ selectedEvent, onEventChange, showNewEventButton
 
   const calculateDaysUntilEvent = (eventDate: string) => {
     const eventDateObj = new Date(eventDate)
+    if (Number.isNaN(eventDateObj.getTime())) return 0
     const today = new Date()
-    const diffTime = Math.abs(eventDateObj.getTime() - today.getTime())
+    const diffTime = eventDateObj.getTime() - today.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays
+    return Math.max(0, diffDays)
   }
 
   const selectedEventData = getSelectedEvent()

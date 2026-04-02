@@ -46,6 +46,7 @@ import {
   User
 } from 'lucide-react'
 import { toast } from "@/components/ui/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueProfile {
   id: string
@@ -237,7 +238,7 @@ export default function VenueProfilePage() {
                   <div className="flex items-center gap-4 text-sm text-gray-300">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      <span>{new Date(event.event_date).toLocaleDateString()}</span>
+                      <span>{formatSafeDate(event.event_date)}</span>
                     </div>
                     {event.ticket_price && (
                       <div className="flex items-center gap-1">

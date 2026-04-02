@@ -2,18 +2,18 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent } from "@/components/ui/tabs"
+
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
 import { 
   Calendar, 
   MapPin, 
@@ -87,6 +87,12 @@ import { TourTeamManager } from "@/components/admin/tour-team-manager"
 import { TourVendorManager } from "@/components/admin/tour-vendor-manager"
 import { TourJobPosting } from "@/components/admin/tour-job-posting"
 import { TourJobsList } from "@/components/admin/tour-jobs-list"
+import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
+import { SurfaceInput } from "@/components/surface/surface-primitives"
+import { AdminSurfaceCard } from "../../components/admin-surface-card"
+import { AdminSurfaceSelectTrigger, AdminSurfaceTabsList, AdminSurfaceTabsTrigger } from "../../components/admin-surface-controls"
+import { AdminPageActionsRow } from "../../components/admin-page-actions-row"
 
 interface Tour {
   id: string
@@ -185,7 +191,9 @@ export default function TourManagementPage() {
 
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [tourFinances, setTourFinances] = useState<any[]>([])
   const [editForm, setEditForm] = useState<Partial<Tour>>({})
+  const [shareUrl, setShareUrl] = useState('')
   const initialEventId = (searchParams.get('eventId') || undefined) as string | undefined
 
   useEffect(() => {
@@ -193,204 +201,99 @@ export default function TourManagementPage() {
     if (tab) setActiveTab(tab)
   }, [searchParams])
 
-  // Mock data for development
-  const mockTour: Tour = {
-    id: tourId,
-    name: "Summer Electronic Tour 2025",
-    description: "A nationwide electronic music tour featuring the best DJs and producers in the industry.",
-    artist_id: "artist_123",
-    status: "active",
-    start_date: "2025-06-01",
-    end_date: "2025-08-15",
-    total_shows: 12,
-    completed_shows: 4,
-    expected_revenue: 500000,
-    actual_revenue: 485000,
-    expenses: 285000,
-    budget: 350000,
-    crew_size: 12,
-    transportation: "Tour Bus + Equipment Truck",
-    accommodation: "Hotels (4-star)",
-    equipment_requirements: "Full Production Setup",
-    special_requirements: "VIP meet & greet packages",
-    created_at: "2024-12-01T00:00:00Z",
-    updated_at: "2024-12-15T00:00:00Z"
-  }
-
-  const mockEvents: Event[] = [
-    {
-      id: "1",
-      name: "Summer Electronic Tour - New York",
-      tour_id: tourId,
-      venue_name: "Madison Square Garden",
-      venue_address: "4 Pennsylvania Plaza, New York, NY 10001",
-      event_date: "2025-06-15",
-      event_time: "20:00",
-      doors_open: "19:00",
-      duration_minutes: 180,
-      status: "completed",
-      capacity: 20000,
-      tickets_sold: 18500,
-      ticket_price: 85,
-      vip_price: 250,
-      expected_revenue: 85000,
-      actual_revenue: 85000,
-      expenses: 45000,
-      venue_contact_name: "John Smith",
-      venue_contact_email: "john.smith@msg.com",
-      venue_contact_phone: "(555) 123-4567",
-      sound_requirements: "Full PA system with subwoofers",
-      lighting_requirements: "LED wall and moving lights",
-      stage_requirements: "Main stage with risers",
-      load_in_time: "14:00",
-      sound_check_time: "16:00"
-    },
-    {
-      id: "2",
-      name: "Summer Electronic Tour - Los Angeles",
-      tour_id: tourId,
-      venue_name: "Hollywood Bowl",
-      venue_address: "2301 N Highland Ave, Los Angeles, CA 90068",
-      event_date: "2025-06-22",
-      event_time: "19:30",
-      doors_open: "18:30",
-      duration_minutes: 180,
-      status: "completed",
-      capacity: 15000,
-      tickets_sold: 14200,
-      ticket_price: 95,
-      vip_price: 300,
-      expected_revenue: 75000,
-      actual_revenue: 75000,
-      expenses: 38000,
-      venue_contact_name: "Sarah Johnson",
-      venue_contact_email: "sarah.johnson@hollywoodbowl.com",
-      venue_contact_phone: "(555) 987-6543",
-      sound_requirements: "Outdoor PA system",
-      lighting_requirements: "Concert lighting setup",
-      stage_requirements: "Main stage with canopy",
-      load_in_time: "12:00",
-      sound_check_time: "15:00"
+  useEffect(() => {
+    if (showShareDialog && typeof window !== 'undefined') {
+      setShareUrl(`${window.location.origin}/admin/dashboard/tours/${tourId}`)
     }
-  ]
-
-  const mockMembers: TourMember[] = [
-    {
-      id: "1",
-      name: "Sarah Johnson",
-      role: "Tour Manager",
-      email: "sarah@email.com",
-      phone: "(555) 123-4567",
-      status: "confirmed",
-      arrival_date: "2025-05-28",
-      departure_date: "2025-08-20",
-      responsibilities: "Overall tour coordination, scheduling, and logistics"
-    },
-    {
-      id: "2",
-      name: "Mike Chen",
-      role: "Sound Engineer",
-      email: "mike@email.com",
-      phone: "(555) 234-5678",
-      status: "confirmed",
-      arrival_date: "2025-05-30",
-      departure_date: "2025-08-18",
-      responsibilities: "Sound system setup, mixing, and technical coordination"
-    },
-    {
-      id: "3",
-      name: "Lisa Rodriguez",
-      role: "Lighting Designer",
-      email: "lisa@email.com",
-      phone: "(555) 345-6789",
-      status: "confirmed",
-      arrival_date: "2025-05-29",
-      departure_date: "2025-08-19",
-      responsibilities: "Lighting design, programming, and operation"
-    }
-  ]
-
-  const mockVendors: TourVendor[] = [
-    {
-      id: "1",
-      name: "Elite Transportation",
-      type: "Transportation",
-      contact_name: "David Wilson",
-      contact_email: "david@elitetransport.com",
-      contact_phone: "(555) 456-7890",
-      status: "confirmed",
-      services: ["Tour Bus", "Equipment Truck", "Driver Services"],
-      contract_amount: 45000,
-      payment_status: "partial"
-    },
-    {
-      id: "2",
-      name: "Premium Catering Co.",
-      type: "Catering",
-      contact_name: "Maria Garcia",
-      contact_email: "maria@premiumcatering.com",
-      contact_phone: "(555) 567-8901",
-      status: "confirmed",
-      services: ["Crew Meals", "VIP Catering", "Backstage Refreshments"],
-      contract_amount: 25000,
-      payment_status: "paid"
-    }
-  ]
+  }, [showShareDialog, tourId])
 
   useEffect(() => {
     const fetchTourData = async () => {
       try {
         setIsLoading(true)
-        
-        // Fetch tour data
+
         const tourResponse = await fetch(`/api/tours/${tourId}`)
         if (tourResponse.ok) {
           const tourData = await tourResponse.json()
           setTour(tourData)
           setEditForm(tourData)
         } else {
-          // Use mock data for development
-          setTour(mockTour)
-          setEditForm(mockTour)
+          setTour(null)
+          setEditForm({})
+          toast.error('Could not load tour')
         }
 
-          // Fetch events for this tour
-  const eventsResponse = await fetch(`/api/tours/${tourId}/events`)
-  if (eventsResponse.ok) {
-    const eventsData = await eventsResponse.json()
-    setEvents(eventsData.events || [])
-  } else {
-    setEvents(mockEvents)
-  }
+        const eventsResponse = await fetch(`/api/tours/${tourId}/events`)
+        if (eventsResponse.ok) {
+          const eventsData = await eventsResponse.json()
+          const normalizedEvents = (eventsData.events || []).map((event: any) => {
+            const normalized = normalizeAdminEvent(event)
+            return {
+              id: normalized.id || event.id,
+              name: normalized.name,
+              description: normalized.description || '',
+              tour_id: event.tour_id || tourId,
+              venue_name: normalized.venue_name || 'Venue TBD',
+              venue_address: event.venue_address || '',
+              event_date: normalized.event_date,
+              event_time: normalized.event_time || '',
+              doors_open: event.doors_open || '',
+              duration_minutes: Number(event.duration_minutes || 0),
+              status: normalized.status,
+              capacity: normalized.capacity || 0,
+              tickets_sold: normalized.tickets_sold || 0,
+              ticket_price: normalized.ticket_price || 0,
+              vip_price: Number(event.vip_price || 0),
+              expected_revenue: normalized.expected_revenue || 0,
+              actual_revenue: normalized.actual_revenue || 0,
+              expenses: normalized.expenses || 0,
+              venue_contact_name: event.venue_contact_name || '',
+              venue_contact_email: event.venue_contact_email || '',
+              venue_contact_phone: event.venue_contact_phone || '',
+              sound_requirements: event.sound_requirements || '',
+              lighting_requirements: event.lighting_requirements || '',
+              stage_requirements: event.stage_requirements || '',
+              special_requirements: event.special_requirements || '',
+              load_in_time: event.load_in_time || '',
+              sound_check_time: event.sound_check_time || ''
+            } as Event
+          })
+          setEvents(normalizedEvents)
+        } else {
+          setEvents([])
+        }
 
-  // Fetch team members for this tour
-  const teamResponse = await fetch(`/api/tours/${tourId}/team`)
-  if (teamResponse.ok) {
-    const teamData = await teamResponse.json()
-    setMembers(teamData.team_members || [])
-  } else {
-    setMembers(mockMembers)
-  }
+        const teamResponse = await fetch(`/api/tours/${tourId}/team`)
+        if (teamResponse.ok) {
+          const teamData = await teamResponse.json()
+          setMembers(teamData.team_members || [])
+        } else {
+          setMembers([])
+        }
 
-  // Fetch vendors for this tour
-  const vendorsResponse = await fetch(`/api/tours/${tourId}/vendors`)
-  if (vendorsResponse.ok) {
-    const vendorsData = await vendorsResponse.json()
-    setVendors(vendorsData.vendors || [])
-  } else {
-    setVendors(mockVendors)
-  }
+        const vendorsResponse = await fetch(`/api/tours/${tourId}/vendors`)
+        if (vendorsResponse.ok) {
+          const vendorsData = await vendorsResponse.json()
+          setVendors(vendorsData.vendors || [])
+        } else {
+          setVendors([])
+        }
 
+        try {
+          const finRes = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}`)
+          if (finRes.ok) {
+            const finData = await finRes.json()
+            setTourFinances(finData.recentTransactions || finData.transactions || [])
+          }
+        } catch { /* best-effort */ }
       } catch (error) {
         console.error('Error fetching tour data:', error)
         toast.error('Failed to fetch tour data')
-        
-        // Fallback to mock data
-        setTour(mockTour)
-        setEditForm(mockTour)
-        setEvents(mockEvents)
-        setMembers(mockMembers)
-        setVendors(mockVendors)
+        setTour(null)
+        setEditForm({})
+        setEvents([])
+        setMembers([])
+        setVendors([])
       } finally {
         setIsLoading(false)
       }
@@ -484,9 +387,10 @@ export default function TourManagementPage() {
       })
 
       if (response.ok) {
-        const newTour = await response.json()
+        const result = await response.json()
+        const tourId = result.tour?.id || result.id
         toast.success('Tour duplicated successfully')
-        router.push(`/admin/dashboard/tours/${newTour.id}`)
+        router.push(`/admin/dashboard/tours/${tourId}`)
       } else {
         throw new Error('Failed to duplicate tour')
       }
@@ -563,6 +467,12 @@ export default function TourManagementPage() {
   const progressPercentage = safeTour.total_shows > 0 ? (safeTour.completed_shows / safeTour.total_shows) * 100 : 0
   const profit = safeTour.actual_revenue - safeTour.expenses
   const budgetRemaining = safeTour.budget - safeTour.expenses
+  const startDateParsed = new Date(safeTour.start_date)
+  const endDateParsed = new Date(safeTour.end_date)
+  const hasValidTourRange = !Number.isNaN(startDateParsed.getTime()) && !Number.isNaN(endDateParsed.getTime())
+  const durationDays = hasValidTourRange
+    ? Math.max(0, Math.ceil((endDateParsed.getTime() - startDateParsed.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
@@ -583,14 +493,30 @@ export default function TourManagementPage() {
               <p className="text-slate-400">Tour Management Dashboard</p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Badge className={getStatusColor(safeTour.status)}>
-              {getStatusIcon(safeTour.status)}
-              <span className="ml-1 capitalize">{safeTour.status}</span>
-            </Badge>
+          <AdminPageActionsRow>
+            <Select
+              value={safeTour.status}
+              onValueChange={(v) => void handleStatusChange(v as Tour['status'])}
+            >
+              <AdminSurfaceSelectTrigger className="w-[168px] border-slate-600 bg-slate-900/50 capitalize text-slate-200">
+                <div className="flex items-center gap-2">
+                  {getStatusIcon(safeTour.status)}
+                  <SelectValue />
+                </div>
+              </AdminSurfaceSelectTrigger>
+              <SelectContent>
+                <SelectItem value="planning">Planning</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+              </SelectContent>
+            </Select>
             <Button
               variant="outline"
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={() => {
+                if (isEditing && tour) setEditForm(tour)
+                setIsEditing((v) => !v)
+              }}
               className="border-slate-600 text-slate-300"
             >
               <Edit className="h-4 w-4 mr-2" />
@@ -627,12 +553,108 @@ export default function TourManagementPage() {
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
-          </div>
+          </AdminPageActionsRow>
         </div>
+
+        {isEditing && (
+          <AdminSurfaceCard>
+            <CardHeader>
+              <CardTitle className="text-white">Edit tour</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-slate-400">Name</Label>
+                  <SurfaceInput
+                    value={editForm.name ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                    className="surface-entry bg-slate-800 border-slate-600 text-white"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-slate-400">Description</Label>
+                  <Textarea
+                    value={editForm.description ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))}
+                    className="bg-slate-800 border-slate-600 text-white min-h-[88px]"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-400">Start date</Label>
+                  <SurfaceInput
+                    type="date"
+                    value={(editForm.start_date ?? '').slice(0, 10)}
+                    onChange={(e) => setEditForm((f) => ({ ...f, start_date: e.target.value }))}
+                    className="surface-entry bg-slate-800 border-slate-600 text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-slate-400">End date</Label>
+                  <SurfaceInput
+                    type="date"
+                    value={(editForm.end_date ?? '').slice(0, 10)}
+                    onChange={(e) => setEditForm((f) => ({ ...f, end_date: e.target.value }))}
+                    className="surface-entry bg-slate-800 border-slate-600 text-white"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-slate-400">Transportation</Label>
+                  <SurfaceInput
+                    value={editForm.transportation ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, transportation: e.target.value }))}
+                    className="surface-entry bg-slate-800 border-slate-600 text-white"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-slate-400">Accommodation</Label>
+                  <SurfaceInput
+                    value={editForm.accommodation ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, accommodation: e.target.value }))}
+                    className="surface-entry bg-slate-800 border-slate-600 text-white"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-slate-400">Equipment requirements</Label>
+                  <Textarea
+                    value={editForm.equipment_requirements ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, equipment_requirements: e.target.value }))}
+                    className="bg-slate-800 border-slate-600 text-white min-h-[72px]"
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-slate-400">Special requirements</Label>
+                  <Textarea
+                    value={editForm.special_requirements ?? ''}
+                    onChange={(e) => setEditForm((f) => ({ ...f, special_requirements: e.target.value }))}
+                    className="bg-slate-800 border-slate-600 text-white min-h-[72px]"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => void handleSaveTour()}
+                >
+                  Save changes
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-slate-600 text-slate-300"
+                  onClick={() => {
+                    if (tour) setEditForm(tour)
+                    setIsEditing(false)
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </AdminSurfaceCard>
+        )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <AdminSurfaceCard>
             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                     <div>
@@ -640,7 +662,7 @@ export default function TourManagementPage() {
                       <p className="text-2xl font-bold text-white">{safeTour.completed_shows}/{safeTour.total_shows}</p>
                       <p className="text-sm text-slate-400">Shows Completed</p>
                     </div>
-                    <div className="p-3 rounded-full bg-blue-500/20">
+                    <div className="p-3 rounded-xl bg-blue-500/20 shadow-lg shadow-blue-500/10">
                       <Music className="h-6 w-6 text-blue-400" />
                     </div>
                   </div>
@@ -657,41 +679,41 @@ export default function TourManagementPage() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AdminSurfaceCard>
 
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <AdminSurfaceCard>
             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-slate-400">Revenue</p>
-                      <p className="text-2xl font-bold text-green-400">${safeTour.actual_revenue.toLocaleString()}</p>
-                      <p className="text-sm text-slate-400">of ${safeTour.expected_revenue.toLocaleString()}</p>
+                      <p className="text-2xl font-bold text-green-400">{formatSafeCurrency(safeTour.actual_revenue)}</p>
+                      <p className="text-sm text-slate-400">of {formatSafeCurrency(safeTour.expected_revenue)}</p>
                     </div>
-                    <div className="p-3 rounded-full bg-green-500/20">
+                    <div className="p-3 rounded-xl bg-green-500/20 shadow-lg shadow-green-500/10">
                       <DollarSign className="h-6 w-6 text-green-400" />
                     </div>
                   </div>
             </CardContent>
-          </Card>
+          </AdminSurfaceCard>
 
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <AdminSurfaceCard>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-slate-400">Profit</p>
                   <p className={`text-2xl font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ${profit.toLocaleString()}
+                    {formatSafeCurrency(profit)}
                   </p>
                   <p className="text-sm text-slate-400">Net Income</p>
                 </div>
-                <div className="p-3 rounded-full bg-blue-500/20">
+                <div className="p-3 rounded-xl bg-blue-500/20 shadow-lg shadow-blue-500/10">
                   <Target className="h-6 w-6 text-blue-400" />
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </AdminSurfaceCard>
 
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <AdminSurfaceCard>
             <CardContent className="p-6">
                                 <div className="flex items-center justify-between">
                     <div>
@@ -699,16 +721,16 @@ export default function TourManagementPage() {
                       <p className="text-2xl font-bold text-white">{safeTour.crew_size}</p>
                       <p className="text-sm text-slate-400">Team Members</p>
                     </div>
-                    <div className="p-3 rounded-full bg-purple-500/20">
+                    <div className="p-3 rounded-xl bg-purple-500/20 shadow-lg shadow-purple-500/10">
                       <Users className="h-6 w-6 text-purple-400" />
                     </div>
                   </div>
             </CardContent>
-          </Card>
+          </AdminSurfaceCard>
         </div>
 
         {/* Quick Actions */}
-        <Card className="bg-slate-900/50 border-slate-700/50">
+        <AdminSurfaceCard>
           <CardHeader>
             <CardTitle className="text-white">Quick Actions</CardTitle>
           </CardHeader>
@@ -740,24 +762,24 @@ export default function TourManagementPage() {
                       }}
                     />
           </CardContent>
-        </Card>
+        </AdminSurfaceCard>
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-800/50 p-1 grid grid-cols-7 w-full">
-            <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
-            <TabsTrigger value="events" className="text-xs">Events ({events.length})</TabsTrigger>
-            <TabsTrigger value="team" className="text-xs">Team ({members.length})</TabsTrigger>
-            <TabsTrigger value="vendors" className="text-xs">Vendors ({vendors.length})</TabsTrigger>
-            <TabsTrigger value="jobs" className="text-xs">Jobs</TabsTrigger>
-            <TabsTrigger value="finances" className="text-xs">Finances</TabsTrigger>
-            <TabsTrigger value="logistics" className="text-xs">Logistics</TabsTrigger>
-          </TabsList>
+          <AdminSurfaceTabsList className="grid w-full grid-cols-7">
+            <AdminSurfaceTabsTrigger value="overview">Overview</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="events">Events ({events.length})</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="team">Team ({members.length})</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="vendors">Vendors ({vendors.length})</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="jobs">Jobs</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="finances">Finances</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="logistics">Logistics</AdminSurfaceTabsTrigger>
+          </AdminSurfaceTabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <AdminSurfaceCard>
                 <CardHeader>
                   <CardTitle className="text-white">Tour Information</CardTitle>
                 </CardHeader>
@@ -769,18 +791,18 @@ export default function TourManagementPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-slate-400">Start Date</Label>
-                      <p className="text-white mt-1">{new Date(safeTour.start_date).toLocaleDateString()}</p>
+                      <p className="text-white mt-1">{formatSafeDate(safeTour.start_date)}</p>
                     </div>
                     <div>
                       <Label className="text-slate-400">End Date</Label>
-                      <p className="text-white mt-1">{new Date(safeTour.end_date).toLocaleDateString()}</p>
+                      <p className="text-white mt-1">{formatSafeDate(safeTour.end_date)}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-slate-400">Duration</Label>
                       <p className="text-white mt-1">
-                        {Math.ceil((new Date(safeTour.end_date).getTime() - new Date(safeTour.start_date).getTime()) / (1000 * 60 * 60 * 24))} days
+                        {durationDays} days
                       </p>
                     </div>
                     <div>
@@ -792,9 +814,9 @@ export default function TourManagementPage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
 
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <AdminSurfaceCard>
                 <CardHeader>
                   <CardTitle className="text-white">Financial Summary</CardTitle>
                 </CardHeader>
@@ -802,39 +824,39 @@ export default function TourManagementPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-slate-400">Expected Revenue</Label>
-                      <p className="text-white mt-1">${safeTour.expected_revenue.toLocaleString()}</p>
+                      <p className="text-white mt-1">{formatSafeCurrency(safeTour.expected_revenue)}</p>
                     </div>
                     <div>
                       <Label className="text-slate-400">Actual Revenue</Label>
-                      <p className="text-green-400 mt-1">${safeTour.actual_revenue.toLocaleString()}</p>
+                      <p className="text-green-400 mt-1">{formatSafeCurrency(safeTour.actual_revenue)}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-slate-400">Expenses</Label>
-                      <p className="text-red-400 mt-1">${safeTour.expenses.toLocaleString()}</p>
+                      <p className="text-red-400 mt-1">{formatSafeCurrency(safeTour.expenses)}</p>
                     </div>
                     <div>
                       <Label className="text-slate-400">Budget</Label>
-                      <p className="text-white mt-1">${safeTour.budget.toLocaleString()}</p>
+                      <p className="text-white mt-1">{formatSafeCurrency(safeTour.budget)}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-slate-400">Profit</Label>
                       <p className={`mt-1 ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ${profit.toLocaleString()}
+                        {formatSafeCurrency(profit)}
                       </p>
                     </div>
                     <div>
                       <Label className="text-slate-400">Budget Remaining</Label>
                       <p className={`mt-1 ${budgetRemaining >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        ${budgetRemaining.toLocaleString()}
+                        {formatSafeCurrency(budgetRemaining)}
                       </p>
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
             </div>
           </TabsContent>
 
@@ -889,69 +911,90 @@ export default function TourManagementPage() {
 
           {/* Finances Tab */}
           <TabsContent value="finances" className="space-y-6">
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <AdminSurfaceCard>
               <CardHeader>
                 <CardTitle className="text-white">Financial Overview</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-green-400">${safeTour.actual_revenue.toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-green-400">{formatSafeCurrency(safeTour.actual_revenue)}</h3>
                     <p className="text-slate-400">Total Revenue</p>
                   </div>
                   <div className="text-center">
-                    <h3 className="text-2xl font-bold text-red-400">${safeTour.expenses.toLocaleString()}</h3>
+                    <h3 className="text-2xl font-bold text-red-400">{formatSafeCurrency(safeTour.expenses)}</h3>
                     <p className="text-slate-400">Total Expenses</p>
                   </div>
                   <div className="text-center">
                     <h3 className={`text-2xl font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      ${profit.toLocaleString()}
+                      {formatSafeCurrency(profit)}
                     </h3>
                     <p className="text-slate-400">Net Profit</p>
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </AdminSurfaceCard>
+
+            {tourFinances.length > 0 && (
+              <AdminSurfaceCard>
+                <CardHeader>
+                  <CardTitle className="text-white">Recent Transactions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {tourFinances.slice(0, 10).map((tx: any) => (
+                    <div key={tx.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl backdrop-blur-sm">
+                      <div>
+                        <p className="text-sm font-medium text-white">{tx.description || tx.category}</p>
+                        <p className="text-xs text-slate-400">{formatSafeDate(tx.created_at)}</p>
+                      </div>
+                      <span className={`text-sm font-semibold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
+                        {tx.type === 'income' ? '+' : '-'}{formatSafeCurrency(Number(tx.amount)).replace("$", "")}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </AdminSurfaceCard>
+            )}
           </TabsContent>
 
           {/* Logistics Tab */}
           <TabsContent value="logistics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <AdminSurfaceCard>
                 <CardHeader>
                   <CardTitle className="text-white">Transportation</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-slate-300">{safeTour.transportation || 'Not specified'}</p>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
 
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <AdminSurfaceCard>
                 <CardHeader>
                   <CardTitle className="text-white">Accommodation</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-slate-300">{safeTour.accommodation || 'Not specified'}</p>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
 
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <AdminSurfaceCard>
                 <CardHeader>
                   <CardTitle className="text-white">Equipment Requirements</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-slate-300">{safeTour.equipment_requirements || 'Not specified'}</p>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
 
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <AdminSurfaceCard>
                 <CardHeader>
                   <CardTitle className="text-white">Special Requirements</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-slate-300">{safeTour.special_requirements || 'No special requirements'}</p>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
             </div>
           </TabsContent>
         </Tabs>
@@ -983,12 +1026,33 @@ export default function TourManagementPage() {
               <div>
                 <Label className="text-slate-300">Tour Link</Label>
                 <div className="flex space-x-2 mt-1">
-                  <Input 
-                    value={`${window.location.origin}/admin/dashboard/tours/${tourId}`}
+                  <SurfaceInput
+                    value={shareUrl}
                     readOnly
-                    className="bg-slate-700 border-slate-600 text-white"
+                    className="surface-entry bg-slate-700 border-slate-600 text-white"
                   />
-                  <Button variant="outline" className="border-slate-600 text-slate-300">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="border-slate-600 text-slate-300 shrink-0"
+                    onClick={async () => {
+                      const url =
+                        shareUrl ||
+                        (typeof window !== 'undefined'
+                          ? `${window.location.origin}/admin/dashboard/tours/${tourId}`
+                          : '')
+                      if (!url) {
+                        toast.error('Link not ready')
+                        return
+                      }
+                      try {
+                        await navigator.clipboard.writeText(url)
+                        toast.success('Link copied')
+                      } catch {
+                        toast.error('Could not copy link')
+                      }
+                    }}
+                  >
                     <Copy className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1026,16 +1090,41 @@ export default function TourManagementPage() {
                   <Label htmlFor="finances" className="text-slate-300">Financial Data</Label>
                 </div>
               </div>
-              <div className="flex space-x-2">
-                <Button className="flex-1 bg-blue-600 hover:bg-blue-700">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export as PDF
-                </Button>
-                <Button className="flex-1 bg-green-600 hover:bg-green-700">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export as CSV
-                </Button>
-              </div>
+              <TooltipProvider>
+                <div className="flex space-x-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex-1">
+                        <Button disabled className="w-full bg-blue-600/50 hover:bg-blue-600/50">
+                          <Download className="mr-2 h-4 w-4" />
+                          Export as PDF
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>Export coming soon</TooltipContent>
+                  </Tooltip>
+                  <Button
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                    onClick={() => {
+                      const lines = [`Tour: ${safeTour.name}`, `Status: ${safeTour.status}`, `Start: ${safeTour.start_date}`, `End: ${safeTour.end_date}`, '']
+                      lines.push('Events:')
+                      events.forEach((e: any) => lines.push(`  ${e.name || e.title || 'Event'} - ${e.event_date || e.start_at || ''}`))
+                      lines.push('', 'Team:')
+                      members.forEach((m: any) => lines.push(`  ${m.name} (${m.role})`))
+                      lines.push('', 'Vendors:')
+                      vendors.forEach((v: any) => lines.push(`  ${v.name} - ${v.service_type || v.type || 'Vendor'}`))
+                      const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
+                      const u = URL.createObjectURL(blob)
+                      const a = document.createElement('a'); a.href = u; a.download = `tour-${tourId}.csv`; a.click()
+                      URL.revokeObjectURL(u)
+                      setShowExportDialog(false)
+                    }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export as CSV
+                  </Button>
+                </div>
+              </TooltipProvider>
             </div>
           </DialogContent>
         </Dialog>

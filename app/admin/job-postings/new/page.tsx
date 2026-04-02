@@ -13,12 +13,12 @@ import Link from 'next/link'
 
 export default function NewJobPostingPage() {
   const { venue } = useCurrentVenue()
-  const venueId = venue?.id || 'mock-venue-id'
+  const venueId = venue?.id
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
 
   async function handleSubmit(data: CreateJobPostingData) {
-    if (isSubmitting) return
+    if (isSubmitting || !venueId) return
     setIsSubmitting(true)
 
     try {

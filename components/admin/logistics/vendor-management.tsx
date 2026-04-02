@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import { 
   Plus, 
   Edit, 
@@ -813,7 +814,7 @@ export function VendorManagement({
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  ${tents.reduce((sum, tent) => sum + (tent.currentPrice || 0), 0).toLocaleString()}
+                  {formatSafeCurrency(tents.reduce((sum, tent) => sum + (tent.currentPrice || 0), 0))}
                 </div>
                 <p className="text-xs text-gray-600">From occupied tents</p>
               </CardContent>

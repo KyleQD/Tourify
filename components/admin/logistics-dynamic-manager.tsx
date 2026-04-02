@@ -61,6 +61,8 @@ import {
   CheckCircle,
   XCircle
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import { useToast } from "@/hooks/use-toast"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -709,19 +711,19 @@ export function LogisticsDynamicManager({
                         <div>
                           <span className="text-slate-400">Due:</span>
                           <span className="ml-1 text-white">
-                            {item.dueDate ? new Date(item.dueDate).toLocaleDateString() : 'No due date'}
+                            {item.dueDate ? formatSafeDate(item.dueDate) : 'No due date'}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400">Budget:</span>
                           <span className="ml-1 text-white">
-                            ${item.budget?.toLocaleString() || '0'} / ${item.actualCost?.toLocaleString() || '0'}
+                            {formatSafeCurrency(item.budget || 0)} / {formatSafeCurrency(item.actualCost || 0)}
                           </span>
                         </div>
                         <div>
                           <span className="text-slate-400">Updated:</span>
                           <span className="ml-1 text-white">
-                            {new Date(item.lastUpdated).toLocaleDateString()}
+                            {formatSafeDate(item.lastUpdated)}
                           </span>
                         </div>
                       </div>

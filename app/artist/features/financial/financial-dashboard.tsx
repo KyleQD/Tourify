@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { DollarSign, TrendingUp, FileText, Receipt, Download } from "lucide-react"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface Transaction {
   id: string
@@ -101,7 +103,7 @@ export function FinancialDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-500">Total Revenue</p>
-                        <h3 className="text-2xl font-bold">${totalRevenue.toLocaleString()}</h3>
+                        <h3 className="text-2xl font-bold">{formatSafeCurrency(totalRevenue)}</h3>
                       </div>
                       <DollarSign className="w-8 h-8 text-green-500" />
                     </div>
@@ -112,7 +114,7 @@ export function FinancialDashboard() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm text-gray-500">Total Expenses</p>
-                        <h3 className="text-2xl font-bold">${totalExpenses.toLocaleString()}</h3>
+                        <h3 className="text-2xl font-bold">{formatSafeCurrency(totalExpenses)}</h3>
                       </div>
                       <DollarSign className="w-8 h-8 text-red-500" />
                     </div>
@@ -124,7 +126,7 @@ export function FinancialDashboard() {
                       <div>
                         <p className="text-sm text-gray-500">Net Income</p>
                         <h3 className="text-2xl font-bold">
-                          ${(totalRevenue - totalExpenses).toLocaleString()}
+                          {formatSafeCurrency(totalRevenue - totalExpenses)}
                         </h3>
                       </div>
                       <TrendingUp className="w-8 h-8 text-blue-500" />
@@ -171,7 +173,7 @@ export function FinancialDashboard() {
                         <div>
                           <h4 className="font-medium">{transaction.description}</h4>
                           <p className="text-sm text-gray-500">
-                            {new Date(transaction.date).toLocaleDateString()}
+                            {formatSafeDate(transaction.date)}
                           </p>
                         </div>
                         <div className="text-right">
@@ -204,7 +206,7 @@ export function FinancialDashboard() {
                         <div>
                           <h4 className="font-medium">Invoice #{invoice.number}</h4>
                           <p className="text-sm text-gray-500">
-                            Due: {new Date(invoice.dueDate).toLocaleDateString()}
+                            Due: {formatSafeDate(invoice.dueDate)}
                           </p>
                         </div>
                         <div className="text-right">

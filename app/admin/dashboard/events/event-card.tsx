@@ -3,8 +3,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Calendar, MapPin, Pencil, Trash2, Users } from "lucide-react"
-import Link from "next/link"
 import * as React from "react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 export interface Task {
   id: string
@@ -60,7 +61,7 @@ export function EventCard({ event, onEdit, onDelete, onView }: EventCardProps) {
       <CardContent className="space-y-3">
         <div className="flex items-center text-sm text-slate-400">
           <Calendar className="h-4 w-4 mr-2 text-purple-500" />
-          {new Date(event.date).toLocaleDateString()}
+          {formatSafeDate(event.date)}
         </div>
         <div className="flex items-center text-sm text-slate-400">
           <MapPin className="h-4 w-4 mr-2 text-purple-500" />
@@ -79,7 +80,7 @@ export function EventCard({ event, onEdit, onDelete, onView }: EventCardProps) {
         </div>
         <div className="flex items-center gap-2 mt-2">
           <Badge variant="outline" className="text-green-400 border-green-700 bg-green-900/20">
-            ${event.revenue.toLocaleString()}
+            {formatSafeCurrency(event.revenue)}
           </Badge>
         </div>
       </CardContent>

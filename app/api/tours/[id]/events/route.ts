@@ -1,188 +1,186 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const createEventSchema = z.object({
-  name: z.string().min(1, 'Event name is required'),
+  title: z.string().min(1, 'Event title is required'),
   description: z.string().optional(),
-  venue_name: z.string().min(1, 'Venue name is required'),
-  // Optional structured link to venue_profiles
   venue_id: z.string().uuid().optional(),
-  venue_address: z.string().optional(),
-  event_date: z.string().min(1, 'Event date is required'),
-  event_time: z.string().optional(),
-  doors_open: z.string().optional(),
-  duration_minutes: z.number().min(1).optional(),
-  status: z.enum(['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'postponed']).default('scheduled'),
-  capacity: z.number().min(1, 'Capacity must be at least 1'),
-  ticket_price: z.number().min(0).optional(),
-  vip_price: z.number().min(0).optional(),
-  expected_revenue: z.number().min(0).optional(),
-  venue_contact_name: z.string().optional(),
-  venue_contact_email: z.string().email().optional(),
-  venue_contact_phone: z.string().optional(),
-  sound_requirements: z.string().optional(),
-  lighting_requirements: z.string().optional(),
-  stage_requirements: z.string().optional(),
-  special_requirements: z.string().optional(),
-  load_in_time: z.string().optional(),
-  sound_check_time: z.string().optional()
+  start_at: z.string().min(1, 'Start date is required'),
+  end_at: z.string().optional(),
+  status: z.enum(['inquiry', 'hold', 'offer', 'confirmed', 'advancing', 'onsite', 'settled', 'archived']).default('inquiry'),
+  capacity: z.number().min(1).optional(),
+  settings: z.record(z.any()).optional(),
 })
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour Events API] GET request for tour events:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Events API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { supabase }) => {
+    try {
 
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Events API] User lacks admin permissions for viewing tour events')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
-    // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
       .from('tours')
-      .select('user_id')
+      .select('id, org_id')
       .eq('id', id)
       .single()
 
     if (tourError) {
-      console.error('[Tour Events API] Error fetching tour for ownership check:', tourError)
       if (tourError.code === 'PGRST116') {
         return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
       }
       return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
     }
 
-    if (tour.user_id !== user.id) {
-      console.log('[Tour Events API] User does not have access to this tour')
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Fetch events for this tour
-    const { data: events, error: eventsError } = await supabase
-      .from('events')
-      .select('*')
+    const { data: tourEvents, error: teError } = await supabase
+      .from('tour_events')
+      .select(`
+        id,
+        ordinal,
+        event_id,
+        events_v2 (
+          id,
+          org_id,
+          venue_id,
+          title,
+          slug,
+          status,
+          start_at,
+          end_at,
+          timezone,
+          capacity,
+          settings,
+          created_at,
+          updated_at
+        )
+      `)
       .eq('tour_id', id)
-      .order('event_date', { ascending: true })
+      .order('ordinal', { ascending: true })
 
-    if (eventsError) {
-      console.error('[Tour Events API] Error fetching events:', eventsError)
+    if (teError) {
+      console.error('[Tour Events API] Error fetching tour_events:', teError)
       return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
     }
 
-    console.log('[Tour Events API] Successfully fetched events:', events?.length || 0)
+    const events = (tourEvents || []).map((te: any) => ({
+      ...te.events_v2,
+      tour_event_id: te.id,
+      ordinal: te.ordinal,
+    }))
 
-    return NextResponse.json({ 
-      success: true, 
-      events: events || [],
-      message: 'Tour events fetched successfully' 
-    })
+      return NextResponse.json({
+        success: true,
+        events,
+        message: 'Tour events fetched successfully'
+      })
 
-  } catch (error) {
-    console.error('[Tour Events API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('[Tour Events API] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour Events API] POST request for tour event:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Events API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Events API] User lacks admin permissions for creating tour events')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
 
     const body = await request.json()
     const validatedData = createEventSchema.parse(body)
 
-    // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
       .from('tours')
-      .select('user_id, name as tour_name')
+      .select('id, org_id')
       .eq('id', id)
       .single()
 
     if (tourError) {
-      console.error('[Tour Events API] Error fetching tour for ownership check:', tourError)
       if (tourError.code === 'PGRST116') {
         return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
       }
       return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
     }
 
-    if (tour.user_id !== user.id) {
-      console.log('[Tour Events API] User does not have access to this tour')
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
+    const orgId = tour.org_id
+    const slugBase = validatedData.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .slice(0, 48) || 'event'
+    const slug = `${slugBase}-${Date.now().toString(36)}`
 
-    // Create the event
-    const eventData = {
-      ...validatedData,
-      tour_id: id,
-      user_id: user.id,
-      tickets_sold: 0,
-      actual_revenue: 0,
-      expenses: 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
+    const endAt = validatedData.end_at
+      ? new Date(validatedData.end_at).toISOString()
+      : new Date(new Date(validatedData.start_at).getTime() + 2 * 60 * 60 * 1000).toISOString()
 
     const { data: event, error: eventError } = await supabase
-      .from('events')
-      .insert(eventData)
+      .from('events_v2')
+      .insert({
+        org_id: orgId,
+        venue_id: validatedData.venue_id || null,
+        title: validatedData.title,
+        slug,
+        status: validatedData.status,
+        start_at: new Date(validatedData.start_at).toISOString(),
+        end_at: endAt,
+        capacity: validatedData.capacity || null,
+        settings: validatedData.settings || { description: validatedData.description || '' },
+        created_by: user.id,
+      })
       .select()
       .single()
 
     if (eventError) {
-      console.error('[Tour Events API] Error creating event:', eventError)
+      console.error('[Tour Events API] Error creating event in events_v2:', eventError)
       return NextResponse.json({ error: 'Failed to create event' }, { status: 500 })
     }
 
-    console.log('[Tour Events API] Successfully created event:', event.id)
+    const { data: existing } = await supabase
+      .from('tour_events')
+      .select('ordinal')
+      .eq('tour_id', id)
+      .order('ordinal', { ascending: false })
+      .limit(1)
 
-    return NextResponse.json({ 
-      success: true, 
-      event,
-      message: 'Event created successfully for tour' 
-    })
+    const nextOrdinal = existing && existing.length > 0 ? (existing[0].ordinal ?? 0) + 1 : 0
 
-  } catch (error) {
-    console.error('[Tour Events API] Error:', error)
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Validation error', 
-        details: error.errors 
-      }, { status: 400 })
+    const { error: linkError } = await supabase
+      .from('tour_events')
+      .insert({
+        tour_id: id,
+        event_id: event.id,
+        ordinal: nextOrdinal,
+      })
+
+    if (linkError) {
+      console.error('[Tour Events API] Error linking event to tour:', linkError)
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
-} 
+
+      return NextResponse.json({
+        success: true,
+        event,
+        message: 'Event created and linked to tour successfully'
+      })
+
+    } catch (error) {
+      console.error('[Tour Events API] Error:', error)
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({
+          error: 'Validation error',
+          details: error.errors
+        }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
+}

@@ -23,38 +23,26 @@ import {
   Search,
   ChevronDown,
   ChevronRight,
-  Zap,
   Activity,
   Award,
   Crown,
   Target,
   Clock,
-  MapPin,
-  Star,
-  TrendingUp,
-  Eye,
-  Heart,
   Sparkles,
-  Coffee,
-  Headphones,
   Radio,
   Mic,
-  Camera,
-  Volume2,
   Plus,
   Menu,
   X,
-  Handshake,
   Settings
 } from "lucide-react"
 import { Button } from "../../../../components/ui/button"
 import { Card, CardContent } from "../../../../components/ui/card"
 import { Badge } from "../../../../components/ui/badge"
 import { Input } from "../../../../components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "../../../../components/ui/avatar"
-import { Separator } from "../../../../components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
 import { Suspense } from "react"
+import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 
 interface NavItem {
   label: string
@@ -77,6 +65,12 @@ interface ActiveEvent {
   progress: number
 }
 
+function mapSidebarStatus(status: string): ActiveEvent["status"] {
+  if (status === "in_progress") return "live"
+  if (status === "confirmed") return "preparing"
+  return "upcoming"
+}
+
 const navItems: NavItem[] = [
   { 
     label: "Dashboard", 
@@ -88,8 +82,6 @@ const navItems: NavItem[] = [
     label: "Tours", 
     href: "/admin/dashboard/tours", 
     icon: Globe,
-    badge: "3",
-    badgeColor: "bg-purple-500/20 text-purple-400",
     children: [
       { label: "Active Tours", href: "/admin/dashboard/tours/active", icon: Activity },
       { label: "Planning", href: "/admin/dashboard/tours/planning", icon: Target },
@@ -100,8 +92,6 @@ const navItems: NavItem[] = [
     label: "Events", 
     href: "/admin/dashboard/events", 
     icon: Calendar,
-    badge: "12",
-    badgeColor: "bg-green-500/20 text-green-400",
     children: [
       { label: "Upcoming", href: "/admin/dashboard/events/upcoming", icon: Clock },
       { label: "Live Events", href: "/admin/dashboard/events/live", icon: Radio },
@@ -112,8 +102,6 @@ const navItems: NavItem[] = [
     label: "Artists", 
     href: "/admin/dashboard/artists", 
     icon: Music,
-    badge: "156",
-    badgeColor: "bg-pink-500/20 text-pink-400",
     children: [
       { label: "Active Artists", href: "/admin/dashboard/artists/active", icon: Mic },
       { label: "Bookings", href: "/admin/dashboard/artists/bookings", icon: Calendar },
@@ -124,8 +112,6 @@ const navItems: NavItem[] = [
     label: "Venues", 
     href: "/admin/dashboard/venues", 
     icon: Building,
-    badge: "89",
-    badgeColor: "bg-orange-500/20 text-orange-400",
     children: [
       { label: "Partner Venues", href: "/admin/dashboard/venues/partners", icon: Sparkles },
       { label: "Requests", href: "/admin/dashboard/venues/requests", icon: Bell },
@@ -136,36 +122,36 @@ const navItems: NavItem[] = [
     label: "Ticketing", 
     href: "/admin/dashboard/ticketing", 
     icon: Ticket,
-    badge: "18.7K",
-    badgeColor: "bg-blue-500/20 text-blue-400"
   },
   { 
     label: "Staff & Crew", 
     href: "/admin/dashboard/staff", 
     icon: Users,
-    badge: "28",
-    badgeColor: "bg-cyan-500/20 text-cyan-400"
   },
   { 
     label: "Logistics", 
     href: "/admin/dashboard/logistics", 
     icon: Truck,
-    badge: "Active",
-    badgeColor: "bg-yellow-500/20 text-yellow-400"
   },
   { 
     label: "Finances", 
     href: "/admin/dashboard/finances", 
     icon: DollarSign,
-    badge: "$485K",
-    badgeColor: "bg-green-500/20 text-green-400"
   },
   { 
     label: "Analytics", 
     href: "/admin/dashboard/analytics", 
     icon: BarChart3,
-    badge: "Reports",
-    badgeColor: "bg-cyan-500/20 text-cyan-400"
+  },
+  { 
+    label: "Communications", 
+    href: "/admin/dashboard/communications", 
+    icon: MessageSquare,
+  },
+  { 
+    label: "Roles & Permissions", 
+    href: "/admin/dashboard/rbac", 
+    icon: Shield,
   },
   { 
     label: "Settings", 
@@ -179,26 +165,28 @@ export function Sidebar() {
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const [activeEvents, setActiveEvents] = useState<ActiveEvent[]>([
-    {
-      id: '1',
-      title: 'Summer Music Festival',
-      date: 'Today',
-      status: 'live',
-      venue: 'Central Park',
-      artist: 'The Electric Waves',
-      progress: 75
-    },
-    {
-      id: '2',
-      title: 'Indie Rock Night',
-      date: 'Tomorrow',
-      status: 'preparing',
-      venue: 'Madison Square Garden',
-      artist: 'Acoustic Soul',
-      progress: 90
-    }
-  ])
+  const [activeEvents, setActiveEvents] = useState<ActiveEvent[]>([])
+
+  useEffect(() => {
+    fetch('/api/admin/events?status=active', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { events: [] })
+      .then(data => {
+        const mapped = (data.events || []).slice(0, 3).map((e: any) => {
+          const event = normalizeAdminEvent(e)
+          return {
+          id: e.id,
+          title: event.name || e.title || "Event",
+          date: formatSafeDate(event.event_date),
+          status: mapSidebarStatus(event.status),
+          venue: event.venue_name || '',
+          artist: '',
+          progress: event.capacity && event.capacity > 0 ? Math.round(((event.tickets_sold || 0) / event.capacity) * 100) : 0,
+        }
+      })
+        setActiveEvents(mapped)
+      })
+      .catch(() => {})
+  }, [])
 
   const toggleExpanded = (href: string) => {
     setExpandedItems(prev => 
@@ -234,13 +222,13 @@ export function Sidebar() {
   }
 
   return (
-    <div className={`flex flex-col h-screen bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
+    <div className={`flex flex-col h-screen bg-slate-950/90 backdrop-blur-xl border-r border-slate-700/30 transition-all duration-300 ${isCollapsed ? 'w-16' : 'w-64'}`}>
       {/* Header */}
       <div className="p-3 border-b border-slate-800/50">
         <div className="flex items-center justify-between">
           {!isCollapsed && (
             <div className="flex items-center space-x-2">
-              <div className="p-1.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+              <div className="p-1.5 bg-gradient-to-r from-purple-600 to-blue-600 rounded-sm shadow-lg shadow-purple-500/20">
                 <Crown className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -269,7 +257,7 @@ export function Sidebar() {
               placeholder="Search features..."
               value={searchQuery}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-              className="pl-10 h-9 bg-slate-900/50 border-slate-700/50 text-white placeholder:text-slate-400 text-sm"
+              className="pl-10 h-9 bg-slate-900/80 border-slate-700/40 backdrop-blur-sm text-white placeholder:text-slate-400 text-sm"
             />
           </div>
         </div>
@@ -288,9 +276,9 @@ export function Sidebar() {
                 <div className="relative">
                   <Link
                     href={item.href}
-                    className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
+                    className={`flex items-center justify-between p-2.5 rounded-sm transition-all duration-200 group text-sm ${
                       isActive 
-                        ? 'bg-gradient-to-r from-purple-600/20 to-blue-600/20 text-white border border-purple-500/30' 
+                        ? 'bg-gradient-to-r from-purple-600/20 to-blue-600/20 text-white border border-purple-500/30 backdrop-blur-sm shadow-sm shadow-purple-500/10' 
                         : 'hover:bg-slate-800/50 text-slate-300 hover:text-white'
                     }`}
                   >
@@ -345,9 +333,9 @@ export function Sidebar() {
                           <Link
                             key={child.href}
                             href={child.href}
-                            className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 text-sm ${
+                            className={`flex items-center space-x-2 p-2 rounded-sm transition-all duration-200 text-sm ${
                               isChildActive 
-                                ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30' 
+                                ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30 backdrop-blur-sm shadow-sm shadow-purple-500/10' 
                                 : 'hover:bg-slate-800/30 text-slate-400 hover:text-white'
                             }`}
                           >
@@ -369,7 +357,7 @@ export function Sidebar() {
       {!isCollapsed && (
         <div className="p-3 border-t border-slate-800/50">
           <Suspense fallback={<div className="h-20 bg-slate-800/30 rounded-lg animate-pulse" />}>
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/40 backdrop-blur-sm">
               <CardContent className="p-3">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-white flex items-center">
@@ -381,29 +369,33 @@ export function Sidebar() {
                   </Badge>
                 </div>
                 <div className="space-y-2">
-                  {activeEvents.slice(0, 1).map((event) => (
-                    <div key={event.id} className="bg-slate-800/50 rounded-lg p-2">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-xs font-medium text-white truncate">{event.title}</h4>
-                        <Badge className={`text-xs px-1.5 py-0.5 ${getStatusColor(event.status)}`}>
-                          {getStatusIcon(event.status)}
-                          <span className="ml-1 capitalize">{event.status}</span>
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-slate-400 mb-2">{event.venue}</p>
-                      <div className="flex items-center space-x-2">
-                        <div className="flex-1 bg-slate-800 rounded-full h-1">
-                          <div 
-                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-1 rounded-full transition-all duration-500"
-                            style={{ width: `${event.progress}%` }}
-                          />
+                  {activeEvents.length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center py-2">No upcoming events</p>
+                  ) : (
+                    activeEvents.slice(0, 1).map((event) => (
+                      <div key={event.id} className="bg-slate-800/50 rounded-sm p-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className="text-xs font-medium text-white truncate">{event.title}</h4>
+                          <Badge className={`text-xs px-1.5 py-0.5 ${getStatusColor(event.status)}`}>
+                            {getStatusIcon(event.status)}
+                            <span className="ml-1 capitalize">{event.status}</span>
+                          </Badge>
                         </div>
-                        <span className="text-xs text-slate-400">
-                          {event.progress}%
-                        </span>
+                        <p className="text-xs text-slate-400 mb-2">{event.venue}</p>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex-1 bg-slate-700/60 rounded-full h-1">
+                            <div 
+                              className="bg-gradient-to-r from-purple-500 to-blue-500 h-1 rounded-full transition-all duration-500"
+                              style={{ width: `${event.progress}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-400">
+                            {event.progress}%
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -417,7 +409,7 @@ export function Sidebar() {
           <div className="flex space-x-1.5">
             <Button
               size="sm"
-              className="flex-1 h-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 text-xs"
+              className="flex-1 h-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/20 text-white border-0 text-xs"
             >
               <Plus className="h-3 w-3 mr-1" />
               Create

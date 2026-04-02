@@ -13,6 +13,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Loader2, CheckCircle, FileUp, Calendar, Mail, Phone, User } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface OnboardingField {
   id: string
@@ -353,7 +354,7 @@ export default function OnboardingPage() {
                 {onboardingData.positionDetails.startDate && (
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4" />
-                    <span>Start: {new Date(onboardingData.positionDetails.startDate).toLocaleDateString()}</span>
+                    <span>Start: {formatSafeDate(onboardingData.positionDetails.startDate)}</span>
                   </div>
                 )}
                 {onboardingData.positionDetails.location && (

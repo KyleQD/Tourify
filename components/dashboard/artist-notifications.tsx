@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -51,110 +52,61 @@ interface Notification {
 }
 
 interface ArtistNotificationsProps {
+  userId?: string
   notifications?: Notification[]
   onMarkAsRead?: (id: string) => void
   onMarkAllAsRead?: () => void
   onDelete?: (id: string) => void
 }
 
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'event',
-    title: 'Event Update: The Grand Hall Show',
-    message: 'Your upcoming show at The Grand Hall has been moved to 8:30 PM. 15 fans have been notified.',
-    timestamp: '2024-01-15T10:30:00Z',
-    isRead: false,
-    priority: 'high',
-    actionUrl: '/artist/events',
-    actionText: 'View Event',
-    metadata: { eventId: 'event-123', count: 15 }
-  },
-  {
-    id: '2',
-    type: 'fan',
-    title: 'New Super Fan: Sarah Johnson',
-    message: 'Sarah Johnson has become your 50th super fan! They\'ve engaged with 90% of your content this month.',
-    timestamp: '2024-01-15T09:15:00Z',
-    isRead: false,
-    priority: 'medium',
-    actionUrl: '/artist/community',
-    actionText: 'View Profile',
-    metadata: { userId: 'user-456', percentage: 90 }
-  },
-  {
-    id: '3',
-    type: 'content',
-    title: 'Content Milestone: "Midnight Dreams"',
-    message: 'Your track "Midnight Dreams" just reached 10,000 plays! This is your fastest-growing track.',
-    timestamp: '2024-01-15T08:45:00Z',
-    isRead: false,
-    priority: 'medium',
-    actionUrl: '/artist/content',
-    actionText: 'View Analytics',
-    metadata: { contentId: 'track-789', count: 10000 }
-  },
-  {
-    id: '4',
-    type: 'payment',
-    title: 'Payment Received: $1,250',
-    message: 'Payment for your show at Blue Note Jazz Club has been processed. Funds will be available in 2-3 business days.',
-    timestamp: '2024-01-15T07:30:00Z',
-    isRead: true,
-    priority: 'high',
-    actionUrl: '/artist/business',
-    actionText: 'View Details',
-    metadata: { amount: 1250 }
-  },
-  {
-    id: '5',
-    type: 'collaboration',
-    title: 'Collaboration Request: DJ Max',
-    message: 'DJ Max wants to collaborate on a new track. They have 25K followers and similar musical style.',
-    timestamp: '2024-01-15T06:20:00Z',
-    isRead: false,
-    priority: 'medium',
-    actionUrl: '/artist/community',
-    actionText: 'Respond',
-    metadata: { userId: 'user-789', count: 25000 }
-  },
-  {
-    id: '6',
-    type: 'milestone',
-    title: 'Monthly Goal Achieved!',
-    message: 'Congratulations! You\'ve reached your monthly goal of 5,000 new listeners. You\'re 20% ahead of schedule.',
-    timestamp: '2024-01-15T05:10:00Z',
-    isRead: true,
-    priority: 'low',
-    actionUrl: '/artist/analytics',
-    actionText: 'View Stats',
-    metadata: { count: 5000, percentage: 20 }
-  },
-  {
-    id: '7',
-    type: 'system',
-    title: 'Profile Optimization Complete',
-    message: 'Your artist profile has been optimized for better discoverability. You\'re now appearing in 15% more searches.',
-    timestamp: '2024-01-15T04:30:00Z',
-    isRead: true,
-    priority: 'low',
-    actionUrl: '/artist/profile',
-    actionText: 'View Profile',
-    metadata: { percentage: 15 }
-  },
-  {
-    id: '8',
-    type: 'fan',
-    title: 'Fan Engagement Spike',
-    message: 'Your latest post received 3x more engagement than usual. Consider posting similar content.',
-    timestamp: '2024-01-15T03:45:00Z',
-    isRead: false,
-    priority: 'medium',
-    actionUrl: '/artist/feed',
-    actionText: 'View Post',
-    metadata: { count: 3 }
+function mapDbPriority(p: string | null | undefined): Notification['priority'] {
+  if (p === 'urgent' || p === 'high') return 'high'
+  if (p === 'low') return 'low'
+  return 'medium'
+}
+
+function mapDbType(t: string): Notification['type'] {
+  const x = t.toLowerCase()
+  if (x.includes('event') || x.includes('booking')) return 'event'
+  if (x.includes('collaboration') || x.includes('follow') || x.includes('mention')) return 'collaboration'
+  if (x.includes('payment') || x.includes('payout')) return 'payment'
+  if (x.includes('post') || x.includes('content') || x.includes('like') || x.includes('comment')) return 'content'
+  if (x.includes('message')) return 'fan'
+  if (x.includes('milestone') || x.includes('achievement')) return 'milestone'
+  return 'system'
+}
+
+function rowToNotification(row: {
+  id: string
+  type: string
+  title: string
+  content: string
+  metadata?: Record<string, unknown> | null
+  is_read?: boolean | null
+  priority?: string | null
+  created_at?: string
+}): Notification {
+  const meta = row.metadata && typeof row.metadata === 'object' ? row.metadata : {}
+  return {
+    id: row.id,
+    type: mapDbType(row.type),
+    title: row.title,
+    message: row.content,
+    timestamp: row.created_at ?? new Date().toISOString(),
+    isRead: Boolean(row.is_read),
+    priority: mapDbPriority(row.priority),
+    actionUrl: typeof meta.action_url === 'string' ? meta.action_url : undefined,
+    actionText: typeof meta.action_text === 'string' ? meta.action_text : undefined,
+    metadata: {
+      eventId: typeof meta.event_id === 'string' ? meta.event_id : undefined,
+      userId: typeof meta.user_id === 'string' ? meta.user_id : undefined,
+      contentId: typeof meta.content_id === 'string' ? meta.content_id : undefined,
+      amount: typeof meta.amount === 'number' ? meta.amount : undefined,
+      count: typeof meta.count === 'number' ? meta.count : undefined,
+      percentage: typeof meta.percentage === 'number' ? meta.percentage : undefined,
+    },
   }
-]
+}
 
 const getTypeIcon = (type: Notification['type']) => {
   switch (type) {
@@ -202,13 +154,45 @@ const formatTimestamp = (timestamp: string) => {
 }
 
 export function ArtistNotifications({ 
-  notifications = mockNotifications,
+  userId,
+  notifications: controlledNotifications,
   onMarkAsRead,
   onMarkAllAsRead,
   onDelete
 }: ArtistNotificationsProps) {
   const [filter, setFilter] = useState<'all' | 'unread' | 'high'>('all')
   const [showSettings, setShowSettings] = useState(false)
+  const [internalList, setInternalList] = useState<Notification[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+
+  const isControlled = controlledNotifications !== undefined
+  const notifications = isControlled ? controlledNotifications : internalList
+
+  const loadNotifications = useCallback(async () => {
+    if (!userId || isControlled) return
+    setIsLoading(true)
+    try {
+      const supabase = createClientComponentClient() as any
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, type, title, content, metadata, is_read, priority, created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (error) throw error
+      setInternalList((data ?? []).map(rowToNotification))
+    } catch (e) {
+      console.error('[ArtistNotifications] load failed', e)
+      setInternalList([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [userId, isControlled])
+
+  useEffect(() => {
+    loadNotifications()
+  }, [loadNotifications])
 
   const unreadCount = notifications.filter(n => !n.isRead).length
   const highPriorityCount = notifications.filter(n => n.priority === 'high' && !n.isRead).length
@@ -219,16 +203,60 @@ export function ArtistNotifications({
     return true
   })
 
-  const handleMarkAsRead = (id: string) => {
-    onMarkAsRead?.(id)
+  const handleMarkAsRead = async (id: string) => {
+    if (onMarkAsRead) {
+      onMarkAsRead(id)
+      return
+    }
+    if (!userId || isControlled) return
+    try {
+      const supabase = createClientComponentClient() as any
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('user_id', userId)
+      if (error) throw error
+      setInternalList((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
+    } catch (e) {
+      console.error('[ArtistNotifications] mark read failed', e)
+    }
   }
 
-  const handleMarkAllAsRead = () => {
-    onMarkAllAsRead?.()
+  const handleMarkAllAsRead = async () => {
+    if (onMarkAllAsRead) {
+      onMarkAllAsRead()
+      return
+    }
+    if (!userId || isControlled) return
+    try {
+      const supabase = createClientComponentClient() as any
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('is_read', false)
+      if (error) throw error
+      setInternalList((prev) => prev.map((n) => ({ ...n, isRead: true })))
+    } catch (e) {
+      console.error('[ArtistNotifications] mark all read failed', e)
+    }
   }
 
-  const handleDelete = (id: string) => {
-    onDelete?.(id)
+  const handleDelete = async (id: string) => {
+    if (onDelete) {
+      onDelete(id)
+      return
+    }
+    if (!userId || isControlled) return
+    try {
+      const supabase = createClientComponentClient() as any
+      const { error } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId)
+      if (error) throw error
+      setInternalList((prev) => prev.filter((n) => n.id !== id))
+    } catch (e) {
+      console.error('[ArtistNotifications] delete failed', e)
+    }
   }
 
   return (

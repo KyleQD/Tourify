@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { ArrowRight, Calendar, Globe, Ticket } from "lucide-react"
 import Link from "next/link"
+import { isUpcomingAdminEvent, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 
 interface DashboardStats {
   totalTours: number
@@ -81,11 +82,12 @@ export function ToursWidget({ tours, stats, isLoading }: { tours: any[]; stats?:
 }
 
 export function EventsWidget({ events, stats, isLoading }: { events: any[]; stats?: Partial<DashboardStats> | null; isLoading?: boolean }) {
-  const upcoming = (stats?.upcomingEvents ?? 0) || countUpcoming(events)
-  const ticketsSold = stats?.ticketsSold ?? safeSum(events?.map(e => e.ticketsSold ?? e.tickets_sold ?? 0))
-  const capacity = stats?.totalCapacity ?? safeSum(events?.map(e => e.capacity ?? 0))
+  const normalizedEvents = (events || []).map((event: any) => normalizeAdminEvent(event))
+  const upcoming = (stats?.upcomingEvents ?? 0) || countUpcoming(normalizedEvents)
+  const ticketsSold = stats?.ticketsSold ?? safeSum(normalizedEvents?.map((event) => event.tickets_sold ?? 0))
+  const capacity = stats?.totalCapacity ?? safeSum(normalizedEvents?.map((event) => event.capacity ?? 0))
   const utilization = capacity > 0 ? Math.round((ticketsSold / capacity) * 100) : 0
-  const spark = buildEventsSparkline(events)
+  const spark = buildEventsSparkline(normalizedEvents)
 
   return (
     <FrostedCard>
@@ -179,12 +181,7 @@ function countByStatus(items: any[], statuses: string[]) {
 }
 function countUpcoming(events: any[]) {
   if (!events?.length) return 0
-  const now = new Date()
-  return events.filter(e => {
-    const d = e.eventDate ?? e.date ?? e.event_date
-    const dt = d ? new Date(d) : null
-    return dt && dt > now
-  }).length
+  return events.filter((event) => isUpcomingAdminEvent(event)).length
 }
 function buildEventsSparkline(events: any[]) {
   const days = 7

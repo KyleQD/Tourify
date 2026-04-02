@@ -725,7 +725,7 @@ export function ProfileSettingsOptimized() {
                   {lastSaved && !form.formState.isDirty && saveStatus === 'idle' && (
                     <span className="text-green-600 flex items-center gap-1">
                       <CheckCircle2 className="h-4 w-4" />
-                      Last saved: {lastSaved.toLocaleTimeString()}
+                      Last saved: {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastSaved)}
                     </span>
                   )}
                   {saveStatus === 'success' && (

@@ -24,6 +24,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import { type TicketCampaign, type PromoCode, CAMPAIGN_TYPES } from '@/types/ticketing'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface CampaignManagerProps {
   campaigns: TicketCampaign[]
@@ -46,7 +47,7 @@ export function CampaignManager({ campaigns, promoCodes, onRefresh }: CampaignMa
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString()
+    return formatSafeDate(dateString)
   }
 
   const handleCopyCode = async (code: string) => {

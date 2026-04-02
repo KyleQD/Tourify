@@ -13,6 +13,7 @@ import { CheckCircle2, Clock, Download, Search, UserPlus, X, QrCode } from "luci
 import { useToast } from "@/hooks/use-toast"
 import QRCodeScanner from "./qr-code-scanner"
 import { useRouter } from "next/navigation"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
 interface Attendee {
   id: string
@@ -235,7 +236,7 @@ export default function AttendanceTracker({ eventId, eventTitle, eventDate, capa
         <div>
           <h2 className="text-2xl font-bold">{eventTitle} Attendance</h2>
           <p className="text-muted-foreground">
-            {eventDate.toLocaleDateString()} • {totalAttendees} attendees
+            {formatSafeDate(eventDate.toISOString())} • {totalAttendees} attendees
           </p>
         </div>
 
@@ -410,7 +411,7 @@ export default function AttendanceTracker({ eventId, eventTitle, eventDate, capa
                           </div>
                           {attendee.checkInTime && (
                             <div className="text-xs text-muted-foreground mt-1">
-                              {new Date(attendee.checkInTime).toLocaleTimeString()}
+                              {formatSafeTime(attendee.checkInTime)}
                             </div>
                           )}
                         </TableCell>

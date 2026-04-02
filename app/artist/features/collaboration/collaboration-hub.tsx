@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
 import { MessageSquare, Users, FileText, Calendar as CalendarIcon, Share2, Download } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface Project {
   id: string
@@ -144,7 +145,7 @@ export function CollaborationHub() {
                             </Badge>
                             {project.dueDate && (
                               <span className="text-sm text-gray-500">
-                                Due: {new Date(project.dueDate).toLocaleDateString()}
+                                Due: {formatSafeDate(project.dueDate)}
                               </span>
                             )}
                           </div>
@@ -249,7 +250,7 @@ export function CollaborationHub() {
                             <div>
                               <h4 className="font-medium">{project.title}</h4>
                               <p className="text-sm text-gray-500">
-                                Due: {new Date(project.dueDate!).toLocaleDateString()}
+                                Due: {formatSafeDate(project.dueDate!)}
                               </p>
                             </div>
                             <Badge variant="outline">
@@ -280,7 +281,7 @@ export function CollaborationHub() {
                           <div>
                             <h4 className="font-medium">{file.name}</h4>
                             <p className="text-sm text-gray-500">
-                              {new Date(file.uploadedAt).toLocaleDateString()} • {file.size} bytes
+                              {formatSafeDate(file.uploadedAt)} • {file.size} bytes
                             </p>
                           </div>
                         </div>

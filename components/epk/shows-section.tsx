@@ -13,6 +13,7 @@ import {
   Music, Users, TrendingUp, CheckCircle, AlertCircle, Upload, Share2
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface Show {
   id: string
@@ -83,12 +84,7 @@ function ShowCard({ show, onEdit, onRemove, onToggleFeatured, onShare }: {
             <div className="space-y-2 text-gray-400">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
-                <span>{showDate.toLocaleDateString('en-US', { 
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}</span>
+                <span>{formatSafeDate(showDate.toISOString())}</span>
               </div>
               
               <div className="flex items-center gap-2">
@@ -431,7 +427,7 @@ export default function ShowsSection({ shows, onShowsChange }: ShowsSectionProps
   const handleShareShow = (show: Show) => {
     const shareData = {
       title: `${show.venue} - ${show.location}`,
-      text: `Check out this show: ${show.venue} in ${show.location} on ${new Date(show.date).toLocaleDateString()}`,
+      text: `Check out this show: ${show.venue} in ${show.location} on ${formatSafeDate(show.date)}`,
       url: show.ticketUrl || window.location.href
     }
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 function createServiceRoleClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -18,6 +19,7 @@ function createServiceRoleClient() {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
     const supabase = createServiceRoleClient()
     const userId = 'bce15693-d2bf-42db-a2f2-68239568fafe'

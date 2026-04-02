@@ -5,6 +5,20 @@ import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useAuth } from '@/contexts/auth-context'
+import {
+  normalizeGenreList,
+  normalizeSocialLinksForStorage,
+  validateSocialField
+} from '@/lib/artist/profile-social-validation'
+
+/** Public-facing identity row (profiles) — hero avatar, banner, location on /artist/[username] */
+export interface PublicProfileIdentity {
+  avatar_url: string | null
+  cover_image: string | null
+  username: string | null
+  location: string | null
+  website: string | null
+}
 
 interface ArtistProfile {
   id: string
@@ -44,6 +58,8 @@ interface ArtistContextType {
   // User & Profile
   user: any | null
   profile: ArtistProfile | null
+  /** Synced from `profiles` for public hero (avatar, banner, location) */
+  publicProfile: PublicProfileIdentity | null
   isLoading: boolean
   
   // Computed values
@@ -56,6 +72,7 @@ interface ArtistContextType {
   // Actions
   updateProfile: (data: Partial<ArtistProfile>) => Promise<boolean>
   refreshStats: () => Promise<void>
+  refreshPublicProfile: () => Promise<void>
   syncArtistName: () => Promise<boolean>
   updateDetailedProfile: (profileData: any) => Promise<{ success: boolean; errors?: string[] }>
   
@@ -77,6 +94,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
   const { user: authUser, loading: authLoading } = useAuth()
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<ArtistProfile | null>(null)
+  const [publicProfile, setPublicProfile] = useState<PublicProfileIdentity | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState<ArtistStats>({
     totalRevenue: 0,
@@ -150,9 +168,37 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
       // User is not authenticated
       setUser(null)
       setProfile(null)
+      setPublicProfile(null)
       setIsLoading(false)
     }
   }, [authUser, authLoading])
+
+  const loadPublicProfileIdentity = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('avatar_url, cover_image, username, location, website')
+      .eq('id', userId)
+      .single()
+
+    if (error || !data) {
+      setPublicProfile(null)
+      return
+    }
+
+    const row = data as Record<string, unknown>
+    setPublicProfile({
+      avatar_url: (row.avatar_url as string | null) ?? null,
+      cover_image: (row.cover_image as string | null) ?? null,
+      username: (row.username as string | null) ?? null,
+      location: (row.location as string | null) ?? null,
+      website: (row.website as string | null) ?? null
+    })
+  }
+
+  const refreshPublicProfile = async () => {
+    if (!user?.id) return
+    await loadPublicProfileIdentity(user.id)
+  }
 
   const initializeUser = async () => {
     try {
@@ -178,7 +224,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
 
         if (authUser) {
           // Try to get artist profile
-          const loadedProfile = await loadArtistProfile(authUser.id)
+          await loadArtistProfile(authUser.id)
           await loadArtistStats(authUser.id)
           
           // Ensure artist account exists in multi-account system
@@ -248,6 +294,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         }
       } else if (data) {
         setProfile(data)
+        await loadPublicProfileIdentity(userId)
         
         // Check if artist_name is missing and try to sync it
         if (!data.artist_name) {
@@ -262,6 +309,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error loading artist profile:', error)
       setProfile(null)
+      setPublicProfile(null)
       return null
     }
   }
@@ -332,6 +380,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
       if (newProfile) {
         console.log('Artist profile created/loaded successfully:', newProfile)
         setProfile(newProfile)
+        await loadPublicProfileIdentity(userId)
         return newProfile
       }
       
@@ -636,60 +685,49 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
 
     try {
       const errors: string[] = []
-      
-      // Map form fields to database fields
+
       const artistName = profileData.stage_name || profileData.artist_name
-      const bio = profileData.bio
-      const genre = profileData.genre
-      const location = profileData.location
-      const website = profileData.website
-      const instagram = profileData.instagram
-      const twitter = profileData.twitter
-      const youtube = profileData.youtube
-      const spotify = profileData.spotify
-      
-      // Validate required fields
+      const bio = profileData.bio ?? ''
+      const genres = normalizeGenreList(
+        profileData.genres ?? (profileData.genre ? [profileData.genre] : [])
+      )
+      const location = typeof profileData.location === 'string' ? profileData.location.trim() : ''
+      const normalizedSocial = normalizeSocialLinksForStorage({
+        website: profileData.website ?? '',
+        instagram: profileData.instagram ?? '',
+        twitter: profileData.twitter ?? '',
+        youtube: profileData.youtube ?? '',
+        spotify: profileData.spotify ?? ''
+      })
+
       if (!artistName?.trim()) {
         errors.push('Artist name is required')
       }
 
-      // Validate email format if provided
       if (profileData.contact_email && !isValidEmail(profileData.contact_email)) {
         errors.push('Invalid email format')
       }
 
-      // Validate URLs if provided
-      const urlFields = [
-        { field: 'website', value: website },
-        { field: 'instagram', value: instagram },
-        { field: 'twitter', value: twitter },
-        { field: 'youtube', value: youtube },
-        { field: 'spotify', value: spotify }
-      ]
-      
-      for (const { field, value } of urlFields) {
-        if (value && value.trim() && !isValidUrl(value)) {
-          errors.push(`Invalid ${field} URL format`)
-        }
+      for (const field of ['website', 'instagram', 'twitter', 'youtube', 'spotify'] as const) {
+        const err = validateSocialField(field, profileData[field] ?? '')
+        if (err) errors.push(err)
       }
 
       if (errors.length > 0) {
         return { success: false, errors }
       }
 
-      // Prepare social links object
       const socialLinks = {
-        website: website || '',
-        instagram: instagram || '',
-        twitter: twitter || '',
-        youtube: youtube || '',
-        spotify: spotify || ''
+        website: normalizedSocial.website,
+        instagram: normalizedSocial.instagram,
+        twitter: normalizedSocial.twitter,
+        youtube: normalizedSocial.youtube,
+        spotify: normalizedSocial.spotify
       }
 
-      // Prepare settings object with professional and preferences data
       const settings = {
         professional: {
-          location: location || '',
+          location,
           contact_email: profileData.contact_email || '',
           phone: profileData.phone || '',
           booking_rate: profileData.booking_rate || '',
@@ -711,15 +749,14 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Update artist profile
       const { error: profileError } = await supabase
         .from('artist_profiles')
         .update({
           artist_name: artistName,
           bio: bio || '',
-          genres: genre ? [genre] : [],
+          genres,
           social_links: socialLinks,
-          settings: settings,
+          settings,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
@@ -729,16 +766,41 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         throw profileError
       }
 
-      // Update local state
-      setProfile(prev => prev ? {
-        ...prev,
-        artist_name: artistName,
-        bio: bio || '',
-        genres: genre ? [genre] : [],
-        social_links: socialLinks,
-        settings: settings,
-        updated_at: new Date().toISOString()
-      } : prev)
+      const websiteForProfiles = socialLinks.website || null
+      const bioForProfiles = bio || null
+
+      const { error: identityError } = await supabase
+        .from('profiles')
+        .update({
+          location: location || null,
+          website: websiteForProfiles,
+          bio: bioForProfiles,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (identityError) {
+        console.error('Error syncing profiles row:', identityError)
+        return {
+          success: false,
+          errors: ['Artist profile saved, but public profile fields could not be synced. Try again or contact support.']
+        }
+      }
+
+      setProfile(prev =>
+        prev
+          ? {
+              ...prev,
+              artist_name: artistName,
+              bio: bio || '',
+              genres,
+              social_links: socialLinks,
+              settings,
+              updated_at: new Date().toISOString()
+            }
+          : prev
+      )
+      await loadPublicProfileIdentity(user.id)
 
       return { success: true }
     } catch (error) {
@@ -752,42 +814,17 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     return emailRegex.test(email)
   }
 
-  const isValidUrl = (url: string): boolean => {
-    if (!url || !url.trim()) return true // Empty URLs are valid
-    
-    try {
-      // Handle URLs without protocol
-      const urlToTest = url.startsWith('http://') || url.startsWith('https://') 
-        ? url 
-        : `https://${url}`
-      
-      const parsedUrl = new URL(urlToTest)
-      
-      // Basic validation: must have a domain
-      if (!parsedUrl.hostname || parsedUrl.hostname.length < 3) {
-        return false
-      }
-      
-      // Must have at least one dot in the hostname (for TLD)
-      if (!parsedUrl.hostname.includes('.')) {
-        return false
-      }
-      
-      return true
-    } catch {
-      return false
-    }
-  }
-
   const contextValue: ArtistContextType = {
     user,
     profile,
+    publicProfile,
     isLoading,
     displayName,
     avatarInitial,
     stats,
     updateProfile,
     refreshStats,
+    refreshPublicProfile,
     syncArtistName,
     updateDetailedProfile,
     createContent,

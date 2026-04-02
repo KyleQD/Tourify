@@ -21,6 +21,8 @@ import {
   MoreHorizontal
 } from "lucide-react"
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth, addMonths, subMonths } from "date-fns"
+import { mapAdminEventStatus, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface CalendarEvent {
   id: string
@@ -44,6 +46,15 @@ interface CalendarDashboardProps {
   className?: string
 }
 
+function mapCalendarStatus(status?: string): CalendarEvent["status"] {
+  const normalizedStatus = mapAdminEventStatus(status)
+  if (normalizedStatus === "scheduled") return "scheduled"
+  if (normalizedStatus === "confirmed" || normalizedStatus === "in_progress") return "confirmed"
+  if (normalizedStatus === "completed") return "completed"
+  if (normalizedStatus === "cancelled") return "cancelled"
+  return "scheduled"
+}
+
 export default function CalendarDashboard({ 
   tours = [], 
   events = [], 
@@ -61,18 +72,19 @@ export default function CalendarDashboard({
 
     // Add tours
     tours.forEach(tour => {
-      if (tour.startDate) {
+      const startDate = tour.startDate || tour.start_date || tour.start_at
+      if (startDate) {
         calendarEvents.push({
           id: `tour-${tour.id}`,
-          title: tour.name,
+          title: tour.name || tour.title || 'Tour',
           type: 'tour',
-          date: new Date(tour.startDate),
-          startTime: tour.startTime,
-          endTime: tour.endTime,
+          date: new Date(startDate),
+          startTime: tour.startTime || tour.start_time,
+          endTime: tour.endTime || tour.end_time,
           location: tour.venues?.[0]?.name || 'TBD',
-          status: tour.status,
-          attendees: tour.totalCapacity,
-          revenue: tour.totalRevenue,
+          status: mapCalendarStatus(tour.status),
+          attendees: tour.totalCapacity || tour.total_capacity,
+          revenue: tour.totalRevenue || tour.total_revenue,
           color: 'bg-purple-500'
         })
       }
@@ -80,18 +92,19 @@ export default function CalendarDashboard({
 
     // Add events
     events.forEach(event => {
-      if (event.date) {
+      const normalizedEvent = normalizeAdminEvent(event)
+      if (normalizedEvent.event_date) {
         calendarEvents.push({
-          id: `event-${event.id}`,
-          title: event.name,
+          id: `event-${normalizedEvent.id}`,
+          title: normalizedEvent.name,
           type: 'event',
-          date: new Date(event.date),
-          startTime: event.startTime,
-          endTime: event.endTime,
-          location: event.venueName || 'TBD',
-          status: event.status,
-          attendees: event.capacity,
-          revenue: event.expectedRevenue,
+          date: new Date(normalizedEvent.event_date),
+          startTime: normalizedEvent.event_time || event.startTime || event.start_time,
+          endTime: event.endTime || event.end_time,
+          location: normalizedEvent.venue_name || event.venueName || 'TBD',
+          status: mapCalendarStatus(normalizedEvent.status),
+          attendees: normalizedEvent.capacity,
+          revenue: normalizedEvent.expected_revenue || event.expectedRevenue || event.actual_revenue,
           color: 'bg-blue-500'
         })
       }
@@ -350,7 +363,7 @@ export default function CalendarDashboard({
                               {event.revenue && (
                                 <span className="flex items-center space-x-1">
                                   <DollarSign className="h-3 w-3" />
-                                  <span>${event.revenue.toLocaleString()}</span>
+                                  <span>{formatSafeCurrency(event.revenue)}</span>
                                 </span>
                               )}
                             </div>

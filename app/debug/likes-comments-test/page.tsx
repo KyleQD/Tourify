@@ -385,7 +385,13 @@ export default function LikesCommentsTestPage() {
                                   <div className="flex items-center gap-2 mb-1">
                                     <span className="text-white font-medium text-sm">{comment.user.full_name}</span>
                                     <span className="text-gray-400 text-xs">
-                                      {new Date(comment.created_at).toLocaleString()}
+                                      {new Intl.DateTimeFormat("en-US", {
+                                        year: "numeric",
+                                        month: "numeric",
+                                        day: "numeric",
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      }).format(new Date(comment.created_at))}
                                     </span>
                                   </div>
                                   <p className="text-gray-300 text-sm">{comment.content}</p>

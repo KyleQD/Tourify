@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { CalendarIcon, ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { CreateEventModal } from "../../components/events/create-event-modal"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export default function CalendarPage() {
   const router = useRouter()
@@ -109,7 +110,7 @@ export default function CalendarPage() {
 
   // Format month and year
   const formatMonthYear = (date: Date) => {
-    return date.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+    return formatSafeDate(date.toISOString())
   }
 
   // Navigate to previous month
@@ -251,7 +252,7 @@ export default function CalendarPage() {
             <CardHeader>
               <CardTitle>
                 {selectedDate
-                  ? selectedDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
+                  ? formatSafeDate(selectedDate.toISOString())
                   : "Select a Date"}
               </CardTitle>
               {selectedDate && (
@@ -317,7 +318,7 @@ export default function CalendarPage() {
                     >
                       <div className="bg-gray-800 p-2 rounded-md text-center min-w-[40px]">
                         <div className="text-xs text-gray-400">
-                          {event.date.toLocaleDateString("en-US", { month: "short" })}
+                          {formatSafeDate(event.date.toISOString())}
                         </div>
                         <div className="text-lg font-bold">{event.date.getDate()}</div>
                       </div>

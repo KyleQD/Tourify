@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const updateVendorSchema = z.object({
   name: z.string().min(1).optional(),
@@ -19,15 +19,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; vendorId: string }> }
 ) {
-  try {
-    const { id, vendorId } = await params
-
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { user, supabase } = authResult
-
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  const { id, vendorId } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
 
     const { data: tour, error: tourError } = await supabase
       .from('tours')
@@ -54,25 +48,22 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch vendor' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, vendor })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+      return NextResponse.json({ success: true, vendor })
+    } catch (error) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; vendorId: string }> }
 ) {
-  try {
-    const { id, vendorId } = await params
-
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { user, supabase } = authResult
-
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  const { id, vendorId } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
 
     const body = await request.json()
     const validatedData = updateVendorSchema.parse(body)
@@ -103,28 +94,25 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update vendor' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, vendor: updated })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: true, vendor: updated })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; vendorId: string }> }
 ) {
-  try {
-    const { id, vendorId } = await params
-
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { user, supabase } = authResult
-
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  const { id, vendorId } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
 
     const { data: tour, error: tourError } = await supabase
       .from('tours')
@@ -147,8 +135,11 @@ export async function DELETE(
 
     if (deleteError) return NextResponse.json({ error: 'Failed to delete vendor' }, { status: 500 })
 
-    return NextResponse.json({ success: true, message: 'Vendor deleted successfully' })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+      return NextResponse.json({ success: true, message: 'Vendor deleted successfully' })
+    } catch (error) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }

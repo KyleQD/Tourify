@@ -168,7 +168,13 @@ export default function Notifications() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(notification.created_at).toLocaleString()}
+                        {new Intl.DateTimeFormat("en-US", {
+                          year: "numeric",
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }).format(new Date(notification.created_at))}
                       </p>
                     </div>
                     <div className="flex gap-2">

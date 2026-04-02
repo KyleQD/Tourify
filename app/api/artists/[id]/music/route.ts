@@ -47,12 +47,15 @@ export async function GET(
         lyrics,
         tags,
         is_featured,
+        is_pinned,
         stats,
         created_at,
         updated_at
       `)
       .eq('user_id', artistProfile.user_id)
       .eq('is_public', true)
+      .order('is_pinned', { ascending: false })
+      .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false })
 
     // Apply filters

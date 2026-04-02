@@ -25,6 +25,7 @@ import {
 import { useEvents } from "@/context/venue/events-context"
 import { useAuth } from "@/contexts/auth-context"
 import type { VenueEvent } from "@/app/venue/lib/hooks/use-venue-events"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface EventAnalyticsDashboardProps {
   eventId?: string
@@ -145,7 +146,7 @@ export function EventAnalyticsDashboard({ eventId, className }: EventAnalyticsDa
                   <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
                     <div className="flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
-                      {new Date(selectedEvent.startDate).toLocaleDateString()}
+                      {formatSafeDate(selectedEvent.startDate)}
                     </div>
                     <div className="flex items-center gap-1">
                       <MapPin className="h-3 w-3" />

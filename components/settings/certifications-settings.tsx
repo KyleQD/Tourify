@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { NeoDateInput } from '@/components/ui/neo-date-input'
 
 interface CertItem {
   id: string
@@ -84,11 +85,11 @@ export function CertificationsSettings() {
             </div>
             <div>
               <Label className="text-white">Issue Date</Label>
-              <Input type="date" value={form.issue_date || ''} onChange={e => setForm(prev => ({ ...prev, issue_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
+              <NeoDateInput value={form.issue_date || ''} onChange={e => setForm(prev => ({ ...prev, issue_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
             </div>
             <div>
               <Label className="text-white">Expiry Date</Label>
-              <Input type="date" value={form.expiry_date || ''} onChange={e => setForm(prev => ({ ...prev, expiry_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
+              <NeoDateInput value={form.expiry_date || ''} onChange={e => setForm(prev => ({ ...prev, expiry_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
             </div>
             <div>
               <Label className="text-white">Credential ID</Label>
@@ -132,11 +133,11 @@ export function CertificationsSettings() {
                   </div>
                   <div>
                     <Label className="text-white">Issue</Label>
-                    <Input type="date" defaultValue={item.issue_date || ''} onBlur={e => updateItem(item.id, { issue_date: e.target.value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
+                    <NeoDateInput defaultValue={item.issue_date || ''} onBlur={e => updateItem(item.id, { issue_date: e.target.value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
                   </div>
                   <div>
                     <Label className="text-white">Expiry</Label>
-                    <Input type="date" defaultValue={item.expiry_date || ''} onBlur={e => updateItem(item.id, { expiry_date: e.target.value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
+                    <NeoDateInput defaultValue={item.expiry_date || ''} onBlur={e => updateItem(item.id, { expiry_date: e.target.value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
                   </div>
                   <div>
                     <Label className="text-white">Credential ID</Label>

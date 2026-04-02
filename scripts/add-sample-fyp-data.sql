@@ -1,5 +1,5 @@
--- Add Sample Data for For You Page (FYP)
--- This script adds sample events, tours, and music to populate the FYP with real content
+-- Add Sample Data for News Page
+-- This script adds sample events, tours, and music to populate the News feed with real content
 
 -- First, let's add some sample events to the events table
 INSERT INTO events (
@@ -429,4 +429,4 @@ BEGIN
   END IF;
 END $$;
 
-SELECT 'Sample FYP data added successfully!' as result; 
+SELECT 'Sample news feed data added successfully!' as result; 

@@ -24,11 +24,14 @@ export async function GET(
     }
 
     // First, try to find the profile by username in the main profiles table
+    let lookupMethod: 'username' | 'custom_url' = 'username'
+
     let { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select(`
         id,
         username,
+        custom_url,
         full_name,
         bio,
         avatar_url,
@@ -45,18 +48,42 @@ export async function GET(
       .eq('username', username)
       .single()
 
-    // Check if profile was found in main profiles table
+    // If not found, try matching the custom_url instead
     if (profileError || !profile) {
-      console.log('[Profile Username API] Profile not found for username:', username)
-      return NextResponse.json(
-        { error: 'Profile not found' },
-        { status: 404 }
-      )
+      lookupMethod = 'custom_url'
+
+      ;({ data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select(`
+          id,
+          username,
+          custom_url,
+          full_name,
+          bio,
+          avatar_url,
+          cover_image,
+          location,
+          website,
+          is_verified,
+          followers_count,
+          following_count,
+          posts_count,
+          created_at,
+          updated_at
+        `)
+        .eq('custom_url', username)
+        .single())
+
+      if (profileError || !profile) {
+        console.log('[Profile Username API] Profile not found for param:', username)
+        return NextResponse.json(
+          { error: 'Profile not found' },
+          { status: 404 }
+        )
+      }
     }
 
-    console.log('[Profile Username API] Found profile in main profiles table:', profile.username)
-
-    console.log('[Profile Username API] Found profile:', profile.username)
+    console.log('[Profile Username API] Found profile via', lookupMethod, 'param:', username, '-> username:', profile.username)
 
     // Initialize stats with default values
     let stats = {

@@ -109,6 +109,7 @@ export function CreateEventForm({ tourId, onSuccess, onCancel }: CreateEventForm
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify({
           ...data,
           event_date: data.event_date.toISOString().split('T')[0],

@@ -18,6 +18,8 @@ import {
   CreditCard,
   FileText
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface ReviewPublishStepProps {
   tourData: {
@@ -140,7 +142,6 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
   const handlePublishTour = () => {
     if (validation.isValid) {
       // In a real app, this would save to the database
-      console.log("Publishing tour:", tourData)
       alert("Tour published successfully!")
     }
   }
@@ -214,12 +215,12 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   <span className="text-slate-400 text-sm">Start Date:</span>
-                  <span className="text-white">{tourData.startDate || "Not specified"}</span>
+                  <span className="text-white">{formatSafeDate(tourData.startDate)}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   <span className="text-slate-400 text-sm">End Date:</span>
-                  <span className="text-white">{tourData.endDate || "Not specified"}</span>
+                  <span className="text-white">{formatSafeDate(tourData.endDate)}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <MapPin className="w-4 h-4 text-slate-400" />
@@ -250,7 +251,7 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
                   <div className="text-sm text-slate-400">{stop.venue}</div>
                 </div>
                 <div className="text-sm text-slate-400">
-                  {new Date(stop.date).toLocaleDateString()}
+                  {formatSafeDate(stop.date)}
                 </div>
               </div>
             ))}
@@ -298,7 +299,7 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
                 <span className="text-slate-400 text-sm">Transportation:</span>
               </div>
               <p className="text-white">{tourData.transportation.type || "Not specified"}</p>
-              <p className="text-slate-400 text-sm">${tourData.transportation.cost.toLocaleString()}</p>
+              <p className="text-slate-400 text-sm">{formatSafeCurrency(tourData.transportation.cost)}</p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
@@ -306,7 +307,7 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
                 <span className="text-slate-400 text-sm">Accommodation:</span>
               </div>
               <p className="text-white">{tourData.accommodation.type || "Not specified"}</p>
-              <p className="text-slate-400 text-sm">${tourData.accommodation.cost.toLocaleString()}</p>
+              <p className="text-slate-400 text-sm">{formatSafeCurrency(tourData.accommodation.cost)}</p>
             </div>
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
@@ -314,7 +315,7 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
                 <span className="text-slate-400 text-sm">Equipment:</span>
               </div>
               <p className="text-white">{tourData.equipment.length} items</p>
-              <p className="text-slate-400 text-sm">${tourData.equipment.reduce((sum, item) => sum + item.cost, 0).toLocaleString()}</p>
+              <p className="text-slate-400 text-sm">{formatSafeCurrency(tourData.equipment.reduce((sum, item) => sum + item.cost, 0))}</p>
             </div>
           </div>
         </Card>
@@ -339,7 +340,7 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-4 h-4 text-green-400" />
                 <span className="text-slate-400">Potential Revenue:</span>
-                <span className="text-white">${totalTicketRevenue.toLocaleString()}</span>
+                <span className="text-white">{formatSafeCurrency(totalTicketRevenue)}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <CreditCard className="w-4 h-4 text-blue-400" />
@@ -349,26 +350,26 @@ export function ReviewPublishStep({ tourData }: ReviewPublishStepProps) {
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-4 h-4 text-blue-400" />
                 <span className="text-slate-400">Sponsor Contributions:</span>
-                <span className="text-white">${totalSponsorContributions.toLocaleString()}</span>
+                <span className="text-white">{formatSafeCurrency(totalSponsorContributions)}</span>
               </div>
             </div>
             <div className="space-y-3">
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-4 h-4 text-red-400" />
                 <span className="text-slate-400">Total Expenses:</span>
-                <span className="text-red-400">${totalExpenses.toLocaleString()}</span>
+                <span className="text-red-400">{formatSafeCurrency(totalExpenses)}</span>
               </div>
               <div className="flex items-center space-x-2">
                 <DollarSign className="w-4 h-4 text-orange-400" />
                 <span className="text-slate-400">Logistics Cost:</span>
-                <span className="text-orange-400">${totalLogisticsCost.toLocaleString()}</span>
+                <span className="text-orange-400">{formatSafeCurrency(totalLogisticsCost)}</span>
               </div>
               <div className="border-t border-slate-700 pt-3">
                 <div className="flex items-center space-x-2">
                   <DollarSign className="w-4 h-4 text-green-400" />
                   <span className="text-slate-400 font-medium">Net Profit/Loss:</span>
                   <span className={`font-semibold ${netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ${netProfit.toLocaleString()}
+                    {formatSafeCurrency(netProfit)}
                   </span>
                 </div>
               </div>

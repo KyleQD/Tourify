@@ -44,6 +44,7 @@ import { motion } from "framer-motion"
 import { WorkingNotificationBell } from "@/components/working-notification-bell"
 import { CompactAccountSwitcher } from "@/components/compact-account-switcher"
 import { EnhancedAccountSearch } from "@/components/search/enhanced-account-search"
+import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 
 interface UnifiedNavigationProps {
   variant?: 'header' | 'sidebar' | 'mobile'
@@ -94,17 +95,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
   // Smart home navigation based on current account
   const getHomeRoute = () => {
     if (!currentAccount) return '/dashboard'
-    
-    switch (currentAccount.account_type) {
-      case 'artist':
-        return '/artist'
-      case 'venue':
-        return '/venue'
-      case 'admin':
-        return '/admin/dashboard'
-      default:
-        return '/dashboard'
-    }
+    return getDashboardPathForAccountType(currentAccount.account_type)
   }
 
   // Enhanced navigation with preloading
@@ -136,22 +127,9 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
     try {
       // Switch account first
       await switchAccount(profileId, accountType)
-      
-      // Determine target route
-      let targetRoute = '/dashboard'
-      switch (accountType) {
-        case 'artist':
-          targetRoute = '/artist'
-          break
-        case 'venue':
-          targetRoute = '/venue'
-          break
-        case 'admin':
-          targetRoute = '/admin/dashboard'
-          break
-      }
-      
-      // Navigate to appropriate dashboard
+
+      const targetRoute = getDashboardPathForAccountType(accountType)
+
       await handleNavigation(targetRoute)
     } catch (error) {
       console.error('Account switch navigation error:', error)
@@ -164,7 +142,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
   const getNavigationItems = () => {
     const baseItems = [
       { name: 'Home', href: getHomeRoute(), icon: Home, onClick: handleHomeClick },
-      { name: 'For You', href: '/feed', icon: Sparkles },
+      { name: 'Pulse', href: '/feed', icon: Sparkles },
       { name: 'Discover', href: '/discover', icon: Search },
       { name: 'Jobs', href: '/jobs', icon: Briefcase },
     ]

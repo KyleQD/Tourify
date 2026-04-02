@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import {
   Share2,
   Globe,
@@ -415,7 +416,7 @@ export function MusicPromotionTools() {
                               </Badge>
                               <span className="text-xs text-gray-400 flex items-center">
                                 <Users className="h-3 w-3 mr-1" />
-                                {playlist.followers.toLocaleString()} followers
+                                {formatSafeNumber(playlist.followers)} followers
                               </span>
                             </div>
                           </div>

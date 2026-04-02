@@ -49,6 +49,30 @@ npm install
 npm run dev
 ```
 
+## 🌐 Demo Live Deployment (GitHub + Vercel)
+
+This repository uses a fresh GitHub Actions setup with two workflows:
+
+- `CI` (`.github/workflows/ci.yml`) for lint + build checks
+- `Deploy Demo` (`.github/workflows/deploy-demo.yml`) for live demo deployment
+
+### Required GitHub Secrets
+
+Set these repository secrets before triggering deployment:
+
+- `VERCEL_TOKEN`
+- `VERCEL_ORG_ID`
+- `VERCEL_PROJECT_ID`
+
+### Deployment Behavior
+
+- Pull requests to `main`: run CI checks only
+- Push/merge to `main`: run CI and deploy demo
+
+### Domain
+
+Point `demo.tourify.live` at the Vercel demo project in Vercel domain settings.
+
 ## 🔐 Authentication Flow
 
 ### Current Implementation

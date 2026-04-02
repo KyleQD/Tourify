@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { ChangeEvent } from 'react'
+import { formatSafeDate, formatSafeDateTime } from '@/lib/events/admin-event-normalization'
 
 interface BookingDetailsModalProps {
   booking: {
@@ -34,10 +35,10 @@ export function BookingDetailsModal({ booking, notes, onChangeNote, onClose }: B
         <div>
           <div className="font-bold text-lg mb-2">{booking.eventName}</div>
           <div>Organizer: {booking.organizer}</div>
-          <div>Date: {new Date(booking.date).toLocaleString()}</div>
+          <div>Date: {formatSafeDateTime(booking.date)}</div>
           <div>Attendees: {booking.attendees}</div>
           <div>Status: {booking.status}</div>
-          <div>Received: {new Date(booking.received).toLocaleDateString()}</div>
+          <div>Received: {formatSafeDate(booking.received)}</div>
           <div className="mt-4">
             <label className="block text-xs text-gray-400 mb-1">Internal Notes</label>
             <textarea

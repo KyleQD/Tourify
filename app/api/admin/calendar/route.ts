@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 // Helper function to get color based on priority and type
 function getEventColor(type: string, priority: string = 'medium'): string {
@@ -37,7 +38,6 @@ function getEventColor(type: string, priority: string = 'medium'): string {
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Admin Calendar API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -191,109 +191,7 @@ export async function GET(request: NextRequest) {
       console.error('[Admin Calendar API] Tasks fetch error:', error)
     }
 
-    // 4. Fetch Bookings (simplified query without joins)
-    try {
-      let bookingsQuery = supabase
-        .from('bookings')
-        .select(`
-          id,
-          event_id,
-          status,
-          ticket_quantity,
-          total_price,
-          created_at
-        `)
-        .gte('created_at', defaultStartDate)
-        .lte('created_at', defaultEndDate)
-
-      if (eventType && eventType === 'booking') {
-        // No additional filter needed
-      }
-
-      if (status) {
-        bookingsQuery = bookingsQuery.eq('status', status)
-      }
-
-      const { data: bookings, error: bookingsError } = await bookingsQuery
-
-      if (bookingsError) {
-        console.error('[Admin Calendar API] Bookings query error:', bookingsError)
-      } else {
-        bookings?.forEach((booking: any) => {
-          const priority = booking.total_price && booking.total_price > 1000 ? 'high' : 'medium'
-          const color = getEventColor('booking', priority)
-
-          calendarEvents.push({
-            id: `booking-${booking.id}`,
-            title: `Booking #${booking.id.slice(0, 8)}`,
-            type: 'booking',
-            start: new Date(booking.created_at),
-            end: new Date(booking.created_at),
-            color,
-            description: `${booking.ticket_quantity} tickets - $${booking.total_price}`,
-            status: booking.status || 'pending',
-            priority,
-            originalData: booking
-          })
-        })
-      }
-    } catch (error) {
-      console.error('[Admin Calendar API] Bookings fetch error:', error)
-    }
-
-    // 5. Fetch Payments (from event_expenses)
-    try {
-      let paymentsQuery = supabase
-        .from('event_expenses')
-        .select(`
-          id,
-          event_id,
-          category,
-          description,
-          amount,
-          expense_date,
-          status,
-          created_at
-        `)
-        .gte('expense_date', defaultStartDate)
-        .lte('expense_date', defaultEndDate)
-
-      if (eventType && eventType === 'payment') {
-        // No additional filter needed
-      }
-
-      if (status) {
-        paymentsQuery = paymentsQuery.eq('status', status)
-      }
-
-      const { data: payments, error: paymentsError } = await paymentsQuery
-
-      if (paymentsError) {
-        console.error('[Admin Calendar API] Payments query error:', paymentsError)
-      } else {
-        payments?.forEach((payment: any) => {
-          const priority = payment.amount && payment.amount > 5000 ? 'high' : 'medium'
-          const color = getEventColor('payment', priority)
-
-          calendarEvents.push({
-            id: `payment-${payment.id}`,
-            title: `Payment: ${payment.description}`,
-            type: 'payment',
-            start: new Date(payment.expense_date),
-            end: new Date(payment.expense_date),
-            color,
-            description: `${payment.category} - $${payment.amount}`,
-            status: payment.status || 'pending',
-            priority,
-            originalData: payment
-          })
-        })
-      }
-    } catch (error) {
-      console.error('[Admin Calendar API] Payments fetch error:', error)
-    }
-
-    // 6. Fetch Logistics (from staff_shifts)
+    // 4. Fetch Logistics (from staff_shifts)
     try {
       let logisticsQuery = supabase
         .from('staff_shifts')
@@ -331,149 +229,8 @@ export async function GET(request: NextRequest) {
       console.warn('[Admin Calendar API] staff_shifts missing or error, skipping')
     }
 
-    // 7. Fetch Deadlines (from event_notes - simplified)
-    try {
-      let deadlinesQuery = supabase
-        .from('event_notes')
-        .select(`
-          id,
-          event_id,
-          note_type,
-          title,
-          content,
-          priority,
-          created_at
-        `)
-        .eq('note_type', 'urgent')
-        .gte('created_at', defaultStartDate)
-        .lte('created_at', defaultEndDate)
-
-      if (eventType && eventType === 'deadline') {
-        // No additional filter needed
-      }
-
-      if (priority) {
-        deadlinesQuery = deadlinesQuery.eq('priority', priority)
-      }
-
-      const { data: deadlines, error: deadlinesError } = await deadlinesQuery
-
-      if (deadlinesError) {
-        console.error('[Admin Calendar API] Deadlines query error:', deadlinesError)
-      } else {
-        deadlines?.forEach((deadline: any) => {
-          const color = getEventColor('deadline', deadline.priority)
-
-          calendarEvents.push({
-            id: `deadline-${deadline.id}`,
-            title: `Deadline: ${deadline.title}`,
-            type: 'deadline',
-            start: new Date(deadline.created_at),
-            end: new Date(deadline.created_at),
-            color,
-            description: deadline.content,
-            status: 'upcoming',
-            priority: deadline.priority || 'high',
-            originalData: deadline
-          })
-        })
-      }
-    } catch (error) {
-      console.error('[Admin Calendar API] Deadlines fetch error:', error)
-    }
-
-    // Add sample data for demonstration (only if no real data exists)
-    if (calendarEvents.length === 0) {
-      const sampleEvents = [
-        {
-          id: 'sample-1',
-          title: 'Summer Music Festival',
-          type: 'event',
-          start: new Date(2024, 6, 15, 18, 0),
-          end: new Date(2024, 6, 15, 23, 0),
-          color: getEventColor('event', 'high'),
-          location: 'Central Park, New York, NY',
-          status: 'upcoming',
-          priority: 'high'
-        },
-        {
-          id: 'sample-2',
-          title: 'Tour Planning Meeting',
-          type: 'meeting',
-          start: new Date(2024, 6, 10, 14, 0),
-          end: new Date(2024, 6, 10, 15, 30),
-          color: getEventColor('meeting', 'medium'),
-          status: 'upcoming',
-          priority: 'medium'
-        },
-        {
-          id: 'sample-3',
-          title: 'Venue Contract Deadline',
-          type: 'deadline',
-          start: new Date(2024, 6, 20, 17, 0),
-          end: new Date(2024, 6, 20, 17, 0),
-          color: getEventColor('deadline', 'urgent'),
-          status: 'upcoming',
-          priority: 'urgent'
-        },
-        {
-          id: 'sample-4',
-          title: 'Artist Booking Review',
-          type: 'task',
-          start: new Date(2024, 6, 12, 10, 0),
-          end: new Date(2024, 6, 12, 11, 0),
-          color: getEventColor('task', 'medium'),
-          status: 'ongoing',
-          priority: 'medium'
-        },
-        {
-          id: 'sample-5',
-          title: 'Equipment Setup',
-          type: 'logistics',
-          start: new Date(2024, 6, 14, 8, 0),
-          end: new Date(2024, 6, 14, 12, 0),
-          color: getEventColor('logistics', 'high'),
-          status: 'upcoming',
-          priority: 'high'
-        },
-        {
-          id: 'sample-6',
-          title: 'Sound Check',
-          type: 'task',
-          start: new Date(2024, 6, 15, 16, 0),
-          end: new Date(2024, 6, 15, 17, 30),
-          color: getEventColor('task', 'medium'),
-          status: 'upcoming',
-          priority: 'medium'
-        },
-        {
-          id: 'sample-7',
-          title: 'VIP Ticket Payment Due',
-          type: 'payment',
-          start: new Date(2024, 6, 18, 12, 0),
-          end: new Date(2024, 6, 18, 12, 0),
-          color: getEventColor('payment', 'high'),
-          status: 'upcoming',
-          priority: 'high'
-        },
-        {
-          id: 'sample-8',
-          title: 'Equipment Rental Booking',
-          type: 'booking',
-          start: new Date(2024, 6, 22, 9, 0),
-          end: new Date(2024, 6, 22, 9, 0),
-          color: getEventColor('booking', 'medium'),
-          status: 'pending',
-          priority: 'medium'
-        }
-      ]
-      calendarEvents.push(...sampleEvents)
-    }
-
     // Sort events by start date
     calendarEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-
-    console.log(`[Admin Calendar API] Returning ${calendarEvents.length} events`)
 
     return NextResponse.json({
       success: true,
@@ -490,10 +247,6 @@ export async function GET(request: NextRequest) {
         events: calendarEvents.filter(e => e.type === 'event').length,
         tours: calendarEvents.filter(e => e.type === 'tour').length,
         tasks: calendarEvents.filter(e => e.type === 'task').length,
-        meetings: calendarEvents.filter(e => e.type === 'meeting').length,
-        deadlines: calendarEvents.filter(e => e.type === 'deadline').length,
-        bookings: calendarEvents.filter(e => e.type === 'booking').length,
-        payments: calendarEvents.filter(e => e.type === 'payment').length,
         logistics: calendarEvents.filter(e => e.type === 'logistics').length
       }
     })
@@ -530,6 +283,7 @@ export async function POST(request: NextRequest) {
       description, 
       location, 
       priority,
+      event_id,
       attendees = [],
       reminders = [],
       sendNotifications = false,
@@ -541,31 +295,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
+    // Resolve org_id from user's profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('current_entity_id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    const orgId = profile?.current_entity_id ?? null
+
     let insertData: any = {
       created_by: user.id
     }
 
-    let tableName = 'events'
+    let tableName = 'events_v2'
     
-    // Determine which table to insert into based on type
     switch (type) {
-      case 'event':
-        tableName = 'events'
+      case 'event': {
+        const slugBase = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'event'
+        const slug = `${slugBase}-${Date.now().toString(36)}`
+        tableName = 'events_v2'
         insertData = {
           ...insertData,
-          name: title,
-          description,
-          event_date: new Date(start).toISOString().split('T')[0],
-          event_time: new Date(start).toTimeString().split(' ')[0],
-          status: 'scheduled',
-          venue_name: location
+          org_id: orgId,
+          title,
+          slug,
+          start_at: new Date(start).toISOString(),
+          end_at: new Date(end || new Date(new Date(start).getTime() + 2 * 60 * 60 * 1000)).toISOString(),
+          status: 'inquiry',
+          settings: { description: description || '', venue_label: location || '' }
         }
         break
+      }
       case 'tour':
         tableName = 'tours'
         insertData = {
           ...insertData,
+          org_id: orgId,
           name: title,
+          slug: `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 48)}-${Date.now().toString(36)}`,
           description,
           start_date: new Date(start).toISOString().split('T')[0],
           end_date: new Date(end || start).toISOString().split('T')[0],
@@ -573,69 +341,35 @@ export async function POST(request: NextRequest) {
         }
         break
       case 'task':
+        if (!event_id) {
+          return NextResponse.json({ error: 'event_id is required when creating a task' }, { status: 400 })
+        }
         tableName = 'tasks'
         insertData = {
           ...insertData,
+          org_id: orgId,
+          event_id,
           title,
           description,
-          due_date: new Date(start).toISOString(),
+          due_at: new Date(start).toISOString(),
           status: 'todo',
           priority: priority || 'medium'
         }
         break
-      case 'meeting':
-        tableName = 'event_notes'
-        insertData = {
-          ...insertData,
-          title,
-          content: description,
-          note_type: 'general',
-          priority: priority || 'medium'
-        }
-        break
-      case 'deadline':
-        tableName = 'event_notes'
-        insertData = {
-          ...insertData,
-          title,
-          content: description,
-          note_type: 'urgent',
-          priority: priority || 'high'
-        }
-        break
-      case 'booking':
-        tableName = 'bookings'
-        insertData = {
-          ...insertData,
-          status: 'pending',
-          ticket_quantity: 1,
-          total_price: 0
-        }
-        break
-      case 'payment':
-        tableName = 'event_expenses'
-        insertData = {
-          ...insertData,
-          category: 'payment',
-          description: title,
-          amount: 0,
-          expense_date: new Date(start).toISOString().split('T')[0],
-          status: 'pending'
-        }
-        break
       case 'logistics':
-        tableName = 'staff_schedules'
+        tableName = 'staff_shifts'
         insertData = {
           ...insertData,
-          role: title,
-          shift_start: new Date(start).toISOString(),
-          shift_end: new Date(end || start).toISOString(),
+          role_assignment: title,
+          shift_date: new Date(start).toISOString().split('T')[0],
+          start_time: new Date(start).toTimeString().split(' ')[0],
+          end_time: new Date(end || start).toTimeString().split(' ')[0],
           status: 'scheduled',
           notes: description
         }
         break
       default:
-        return NextResponse.json({ error: 'Invalid event type' }, { status: 400 })
+        return NextResponse.json({ error: 'Invalid event type. Supported: event, tour, task, logistics' }, { status: 400 })
     }
 
     const { data, error } = await supabase
@@ -648,8 +382,6 @@ export async function POST(request: NextRequest) {
       console.error('[Admin Calendar API] Insert error:', error)
       return NextResponse.json({ error: 'Failed to create event' }, { status: 500 })
     }
-
-    console.log('[Admin Calendar API] Event created successfully:', data)
 
     // Handle team member notifications if enabled
     if (sendNotifications && attendees.length > 0) {
@@ -668,14 +400,13 @@ export async function POST(request: NextRequest) {
           const attendeeEmail = attendeeEmails[attendeeId as keyof typeof attendeeEmails]
           
           if (attendeeEmail) {
-            // Create notification record
             await supabase
               .from('notifications')
               .insert({
-                user_id: attendeeId, // In real app, this would be the actual user ID
+                user_id: attendeeId,
                 type: 'event_invitation',
                 title: `New Event: ${title}`,
-                content: `You have been invited to "${title}" on ${new Date(start).toLocaleDateString()} at ${new Date(start).toLocaleTimeString()}`,
+                content: `You have been invited to "${title}" on ${formatSafeDate(start)} at ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(start))}`,
                 metadata: {
                   eventId: data.id,
                   eventType: type,
@@ -683,14 +414,10 @@ export async function POST(request: NextRequest) {
                   description
                 }
               })
-            
-            // Send email notification (in real app, this would use a service like Resend)
-            console.log(`[Admin Calendar API] Would send email to ${attendeeEmail} about event: ${title}`)
           }
         })
         
         await Promise.all(notificationPromises)
-        console.log('[Admin Calendar API] Team notifications sent successfully')
       } catch (notificationError) {
         console.error('[Admin Calendar API] Failed to send notifications:', notificationError)
         // Don't fail the entire request if notifications fail
@@ -746,7 +473,6 @@ export async function POST(request: NextRequest) {
         })
         
         await Promise.all(reminderPromises)
-        console.log('[Admin Calendar API] Reminders created successfully')
       } catch (reminderError) {
         console.error('[Admin Calendar API] Failed to create reminders:', reminderError)
         // Don't fail the entire request if reminders fail

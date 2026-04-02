@@ -1,14 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useEffect, useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
-import { Progress } from "@/components/ui/progress"
-import { motion, AnimatePresence } from "framer-motion"
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts'
+import type { AdminDashboardStats } from "@/types/admin"
+import type { LucideIcon } from "lucide-react"
+import { AdminPageHeader } from "../components/admin-page-header"
+import { AdminStatCard } from "../components/admin-stat-card"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import {
   BarChart3,
   TrendingUp,
@@ -17,468 +19,365 @@ import {
   DollarSign,
   Calendar as CalendarIcon,
   Music,
-  Building,
   Target,
   Activity,
-  Star,
-  Clock,
-  MapPin,
-  Zap,
-  Eye,
   Download,
-  Share,
-  Filter,
   RefreshCw,
   AlertTriangle,
   CheckCircle,
   PieChart,
-  LineChart,
-  AreaChart,
-  Globe,
-  Heart,
-  Bookmark,
-  MessageSquare,
-  ThumbsUp,
-  Play,
-  Headphones,
-  Radio,
-  Ticket,
-  Crown,
+  LineChart as LineChartIcon,
   Award,
   Sparkles,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  Plus
+  Radio,
+  Ticket,
 } from "lucide-react"
 
-interface AnalyticsData {
-  overview: {
-    totalRevenue: number
-    revenueGrowth: number
-    totalEvents: number
-    eventsGrowth: number
-    totalUsers: number
-    usersGrowth: number
-    avgTicketPrice: number
-    ticketPriceGrowth: number
-  }
-  revenue: {
-    monthly: Array<{ month: string; revenue: number; target: number }>
-    bySource: Array<{ source: string; amount: number; percentage: number }>
-    topEvents: Array<{ name: string; revenue: number; date: string; venue: string }>
-  }
-  performance: {
-    eventSuccess: number
-    customerSatisfaction: number
-    bookingConversion: number
-    repeatCustomers: number
-    artistRetention: number
-    venuePartnership: number
-  }
-  audience: {
-    demographics: Array<{ age: string; percentage: number }>
-    geography: Array<{ region: string; users: number; growth: number }>
-    engagement: Array<{ metric: string; value: number; trend: number }>
-  }
-  trends: {
-    popularGenres: Array<{ genre: string; events: number; growth: number }>
-    peakTimes: Array<{ time: string; bookings: number }>
-    seasonality: Array<{ month: string; demand: number }>
-  }
+const EMPTY_STATS: AdminDashboardStats = {
+  totalTours: 0,
+  activeTours: 0,
+  totalEvents: 0,
+  upcomingEvents: 0,
+  totalArtists: 0,
+  totalVenues: 0,
+  totalRevenue: 0,
+  monthlyRevenue: 0,
+  ticketsSold: 0,
+  totalCapacity: 0,
+  staffMembers: 0,
+  completedTasks: 0,
+  pendingTasks: 0,
+  averageRating: 0,
+  totalTravelGroups: 0,
+  totalTravelers: 0,
+  confirmedTravelers: 0,
+  coordinationCompletionRate: 0,
+  fullyCoordinatedGroups: 0,
+  activeTransportation: 0,
+  completedTransportation: 0,
+  logisticsCompletionRate: 0,
 }
 
-export default function AnalyticsPage() {
-  const [timeRange, setTimeRange] = useState("30d")
-  const [selectedMetric, setSelectedMetric] = useState("revenue")
-  const [isLoading, setIsLoading] = useState(false)
-  
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    overview: {
-      totalRevenue: 2485000,
-      revenueGrowth: 15.3,
-      totalEvents: 156,
-      eventsGrowth: 8.7,
-      totalUsers: 25840,
-      usersGrowth: 22.1,
-      avgTicketPrice: 89.50,
-      ticketPriceGrowth: -2.3
-    },
-    revenue: {
-      monthly: [
-        { month: "Jan", revenue: 180000, target: 200000 },
-        { month: "Feb", revenue: 220000, target: 210000 },
-        { month: "Mar", revenue: 280000, target: 250000 },
-        { month: "Apr", revenue: 320000, target: 300000 },
-        { month: "May", revenue: 380000, target: 350000 },
-        { month: "Jun", revenue: 485000, target: 400000 }
-      ],
-      bySource: [
-        { source: "Ticket Sales", amount: 1580000, percentage: 63.6 },
-        { source: "Merchandise", amount: 485000, percentage: 19.5 },
-        { source: "Sponsorships", amount: 280000, percentage: 11.3 },
-        { source: "VIP Packages", amount: 140000, percentage: 5.6 }
-      ],
-      topEvents: [
-        { name: "Summer Music Festival", revenue: 285000, date: "2025-06-15", venue: "Central Park" },
-        { name: "Electronic Showcase", revenue: 180000, date: "2025-06-10", venue: "Brooklyn Warehouse" },
-        { name: "Indie Rock Night", revenue: 125000, date: "2025-06-05", venue: "Madison Square Garden" }
-      ]
-    },
-    performance: {
-      eventSuccess: 94.2,
-      customerSatisfaction: 4.7,
-      bookingConversion: 68.5,
-      repeatCustomers: 42.8,
-      artistRetention: 87.3,
-      venuePartnership: 91.6
-    },
-    audience: {
-      demographics: [
-        { age: "18-24", percentage: 28.5 },
-        { age: "25-34", percentage: 35.2 },
-        { age: "35-44", percentage: 22.1 },
-        { age: "45-54", percentage: 10.8 },
-        { age: "55+", percentage: 3.4 }
-      ],
-      geography: [
-        { region: "New York", users: 8450, growth: 18.2 },
-        { region: "California", users: 6280, growth: 22.7 },
-        { region: "Texas", users: 4120, growth: 15.8 },
-        { region: "Florida", users: 3890, growth: 28.4 },
-        { region: "Illinois", users: 2100, growth: 12.1 }
-      ],
-      engagement: [
-        { metric: "Avg Session Duration", value: 24.5, trend: 8.2 },
-        { metric: "Pages Per Session", value: 6.8, trend: 15.3 },
-        { metric: "Bounce Rate", value: 32.1, trend: -12.7 },
-        { metric: "Return Visitors", value: 58.9, trend: 25.4 }
-      ]
-    },
-    trends: {
-      popularGenres: [
-        { genre: "Electronic", events: 45, growth: 28.5 },
-        { genre: "Rock", events: 38, growth: 15.2 },
-        { genre: "Hip Hop", events: 32, growth: 35.8 },
-        { genre: "Folk", events: 22, growth: 18.9 },
-        { genre: "Jazz", events: 19, growth: 8.7 }
-      ],
-      peakTimes: [
-        { time: "Friday 8PM", bookings: 1250 },
-        { time: "Saturday 9PM", bookings: 1180 },
-        { time: "Sunday 7PM", bookings: 890 },
-        { time: "Thursday 8PM", bookings: 720 },
-        { time: "Saturday 2PM", bookings: 650 }
-      ],
-      seasonality: [
-        { month: "Jan", demand: 65 },
-        { month: "Feb", demand: 70 },
-        { month: "Mar", demand: 85 },
-        { month: "Apr", demand: 90 },
-        { month: "May", demand: 95 },
-        { month: "Jun", demand: 100 }
-      ]
-    }
-  })
-
-  const refreshData = async () => {
-    setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    setIsLoading(false)
-  }
-
-  const MetricCard = ({ 
-    title, 
-    value, 
-    growth, 
-    icon: Icon, 
-    prefix = "", 
-    suffix = "",
-    color = "text-blue-400"
-  }: {
-    title: string
-    value: number | string
-    growth?: number
-    icon: any
-    prefix?: string
-    suffix?: string
-    color?: string
-  }) => (
-    <Card className="bg-slate-900/50 border-slate-700/50 hover:bg-slate-900/70 transition-all duration-300">
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <p className="text-sm text-slate-400 font-medium">{title}</p>
-            <p className="text-2xl font-bold text-white">
-              {prefix}{typeof value === 'number' ? value.toLocaleString() : value}{suffix}
-            </p>
-            {growth !== undefined && (
-              <div className="flex items-center">
-                {growth > 0 ? (
-                  <ArrowUpRight className="h-4 w-4 text-green-400 mr-1" />
-                ) : growth < 0 ? (
-                  <ArrowDownRight className="h-4 w-4 text-red-400 mr-1" />
-                ) : (
-                  <Minus className="h-4 w-4 text-gray-400 mr-1" />
-                )}
-                <span className={`text-sm font-medium ${
-                  growth > 0 ? 'text-green-400' : growth < 0 ? 'text-red-400' : 'text-gray-400'
-                }`}>
-                  {growth > 0 ? '+' : ''}{growth}%
-                </span>
-                <span className="text-sm text-slate-500 ml-1">vs last period</span>
-              </div>
-            )}
-          </div>
-          <div className={`p-3 rounded-full bg-slate-800/50 ${color}`}>
-            <Icon className="h-6 w-6" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
-  const PerformanceMetric = ({ 
-    title, 
-    value, 
-    target = 100, 
-    unit = "%",
-    color = "from-blue-500 to-purple-500"
-  }: {
-    title: string
-    value: number
-    target?: number
-    unit?: string
-    color?: string
-  }) => (
+function PerformanceMetric({
+  title,
+  value,
+  target = 100,
+  unit = "%",
+  color = "from-blue-500 to-purple-500",
+}: {
+  title: string
+  value: number
+  target?: number
+  unit?: string
+  color?: string
+}) {
+  return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm text-slate-400">{title}</p>
-        <p className="text-lg font-bold text-white">{value}{unit}</p>
+        <p className="text-lg font-bold text-white">
+          {value}
+          {unit}
+        </p>
       </div>
       <div className="relative">
-        <div className="w-full bg-slate-800 rounded-full h-2">
-          <div 
-            className={`bg-gradient-to-r ${color} h-2 rounded-full transition-all duration-700`}
+        <div className="h-2 w-full rounded-full bg-slate-700/50">
+          <div
+            className={`h-2 rounded-full bg-gradient-to-r ${color} transition-all duration-700`}
             style={{ width: `${Math.min((value / target) * 100, 100)}%` }}
           />
         </div>
         {target !== 100 && (
-          <div className="flex justify-between text-xs text-slate-500 mt-1">
+          <div className="mt-1 flex justify-between text-xs text-slate-500">
             <span>0</span>
-            <span>{target}{unit} target</span>
+            <span>
+              {target}
+              {unit} target
+            </span>
           </div>
         )}
       </div>
     </div>
   )
+}
 
-  const TrendChart = ({ data, title, color = "rgb(99, 102, 241)" }: {
-    data: Array<{ label: string; value: number }>
-    title: string
-    color?: string
-  }) => (
-    <Card className="bg-slate-900/50 border-slate-700/50">
+function ChartPlaceholderCard({ title }: { title: string }) {
+  return (
+    <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
       <CardHeader>
-        <CardTitle className="text-white text-lg">{title}</CardTitle>
+        <CardTitle className="flex items-center text-lg text-white">
+          <LineChartIcon className="mr-2 h-5 w-5 text-blue-400" />
+          {title}
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {data.map((item, index) => (
-            <div key={index} className="flex items-center justify-between">
-              <span className="text-sm text-slate-400">{item.label}</span>
-              <div className="flex items-center space-x-3 flex-1 ml-4">
-                <div className="flex-1 bg-slate-800 rounded-full h-2">
-                  <div 
-                    className="h-2 rounded-full transition-all duration-700"
-                    style={{ 
-                      width: `${(item.value / Math.max(...data.map(d => d.value))) * 100}%`,
-                      backgroundColor: color
-                    }}
-                  />
-                </div>
-                <span className="text-sm font-medium text-white w-16 text-right">
-                  {item.value.toLocaleString()}
-                </span>
-              </div>
-            </div>
-          ))}
+        <div className="flex min-h-[200px] flex-col items-center justify-center rounded-sm border border-dashed border-slate-700/60 bg-slate-950/40 px-6 py-12 text-center">
+          <BarChart3 className="mb-3 h-10 w-10 text-slate-500" />
+          <p className="text-sm font-medium text-slate-300">
+            No data available yet
+          </p>
         </div>
       </CardContent>
     </Card>
   )
+}
+
+export default function AnalyticsPage() {
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [transactions, setTransactions] = useState<any[]>([])
+  const [events, setEvents] = useState<any[]>([])
+
+  const fetchStats = useCallback(async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const [statsRes, finRes, eventsRes] = await Promise.allSettled([
+        fetch("/api/admin/dashboard/stats", { credentials: "include" }).then(r => r.json()),
+        fetch("/api/admin/finances?type=overview", { credentials: "include" }).then(r => r.json()),
+        fetch("/api/admin/events", { credentials: "include" }).then(r => r.json()),
+      ])
+
+      if (statsRes.status === 'fulfilled' && statsRes.value.success) {
+        setStats(statsRes.value.stats as AdminDashboardStats)
+      } else {
+        throw new Error('Failed to load stats')
+      }
+
+      if (finRes.status === 'fulfilled') {
+        setTransactions(finRes.value.recentTransactions || [])
+      }
+
+      if (eventsRes.status === 'fulfilled') {
+        setEvents(eventsRes.value.events || [])
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong")
+      setStats(EMPTY_STATS)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  const revenueChartData = useMemo(() => {
+    const grouped: Record<string, { month: string; income: number; expenses: number }> = {}
+    transactions.forEach((tx: any) => {
+      const m = tx.created_at ? new Date(tx.created_at).toISOString().slice(0, 7) : null
+      if (!m) return
+      if (!grouped[m]) grouped[m] = { month: m, income: 0, expenses: 0 }
+      if (tx.type === 'income') grouped[m].income += Number(tx.amount) || 0
+      else grouped[m].expenses += Number(tx.amount) || 0
+    })
+    return Object.values(grouped).sort((a, b) => a.month.localeCompare(b.month))
+  }, [transactions])
+
+  const audienceData = useMemo(() => {
+    return events.filter((e: any) => e.capacity > 0).map((e: any) => ({
+      name: (e.name || '').slice(0, 20),
+      capacity: e.capacity || 0,
+      sold: e.tickets_sold || 0,
+      utilization: e.capacity > 0 ? Math.round(((e.tickets_sold || 0) / e.capacity) * 100) : 0,
+    })).slice(0, 10)
+  }, [events])
+
+  useEffect(() => {
+    void fetchStats()
+  }, [fetchStats])
+
+  const s = stats ?? EMPTY_STATS
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
-      <div className="container mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              Analytics & Insights
-            </h1>
-            <p className="text-slate-400 mt-2">
-              Comprehensive performance metrics and business intelligence
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger className="w-40 bg-slate-800/50 border-slate-700/50 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="7d">Last 7 days</SelectItem>
-                <SelectItem value="30d">Last 30 days</SelectItem>
-                <SelectItem value="90d">Last 3 months</SelectItem>
-                <SelectItem value="1y">Last year</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button 
-              onClick={refreshData}
+    <div className="space-y-6">
+      <AdminPageHeader
+        title="Analytics & Insights"
+        subtitle="Performance metrics and data insights"
+        icon={BarChart3}
+        actions={
+          <>
+            <Button
+              type="button"
+              onClick={() => void fetchStats()}
               disabled={isLoading}
-              variant="outline" 
-              className="border-slate-700 text-slate-300 hover:bg-slate-800"
+              variant="outline"
+              className="border-slate-700 text-slate-300 backdrop-blur-sm transition-all duration-200 hover:bg-slate-800"
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
-            <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0">
-              <Download className="h-4 w-4 mr-2" />
+            <Button
+              type="button"
+              disabled
+              className="border-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/20 transition-all duration-300 opacity-50"
+            >
+              <Download className="mr-2 h-4 w-4" />
               Export Report
             </Button>
-          </div>
-        </div>
+          </>
+        }
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge
+          variant="secondary"
+          className="border-slate-600 bg-slate-800/80 text-slate-300"
+        >
+          All time
+        </Badge>
+        {error ? (
+          <span className="text-sm text-amber-400/90">{error}</span>
+        ) : null}
+      </div>
 
-        {/* Overview Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <MetricCard
-            title="Total Revenue"
-            value={analyticsData.overview.totalRevenue}
-            growth={analyticsData.overview.revenueGrowth}
-            icon={DollarSign}
-            prefix="$"
-            color="text-green-400"
-          />
-          <MetricCard
-            title="Total Events"
-            value={analyticsData.overview.totalEvents}
-            growth={analyticsData.overview.eventsGrowth}
-            icon={CalendarIcon}
-            color="text-blue-400"
-          />
-          <MetricCard
-            title="Total Users"
-            value={analyticsData.overview.totalUsers}
-            growth={analyticsData.overview.usersGrowth}
-            icon={Users}
-            color="text-purple-400"
-          />
-          <MetricCard
-            title="Avg Ticket Price"
-            value={analyticsData.overview.avgTicketPrice}
-            growth={analyticsData.overview.ticketPriceGrowth}
-            icon={Ticket}
-            prefix="$"
-            color="text-yellow-400"
-          />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <AdminStatCard title="Total Revenue" value={formatSafeCurrency(s.totalRevenue)} icon={DollarSign} color="green" size="lg" isLoading={isLoading && stats === null} />
+          <AdminStatCard title="Total Events" value={s.totalEvents} icon={CalendarIcon} color="blue" size="lg" isLoading={isLoading && stats === null} />
+          <AdminStatCard title="Tickets Sold" value={s.ticketsSold} icon={Users} color="purple" size="lg" isLoading={isLoading && stats === null} />
+          <AdminStatCard title="Upcoming Events" value={s.upcomingEvents} icon={Ticket} color="amber" size="lg" isLoading={isLoading && stats === null} />
         </div>
 
         <Tabs defaultValue="performance" className="w-full">
-          <TabsList className="bg-slate-800/50 p-1 grid grid-cols-5 w-full max-w-3xl">
-            <TabsTrigger value="performance" className="data-[state=active]:bg-slate-700">Performance</TabsTrigger>
-            <TabsTrigger value="revenue" className="data-[state=active]:bg-slate-700">Revenue</TabsTrigger>
-            <TabsTrigger value="audience" className="data-[state=active]:bg-slate-700">Audience</TabsTrigger>
-            <TabsTrigger value="trends" className="data-[state=active]:bg-slate-700">Trends</TabsTrigger>
-            <TabsTrigger value="real-time" className="data-[state=active]:bg-slate-700">Real-time</TabsTrigger>
+          <TabsList className="grid w-full max-w-3xl grid-cols-5 bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
+            <TabsTrigger
+              value="performance"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+            >
+              Performance
+            </TabsTrigger>
+            <TabsTrigger
+              value="revenue"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+            >
+              Revenue
+            </TabsTrigger>
+            <TabsTrigger
+              value="audience"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+            >
+              Audience
+            </TabsTrigger>
+            <TabsTrigger
+              value="trends"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+            >
+              Trends
+            </TabsTrigger>
+            <TabsTrigger
+              value="real-time"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+            >
+              Real-time
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="performance" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Performance Metrics */}
-              <Card className="bg-slate-900/50 border-slate-700/50">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <Target className="h-5 w-5 mr-2 text-green-400" />
-                    Key Performance Indicators
+                  <CardTitle className="flex items-center text-white">
+                    <Target className="mr-2 h-5 w-5 text-green-400" />
+                    Operations & logistics
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <PerformanceMetric
-                    title="Event Success Rate"
-                    value={analyticsData.performance.eventSuccess}
+                    title="Coordination completion"
+                    value={s.coordinationCompletionRate}
                     color="from-green-500 to-emerald-500"
                   />
                   <PerformanceMetric
-                    title="Customer Satisfaction"
-                    value={analyticsData.performance.customerSatisfaction}
-                    target={5}
-                    unit="/5"
-                    color="from-yellow-500 to-orange-500"
-                  />
-                  <PerformanceMetric
-                    title="Booking Conversion"
-                    value={analyticsData.performance.bookingConversion}
+                    title="Logistics completion"
+                    value={s.logisticsCompletionRate}
                     color="from-blue-500 to-purple-500"
                   />
                   <PerformanceMetric
-                    title="Repeat Customers"
-                    value={analyticsData.performance.repeatCustomers}
-                    color="from-purple-500 to-pink-500"
+                    title="Active tours (share of all)"
+                    value={
+                      s.totalTours > 0
+                        ? Math.round((s.activeTours / s.totalTours) * 100)
+                        : 0
+                    }
+                    color="from-yellow-500 to-orange-500"
                   />
-                  <PerformanceMetric
-                    title="Artist Retention"
-                    value={analyticsData.performance.artistRetention}
-                    color="from-pink-500 to-red-500"
-                  />
-                  <PerformanceMetric
-                    title="Venue Partnership Score"
-                    value={analyticsData.performance.venuePartnership}
-                    color="from-cyan-500 to-blue-500"
-                  />
+                  <div className="grid grid-cols-2 gap-4 pt-2 text-sm">
+                    <div className="rounded-sm bg-slate-800/40 p-3">
+                      <p className="text-slate-400">Completed tasks</p>
+                      <p className="text-lg font-semibold text-white">
+                        {formatSafeNumber(s.completedTasks)}
+                      </p>
+                    </div>
+                    <div className="rounded-sm bg-slate-800/40 p-3">
+                      <p className="text-slate-400">Pending tasks</p>
+                      <p className="text-lg font-semibold text-white">
+                        {formatSafeNumber(s.pendingTasks)}
+                      </p>
+                    </div>
+                    <div className="rounded-sm bg-slate-800/40 p-3">
+                      <p className="text-slate-400">Active transport</p>
+                      <p className="text-lg font-semibold text-white">
+                        {formatSafeNumber(s.activeTransportation)}
+                      </p>
+                    </div>
+                    <div className="rounded-sm bg-slate-800/40 p-3">
+                      <p className="text-slate-400">Staff members</p>
+                      <p className="text-lg font-semibold text-white">
+                        {formatSafeNumber(s.staffMembers)}
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
 
-              {/* Performance Insights */}
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <Sparkles className="h-5 w-5 mr-2 text-purple-400" />
-                    Performance Insights
+                  <CardTitle className="flex items-center text-white">
+                    <Sparkles className="mr-2 h-5 w-5 text-purple-400" />
+                    Snapshot
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="rounded-sm border border-green-500/20 bg-green-500/10 backdrop-blur-sm p-4">
                     <div className="flex items-start space-x-3">
-                      <CheckCircle className="h-5 w-5 text-green-400 mt-0.5" />
+                      <CheckCircle className="mt-0.5 h-5 w-5 text-green-400" />
                       <div>
-                        <h4 className="font-medium text-green-400">Strong Performance</h4>
-                        <p className="text-sm text-slate-300 mt-1">
-                          Event success rate is 94.2%, exceeding industry average of 85%
+                        <h4 className="font-medium text-green-400">Live data</h4>
+                        <p className="mt-1 text-sm text-slate-300">
+                          Figures above come from tours, events, ticket sales,
+                          logistics, and staff tables.
                         </p>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                  <div className="rounded-sm border border-yellow-500/20 bg-yellow-500/10 backdrop-blur-sm p-4">
                     <div className="flex items-start space-x-3">
-                      <AlertTriangle className="h-5 w-5 text-yellow-400 mt-0.5" />
+                      <AlertTriangle className="mt-0.5 h-5 w-5 text-yellow-400" />
                       <div>
-                        <h4 className="font-medium text-yellow-400">Optimization Opportunity</h4>
-                        <p className="text-sm text-slate-300 mt-1">
-                          Booking conversion could improve by focusing on mobile experience
+                        <h4 className="font-medium text-yellow-400">
+                          Limited context
+                        </h4>
+                        <p className="mt-1 text-sm text-slate-300">
+                          There is no period comparison yet; use Refresh to
+                          reload totals.
                         </p>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                  <div className="rounded-sm border border-blue-500/20 bg-blue-500/10 backdrop-blur-sm p-4">
                     <div className="flex items-start space-x-3">
-                      <TrendingUp className="h-5 w-5 text-blue-400 mt-0.5" />
+                      <TrendingUp className="mt-0.5 h-5 w-5 text-blue-400" />
                       <div>
-                        <h4 className="font-medium text-blue-400">Growing Trend</h4>
-                        <p className="text-sm text-slate-300 mt-1">
-                          Repeat customer rate increased 25% month-over-month
+                        <h4 className="font-medium text-blue-400">Capacity</h4>
+                        <p className="mt-1 text-sm text-slate-300">
+                          Total event capacity:{" "}
+                          <span className="font-medium text-white">
+                            {formatSafeNumber(s.totalCapacity)}
+                          </span>
+                          . Upcoming events:{" "}
+                          <span className="font-medium text-white">
+                            {formatSafeNumber(s.upcomingEvents)}
+                          </span>
+                          .
                         </p>
                       </div>
                     </div>
@@ -489,283 +388,207 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           <TabsContent value="revenue" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Revenue Breakdown */}
-              <Card className="bg-slate-900/50 border-slate-700/50">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <PieChart className="h-5 w-5 mr-2 text-green-400" />
-                    Revenue by Source
+                  <CardTitle className="flex items-center text-white">
+                    <PieChart className="mr-2 h-5 w-5 text-green-400" />
+                    Revenue summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {analyticsData.revenue.bySource.map((source, index) => (
-                    <div key={index} className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div 
-                          className="w-4 h-4 rounded-full"
-                          style={{ 
-                            backgroundColor: [
-                              'rgb(34, 197, 94)', 
-                              'rgb(59, 130, 246)', 
-                              'rgb(168, 85, 247)', 
-                              'rgb(251, 191, 36)'
-                            ][index % 4]
-                          }}
-                        />
-                        <span className="text-slate-300">{source.source}</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-white">${source.amount.toLocaleString()}</p>
-                        <p className="text-sm text-slate-400">{source.percentage}%</p>
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Total (tours)</span>
+                    <span className="font-semibold text-white">
+                      {formatSafeCurrency(s.totalRevenue)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Monthly (tracked)</span>
+                    <span className="font-semibold text-white">
+                      {formatSafeCurrency(s.monthlyRevenue)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Ticket sales count</span>
+                    <span className="font-semibold text-white">
+                      {formatSafeNumber(s.ticketsSold)}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Breakdown by source is not exposed by the stats API yet.
+                  </p>
                 </CardContent>
               </Card>
 
-              {/* Top Performing Events */}
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center">
-                    <Award className="h-5 w-5 mr-2 text-yellow-400" />
-                    Top Revenue Events
+                  <CardTitle className="flex items-center text-white">
+                    <Award className="mr-2 h-5 w-5 text-yellow-400" />
+                    Top revenue events
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                  {analyticsData.revenue.topEvents.map((event, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-white">{event.name}</h4>
-                        <p className="text-sm text-slate-400">{event.venue} • {new Date(event.date).toLocaleDateString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-400">${event.revenue.toLocaleString()}</p>
-                        <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
-                          #{index + 1}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+                <CardContent>
+                  <div className="flex min-h-[160px] flex-col items-center justify-center rounded-sm border border-dashed border-slate-700/60 bg-slate-950/40 px-4 py-10 text-center">
+                    <p className="text-sm text-slate-400">
+                      No per-event revenue ranking in this dataset yet.
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Monthly Revenue Trend */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <LineChart className="h-5 w-5 mr-2 text-blue-400" />
-                  Monthly Revenue vs Target
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-6 gap-4">
-                  {analyticsData.revenue.monthly.map((month, index) => (
-                    <div key={index} className="text-center space-y-2">
-                      <p className="text-sm text-slate-400">{month.month}</p>
-                      <div className="relative h-32">
-                        <div className="absolute bottom-0 w-full bg-slate-800 rounded-t">
-                          <div 
-                            className="bg-gradient-to-t from-blue-500 to-blue-400 rounded-t transition-all duration-700"
-                            style={{ height: `${(month.revenue / month.target) * 100}%` }}
-                          />
-                        </div>
-                        <div 
-                          className="absolute w-full border-t-2 border-dashed border-yellow-400"
-                          style={{ bottom: '100%' }}
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-white">
-                          ${(month.revenue / 1000).toFixed(0)}K
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          vs ${(month.target / 1000).toFixed(0)}K
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {revenueChartData.length > 0 ? (
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-white">
+                    <LineChartIcon className="mr-2 h-5 w-5 text-blue-400" />
+                    Monthly Revenue Trend
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={revenueChartData}>
+                        <defs>
+                          <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#4ade80" stopOpacity={0.4} />
+                            <stop offset="95%" stopColor="#4ade80" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="month" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                        <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
+                        <Legend />
+                        <Area type="monotone" dataKey="income" stroke="#4ade80" fill="url(#gradIncome)" name="Income" />
+                        <Area type="monotone" dataKey="expenses" stroke="#f87171" fill="none" name="Expenses" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <ChartPlaceholderCard title="Monthly revenue trend" />
+            )}
           </TabsContent>
 
           <TabsContent value="audience" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Demographics */}
-              <TrendChart
-                data={analyticsData.audience.demographics.map(d => ({ label: d.age, value: d.percentage }))}
-                title="Age Demographics"
-                color="rgb(168, 85, 247)"
-              />
-
-              {/* Geographic Distribution */}
-              <TrendChart
-                data={analyticsData.audience.geography.map(g => ({ label: g.region, value: g.users }))}
-                title="Geographic Distribution"
-                color="rgb(34, 197, 94)"
-              />
-            </div>
-
-            {/* Engagement Metrics */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Activity className="h-5 w-5 mr-2 text-cyan-400" />
-                  User Engagement Metrics
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {analyticsData.audience.engagement.map((metric, index) => (
-                    <div key={index} className="text-center space-y-2">
-                      <p className="text-sm text-slate-400">{metric.metric}</p>
-                      <p className="text-2xl font-bold text-white">{metric.value}</p>
-                      <div className="flex items-center justify-center">
-                        {metric.trend > 0 ? (
-                          <ArrowUpRight className="h-4 w-4 text-green-400 mr-1" />
-                        ) : (
-                          <ArrowDownRight className="h-4 w-4 text-red-400 mr-1" />
-                        )}
-                        <span className={`text-sm ${metric.trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {metric.trend > 0 ? '+' : ''}{metric.trend}%
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            {audienceData.length > 0 ? (
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-white">
+                    <Users className="mr-2 h-5 w-5 text-purple-400" />
+                    Capacity Utilization by Event
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={audienceData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                        <XAxis dataKey="name" stroke="#94a3b8" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={60} />
+                        <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: 8 }} />
+                        <Legend />
+                        <Bar dataKey="capacity" fill="#6366f1" name="Capacity" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="sold" fill="#a855f7" name="Sold" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <ChartPlaceholderCard title="Audience analytics" />
+            )}
           </TabsContent>
 
           <TabsContent value="trends" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Popular Genres */}
-              <TrendChart
-                data={analyticsData.trends.popularGenres.map(g => ({ label: g.genre, value: g.events }))}
-                title="Popular Genres"
-                color="rgb(251, 191, 36)"
-              />
-
-              {/* Peak Booking Times */}
-              <TrendChart
-                data={analyticsData.trends.peakTimes.map(t => ({ label: t.time, value: t.bookings }))}
-                title="Peak Booking Times"
-                color="rgb(239, 68, 68)"
-              />
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardContent className="p-6 text-center">
+                  <CalendarIcon className="mx-auto mb-2 h-8 w-8 text-blue-400" />
+                  <p className="text-2xl font-bold text-white">{s.totalEvents}</p>
+                  <p className="text-sm text-slate-400">Total Events</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardContent className="p-6 text-center">
+                  <Music className="mx-auto mb-2 h-8 w-8 text-purple-400" />
+                  <p className="text-2xl font-bold text-white">{s.totalArtists}</p>
+                  <p className="text-sm text-slate-400">Artists</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardContent className="p-6 text-center">
+                  <Target className="mx-auto mb-2 h-8 w-8 text-green-400" />
+                  <p className="text-2xl font-bold text-white">{s.totalVenues}</p>
+                  <p className="text-sm text-slate-400">Venues</p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardContent className="p-6 text-center">
+                  <Users className="mx-auto mb-2 h-8 w-8 text-yellow-400" />
+                  <p className="text-2xl font-bold text-white">{s.staffMembers}</p>
+                  <p className="text-sm text-slate-400">Staff Members</p>
+                </CardContent>
+              </Card>
             </div>
-
-            {/* Seasonality Trends */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <CalendarIcon className="h-5 w-5 mr-2 text-purple-400" />
-                  Seasonal Demand Patterns
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-6 gap-4">
-                  {analyticsData.trends.seasonality.map((month, index) => (
-                    <div key={index} className="text-center space-y-2">
-                      <p className="text-sm text-slate-400">{month.month}</p>
-                      <div className="relative h-24">
-                        <div className="absolute bottom-0 w-full bg-slate-800 rounded-t">
-                          <div 
-                            className="bg-gradient-to-t from-purple-500 to-purple-400 rounded-t transition-all duration-700"
-                            style={{ height: `${month.demand}%` }}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-sm font-medium text-white">{month.demand}%</p>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           <TabsContent value="real-time" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="bg-slate-900/50 border-slate-700/50">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardContent className="p-6 text-center">
-                  <div className="space-y-2">
-                    <Eye className="h-8 w-8 text-blue-400 mx-auto" />
-                    <p className="text-2xl font-bold text-white">1,247</p>
-                    <p className="text-sm text-slate-400">Active Users</p>
-                  </div>
+                  <Activity className="mx-auto mb-2 h-8 w-8 text-blue-400" />
+                  <p className="text-2xl font-bold text-white">—</p>
+                  <p className="text-sm text-slate-400">Live users</p>
                 </CardContent>
               </Card>
-              
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardContent className="p-6 text-center">
-                  <div className="space-y-2">
-                    <Play className="h-8 w-8 text-green-400 mx-auto" />
-                    <p className="text-2xl font-bold text-white">23</p>
-                    <p className="text-sm text-slate-400">Live Events</p>
-                  </div>
+                  <Music className="mx-auto mb-2 h-8 w-8 text-green-400" />
+                  <p className="text-2xl font-bold text-white">
+                    {formatSafeNumber(s.upcomingEvents)}
+                  </p>
+                  <p className="text-sm text-slate-400">Upcoming events</p>
                 </CardContent>
               </Card>
-              
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardContent className="p-6 text-center">
-                  <div className="space-y-2">
-                    <Ticket className="h-8 w-8 text-yellow-400 mx-auto" />
-                    <p className="text-2xl font-bold text-white">89</p>
-                    <p className="text-sm text-slate-400">Tickets/Hour</p>
-                  </div>
+                  <Ticket className="mx-auto mb-2 h-8 w-8 text-yellow-400" />
+                  <p className="text-2xl font-bold text-white">
+                    {formatSafeNumber(s.ticketsSold)}
+                  </p>
+                  <p className="text-sm text-slate-400">Tickets sold (total)</p>
                 </CardContent>
               </Card>
-              
-              <Card className="bg-slate-900/50 border-slate-700/50">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
                 <CardContent className="p-6 text-center">
-                  <div className="space-y-2">
-                    <DollarSign className="h-8 w-8 text-green-400 mx-auto" />
-                    <p className="text-2xl font-bold text-white">$12.4K</p>
-                    <p className="text-sm text-slate-400">Revenue/Hour</p>
-                  </div>
+                  <DollarSign className="mx-auto mb-2 h-8 w-8 text-green-400" />
+                  <p className="text-2xl font-bold text-white">
+                    {formatSafeCurrency(s.totalRevenue)}
+                  </p>
+                  <p className="text-sm text-slate-400">Revenue (total)</p>
                 </CardContent>
               </Card>
             </div>
 
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white flex items-center">
-                  <Radio className="h-5 w-5 mr-2 text-red-400" />
-                  Live Activity Feed
+                <CardTitle className="flex items-center text-white">
+                  <Radio className="mr-2 h-5 w-5 text-red-400" />
+                  Live activity feed
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {[
-                    { user: "Sarah M.", action: "purchased 2 tickets for Summer Festival", time: "2 min ago", type: "purchase" },
-                    { user: "Alex R.", action: "shared Electronic Showcase event", time: "5 min ago", type: "share" },
-                    { user: "Mike C.", action: "left a 5-star review for Indie Rock Night", time: "8 min ago", type: "review" },
-                    { user: "Lisa K.", action: "added VIP package to cart", time: "12 min ago", type: "cart" },
-                    { user: "David L.", action: "followed DJ Luna artist profile", time: "15 min ago", type: "follow" }
-                  ].map((activity, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-3 bg-slate-800/30 rounded-lg">
-                      <div className={`w-2 h-2 rounded-full ${
-                        activity.type === 'purchase' ? 'bg-green-400' :
-                        activity.type === 'share' ? 'bg-blue-400' :
-                        activity.type === 'review' ? 'bg-yellow-400' :
-                        activity.type === 'cart' ? 'bg-purple-400' :
-                        'bg-pink-400'
-                      }`} />
-                      <div className="flex-1">
-                        <p className="text-sm text-white">
-                          <span className="font-medium">{activity.user}</span> {activity.action}
-                        </p>
-                        <p className="text-xs text-slate-400">{activity.time}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex min-h-[120px] items-center justify-center rounded-sm border border-dashed border-slate-700/60 bg-slate-950/40 px-4 py-8 text-center text-sm text-slate-400">
+                  Real-time activity is not connected yet.
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
     </div>
   )
-} 
+}

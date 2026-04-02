@@ -1,10 +1,13 @@
 import { withAuth } from '@/lib/auth/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
-export const POST = withAuth(async (request, { supabase, user }) => {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await context.params
+  return withAuth(async (_request, { supabase, user }) => {
   try {
-    const { params } = (request as any)
-    const slug = params?.slug || request.url.split('/forums/')[1]?.split('/')[0]
     if (!slug) return NextResponse.json({ error: 'Missing forum slug' }, { status: 400 })
 
     const { data: forum } = await supabase
@@ -24,12 +27,16 @@ export const POST = withAuth(async (request, { supabase, user }) => {
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-})
+  })(request)
+}
 
-export const DELETE = withAuth(async (request, { supabase, user }) => {
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await context.params
+  return withAuth(async (_request, { supabase, user }) => {
   try {
-    const { params } = (request as any)
-    const slug = params?.slug || request.url.split('/forums/')[1]?.split('/')[0]
     if (!slug) return NextResponse.json({ error: 'Missing forum slug' }, { status: 400 })
 
     const { data: forum } = await supabase
@@ -51,6 +58,7 @@ export const DELETE = withAuth(async (request, { supabase, user }) => {
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-})
+  })(request)
+}
 
 

@@ -1,14 +1,14 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
+import { SurfaceCard, SurfaceInput } from '@/components/surface/surface-primitives'
 import { 
   Search, 
   Filter, 
@@ -105,7 +105,7 @@ export function JobFilters({
   const activeFiltersCount = getActiveFiltersCount()
 
   return (
-    <Card className="border-gray-800/50 bg-gray-900/50">
+    <SurfaceCard className="border-gray-800/50 bg-gray-900/50">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -122,7 +122,7 @@ export function JobFilters({
               variant="ghost"
               size="sm"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-gray-400"
+              className="rounded-xl text-gray-400"
             >
               {showAdvanced ? (
                 <>
@@ -141,7 +141,7 @@ export function JobFilters({
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="text-gray-400 hover:text-red-400"
+                className="rounded-xl text-gray-400 hover:text-red-400"
               >
                 <X className="w-4 h-4 mr-1" />
                 Clear
@@ -155,7 +155,7 @@ export function JobFilters({
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
-          <Input
+          <SurfaceInput
             placeholder="Search jobs..."
             value={filters.query || ''}
             onChange={(e) => handleFilterChange('query', e.target.value)}
@@ -171,7 +171,7 @@ export function JobFilters({
               value={filters.category_id || 'all'}
               onValueChange={(value) => handleFilterChange('category_id', value === 'all' ? undefined : value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="surface-entry">
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
               <SelectContent>
@@ -191,7 +191,7 @@ export function JobFilters({
               value={filters.sort_by || 'created_at'}
               onValueChange={(value) => handleFilterChange('sort_by', value as any)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="surface-entry">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -312,7 +312,7 @@ export function JobFilters({
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <Label className="text-sm font-medium mb-2 block">City</Label>
-                <Input
+                <SurfaceInput
                   placeholder="Enter city"
                   value={filters.city || ''}
                   onChange={(e) => handleFilterChange('city', e.target.value || undefined)}
@@ -320,7 +320,7 @@ export function JobFilters({
               </div>
               <div>
                 <Label className="text-sm font-medium mb-2 block">State</Label>
-                <Input
+                <SurfaceInput
                   placeholder="Enter state"
                   value={filters.state || ''}
                   onChange={(e) => handleFilterChange('state', e.target.value || undefined)}
@@ -328,7 +328,7 @@ export function JobFilters({
               </div>
               <div>
                 <Label className="text-sm font-medium mb-2 block">Country</Label>
-                <Input
+                <SurfaceInput
                   placeholder="Enter country"
                   value={filters.country || ''}
                   onChange={(e) => handleFilterChange('country', e.target.value || undefined)}
@@ -353,6 +353,6 @@ export function JobFilters({
           </div>
         )}
       </CardContent>
-    </Card>
+    </SurfaceCard>
   )
 } 

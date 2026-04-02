@@ -5,6 +5,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Badge } from "@/components/ui/badge"
 import { AdminEvent } from "./event-card"
 import { Calendar, MapPin, Users } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface EventDetailsDialogProps {
   open: boolean
@@ -29,7 +31,7 @@ export function EventDetailsDialog({ open, onOpenChange, event }: EventDetailsDi
         <div className="space-y-2">
           <div className="flex items-center text-sm text-purple-400">
             <Calendar className="h-4 w-4 mr-2" />
-            {new Date(event.date).toLocaleDateString()}
+            {formatSafeDate(event.date)}
           </div>
           <div className="flex items-center text-sm text-purple-400">
             <MapPin className="h-4 w-4 mr-2" />
@@ -43,7 +45,7 @@ export function EventDetailsDialog({ open, onOpenChange, event }: EventDetailsDi
           <div className="w-full h-2 bg-slate-800 rounded">
             <div className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-2 text-green-400 font-semibold">${event.revenue.toLocaleString()}</div>
+          <div className="mt-2 text-green-400 font-semibold">{formatSafeCurrency(event.revenue)}</div>
           {event.description && (
             <div className="mt-4">
               <div className="text-xs text-slate-400 mb-1">Description</div>
@@ -62,7 +64,7 @@ export function EventDetailsDialog({ open, onOpenChange, event }: EventDetailsDi
                       ? "text-amber-400"
                       : "text-slate-400"
                   }>
-                    {task.name} (due {new Date(task.dueDate).toLocaleDateString()})
+                    {task.name} (due {formatSafeDate(task.dueDate)})
                   </span>
                 </li>
               ))}

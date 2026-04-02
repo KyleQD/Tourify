@@ -34,6 +34,7 @@ import { AccountManagementService, UserAccount } from '@/lib/services/account-ma
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface AccountManagementSettingsProps {
   activeTab?: string
@@ -481,7 +482,7 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
                       </div>
                       
                       <p className="text-gray-400 text-sm mt-1">
-                        Created: {new Date(account.profile_data?.created_at || Date.now()).toLocaleDateString()}
+                        Created: {formatSafeDate(account.profile_data?.created_at || new Date().toISOString())}
                       </p>
                     </div>
                   </div>

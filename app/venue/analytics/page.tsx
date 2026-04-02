@@ -11,6 +11,8 @@ import { useCurrentVenue } from "../hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import {
   BarChart2,
   Users,
@@ -232,7 +234,7 @@ export default function AnalyticsPage() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${analyticsData.revenue.current.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatSafeCurrency(analyticsData.revenue.current)}</div>
             <div className={`flex items-center pt-1 text-xs ${analyticsData.revenue.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
               {analyticsData.revenue.change > 0 ? 
                 <ArrowUpRight className="h-3 w-3 mr-1" /> : 
@@ -250,7 +252,7 @@ export default function AnalyticsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analyticsData.attendance.current.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{formatSafeNumber(analyticsData.attendance.current)}</div>
             <div className={`flex items-center pt-1 text-xs ${analyticsData.attendance.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
               {analyticsData.attendance.change > 0 ? 
                 <ArrowUpRight className="h-3 w-3 mr-1" /> : 
@@ -321,7 +323,7 @@ export default function AnalyticsPage() {
                           <span className="text-sm font-medium">{month.month}</span>
                         </div>
                         <div>
-                          <p className="font-medium">${month.revenue.toLocaleString()}</p>
+                          <p className="font-medium">{formatSafeCurrency(month.revenue)}</p>
                           <p className="text-sm text-muted-foreground">{month.attendance} attendees</p>
                         </div>
                       </div>
@@ -360,7 +362,7 @@ export default function AnalyticsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-medium">${event.revenue.toLocaleString()}</p>
+                        <p className="text-sm font-medium">{formatSafeCurrency(event.revenue)}</p>
                       </div>
                     </div>
                   ))}
@@ -380,7 +382,7 @@ export default function AnalyticsPage() {
                   <div key={i} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{type.type}</span>
-                      <span>${type.revenue.toLocaleString()}</span>
+                      <span>{formatSafeCurrency(type.revenue)}</span>
                     </div>
                     <Progress value={type.percentage} className="h-2" />
                     <div className="flex justify-between text-xs text-muted-foreground">
@@ -464,7 +466,7 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-sm">Gross Revenue</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">${analyticsData.revenue.current.toLocaleString()}</div>
+                <div className="text-2xl font-bold">{formatSafeCurrency(analyticsData.revenue.current)}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   +{analyticsData.revenue.change}% from last period
                 </p>
@@ -526,7 +528,7 @@ export default function AnalyticsPage() {
                       <div key={i} className="flex justify-between items-center">
                         <span className="text-sm">{item.source}</span>
                         <div className="text-right">
-                          <span className="text-sm font-medium">${item.amount.toLocaleString()}</span>
+                          <span className="text-sm font-medium">{formatSafeCurrency(item.amount)}</span>
                           <div className="text-xs text-muted-foreground">{item.percentage}%</div>
                         </div>
                       </div>
@@ -547,7 +549,7 @@ export default function AnalyticsPage() {
                       <div key={i} className="flex justify-between items-center">
                         <span className="text-sm">{item.category}</span>
                         <div className="text-right">
-                          <span className="text-sm font-medium">${item.amount.toLocaleString()}</span>
+                          <span className="text-sm font-medium">{formatSafeCurrency(item.amount)}</span>
                           <div className="text-xs text-muted-foreground">{item.percentage}%</div>
                         </div>
                       </div>
@@ -566,7 +568,7 @@ export default function AnalyticsPage() {
                 <CardTitle className="text-sm">Total Attendees</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{analyticsData.attendance.current.toLocaleString()}</div>
+                <div className="text-2xl font-bold">{formatSafeNumber(analyticsData.attendance.current)}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Across all events this period
                 </p>
@@ -667,25 +669,25 @@ export default function AnalyticsPage() {
                   {
                     title: "Monthly Performance Report",
                     description: "Comprehensive overview of venue performance metrics",
-                    lastGenerated: new Date().toLocaleDateString(),
+                    lastGenerated: formatSafeDate(new Date().toISOString()),
                     status: "Ready"
                   },
                   {
                     title: "Financial Statement",
                     description: "Detailed revenue and expense breakdown",
-                    lastGenerated: new Date().toLocaleDateString(),
+                    lastGenerated: formatSafeDate(new Date().toISOString()),
                     status: "Ready"
                   },
                   {
                     title: "Event Analysis Report",
                     description: "Performance analysis of individual events",
-                    lastGenerated: new Date().toLocaleDateString(),
+                    lastGenerated: formatSafeDate(new Date().toISOString()),
                     status: "Ready"
                   },
                   {
                     title: "Customer Insights",
                     description: "Audience demographics and behavior analysis",
-                    lastGenerated: new Date().toLocaleDateString(),
+                    lastGenerated: formatSafeDate(new Date().toISOString()),
                     status: "Ready"
                   },
                 ].map((report, i) => (

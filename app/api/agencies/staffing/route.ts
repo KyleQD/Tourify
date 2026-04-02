@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (_request: NextRequest, { supabase }) => {
+export const GET = withAdminAuth(async (_request: NextRequest, { supabase }) => {
   try {
     const { data, error } = await supabase
       .from('staffing_agencies')
@@ -16,7 +16,7 @@ export const GET = withAuth(async (_request: NextRequest, { supabase }) => {
   }
 })
 
-export const POST = withAuth(async (request: NextRequest, { supabase }) => {
+export const POST = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
     const body = await request.json()
     const { name, description } = body || {}

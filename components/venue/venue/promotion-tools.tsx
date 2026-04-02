@@ -8,6 +8,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar, Copy, Download, Edit, Facebook, Globe, Instagram, Plus, Share2, Twitter, Upload } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 // Mock promotion data
 const mockPromotions = [
@@ -175,7 +177,7 @@ export function PromotionTools() {
                     <p className="text-sm text-gray-400 mb-3">{promo.description}</p>
 
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-xs text-gray-500">{new Date(promo.startDate).toLocaleDateString()}</div>
+                      <div className="text-xs text-gray-500">{formatSafeDate(promo.startDate)}</div>
                       <div className="flex gap-1">
                         {promo.platforms.map((platform) => (
                           <div
@@ -191,19 +193,19 @@ export function PromotionTools() {
                     {promo.status === "active" && (
                       <div className="grid grid-cols-4 gap-2 text-center text-xs">
                         <div>
-                          <div className="font-medium">{promo.stats.views.toLocaleString()}</div>
+                          <div className="font-medium">{formatSafeNumber(promo.stats.views)}</div>
                           <div className="text-gray-500">Views</div>
                         </div>
                         <div>
-                          <div className="font-medium">{promo.stats.clicks.toLocaleString()}</div>
+                          <div className="font-medium">{formatSafeNumber(promo.stats.clicks)}</div>
                           <div className="text-gray-500">Clicks</div>
                         </div>
                         <div>
-                          <div className="font-medium">{promo.stats.shares.toLocaleString()}</div>
+                          <div className="font-medium">{formatSafeNumber(promo.stats.shares)}</div>
                           <div className="text-gray-500">Shares</div>
                         </div>
                         <div>
-                          <div className="font-medium">{promo.stats.conversions.toLocaleString()}</div>
+                          <div className="font-medium">{formatSafeNumber(promo.stats.conversions)}</div>
                           <div className="text-gray-500">Conv.</div>
                         </div>
                       </div>

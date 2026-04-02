@@ -83,6 +83,12 @@ export interface ArtistJob {
   poster_avatar?: string
   is_saved?: boolean
   user_application?: ArtistJobApplication | CollaborationApplication
+  hiring_milestones?: Array<{
+    key: string
+    label: string
+    completed: boolean
+    completedAt?: string | null
+  }>
   time_since_posted?: string
   location_display?: string
 }

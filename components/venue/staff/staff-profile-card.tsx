@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { 
   User, 
   Mail, 
@@ -128,7 +129,7 @@ export function StaffProfileCard({ staff, onEdit, onView, isAdmin = false }: Sta
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Not set"
-    return new Date(dateString).toLocaleDateString()
+    return formatSafeDate(dateString)
   }
 
   const formatCurrency = (amount: number | null) => {

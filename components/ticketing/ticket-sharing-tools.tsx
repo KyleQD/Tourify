@@ -30,6 +30,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import { SHARE_PLATFORMS, type SharePlatform } from '@/types/ticketing'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface TicketSharingToolsProps {
   eventId: string
@@ -89,7 +90,7 @@ export function TicketSharingTools({
     const ticketType = ticketTypes.find(t => t.id === selectedTicketType)
     const priceText = ticketType ? ` starting at $${ticketType.price}` : ''
     
-    const text = `🎫 ${event.title}${priceText}\n📅 ${new Date(event.date).toLocaleDateString()}\n📍 ${event.location}\n\nGet your tickets now!`
+    const text = `🎫 ${event.title}${priceText}\n📅 ${formatSafeDate(event.date)}\n📍 ${event.location}\n\nGet your tickets now!`
     setShareText(text)
     return text
   }
@@ -393,7 +394,7 @@ export function TicketSharingTools({
                       Refresh Stats
                     </Button>
                     <p className="text-sm text-muted-foreground">
-                      Last updated: {new Date().toLocaleTimeString()}
+                      Last updated: {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date())}
                     </p>
                   </div>
                 </div>

@@ -1,10 +1,10 @@
 # RSS Feed Integration for Music News
 
-This guide explains how to integrate RSS feeds from major music publications to populate the news tab in your For You Page (FYP).
+This guide explains how to integrate RSS feeds from major music publications to populate the News feed.
 
 ## 🎯 Overview
 
-The RSS feed integration fetches real-time music news from popular publications and displays them in your FYP news tab. This provides users with fresh, relevant content from trusted sources.
+The RSS feed integration fetches real-time music news from popular publications and displays them in the News feed. This provides users with fresh, relevant content from trusted sources.
 
 ## 📰 Supported News Sources
 
@@ -209,7 +209,7 @@ function NewsList({ news }) {
 ## 🔍 Features
 
 ### Automatic Integration
-- RSS news automatically appears in the FYP news tab
+- RSS news automatically appears in the News feed
 - Mixed with local platform content
 - Sorted by relevance and recency
 
@@ -272,7 +272,7 @@ function NewsList({ news }) {
    curl http://localhost:3000/api/test-rss
    ```
 
-3. **Check the FYP news tab:**
+3. **Check the News feed:**
    - Navigate to `/feed`
    - Click the "News" tab
    - Look for RSS content mixed with local posts

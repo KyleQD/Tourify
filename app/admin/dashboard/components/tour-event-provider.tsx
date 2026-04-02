@@ -1,31 +1,10 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import type { AdminTour, AdminEvent } from '@/types/admin'
 
-interface Tour {
-  id: string
-  name: string
-  status: string
-  start_date: string
-  end_date: string
-  total_shows: number
-  completed_shows: number
-  revenue: number
-}
-
-interface Event {
-  id: string
-  name: string
-  event_date: string
-  status: string
-  venue: {
-    name: string
-    address?: string
-  }
-  capacity: number
-  tickets_sold: number
-  revenue: number
-}
+type Tour = AdminTour
+type Event = AdminEvent
 
 interface TourEventContextType {
   tours: Tour[]
@@ -51,38 +30,21 @@ export function TourEventProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       setError(null)
 
-      console.log('[TourEventProvider] Fetching tours and events...')
-
-      // Fetch tours and events in parallel
       const [toursResponse, eventsResponse] = await Promise.all([
-        fetch('/api/tours').catch(err => {
-          console.log('[TourEventProvider] Tours fetch failed:', err)
-          return { ok: false, json: async () => ({ tours: [] }) }
-        }),
-        fetch('/api/events').catch(err => {
-          console.log('[TourEventProvider] Events fetch failed:', err)
-          return { ok: false, json: async () => ({ events: [] }) }
-        })
+        fetch('/api/tours').catch(() => ({ ok: false, json: async () => ({ tours: [] }) })),
+        fetch('/api/events').catch(() => ({ ok: false, json: async () => ({ events: [] }) }))
       ])
 
-      // Handle tours response
       let toursData: Tour[] = []
       if (toursResponse.ok) {
         const toursResult = await toursResponse.json()
         toursData = toursResult.tours || []
-        console.log('[TourEventProvider] Tours loaded:', toursData.length)
-      } else {
-        console.log('[TourEventProvider] Tours API failed, using empty array')
       }
 
-      // Handle events response
       let eventsData: Event[] = []
       if (eventsResponse.ok) {
         const eventsResult = await eventsResponse.json()
         eventsData = eventsResult.events || []
-        console.log('[TourEventProvider] Events loaded:', eventsData.length)
-      } else {
-        console.log('[TourEventProvider] Events API failed, using empty array')
       }
 
       setTours(toursData)
@@ -91,9 +53,7 @@ export function TourEventProvider({ children }: { children: ReactNode }) {
       // No error state - we always succeed with empty arrays if needed
       setError(null)
 
-    } catch (err) {
-      console.error('[TourEventProvider] Error fetching data:', err)
-      // Even on error, don't show error state - just use empty data
+    } catch {
       setTours([])
       setEvents([])
       setError(null) // Don't show errors, just empty states
@@ -120,15 +80,6 @@ export function TourEventProvider({ children }: { children: ReactNode }) {
     hasData,
     refetch: fetchData
   }
-
-  console.log('[TourEventProvider] State:', {
-    tours: tours.length,
-    events: events.length,
-    loading,
-    hasData,
-    isFirstTimeUser,
-    initialLoadComplete
-  })
 
   return (
     <TourEventContext.Provider value={value}>

@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Loader2 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   MessageCircle,
   UserPlus,
@@ -752,10 +753,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                   )}
                   <span className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">
                     <Calendar className="h-4 w-4" />
-                    Joined {new Date(profile.created_at).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })}
+                    Joined {formatSafeDate(profile.created_at)}
                   </span>
                 </div>
 
@@ -1146,12 +1144,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                                     </Badge>
                                   </div>
                                   <p className="text-gray-400 text-sm">
-                                    {new Date(post.created_at).toLocaleDateString('en-US', {
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit'
-                                    })}
+                                    {formatSafeDate(post.created_at)}
                                   </p>
                                 </div>
                               </div>

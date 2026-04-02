@@ -571,7 +571,7 @@ export function ProfileSettings() {
                     <span className="text-orange-600">● Unsaved changes</span>
                   )}
                   {lastSaved && !form.formState.isDirty && (
-                    <span className="text-green-600">✓ Last saved: {lastSaved.toLocaleTimeString()}</span>
+                    <span className="text-green-600">✓ Last saved: {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastSaved)}</span>
                   )}
                 </div>
                 <Button type="submit" disabled={isLoading || !form.formState.isDirty} className="min-w-[120px]">

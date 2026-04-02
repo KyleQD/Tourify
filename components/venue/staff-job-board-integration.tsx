@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import {
   Plus,
   Search,
@@ -324,7 +326,7 @@ export default function StaffJobBoardIntegration() {
                     <div className="flex items-center space-x-2 text-green-400">
                       <DollarSign className="h-4 w-4" />
                       <span className="font-semibold">
-                        ${job.salaryRange.min.toLocaleString()} - ${job.salaryRange.max.toLocaleString()}
+                        {formatSafeCurrency(job.salaryRange.min)} - {formatSafeCurrency(job.salaryRange.max)}
                         <span className="text-slate-400 ml-1">/ {job.salaryRange.type}</span>
                       </span>
                     </div>
@@ -361,7 +363,7 @@ export default function StaffJobBoardIntegration() {
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-4 w-4" />
-                        <span>Posted {new Date(job.postedDate).toLocaleDateString()}</span>
+                        <span>Posted {formatSafeDate(job.postedDate)}</span>
                       </div>
                     </div>
                     

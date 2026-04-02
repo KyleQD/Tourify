@@ -4,6 +4,7 @@ import { Download, Link, Share2, Star, Trash, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import type { Document } from "./documents-management"
 import { getFileIcon } from "./file-icons"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface DocumentDetailsProps {
   document: Document
@@ -24,13 +25,7 @@ export function DocumentDetails({ document, onClose, setIsShareDialogOpen }: Doc
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
+    return formatSafeDate(date.toISOString())
   }
 
   return (

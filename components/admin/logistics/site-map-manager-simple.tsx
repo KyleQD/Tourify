@@ -339,7 +339,13 @@ export function SiteMapManagerSimple() {
                     <span className="font-medium">Description:</span> {siteMap.description || 'No description'}
                   </div>
                   <div className="col-span-2">
-                    <span className="font-medium">Created:</span> {new Date(siteMap.created_at).toLocaleString()}
+                    <span className="font-medium">Created:</span> {new Intl.DateTimeFormat("en-US", {
+                      year: "numeric",
+                      month: "numeric",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }).format(new Date(siteMap.created_at))}
                   </div>
                 </div>
               </CardContent>

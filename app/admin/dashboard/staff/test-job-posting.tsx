@@ -11,9 +11,7 @@ export default function TestJobPosting() {
   const [showForm, setShowForm] = useState(false)
   const { toast } = useToast()
 
-  async function handleSubmit(data: CreateJobPostingData) {
-    console.log('🧪 [Test] Job posting data:', data)
-    
+  async function handleSubmit(_data: CreateJobPostingData) {
     // Simulate API call
     try {
       // Mock successful creation

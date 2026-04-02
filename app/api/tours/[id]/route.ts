@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const updateTourSchema = z.object({
   name: z.string().min(1, 'Tour name is required').optional(),
@@ -21,42 +21,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour API] GET request for tour:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour API] GET request for tour:', id)
 
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour API] User lacks admin permissions for viewing tour')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
-    // Fetch tour with events
+    // Fetch tour
     const { data: tour, error: tourError } = await supabase
       .from('tours')
-      .select(`
-        *,
-        events (
-          id,
-          name,
-          venue_name,
-          event_date,
-          status,
-          capacity,
-          tickets_sold,
-          actual_revenue,
-          expenses
-        )
-      `)
+      .select('*')
       .eq('id', id)
       .single()
 
@@ -74,14 +47,53 @@ export async function GET(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
+    const { data: links } = await supabase
+      .from('tour_events')
+      .select(`
+        id,
+        ordinal,
+        events_v2 (
+          id,
+          title,
+          status,
+          start_at,
+          capacity,
+          settings
+        )
+      `)
+      .eq('tour_id', id)
+      .order('ordinal', { ascending: true })
+
+    const events = (links || [])
+      .map((link: any) => {
+        const event = link.events_v2
+        if (!event) return null
+        const settings = event.settings && typeof event.settings === 'object'
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        return {
+          id: event.id,
+          name: event.title,
+          venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : 'Venue',
+          event_date: event.start_at ? String(event.start_at).slice(0, 10) : null,
+          status: event.status,
+          capacity: event.capacity || 0,
+          tickets_sold: 0,
+          actual_revenue: Number(settings.actual_revenue || 0),
+          expenses: Number(settings.expenses || 0),
+        }
+      })
+      .filter(Boolean)
+
     // Calculate derived fields
-    const totalShows = tour.events?.length || 0
-    const completedShows = tour.events?.filter((event: any) => event.status === 'completed').length || 0
-    const actualRevenue = tour.events?.reduce((sum: number, event: any) => sum + (event.actual_revenue || 0), 0) || 0
-    const totalExpenses = tour.events?.reduce((sum: number, event: any) => sum + (event.expenses || 0), 0) || 0
+    const totalShows = events.length
+    const completedShows = events.filter((event: any) => event.status === 'settled' || event.status === 'completed').length
+    const actualRevenue = events.reduce((sum: number, event: any) => sum + (event.actual_revenue || 0), 0)
+    const totalExpenses = events.reduce((sum: number, event: any) => sum + (event.expenses || 0), 0)
 
     const tourWithCalculations = {
       ...tour,
+      events,
       total_shows: totalShows,
       completed_shows: completedShows,
       actual_revenue: actualRevenue,
@@ -90,36 +102,25 @@ export async function GET(
 
     console.log('[Tour API] Successfully fetched tour:', id)
 
-    return NextResponse.json(tourWithCalculations)
+      return NextResponse.json(tourWithCalculations)
 
-  } catch (error) {
-    console.error('[Tour API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('[Tour API] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour API] PATCH request for tour:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour API] User lacks admin permissions for updating tour')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour API] PATCH request for tour:', id)
 
     const body = await request.json()
     const validatedData = updateTourSchema.parse(body)
@@ -162,42 +163,31 @@ export async function PATCH(
 
     console.log('[Tour API] Successfully updated tour:', id)
 
-    return NextResponse.json(updatedTour)
+      return NextResponse.json(updatedTour)
 
-  } catch (error) {
-    console.error('[Tour API] Error:', error)
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Validation error', 
-        details: error.errors 
-      }, { status: 400 })
+    } catch (error) {
+      console.error('[Tour API] Error:', error)
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ 
+          error: 'Validation error', 
+          details: error.errors 
+        }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour API] DELETE request for tour:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour API] User lacks admin permissions for deleting tour')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour API] DELETE request for tour:', id)
 
     // Verify the user owns this tour
     const { data: existingTour, error: fetchError } = await supabase
@@ -219,16 +209,22 @@ export async function DELETE(
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
-    // Delete associated events first
-    const { error: eventsDeleteError } = await supabase
-      .from('events')
+    // Delete tour-event links first
+    const { error: linksDeleteError } = await supabase
+      .from('tour_events')
       .delete()
       .eq('tour_id', id)
 
-    if (eventsDeleteError) {
-      console.error('[Tour API] Error deleting associated events:', eventsDeleteError)
-      return NextResponse.json({ error: 'Failed to delete associated events' }, { status: 500 })
+    if (linksDeleteError) {
+      console.error('[Tour API] Error deleting associated event links:', linksDeleteError)
+      return NextResponse.json({ error: 'Failed to delete associated event links' }, { status: 500 })
     }
+
+    // Best-effort cleanup for legacy event rows that still point to tour_id
+    await supabase
+      .from('events')
+      .delete()
+      .eq('tour_id', id)
 
     // Delete the tour
     const { error: deleteError } = await supabase
@@ -243,13 +239,16 @@ export async function DELETE(
 
     console.log('[Tour API] Successfully deleted tour:', id)
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Tour deleted successfully' 
-    })
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Tour deleted successfully' 
+      })
 
-  } catch (error) {
-    console.error('[Tour API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('[Tour API] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 } 

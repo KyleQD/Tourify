@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { Loader2, Ticket, CreditCard, CheckCircle, AlertCircle, Tag, Users, Share2, Gift } from 'lucide-react'
 import { ticketingService } from '@/lib/services/ticketing.service'
 import { type TicketType, type PromoCode } from '@/types/ticketing'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface Event {
   id: string
@@ -221,12 +222,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    return formatSafeDate(dateString)
   }
 
   const calculateTotal = () => {

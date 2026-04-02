@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { Event } from "@/app/types/events.types"
 import { Separator } from "@/components/ui/separator"
 import { Users, DollarSign, MapPin, Clock, Calendar, Tag, Info } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface DetailsTabProps {
   event: Event
@@ -80,12 +81,7 @@ export default function DetailsTab({ event }: DetailsTabProps) {
                 <p className="font-medium">Date</p>
                 <p className="text-muted-foreground">
                   {event.date
-                    ? new Date(event.date as any).toLocaleDateString("en-US", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })
+                    ? formatSafeDate(event.date as any)
                     : "Date TBA"}
                 </p>
               </div>

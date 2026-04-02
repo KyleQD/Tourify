@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import {
   ArrowLeft,
   Calendar,
@@ -223,7 +225,7 @@ export default function EventManagementDashboard() {
                   {event.status}
                 </Badge>
               </h1>
-              <p className="text-gray-400 text-sm">{event.type} • {event.venue} • {event.date.toLocaleDateString()}</p>
+              <p className="text-gray-400 text-sm">{event.type} • {event.venue} • {formatSafeDate(event.date.toISOString())}</p>
             </div>
           </div>
           
@@ -263,15 +265,15 @@ export default function EventManagementDashboard() {
       <div className="bg-gray-900 border-b border-gray-800 px-6 py-3">
         <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-400">{event.ticketsSold.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-400">{formatSafeNumber(event.ticketsSold)}</div>
             <div className="text-xs text-gray-400">Tickets Sold</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-400">${event.revenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-blue-400">{formatSafeCurrency(event.revenue)}</div>
             <div className="text-xs text-gray-400">Revenue</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-400">{event.capacity.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-purple-400">{formatSafeNumber(event.capacity)}</div>
             <div className="text-xs text-gray-400">Capacity</div>
           </div>
           <div className="text-center">
@@ -323,11 +325,11 @@ export default function EventManagementDashboard() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <Label className="text-xs font-medium text-gray-400">Date & Time</Label>
-                        <p className="text-sm">{event.date.toLocaleDateString()} • {event.startTime} - {event.endTime}</p>
+                        <p className="text-sm">{formatSafeDate(event.date.toISOString())} • {event.startTime} - {event.endTime}</p>
                       </div>
                       <div>
                         <Label className="text-xs font-medium text-gray-400">Capacity</Label>
-                        <p className="text-sm">{event.capacity.toLocaleString()} people</p>
+                        <p className="text-sm">{formatSafeNumber(event.capacity)} people</p>
                       </div>
                       <div>
                         <Label className="text-xs font-medium text-gray-400">Organizer</Label>
@@ -356,8 +358,8 @@ export default function EventManagementDashboard() {
                   <CardContent>
                     <div className="space-y-4">
                       <div className="flex justify-between text-sm">
-                        <span>{event.ticketsSold.toLocaleString()} sold</span>
-                        <span>{(event.capacity - event.ticketsSold).toLocaleString()} remaining</span>
+                        <span>{formatSafeNumber(event.ticketsSold)} sold</span>
+                        <span>{formatSafeNumber(event.capacity - event.ticketsSold)} remaining</span>
                       </div>
                       <Progress value={(event.ticketsSold / event.capacity) * 100} className="h-3" />
                       <div className="grid grid-cols-3 gap-4 text-center">
@@ -365,7 +367,7 @@ export default function EventManagementDashboard() {
                           <div key={ticket.id} className="space-y-1">
                             <div className="text-xs text-gray-400">{ticket.name}</div>
                             <div className="text-sm font-medium">{ticket.sold}/{ticket.quantity}</div>
-                            <div className="text-xs text-green-400">${(ticket.sold * ticket.price).toLocaleString()}</div>
+                            <div className="text-xs text-green-400">{formatSafeCurrency(ticket.sold * ticket.price)}</div>
                           </div>
                         ))}
                       </div>

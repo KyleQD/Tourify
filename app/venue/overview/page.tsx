@@ -12,6 +12,7 @@ import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { format, startOfWeek, endOfWeek, isToday, isTomorrow, addDays } from "date-fns"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import {
   Calendar,
   Users,
@@ -534,10 +535,10 @@ export default function VenueOverviewPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-500">
-                  ${overviewData.stats.monthlyRevenue.toLocaleString()}
+                  {formatSafeCurrency(overviewData.stats.monthlyRevenue)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  of ${overviewData.stats.totalRevenue.toLocaleString()} total
+                  of {formatSafeCurrency(overviewData.stats.totalRevenue)} total
                 </p>
               </CardContent>
             </Card>

@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { motion, AnimatePresence } from "framer-motion"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import { 
   Calendar, 
   Users, 
@@ -48,6 +49,7 @@ import {
   Radio,
   Volume2
 } from "lucide-react"
+import { formatSafeDate, mapAdminEventStatus } from "@/lib/events/admin-event-normalization"
 
 interface DashboardStats {
   totalTours: number
@@ -295,6 +297,21 @@ export default function Dashboard() {
   }
 
   const getEventStatusBadge = (status: string) => {
+    if (status === 'pending')
+      return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pending</Badge>
+
+    const normalizedStatus = mapAdminEventStatus(status)
+    if (normalizedStatus === 'confirmed')
+      return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Confirmed</Badge>
+    if (normalizedStatus === 'scheduled')
+      return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Scheduled</Badge>
+    if (normalizedStatus === 'in_progress')
+      return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">In Progress</Badge>
+    if (normalizedStatus === 'cancelled')
+      return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Cancelled</Badge>
+    if (normalizedStatus === 'completed')
+      return <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Completed</Badge>
+
     switch (status) {
       case 'confirmed':
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Confirmed</Badge>
@@ -407,7 +424,7 @@ export default function Dashboard() {
             change={-3}
             icon={Ticket}
             trend="down"
-            subtitle={`${stats.ticketsSold.toLocaleString()} / ${stats.totalCapacity.toLocaleString()}`}
+            subtitle={`${formatSafeNumber(stats.ticketsSold)} / ${formatSafeNumber(stats.totalCapacity)}`}
             color="text-blue-400"
           />
         </div>
@@ -520,7 +537,7 @@ export default function Dashboard() {
                     <div className="space-y-1 text-sm text-slate-400">
                       <div className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
-                        {new Date(event.date).toLocaleDateString()} at {event.time}
+                        {formatSafeDate(event.date)} at {event.time}
                       </div>
                       <div className="flex items-center">
                         <MapPin className="h-3 w-3 mr-1" />
@@ -535,7 +552,7 @@ export default function Dashboard() {
                       <div className="flex items-center space-x-4">
                         <div className="text-xs">
                           <span className="text-slate-500">Sold:</span>
-                          <span className="text-white ml-1">{event.ticketsSold.toLocaleString()}</span>
+                          <span className="text-white ml-1">{formatSafeNumber(event.ticketsSold)}</span>
                         </div>
                         <div className="text-xs">
                           <span className="text-slate-500">Revenue:</span>

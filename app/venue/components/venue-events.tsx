@@ -5,6 +5,7 @@ import { Calendar, Clock, Ticket, Settings, BarChart3 } from "lucide-react"
 import type { EventFormData } from "./create-event-modal"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueEventsProps {
   events: EventFormData[]
@@ -16,13 +17,7 @@ export function VenueEvents({ events, onCreateEvent, isOwner }: VenueEventsProps
   const router = useRouter()
 
   const formatDate = (date: Date) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return date.toLocaleDateString("en-US", options)
+    return formatSafeDate(date.toISOString())
   }
 
   function handleManage(event: EventFormData) {

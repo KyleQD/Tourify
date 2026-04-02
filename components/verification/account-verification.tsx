@@ -28,6 +28,7 @@ import {
   Verified
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface AccountVerificationProps {
   accountId: string
@@ -339,7 +340,7 @@ export function AccountVerification({ accountId, accountType, onVerificationComp
                           <div>
                             <p className="font-medium">{request.request_type.toUpperCase()} Verification</p>
                             <p className="text-sm text-gray-600">
-                              Submitted {new Date(request.created_at).toLocaleDateString()}
+                              Submitted {formatSafeDate(request.created_at)}
                             </p>
                             {request.rejection_reason && (
                               <p className="text-sm text-red-600 mt-1">{request.rejection_reason}</p>

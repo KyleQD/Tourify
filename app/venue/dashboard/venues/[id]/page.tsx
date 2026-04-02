@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { BookingCalendar } from "../../../components/booking-calendar"
 import { DocumentManager } from "../../../components/document-manager"
 import { VenueAnalytics } from "../../../components/venue-analytics"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 import {
   Calendar,
   Clock,
@@ -211,22 +212,11 @@ export default function VenuePage() {
   }
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   const formatTime = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }
-    return new Date(dateString).toLocaleTimeString("en-US", options)
+    return formatSafeTime(dateString)
   }
 
   if (loading) {
@@ -565,7 +555,7 @@ export default function VenuePage() {
                       <CardTitle>Booking Request</CardTitle>
                       <CardDescription>
                         {selectedDate
-                          ? `Request to book ${venue.name} on ${selectedDate.toLocaleDateString()}`
+                          ? `Request to book ${venue.name} on ${formatSafeDate(selectedDate.toISOString())}`
                           : `Request to book ${venue.name}`}
                       </CardDescription>
                     </CardHeader>

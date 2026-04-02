@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "@/components/ui/use-toast"
 import { Loader2, AlertTriangle } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 const accountFormSchema = z.object({
   email: z.string().min(1, { message: "This field is required" }).email("This is not a valid email"),
@@ -353,11 +354,7 @@ export function AccountSettings() {
               <label className="text-sm font-medium text-muted-foreground">Account Created</label>
               <p className="text-sm">
                 {userProfile?.created_at 
-                  ? new Date(userProfile.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })
+                  ? formatSafeDate(userProfile.created_at)
                   : 'Unknown'
                 }
               </p>
@@ -380,13 +377,7 @@ export function AccountSettings() {
               <label className="text-sm font-medium text-muted-foreground">Last Sign In</label>
               <p className="text-sm">
                 {user?.last_sign_in_at 
-                  ? new Date(user.last_sign_in_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
+                  ? formatSafeDate(user.last_sign_in_at)
                   : 'Never'
                 }
               </p>

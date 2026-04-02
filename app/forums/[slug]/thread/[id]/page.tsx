@@ -52,7 +52,13 @@ export default async function ThreadPage({ params }: { params: Promise<{ slug: s
         <div className="flex items-center gap-4 text-sm text-slate-400">
           <div>{thread.score || 0} points</div>
           <div>{thread.comments_count || 0} comments</div>
-          <div>{new Date(thread.created_at).toLocaleString()}</div>
+          <div>{new Intl.DateTimeFormat("en-US", {
+            year: "numeric",
+            month: "numeric",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }).format(new Date(thread.created_at))}</div>
           {(thread as any).normalizedAuthor?.username && (
             <div>by {(thread as any).normalizedAuthor.username}</div>
           )}
@@ -67,7 +73,13 @@ export default async function ThreadPage({ params }: { params: Promise<{ slug: s
           {(comments || []).map(c => (
             <div key={c.id} className="border border-slate-800/60 rounded-xl p-3">
               <div className="text-slate-300 text-sm whitespace-pre-wrap">{c.body}</div>
-              <div className="text-xs text-slate-500 mt-1">{new Date(c.created_at).toLocaleString()}</div>
+              <div className="text-xs text-slate-500 mt-1">{new Intl.DateTimeFormat("en-US", {
+                year: "numeric",
+                month: "numeric",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              }).format(new Date(c.created_at))}</div>
             </div>
           ))}
         </div>

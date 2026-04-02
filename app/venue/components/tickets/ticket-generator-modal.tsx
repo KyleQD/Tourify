@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, DollarSign, Plus, Ticket, Trash } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface TicketGeneratorModalProps {
   isOpen: boolean
@@ -170,12 +171,7 @@ export function TicketGeneratorModal({ isOpen, onClose, eventId }: TicketGenerat
             <div className="flex items-center gap-2 mb-2">
               <Calendar className="h-4 w-4 text-gray-400" />
               <span className="text-sm">
-                {new Date(event.date).toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })}
+                {formatSafeDate(event.date)}
               </span>
             </div>
             <div className="text-sm text-gray-400">

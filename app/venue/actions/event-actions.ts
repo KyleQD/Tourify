@@ -21,19 +21,76 @@ const eventSchema = z.object({
   type: z.string(),
 })
 
+function toIsoFromDateAndTime(date: Date, time: string) {
+  const day = date.toISOString().slice(0, 10)
+  const normalizedTime = (time || '00:00').slice(0, 5)
+  const ms = Date.parse(`${day}T${normalizedTime}:00`)
+  if (Number.isNaN(ms)) return null
+  return new Date(ms).toISOString()
+}
+
+function mapVenueStatusToEventV2Status(status: string) {
+  const normalized = (status || '').toLowerCase()
+  if (normalized === 'confirmed') return 'confirmed'
+  if (normalized === 'in_progress') return 'onsite'
+  if (normalized === 'completed') return 'settled'
+  if (normalized === 'cancelled') return 'archived'
+  if (normalized === 'postponed') return 'hold'
+  return 'inquiry'
+}
+
 export async function updateEvent(eventData: EventFormData) {
   try {
     const supabase = await createClient()
     // Validate the event data
     const validatedData = eventSchema.parse(eventData)
-    await supabase.from('events').update({
-      title: validatedData.title,
-      description: validatedData.description,
-      date: validatedData.date.toISOString(),
-      time: validatedData.startTime,
-      capacity: validatedData.capacity,
-      type: validatedData.type
-    }).eq('id', validatedData.id)
+    const startAt = toIsoFromDateAndTime(validatedData.date, validatedData.startTime)
+    const endAt = toIsoFromDateAndTime(validatedData.date, validatedData.endTime)
+
+    let v2Updated = false
+    if (startAt && endAt) {
+      const { data: existingV2 } = await supabase
+        .from('events_v2')
+        .select('id, settings')
+        .eq('id', validatedData.id)
+        .maybeSingle()
+
+      if (existingV2) {
+        const nextSettings =
+          existingV2.settings && typeof existingV2.settings === 'object'
+            ? { ...(existingV2.settings as Record<string, unknown>) }
+            : {}
+        nextSettings.description = validatedData.description
+        nextSettings.event_type = validatedData.type
+        nextSettings.ticket_price = validatedData.ticketPrice
+        nextSettings.is_public = validatedData.isPublic
+
+        const { error: v2UpdateError } = await supabase
+          .from('events_v2')
+          .update({
+            title: validatedData.title,
+            start_at: startAt,
+            end_at: endAt,
+            capacity: validatedData.capacity,
+            status: mapVenueStatusToEventV2Status(validatedData.status),
+            settings: nextSettings,
+          })
+          .eq('id', validatedData.id)
+
+        if (!v2UpdateError) v2Updated = true
+      }
+    }
+
+    if (!v2Updated) {
+      await supabase.from('events').update({
+        title: validatedData.title,
+        description: validatedData.description,
+        date: validatedData.date.toISOString(),
+        time: validatedData.startTime,
+        capacity: validatedData.capacity,
+        type: validatedData.type
+      }).eq('id', validatedData.id)
+    }
     
     // Revalidate the venue page to show updated data
     revalidatePath('/venue')
@@ -57,7 +114,12 @@ export async function updateEvent(eventData: EventFormData) {
 export async function deleteEvent(eventId: string) {
   try {
     const supabase = await createClient()
-    await supabase.from('events').delete().eq('id', eventId)
+    const { error: v2DeleteError } = await supabase.from('events_v2').delete().eq('id', eventId)
+    if (v2DeleteError) {
+      await supabase.from('events').delete().eq('id', eventId)
+    } else {
+      await supabase.from('events').delete().eq('id', eventId)
+    }
     
     // Revalidate the venue page to show updated data
     revalidatePath('/venue')
@@ -74,6 +136,8 @@ export async function deleteEvent(eventId: string) {
 export async function uploadEventDocument(eventId: string, file: File) {
   try {
     // Placeholder: hook to storage later
+    void eventId
+    void file
     
     // Revalidate the venue page to show updated data
     revalidatePath('/venue')
@@ -93,6 +157,15 @@ const approveSchema = z.object({
   createEvent: z.boolean().default(true)
 })
 
+function buildEventSlug(input: string) {
+  const base = (input || 'event')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 40)
+  return `${base || 'event'}-${Math.random().toString(36).slice(2, 8)}`
+}
+
 export async function approveBookingAndMaybeCreateEvent(input: { requestId: string; createEvent?: boolean }) {
   const supabase = await createClient()
   const { requestId, createEvent } = approveSchema.parse(input)
@@ -105,24 +178,76 @@ export async function approveBookingAndMaybeCreateEvent(input: { requestId: stri
   if (fetchErr || !req) return { success: false, error: fetchErr?.message || 'Request not found' }
 
   let createdEventId: string | null = null
+  let createdEventV2Id: string | null = null
   if (createEvent) {
-    const { data: evt, error: evtErr } = await supabase.from('events').insert([{ 
-      title: req.event_name,
-      description: req.description,
-      date: req.event_date,
-      time: '19:00',
-      location: 'Venue',
-      type: req.event_type,
-      capacity: req.expected_attendance || 0,
-      user_id: req.requester_id,
-      venue_id: req.venue_id,
-      genre: req.genre
-    }]).select('id').single()
-    if (evtErr) return { success: false, error: evtErr.message }
-    createdEventId = evt?.id ?? null
+    const { data: { user } } = await supabase.auth.getUser()
+    let orgId: string | null = null
+    if (user?.id) {
+      const { data: membership } = await supabase
+        .from('org_members')
+        .select('org_id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle()
+      orgId = membership?.org_id || null
+    }
+
+    if (orgId && user?.id) {
+      const startAt = req.event_date || new Date().toISOString()
+      const durationMinutes = Number(req.event_duration || 120)
+      const endAtDate = new Date(startAt)
+      endAtDate.setMinutes(endAtDate.getMinutes() + (Number.isNaN(durationMinutes) ? 120 : durationMinutes))
+      const slug = buildEventSlug(req.event_name || 'venue-event')
+
+      const { data: v2Event, error: v2Error } = await supabase
+        .from('events_v2')
+        .insert([{
+          org_id: orgId,
+          venue_id: null,
+          title: req.event_name,
+          slug,
+          status: 'confirmed',
+          start_at: startAt,
+          end_at: endAtDate.toISOString(),
+          timezone: 'UTC',
+          capacity: req.expected_attendance || null,
+          settings: {
+            description: req.description || null,
+            event_type: req.event_type || 'other',
+            venue_profile_id: req.venue_id || null,
+            venue_label: 'Venue Booking'
+          },
+          created_by: user.id
+        }])
+        .select('id')
+        .single()
+
+      if (!v2Error) {
+        createdEventV2Id = v2Event?.id ?? null
+      } else {
+        console.error('Failed to create events_v2 record:', v2Error)
+      }
+    }
+
+    if (!createdEventV2Id) {
+      const { data: evt, error: evtErr } = await supabase.from('events').insert([{ 
+        title: req.event_name,
+        description: req.description,
+        date: req.event_date,
+        time: '19:00',
+        location: 'Venue',
+        type: req.event_type,
+        capacity: req.expected_attendance || 0,
+        user_id: req.requester_id,
+        venue_id: req.venue_id,
+        genre: req.genre
+      }]).select('id').single()
+      if (evtErr) return { success: false, error: evtErr.message }
+      createdEventId = evt?.id ?? null
+    }
   }
 
   revalidatePath('/venue/bookings')
   revalidatePath('/venue')
-  return { success: true, eventId: createdEventId }
+  return { success: true, eventId: createdEventId, eventV2Id: createdEventV2Id }
 }

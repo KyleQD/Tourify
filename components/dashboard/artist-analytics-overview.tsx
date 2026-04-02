@@ -33,149 +33,11 @@ import {
   FileText,
   ShoppingBag
 } from 'lucide-react'
-
-interface AnalyticsData {
-  overview: {
-    totalRevenue: number
-    totalFans: number
-    totalStreams: number
-    engagementRate: number
-    monthlyListeners: number
-    growthRate: number
-  }
-  audience: {
-    demographics: {
-      ageGroups: { range: string; percentage: number }[]
-      gender: { type: string; percentage: number }[]
-      topCountries: { country: string; percentage: number }[]
-      topCities: { city: string; percentage: number }[]
-    }
-    engagement: {
-      activeFans: number
-      superFans: number
-      casualListeners: number
-      newFollowers: number
-    }
-  }
-  content: {
-    performance: {
-      tracks: { total: number; avgPlays: number; topTrack: string }
-      videos: { total: number; avgViews: number; topVideo: string }
-      photos: { total: number; avgLikes: number; topPhoto: string }
-      blogs: { total: number; avgReads: number; topBlog: string }
-    }
-    trends: {
-      weeklyGrowth: number
-      monthlyGrowth: number
-      topPerformingContent: string
-    }
-  }
-  revenue: {
-    breakdown: {
-      liveShows: number
-      merchandise: number
-      streaming: number
-      collaborations: number
-      sponsorships: number
-    }
-    projections: {
-      nextMonth: number
-      nextQuarter: number
-      nextYear: number
-    }
-  }
-  platforms: {
-    spotify: { listeners: number; streams: number; growth: number }
-    appleMusic: { listeners: number; streams: number; growth: number }
-    youtube: { subscribers: number; views: number; growth: number }
-    instagram: { followers: number; engagement: number; growth: number }
-    tiktok: { followers: number; views: number; growth: number }
-  }
-}
+import type { AnalyticsData } from '@/lib/artist/artist-analytics-data'
 
 interface ArtistAnalyticsOverviewProps {
-  data?: AnalyticsData
+  data: AnalyticsData
   timeRange?: '7d' | '30d' | '90d' | '1y'
-}
-
-const mockAnalyticsData: AnalyticsData = {
-  overview: {
-    totalRevenue: 15420,
-    totalFans: 12450,
-    totalStreams: 892300,
-    engagementRate: 8.7,
-    monthlyListeners: 45600,
-    growthRate: 23.5
-  },
-  audience: {
-    demographics: {
-      ageGroups: [
-        { range: '18-24', percentage: 35 },
-        { range: '25-34', percentage: 42 },
-        { range: '35-44', percentage: 15 },
-        { range: '45+', percentage: 8 }
-      ],
-      gender: [
-        { type: 'Female', percentage: 58 },
-        { type: 'Male', percentage: 38 },
-        { type: 'Other', percentage: 4 }
-      ],
-      topCountries: [
-        { country: 'United States', percentage: 45 },
-        { country: 'United Kingdom', percentage: 18 },
-        { country: 'Canada', percentage: 12 },
-        { country: 'Australia', percentage: 8 },
-        { country: 'Germany', percentage: 7 }
-      ],
-      topCities: [
-        { city: 'New York', percentage: 12 },
-        { city: 'Los Angeles', percentage: 10 },
-        { city: 'London', percentage: 8 },
-        { city: 'Toronto', percentage: 6 },
-        { city: 'Sydney', percentage: 5 }
-      ]
-    },
-    engagement: {
-      activeFans: 3200,
-      superFans: 450,
-      casualListeners: 8900,
-      newFollowers: 1250
-    }
-  },
-  content: {
-    performance: {
-      tracks: { total: 24, avgPlays: 18500, topTrack: 'Midnight Dreams' },
-      videos: { total: 12, avgViews: 8900, topVideo: 'Live at Blue Note' },
-      photos: { total: 156, avgLikes: 340, topPhoto: 'Studio Session' },
-      blogs: { total: 8, avgReads: 1200, topBlog: 'My Musical Journey' }
-    },
-    trends: {
-      weeklyGrowth: 12.5,
-      monthlyGrowth: 23.5,
-      topPerformingContent: 'Midnight Dreams - Music Video'
-    }
-  },
-  revenue: {
-    breakdown: {
-      liveShows: 8500,
-      merchandise: 3200,
-      streaming: 1800,
-      collaborations: 1200,
-      sponsorships: 720
-    },
-    projections: {
-      nextMonth: 18200,
-      nextQuarter: 52000,
-      nextYear: 185000
-    }
-  },
-  platforms: {
-    spotify: { listeners: 28000, streams: 450000, growth: 18.5 },
-    appleMusic: { listeners: 12000, streams: 180000, growth: 12.3 },
-    youtube: { subscribers: 8500, views: 125000, growth: 25.7 },
-    instagram: { followers: 15600, engagement: 6.8, growth: 15.2 },
-    tiktok: { followers: 8900, views: 89000, growth: 42.1 }
-  }
 }
 
 const getGrowthIcon = (value: number) => {
@@ -191,7 +53,7 @@ const getGrowthColor = (value: number) => {
 }
 
 export function ArtistAnalyticsOverview({ 
-  data = mockAnalyticsData,
+  data,
   timeRange = '30d'
 }: ArtistAnalyticsOverviewProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'audience' | 'content' | 'revenue' | 'platforms'>('overview')
@@ -220,10 +82,16 @@ export function ArtistAnalyticsOverview({
           </div>
           <p className="text-2xl font-bold text-white">${data.overview.totalRevenue.toLocaleString()}</p>
           <div className="flex items-center space-x-1 mt-1">
-            {getGrowthIcon(data.overview.growthRate)}
-            <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
-              {data.overview.growthRate}%
-            </span>
+            {data.overview.growthRate !== 0 ? (
+              <>
+                {getGrowthIcon(data.overview.growthRate)}
+                <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
+                  {data.overview.growthRate}%
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-slate-500">Period comparison not available</span>
+            )}
           </div>
         </motion.div>
 
@@ -239,10 +107,16 @@ export function ArtistAnalyticsOverview({
           </div>
           <p className="text-2xl font-bold text-white">{data.overview.totalFans.toLocaleString()}</p>
           <div className="flex items-center space-x-1 mt-1">
-            {getGrowthIcon(data.overview.growthRate)}
-            <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
-              {data.overview.growthRate}%
-            </span>
+            {data.overview.growthRate !== 0 ? (
+              <>
+                {getGrowthIcon(data.overview.growthRate)}
+                <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
+                  {data.overview.growthRate}%
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-slate-500">—</span>
+            )}
           </div>
         </motion.div>
 
@@ -258,10 +132,16 @@ export function ArtistAnalyticsOverview({
           </div>
           <p className="text-2xl font-bold text-white">{data.overview.totalStreams.toLocaleString()}</p>
           <div className="flex items-center space-x-1 mt-1">
-            {getGrowthIcon(data.overview.growthRate)}
-            <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
-              {data.overview.growthRate}%
-            </span>
+            {data.overview.growthRate !== 0 ? (
+              <>
+                {getGrowthIcon(data.overview.growthRate)}
+                <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
+                  {data.overview.growthRate}%
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-slate-500">—</span>
+            )}
           </div>
         </motion.div>
 
@@ -277,10 +157,16 @@ export function ArtistAnalyticsOverview({
           </div>
           <p className="text-2xl font-bold text-white">{data.overview.engagementRate}%</p>
           <div className="flex items-center space-x-1 mt-1">
-            {getGrowthIcon(data.overview.growthRate)}
-            <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
-              {data.overview.growthRate}%
-            </span>
+            {data.overview.growthRate !== 0 ? (
+              <>
+                {getGrowthIcon(data.overview.growthRate)}
+                <span className={`text-sm ${getGrowthColor(data.overview.growthRate)}`}>
+                  {data.overview.growthRate}%
+                </span>
+              </>
+            ) : (
+              <span className="text-sm text-slate-500">—</span>
+            )}
           </div>
         </motion.div>
       </div>
@@ -297,14 +183,27 @@ export function ArtistAnalyticsOverview({
             <h3 className="text-lg font-semibold text-white">Monthly Listeners</h3>
             <p className="text-slate-400">{data.overview.monthlyListeners.toLocaleString()} listeners</p>
           </div>
-          <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
-            +{data.overview.growthRate}% this month
-          </Badge>
+          {data.overview.growthRate !== 0 ? (
+            <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
+              +{data.overview.growthRate}% this month
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="border-slate-600 text-slate-400">
+              No MoM trend yet
+            </Badge>
+          )}
         </div>
-        <Progress value={75} className="h-2" />
+        <Progress
+          value={data.overview.monthlyListeners > 0 ? Math.min(100, (data.overview.monthlyListeners / 60000) * 100) : 0}
+          className="h-2"
+        />
         <div className="flex justify-between text-sm text-slate-400 mt-2">
-          <span>Goal: 60,000</span>
-          <span>75% complete</span>
+          <span>Goal (optional): 60,000</span>
+          <span>
+            {data.overview.monthlyListeners > 0
+              ? `${Math.round(Math.min(100, (data.overview.monthlyListeners / 60000) * 100))}% of goal`
+              : 'Connect analytics for listener trends'}
+          </span>
         </div>
       </motion.div>
     </div>
@@ -349,6 +248,9 @@ export function ArtistAnalyticsOverview({
         <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
           <h3 className="text-lg font-semibold text-white mb-4">Age Distribution</h3>
           <div className="space-y-3">
+            {data.audience.demographics.ageGroups.length === 0 && (
+              <p className="text-sm text-slate-500">No demographic breakdown yet. Connect social/streaming insights when available.</p>
+            )}
             {data.audience.demographics.ageGroups.map((group) => (
               <div key={group.range} className="flex items-center justify-between">
                 <span className="text-slate-300">{group.range}</span>
@@ -369,6 +271,9 @@ export function ArtistAnalyticsOverview({
         <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
           <h3 className="text-lg font-semibold text-white mb-4">Top Countries</h3>
           <div className="space-y-3">
+            {data.audience.demographics.topCountries.length === 0 && (
+              <p className="text-sm text-slate-500">No country data yet.</p>
+            )}
             {data.audience.demographics.topCountries.map((country) => (
               <div key={country.country} className="flex items-center justify-between">
                 <span className="text-slate-300">{country.country}</span>

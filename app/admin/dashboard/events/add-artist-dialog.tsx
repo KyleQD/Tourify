@@ -232,12 +232,12 @@ export function AddArtistDialog({
         </DialogHeader>
         
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="existing" className="flex items-center gap-2">
+          <TabsList className="mb-4 bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+            <TabsTrigger value="existing" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
               <UserPlus className="h-4 w-4" />
               Book Existing Artist
             </TabsTrigger>
-            <TabsTrigger value="invite" className="flex items-center gap-2">
+            <TabsTrigger value="invite" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
               <Mail className="h-4 w-4" />
               Invite New Artist
             </TabsTrigger>

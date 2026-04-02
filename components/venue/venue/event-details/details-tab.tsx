@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import type { VenueEvent } from "@/lib/venue/hooks/use-venue-events"
 import { Separator } from "@/components/ui/separator"
 import { Users, DollarSign, MapPin, Clock, Calendar, Tag, Info } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface DetailsTabProps {
   event: VenueEvent
@@ -79,12 +80,7 @@ export default function DetailsTab({ event }: DetailsTabProps) {
               <div>
                 <p className="font-medium">Date</p>
                 <p className="text-muted-foreground">
-                  {new Date(event.date || new Date()).toLocaleDateString("en-US", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
+                  {formatSafeDate(event.date || new Date().toISOString())}
                 </p>
               </div>
             </div>

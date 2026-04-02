@@ -27,6 +27,8 @@ import {
   Radio
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+import { formatSafeCurrency } from '@/lib/format/number-format'
 
 // =============================================================================
 // COMPONENT
@@ -244,7 +246,7 @@ export function GlobalSyncDashboard() {
                     </Badge>
                   </div>
                   <div className="text-sm text-slate-400">
-                    ${analytics.tours.revenue_total.toLocaleString()} revenue
+                    {formatSafeCurrency(analytics.tours.revenue_total)} revenue
                   </div>
                   <Progress 
                     value={(analytics.tours.completed / analytics.tours.total) * 100} 
@@ -425,7 +427,7 @@ export function GlobalSyncDashboard() {
                         </div>
                         <div>
                           <p className="text-slate-400">Revenue</p>
-                          <p className="text-white">${tour.revenue.toLocaleString()}</p>
+                          <p className="text-white">{formatSafeCurrency(tour.revenue)}</p>
                         </div>
                         <div>
                           <p className="text-slate-400">Updated</p>
@@ -472,7 +474,7 @@ export function GlobalSyncDashboard() {
                         </div>
                         <div>
                           <p className="text-slate-400">Date</p>
-                          <p className="text-white">{new Date(event.event_date).toLocaleDateString()}</p>
+                          <p className="text-white">{formatSafeDate(event.event_date)}</p>
                         </div>
                       </div>
                     </div>

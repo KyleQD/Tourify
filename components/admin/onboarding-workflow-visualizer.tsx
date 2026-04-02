@@ -40,6 +40,7 @@ import {
   AlertTriangle,
   Info
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface WorkflowStep {
   id: string
@@ -406,11 +407,11 @@ export default function OnboardingWorkflowVisualizer({
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2 text-sm text-slate-400">
                     <Calendar className="h-4 w-4" />
-                    <span>Started {new Date(workflow.created_at).toLocaleDateString()}</span>
+                    <span>Started {formatSafeDate(workflow.created_at)}</span>
                     {workflow.estimated_completion && (
                       <>
                         <span>•</span>
-                        <span>Est. {new Date(workflow.estimated_completion).toLocaleDateString()}</span>
+                        <span>Est. {formatSafeDate(workflow.estimated_completion)}</span>
                       </>
                     )}
                   </div>
@@ -506,10 +507,22 @@ export default function OnboardingWorkflowVisualizer({
                       <h5 className="text-white font-medium">{step.stage.replace('_', ' ')}</h5>
                       <p className="text-slate-400 text-sm">{step.notes || 'No notes'}</p>
                       {step.started_at && (
-                        <p className="text-slate-500 text-xs">Started: {new Date(step.started_at).toLocaleString()}</p>
+                        <p className="text-slate-500 text-xs">Started: {new Intl.DateTimeFormat("en-US", {
+                          year: "numeric",
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }).format(new Date(step.started_at))}</p>
                       )}
                       {step.completed_at && (
-                        <p className="text-slate-500 text-xs">Completed: {new Date(step.completed_at).toLocaleString()}</p>
+                        <p className="text-slate-500 text-xs">Completed: {new Intl.DateTimeFormat("en-US", {
+                          year: "numeric",
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }).format(new Date(step.completed_at))}</p>
                       )}
                     </div>
                     <Badge className={step.status === 'completed' ? 'bg-green-600' : step.status === 'active' ? 'bg-blue-600' : 'bg-slate-600'}>

@@ -16,6 +16,7 @@ import {
   Zap,
   ExternalLink
 } from "lucide-react"
+import { Progress } from "@/components/ui/progress"
 import { AchievementCard } from "./achievement-card"
 import { BadgeCard } from "./badge-card"
 import { EndorsementCard } from "./endorsement-card"
@@ -56,38 +57,51 @@ export function ProfileAchievementsSection({
   const [completedAchievements, setCompletedAchievements] = useState(0)
   const [totalBadges, setTotalBadges] = useState(0)
   const [totalEndorsements, setTotalEndorsements] = useState(0)
+  const [loadNotice, setLoadNotice] = useState<string | null>(null)
 
   useEffect(() => {
     loadAchievementData()
   }, [userId])
 
   const loadAchievementData = async () => {
-    try {
-      setLoading(true)
-      
-      const [achievementsResponse, badgesResponse, endorsementsResponse] = await Promise.all([
-        achievementService.getUserAchievements(userId),
-        achievementService.getUserBadges(userId),
-        achievementService.getUserEndorsements(userId)
-      ])
+    setLoading(true)
+    setLoadNotice(null)
 
-      setAchievements(achievementsResponse.achievements)
-      setUserAchievements(achievementsResponse.user_achievements)
-      setBadges(badgesResponse.badges)
-      setUserBadges(badgesResponse.user_badges)
-      setEndorsements(endorsementsResponse.endorsements)
-      setSkills(endorsementsResponse.skills)
+    const [achRes, badgeRes, endRes] = await Promise.allSettled([
+      achievementService.getUserAchievements(userId),
+      achievementService.getUserBadges(userId),
+      achievementService.getUserEndorsements(userId)
+    ])
 
-      setTotalPoints(achievementsResponse.total_points)
-      setCompletedAchievements(achievementsResponse.completed_count)
-      setTotalBadges(badgesResponse.total_badges)
-      setTotalEndorsements(endorsementsResponse.total_endorsements)
+    const notices: string[] = []
 
-    } catch (error) {
-      console.error('Error loading achievement data:', error)
-    } finally {
-      setLoading(false)
+    if (achRes.status === "fulfilled") {
+      setAchievements(achRes.value.achievements)
+      setUserAchievements(achRes.value.user_achievements)
+      setTotalPoints(achRes.value.total_points)
+      setCompletedAchievements(achRes.value.completed_count)
+    } else {
+      notices.push("Achievements could not be loaded.")
     }
+
+    if (badgeRes.status === "fulfilled") {
+      setBadges(badgeRes.value.badges)
+      setUserBadges(badgeRes.value.user_badges)
+      setTotalBadges(badgeRes.value.total_badges)
+    } else {
+      notices.push("Badges could not be loaded.")
+    }
+
+    if (endRes.status === "fulfilled") {
+      setEndorsements(endRes.value.endorsements)
+      setSkills(endRes.value.skills)
+      setTotalEndorsements(endRes.value.total_endorsements)
+    } else {
+      notices.push("Endorsements could not be loaded.")
+    }
+
+    if (notices.length) setLoadNotice(notices.join(" "))
+    setLoading(false)
   }
 
   const getUserAchievement = (achievementId: string) => {
@@ -100,6 +114,24 @@ export function ProfileAchievementsSection({
 
   const completedAchievementsList = userAchievements.filter(ua => ua.is_completed)
   const activeBadges = userBadges.filter(ub => ub.is_active)
+  const userAchievementById = new Map(userAchievements.map(ua => [ua.achievement_id, ua]))
+  const upcomingAchievements = achievements
+    .filter(achievement => !userAchievementById.get(achievement.id)?.is_completed)
+    .map(achievement => {
+      const progress = userAchievementById.get(achievement.id)
+      const current = progress?.current_value ?? 0
+      const target = progress?.target_value ?? Number(achievement.target_value || achievement.requirements?.target || 1)
+      const percent = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
+      return { achievement, current, target, percent }
+    })
+    .sort((a, b) => b.percent - a.percent)
+    .slice(0, 3)
+
+  const categoryCounts = completedAchievementsList.reduce<Record<string, number>>((acc, ua) => {
+    const category = ua.achievement?.category || 'other'
+    acc[category] = (acc[category] || 0) + 1
+    return acc
+  }, {})
 
   if (loading) {
     return (
@@ -114,6 +146,11 @@ export function ProfileAchievementsSection({
   return (
     <Card className={className}>
       <CardHeader>
+        {loadNotice ? (
+          <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+            {loadNotice}
+          </p>
+        ) : null}
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
@@ -151,6 +188,33 @@ export function ProfileAchievementsSection({
       </CardHeader>
 
       <CardContent>
+        {upcomingAchievements.length ? (
+          <div className="mb-6 rounded-xl border border-slate-700/60 bg-slate-900/40 p-4">
+            <h4 className="mb-3 text-sm font-semibold text-slate-100">Next milestones</h4>
+            <div className="space-y-3">
+              {upcomingAchievements.map(({ achievement, current, target, percent }) => (
+                <div key={achievement.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-3 text-xs">
+                    <span className="truncate text-slate-200">{achievement.name}</span>
+                    <span className="shrink-0 text-slate-400">{current}/{target}</span>
+                  </div>
+                  <Progress value={percent} className="h-1.5 bg-slate-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {Object.keys(categoryCounts).length ? (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {Object.entries(categoryCounts).map(([category, count]) => (
+              <Badge key={category} variant="outline" className="border-slate-600 text-slate-200">
+                {category}: {count}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="achievements" className="flex items-center gap-2">

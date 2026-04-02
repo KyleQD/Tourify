@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Calendar, Clock, MapPin, Music2 } from 'lucide-react'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface FeedItem {
   id: string
@@ -74,7 +75,7 @@ export default function FeedMain() {
               <div className="flex flex-wrap gap-4 text-sm text-slate-400">
                 <div className="flex items-center space-x-2">
                   <Calendar className="h-4 w-4" />
-                  <span>{new Date(item.date).toLocaleDateString()}</span>
+                  <span>{formatSafeDate(item.date)}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4" />

@@ -14,6 +14,7 @@ import {
   CheckCircle,
   Plus
 } from "lucide-react"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 interface EventManagementStepProps {
   onNext: () => void
@@ -102,7 +103,7 @@ export function EventManagementStep({ onNext }: EventManagementStepProps) {
                 <div className="flex items-center space-x-4">
                   <div className="text-right">
                     <p className="text-sm font-medium text-white">
-                      {event.ticketsSold.toLocaleString()}/{event.capacity.toLocaleString()}
+                      {formatSafeNumber(event.ticketsSold)}/{formatSafeNumber(event.capacity)}
                     </p>
                     <p className="text-xs text-slate-400">tickets sold</p>
                   </div>

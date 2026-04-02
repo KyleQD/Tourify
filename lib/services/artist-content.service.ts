@@ -134,13 +134,16 @@ class ArtistContentService {
     return result
   }
 
-  async getMusic(userId: string, options?: { limit?: number; featured?: boolean }) {
+  async getMusic(userId: string, options?: { limit?: number; featured?: boolean; ownerScope?: boolean }) {
     let query = this.supabase
       .from('artist_music')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_public', true)
       .order('created_at', { ascending: false })
+
+    if (!options?.ownerScope) {
+      query = query.eq('is_public', true)
+    }
 
     if (options?.featured) {
       query = query.eq('is_featured', true)
@@ -194,13 +197,16 @@ class ArtistContentService {
     return result
   }
 
-  async getVideos(userId: string, options?: { limit?: number; featured?: boolean }) {
+  async getVideos(userId: string, options?: { limit?: number; featured?: boolean; ownerScope?: boolean }) {
     let query = this.supabase
       .from('artist_videos')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_public', true)
       .order('created_at', { ascending: false })
+
+    if (!options?.ownerScope) {
+      query = query.eq('is_public', true)
+    }
 
     if (options?.featured) {
       query = query.eq('is_featured', true)
@@ -231,13 +237,16 @@ class ArtistContentService {
     return result
   }
 
-  async getPhotos(userId: string, options?: { limit?: number; category?: string }) {
+  async getPhotos(userId: string, options?: { limit?: number; category?: string; ownerScope?: boolean }) {
     let query = this.supabase
       .from('artist_photos')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_public', true)
       .order('created_at', { ascending: false })
+
+    if (!options?.ownerScope) {
+      query = query.eq('is_public', true)
+    }
 
     if (options?.category) {
       query = query.eq('category', options.category)
@@ -307,12 +316,15 @@ class ArtistContentService {
     return result
   }
 
-  async getEvents(userId: string, options?: { limit?: number; status?: string; upcoming?: boolean }) {
+  async getEvents(userId: string, options?: { limit?: number; status?: string; upcoming?: boolean; ownerScope?: boolean }) {
     let query = this.supabase
       .from('artist_events')
       .select('*')
       .eq('user_id', userId)
-      .eq('is_public', true)
+
+    if (!options?.ownerScope) {
+      query = query.eq('is_public', true)
+    }
 
     if (options?.status) {
       query = query.eq('status', options.status)

@@ -19,6 +19,7 @@ import {
   XCircle
 } from "lucide-react"
 import { toast } from "sonner"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface EventJob {
   id: string
@@ -117,20 +118,16 @@ export function EventJobsList({ eventId }: EventJobsListProps) {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    return formatSafeDate(dateString)
   }
 
   const formatTime = (timeString: string) => {
     if (!timeString) return ''
-    return new Date(`2000-01-01T${timeString}`).toLocaleTimeString('en-US', {
+    return new Intl.DateTimeFormat("en-US", {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true
-    })
+    }).format(new Date(`2000-01-01T${timeString}`))
   }
 
   if (isLoading) {

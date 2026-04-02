@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const createSchema = z.object({
   event_id: z.string().uuid('Invalid event_id'),
@@ -9,7 +9,7 @@ const createSchema = z.object({
   message: z.string().max(2000).optional()
 })
 
-export const POST = withAuth(async (request: NextRequest, { user, supabase }) => {
+export const POST = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
     const body = await request.json()
     const validated = createSchema.parse(body)

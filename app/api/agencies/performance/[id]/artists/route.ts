@@ -3,12 +3,21 @@ import { withAuth } from '@/lib/auth/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAuth(async (request: NextRequest, { supabase, user }) => {
   try {
     const { pathname } = new URL(request.url)
     const parts = pathname.split('/')
     const idx = parts.findIndex(p => p === 'performance') + 1
     const agencyId = parts[idx]
+
+    const { data: canManage, error: rpcError } = await supabase.rpc('has_entity_permission', {
+      p_user_id: user.id,
+      p_entity_type: 'PerformanceAgency',
+      p_entity_id: agencyId,
+      p_permission_name: 'MANAGE_MEMBERS'
+    })
+    if (rpcError) return NextResponse.json({ error: rpcError.message }, { status: 400 })
+    if (!canManage) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
 
     const { data, error } = await supabase
       .from('agency_artists')

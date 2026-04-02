@@ -174,7 +174,6 @@ drop trigger if exists trg_forum_vote_thread on forum_votes;
 create trigger trg_forum_vote_thread
 after insert or update or delete on forum_votes
 for each row
-when ((tg_op = 'INSERT' and new.thread_id is not null) or (tg_op in ('UPDATE','DELETE') and coalesce(old.thread_id, new.thread_id) is not null))
 execute function forum_apply_vote_to_thread();
 
 create or replace function forum_apply_vote_to_comment() returns trigger as $$
@@ -193,7 +192,6 @@ drop trigger if exists trg_forum_vote_comment on forum_votes;
 create trigger trg_forum_vote_comment
 after insert or update or delete on forum_votes
 for each row
-when ((tg_op = 'INSERT' and new.comment_id is not null) or (tg_op in ('UPDATE','DELETE') and coalesce(old.comment_id, new.comment_id) is not null))
 execute function forum_apply_vote_to_comment();
 
 create or replace function forum_increment_comments_count() returns trigger as $$

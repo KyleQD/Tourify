@@ -25,6 +25,7 @@ import {
   ArrowRight,
   ArrowLeft
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface OnboardingCandidate {
   id: string
@@ -311,7 +312,7 @@ export function OnboardingKanbanBoard({
                       <div className="flex items-center space-x-2 text-xs">
                         <Calendar className="h-3 w-3 text-slate-400" />
                         <span className="text-slate-400">
-                          {new Date(candidate.application_date).toLocaleDateString()}
+                          {formatSafeDate(candidate.application_date)}
                         </span>
                       </div>
 
@@ -319,7 +320,7 @@ export function OnboardingKanbanBoard({
                         <div className="flex items-center space-x-2 text-xs">
                           <MapPin className="h-3 w-3 text-slate-400" />
                           <span className="text-slate-400">
-                            Start: {new Date(candidate.start_date).toLocaleDateString()}
+                            Start: {formatSafeDate(candidate.start_date)}
                           </span>
                         </div>
                       )}

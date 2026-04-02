@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 // Create service role client for database operations
 function createServiceRoleClient() {
@@ -19,6 +20,7 @@ function createServiceRoleClient() {
 }
 
 export async function GET(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
     const supabase = createServiceRoleClient()
     

@@ -333,8 +333,6 @@ export default function TourPlannerPage() {
         }
       }
 
-      console.log("Publishing tour:", apiData)
-
       const response = await fetch('/api/tours/planner', {
         method: 'POST',
         headers: {

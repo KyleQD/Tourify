@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 export async function GET(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
     console.log('[Admin Test API] GET request started')
     

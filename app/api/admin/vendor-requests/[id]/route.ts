@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const updateSchema = z.object({
   status: z.enum(['approved', 'rejected'])
 })
 
-export const PATCH = withAuth(async (request: NextRequest, { supabase }) => {
+export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
     const { pathname } = new URL(request.url)
     const id = pathname.split('/').slice(-1)[0]

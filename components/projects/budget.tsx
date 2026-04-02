@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Progress } from "@/components/ui/progress"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface BudgetItem {
   id: string
@@ -233,7 +234,7 @@ export function Budget({ totalBudget, items, onAddItem }: BudgetProps) {
                         <p className="text-sm text-slate-400 mt-1">{item.description}</p>
                       )}
                       <p className="text-xs text-slate-500 mt-1">
-                        {new Date(item.date).toLocaleDateString()}
+                        {formatSafeDate(item.date.toISOString())}
                       </p>
                     </div>
                     <div className={`text-lg font-semibold ${

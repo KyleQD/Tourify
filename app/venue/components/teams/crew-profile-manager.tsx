@@ -49,6 +49,7 @@ import {
   Download,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock crew profile data
 const crewProfiles = [
@@ -714,7 +715,7 @@ export function CrewProfileManager() {
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Member Since</p>
-                        <p>{new Date(selectedProfileData.joinDate).toLocaleDateString()}</p>
+                        <p>{formatSafeDate(selectedProfileData.joinDate)}</p>
                       </div>
                     </div>
                   )}

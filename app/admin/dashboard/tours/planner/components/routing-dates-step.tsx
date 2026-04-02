@@ -17,6 +17,8 @@ import {
   Search,
   Loader2
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 interface RoutingDatesStepProps {
   tourData: {
@@ -227,7 +229,7 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
                     </div>
                     <div className="flex items-center space-x-2 mt-1">
                       <Clock className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{new Date(item.date).toLocaleDateString()}</span>
+                      <span className="text-slate-300">{formatSafeDate(item.date)}</span>
                     </div>
                   </div>
                 </div>
@@ -282,7 +284,7 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
                 <div className="font-medium text-white">{venue.venue_name}</div>
                 <div className="text-sm text-slate-400">{venue.city}, {venue.state}</div>
                 <Badge variant="secondary" className="text-xs">
-                  {venue.capacity ? `${venue.capacity.toLocaleString()} capacity` : 'Capacity TBD'}
+                  {venue.capacity ? `${formatSafeNumber(venue.capacity)} capacity` : 'Capacity TBD'}
                 </Badge>
               </div>
             </Card>
@@ -407,7 +409,7 @@ function VenueBrowser({
                           {venue.venue_types?.join(', ') || 'Venue'}
                         </span>
                         <span className="text-slate-300">
-                          {venue.capacity ? `${venue.capacity.toLocaleString()} capacity` : 'Capacity TBD'}
+                          {venue.capacity ? `${formatSafeNumber(venue.capacity)} capacity` : 'Capacity TBD'}
                         </span>
                       </div>
                       {venue.description && (
@@ -441,7 +443,7 @@ function VenueBrowser({
                   <div>
                     <Label className="text-slate-400">Capacity</Label>
                     <p className="text-white">
-                      {selectedVenue.capacity ? `${selectedVenue.capacity.toLocaleString()}` : 'Capacity TBD'}
+                      {selectedVenue.capacity ? `${formatSafeNumber(selectedVenue.capacity)}` : 'Capacity TBD'}
                     </p>
                   </div>
                   <div>

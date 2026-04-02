@@ -3,12 +3,21 @@ import { withAuth } from '@/lib/auth/api-auth'
 
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAuth(async (request: NextRequest, { supabase, user }) => {
   try {
     const url = new URL(request.url)
     const ownerType = url.searchParams.get('ownerType')
     const ownerId = url.searchParams.get('ownerId')
     if (!ownerType || !ownerId) return NextResponse.json({ assets: [] })
+
+    const { data: canManage, error: permissionError } = await supabase.rpc('has_entity_permission', {
+      p_user_id: user.id,
+      p_entity_type: ownerType,
+      p_entity_id: ownerId,
+      p_permission_name: 'MANAGE_ASSETS'
+    })
+    if (permissionError) return NextResponse.json({ error: permissionError.message }, { status: 400 })
+    if (!canManage) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
 
     const { data, error } = await supabase
       .from('equipment_assets')

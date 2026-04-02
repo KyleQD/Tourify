@@ -8,20 +8,19 @@ import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
+import { AdminPageHeader } from "../components/admin-page-header"
 import {
   Music,
   Search,
   Plus,
   Filter,
   Star,
-  TrendingUp,
-  TrendingDown,
   Eye,
   Edit,
   MoreVertical,
@@ -66,8 +65,11 @@ import {
   ChevronRight,
   ChevronDown,
   BarChart3,
-  PieChart
+  PieChart,
 } from "lucide-react"
+import { AdminEmptyState } from "../components/admin-empty-state"
+import { AdminPageSkeleton } from "../components/admin-page-skeleton"
+import { AdminStatCard } from "../components/admin-stat-card"
 
 interface Artist {
   id: string
@@ -132,114 +134,64 @@ interface Performance {
   feedback?: string
 }
 
-export default function ArtistsPage() {
-  const [artists, setArtists] = useState<Artist[]>([
-    {
-      id: '1',
-      name: 'Elena Rodriguez',
-      stage_name: 'The Electric Waves',
-      email: 'elena@electricwaves.com',
-      phone: '+1 (555) 123-4567',
-      avatar_url: '/placeholder-user.jpg',
-      bio: 'Electronic music producer and performer with 10+ years of experience',
-      genres: ['Electronic', 'House', 'Techno'],
-      status: 'active',
-      tier: 'established',
-      location: 'Los Angeles, CA',
-      social_links: {
-        website: 'https://electricwaves.com',
-        instagram: '@electricwaves',
-        spotify: 'The Electric Waves',
-        youtube: 'Electric Waves Official'
-      },
-      stats: {
-        total_bookings: 45,
-        completed_events: 42,
-        total_revenue: 285000,
-        average_rating: 4.8,
-        followers: 125000,
-        monthly_listeners: 75000
-      },
-      upcoming_events: 3,
-      last_performance: '2025-06-15',
-      joined_date: '2023-01-15',
-      verification_status: 'verified',
-      contract_status: 'active'
+function mapProfileToArtist(p: any): Artist {
+  return {
+    id: p.id,
+    name: p.full_name || p.username || 'Unknown',
+    stage_name: p.artist_name || p.display_name,
+    email: p.email || '',
+    phone: p.phone || undefined,
+    avatar_url: p.avatar_url || undefined,
+    bio: p.bio || undefined,
+    genres: p.genres || [],
+    status: 'active',
+    tier: 'emerging',
+    location: p.location || undefined,
+    social_links: p.social_links || {},
+    stats: {
+      total_bookings: 0,
+      completed_events: 0,
+      total_revenue: 0,
+      average_rating: 0,
+      followers: p.stats?.followers ?? p.follower_count ?? 0,
+      monthly_listeners: 0
     },
-    {
-      id: '2',
-      name: 'Marcus Chen',
-      stage_name: 'DJ Luna',
-      email: 'marcus@djluna.com',
-      phone: '+1 (555) 234-5678',
-      avatar_url: '/placeholder-user.jpg',
-      bio: 'Progressive house and ambient electronic music artist',
-      genres: ['Progressive House', 'Ambient', 'Electronic'],
-      status: 'active',
-      tier: 'headliner',
-      location: 'New York, NY',
-      social_links: {
-        website: 'https://djluna.com',
-        instagram: '@djlunaofficial',
-        spotify: 'DJ Luna',
-        soundcloud: 'DJ Luna Music'
-      },
-      stats: {
-        total_bookings: 67,
-        completed_events: 63,
-        total_revenue: 445000,
-        average_rating: 4.9,
-        followers: 250000,
-        monthly_listeners: 150000
-      },
-      upcoming_events: 5,
-      last_performance: '2025-06-20',
-      joined_date: '2022-08-10',
-      verification_status: 'verified',
-      contract_status: 'active'
-    },
-    {
-      id: '3',
-      name: 'Sarah Johnson',
-      stage_name: 'Acoustic Soul',
-      email: 'sarah@acousticsoul.com',
-      phone: '+1 (555) 345-6789',
-      avatar_url: '/placeholder-user.jpg',
-      bio: 'Singer-songwriter specializing in acoustic folk and indie music',
-      genres: ['Folk', 'Indie', 'Acoustic'],
-      status: 'active',
-      tier: 'emerging',
-      location: 'Nashville, TN',
-      social_links: {
-        website: 'https://acousticsoul.com',
-        instagram: '@acousticsoul',
-        youtube: 'Acoustic Soul Music',
-        apple_music: 'Acoustic Soul'
-      },
-      stats: {
-        total_bookings: 23,
-        completed_events: 20,
-        total_revenue: 125000,
-        average_rating: 4.6,
-        followers: 45000,
-        monthly_listeners: 25000
-      },
-      upcoming_events: 2,
-      last_performance: '2025-06-10',
-      joined_date: '2024-03-20',
-      verification_status: 'verified',
-      contract_status: 'pending'
-    }
-  ])
+    upcoming_events: 0,
+    joined_date: p.created_at || new Date().toISOString(),
+    verification_status: p.verified ? 'verified' : 'unverified',
+    contract_status: 'none'
+  }
+}
 
-  const [filteredArtists, setFilteredArtists] = useState<Artist[]>(artists)
+export default function ArtistsPage() {
+  const [artists, setArtists] = useState<Artist[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchArtists() {
+      try {
+        const res = await fetch('/api/search?q=&type=artists&limit=50', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          const list = data.results?.artists ?? []
+          setArtists(list.map(mapProfileToArtist))
+        }
+      } catch (err) {
+        console.error('Failed to fetch artists:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchArtists()
+  }, [])
+
+  const [filteredArtists, setFilteredArtists] = useState<Artist[]>([])
   const [selectedArtist, setSelectedArtist] = useState<Artist | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [tierFilter, setTierFilter] = useState<string>("all")
   const [activeTab, setActiveTab] = useState("overview")
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
 
   // Filter artists based on search and filters
   useEffect(() => {
@@ -270,13 +222,13 @@ export default function ArtistsPage() {
       case 'active':
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
       case 'inactive':
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Inactive</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Inactive</Badge>
       case 'pending':
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pending</Badge>
       case 'verified':
         return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Verified</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Unknown</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Unknown</Badge>
     }
   }
 
@@ -291,7 +243,7 @@ export default function ArtistsPage() {
       case 'legend':
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"><Crown className="h-3 w-3 mr-1" />Legend</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Unknown</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Unknown</Badge>
     }
   }
 
@@ -304,7 +256,7 @@ export default function ArtistsPage() {
       case 'rejected':
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30"><AlertTriangle className="h-3 w-3 mr-1" />Unverified</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30"><AlertTriangle className="h-3 w-3 mr-1" />Unverified</Badge>
     }
   }
 
@@ -317,102 +269,73 @@ export default function ArtistsPage() {
     return num.toString()
   }
 
-  const StatCard = ({ title, value, icon: Icon, color, trend }: {
-    title: string
-    value: string | number
-    icon: any
-    color: string
-    trend?: number
-  }) => (
-    <Card className="bg-slate-900/50 border-slate-700/50">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">{title}</p>
-            <p className="text-xl font-bold text-white">{value}</p>
-            {trend !== undefined && (
-              <div className="flex items-center mt-1">
-                {trend > 0 ? (
-                  <TrendingUp className="h-3 w-3 text-green-400 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-red-400 mr-1" />
-                )}
-                <span className={`text-xs ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {trend > 0 ? '+' : ''}{trend}%
-                </span>
-              </div>
-            )}
-          </div>
-          <div className={`p-2 rounded-lg ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
-      <div className="container mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              Artist Management
-            </h1>
-            <p className="text-slate-400 mt-2">
-              Manage artist profiles, bookings, and performance tracking
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button 
-              onClick={() => setIsCreateOpen(true)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Artist
-            </Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-          </div>
-        </div>
+    <div className="container mx-auto space-y-6">
+        <AdminPageHeader
+          title="Artist Management"
+          subtitle="Manage artist profiles, bookings, and performance tracking"
+          icon={Music}
+          actions={
+            <>
+              <Button
+                type="button"
+                disabled
+                title="Artist creation is not available in admin yet"
+                className="bg-gradient-to-r from-purple-600/50 to-blue-600/50 text-white border-0 opacity-60 cursor-not-allowed"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Artist
+              </Button>
+              <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 backdrop-blur-sm transition-all duration-200">
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+            </>
+          }
+        />
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
+        {isLoading ? (
+          <AdminPageSkeleton />
+        ) : (
+          <>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <AdminStatCard
             title="Total Artists"
             value={artists.length}
             icon={Music}
-            color="bg-purple-600"
-            trend={12}
+            color="purple"
+            size="default"
           />
-          <StatCard
+          <AdminStatCard
             title="Active Artists"
             value={artists.filter(a => a.status === 'active').length}
             icon={Activity}
-            color="bg-green-600"
-            trend={8}
+            color="green"
+            size="default"
           />
-          <StatCard
-            title="Total Revenue"
-            value={`$${(artists.reduce((sum, a) => sum + a.stats.total_revenue, 0) / 1000).toFixed(0)}K`}
-            icon={DollarSign}
-            color="bg-yellow-600"
-            trend={15}
-          />
-          <StatCard
+          <AdminStatCard
             title="Avg Rating"
-            value={(artists.reduce((sum, a) => sum + a.stats.average_rating, 0) / artists.length).toFixed(1)}
+            value={
+              artists.length > 0
+                ? (artists.reduce((sum, a) => sum + (a.stats.average_rating || 0), 0) / artists.length).toFixed(1)
+                : '0.0'
+            }
             icon={Star}
-            color="bg-blue-600"
-            trend={5}
+            color="amber"
+            size="default"
+          />
+          <AdminStatCard
+            title="Total Revenue"
+            value={`$${artists.length > 0 ? (artists.reduce((sum, a) => sum + (a.stats.total_revenue || 0), 0) / 1000).toFixed(0) : '0'}K`}
+            icon={DollarSign}
+            color="blue"
+            size="default"
           />
         </div>
 
         {/* Search and Filters */}
-        <Card className="bg-slate-900/50 border-slate-700/50">
+        <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1 relative">
@@ -461,7 +384,7 @@ export default function ArtistsPage() {
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
             >
-              <Card className="bg-slate-900/50 border-slate-700/50 hover:bg-slate-900/70 transition-all duration-300 group cursor-pointer">
+              <Card className="bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:bg-slate-900/70 transition-all duration-300 group cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -536,11 +459,11 @@ export default function ArtistsPage() {
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-slate-400">Performance</span>
                         <span className="text-xs text-slate-400">
-                          {Math.round((artist.stats.completed_events / artist.stats.total_bookings) * 100)}%
+                          {artist.stats.total_bookings > 0 ? Math.round((artist.stats.completed_events / artist.stats.total_bookings) * 100) : 0}%
                         </span>
                       </div>
                       <Progress 
-                        value={(artist.stats.completed_events / artist.stats.total_bookings) * 100} 
+                        value={artist.stats.total_bookings > 0 ? (artist.stats.completed_events / artist.stats.total_bookings) * 100 : 0} 
                         className="h-2"
                       />
                     </div>
@@ -577,9 +500,12 @@ export default function ArtistsPage() {
                           View
                         </Button>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-slate-400 hover:text-white"
+                          disabled
+                          title="Edit is not implemented"
+                          className="text-slate-500 cursor-not-allowed opacity-60"
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
@@ -592,6 +518,16 @@ export default function ArtistsPage() {
             </motion.div>
           ))}
         </div>
+
+        {filteredArtists.length === 0 && !isLoading && (
+          <AdminEmptyState
+            icon={Music}
+            title="No artists found"
+            description="Artists will appear when your search returns results"
+          />
+        )}
+          </>
+        )}
 
         {/* Artist Details Dialog */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
@@ -624,7 +560,7 @@ export default function ArtistsPage() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="bg-slate-800">
+                  <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="bookings">Bookings</TabsTrigger>
                     <TabsTrigger value="performance">Performance</TabsTrigger>
@@ -633,31 +569,34 @@ export default function ArtistsPage() {
                   </TabsList>
 
                   <TabsContent value="overview" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <StatCard
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <AdminStatCard
                         title="Total Bookings"
                         value={selectedArtist.stats.total_bookings}
                         icon={Calendar}
-                        color="bg-blue-600"
+                        color="blue"
+                        size="default"
                       />
-                      <StatCard
+                      <AdminStatCard
                         title="Completed Events"
                         value={selectedArtist.stats.completed_events}
                         icon={CheckCircle}
-                        color="bg-green-600"
+                        color="green"
+                        size="default"
                       />
-                      <StatCard
+                      <AdminStatCard
                         title="Total Revenue"
                         value={`$${formatNumber(selectedArtist.stats.total_revenue)}`}
                         icon={DollarSign}
-                        color="bg-yellow-600"
+                        color="amber"
+                        size="default"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="bg-slate-800/50 border-slate-700/50">
+                      <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                         <CardHeader>
-                          <CardTitle className="text-white">Contact Information</CardTitle>
+                          <CardTitle className="text-lg font-semibold text-white">Contact Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                           <div className="flex items-center space-x-3">
@@ -679,9 +618,9 @@ export default function ArtistsPage() {
                         </CardContent>
                       </Card>
 
-                      <Card className="bg-slate-800/50 border-slate-700/50">
+                      <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                         <CardHeader>
-                          <CardTitle className="text-white">Performance Metrics</CardTitle>
+                          <CardTitle className="text-lg font-semibold text-white">Performance Metrics</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                           <div className="flex justify-between">
@@ -705,9 +644,9 @@ export default function ArtistsPage() {
                   </TabsContent>
 
                   <TabsContent value="bookings">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                       <CardHeader>
-                        <CardTitle className="text-white">Recent Bookings</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Recent Bookings</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-center py-8 text-slate-400">
@@ -720,9 +659,9 @@ export default function ArtistsPage() {
                   </TabsContent>
 
                   <TabsContent value="performance">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                       <CardHeader>
-                        <CardTitle className="text-white">Performance Analytics</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Performance Analytics</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-center py-8 text-slate-400">
@@ -735,9 +674,9 @@ export default function ArtistsPage() {
                   </TabsContent>
 
                   <TabsContent value="social">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                       <CardHeader>
-                        <CardTitle className="text-white">Social Media & Streaming</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Social Media & Streaming</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -758,7 +697,7 @@ export default function ArtistsPage() {
                             }
 
                             return (
-                              <div key={platform} className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-lg">
+                              <div key={platform} className="flex items-center space-x-3 p-3 bg-slate-700/50 rounded-sm">
                                 {getIcon(platform)}
                                 <div>
                                   <p className="text-sm font-medium text-white capitalize">{platform.replace('_', ' ')}</p>
@@ -773,9 +712,9 @@ export default function ArtistsPage() {
                   </TabsContent>
 
                   <TabsContent value="contracts">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                       <CardHeader>
-                        <CardTitle className="text-white">Contract Management</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Contract Management</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-center py-8 text-slate-400">
@@ -791,7 +730,6 @@ export default function ArtistsPage() {
             )}
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 } 

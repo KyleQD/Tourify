@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 import type { Project, ProjectMember } from "@/types/database.types"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface ProjectWithMembers extends Project {
   members: ProjectMember[]
@@ -204,7 +205,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
               <CardTitle>Project Timeline</CardTitle>
               <CardDescription>
                 {project.start_date && project.end_date
-                  ? `${new Date(project.start_date).toLocaleDateString()} - ${new Date(project.end_date).toLocaleDateString()}`
+                  ? `${formatSafeDate(project.start_date)} - ${formatSafeDate(project.end_date)}`
                   : 'No dates specified'}
               </CardDescription>
             </CardHeader>

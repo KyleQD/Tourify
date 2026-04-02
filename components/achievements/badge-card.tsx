@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge as BadgeType, UserBadge } from "@/types/achievements"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface BadgeCardProps {
   badge: BadgeType
@@ -284,7 +285,7 @@ export function BadgeCard({
             {/* Grant info */}
             {userBadge && (
               <div className="text-xs text-gray-500 space-y-1">
-                <div>Granted: {new Date(userBadge.granted_at).toLocaleDateString()}</div>
+                <div>Granted: {formatSafeDate(userBadge.granted_at)}</div>
                 {userBadge.granted_reason && (
                   <div>Reason: {userBadge.granted_reason}</div>
                 )}
@@ -294,12 +295,12 @@ export function BadgeCard({
                     isExpired ? "text-red-500" : "text-yellow-600"
                   )}>
                     <Clock className="h-3 w-3" />
-                    Expires: {new Date(userBadge.expires_at).toLocaleDateString()}
+                    Expires: {formatSafeDate(userBadge.expires_at)}
                   </div>
                 )}
                 {userBadge.revoked_at && (
                   <div className="text-red-500">
-                    Revoked: {new Date(userBadge.revoked_at).toLocaleDateString()}
+                    Revoked: {formatSafeDate(userBadge.revoked_at)}
                   </div>
                 )}
               </div>

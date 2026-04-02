@@ -248,6 +248,10 @@ export function EnhancedVenueSettings() {
       const profileData = {
         user_id: user?.id,
         venue_name: data.venue_name,
+        url_slug: (data.venue_name || '')
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, ''),
         description: data.description,
         capacity: data.capacity,
         venue_types: selectedTypes,

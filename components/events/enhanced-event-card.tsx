@@ -24,6 +24,7 @@ import { useEvents } from "@/context/venue/events-context"
 import { useAuth } from "@/contexts/auth-context"
 import { toast } from "sonner"
 import type { VenueEvent } from "@/app/venue/lib/hooks/use-venue-events"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface EnhancedEventCardProps {
   event: VenueEvent
@@ -144,19 +145,15 @@ export function EnhancedEventCard({
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    })
+    return formatSafeDate(date.toISOString())
   }
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', {
+    return new Intl.DateTimeFormat("en-US", {
       hour: 'numeric',
       minute: '2-digit'
-    })
+    }).format(date)
   }
 
   return (

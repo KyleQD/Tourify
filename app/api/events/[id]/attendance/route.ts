@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import {
+  canAccessEventAsViewer,
+  resolveEventReference,
+} from '../../_lib/event-reference'
 
 export async function GET(
   request: NextRequest,
@@ -8,6 +12,14 @@ export async function GET(
   try {
     const { id: eventId } = await params
     const supabase = await createClient()
+    const reference = await resolveEventReference(supabase, eventId)
+
+    if (!reference) {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      )
+    }
 
     const { data: attendance, error } = await supabase
       .from('event_attendance')
@@ -21,8 +33,8 @@ export async function GET(
           is_verified
         )
       `)
-      .eq('event_id', eventId)
-      .eq('event_table', 'artist_events')
+      .eq('event_id', reference.id)
+      .eq('event_table', reference.table)
 
     if (error) {
       console.error('Error fetching attendance:', error)
@@ -81,42 +93,28 @@ export async function POST(
       )
     }
 
-    // Verify event exists and is public
-    const { data: event, error: eventError } = await supabase
-      .from('artist_events')
-      .select('id, is_public')
-      .eq('id', eventId)
-      .single()
-
-    if (eventError || !event) {
+    const reference = await resolveEventReference(supabase, eventId)
+    if (!reference) {
       return NextResponse.json(
         { error: 'Event not found' },
         { status: 404 }
       )
     }
 
-    // Allow RSVP if event is public OR user is the creator
-    if (!event.is_public) {
-      const { data: creator } = await supabase
-        .from('artist_events')
-        .select('user_id')
-        .eq('id', eventId)
-        .single()
-      if (creator?.user_id !== user.id) {
-        return NextResponse.json(
-          { error: 'Cannot RSVP to private events' },
-          { status: 403 }
-        )
-      }
+    if (!canAccessEventAsViewer(reference, user.id)) {
+      return NextResponse.json(
+        { error: 'Cannot RSVP to unpublished events' },
+        { status: 403 }
+      )
     }
 
     // Update or create attendance record
     const { data: attendance, error } = await supabase
       .from('event_attendance')
       .upsert({
-        event_id: eventId,
+        event_id: reference.id,
         user_id: user.id,
-        event_table: 'artist_events',
+        event_table: reference.table,
         status,
         updated_at: new Date().toISOString()
       }, { onConflict: 'event_id,user_id,event_table' })
@@ -166,13 +164,21 @@ export async function DELETE(
       )
     }
 
+    const reference = await resolveEventReference(supabase, eventId)
+    if (!reference) {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      )
+    }
+
     // Remove attendance record
     const { error } = await supabase
       .from('event_attendance')
       .delete()
-      .eq('event_id', eventId)
+      .eq('event_id', reference.id)
       .eq('user_id', user.id)
-      .eq('event_table', 'artist_events')
+      .eq('event_table', reference.table)
 
     if (error) {
       console.error('Error removing attendance:', error)

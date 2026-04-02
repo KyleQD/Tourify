@@ -1,6 +1,15 @@
 -- Event core: calendars, holds, events, audit logs
 create extension if not exists pgcrypto;
 
+-- Referenced by calendars/events_v2; full definition also in admin_staffing_core migration
+create table if not exists venues_v2 (
+  id uuid primary key default gen_random_uuid(),
+  name text,
+  slug text unique,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists calendars (
   id uuid primary key default gen_random_uuid(),
   org_id uuid not null references organizations(id) on delete cascade,

@@ -33,6 +33,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Slider } from "@/components/ui/slider"
@@ -168,21 +169,17 @@ export default function Dashboard() {
 
   // Format time
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+    return new Intl.DateTimeFormat("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-    })
+    }).format(date)
   }
 
   // Format date
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    return formatSafeDate(date.toISOString())
   }
 
   // Calculate days until event

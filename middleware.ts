@@ -80,14 +80,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  // TEMPORARY WORKAROUND: Allow access to protected routes even without server-side auth detection
-  // This allows users to continue using the platform while we fix the cookie issue
   if (!user && isProtectedRoute) {
-    console.log(`[Main Middleware] Server-side auth detection failed, but allowing access (temporary workaround)`)
-    console.log(`[Main Middleware] Client-side auth should handle the actual protection`)
-    
-    // Allow the request to proceed - client-side auth will handle protection
-    return supabaseResponse
+    console.log(`[Main Middleware] Unauthenticated request to protected route, redirecting to login`)
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('next', pathname)
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Handle legacy routes

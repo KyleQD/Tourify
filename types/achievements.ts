@@ -11,6 +11,18 @@ export interface Achievement {
   bg_color: string
   border_color: string
   requirements: Record<string, any>
+  /** Canonical metric key used by the evaluator engine */
+  metric_key?: string
+  /** Optional denormalized target value (fallback to requirements.target) */
+  target_value?: number
+  /** How progress is evaluated: increment from events or absolute snapshot values */
+  evaluation_mode?: 'increment' | 'absolute'
+  /** Tier/level inside a family of achievements */
+  level?: number
+  /** Family key for grouped/tiered rendering */
+  group_key?: string
+  /** Catalog version for migrations/seed updates */
+  catalog_version?: number
   points: number
   rarity: AchievementRarity
   is_active: boolean
@@ -162,9 +174,12 @@ export interface UserSkill {
 export interface AchievementProgressEvent {
   id: string
   user_id: string
-  achievement_id: string
+  achievement_id?: string
   event_type: string
   event_value: number
+  metric_key?: string
+  metric_value?: number
+  event_source?: string
   event_data: Record<string, any>
   related_project_id?: string
   related_event_id?: string
@@ -299,7 +314,10 @@ export interface SkillEndorsementRequest {
 }
 
 export interface AchievementProgressRequest {
-  achievement_id: string
+  achievement_id?: string
+  metric_key?: string
+  metric_value?: number
+  evaluation_mode?: 'increment' | 'absolute'
   event_type: string
   event_value?: number
   event_data?: Record<string, any>

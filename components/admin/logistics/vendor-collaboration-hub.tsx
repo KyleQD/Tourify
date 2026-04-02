@@ -44,6 +44,7 @@ import {
   Archive,
   Trash2
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useToast } from "@/hooks/use-toast"
 
 interface VendorCollaborationHubProps {
@@ -547,7 +548,7 @@ export function VendorCollaborationHub({ vendorId, siteMapId }: VendorCollaborat
                       <p className="text-sm">{message.content}</p>
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
-                      {new Date(message.timestamp).toLocaleTimeString()}
+                      {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(message.timestamp))}
                     </p>
                   </div>
                 </div>
@@ -602,7 +603,7 @@ export function VendorCollaborationHub({ vendorId, siteMapId }: VendorCollaborat
                 )}
                 <div className="flex items-center justify-between">
                   <p className="text-xs text-gray-500">
-                    {new Date(thread.lastMessage?.timestamp || thread.createdAt).toLocaleDateString()}
+                    {formatSafeDate(thread.lastMessage?.timestamp || thread.createdAt)}
                   </p>
                   {thread.unreadCount > 0 && (
                     <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
@@ -639,7 +640,7 @@ export function VendorCollaborationHub({ vendorId, siteMapId }: VendorCollaborat
                   )}
                 </div>
                 <p className="text-xs text-gray-500">
-                  Shared {new Date(share.createdAt).toLocaleDateString()}
+                  Shared {formatSafeDate(share.createdAt)}
                 </p>
               </div>
             ))}

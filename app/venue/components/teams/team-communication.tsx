@@ -31,6 +31,7 @@ import {
   ImageIcon,
   FileUp,
 } from "lucide-react"
+import { formatSafeDate, formatSafeDateTime } from "@/lib/events/admin-event-normalization"
 
 // Mock data for messages
 const mockMessages = {
@@ -272,12 +273,11 @@ export function TeamCommunication({ teamId }: TeamCommunicationProps) {
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp)
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    return new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(date)
   }
 
   const formatDateHeader = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })
+    return formatSafeDate(timestamp)
   }
 
   const getPriorityColor = (priority: string) => {
@@ -309,7 +309,7 @@ export function TeamCommunication({ teamId }: TeamCommunicationProps) {
     const groups: Record<string, any[]> = {}
 
     messages.forEach((message) => {
-      const date = new Date(message.timestamp).toLocaleDateString()
+      const date = formatSafeDate(message.timestamp)
       if (!groups[date]) {
         groups[date] = []
       }
@@ -529,7 +529,7 @@ export function TeamCommunication({ teamId }: TeamCommunicationProps) {
                                 {(announcement as any).priority === "high" ? "Important" : "Announcement"}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
-                                {new Date(announcement.timestamp).toLocaleString()}
+                                {formatSafeDateTime(announcement.timestamp)}
                               </span>
                             </div>
                           </div>

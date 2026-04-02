@@ -23,6 +23,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { SimCitySiteMapViewer } from "./site-map-builder/simcity-site-map-viewer"
 import { cn } from "@/lib/utils"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface SiteMap {
   id: string
@@ -648,7 +649,7 @@ export function SiteMapManagerEnhanced() {
                     
                     <div className="flex items-center justify-between pt-3 border-t border-slate-700/30">
                       <span className="text-xs text-slate-400 font-medium">
-                        Created {new Date(siteMap.created_at).toLocaleDateString()}
+                        Created {formatSafeDate(siteMap.created_at)}
                       </span>
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-green-400/50"></div>

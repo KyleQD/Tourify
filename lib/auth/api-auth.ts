@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
 
 interface AuthSession {
   access_token: string
@@ -18,19 +19,12 @@ function parseAuthFromRequestCookies(request: NextRequest): any | null {
     const cookies = request.headers.get('cookie') || ''
     const cookieArray = cookies.split(';').map(c => c.trim())
     
-    console.log('[API Auth] All cookies:', cookieArray.map(c => {
-      const [name] = c.split('=')
-      return `${name}: ${c.split('=')[1]?.length || 0} chars`
-    }))
-    
     // Look for the auth cookie that matches our client configuration
     const authCookie = cookieArray.find(cookie => 
       cookie.startsWith('sb-tourify-auth-token=')
     )
     
     if (!authCookie) {
-      console.log('[API Auth] No sb-tourify-auth-token cookie found')
-      
       // Fallback to old patterns for existing users
       const fallbackCookie = cookieArray.find(cookie => 
         (cookie.includes('sb-') && 
@@ -46,7 +40,6 @@ function parseAuthFromRequestCookies(request: NextRequest): any | null {
       
       if (fallbackCookie) {
         const cookieValue = fallbackCookie.split('=')[1]
-        console.log('[API Auth] Found fallback auth cookie, length:', cookieValue?.length)
         return tryParseCookieValue(cookieValue)
       }
       
@@ -54,18 +47,15 @@ function parseAuthFromRequestCookies(request: NextRequest): any | null {
     }
     
     const cookieValue = authCookie.split('=')[1]
-    console.log('[API Auth] Found main auth cookie: sb-tourify-auth-token length:', cookieValue?.length)
     
     return tryParseCookieValue(cookieValue)
   } catch (error) {
-    console.log('[API Auth] Error parsing auth from request cookies:', error)
     return null
   }
 }
 
 function tryParseCookieValue(cookieValue: string): any | null {
   if (!cookieValue) {
-    console.log('[API Auth] No cookie value to parse')
     return null
   }
   
@@ -74,33 +64,25 @@ function tryParseCookieValue(cookieValue: string): any | null {
     const sessionData: AuthSession = JSON.parse(decodeURIComponent(cookieValue))
     
     if (sessionData && sessionData.access_token && sessionData.user) {
-      console.log('[API Auth] Successfully parsed session from cookie')
-      console.log('[API Auth] User from cookie:', sessionData.user.id)
-      
       // Check if token is expired
       const now = Math.floor(Date.now() / 1000)
       if (sessionData.expires_at && sessionData.expires_at > now) {
         return sessionData.user
       } else {
-        console.log('[API Auth] Token expired')
         return null
       }
     } else {
-      console.log('[API Auth] Cookie data missing required fields')
       return null
     }
   } catch (parseError) {
-    console.log('[API Auth] Failed to parse session data:', parseError)
-    
     // Try parsing without URL decoding
     try {
       const sessionData2: AuthSession = JSON.parse(cookieValue)
       if (sessionData2 && sessionData2.access_token && sessionData2.user) {
-        console.log('[API Auth] Successfully parsed session without URL decoding')
         return sessionData2.user
       }
     } catch (parseError2) {
-      console.log('[API Auth] Failed to parse even without URL decoding')
+      // ignore
     }
     
     return null
@@ -127,35 +109,26 @@ function createServiceClient() {
 }
 
 /**
- * Authenticate API request and return user + Supabase client
- * This matches the middleware authentication logic exactly
+ * Authenticate API request and return user + user-scoped Supabase client.
+ * Uses server session first, then falls back to manual cookie parsing.
  */
 export async function authenticateApiRequest(request?: NextRequest): Promise<{ user: any; supabase: any } | null> {
   try {
-    console.log('[API Auth] Starting authentication process')
-    
     if (!request) {
-      console.log('[API Auth] No request object provided')
       return null
     }
     
-    // Use the same manual cookie parsing that works in middleware
-    const user = parseAuthFromRequestCookies(request)
-    
-    if (!user) {
-      console.log('[API Auth] No authenticated user found')
-      return null
+    const supabase = await createServerClient()
+    const { data: { user: sessionUser } } = await supabase.auth.getUser()
+    if (sessionUser) {
+      return { user: sessionUser, supabase }
     }
-    
-    console.log('[API Auth] ✅ User authenticated:', {
-      id: user.id,
-      email: user.email
-    })
-    
-    // Create service role client for database operations
-    const supabase = createServiceClient()
-    
-    return { user, supabase }
+
+    // Fallback path while session cookie handling is being stabilized
+    const fallbackUser = parseAuthFromRequestCookies(request)
+    if (!fallbackUser) return null
+
+    return { user: fallbackUser, supabase }
   } catch (error) {
     console.error('[API Auth] 💥 Authentication error:', error)
     return null
@@ -163,21 +136,46 @@ export async function authenticateApiRequest(request?: NextRequest): Promise<{ u
 }
 
 /**
- * Check if user has organizer permissions based on email across all profiles
- * In this context, "admin" means organizer accounts that can manage events and tours
- * TEMPORARILY DISABLED - allowing all authenticated users access
+ * Check if user has organizer permissions.
+ * Verifies the user owns at least one admin/organizer profile.
+ * When tourId is supplied, also checks tour ownership or confirmed team membership.
  */
 export async function checkAdminPermissions(user: any, opts?: { tourId?: string }): Promise<boolean> {
   if (!user?.id) return false
   try {
     const supabase = createServiceClient()
 
-    // Global allowance: authenticated users
+    const { data: organizerAccount } = await supabase
+      .from('organizer_accounts')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+
+    const { data: adminProfile } = await supabase
+      .from('profiles')
+      .select('id, account_type, role, is_admin, account_settings')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+
+    const hasLegacyOrganizerData = Boolean(
+      adminProfile?.account_settings?.organizer_data?.organization_name ||
+      adminProfile?.account_settings?.organizer_accounts?.length
+    )
+    const hasAdminProfile =
+      adminProfile?.account_type === 'admin' ||
+      adminProfile?.role === 'admin' ||
+      adminProfile?.is_admin === true
+
+    const hasOrganizerAccess = Boolean(organizerAccount || hasLegacyOrganizerData || hasAdminProfile)
+    if (!hasOrganizerAccess) return false
+
     if (!opts?.tourId) return true
 
     const tourId = opts.tourId
 
-    // Access if user is the tour owner
     const { data: tourOwner } = await supabase
       .from('tours')
       .select('id')
@@ -187,7 +185,6 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
 
     if (tourOwner) return true
 
-    // Or confirmed team member
     const { data: team } = await supabase
       .from('tour_team_members')
       .select('id')
@@ -218,7 +215,6 @@ export function withAuth(
     
     // If authentication failed, return error response
     if (!authResult) {
-      console.log('[API Auth] Authentication failed, returning 401')
       return NextResponse.json({
         error: 'Unauthorized',
         details: 'Authentication required'
@@ -228,6 +224,30 @@ export function withAuth(
     // Call the handler with authenticated user and supabase client
     return handler(request, authResult)
   }
+}
+
+/**
+ * Middleware wrapper for API routes that require admin/organizer permissions
+ */
+export function withAdminAuth(
+  handler: (
+    request: NextRequest,
+    auth: { user: any; supabase: any }
+  ) => Promise<NextResponse> | NextResponse,
+  opts?: { tourIdFromRequest?: (request: NextRequest) => string | undefined }
+) {
+  return withAuth(async (request, auth) => {
+    const tourId = opts?.tourIdFromRequest?.(request)
+    const hasAdminAccess = await checkAdminPermissions(auth.user, { tourId })
+    if (!hasAdminAccess) {
+      return NextResponse.json({
+        error: 'Forbidden',
+        details: 'Admin access required'
+      }, { status: 403 })
+    }
+
+    return handler(request, auth)
+  })
 }
 
 /**
@@ -243,4 +263,4 @@ export async function checkAuth(request: NextRequest): Promise<{ user: any; supa
 }
 
 // Alias for backward compatibility
-export { authenticateApiRequest as parseAuthFromCookies } 
+export { authenticateApiRequest as parseAuthFromCookies }

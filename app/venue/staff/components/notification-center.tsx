@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDateTime } from "@/lib/events/admin-event-normalization"
 import {
   Bell,
   AlertTriangle,
@@ -216,7 +217,7 @@ export default function NotificationCenter() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-slate-400 text-sm">
                           <Clock className="h-4 w-4" />
-                          <span>{new Date(notification.timestamp).toLocaleString()}</span>
+                          <span>{formatSafeDateTime(notification.timestamp)}</span>
                         </div>
                         
                         <div className="flex space-x-2">
@@ -299,7 +300,7 @@ export default function NotificationCenter() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-slate-400 text-sm">
                           <Clock className="h-4 w-4" />
-                          <span>{new Date(notification.timestamp).toLocaleString()}</span>
+                          <span>{formatSafeDateTime(notification.timestamp)}</span>
                         </div>
                         
                         <Button 
@@ -345,7 +346,7 @@ export default function NotificationCenter() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-slate-400 text-sm">
                           <Clock className="h-4 w-4" />
-                          <span>{new Date(notification.timestamp).toLocaleString()}</span>
+                          <span>{formatSafeDateTime(notification.timestamp)}</span>
                         </div>
                         
                         <div className="flex space-x-2">
@@ -393,7 +394,7 @@ export default function NotificationCenter() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-slate-400 text-sm">
                           <Clock className="h-4 w-4" />
-                          <span>{new Date(notification.timestamp).toLocaleString()}</span>
+                          <span>{formatSafeDateTime(notification.timestamp)}</span>
                         </div>
                         
                         <div className="flex space-x-2">

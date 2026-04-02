@@ -21,6 +21,7 @@ import {
   TrendingUp,
   Sparkles
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface LocalEvent {
   id: string
@@ -205,7 +206,7 @@ export function LocalDiscovery() {
 
     if (date.toDateString() === today.toDateString()) return 'Today'
     if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    return formatSafeDate(date.toISOString())
   }
 
   return (

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import {
   Globe,
   Calendar,
@@ -470,7 +471,7 @@ export function TourEventSelector({ onTourSelect, onEventSelect, className = "" 
                               <div className="flex items-center justify-between text-xs">
                                 <span className="text-slate-400">Tickets</span>
                                 <span className="text-slate-300">
-                                  {event.ticketsSold.toLocaleString()} / {event.capacity.toLocaleString()}
+                                  {formatSafeNumber(event.ticketsSold)} / {formatSafeNumber(event.capacity)}
                                 </span>
                               </div>
                               <div className="w-full bg-slate-700 rounded-full h-1.5">

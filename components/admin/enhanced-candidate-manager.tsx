@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { OnboardingKanbanBoard } from "./onboarding-kanban-board"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface OnboardingCandidate {
   id: string
@@ -484,7 +485,7 @@ export default function EnhancedCandidateManager({
                       )}
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        <span>{new Date(candidate.created_at).toLocaleDateString()}</span>
+                        <span>{formatSafeDate(candidate.created_at)}</span>
                       </div>
                     </div>
                   </div>

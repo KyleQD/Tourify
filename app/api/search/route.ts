@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q') || ''
     const type = searchParams.get('type') || 'all' // all, artists, venues, events, users, music
@@ -286,10 +282,108 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Search events - TODO: Implement when events table is ready
-    // if (type === 'all' || type === 'events') {
-    //   results.events = []
-    // }
+    // Search events (published only for public discoverability)
+    if (type === 'all' || type === 'events') {
+      let legacyEventsQuery = supabase
+        .from('events')
+        .select(`
+          id,
+          slug,
+          name,
+          description,
+          event_type,
+          status,
+          event_date,
+          city,
+          state,
+          country,
+          venue_name,
+          tags
+        `)
+        .eq('status', 'published')
+        .order('event_date', { ascending: true })
+
+      let canonicalEventsQuery = supabase
+        .from('events_v2')
+        .select('id, title, status, start_at, settings')
+        .in('status', ['confirmed', 'advancing', 'onsite'])
+        .order('start_at', { ascending: true })
+
+      if (query) {
+        const cleaned = query.replace(/[\\%_]/g, '')
+        legacyEventsQuery = legacyEventsQuery.or(
+          [
+            `name.ilike.%${cleaned}%`,
+            `description.ilike.%${cleaned}%`,
+            `venue_name.ilike.%${cleaned}%`,
+            `city.ilike.%${cleaned}%`
+          ].join(',')
+        )
+        canonicalEventsQuery = canonicalEventsQuery.or(`title.ilike.%${cleaned}%`)
+      }
+
+      if (location) {
+        const cleanedLocation = location.replace(/[\\%_]/g, '')
+        legacyEventsQuery = legacyEventsQuery.or(`city.ilike.%${cleanedLocation}%,state.ilike.%${cleanedLocation}%`)
+      }
+
+      if (genre) {
+        const cleanedGenre = genre.replace(/[\\%_]/g, '')
+        legacyEventsQuery = legacyEventsQuery.filter('tags', 'cs', `["${cleanedGenre}"]`)
+      }
+
+      const [legacyEventsResult, canonicalEventsResult] = await Promise.all([
+        legacyEventsQuery.range(offset, offset + limit - 1),
+        canonicalEventsQuery.range(offset, offset + limit - 1),
+      ])
+
+      const legacyEvents = (legacyEventsResult.data || []).map((event: any) => ({
+        ...event,
+        title: event.name,
+        type: event.event_type,
+        event_table: 'events'
+      }))
+
+      const canonicalEvents = (canonicalEventsResult.data || []).map((event: any) => {
+        const settings = event.settings && typeof event.settings === 'object'
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        return {
+          id: event.id,
+          slug: null,
+          name: event.title,
+          title: event.title,
+          description: typeof settings.description === 'string' ? settings.description : '',
+          event_type: typeof settings.event_type === 'string' ? settings.event_type : null,
+          type: typeof settings.event_type === 'string' ? settings.event_type : null,
+          status: event.status,
+          event_date: event.start_at ? String(event.start_at).slice(0, 10) : null,
+          city: typeof settings.city === 'string' ? settings.city : null,
+          state: typeof settings.state === 'string' ? settings.state : null,
+          country: typeof settings.country === 'string' ? settings.country : null,
+          venue_name: typeof settings.venue_name === 'string' ? settings.venue_name : null,
+          tags: Array.isArray(settings.tags) ? settings.tags : [],
+          event_table: 'events_v2'
+        }
+      })
+
+      const mergedEvents = [...legacyEvents, ...canonicalEvents]
+      const filteredMergedEvents = location
+        ? mergedEvents.filter((event) => {
+            const cleanedLocation = location.replace(/[\\%_]/g, '').toLowerCase()
+            const locationText = `${event.city || ''} ${event.state || ''}`.toLowerCase()
+            return locationText.includes(cleanedLocation)
+          })
+        : mergedEvents
+
+      results.events = filteredMergedEvents
+        .sort((a, b) => {
+          const firstDate = a.event_date ? new Date(a.event_date).getTime() : Number.MAX_SAFE_INTEGER
+          const secondDate = b.event_date ? new Date(b.event_date).getTime() : Number.MAX_SAFE_INTEGER
+          return firstDate - secondDate
+        })
+        .slice(0, limit)
+    }
 
     // Search music releases - TODO: Implement when music_releases table is ready
     // if (type === 'all' || type === 'music') {

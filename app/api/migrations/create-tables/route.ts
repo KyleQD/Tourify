@@ -1,8 +1,10 @@
 import { cookies } from 'next/headers'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
     const cookieStore = cookies()
     const supabase = createRouteHandlerClient({ 

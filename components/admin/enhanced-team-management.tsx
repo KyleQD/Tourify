@@ -94,6 +94,7 @@ import {
   VolumeX as VolumeXIcon,
   Sparkles as SparklesIcon
 } from 'lucide-react'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import type { StaffMember, OnboardingCandidate, TeamCommunication } from '@/types/admin-onboarding'
 
 interface EnhancedTeamManagementProps {
@@ -864,7 +865,7 @@ export default function EnhancedTeamManagement({
                       <div className="flex justify-between">
                         <span className="text-slate-400">Hire Date:</span>
                         <span className="text-white">
-                          {new Date(selectedStaffMember.hire_date).toLocaleDateString()}
+                          {formatSafeDate(selectedStaffMember.hire_date)}
                         </span>
                       </div>
                     )}
@@ -878,7 +879,7 @@ export default function EnhancedTeamManagement({
                       <div className="flex justify-between">
                         <span className="text-slate-400">Last Active:</span>
                         <span className="text-white">
-                          {new Date(selectedStaffMember.last_active).toLocaleDateString()}
+                          {formatSafeDate(selectedStaffMember.last_active)}
                         </span>
                       </div>
                     )}

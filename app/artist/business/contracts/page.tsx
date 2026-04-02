@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useArtist } from "@/contexts/artist-context"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,44 +11,90 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import { format, addDays, isAfter, isBefore } from "date-fns"
-import { 
-  FileText, 
-  Plus, 
-  Edit, 
+import { formatSafeCurrency } from "@/lib/format/number-format"
+import {
+  FileText,
+  Plus,
+  Edit,
   Trash2,
-  Download,
-  Upload,
   AlertCircle,
   CheckCircle,
   Clock,
   DollarSign,
   Calendar,
   User,
-  Building,
   ArrowLeft,
   Search,
-  Filter,
   MoreHorizontal,
   Eye,
-  Send
+  Send,
+  Mic2,
+  Building2,
+  Camera,
+  Video,
+  Shirt,
+  Disc3,
+  Users,
+  Guitar,
+  Film,
+  Briefcase,
+  type LucideIcon,
 } from "lucide-react"
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import Link from "next/link"
+import { cn } from "@/lib/utils"
+import { dashboardCreatePattern } from "@/components/dashboard/dashboard-create-pattern"
+import {
+  CONTRACT_TEMPLATES,
+  buildContractTermsFromTemplate,
+  defaultTitleForTemplate,
+  getContractTemplateById,
+  type ContractTemplate,
+} from "@/lib/artist/contract-templates"
+import { createContractAction, updateContractAction } from "@/app/lib/actions/contracts.actions"
+import { resolveCounterpartyAction, sendContractAction } from "@/app/lib/actions/contract-workflow.actions"
+
+const TEMPLATE_ICONS: Record<ContractTemplate["iconName"], LucideIcon> = {
+  Mic2,
+  Building2,
+  Camera,
+  Video,
+  Shirt,
+  Disc3,
+  Users,
+  Guitar,
+  Film,
+  Briefcase,
+}
+
+interface ContractMetadata {
+  templateVariables?: Record<string, string>
+  signatures?: Record<string, unknown>
+}
 
 interface Contract {
   id?: string
+  user_id?: string
   title: string
-  type: 'performance' | 'licensing' | 'recording' | 'management' | 'publishing' | 'endorsement' | 'other'
+  type: "performance" | "licensing" | "recording" | "management" | "publishing" | "endorsement" | "other"
   client_name: string
   client_email?: string
   client_company?: string
@@ -57,31 +102,51 @@ interface Contract {
   currency: string
   start_date: string
   end_date?: string
-  status: 'draft' | 'sent' | 'signed' | 'expired' | 'cancelled'
+  status: "draft" | "sent" | "signed" | "expired" | "cancelled"
   terms?: string
   notes?: string
   document_url?: string
   created_at?: string
   updated_at?: string
+  counterparty_user_id?: string | null
+  template_id?: string | null
+  metadata?: ContractMetadata | null
+  sent_at?: string | null
 }
 
 const CONTRACT_TYPES = [
-  { value: 'performance', label: 'Performance Agreement', description: 'Live show contracts' },
-  { value: 'licensing', label: 'Licensing Deal', description: 'Music licensing agreements' },
-  { value: 'recording', label: 'Recording Contract', description: 'Studio and recording agreements' },
-  { value: 'management', label: 'Management Agreement', description: 'Artist management contracts' },
-  { value: 'publishing', label: 'Publishing Deal', description: 'Music publishing agreements' },
-  { value: 'endorsement', label: 'Endorsement Deal', description: 'Brand partnerships and sponsorships' },
-  { value: 'other', label: 'Other', description: 'Custom contract types' }
+  { value: "performance", label: "Performance Agreement", description: "Live show contracts" },
+  { value: "licensing", label: "Licensing Deal", description: "Music licensing agreements" },
+  { value: "recording", label: "Recording Contract", description: "Studio and recording agreements" },
+  { value: "management", label: "Management Agreement", description: "Artist management contracts" },
+  { value: "publishing", label: "Publishing Deal", description: "Music publishing agreements" },
+  { value: "endorsement", label: "Endorsement Deal", description: "Brand partnerships and sponsorships" },
+  { value: "other", label: "Other", description: "Custom contract types" },
 ]
 
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD']
+const CURRENCIES = ["USD", "EUR", "GBP", "CAD", "AUD"]
+
+const emptyForm = (): Contract => ({
+  title: "",
+  type: "performance",
+  client_name: "",
+  client_email: "",
+  client_company: "",
+  amount: 0,
+  currency: "USD",
+  start_date: new Date().toISOString().split("T")[0],
+  end_date: "",
+  status: "draft",
+  terms: "",
+  notes: "",
+})
 
 export default function ContractsPage() {
   const { user } = useArtist()
   const supabase = createClientComponentClient()
-  
+
   const [contracts, setContracts] = useState<Contract[]>([])
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingContract, setEditingContract] = useState<Contract | null>(null)
@@ -89,242 +154,370 @@ export default function ContractsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
-  
-  const [formData, setFormData] = useState<Contract>({
-    title: '',
-    type: 'performance',
-    client_name: '',
-    client_email: '',
-    client_company: '',
-    amount: 0,
-    currency: 'USD',
-    start_date: new Date().toISOString().split('T')[0],
-    end_date: '',
-    status: 'draft',
-    terms: '',
-    notes: ''
-  })
-  
+
+  const [formData, setFormData] = useState<Contract>(emptyForm())
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null)
+  const [templateVarValues, setTemplateVarValues] = useState<Record<string, string>>({})
+  const [counterpartyUsername, setCounterpartyUsername] = useState("")
+  const [counterpartyResolved, setCounterpartyResolved] = useState<{
+    userId: string
+    username: string | null
+    displayName: string | null
+  } | null>(null)
+  const [counterpartyLookupLoading, setCounterpartyLookupLoading] = useState(false)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    if (user) {
-      loadContracts()
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (editingContract) {
-      setFormData(editingContract)
-    } else {
-      setFormData({
-        title: '',
-        type: 'performance',
-        client_name: '',
-        client_email: '',
-        client_company: '',
-        amount: 0,
-        currency: 'USD',
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: '',
-        status: 'draft',
-        terms: '',
-        notes: ''
-      })
-    }
-  }, [editingContract])
+  const resetModalExtras = useCallback(() => {
+    setActiveTemplateId(null)
+    setTemplateVarValues({})
+    setCounterpartyUsername("")
+    setCounterpartyResolved(null)
+  }, [])
 
   const loadContracts = async () => {
     if (!user) return
 
     try {
       setIsLoading(true)
-      
-      // Try real data first
-      const { data, error } = await supabase
-        .from('artist_contracts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+      setLoadError(null)
 
-      if (!error && Array.isArray(data)) {
-        setContracts(data as unknown as Contract[])
+      const { data, error } = await supabase
+        .from("artist_contracts")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+
+      if (error) {
+        setContracts([])
+        setLoadError(error.message)
+        toast.error("Failed to load contracts")
         return
       }
-      
-      // Fallback to demo data when table empty or unavailable
-      const mockContracts: Contract[] = [
-        {
-          id: '1',
-          title: 'Summer Festival Performance',
-          type: 'performance',
-          client_name: 'Music Festival Inc.',
-          client_email: 'booking@musicfest.com',
-          client_company: 'Music Festival Inc.',
-          amount: 5000,
-          currency: 'USD',
-          start_date: '2024-07-15',
-          end_date: '2024-07-15',
-          status: 'signed',
-          terms: 'Single night performance, 60-minute set, sound check at 5 PM.',
-          notes: 'Travel and accommodation provided by venue.',
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-20T15:30:00Z'
-        },
-        {
-          id: '2',
-          title: 'TV Commercial License',
-          type: 'licensing',
-          client_name: 'Brand Agency',
-          client_email: 'licensing@brandagency.com',
-          client_company: 'Creative Brand Agency',
-          amount: 2500,
-          currency: 'USD',
-          start_date: '2024-02-01',
-          end_date: '2024-12-31',
-          status: 'sent',
-          terms: 'License for use of "Song Title" in national TV commercial campaign.',
-          notes: 'Waiting for client signature.',
-          created_at: '2024-01-20T14:00:00Z',
-          updated_at: '2024-01-25T09:15:00Z'
-        },
-        {
-          id: '3',
-          title: 'Recording Studio Agreement',
-          type: 'recording',
-          client_name: 'Sound Studios',
-          client_email: 'booking@soundstudios.com',
-          amount: 1200,
-          currency: 'USD',
-          start_date: '2024-03-01',
-          end_date: '2024-03-05',
-          status: 'draft',
-          terms: '5-day studio rental including engineer and basic mixing.',
-          notes: 'Need to finalize dates with studio.',
-          created_at: '2024-01-25T11:00:00Z',
-          updated_at: '2024-01-25T11:00:00Z'
-        }
-      ]
-      
-      setContracts(mockContracts)
-    } catch (error) {
-      console.error('Error loading contracts:', error)
-      toast.error('Failed to load contracts')
+
+      setContracts((Array.isArray(data) ? data : []) as unknown as Contract[])
+    } catch (e) {
+      console.error("Error loading contracts:", e)
+      setContracts([])
+      setLoadError("Unexpected error")
+      toast.error("Failed to load contracts")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleSaveContract = async () => {
-    if (!user || !formData.title.trim() || !formData.client_name.trim()) {
-      toast.error('Please fill in required fields')
-      return
+  useEffect(() => {
+    if (user) loadContracts()
+  }, [user])
+
+  useEffect(() => {
+    if (!activeTemplateId) return
+    const tpl = getContractTemplateById(activeTemplateId)
+    if (!tpl) return
+    setFormData((prev) => ({
+      ...prev,
+      terms: buildContractTermsFromTemplate(tpl, templateVarValues),
+    }))
+  }, [templateVarValues, activeTemplateId])
+
+  useEffect(() => {
+    if (!showCreateModal || !editingContract?.counterparty_user_id) return
+    let cancelled = false
+    ;(async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username, full_name")
+        .eq("id", editingContract.counterparty_user_id!)
+        .maybeSingle()
+      if (cancelled) return
+      if (data?.username) setCounterpartyUsername(data.username)
+      setCounterpartyResolved({
+        userId: editingContract.counterparty_user_id!,
+        username: data?.username ?? null,
+        displayName: data?.full_name ?? null,
+      })
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [showCreateModal, editingContract?.counterparty_user_id, editingContract?.id, supabase])
+
+  const openBlankModal = () => {
+    setEditingContract(null)
+    resetModalExtras()
+    setFormData(emptyForm())
+    setShowCreateModal(true)
+  }
+
+  const openTemplateModal = (tplId: string) => {
+    const tpl = getContractTemplateById(tplId)
+    if (!tpl) return
+    setEditingContract(null)
+    const vars = Object.fromEntries(tpl.variables.map((v) => [v.key, ""]))
+    setTemplateVarValues(vars)
+    setActiveTemplateId(tplId)
+    setCounterpartyUsername("")
+    setCounterpartyResolved(null)
+    setFormData({
+      ...emptyForm(),
+      type: tpl.dbType,
+      title: defaultTitleForTemplate(tpl, vars),
+      terms: buildContractTermsFromTemplate(tpl, vars),
+      status: "draft",
+    })
+    setShowCreateModal(true)
+  }
+
+  const openEditModal = (c: Contract) => {
+    setEditingContract(c)
+    setActiveTemplateId(c.template_id ?? null)
+    const meta = (c.metadata ?? {}) as ContractMetadata
+    const tv =
+      meta.templateVariables && typeof meta.templateVariables === "object"
+        ? { ...meta.templateVariables }
+        : {}
+    setTemplateVarValues(tv)
+    setFormData({ ...c })
+    setCounterpartyUsername("")
+    setCounterpartyResolved(
+      c.counterparty_user_id
+        ? { userId: c.counterparty_user_id, username: null, displayName: null }
+        : null
+    )
+    setShowCreateModal(true)
+  }
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setShowCreateModal(open)
+    if (!open) {
+      setEditingContract(null)
+      resetModalExtras()
+    }
+  }
+
+  const buildMetadataPayload = (): Record<string, unknown> => {
+    const prev = (editingContract?.metadata ?? {}) as Record<string, unknown>
+    const next: Record<string, unknown> = { ...prev }
+    if (activeTemplateId) next.templateVariables = { ...templateVarValues }
+    return next
+  }
+
+  const persistContract = async (): Promise<string | null> => {
+    if (!user) {
+      toast.error("Not signed in")
+      return null
     }
 
+    const clientName =
+      formData.client_name.trim() ||
+      counterpartyResolved?.displayName?.trim() ||
+      counterpartyUsername.trim() ||
+      ""
+    if (!formData.title.trim() || !clientName) {
+      toast.error("Add a title and client / counterparty name")
+      return null
+    }
+
+    const metadata = buildMetadataPayload()
+    const counterpartyId = counterpartyResolved?.userId ?? editingContract?.counterparty_user_id ?? null
+
+    const payload = {
+      title: formData.title.trim(),
+      type: formData.type,
+      client_name: clientName,
+      client_email: formData.client_email || "",
+      client_company: formData.client_company || "",
+      amount: formData.amount,
+      currency: formData.currency,
+      start_date: formData.start_date,
+      end_date: formData.end_date || "",
+      status: editingContract ? editingContract.status : "draft",
+      terms: formData.terms || "",
+      notes: formData.notes || "",
+      document_url: formData.document_url || "",
+      counterparty_user_id: counterpartyId,
+      template_id: activeTemplateId || null,
+      metadata,
+    }
+
+    if (editingContract?.id) {
+      const res = await updateContractAction({ ...payload, id: editingContract.id })
+      if (!res?.data?.success) {
+        toast.error((res?.data as { error?: string })?.error || (res as { serverError?: string })?.serverError || "Update failed")
+        return null
+      }
+      return editingContract.id
+    }
+
+    const res = await createContractAction(payload)
+    if (!res?.data?.success) {
+      toast.error((res?.data as { error?: string })?.error || (res as { serverError?: string })?.serverError || "Create failed")
+      return null
+    }
+    const row = (res.data as { data?: { id: string } }).data
+    return row?.id ?? null
+  }
+
+  const handleSaveDraft = async () => {
     try {
       setIsSubmitting(true)
-      
-      const contractData = {
-        ...formData,
-        user_id: user.id,
-        updated_at: new Date().toISOString()
-      }
-
-      if (editingContract?.id) {
-        // Update existing contract in DB
-        const { error } = await supabase
-          .from('artist_contracts')
-          .update(contractData)
-          .eq('id', editingContract.id)
-          .eq('user_id', user.id)
-        if (error) throw error
-        await loadContracts()
-        toast.success('Contract updated successfully!')
-      } else {
-        // Create new contract in DB
-        const { error } = await supabase
-          .from('artist_contracts')
-          .insert({ ...contractData, created_at: new Date().toISOString() })
-        if (error) throw error
-        await loadContracts()
-        toast.success('Contract created successfully!')
-      }
-      
+      const id = await persistContract()
+      if (!id) return
+      await loadContracts()
+      toast.success(editingContract ? "Draft updated" : "Draft saved")
       setShowCreateModal(false)
       setEditingContract(null)
-    } catch (error) {
-      console.error('Error saving contract:', error)
-      toast.error('Failed to save contract')
+      resetModalExtras()
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleSendForSignature = async () => {
+    if (!counterpartyResolved?.userId) {
+      toast.error("Look up a valid Tourify username for the counterparty before sending")
+      return
+    }
+    try {
+      setIsSubmitting(true)
+      const id = await persistContract()
+      if (!id) return
+
+      const sendRes = await sendContractAction({ contractId: id })
+      if (!sendRes?.data?.success) {
+        toast.error(
+          (sendRes?.data as { error?: string })?.error ||
+            (sendRes as { serverError?: string })?.serverError ||
+            "Send failed"
+        )
+        return
+      }
+
+      await loadContracts()
+      const emailSent = (sendRes?.data as { emailSent?: boolean })?.emailSent
+      if (emailSent === false) {
+        toast.success("Contract sent in-app — email could not be delivered (check RESEND_API_KEY / sender domain).")
+      } else {
+        toast.success("Contract sent — your counterparty was emailed and notified in Tourify.")
+      }
+      setShowCreateModal(false)
+      setEditingContract(null)
+      resetModalExtras()
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleLookupCounterparty = async () => {
+    const u = counterpartyUsername.trim()
+    if (!u) {
+      toast.error("Enter a username")
+      return
+    }
+    setCounterpartyLookupLoading(true)
+    try {
+      const res = await resolveCounterpartyAction({ username: u })
+      if (!res?.data?.success) {
+        toast.error(
+          (res?.data as { error?: string })?.error ||
+            (res as { serverError?: string })?.serverError ||
+            "Lookup failed"
+        )
+        setCounterpartyResolved(null)
+        return
+      }
+      const d = (res.data as { data?: { userId: string; username: string | null; displayName: string | null } }).data
+      if (!d) {
+        toast.error("Lookup failed")
+        return
+      }
+      setCounterpartyResolved(d)
+      toast.success(`Linked @${d.username ?? u}`)
+    } finally {
+      setCounterpartyLookupLoading(false)
     }
   }
 
   const handleDeleteContract = async (contractId: string) => {
     try {
       const { error } = await supabase
-        .from('artist_contracts')
+        .from("artist_contracts")
         .delete()
-        .eq('id', contractId)
-        .eq('user_id', user?.id || '')
+        .eq("id", contractId)
+        .eq("user_id", user?.id || "")
       if (error) throw error
       await loadContracts()
-      toast.success('Contract deleted successfully')
+      toast.success("Contract deleted")
     } catch (error) {
-      console.error('Error deleting contract:', error)
-      toast.error('Failed to delete contract')
+      console.error("Error deleting contract:", error)
+      toast.error("Failed to delete contract")
     } finally {
       setDeleteContractId(null)
     }
   }
 
-  const handleStatusChange = async (contractId: string, newStatus: Contract['status']) => {
-    try {
-      const { error } = await supabase
-        .from('artist_contracts')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', contractId)
-        .eq('user_id', user?.id || '')
-      if (error) throw error
-      await loadContracts()
-      toast.success(`Contract marked as ${newStatus}`)
-    } catch (error) {
-      console.error('Error updating contract status:', error)
-      toast.error('Failed to update contract status')
+  const handleSendFromList = async (contractId: string) => {
+    const sendRes = await sendContractAction({ contractId })
+    if (!sendRes?.data?.success) {
+      toast.error(
+        (sendRes?.data as { error?: string })?.error ||
+          (sendRes as { serverError?: string })?.serverError ||
+          "Send failed"
+      )
+      return
+    }
+    await loadContracts()
+    const emailSent = (sendRes?.data as { emailSent?: boolean })?.emailSent
+    if (emailSent === false) {
+      toast.success("Sent — email delivery unavailable; counterparty still has an in-app notification.")
+    } else {
+      toast.success("Contract sent — counterparty was emailed.")
     }
   }
 
-  const getStatusColor = (status: Contract['status']) => {
+  const getStatusColor = (status: Contract["status"]) => {
     switch (status) {
-      case 'draft': return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
-      case 'sent': return 'bg-blue-600/20 text-blue-300 border-blue-500/30'
-      case 'signed': return 'bg-green-600/20 text-green-300 border-green-500/30'
-      case 'expired': return 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30'
-      case 'cancelled': return 'bg-red-600/20 text-red-300 border-red-500/30'
-      default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
+      case "draft":
+        return "bg-gray-600/20 text-gray-300 border-gray-500/30"
+      case "sent":
+        return "bg-blue-600/20 text-blue-300 border-blue-500/30"
+      case "signed":
+        return "bg-green-600/20 text-green-300 border-green-500/30"
+      case "expired":
+        return "bg-yellow-600/20 text-yellow-300 border-yellow-500/30"
+      case "cancelled":
+        return "bg-red-600/20 text-red-300 border-red-500/30"
+      default:
+        return "bg-gray-600/20 text-gray-300 border-gray-500/30"
     }
   }
 
-  const getStatusIcon = (status: Contract['status']) => {
+  const getStatusIcon = (status: Contract["status"]) => {
     switch (status) {
-      case 'draft': return <Edit className="h-4 w-4" />
-      case 'sent': return <Send className="h-4 w-4" />
-      case 'signed': return <CheckCircle className="h-4 w-4" />
-      case 'expired': return <AlertCircle className="h-4 w-4" />
-      case 'cancelled': return <AlertCircle className="h-4 w-4" />
-      default: return <Clock className="h-4 w-4" />
+      case "draft":
+        return <Edit className="h-4 w-4" />
+      case "sent":
+        return <Send className="h-4 w-4" />
+      case "signed":
+        return <CheckCircle className="h-4 w-4" />
+      case "expired":
+        return <AlertCircle className="h-4 w-4" />
+      case "cancelled":
+        return <AlertCircle className="h-4 w-4" />
+      default:
+        return <Clock className="h-4 w-4" />
     }
   }
 
-  const filteredContracts = contracts.filter(contract => {
-    const matchesSearch = 
+  const filteredContracts = contracts.filter((contract) => {
+    const matchesSearch =
       contract.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contract.client_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (contract.client_company && contract.client_company.toLowerCase().includes(searchQuery.toLowerCase()))
-    
-    const matchesStatus = statusFilter === 'all' || contract.status === statusFilter
-    const matchesType = typeFilter === 'all' || contract.type === typeFilter
-    
+
+    const matchesStatus = statusFilter === "all" || contract.status === statusFilter
+    const matchesType = typeFilter === "all" || contract.type === typeFilter
+
     return matchesSearch && matchesStatus && matchesType
   })
 
@@ -332,35 +525,36 @@ export default function ContractsPage() {
     const now = new Date()
     return {
       total: contracts.length,
-      active: contracts.filter(c => c.status === 'signed').length,
-      pending: contracts.filter(c => c.status === 'sent').length,
-      totalValue: contracts
-        .filter(c => c.status === 'signed')
-        .reduce((sum, c) => sum + c.amount, 0),
-      expiringSoon: contracts.filter(c => 
-        c.end_date && 
-        c.status === 'signed' && 
-        isAfter(new Date(c.end_date), now) && 
-        isBefore(new Date(c.end_date), addDays(now, 30))
-      ).length
+      active: contracts.filter((c) => c.status === "signed").length,
+      pending: contracts.filter((c) => c.status === "sent").length,
+      totalValue: contracts.filter((c) => c.status === "signed").reduce((sum, c) => sum + c.amount, 0),
+      expiringSoon: contracts.filter(
+        (c) =>
+          c.end_date &&
+          c.status === "signed" &&
+          isAfter(new Date(c.end_date), now) &&
+          isBefore(new Date(c.end_date), addDays(now, 30))
+      ).length,
     }
   }
 
   const stats = getContractStats()
+  const termsReadOnly = Boolean(editingContract && editingContract.status !== "draft")
+  const activeTpl = activeTemplateId ? getContractTemplateById(activeTemplateId) : undefined
 
   if (isLoading) {
     return (
       <div className="space-y-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-slate-700 rounded w-1/3"></div>
+          <div className="h-8 bg-slate-700 rounded w-1/3" />
           <div className="grid gap-4 md:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-24 bg-slate-700 rounded"></div>
+              <div key={i} className="h-24 bg-slate-700 rounded" />
             ))}
           </div>
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-32 bg-slate-700 rounded"></div>
+              <div key={i} className="h-32 bg-slate-700 rounded" />
             ))}
           </div>
         </div>
@@ -370,117 +564,79 @@ export default function ContractsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div
+        className={cn(
+          dashboardCreatePattern.shell,
+          "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        )}
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <Link href="/artist/business">
-            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+            <Button variant="ghost" size="sm" className={cn(dashboardCreatePattern.btnOutline, "text-slate-300")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Business
             </Button>
           </Link>
-          <div className="h-8 w-px bg-slate-700"></div>
+          <div className="hidden sm:block h-8 w-px bg-slate-700" />
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-violet-600">
-              <FileText className="h-5 w-5 text-white" />
+            <div className={dashboardCreatePattern.headerIcon}>
+              <FileText className="h-5 w-5" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Contracts & Legal</h1>
-              <p className="text-gray-400">Manage agreements and legal documents</p>
+              <p className={dashboardCreatePattern.subtleText}>Templates, send for signature, and in-app signing</p>
             </div>
           </div>
         </div>
-        <Button 
-          onClick={() => {
-            setEditingContract(null)
-            setShowCreateModal(true)
-          }}
-          className="bg-purple-600 hover:bg-purple-700"
-        >
+        <Button onClick={openBlankModal} className={dashboardCreatePattern.btnPrimary}>
           <Plus className="h-4 w-4 mr-2" />
           New Contract
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Contracts</p>
-                <p className="text-2xl font-bold text-white">{stats.total}</p>
-              </div>
-              <FileText className="h-8 w-8 text-purple-500" />
-            </div>
-          </CardContent>
-        </Card>
+      {loadError && (
+        <p className="text-sm text-amber-400/90">
+          Could not refresh contracts ({loadError}). Fix your connection or permissions and reload.
+        </p>
+      )}
 
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Active</p>
-                <p className="text-2xl font-bold text-white">{stats.active}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {[
+          { label: "Total Contracts", value: stats.total, icon: FileText, color: "text-purple-400" },
+          { label: "Active", value: stats.active, icon: CheckCircle, color: "text-emerald-400" },
+          { label: "Pending", value: stats.pending, icon: Clock, color: "text-blue-400" },
+          { label: "Total Value", value: formatSafeCurrency(stats.totalValue), icon: DollarSign, color: "text-amber-400" },
+          { label: "Expiring Soon", value: stats.expiringSoon, icon: AlertCircle, color: "text-orange-400" },
+        ].map((k) => (
+          <Card key={k.label} className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-slate-400">{k.label}</p>
+                  <p className="text-2xl font-bold text-white">{k.value}</p>
+                </div>
+                <k.icon className={cn("h-8 w-8", k.color)} />
               </div>
-              <CheckCircle className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Pending</p>
-                <p className="text-2xl font-bold text-white">{stats.pending}</p>
-              </div>
-              <Clock className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Total Value</p>
-                <p className="text-2xl font-bold text-white">${stats.totalValue.toLocaleString()}</p>
-              </div>
-              <DollarSign className="h-8 w-8 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-400">Expiring Soon</p>
-                <p className="text-2xl font-bold text-white">{stats.expiringSoon}</p>
-              </div>
-              <AlertCircle className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      {/* Filters */}
-      <Card className="bg-slate-900/50 border-slate-700/50">
+      <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
               <Input
                 placeholder="Search contracts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-slate-800 border-slate-700 text-white"
+                className={cn("pl-10", dashboardCreatePattern.input)}
               />
             </div>
-            
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-40 bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger className={cn("w-40", dashboardCreatePattern.selectTrigger)}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -494,13 +650,15 @@ export default function ContractsPage() {
             </Select>
 
             <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger className="w-40 bg-slate-800 border-slate-700 text-white">
+              <SelectTrigger className={cn("w-44", dashboardCreatePattern.selectTrigger)}>
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                {CONTRACT_TYPES.map(type => (
-                  <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                {CONTRACT_TYPES.map((type) => (
+                  <SelectItem key={type.value} value={type.value}>
+                    {type.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -508,43 +666,88 @@ export default function ContractsPage() {
         </CardContent>
       </Card>
 
-      {/* Contracts List */}
       {filteredContracts.length === 0 ? (
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="p-12 text-center">
-            <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">
-              {contracts.length === 0 ? 'No contracts yet' : 'No contracts match your filters'}
-            </h3>
-            <p className="text-gray-400 mb-6">
-              {contracts.length === 0 
-                ? 'Create your first contract to get started with legal document management.'
-                : 'Try adjusting your search or filter criteria.'
-              }
-            </p>
-            {contracts.length === 0 && (
-              <Button 
-                onClick={() => {
-                  setEditingContract(null)
-                  setShowCreateModal(true)
-                }}
-                className="bg-purple-600 hover:bg-purple-700"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Your First Contract
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
+            <CardContent className="p-10 sm:p-12 text-center">
+              <FileText className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-white mb-2">
+                {contracts.length === 0 ? "No contracts yet" : "No contracts match your filters"}
+              </h3>
+              <p className="text-slate-400 mb-6 max-w-lg mx-auto">
+                {contracts.length === 0
+                  ? "Start from a template or a blank draft. Counterparties need a Tourify account to receive and sign in-app."
+                  : "Try adjusting your search or filter criteria."}
+              </p>
+              {contracts.length === 0 && (
+                <Button onClick={openBlankModal} className={dashboardCreatePattern.btnPrimary}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create your first contract
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {contracts.length === 0 && (
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500 px-1">
+                Not legal advice — have counsel review before you rely on any template.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {CONTRACT_TEMPLATES.map((tpl) => {
+                  const Icon = TEMPLATE_ICONS[tpl.iconName]
+                  return (
+                    <Card
+                      key={tpl.id}
+                      className={cn(
+                        dashboardCreatePattern.panel,
+                        "border-slate-700/50 transition-colors hover:border-purple-500/40"
+                      )}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start gap-3">
+                          <div className={dashboardCreatePattern.headerIcon}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <CardTitle className="text-base text-white leading-snug">{tpl.title}</CardTitle>
+                            <p className="text-sm text-slate-400 mt-1">{tpl.shortDescription}</p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className={cn(dashboardCreatePattern.btnOutline, "w-full")}
+                          onClick={() => openTemplateModal(tpl.id)}
+                        >
+                          Use template
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="space-y-4">
           {filteredContracts.map((contract) => (
-            <Card key={contract.id} className="bg-slate-900/50 border-slate-700/50 group hover:border-purple-500/50 transition-all duration-200">
+            <Card
+              key={contract.id}
+              className={cn(
+                dashboardCreatePattern.panel,
+                "border-slate-700/50 group hover:border-purple-500/40 transition-all duration-200"
+              )}
+            >
               <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="text-xl font-semibold text-white group-hover:text-purple-300 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                      <h3 className="text-xl font-semibold text-white group-hover:text-purple-200 transition-colors">
                         {contract.title}
                       </h3>
                       <Badge variant="secondary" className={getStatusColor(contract.status)}>
@@ -553,36 +756,39 @@ export default function ContractsPage() {
                           {contract.status}
                         </div>
                       </Badge>
-                      <Badge variant="outline" className="bg-blue-600/20 text-blue-300 border-blue-500/30">
-                        {CONTRACT_TYPES.find(t => t.value === contract.type)?.label}
+                      <Badge
+                        variant="outline"
+                        className="bg-blue-500/10 text-blue-200 border-blue-500/30"
+                      >
+                        {CONTRACT_TYPES.find((t) => t.value === contract.type)?.label}
                       </Badge>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <User className="h-4 w-4 text-blue-400" />
+                      <div className="flex items-center gap-2 text-slate-300">
+                        <User className="h-4 w-4 text-blue-400 shrink-0" />
                         <div>
                           <span className="font-medium">{contract.client_name}</span>
                           {contract.client_company && (
-                            <div className="text-gray-400">{contract.client_company}</div>
+                            <div className="text-slate-500">{contract.client_company}</div>
                           )}
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <DollarSign className="h-4 w-4 text-green-400" />
+
+                      <div className="flex items-center gap-2 text-slate-300">
+                        <DollarSign className="h-4 w-4 text-emerald-400 shrink-0" />
                         <span className="font-medium">
-                          {contract.currency} ${contract.amount.toLocaleString()}
+                          {contract.currency} {formatSafeCurrency(contract.amount).replace("$", "")}
                         </span>
                       </div>
-                      
-                      <div className="flex items-center gap-2 text-gray-300">
-                        <Calendar className="h-4 w-4 text-purple-400" />
+
+                      <div className="flex items-center gap-2 text-slate-300">
+                        <Calendar className="h-4 w-4 text-purple-400 shrink-0" />
                         <div>
-                          <span>{format(new Date(contract.start_date), 'MMM d, yyyy')}</span>
+                          <span>{format(new Date(contract.start_date), "MMM d, yyyy")}</span>
                           {contract.end_date && (
-                            <div className="text-gray-400">
-                              to {format(new Date(contract.end_date), 'MMM d, yyyy')}
+                            <div className="text-slate-500">
+                              to {format(new Date(contract.end_date), "MMM d, yyyy")}
                             </div>
                           )}
                         </div>
@@ -590,68 +796,52 @@ export default function ContractsPage() {
                     </div>
 
                     {contract.terms && (
-                      <p className="text-gray-400 text-sm mb-3 line-clamp-2">{contract.terms}</p>
+                      <p className="text-slate-400 text-sm mb-3 line-clamp-2">{contract.terms}</p>
                     )}
 
                     {contract.notes && (
-                      <div className="text-xs text-gray-500 bg-slate-800/50 p-2 rounded">
+                      <div className="text-xs text-slate-500 bg-slate-950/40 p-2 rounded-xl border border-slate-700/50">
                         <strong>Notes:</strong> {contract.notes}
                       </div>
                     )}
                   </div>
-                  
+
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                      <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white shrink-0">
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-                      <DropdownMenuItem 
-                        onClick={() => {
-                          setEditingContract(contract)
-                          setShowCreateModal(true)
-                        }}
-                        className="text-gray-300 hover:text-white"
+                    <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
+                      <DropdownMenuItem
+                        onClick={() => openEditModal(contract)}
+                        className="text-slate-200 focus:bg-slate-800"
                       >
                         <Edit className="h-4 w-4 mr-2" />
-                        Edit Contract
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem className="text-gray-300 hover:text-white">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Details
-                      </DropdownMenuItem>
-                      
-                      <DropdownMenuItem className="text-gray-300 hover:text-white">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download PDF
+                        Edit
                       </DropdownMenuItem>
 
-                      {contract.status === 'draft' && (
-                        <DropdownMenuItem 
-                          onClick={() => handleStatusChange(contract.id!, 'sent')}
-                          className="text-gray-300 hover:text-white"
+                      <DropdownMenuItem asChild className="text-slate-200 focus:bg-slate-800">
+                        <Link href={`/contracts/${contract.id}`} className="flex items-center cursor-pointer">
+                          <Eye className="h-4 w-4 mr-2" />
+                          Review & sign
+                        </Link>
+                      </DropdownMenuItem>
+
+                      {contract.status === "draft" && (
+                        <DropdownMenuItem
+                          onClick={() => handleSendFromList(contract.id!)}
+                          className="text-slate-200 focus:bg-slate-800"
                         >
                           <Send className="h-4 w-4 mr-2" />
-                          Send to Client
+                          Send for signature
                         </DropdownMenuItem>
                       )}
 
-                      {contract.status === 'sent' && (
-                        <DropdownMenuItem 
-                          onClick={() => handleStatusChange(contract.id!, 'signed')}
-                          className="text-gray-300 hover:text-white"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Mark as Signed
-                        </DropdownMenuItem>
-                      )}
-                      
                       <DropdownMenuSeparator className="bg-slate-700" />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => setDeleteContractId(contract.id!)}
-                        className="text-red-400 hover:text-red-300"
+                        className="text-red-400 focus:text-red-300 focus:bg-slate-800"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
                         Delete
@@ -665,226 +855,274 @@ export default function ContractsPage() {
         </div>
       )}
 
-      {/* Create/Edit Contract Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={showCreateModal} onOpenChange={handleDialogOpenChange}>
+        <DialogContent
+          className={cn(dashboardCreatePattern.modalContent, "max-w-4xl max-h-[90vh] overflow-y-auto border")}
+        >
           <DialogHeader>
             <DialogTitle className="text-white">
-              {editingContract ? 'Edit Contract' : 'Create New Contract'}
+              {editingContract ? "Edit contract" : "New contract"}
             </DialogTitle>
           </DialogHeader>
-          
+
+          <p className="text-xs text-slate-500 -mt-2">
+            Not legal advice. Templates are plain-language drafts for discussion; have a qualified attorney review
+            before you rely on them.
+          </p>
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Basic Information */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Contract Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title" className="text-gray-300">Contract Title *</Label>
+            <div className={cn(dashboardCreatePattern.panel, "space-y-4")}>
+              <h3 className="text-sm font-semibold text-white">Contract</h3>
+
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Title *</Label>
+                <Input
+                  value={formData.title}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
+                  className={dashboardCreatePattern.input}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className={dashboardCreatePattern.fieldGroup}>
+                  <Label className="text-slate-300">Type</Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value as Contract["type"] }))}
+                    disabled={termsReadOnly}
+                  >
+                    <SelectTrigger className={dashboardCreatePattern.selectTrigger}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONTRACT_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>
+                          {type.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className={dashboardCreatePattern.fieldGroup}>
+                  <Label className="text-slate-300">Status</Label>
                   <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Contract title..."
-                    className="bg-slate-800 border-slate-700 text-white"
+                    readOnly
+                    value={editingContract?.status ?? "draft"}
+                    className={cn(dashboardCreatePattern.input, "opacity-80")}
                   />
                 </div>
+              </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="type" className="text-gray-300">Contract Type</Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as Contract['type'] }))}
-                    >
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONTRACT_TYPES.map(type => (
-                          <SelectItem key={type.value} value={type.value}>
-                            <div>
-                              <div className="font-medium">{type.label}</div>
-                              <div className="text-xs text-gray-400">{type.description}</div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="status" className="text-gray-300">Status</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as Contract['status'] }))}
-                    >
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft</SelectItem>
-                        <SelectItem value="sent">Sent</SelectItem>
-                        <SelectItem value="signed">Signed</SelectItem>
-                        <SelectItem value="expired">Expired</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              {activeTpl && !termsReadOnly && (
+                <div className="space-y-3 rounded-xl border border-slate-700/60 bg-slate-950/40 p-4">
+                  <p className="text-xs font-medium text-slate-400">Template variables</p>
+                  {activeTpl.variables.map((v) => (
+                    <div key={v.key} className={dashboardCreatePattern.fieldGroup}>
+                      <Label className="text-slate-300 text-xs">{v.label}</Label>
+                      {v.input === "textarea" ? (
+                        <Textarea
+                          value={templateVarValues[v.key] ?? ""}
+                          onChange={(e) =>
+                            setTemplateVarValues((prev) => ({ ...prev, [v.key]: e.target.value }))
+                          }
+                          placeholder={v.placeholder}
+                          className={cn(dashboardCreatePattern.input, "min-h-[72px]")}
+                        />
+                      ) : (
+                        <Input
+                          type={v.input === "number" ? "number" : v.input === "date" ? "date" : "text"}
+                          value={templateVarValues[v.key] ?? ""}
+                          onChange={(e) =>
+                            setTemplateVarValues((prev) => ({ ...prev, [v.key]: e.target.value }))
+                          }
+                          placeholder={v.placeholder}
+                          className={dashboardCreatePattern.input}
+                        />
+                      )}
+                    </div>
+                  ))}
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <Label htmlFor="terms" className="text-gray-300">Contract Terms</Label>
-                  <Textarea
-                    id="terms"
-                    value={formData.terms || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, terms: e.target.value }))}
-                    placeholder="Key terms and conditions..."
-                    className="bg-slate-800 border-slate-700 text-white min-h-[100px]"
-                  />
-                </div>
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Terms</Label>
+                <Textarea
+                  value={formData.terms || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, terms: e.target.value }))}
+                  readOnly={termsReadOnly}
+                  className={cn(dashboardCreatePattern.input, "min-h-[140px]")}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="notes" className="text-gray-300">Notes</Label>
-                  <Textarea
-                    id="notes"
-                    value={formData.notes || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                    placeholder="Internal notes..."
-                    className="bg-slate-800 border-slate-700 text-white"
-                  />
-                </div>
-              </CardContent>
-            </Card>
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Internal notes</Label>
+                <Textarea
+                  value={formData.notes || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                  className={cn(dashboardCreatePattern.input, "min-h-[80px]")}
+                />
+              </div>
+            </div>
 
-            {/* Client & Financial Info */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Client & Financial</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="client_name" className="text-gray-300">Client Name *</Label>
+            <div className={cn(dashboardCreatePattern.panel, "space-y-4")}>
+              <h3 className="text-sm font-semibold text-white">Client & counterparty</h3>
+
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Counterparty Tourify username * (to send)</Label>
+                <div className="flex gap-2">
                   <Input
-                    id="client_name"
-                    value={formData.client_name}
-                    onChange={(e) => setFormData(prev => ({ ...prev, client_name: e.target.value }))}
-                    placeholder="Client name..."
-                    className="bg-slate-800 border-slate-700 text-white"
+                    value={counterpartyUsername}
+                    onChange={(e) => setCounterpartyUsername(e.target.value)}
+                    placeholder="@handle without @"
+                    disabled={termsReadOnly}
+                    className={dashboardCreatePattern.input}
                   />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={termsReadOnly || counterpartyLookupLoading}
+                    onClick={handleLookupCounterparty}
+                    className={dashboardCreatePattern.btnOutline}
+                  >
+                    {counterpartyLookupLoading ? "…" : "Look up"}
+                  </Button>
                 </div>
+                {counterpartyResolved && (
+                  <p className="text-xs text-emerald-400/90">
+                    Linked to account
+                    {counterpartyResolved.username ? ` @${counterpartyResolved.username}` : ""}
+                    {counterpartyResolved.displayName ? ` (${counterpartyResolved.displayName})` : ""}
+                  </p>
+                )}
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="client_email" className="text-gray-300">Client Email</Label>
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Client display name *</Label>
+                <Input
+                  value={formData.client_name}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, client_name: e.target.value }))}
+                  placeholder="Shown on the agreement"
+                  className={dashboardCreatePattern.input}
+                />
+              </div>
+
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Client email</Label>
+                <Input
+                  type="email"
+                  value={formData.client_email || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, client_email: e.target.value }))}
+                  className={dashboardCreatePattern.input}
+                />
+              </div>
+
+              <div className={dashboardCreatePattern.fieldGroup}>
+                <Label className="text-slate-300">Company</Label>
+                <Input
+                  value={formData.client_company || ""}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, client_company: e.target.value }))}
+                  className={dashboardCreatePattern.input}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className={dashboardCreatePattern.fieldGroup}>
+                  <Label className="text-slate-300">Currency</Label>
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, currency: value }))}
+                  >
+                    <SelectTrigger className={dashboardCreatePattern.selectTrigger}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCIES.map((currency) => (
+                        <SelectItem key={currency} value={currency}>
+                          {currency}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className={dashboardCreatePattern.fieldGroup}>
+                  <Label className="text-slate-300">Amount</Label>
                   <Input
-                    id="client_email"
-                    type="email"
-                    value={formData.client_email || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, client_email: e.target.value }))}
-                    placeholder="client@example.com"
-                    className="bg-slate-800 border-slate-700 text-white"
+                    type="number"
+                    step="0.01"
+                    value={formData.amount || ""}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))
+                    }
+                    className={dashboardCreatePattern.input}
                   />
                 </div>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="client_company" className="text-gray-300">Company</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className={dashboardCreatePattern.fieldGroup}>
+                  <Label className="text-slate-300">Start date *</Label>
                   <Input
-                    id="client_company"
-                    value={formData.client_company || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, client_company: e.target.value }))}
-                    placeholder="Company name..."
-                    className="bg-slate-800 border-slate-700 text-white"
+                    type="date"
+                    value={formData.start_date}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, start_date: e.target.value }))}
+                    className={dashboardCreatePattern.input}
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="currency" className="text-gray-300">Currency</Label>
-                    <Select
-                      value={formData.currency}
-                      onValueChange={(value) => setFormData(prev => ({ ...prev, currency: value }))}
-                    >
-                      <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map(currency => (
-                          <SelectItem key={currency} value={currency}>{currency}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="amount" className="text-gray-300">Amount</Label>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      value={formData.amount || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
-                      placeholder="0.00"
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
-                  </div>
+                <div className={dashboardCreatePattern.fieldGroup}>
+                  <Label className="text-slate-300">End date</Label>
+                  <Input
+                    type="date"
+                    value={formData.end_date || ""}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, end_date: e.target.value }))}
+                    className={dashboardCreatePattern.input}
+                  />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="start_date" className="text-gray-300">Start Date *</Label>
-                    <Input
-                      id="start_date"
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="end_date" className="text-gray-300">End Date</Label>
-                    <Input
-                      id="end_date"
-                      type="date"
-                      value={formData.end_date || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, end_date: e.target.value }))}
-                      className="bg-slate-800 border-slate-700 text-white"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button variant="outline" onClick={() => setShowCreateModal(false)} disabled={isSubmitting}>
+          <div className={cn(dashboardCreatePattern.footer, "rounded-b-2xl")}>
+            <Button
+              variant="outline"
+              onClick={() => handleDialogOpenChange(false)}
+              disabled={isSubmitting}
+              className={dashboardCreatePattern.btnOutline}
+            >
               Cancel
             </Button>
-            <Button onClick={handleSaveContract} disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700">
-              {isSubmitting ? 'Saving...' : editingContract ? 'Update Contract' : 'Create Contract'}
-            </Button>
+            <div className="flex flex-wrap gap-2 justify-end">
+              <Button
+                onClick={handleSaveDraft}
+                disabled={isSubmitting}
+                className={dashboardCreatePattern.btnOutline}
+              >
+                {isSubmitting ? "Saving…" : editingContract?.status === "draft" ? "Save draft" : "Save changes"}
+              </Button>
+              <Button
+                onClick={handleSendForSignature}
+                disabled={isSubmitting || (editingContract != null && editingContract.status !== "draft")}
+                className={dashboardCreatePattern.btnPrimary}
+              >
+                {isSubmitting ? "Sending…" : "Send for signature"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteContractId} onOpenChange={() => setDeleteContractId(null)}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Contract</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              Are you sure you want to delete this contract? This action cannot be undone.
+            <AlertDialogTitle className="text-white">Delete contract</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 text-white border-slate-600 hover:bg-slate-600">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className={dashboardCreatePattern.btnOutline}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => deleteContractId && handleDeleteContract(deleteContractId)}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="rounded-xl bg-red-600 text-white hover:bg-red-500"
             >
               Delete
             </AlertDialogAction>
@@ -893,4 +1131,4 @@ export default function ContractsPage() {
       </AlertDialog>
     </div>
   )
-} 
+}

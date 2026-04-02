@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
+import { formatSafeDateTime } from '@/lib/events/admin-event-normalization'
 
 interface EventDetailsModalProps {
   event: {
@@ -29,7 +30,7 @@ export function EventDetailsModal({ event, onEdit, onDelete, onClose }: EventDet
         <div>
           <div className="font-bold text-lg mb-2">{event.title}</div>
           <div>Description: {event.description}</div>
-          <div>Date: {event.date.toLocaleString()}</div>
+          <div>Date: {formatSafeDateTime(event.date.toISOString())}</div>
           <div>Status: {event.status}</div>
           <div>Type: {event.type}</div>
           <div>Capacity: {event.capacity}</div>

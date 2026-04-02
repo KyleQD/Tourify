@@ -58,6 +58,33 @@ interface DataSourceStatus {
   dataQuality: number
 }
 
+const STATIC_HEALTH_SOURCES: DataSourceStatus[] = [
+  {
+    name: 'API Server',
+    status: 'online',
+    latency: 0,
+    lastUpdate: 0,
+    errorRate: 0,
+    dataQuality: 100
+  },
+  {
+    name: 'Database',
+    status: 'online',
+    latency: 0,
+    lastUpdate: 0,
+    errorRate: 0,
+    dataQuality: 100
+  },
+  {
+    name: 'Cache',
+    status: 'online',
+    latency: 0,
+    lastUpdate: 0,
+    errorRate: 0,
+    dataQuality: 100
+  }
+]
+
 export default function DataLoadingStatus({
   data,
   dataType,
@@ -69,32 +96,7 @@ export default function DataLoadingStatus({
   className = ""
 }: DataLoadingStatusProps) {
   const [isExpanded, setIsExpanded] = useState(showDetails)
-  const [dataSources, setDataSources] = useState<DataSourceStatus[]>([
-    {
-      name: 'API Server',
-      status: 'online',
-      latency: 120,
-      lastUpdate: Date.now(),
-      errorRate: 0.5,
-      dataQuality: 95
-    },
-    {
-      name: 'Database',
-      status: 'online',
-      latency: 45,
-      lastUpdate: Date.now() - 30000,
-      errorRate: 0.1,
-      dataQuality: 98
-    },
-    {
-      name: 'Cache',
-      status: 'online',
-      latency: 5,
-      lastUpdate: Date.now() - 5000,
-      errorRate: 0,
-      dataQuality: 100
-    }
-  ])
+  const dataSources = STATIC_HEALTH_SOURCES
 
   // Data validation
   const validationConfig = {
@@ -109,20 +111,6 @@ export default function DataLoadingStatus({
 
   // Data monitoring
   const { isDataStale, getDataAge, getDataChangeRate } = useDataMonitoring(data)
-
-  // Simulate data source status updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDataSources(prev => prev.map(source => ({
-        ...source,
-        latency: Math.max(10, source.latency + (Math.random() - 0.5) * 20),
-        errorRate: Math.max(0, source.errorRate + (Math.random() - 0.5) * 0.2),
-        lastUpdate: source.lastUpdate + 1000
-      })))
-    }, 5000)
-
-    return () => clearInterval(interval)
-  }, [])
 
   const getStatusColor = (status: string) => {
     switch (status) {

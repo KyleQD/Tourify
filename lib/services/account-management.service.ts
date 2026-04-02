@@ -332,9 +332,16 @@ export class AccountManagementService {
       // Only show accounts that actually exist in their respective database tables
       console.log('[Account Management] Skipping localStorage fallbacks to prevent orphaned accounts')
 
-      console.log('[Account Management] Found accounts:', accounts.map(acc => `${acc.account_type} (${acc.profile_data?.display_name || acc.profile_data?.organization_name || acc.profile_data?.artist_name || acc.profile_data?.venue_name || 'Personal'})`))
+      const uniqueAccounts = accounts.filter((account, index, list) => {
+        const duplicateIndex = list.findIndex(candidate =>
+          candidate.account_type === account.account_type && candidate.profile_id === account.profile_id
+        )
+        return duplicateIndex === index
+      })
+
+      console.log('[Account Management] Found accounts:', uniqueAccounts.map(acc => `${acc.account_type} (${acc.profile_data?.display_name || acc.profile_data?.organization_name || acc.profile_data?.artist_name || acc.profile_data?.venue_name || 'Personal'})`))
       
-      return accounts
+      return uniqueAccounts
     } catch (error) {
       console.error('[Account Management] Error getting user accounts:', error)
       throw error
@@ -483,11 +490,38 @@ export class AccountManagementService {
       console.log('Creating venue account for user:', userId, 'with data:', venueData)
       
       // Use direct table insert (RPC function has bugs)
-      const { data: venueProfile, error: venueError } = await supabase
+
+      const baseUrlSlug = (venueData.venue_name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+
+      const baseForSlug = baseUrlSlug || `venue-${userId.slice(0, 8)}`
+
+      const generateUniqueUrlSlug = async () => {
+        for (let i = 0; i < 25; i++) {
+          const candidate = i === 0 ? baseForSlug : `${baseForSlug}-${i}`
+
+          const { data: existing } = await supabase
+            .from('venue_profiles')
+            .select('id')
+            .eq('url_slug', candidate)
+            .limit(1)
+
+          if (!existing || existing.length === 0) return candidate
+        }
+
+        throw new Error('Failed to generate unique venue url_slug')
+      }
+
+      const urlSlug = await generateUniqueUrlSlug()
+
+const { data: venueProfile, error: venueError } = await supabase
         .from('venue_profiles')
         .insert({
           user_id: userId,
           venue_name: venueData.venue_name,
+          url_slug: urlSlug,
           description: venueData.description || null,
           address: venueData.address || null,
           capacity: venueData.capacity || null,

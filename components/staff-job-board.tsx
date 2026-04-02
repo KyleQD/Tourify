@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface JobPosting {
   id: string
@@ -148,8 +149,8 @@ export default function StaffJobBoard() {
                 <p className="mb-4">{job.description}</p>
                 <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
                   <div>
-                    <p><strong>Start Date:</strong> {new Date(job.start_date).toLocaleDateString()}</p>
-                    <p><strong>End Date:</strong> {new Date(job.end_date).toLocaleDateString()}</p>
+                    <p><strong>Start Date:</strong> {formatSafeDate(job.start_date)}</p>
+                    <p><strong>End Date:</strong> {formatSafeDate(job.end_date)}</p>
                   </div>
                   <div>
                     <p><strong>Pay Rate:</strong> {job.pay_rate}</p>

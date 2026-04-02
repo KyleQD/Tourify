@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { motion, AnimatePresence } from "framer-motion"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import {
   Globe,
   Calendar,
@@ -470,7 +471,7 @@ export function ContextualNavigation({ tourId, eventId, className = "" }: Contex
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-slate-400">Ticket Sales</span>
                   <span className="text-white">
-                    {currentEvent.ticketsSold.toLocaleString()} / {currentEvent.capacity.toLocaleString()}
+                    {formatSafeNumber(currentEvent.ticketsSold)} / {formatSafeNumber(currentEvent.capacity)}
                   </span>
                 </div>
                 <div className="w-full bg-slate-700 rounded-full h-2">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Clock, Users, DollarSign, Music, Ticket, BarChart3, Building, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export default function VenueDashboardPage() {
   const router = useRouter()
@@ -195,7 +196,7 @@ export default function VenueDashboardPage() {
                           {i === 1 ? "Jazz Night" : i === 2 ? "Electronic Dance Party" : "Acoustic Session"}
                         </p>
                         <p className="text-sm text-gray-400">
-                          {new Date(2025, 3, 15 + i * 2).toLocaleDateString()} • {6 + i}:00 PM
+                          {formatSafeDate(new Date(2025, 3, 15 + i * 2).toISOString())} • {6 + i}:00 PM
                         </p>
                       </div>
                     </div>
@@ -234,7 +235,7 @@ export default function VenueDashboardPage() {
                           {i === 1 ? "Corporate Event" : i === 2 ? "Wedding Reception" : "Birthday Party"}
                         </p>
                         <p className="text-sm text-gray-400">
-                          {new Date(2025, 3, 20 + i * 3).toLocaleDateString()} • {i === 1 ? "Pending" : "Confirmed"}
+                          {formatSafeDate(new Date(2025, 3, 20 + i * 3).toISOString())} • {i === 1 ? "Pending" : "Confirmed"}
                         </p>
                       </div>
                     </div>

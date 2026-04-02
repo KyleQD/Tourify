@@ -73,12 +73,12 @@ export default function EventDetailsLoading() {
       </div>
 
       <Tabs defaultValue="tasks" className="w-full">
-        <TabsList className="bg-slate-800/50 p-1 mb-6">
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 mb-6 rounded-sm border border-slate-700/30">
           {["tasks", "budget", "staff", "vendors"].map((tab) => (
             <TabsTrigger
               key={tab}
               value={tab}
-              className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200"
             >
               <Skeleton className="h-5 w-16" />
             </TabsTrigger>

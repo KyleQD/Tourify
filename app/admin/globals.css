@@ -1,113 +1,32 @@
-/* Admin Dashboard - Futuristic UI Enhancements */
-
-/* CSS Custom Properties for Admin Theme */
+/* Admin dashboard — tokens, scrollbar, auth-gate utilities */
 :root {
-  /* Admin Color Palette */
-  --admin-primary: 239 68 68; /* Red for authority */
-  --admin-primary-light: 248 113 113;
-  --admin-primary-dark: 185 28 28;
-  
-  --admin-secondary: 139 92 246; /* Purple for creativity */
-  --admin-secondary-light: 167 139 250;
-  --admin-secondary-dark: 107 33 168;
-  
-  --admin-accent: 6 182 212; /* Cyan for organization */
-  --admin-accent-light: 34 211 238;
-  --admin-accent-dark: 14 116 144;
-  
-  /* Status Colors */
-  --admin-success: 34 197 94; /* Green */
-  --admin-warning: 245 158 11; /* Amber */
-  --admin-error: 239 68 68; /* Red */
-  --admin-info: 59 130 246; /* Blue */
-  
-  /* Background Gradients */
-  --admin-bg-primary: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
-  --admin-bg-secondary: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
-  --admin-bg-accent: linear-gradient(135deg, #0c4a6e 0%, #0e7490 50%, #0891b2 100%);
-  
-  /* Glow Effects */
-  --admin-glow-primary: 0 0 20px rgba(239, 68, 68, 0.3);
-  --admin-glow-secondary: 0 0 20px rgba(139, 92, 246, 0.3);
-  --admin-glow-accent: 0 0 20px rgba(6, 182, 212, 0.3);
-  
-  /* Animation Durations */
-  --admin-transition-fast: 0.15s;
-  --admin-transition-normal: 0.3s;
-  --admin-transition-slow: 0.5s;
+  --admin-primary: 139 92 246; --admin-primary-light: 167 139 250; --admin-primary-dark: 107 33 168;
+  --admin-secondary: 59 130 246; --admin-secondary-light: 96 165 250; --admin-secondary-dark: 37 99 235;
+  --admin-accent: 6 182 212; --admin-accent-light: 34 211 238; --admin-accent-dark: 14 116 144;
+  --admin-success: 34 197 94; --admin-warning: 245 158 11; --admin-error: 239 68 68;
+  --admin-info: 59 130 246; --admin-transition-normal: 0.3s;
 }
-
-/* Custom Scrollbar for Admin */
-.admin-content::-webkit-scrollbar {
-  width: 8px;
-}
-
-.admin-content::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.3);
-  border-radius: 4px;
-}
-
+.admin-content::-webkit-scrollbar { width: 8px; }
+.admin-content::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.3); border-radius: 4px; }
 .admin-content::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgb(239, 68, 68), rgb(139, 92, 246));
+  background: linear-gradient(180deg, rgb(139, 92, 246), rgb(59, 130, 246));
   border-radius: 4px;
   transition: all 0.3s ease;
 }
-
 .admin-content::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgb(248, 113, 113), rgb(167, 139, 250));
+  background: linear-gradient(180deg, rgb(167, 139, 250), rgb(96, 165, 250));
 }
-
-/* Animations disabled or scoped to no-preference to improve perf */
-@keyframes admin-glow { 0% { } 100% { } }
-.admin-glow { /* disabled by default */ }
-
-@keyframes admin-float { 0% { } 100% { } }
-.admin-floating { /* disabled by default */ }
-
-@keyframes admin-pulse { 0% { } 100% { } }
-.admin-pulse { /* disabled by default */ }
-
-@keyframes admin-shimmer { 0% { background-position: -200px 0; } 100% { background-position: calc(200px + 100%) 0; } }
-.admin-shimmer { background-size: 200px 100%; }
-
-/* Gradient Text - static (no holographic animation) */
-@keyframes admin-gradient-shift { 0% { } 100% { } }
-.admin-gradient-text {
-  background: linear-gradient(
-    -45deg,
-    rgb(239, 68, 68),
-    rgb(139, 92, 246),
-    rgb(6, 182, 212)
-  );
-  background-size: 100% 100%;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.admin-metric-card {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
+  border: 1px solid rgb(139 92 246 / 0.25);
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  transition: border-color var(--admin-transition-normal);
 }
-
-/* Neon Border Effect */
-.admin-neon-border {
-  position: relative;
-  border: 1px solid transparent;
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(139, 92, 246, 0.1));
-  border-radius: 12px;
-  overflow: hidden;
-}
-
-.admin-neon-border::before { display: none; }
-
-/* Enhanced Card Hover Effects */
-.admin-card-hover { transition: all var(--admin-transition-normal) cubic-bezier(0.4, 0, 0.2, 1); }
-.admin-card-hover:hover { box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3); }
-
-/* Enhanced Progress Bars */
-.admin-progress-enhanced { position: relative; overflow: hidden; border-radius: 8px; }
-.admin-progress-enhanced::before { display: none; }
-
-/* Futuristic Button Styles */
+.admin-metric-card:hover { border-color: rgb(139 92 246 / 0.45); }
 .admin-btn-futuristic {
   position: relative;
-  background: linear-gradient(135deg, rgb(239, 68, 68), rgb(139, 92, 246));
+  background: linear-gradient(135deg, rgb(139, 92, 246), rgb(59, 130, 246));
   border: none;
   border-radius: 8px;
   color: white;
@@ -115,75 +34,13 @@
   transition: all var(--admin-transition-normal);
   overflow: hidden;
 }
-
-.admin-btn-futuristic::before { display: none; }
-
 .admin-btn-futuristic:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(239, 68, 68, 0.3);
+  box-shadow: 0 10px 20px rgb(139 92 246 / 0.35);
 }
-
-/* Enhanced Backdrop Blur */
-.admin-backdrop-blur-enhanced {
-  backdrop-filter: blur(20px) saturate(180%);
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Grid Pattern Background */
-.admin-grid-pattern {
-  background-image: 
-    linear-gradient(rgba(239, 68, 68, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(239, 68, 68, 0.1) 1px, transparent 1px);
-  background-size: 20px 20px;
-  background-position: center center;
-}
-
-/* Noise Texture */
-.admin-noise-texture { position: relative; }
-.admin-noise-texture::before { display: none; }
-
-/* Status Badge Styles */
-.admin-badge-success { background: linear-gradient(135deg, rgb(34, 197, 94), rgb(22, 163, 74)); color: white; border: none; }
-.admin-badge-warning { background: linear-gradient(135deg, rgb(245, 158, 11), rgb(217, 119, 6)); color: white; border: none; }
-.admin-badge-error { background: linear-gradient(135deg, rgb(239, 68, 68), rgb(185, 28, 28)); color: white; border: none; }
-.admin-badge-info { background: linear-gradient(135deg, rgb(59, 130, 246), rgb(37, 99, 235)); color: white; border: none; }
-
-/* Metric Card Enhancements */
-.admin-metric-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8), rgba(30, 41, 59, 0.8));
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  border-radius: 16px;
-  backdrop-filter: blur(12px);
-  transition: border-color var(--admin-transition-normal);
-}
-
-.admin-metric-card:hover { border-color: rgba(239, 68, 68, 0.4); }
-
-/* Navigation Enhancements */
-.admin-nav-item { position: relative; transition: background-color var(--admin-transition-normal); border-radius: 8px; }
-.admin-nav-item::before { display: none; }
-.admin-nav-item.active::before { display: none; }
-
-/* Mobile Optimizations */
-@media (max-width: 768px) {
-  .admin-content { padding: 1rem; }
-  .admin-metric-card { margin-bottom: 1rem; }
-  .admin-btn-futuristic { padding: 0.75rem 1rem; font-size: 0.875rem; }
-}
-
-/* Dark Mode Enhancements */
-@media (prefers-color-scheme: dark) {
-  :root { --admin-bg-primary: linear-gradient(135deg, #000000 0%, #0f172a 50%, #1e293b 100%); }
-}
-
-/* High Contrast Mode */
 @media (prefers-contrast: high) {
-  .admin-gradient-text { background: none; color: white; -webkit-text-fill-color: white; }
-  .admin-btn-futuristic { background: rgb(239, 68, 68); }
+  .admin-btn-futuristic { background: rgb(139, 92, 246); box-shadow: none; }
 }
-
-/* Reduced Motion: keep all animations off */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
-} 
+}

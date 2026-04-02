@@ -5,78 +5,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Upload } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { useSession } from "next-auth/react"
 import { useParams } from "next/navigation"
-import { UpgradeToPro } from "@/components/upgrade-to-pro"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
+import { Badge } from "@/components/ui/badge"
+import { Briefcase, MapPin, Loader2 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Job {
   id: string
   title: string
   description: string
-  questions: { id: string; text: string }[]
-  documents: { id: string; type: string }[]
+  location?: string | null
+  payment_amount?: number | null
+  payment_currency?: string | null
+  deadline?: string | null
 }
 
 export default function ApplyToJobPage() {
   const router = useRouter()
-  const { data: session } = useSession()
+  const { user } = useAuth()
+  const { toast } = useToast()
   const params = useParams()
   const [job, setJob] = useState<Job | null>(null)
-  const [answers, setAnswers] = useState<Record<string, string>>({})
-  const [files, setFiles] = useState<Record<string, File | null>>({})
+  const [coverLetter, setCoverLetter] = useState("")
+  const [experience, setExperience] = useState("")
+  const [contactEmail, setContactEmail] = useState("")
+  const [contactPhone, setContactPhone] = useState("")
+  const [applicationStatus, setApplicationStatus] = useState<string | null>(null)
+  const [milestones, setMilestones] = useState<Array<{ key: string; label: string; completed: boolean }>>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [eventId, setEventId] = useState("")
-  const [role, setRole] = useState("")
-  const [events, setEvents] = useState<Array<{ id: string; name: string }>>([])
-
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch("/api/events")
-        if (!response.ok) {
-          throw new Error("Failed to fetch events")
-        }
-        const data = await response.json()
-        setEvents(data)
-      } catch (error) {
-        console.error("Error fetching events:", error)
-      }
-    }
-
-    if (session?.user) {
-      fetchEvents()
-    }
-  }, [session])
 
   // Fetch job details
   useEffect(() => {
     const fetchJob = async () => {
       try {
-        const response = await fetch(`/api/jobs/${params.id}`)
+        const response = await fetch(`/api/artist-jobs/${params.id}`)
         if (!response.ok) throw new Error("Failed to fetch job")
         const data = await response.json()
-        setJob(data)
-        
-        // Initialize answers and files state
-        const initialAnswers: Record<string, string> = {}
-        const initialFiles: Record<string, File | null> = {}
-        
-        data.questions.forEach((q: { id: string }) => {
-          initialAnswers[q.id] = ""
-        })
-        
-        data.documents.forEach((d: { id: string }) => {
-          initialFiles[d.id] = null
-        })
-        
-        setAnswers(initialAnswers)
-        setFiles(initialFiles)
+        if (data.success) setJob(data.data)
       } catch (error) {
         console.error("Error fetching job:", error)
       }
@@ -85,16 +53,44 @@ export default function ApplyToJobPage() {
     fetchJob()
   }, [params.id])
 
-  if (!session) {
+  useEffect(() => {
+    if (user?.email) setContactEmail(user.email)
+  }, [user?.email])
+
+  useEffect(() => {
+    const fetchMyApplication = async () => {
+      if (!params.id || !user) return
+      try {
+        const response = await fetch("/api/artist-jobs/applications")
+        const payload = await response.json()
+        if (!payload.success) return
+
+        const current = (payload.data || []).find((entry: any) => entry.job_id === params.id)
+        if (!current) return
+        setApplicationStatus(current.status)
+        setMilestones((current.milestones || []).map((milestone: any) => ({
+          key: milestone.key,
+          label: milestone.label,
+          completed: Boolean(milestone.completed),
+        })))
+      } catch (error) {
+        console.error("Error fetching application timeline:", error)
+      }
+    }
+
+    fetchMyApplication()
+  }, [params.id, user])
+
+  if (!user) {
     return (
-      <div className="container max-w-4xl py-8">
-        <Card>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center px-4">
+        <Card className="max-w-md w-full bg-slate-800/80 border-slate-700">
           <CardHeader>
-            <CardTitle>Sign in to apply</CardTitle>
+            <CardTitle className="text-white">Sign in to apply</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>Please sign in to apply for this job.</p>
-                            <Button onClick={() => router.push("/login")} className="mt-4">
+            <p className="text-slate-300">Please sign in to apply for this job.</p>
+            <Button onClick={() => router.push("/login")} className="mt-4 w-full bg-purple-600 hover:bg-purple-700">
               Sign in
             </Button>
           </CardContent>
@@ -103,207 +99,168 @@ export default function ApplyToJobPage() {
     )
   }
 
-  // Pro gating disabled during beta
-
   if (!job) {
     return (
-      <div className="max-w-3xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <p>Loading...</p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-slate-300">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Loading opportunity...
+        </div>
       </div>
     )
   }
 
-  const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: value
-    }))
-  }
-
-  const handleFileChange = (documentId: string, file: File | null) => {
-    setFiles(prev => ({
-      ...prev,
-      [documentId]: file
-    }))
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!job || !session) return
+    if (!job || !user || !contactEmail) return
 
     setIsSubmitting(true)
 
     try {
-      // Upload files first
-      const uploads = []
-      for (const [documentId, file] of Object.entries(files)) {
-        if (file) {
-          const formData = new FormData()
-          formData.append("file", file)
-
-          const uploadResponse = await fetch("/api/upload", {
-            method: "POST",
-            body: formData,
-          })
-
-          if (!uploadResponse.ok) throw new Error("Failed to upload file")
-
-          const { url } = await uploadResponse.json()
-          uploads.push({ documentId, url })
-        }
-      }
-
-      // Submit application
-      const response = await fetch(`/api/jobs/${job.id}/applications`, {
+      const response = await fetch(`/api/artist-jobs/${job.id}/applications`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          answers: Object.entries(answers).map(([questionId, text]) => ({
-            questionId,
-            text,
-          })),
-          uploads,
+          job_id: job.id,
+          cover_letter: coverLetter,
+          experience_description: experience,
+          contact_email: contactEmail,
+          contact_phone: contactPhone || undefined,
+          preferred_contact_method: "email",
         }),
       })
 
-      if (!response.ok) throw new Error("Failed to submit application")
+      const payload = await response.json()
+      if (!response.ok || !payload.success) throw new Error(payload.error || "Failed to submit application")
 
-      router.push("/jobs")
+      setApplicationStatus("pending")
+      toast({
+        title: "Application submitted",
+        description: "You can now track status in your hiring timeline.",
+      })
+      router.refresh()
     } catch (error) {
       console.error("Error submitting application:", error)
-      // Handle error (show toast or error message)
+      toast({
+        title: "Application failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleHire = async () => {
-    if (!eventId || !role) {
-      toast.error("Please select an event and role")
-      return
-    }
-
-    try {
-      setLoading(true)
-      const response = await fetch(`/api/applications/${params.id}/hire`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ eventId, role }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to hire applicant")
-      }
-
-      toast.success("Applicant hired successfully")
-      router.push(`/events/${eventId}`)
-    } catch (error) {
-      console.error("Error hiring applicant:", error)
-      toast.error("Failed to hire applicant")
-    } finally {
-      setLoading(false)
-    }
-  }
-
   return (
-    <div className="container max-w-4xl py-8">
-      <Card>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
+      <Card className="bg-slate-800/60 border-slate-700/60">
         <CardHeader>
-          <CardTitle>Apply for {job?.title}</CardTitle>
+          <div className="flex items-start gap-3">
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+              <Briefcase className="h-5 w-5 text-white" />
+            </div>
+            <div className="space-y-2">
+              <CardTitle className="text-white">Apply for {job?.title}</CardTitle>
+              <CardDescription className="text-slate-300">
+                {job.location ? (
+                  <span className="inline-flex items-center gap-1 mr-3">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {job.location}
+                  </span>
+                ) : "Location in listing"}
+                {job.payment_amount ? `• ${job.payment_currency || "USD"} ${job.payment_amount}` : ""}
+              </CardDescription>
+            </div>
+          </div>
+          <CardDescription className="text-slate-400 text-xs">
+            Submit once. Track your hiring status from review through onboarding and contract signature.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-4">
-              {job.questions.map((question) => (
-                <div key={question.id} className="space-y-2">
-                  <Label>{question.text}</Label>
-                  <Textarea
-                    value={answers[question.id] || ""}
-                    onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-                    placeholder="Your answer..."
-                    className="min-h-[100px]"
-                    required
-                  />
-                </div>
-              ))}
+              <Label htmlFor="cover-letter" className="text-slate-200">Cover Letter</Label>
+              <Textarea
+                id="cover-letter"
+                value={coverLetter}
+                onChange={(event) => setCoverLetter(event.target.value)}
+                placeholder="Tell the employer why you are a strong fit for this role"
+                className="min-h-[140px] bg-slate-900/60 border-slate-600 text-slate-100"
+                required
+              />
             </div>
 
             <div className="space-y-4">
-              <h3 className="text-lg font-medium">Required Documents</h3>
-              
-              <div className="space-y-4">
-                {job.documents.map((document) => (
-                  <div key={document.id} className="space-y-2">
-                    <Label>{document.type}</Label>
-                    <div className="flex items-center gap-4">
-                      <Input
-                        type="file"
-                        className="flex-1"
-                        onChange={(e) => handleFileChange(document.id, e.target.files?.[0] || null)}
-                        required
-                      />
-                      {files[document.id] && (
-                        <span className="text-sm text-muted-foreground">
-                          {files[document.id]?.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <Label htmlFor="experience" className="text-slate-200">Relevant Experience</Label>
+              <Textarea
+                id="experience"
+                value={experience}
+                onChange={(event) => setExperience(event.target.value)}
+                placeholder="Describe your experience for this role"
+                className="min-h-[120px] bg-slate-900/60 border-slate-600 text-slate-100"
+              />
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="contact-email" className="text-slate-200">Contact Email</Label>
+                <Input
+                  id="contact-email"
+                  type="email"
+                  value={contactEmail}
+                  onChange={(event) => setContactEmail(event.target.value)}
+                  className="bg-slate-900/60 border-slate-600 text-slate-100"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact-phone" className="text-slate-200">Contact Phone (optional)</Label>
+                <Input
+                  id="contact-phone"
+                  value={contactPhone}
+                  onChange={(event) => setContactPhone(event.target.value)}
+                  className="bg-slate-900/60 border-slate-600 text-slate-100"
+                />
               </div>
             </div>
 
-            {session?.user && (session.user as any).id === (job as any)?.userId && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Hire Applicant</h3>
-                <div className="grid gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="event">Select Event</Label>
-                    <Select value={eventId} onValueChange={setEventId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select an event" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {events?.map((event) => (
-                          <SelectItem key={event.id} value={event.id}>
-                            {event.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
-                    <Input
-                      id="role"
-                      value={role}
-                      onChange={(e) => setRole(e.target.value)}
-                      placeholder="Enter role (e.g., Sound Engineer, Lighting Technician)"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleHire}
-                    disabled={loading || !eventId || !role}
-                  >
-                    {loading ? "Hiring..." : "Hire Applicant"}
-                  </Button>
-                </div>
-              </div>
-            )}
-
             <div className="flex justify-end">
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Submitting..." : "Submit Application"}
+              <Button
+                type="submit"
+                disabled={isSubmitting || applicationStatus === "pending"}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {isSubmitting ? "Submitting..." : applicationStatus ? "Already Applied" : "Submit Application"}
               </Button>
             </div>
           </form>
+
+          {(applicationStatus || milestones.length > 0) && (
+            <div className="mt-8 border-t border-slate-700 pt-6">
+              <h3 className="font-semibold text-slate-100 mb-4">Your hiring timeline</h3>
+              <div className="flex flex-wrap gap-2">
+                {milestones.length > 0
+                  ? milestones.map((milestone) => (
+                      <Badge
+                        key={milestone.key}
+                        variant={milestone.completed ? "default" : "outline"}
+                        className={milestone.completed ? "bg-green-600 text-white" : "border-slate-600 text-slate-300"}
+                      >
+                        {milestone.label}
+                      </Badge>
+                    ))
+                  : (
+                    <Badge variant="outline" className="border-slate-600 text-slate-300">{applicationStatus}</Badge>
+                    )}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 } 

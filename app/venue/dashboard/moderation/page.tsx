@@ -188,7 +188,13 @@ export default function ModerationPage() {
                         </p>
                         <p className="text-xs text-gray-400">
                           {item.status.charAt(0).toUpperCase() + item.status.slice(1)} •{" "}
-                          {new Date(item.date).toLocaleString()}
+                          {new Intl.DateTimeFormat("en-US", {
+                            year: "numeric",
+                            month: "numeric",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }).format(new Date(item.date))}
                         </p>
                       </div>
 

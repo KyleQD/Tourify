@@ -16,6 +16,7 @@ import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import {
   Download,
   FileText,
@@ -294,7 +295,7 @@ export default function EquipmentPage() {
             <Activity className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-500">${stats.totalValue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-purple-500">{formatSafeCurrency(stats.totalValue)}</div>
             <p className="text-xs text-muted-foreground">Potential revenue</p>
           </CardContent>
         </Card>
@@ -602,7 +603,7 @@ export default function EquipmentPage() {
                   <div className="space-y-4">
                     <div className="text-center">
                       <div className="text-3xl font-bold text-green-500">
-                        ${stats.totalValue.toLocaleString()}
+                        {formatSafeCurrency(stats.totalValue)}
                       </div>
                       <p className="text-sm text-muted-foreground">Total rental potential</p>
                     </div>

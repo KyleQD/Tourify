@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import {
   Activity,
   Bell,
@@ -690,7 +691,7 @@ export function RealtimeActivityFeed({
                                 <span>{activity.metadata.documentType} • {activity.metadata.fileSize}</span>
                               )}
                               {activity.type === 'venue' && activity.metadata.venue && (
-                                <span>{activity.metadata.venue} • {activity.metadata.capacity?.toLocaleString()} capacity</span>
+                                <span>{activity.metadata.venue} • {formatSafeNumber(activity.metadata.capacity)} capacity</span>
                               )}
                             </div>
                           )}

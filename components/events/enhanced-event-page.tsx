@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { 
   Calendar, 
   Clock, 
@@ -186,13 +187,22 @@ export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated
       
       // Load event data
       const { data: eventData, error: eventError } = await supabase
-        .from('artist_events')
+        .from('events')
         .select('*')
         .eq('id', eventId)
         .single()
 
       if (eventError) throw eventError
-      setEvent(eventData)
+      setEvent({
+        ...eventData,
+        title: eventData.name,
+        type: eventData.event_type,
+        venue_address: eventData.address,
+        venue_city: eventData.city,
+        venue_state: eventData.state,
+        venue_country: eventData.country,
+        user_id: eventData.artist_id
+      })
 
       // Load attendance data
       await loadAttendanceData()
@@ -225,7 +235,7 @@ export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated
           )
         `)
         .eq('event_id', eventId)
-        .eq('event_table', 'artist_events')
+      .eq('event_table', 'events')
 
       if (error) throw error
 
@@ -265,7 +275,7 @@ export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated
           )
         `)
         .eq('event_id', eventId)
-        .eq('event_table', 'artist_events')
+      .eq('event_table', 'events')
         .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -313,7 +323,7 @@ export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated
         .from('event_posts')
         .insert({
           event_id: eventId,
-          event_table: 'artist_events',
+          event_table: 'events',
           user_id: user.id,
           content: newPostContent,
           type: newPostType,
@@ -389,7 +399,7 @@ export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated
     if (!event) return
 
     const url = `${window.location.origin}/events/${event.slug}`
-    const text = `Check out ${event.title} on ${new Date(event.event_date).toLocaleDateString()}!`
+    const text = `Check out ${event.title} on ${formatSafeDate(event.event_date)}!`
 
     switch (platform) {
       case 'twitter':

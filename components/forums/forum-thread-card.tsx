@@ -100,7 +100,13 @@ export function ForumThreadCard({ id, forum, title, description, score, comments
                 <span>{commentsCount} comments</span>
               </div>
               <div>
-                {new Date(createdAt).toLocaleString()}
+                {new Intl.DateTimeFormat("en-US", {
+                  year: "numeric",
+                  month: "numeric",
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit",
+                }).format(new Date(createdAt))}
               </div>
             </div>
           </div>

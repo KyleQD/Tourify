@@ -28,6 +28,7 @@ import {
   UserMinus,
   Verified
 } from 'lucide-react'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 export function EnhancedAccountDemo() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -385,7 +386,7 @@ export function EnhancedAccountDemo() {
                               </Badge>
                             </div>
                             <p className="text-sm text-gray-500 mb-2">
-                              {new Date(post.created_at).toLocaleDateString()}
+                              {formatSafeDate(post.created_at)}
                             </p>
                             <p className="mb-3">{post.content}</p>
                             <div className="flex items-center gap-4 text-sm text-gray-500">

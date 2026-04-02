@@ -108,6 +108,7 @@ export async function GET(request: NextRequest) {
           likes_count,
           comments_count,
           shares_count,
+          is_pinned,
           created_at,
           updated_at,
           type,
@@ -115,6 +116,7 @@ export async function GET(request: NextRequest) {
           location,
           hashtags
         `)
+        .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(limit)
         .range(offset, offset + limit - 1)
@@ -214,6 +216,7 @@ export async function GET(request: NextRequest) {
         likes_count: p.likes_count || 0,
         comments_count: p.comments_count || 0,
         shares_count: p.shares_count || 0,
+        is_pinned: Boolean(p.is_pinned),
         created_at: p.created_at,
         updated_at: p.updated_at,
         profiles: profileById[p.user_id] || {
@@ -291,6 +294,16 @@ export async function POST(request: NextRequest) {
     const { user, supabase } = authResult
     const body = await request.json()
 
+    console.log('[Feed Posts API] POST body (sanitized):', {
+      hasContent: Boolean(body.content?.trim?.()),
+      contentLength: typeof body.content === 'string' ? body.content.length : 0,
+      type: body.type,
+      visibility: body.visibility,
+      mediaUrlsCount: Array.isArray(body.media_urls) ? body.media_urls.length : 0,
+      accountId: body.accountId ?? null,
+      hasFollowingIds: Boolean(body.following_ids)
+    })
+
     // Handle network posts request
     if (body.following_ids) {
       console.log('[Feed Posts API] Fetching network posts for following IDs:', body.following_ids.length)
@@ -308,6 +321,7 @@ export async function POST(request: NextRequest) {
           likes_count,
           comments_count,
           shares_count,
+          is_pinned,
           created_at,
           updated_at,
           user_id,
@@ -323,6 +337,7 @@ export async function POST(request: NextRequest) {
         `)
         .in('user_id', body.following_ids)
         .eq('visibility', 'public') // Only show public posts
+        .order('is_pinned', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(parseInt(body.limit) || 30)
 
@@ -339,7 +354,26 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle post creation
-    const { content, type = 'text', visibility = 'public', location, hashtags = [], media_urls = [] } = body
+    const {
+      content,
+      type = 'text',
+      visibility = 'public',
+      location,
+      hashtags = [],
+      media_urls = [],
+      accountId
+    } = body
+
+    // Personal dashboard: accountId must match auth user (profile id === user id for primary account)
+    if (accountId !== undefined && accountId !== null && String(accountId).trim() !== '') {
+      if (String(accountId) !== user.id) {
+        console.warn('[Feed Posts API] accountId mismatch:', { accountId, userId: user.id })
+        return NextResponse.json(
+          { data: null, error: 'accountId does not match authenticated user' },
+          { status: 403 }
+        )
+      }
+    }
 
     // Allow posts with either content or media
     if (!content?.trim() && (!media_urls || media_urls.length === 0)) {
@@ -374,7 +408,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ data: post, error: null })
+    // Enrich with profile so dashboard feed links use real username (not /profile/user fallback)
+    const { data: profileRow, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, is_verified')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profileError) {
+      console.warn('[Feed Posts API] Profile fetch after create (continuing):', profileError.message)
+    }
+
+    const profiles = profileRow
+      ? {
+          username: profileRow.username || 'user',
+          full_name: profileRow.full_name || profileRow.username || 'User',
+          avatar_url: profileRow.avatar_url || '',
+          is_verified: Boolean(profileRow.is_verified)
+        }
+      : {
+          username: 'user',
+          full_name: 'User',
+          avatar_url: '',
+          is_verified: false
+        }
+
+    const normalized = {
+      ...post,
+      profiles,
+      is_liked: false,
+      like_count: (post as { likes_count?: number }).likes_count ?? 0
+    }
+
+    return NextResponse.json({ data: normalized, error: null })
   } catch (error) {
     console.error('API Error:', error)
     return NextResponse.json(

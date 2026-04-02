@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const createInviteSchema = z.object({
   email: z.string().email().optional(),
@@ -20,14 +20,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { user, supabase } = authResult
-
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
 
     // Ensure tour ownership
     const { data: tour, error: tourError } = await supabase
@@ -47,24 +42,22 @@ export async function GET(
 
     if (error) return NextResponse.json({ error: 'Failed to fetch invites' }, { status: 500 })
 
-    return NextResponse.json({ success: true, invites: invites || [] })
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+      return NextResponse.json({ success: true, invites: invites || [] })
+    } catch (error) {
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { user, supabase } = authResult
-
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
 
     // Ensure tour ownership
     const { data: tour, error: tourError } = await supabase
@@ -103,13 +96,16 @@ export async function POST(
 
     if (error) return NextResponse.json({ error: 'Failed to create invite' }, { status: 500 })
 
-    return NextResponse.json({ success: true, invite })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+      return NextResponse.json({ success: true, invite })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 

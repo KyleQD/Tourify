@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkAuth } from '@/lib/auth/api-auth'
+import { achievementEngine } from '@/lib/services/achievement-engine.service'
 
 // Create service role client directly
 function createServiceClient() {
@@ -258,6 +259,33 @@ export async function POST(
     }
 
     console.log('✅ Successfully added comment')
+
+    const { data: postRow } = await supabase
+      .from('posts')
+      .select('user_id')
+      .eq('id', postId)
+      .single()
+    if (postRow?.user_id) {
+      await achievementEngine.recordMetricEvent({
+        supabase: supabase as any,
+        userId: postRow.user_id,
+        metricKey: 'post_interactions_total',
+        eventType: 'post_comment_received',
+        delta: 1,
+        eventSource: 'api_post_comment',
+        eventData: { post_id: postId }
+      })
+      await achievementEngine.recordMetricEvent({
+        supabase: supabase as any,
+        userId: postRow.user_id,
+        metricKey: 'post_comments_total',
+        eventType: 'post_comment_received',
+        delta: 1,
+        eventSource: 'api_post_comment',
+        eventData: { post_id: postId }
+      })
+    }
+
     return NextResponse.json({ comment: transformedComment })
 
   } catch (error) {

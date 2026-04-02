@@ -18,6 +18,8 @@ import {
   FileText,
   CheckCircle
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 interface EventsStepProps {
   tourData: {
@@ -181,7 +183,12 @@ export function EventsStep({ tourData, updateTourData }: EventsStepProps) {
                 type="number"
                 placeholder="Enter capacity..."
                 value={newEvent.capacity}
-                onChange={(e) => setNewEvent({ ...newEvent, capacity: parseInt(e.target.value) || 0 })}
+                onChange={(e) =>
+                  setNewEvent({
+                    ...newEvent,
+                    capacity: Number.isNaN(parseInt(e.target.value, 10)) ? 0 : parseInt(e.target.value, 10),
+                  })
+                }
                 className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500"
               />
             </div>
@@ -259,7 +266,11 @@ export function EventsStep({ tourData, updateTourData }: EventsStepProps) {
                   <Input
                     type="number"
                     value={event.capacity}
-                    onChange={(e) => handleUpdateEvent(event.id, { capacity: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      handleUpdateEvent(event.id, {
+                        capacity: Number.isNaN(parseInt(e.target.value, 10)) ? 0 : parseInt(e.target.value, 10),
+                      })
+                    }
                     className="bg-slate-800/50 border-slate-600 text-white"
                   />
                 </div>
@@ -293,7 +304,7 @@ export function EventsStep({ tourData, updateTourData }: EventsStepProps) {
                   <div className="flex items-center space-x-3 mb-2">
                     <h4 className="text-lg font-semibold text-white">{event.name}</h4>
                     <Badge variant="secondary" className="text-xs">
-                      {event.capacity.toLocaleString()} capacity
+                      {formatSafeNumber(event.capacity)} capacity
                     </Badge>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
@@ -303,7 +314,7 @@ export function EventsStep({ tourData, updateTourData }: EventsStepProps) {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{new Date(event.date).toLocaleDateString()}</span>
+                      <span className="text-slate-300">{formatSafeDate(event.date)}</span>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Clock className="w-4 h-4 text-slate-400" />

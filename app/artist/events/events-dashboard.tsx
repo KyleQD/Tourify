@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Event, EventWizardMainData, createEvent, deleteEvent, fetchEvents, updateEvent } from "./actions"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 function EventCard({ event, onEdit, onDelete }: { event: Event; onEdit: (event: Event) => void; onDelete: () => void }) {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
@@ -34,7 +36,7 @@ function EventCard({ event, onEdit, onDelete }: { event: Event; onEdit: (event: 
       <div className="text-lg font-semibold text-white">{event.name}</div>
       <div className="text-gray-400 text-sm flex items-center gap-2">
         <Calendar className="h-4 w-4" />
-        {new Date(event.date).toLocaleDateString()}
+        {formatSafeDate(event.date)}
       </div>
       <div className="text-gray-400 text-sm flex items-center gap-2">
         <MapPin className="h-4 w-4" />
@@ -52,7 +54,7 @@ function EventCard({ event, onEdit, onDelete }: { event: Event; onEdit: (event: 
           {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
         </Badge>
         <Badge variant="outline" className="ml-auto">
-          ${event.revenue.toLocaleString()}
+          {formatSafeCurrency(event.revenue)}
         </Badge>
       </div>
       <div className="flex gap-2 mt-2">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const updateTeamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required').optional(),
@@ -17,24 +17,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  try {
-    const { id, memberId } = await params
-    console.log('[Tour Team Member API] GET request for team member:', memberId)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Team Member API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Team Member API] User lacks admin permissions for viewing team member')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id, memberId } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour Team Member API] GET request for team member:', memberId)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -74,40 +60,29 @@ export async function GET(
 
     console.log('[Tour Team Member API] Successfully fetched team member:', memberId)
 
-    return NextResponse.json({ 
-      success: true, 
-      member: teamMember,
-      message: 'Team member fetched successfully' 
-    })
+      return NextResponse.json({ 
+        success: true, 
+        member: teamMember,
+        message: 'Team member fetched successfully' 
+      })
 
-  } catch (error) {
-    console.error('[Tour Team Member API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('[Tour Team Member API] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  try {
-    const { id, memberId } = await params
-    console.log('[Tour Team Member API] PATCH request for team member:', memberId)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Team Member API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Team Member API] User lacks admin permissions for updating team member')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id, memberId } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour Team Member API] PATCH request for team member:', memberId)
 
     const body = await request.json()
     const validatedData = updateTeamMemberSchema.parse(body)
@@ -154,46 +129,35 @@ export async function PATCH(
 
     console.log('[Tour Team Member API] Successfully updated team member:', memberId)
 
-    return NextResponse.json({ 
-      success: true, 
-      member: updatedMember,
-      message: 'Team member updated successfully' 
-    })
-
-  } catch (error) {
-    console.error('[Tour Team Member API] Error:', error)
-    if (error instanceof z.ZodError) {
       return NextResponse.json({ 
-        error: 'Validation error', 
-        details: error.errors 
-      }, { status: 400 })
+        success: true, 
+        member: updatedMember,
+        message: 'Team member updated successfully' 
+      })
+
+    } catch (error) {
+      console.error('[Tour Team Member API] Error:', error)
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ 
+          error: 'Validation error', 
+          details: error.errors 
+        }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; memberId: string }> }
 ) {
-  try {
-    const { id, memberId } = await params
-    console.log('[Tour Team Member API] DELETE request for team member:', memberId)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Team Member API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Team Member API] User lacks admin permissions for deleting team member')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id, memberId } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour Team Member API] DELETE request for team member:', memberId)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -229,13 +193,16 @@ export async function DELETE(
 
     console.log('[Tour Team Member API] Successfully deleted team member:', memberId)
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Team member removed successfully' 
-    })
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Team member removed successfully' 
+      })
 
-  } catch (error) {
-    console.error('[Tour Team Member API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('[Tour Team Member API] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 } 

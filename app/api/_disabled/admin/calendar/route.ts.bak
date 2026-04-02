@@ -740,7 +740,7 @@ export async function POST(request: NextRequest) {
                 user_id: attendeeId, // In real app, this would be the actual user ID
                 type: 'event_invitation',
                 title: `New Event: ${title}`,
-                content: `You have been invited to "${title}" on ${new Date(start).toLocaleDateString()} at ${new Date(start).toLocaleTimeString()}`,
+                content: `You have been invited to "${title}" on ${new Intl.DateTimeFormat("en-US").format(new Date(start))} at ${new Date(start).toLocaleTimeString()}`,
                 metadata: {
                   eventId: data.id,
                   eventType: type,

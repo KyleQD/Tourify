@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { NotificationService } from '@/lib/services/notification-service'
+import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +27,7 @@ async function getAuthenticatedUser(request: NextRequest) {
 
 // POST /api/notifications/test - Create test notifications
 export async function POST(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
     const user = await getAuthenticatedUser(request)
     if (!user) {

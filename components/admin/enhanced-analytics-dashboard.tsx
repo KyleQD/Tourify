@@ -768,7 +768,7 @@ export default function EnhancedAnalyticsDashboard({ venueId }: EnhancedAnalytic
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400">Last Updated</span>
                     <span className="text-slate-400 text-sm">
-                      {new Date(analyticsData.realTime.lastUpdated).toLocaleTimeString()}
+                      {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(analyticsData.realTime.lastUpdated))}
                     </span>
                   </div>
                 </div>

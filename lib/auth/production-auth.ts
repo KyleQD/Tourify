@@ -44,19 +44,12 @@ export class ProductionAuthService {
       const cookies = request.headers.get('cookie') || ''
       const cookieArray = cookies.split(';').map(c => c.trim())
       
-      console.log('[Production Auth] Parsing cookies:', cookieArray.map(c => {
-        const [name] = c.split('=')
-        return `${name}: ${c.split('=')[1]?.length || 0} chars`
-      }))
-      
       // Look for the main auth cookie
       const authCookie = cookieArray.find(cookie => 
         cookie.startsWith('sb-tourify-auth-token=')
       )
       
       if (!authCookie) {
-        console.log('[Production Auth] No sb-tourify-auth-token cookie found')
-        
         // Fallback to old patterns for existing users
         const fallbackCookie = cookieArray.find(cookie => 
           (cookie.includes('sb-') && 
@@ -72,7 +65,6 @@ export class ProductionAuthService {
         
         if (fallbackCookie) {
           const cookieValue = fallbackCookie.split('=')[1]
-          console.log('[Production Auth] Found fallback auth cookie, length:', cookieValue?.length)
           return this.tryParseCookieValue(cookieValue)
         }
         
@@ -80,11 +72,9 @@ export class ProductionAuthService {
       }
       
       const cookieValue = authCookie.split('=')[1]
-      console.log('[Production Auth] Found main auth cookie: sb-tourify-auth-token length:', cookieValue?.length)
       
       return this.tryParseCookieValue(cookieValue)
     } catch (error) {
-      console.log('[Production Auth] Error parsing auth from cookies:', error)
       return null
     }
   }
@@ -94,7 +84,6 @@ export class ProductionAuthService {
    */
   private static tryParseCookieValue(cookieValue: string): any | null {
     if (!cookieValue) {
-      console.log('[Production Auth] No cookie value to parse')
       return null
     }
     
@@ -103,33 +92,25 @@ export class ProductionAuthService {
       const sessionData: AuthSession = JSON.parse(decodeURIComponent(cookieValue))
       
       if (sessionData && sessionData.access_token && sessionData.user) {
-        console.log('[Production Auth] Successfully parsed session from cookie')
-        console.log('[Production Auth] User from cookie:', sessionData.user.id)
-        
         // Check if token is expired
         const now = Math.floor(Date.now() / 1000)
         if (sessionData.expires_at && sessionData.expires_at > now) {
           return sessionData.user
         } else {
-          console.log('[Production Auth] Token expired')
           return null
         }
       } else {
-        console.log('[Production Auth] Cookie data missing required fields')
         return null
       }
     } catch (parseError) {
-      console.log('[Production Auth] Failed to parse session data:', parseError)
-      
       // Try parsing without URL decoding
       try {
         const sessionData2: AuthSession = JSON.parse(cookieValue)
         if (sessionData2 && sessionData2.access_token && sessionData2.user) {
-          console.log('[Production Auth] Successfully parsed session without URL decoding')
           return sessionData2.user
         }
       } catch (parseError2) {
-        console.log('[Production Auth] Failed to parse even without URL decoding')
+        // ignore
       }
       
       return null
@@ -161,10 +142,7 @@ export class ProductionAuthService {
    */
   static async authenticateRequest(request: NextRequest): Promise<AuthResult | AuthError> {
     try {
-      console.log('[Production Auth] Starting authentication process')
-      
       if (!request) {
-        console.log('[Production Auth] No request object provided')
         return {
           error: 'Invalid request',
           details: 'No request object provided',
@@ -178,31 +156,18 @@ export class ProductionAuthService {
       
       let finalUser = user
       
-      if (authError) {
-        console.log('[Production Auth] Supabase auth error:', authError.message)
-      }
-      
-      console.log('[Production Auth] Supabase method - User exists:', !!user)
-      
       // If Supabase method fails, try manual cookie parsing (like middleware does)
       if (!user) {
-        console.log('[Production Auth] Supabase method failed, trying manual cookie parsing...')
         finalUser = this.parseAuthFromCookies(request)
       }
       
       if (!finalUser) {
-        console.log('[Production Auth] No authenticated user found')
         return {
           error: 'Unauthorized',
           details: 'Authentication required',
           status: 401
         }
       }
-      
-      console.log('[Production Auth] ✅ User authenticated:', {
-        id: finalUser.id,
-        email: finalUser.email
-      })
       
       // Create service role client for database operations
       const supabase = this.createServiceClient()
@@ -271,7 +236,6 @@ export class ProductionAuthService {
       
       // If authentication failed, return error response
       if ('error' in authResult) {
-        console.log('[Production Auth] Authentication failed, returning', authResult.status)
         return NextResponse.json({
           error: authResult.error,
           details: authResult.details
@@ -291,6 +255,3 @@ export const withProductionAuth = ProductionAuthService.withProductionAuth
 
 // Export the class for advanced usage
 export default ProductionAuthService
-
-
-

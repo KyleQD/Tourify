@@ -24,6 +24,7 @@ import {
   Clock4
 } from "lucide-react"
 import { toast } from "sonner"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface Job {
   id: string
@@ -215,7 +216,7 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
                       </div>
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-3 w-3" />
-                        <span>{new Date(job.event_date).toLocaleDateString()}</span>
+                        <span>{formatSafeDate(job.event_date)}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <DollarSign className="h-3 w-3" />
@@ -243,7 +244,7 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
                     )}
 
                     <div className="flex items-center space-x-2 text-xs text-slate-500">
-                      <span>Posted {new Date(job.created_at).toLocaleDateString()}</span>
+                      <span>Posted {formatSafeDate(job.created_at)}</span>
                       {job.contact_email && (
                         <span>• {job.contact_email}</span>
                       )}

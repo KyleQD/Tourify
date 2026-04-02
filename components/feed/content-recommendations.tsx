@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface Recommendation {
   id: string
@@ -148,7 +149,7 @@ export function ContentRecommendations({ className }: ContentRecommendationsProp
     }
   }
 
-  // Enhanced color coding system matching the main FYP component
+  // Enhanced color coding system matching the main News component
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'music': return 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
@@ -260,7 +261,7 @@ export function ContentRecommendations({ className }: ContentRecommendationsProp
                   {rec.metadata?.date && (
                     <div className="flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      <span className="truncate max-w-16 md:max-w-20">{new Date(rec.metadata.date).toLocaleDateString()}</span>
+                      <span className="truncate max-w-16 md:max-w-20">{formatSafeDate(rec.metadata.date)}</span>
                     </div>
                   )}
 

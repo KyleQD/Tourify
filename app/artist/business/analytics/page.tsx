@@ -28,6 +28,7 @@ import {
   Filter,
   RefreshCw
 } from "lucide-react"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import { 
   LineChart, 
   Line, 
@@ -122,7 +123,7 @@ export default function BusinessAnalytics() {
       const start = format(subMonths(now, 11), 'yyyy-MM-01')
       const end = format(now, 'yyyy-MM-28')
 
-      const [txRes, merchRes, eventsRes] = await Promise.all([
+      const [txRes, merchRes, eventsRes, campaignsRes, profileRes] = await Promise.all([
         supabase
           .from('artist_financial_transactions')
           .select('id,type,amount,occurred_at,metadata')
@@ -130,8 +131,21 @@ export default function BusinessAnalytics() {
           .gte('occurred_at', start)
           .lte('occurred_at', end),
         supabase.from('artist_merchandise').select('name, price, inventory_count, is_active, id').eq('user_id', user.id),
-        supabase.from('artist_events').select('id, title, ticket_price_min, expected_attendance').eq('user_id', user.id)
+        supabase.from('artist_events').select('id, title, ticket_price_min, expected_attendance').eq('user_id', user.id),
+        supabase.from('artist_marketing_campaigns').select('id, name, budget, spent, status').eq('user_id', user.id),
+        supabase.from('profiles').select('followers_count').eq('id', user.id).maybeSingle(),
       ])
+
+      const { data: userPosts } = await supabase.from('posts').select('id').eq('user_id', user.id)
+      const postIds = (userPosts || []).map((p: { id: string }) => p.id)
+      let likeCount = 0
+      if (postIds.length > 0) {
+        const { count, error: likesErr } = await supabase
+          .from('post_likes')
+          .select('id', { count: 'exact', head: true })
+          .in('post_id', postIds)
+        likeCount = likesErr ? 0 : count || 0
+      }
 
       const tx = txRes.data || []
       const incomeTypes = new Set(['income','royalty','merchandise','event'])
@@ -187,10 +201,32 @@ export default function BusinessAnalytics() {
         growth: 0
       }))
 
-      const marketingROI = [] as { campaign: string; spent: number; revenue: number; roi: number; conversions: number }[]
+      const campaigns = campaignsRes.data || []
+      const marketingROI = campaigns.map((c: { name?: string; spent?: unknown; budget?: unknown }) => {
+        const spent = Number(c.spent) || 0
+        const budget = Number(c.budget) || 0
+        const attributed = sumByMeta(tx, 'campaign_name', String(c.name || ''))
+        const revenue = attributed
+        const roi = spent > 0 ? Math.round(((revenue - spent) / spent) * 100) : revenue > 0 ? 100 : 0
+        return {
+          campaign: c.name || 'Campaign',
+          spent,
+          revenue,
+          roi,
+          conversions: 0,
+        }
+      })
+
+      const followers = Number(profileRes.data?.followers_count) || 0
+      const engagementRate =
+        followers > 0 ? Math.min(100, Math.round((likeCount / Math.max(followers, 1)) * 25)) : likeCount > 0 ? 25 : 0
+
       const netProfit = totalRevenue - totalExpenses
       const profitMarginPct = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0
       const revenueGrowth = calcGrowth(monthlyData.map(m => m.revenue))
+
+      const marketingScore = Math.min(100, campaigns.length * 18 + (campaigns.some((c: { status?: string }) => c.status === 'active') ? 25 : 0))
+      const contentScore = Math.min(100, (merchRes.data || []).length * 8 + (eventsRes.data || []).length * 10)
 
       const analyticsData: BusinessAnalytics = {
         overview: {
@@ -199,8 +235,8 @@ export default function BusinessAnalytics() {
           netProfit: Math.round(netProfit),
           revenueGrowth,
           profitMargin: profitMarginPct,
-          fanGrowth: 0,
-          engagementRate: 0,
+          fanGrowth: followers,
+          engagementRate,
           conversionRate: 0
         },
         revenueStreams,
@@ -208,12 +244,12 @@ export default function BusinessAnalytics() {
         topProducts,
         marketingROI,
         businessHealth: {
-          score: clamp(Math.round(profitMarginPct * 0.6 + revenueGrowth * 0.4), 0, 100),
+          score: clamp(Math.round(profitMarginPct * 0.35 + revenueGrowth * 0.25 + marketingScore * 0.15 + contentScore * 0.15 + engagementRate * 0.1), 0, 100),
           factors: {
             financial: clamp(profitMarginPct, 0, 100),
-            marketing: 50,
-            content: (merchRes.data || []).length * 5 > 100 ? 100 : (merchRes.data || []).length * 5,
-            engagement: 50
+            marketing: marketingScore,
+            content: contentScore,
+            engagement: clamp(engagementRate, 0, 100)
           }
         }
       }
@@ -361,10 +397,17 @@ export default function BusinessAnalytics() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-400">Total Revenue</p>
-                <p className="text-2xl font-bold text-green-400">${analytics.overview.totalRevenue.toLocaleString()}</p>
-                <p className="text-xs text-green-400 flex items-center mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  +{analytics.overview.revenueGrowth}% growth
+                <p className="text-2xl font-bold text-green-400">{formatSafeCurrency(analytics.overview.totalRevenue)}</p>
+                <p className="text-xs text-slate-500 flex items-center mt-1">
+                  {analytics.overview.totalRevenue > 0 ? (
+                    <>
+                      <TrendingUp className="h-3 w-3 mr-1 text-green-400" />
+                      {analytics.overview.revenueGrowth >= 0 ? '+' : ''}
+                      {analytics.overview.revenueGrowth}% vs window start
+                    </>
+                  ) : (
+                    'No revenue in this range — log transactions'
+                  )}
                 </p>
               </div>
               <DollarSign className="h-8 w-8 text-green-500" />
@@ -378,7 +421,7 @@ export default function BusinessAnalytics() {
               <div>
                 <p className="text-sm text-gray-400">Net Profit</p>
                 <p className={`text-2xl font-bold ${analytics.overview.netProfit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  ${Math.abs(analytics.overview.netProfit).toLocaleString()}
+                  {formatSafeCurrency(Math.abs(analytics.overview.netProfit))}
                 </p>
                 <p className="text-xs text-gray-400">
                   {analytics.overview.profitMargin}% margin
@@ -393,10 +436,12 @@ export default function BusinessAnalytics() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-400">Fan Growth</p>
-                <p className="text-2xl font-bold text-purple-400">+{analytics.overview.fanGrowth}%</p>
-                <p className="text-xs text-purple-400">
-                  {analytics.overview.engagementRate}% engagement
+                <p className="text-sm text-gray-400">Audience</p>
+                <p className="text-2xl font-bold text-purple-400">
+                  {formatSafeNumber(analytics.overview.fanGrowth)}
+                </p>
+                <p className="text-xs text-slate-400">
+                  followers · {analytics.overview.engagementRate}% est. engagement (likes vs reach)
                 </p>
               </div>
               <Users className="h-8 w-8 text-purple-500" />
@@ -467,6 +512,9 @@ export default function BusinessAnalytics() {
             <Card className="bg-slate-900/50 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Fan & Engagement Growth</CardTitle>
+                <p className="text-xs text-slate-500 mt-1">
+                  Month-by-month fan totals are not stored yet; chart stays at zero until we add history.
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px]">
@@ -563,7 +611,7 @@ export default function BusinessAnalytics() {
                           ></div>
                           <span className="text-gray-300">{stream.name}</span>
                         </div>
-                        <span className="font-bold text-white">${stream.value.toLocaleString()}</span>
+                        <span className="font-bold text-white">{formatSafeCurrency(stream.value)}</span>
                       </div>
                       <Progress 
                         value={(stream.value / analytics.overview.totalRevenue) * 100} 
@@ -584,9 +632,21 @@ export default function BusinessAnalytics() {
           <Card className="bg-slate-900/50 border-slate-700/50">
             <CardHeader>
               <CardTitle className="text-white">Marketing ROI Analysis</CardTitle>
+              <p className="text-xs text-slate-500 mt-1">
+                Spend comes from campaigns. Revenue fills in when financial transactions include matching metadata (e.g. campaign name).
+              </p>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {analytics.marketingROI.length === 0 ? (
+                  <p className="text-center text-slate-400 text-sm py-10">
+                    No campaigns yet.{" "}
+                    <Link href="/artist/business/marketing" className="text-purple-400 hover:underline">
+                      Open Marketing Hub
+                    </Link>{" "}
+                    to create one.
+                  </p>
+                ) : null}
                 {analytics.marketingROI.map((campaign, index) => (
                   <div key={campaign.campaign} className="p-4 bg-slate-800/50 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
@@ -658,11 +718,11 @@ export default function BusinessAnalytics() {
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
                         <p className="text-gray-400">Revenue</p>
-                        <p className="font-bold text-green-400">${product.revenue.toLocaleString()}</p>
+                        <p className="font-bold text-green-400">{formatSafeCurrency(product.revenue)}</p>
                       </div>
                       <div>
                         <p className="text-gray-400">Units Sold</p>
-                        <p className="font-bold text-blue-400">{product.units.toLocaleString()}</p>
+                        <p className="font-bold text-blue-400">{formatSafeNumber(product.units)}</p>
                       </div>
                       <div>
                         <p className="text-gray-400">Avg. Price</p>

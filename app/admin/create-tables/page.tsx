@@ -14,7 +14,6 @@ export default function CreateTablesPage() {
   const [sql, setSql] = useState("")
 
   const addLog = (msg: string) => {
-    console.log(`[Setup] ${msg}`)
     setLogs(prev => [...prev, msg])
   }
 

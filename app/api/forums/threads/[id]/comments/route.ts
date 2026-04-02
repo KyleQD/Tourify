@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest, withAuth } from '@/lib/auth/api-auth'
+import { withAuth } from '@/lib/auth/api-auth'
+import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: NextRequest, context: any) {
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
-    const auth = await authenticateApiRequest(request)
-    let supabase
-    if (auth) supabase = auth.supabase
-    else {
-      const { createClient } = await import('@/lib/supabase/server')
-      supabase = await createClient()
-    }
-
-    const threadId = context?.params?.id
+    const supabase = await createClient()
+    const { id: threadId } = await context.params
     if (!threadId) return NextResponse.json({ error: 'Missing thread id' }, { status: 400 })
 
     const { data: comments, error } = await supabase
@@ -28,10 +25,13 @@ export async function GET(request: NextRequest, context: any) {
   }
 }
 
-export const POST = withAuth(async (request, { supabase, user }) => {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id: threadId } = await context.params
+  return withAuth(async (_request, { supabase, user }) => {
   try {
-    const { params } = (request as any)
-    const threadId = params?.id || request.url.split('/threads/')[1]?.split('/')[0]
     if (!threadId) return NextResponse.json({ error: 'Missing thread id' }, { status: 400 })
 
     const payload = await request.json()
@@ -50,6 +50,7 @@ export const POST = withAuth(async (request, { supabase, user }) => {
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-})
+  })(request)
+}
 
 

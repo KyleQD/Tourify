@@ -34,7 +34,7 @@ export function QuickAccessPanel({ isOpen, onClose }: QuickAccessPanelProps) {
     { title: "Upload Music", icon: Upload, color: "bg-purple-500", href: "/music/upload" },
     { title: "Create Post", icon: PenTool, color: "bg-blue-500", href: "/content/posts/new" },
     { title: "Schedule Event", icon: Calendar, color: "bg-green-500", href: "/events/new" },
-    { title: "Create Job", icon: Briefcase, color: "bg-amber-500", href: "/jobs/new" },
+    { title: "Create Job", icon: Briefcase, color: "bg-amber-500", href: "/jobs" },
     { title: "Launch Promotion", icon: Zap, color: "bg-red-500", href: "/promotions/new" },
   ]
 

@@ -35,7 +35,9 @@ import { BookingDetailsModal } from "./components/booking-details-modal"
 import { EventDetailsModal } from "./components/event-details-modal"
 import { EditEventModal } from "./components/edit-event-modal"
 import { useCurrentVenue } from "./hooks/useCurrentVenue"
+import { getVenuePublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { VenueAccountSettings } from "@/components/settings/venue-account-settings"
+import { formatSafeDate, formatSafeDateTime } from "@/lib/events/admin-event-normalization"
 
 // Mock venue data - in a real app, this would come from an API
 const mockVenue = {
@@ -254,9 +256,17 @@ export default function VenueDashboard() {
   const handleEditProfile = () => setIsEditProfileOpen(true)
 
   const handleViewPublicProfile = () => {
-    if (venue?.id) {
-      window.open(`/venues/${venue.id}`, "_blank")
+    if (!venue?.id) {
+      console.warn("[Venue Dashboard] View Public Profile: venue id missing")
+      return
     }
+    const path = getVenuePublicProfilePath({
+      id: venue.id,
+      url_slug: (venue as { url_slug?: string | null }).url_slug
+    })
+    if (!path) return
+    console.log("[Venue Dashboard] Opening public venue profile:", path)
+    window.open(path, "_blank")
   }
 
   const handleSaveProfile = async (profileData: any) => {
@@ -645,8 +655,8 @@ export default function VenueDashboard() {
                                   <div>
                                     <h3 className="font-medium text-white">{request.eventName}</h3>
                                     <p className="text-sm text-gray-400">{request.organizer}</p>
-                                    <p className="text-xs text-gray-400">{new Date(request.date).toLocaleString()} • {request.attendees} attendees</p>
-                                    <p className="text-xs text-gray-500 mt-1">Received {new Date(request.received).toLocaleDateString()}</p>
+                                    <p className="text-xs text-gray-400">{formatSafeDateTime(request.date)} • {request.attendees} attendees</p>
+                                    <p className="text-xs text-gray-500 mt-1">Received {formatSafeDate(request.received)}</p>
                                     <p className="text-xs mt-1">Status: <span className={request.status === "accepted" ? "text-green-400" : request.status === "declined" ? "text-red-400" : "text-yellow-400"}>{request.status.charAt(0).toUpperCase() + request.status.slice(1)}</span></p>
                                   </div>
                                   <div className="flex gap-2 mt-3 md:mt-0">
@@ -932,7 +942,7 @@ export default function VenueDashboard() {
                           <div key={b.id} className="flex items-center justify-between p-3 bg-gray-800/60 rounded">
                             <div>
                               <div className="text-white text-sm font-medium">{b.eventName}</div>
-                              <div className="text-xs text-gray-400">{b.organizer} • {new Date(b.date).toLocaleDateString()}</div>
+                              <div className="text-xs text-gray-400">{b.organizer} • {formatSafeDate(b.date)}</div>
                             </div>
                             <div className="flex items-center gap-2">
                               <Button variant="outline" size="sm" onClick={() => navigator.clipboard.writeText(b.organizer)}>Copy Contact</Button>

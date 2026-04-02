@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import { 
   BarChart3, 
   TrendingUp, 
@@ -61,6 +62,7 @@ import {
 import { useDashboardStats, useToursData, useEventsData, useArtistsData, useVenuesData } from "../hooks/use-optimized-data"
 import { usePerformanceMonitor } from "../hooks/use-performance-monitor"
 import { ErrorBoundary } from "./error-boundary"
+import { mapAdminEventStatus } from "@/lib/events/admin-event-normalization"
 
 interface AnalyticsData {
   revenue: {
@@ -155,9 +157,13 @@ export default function AnalyticsDashboard() {
 
     // Calculate event metrics
     const totalEvents = events.length
-    const upcomingEvents = events.filter((e: any) => e.status === 'scheduled' || e.status === 'confirmed').length
-    const completedEvents = events.filter((e: any) => e.status === 'completed').length
-    const cancelledEvents = events.filter((e: any) => e.status === 'cancelled').length
+    const normalizedEvents = events.map((event: any) => ({
+      ...event,
+      normalized_status: mapAdminEventStatus(event?.status),
+    }))
+    const upcomingEvents = normalizedEvents.filter((e: any) => e.normalized_status === 'scheduled' || e.normalized_status === 'confirmed').length
+    const completedEvents = normalizedEvents.filter((e: any) => e.normalized_status === 'completed').length
+    const cancelledEvents = normalizedEvents.filter((e: any) => e.normalized_status === 'cancelled').length
     const totalAttendance = events.reduce((sum: number, e: any) => sum + (e.tickets_sold || 0), 0)
     const totalCapacity = events.reduce((sum: number, e: any) => sum + (e.capacity || 0), 0)
     const utilization = totalCapacity > 0 ? (totalAttendance / totalCapacity) * 100 : 0
@@ -426,7 +432,7 @@ export default function AnalyticsDashboard() {
                   <div>
                     <p className="text-sm font-medium text-blue-400">Total Revenue</p>
                     <p className="text-2xl font-bold text-white">
-                      ${isLoading ? '...' : analyticsData.revenue.total.toLocaleString()}
+                      {isLoading ? '...' : formatSafeCurrency(analyticsData.revenue.total)}
                     </p>
                     <div className="flex items-center space-x-2 mt-2">
                       <Badge className={`text-xs ${
@@ -508,7 +514,7 @@ export default function AnalyticsDashboard() {
                   <div>
                     <p className="text-sm font-medium text-orange-400">Attendance</p>
                     <p className="text-2xl font-bold text-white">
-                      {isLoading ? '...' : analyticsData.events.attendance.toLocaleString()}
+                      {isLoading ? '...' : formatSafeNumber(analyticsData.events.attendance)}
                     </p>
                     <p className="text-xs text-slate-400 mt-2">
                       {analyticsData.events.utilization.toFixed(1)}% capacity utilization
@@ -525,12 +531,12 @@ export default function AnalyticsDashboard() {
 
         {/* Charts Section */}
         <Tabs value={selectedMetric} onValueChange={setSelectedMetric} className="space-y-6">
-          <TabsList className="bg-slate-800/50 p-1 grid grid-cols-5 w-full max-w-2xl">
-            <TabsTrigger value="revenue" className="data-[state=active]:bg-slate-700">Revenue</TabsTrigger>
-            <TabsTrigger value="events" className="data-[state=active]:bg-slate-700">Events</TabsTrigger>
-            <TabsTrigger value="tours" className="data-[state=active]:bg-slate-700">Tours</TabsTrigger>
-            <TabsTrigger value="artists" className="data-[state=active]:bg-slate-700">Artists</TabsTrigger>
-            <TabsTrigger value="performance" className="data-[state=active]:bg-slate-700">Performance</TabsTrigger>
+          <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30 grid grid-cols-5 w-full max-w-2xl">
+            <TabsTrigger value="revenue" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Revenue</TabsTrigger>
+            <TabsTrigger value="events" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Events</TabsTrigger>
+            <TabsTrigger value="tours" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tours</TabsTrigger>
+            <TabsTrigger value="artists" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Artists</TabsTrigger>
+            <TabsTrigger value="performance" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Performance</TabsTrigger>
           </TabsList>
 
           <TabsContent value="revenue" className="space-y-6">
@@ -582,7 +588,7 @@ export default function AnalyticsDashboard() {
                         <div className="p-3 bg-slate-800/50 rounded-lg">
                           <p className="text-xs text-slate-400">Peak Day</p>
                           <p className="text-lg font-semibold text-white">
-                            ${Math.max(...analyticsData.revenue.history.map(h => h.value)).toLocaleString()}
+                            {formatSafeCurrency(Math.max(...analyticsData.revenue.history.map(h => h.value)))}
                           </p>
                         </div>
                         <div className="p-3 bg-slate-800/50 rounded-lg">
@@ -697,11 +703,11 @@ export default function AnalyticsDashboard() {
                       <div className="mt-4 space-y-2">
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-400">Attendance</span>
-                          <span className="text-white">{analyticsData.events.attendance.toLocaleString()}</span>
+                          <span className="text-white">{formatSafeNumber(analyticsData.events.attendance)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-400">Capacity</span>
-                          <span className="text-white">{analyticsData.events.capacity.toLocaleString()}</span>
+                          <span className="text-white">{formatSafeNumber(analyticsData.events.capacity)}</span>
                         </div>
                       </div>
                     </div>
@@ -781,7 +787,7 @@ export default function AnalyticsDashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold text-white">${artist.revenue.toLocaleString()}</p>
+                          <p className="font-semibold text-white">{formatSafeCurrency(artist.revenue)}</p>
                           <p className="text-xs text-slate-400">Revenue</p>
                         </div>
                       </div>

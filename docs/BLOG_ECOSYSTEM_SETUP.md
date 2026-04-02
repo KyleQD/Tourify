@@ -66,7 +66,7 @@ I've successfully created a complete blog ecosystem for the Tourify platform wit
 4. **`docs/BLOG_ECOSYSTEM_SETUP.md`** - This documentation
 
 ### Modified Files
-1. **`components/feed/for-you-page.tsx`** - Updated to fetch real blog posts and make them clickable
+1. **`components/feed/for-you-page.tsx`** - Legacy feed component updated to fetch real blog posts and make them clickable
 
 ## How to Set Up
 
@@ -183,7 +183,7 @@ auth.users (1) → posts (many) → post_comments (many)
 - `GET /blog/[slug]` - Blog post detail page
 
 ### Frontend Components
-- `ForYouPage` - Main feed component with blog integration
+- `ForYouPage` - Legacy main feed component with blog integration
 - `BlogPostPage` - Blog post detail component
 - Content cards with clickable blog post functionality
 

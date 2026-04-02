@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface Comment {
   id: string
@@ -153,7 +154,7 @@ export function MusicComment({ musicId, parentCommentId, showReplies = true }: M
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
     
-    return date.toLocaleDateString()
+    return formatSafeDate(date.toISOString())
   }
 
   const getUserDisplayName = (comment: Comment) => {

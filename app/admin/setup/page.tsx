@@ -98,7 +98,6 @@ export default function SetupPage() {
   const [logs, setLogs] = useState<string[]>([])
 
   const addLog = (msg: string) => {
-    console.log(`[Setup] ${msg}`)
     setLogs(prev => [...prev, msg])
   }
 

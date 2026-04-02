@@ -32,6 +32,101 @@ interface DataValidationConfig {
   showNotifications?: boolean
 }
 
+export function validateDataWithRules<T>(
+  dataToValidate: T | null | undefined,
+  rules: ValidationRule[]
+): DataValidationResult {
+  if (!dataToValidate) {
+    return {
+      isValid: false,
+      errors: ['Data is null or undefined'],
+      warnings: [],
+      missingFields: [],
+      dataQuality: 0
+    }
+  }
+
+  const errors: string[] = []
+  const warnings: string[] = []
+  const missingFields: string[] = []
+  let validFields = 0
+  const totalFields = rules.length
+
+  rules.forEach(rule => {
+    const value = (dataToValidate as Record<string, unknown>)[rule.field]
+
+    if (value === undefined || value === null) {
+      if (rule.required) {
+        errors.push(rule.errorMessage || `Required field '${rule.field}' is missing`)
+        missingFields.push(rule.field)
+      } else {
+        warnings.push(`Optional field '${rule.field}' is missing`)
+      }
+      return
+    }
+
+    if (rule.type) {
+      const actualType = Array.isArray(value) ? 'array' : typeof value
+      if (actualType !== rule.type) {
+        errors.push(rule.errorMessage || `Field '${rule.field}' should be of type '${rule.type}', got '${actualType}'`)
+        return
+      }
+    }
+
+    if (typeof value === 'string') {
+      if (rule.minLength && value.length < rule.minLength) {
+        errors.push(rule.errorMessage || `Field '${rule.field}' should be at least ${rule.minLength} characters`)
+        return
+      }
+      if (rule.maxLength && value.length > rule.maxLength) {
+        warnings.push(`Field '${rule.field}' is longer than recommended ${rule.maxLength} characters`)
+      }
+      if (rule.pattern && !rule.pattern.test(value)) {
+        errors.push(rule.errorMessage || `Field '${rule.field}' does not match required pattern`)
+        return
+      }
+    }
+
+    if (typeof value === 'number') {
+      if (rule.minValue !== undefined && value < rule.minValue) {
+        errors.push(rule.errorMessage || `Field '${rule.field}' should be at least ${rule.minValue}`)
+        return
+      }
+      if (rule.maxValue !== undefined && value > rule.maxValue) {
+        errors.push(rule.errorMessage || `Field '${rule.field}' should be at most ${rule.maxValue}`)
+        return
+      }
+    }
+
+    if (Array.isArray(value)) {
+      if (rule.minLength && value.length < rule.minLength) {
+        errors.push(rule.errorMessage || `Field '${rule.field}' should have at least ${rule.minLength} items`)
+        return
+      }
+      if (rule.maxLength && value.length > rule.maxLength) {
+        warnings.push(`Field '${rule.field}' has more items than recommended ${rule.maxLength}`)
+      }
+    }
+
+    if (rule.customValidator && !rule.customValidator(value)) {
+      errors.push(rule.errorMessage || `Field '${rule.field}' failed custom validation`)
+      return
+    }
+
+    validFields++
+  })
+
+  const dataQuality = totalFields > 0 ? Math.round((validFields / totalFields) * 100) : 0
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    warnings,
+    missingFields,
+    dataQuality
+  }
+}
+
 export function useDataValidation<T>(
   data: T | null | undefined,
   config: DataValidationConfig
@@ -46,103 +141,11 @@ export function useDataValidation<T>(
   const [isValidating, setIsValidating] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
 
-  const validateData = useCallback((dataToValidate: T | null | undefined): DataValidationResult => {
-    if (!dataToValidate) {
-      return {
-        isValid: false,
-        errors: ['Data is null or undefined'],
-        warnings: [],
-        missingFields: [],
-        dataQuality: 0
-      }
-    }
-
-    const errors: string[] = []
-    const warnings: string[] = []
-    const missingFields: string[] = []
-    let validFields = 0
-    let totalFields = config.rules.length
-
-    config.rules.forEach(rule => {
-      const value = (dataToValidate as any)[rule.field]
-      
-      // Check if field is missing
-      if (value === undefined || value === null) {
-        if (rule.required) {
-          errors.push(rule.errorMessage || `Required field '${rule.field}' is missing`)
-          missingFields.push(rule.field)
-        } else {
-          warnings.push(`Optional field '${rule.field}' is missing`)
-        }
-        return
-      }
-
-      // Type validation
-      if (rule.type) {
-        const actualType = Array.isArray(value) ? 'array' : typeof value
-        if (actualType !== rule.type) {
-          errors.push(rule.errorMessage || `Field '${rule.field}' should be of type '${rule.type}', got '${actualType}'`)
-          return
-        }
-      }
-
-      // String validation
-      if (typeof value === 'string') {
-        if (rule.minLength && value.length < rule.minLength) {
-          errors.push(rule.errorMessage || `Field '${rule.field}' should be at least ${rule.minLength} characters`)
-          return
-        }
-        if (rule.maxLength && value.length > rule.maxLength) {
-          warnings.push(`Field '${rule.field}' is longer than recommended ${rule.maxLength} characters`)
-        }
-        if (rule.pattern && !rule.pattern.test(value)) {
-          errors.push(rule.errorMessage || `Field '${rule.field}' does not match required pattern`)
-          return
-        }
-      }
-
-      // Number validation
-      if (typeof value === 'number') {
-        if (rule.minValue !== undefined && value < rule.minValue) {
-          errors.push(rule.errorMessage || `Field '${rule.field}' should be at least ${rule.minValue}`)
-          return
-        }
-        if (rule.maxValue !== undefined && value > rule.maxValue) {
-          errors.push(rule.errorMessage || `Field '${rule.field}' should be at most ${rule.maxValue}`)
-          return
-        }
-      }
-
-      // Array validation
-      if (Array.isArray(value)) {
-        if (rule.minLength && value.length < rule.minLength) {
-          errors.push(rule.errorMessage || `Field '${rule.field}' should have at least ${rule.minLength} items`)
-          return
-        }
-        if (rule.maxLength && value.length > rule.maxLength) {
-          warnings.push(`Field '${rule.field}' has more items than recommended ${rule.maxLength}`)
-        }
-      }
-
-      // Custom validation
-      if (rule.customValidator && !rule.customValidator(value)) {
-        errors.push(rule.errorMessage || `Field '${rule.field}' failed custom validation`)
-        return
-      }
-
-      validFields++
-    })
-
-    const dataQuality = totalFields > 0 ? Math.round((validFields / totalFields) * 100) : 0
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
-      missingFields,
-      dataQuality
-    }
-  }, [config.rules])
+  const validateData = useCallback(
+    (dataToValidate: T | null | undefined): DataValidationResult =>
+      validateDataWithRules(dataToValidate, config.rules),
+    [config.rules]
+  )
 
   const retryValidation = useCallback(async () => {
     const { retryAttempts = 3, retryDelay = 1000 } = config
@@ -291,11 +294,10 @@ export function useArrayDataValidation<T>(
       return { overall: result, items: [] }
     }
 
-    const itemResults = data.map((item, index) => {
-      const validationConfig = { rules: itemValidationRules }
-      const { validateData } = useDataValidation(item, validationConfig)
-      return { index, result: validateData() }
-    })
+    const itemResults = data.map((item, index) => ({
+      index,
+      result: validateDataWithRules(item, itemValidationRules)
+    }))
 
     const validItems = itemResults.filter(item => item.result.isValid).length
     const totalItems = itemResults.length

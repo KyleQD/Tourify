@@ -51,7 +51,7 @@ export function RealTimeIndicator({
       
       {lastUpdate && (
         <Badge variant="secondary" className="text-xs">
-          Updated {lastUpdate.toLocaleTimeString()}
+          Updated {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastUpdate)}
         </Badge>
       )}
     </div>

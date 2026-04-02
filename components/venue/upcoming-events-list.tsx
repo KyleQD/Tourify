@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { TourifyLogo } from "@/components/tourify-logo"
 import { getEvents } from "@/lib/events/actions"
 import Link from "next/link"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 type Event = {
   id: string
@@ -53,9 +54,7 @@ export function UpcomingEventsList() {
 
   // Format date to be more readable
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { month: "numeric", day: "numeric", year: "numeric" }
-    const date = new Date(dateString)
-    return date.toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   return (

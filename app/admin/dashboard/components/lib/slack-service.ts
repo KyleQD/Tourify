@@ -78,18 +78,16 @@ export const SlackService = {
   },
 
   // Connect a new workspace
-  connectWorkspace: async (code: string): Promise<SlackWorkspace> => {
+  connectWorkspace: async (_code: string): Promise<SlackWorkspace> => {
     // In a real implementation, this would exchange the code for a token
     // and then fetch the workspace details
-    console.log("Connecting workspace with code:", code)
     return new Promise((resolve) => {
       setTimeout(() => resolve(mockWorkspaces[0]), 1000)
     })
   },
 
   // Disconnect a workspace
-  disconnectWorkspace: async (workspaceId: string): Promise<boolean> => {
-    console.log("Disconnecting workspace:", workspaceId)
+  disconnectWorkspace: async (_workspaceId: string): Promise<boolean> => {
     return new Promise((resolve) => {
       setTimeout(() => resolve(true), 500)
     })
@@ -104,16 +102,14 @@ export const SlackService = {
   },
 
   // Save notification configuration
-  saveNotificationConfig: async (config: SlackNotificationConfig): Promise<boolean> => {
-    console.log("Saving notification config:", config)
+  saveNotificationConfig: async (_config: SlackNotificationConfig): Promise<boolean> => {
     return new Promise((resolve) => {
       setTimeout(() => resolve(true), 500)
     })
   },
 
   // Send a message to a Slack channel
-  sendMessage: async (channelId: string, message: string): Promise<boolean> => {
-    console.log(`Sending message to channel ${channelId}: ${message}`)
+  sendMessage: async (_channelId: string, _message: string): Promise<boolean> => {
     return new Promise((resolve) => {
       setTimeout(() => resolve(true), 500)
     })

@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, Clock, Ticket } from "lucide-react"
+import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
 interface VenueEventsProps {
   venue: any
@@ -9,22 +10,11 @@ interface VenueEventsProps {
 
 export function VenueEvents({ venue }: VenueEventsProps) {
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   const formatTime = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    }
-    return new Date(dateString).toLocaleTimeString("en-US", options)
+    return formatSafeTime(dateString)
   }
 
   return (

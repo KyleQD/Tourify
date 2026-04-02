@@ -21,6 +21,27 @@ interface KeyboardShortcutContext {
   isMac: boolean
 }
 
+function shortcutModifiersSatisfied(shortcut: KeyboardShortcut, e: KeyboardEvent): boolean {
+  const hasCmdOrCtrl = e.metaKey || e.ctrlKey
+  if (shortcut.key === 'cmd+shift+f')
+    return hasCmdOrCtrl && e.shiftKey
+
+  const m = shortcut.modifier
+  if (m === 'cmd' || m === 'ctrl')
+    return hasCmdOrCtrl
+  if (m === 'shift')
+    return e.shiftKey
+  if (m === 'alt')
+    return e.altKey
+
+  if (/^[0-9]$/.test(shortcut.key))
+    return hasCmdOrCtrl
+  if (shortcut.key === ',')
+    return hasCmdOrCtrl
+
+  return !hasCmdOrCtrl
+}
+
 export function useKeyboardShortcuts() {
   const router = useRouter()
   const pathname = usePathname()
@@ -397,19 +418,34 @@ export function useKeyboardShortcuts() {
       return
     }
 
-    const key = event.key.toLowerCase()
-    const modifier = event.metaKey || event.ctrlKey ? (isMac.current ? 'cmd' : 'ctrl') : undefined
+    const normalizedBase =
+      event.key.length === 1 ? event.key.toLowerCase() : event.key
+
+    const hasCmdOrCtrl = event.metaKey || event.ctrlKey
+    const modifier = hasCmdOrCtrl ? (isMac.current ? 'cmd' : 'ctrl') : undefined
     const modifier2 = event.shiftKey ? 'shift' : undefined
     const modifier3 = event.altKey ? 'alt' : undefined
 
-    // Create shortcut key identifier
-    let shortcutKey = key
+    let shortcutKey = normalizedBase
     if (modifier) shortcutKey = `${modifier}+${shortcutKey}`
     if (modifier2) shortcutKey = `${shortcutKey}+${modifier2}`
     if (modifier3) shortcutKey = `${shortcutKey}+${modifier3}`
 
-    const shortcut = shortcutsRef.current.get(shortcutKey)
-    
+    const keysToTry = [shortcutKey]
+    if (hasCmdOrCtrl)
+      keysToTry.push(normalizedBase)
+    if (hasCmdOrCtrl && event.shiftKey && normalizedBase === 'f')
+      keysToTry.unshift('cmd+shift+f')
+
+    let shortcut: KeyboardShortcut | undefined
+    for (const k of keysToTry) {
+      const candidate = shortcutsRef.current.get(k)
+      if (candidate && shortcutModifiersSatisfied(candidate, event)) {
+        shortcut = candidate
+        break
+      }
+    }
+
     if (shortcut && !shortcut.disabled) {
       event.preventDefault()
       shortcut.action()

@@ -989,7 +989,10 @@ The Management Team`,
                         <div className="flex-1">
                           <div className="text-slate-300 text-sm">{activity.action}</div>
                           <div className="text-slate-500 text-xs">
-                            {activity.timestamp.toLocaleTimeString()}
+                            {new Intl.DateTimeFormat("en-US", {
+                              hour: "numeric",
+                              minute: "2-digit",
+                            }).format(activity.timestamp)}
                           </div>
                         </div>
                       </div>

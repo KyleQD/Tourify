@@ -231,7 +231,13 @@ export default function DebugPage() {
                   </div>
                   <div className="grid grid-cols-3 gap-1">
                     <div className="text-slate-400">Last Sign In:</div>
-                    <div className="col-span-2 text-slate-300">{authData?.lastSignIn ? new Date(authData.lastSignIn).toLocaleString() : "Never"}</div>
+                    <div className="col-span-2 text-slate-300">{authData?.lastSignIn ? new Intl.DateTimeFormat("en-US", {
+                      year: "numeric",
+                      month: "numeric",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }).format(new Date(authData.lastSignIn)) : "Never"}</div>
                   </div>
                 </div>
               )}
@@ -364,7 +370,13 @@ export default function DebugPage() {
                 <div className="grid grid-cols-3 gap-1">
                   <div className="text-slate-400">Last Updated:</div>
                   <div className="col-span-2 text-slate-300">
-                    {profileData?.data?.updated_at ? new Date(profileData.data.updated_at).toLocaleString() : "Never"}
+                    {profileData?.data?.updated_at ? new Intl.DateTimeFormat("en-US", {
+                      year: "numeric",
+                      month: "numeric",
+                      day: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    }).format(new Date(profileData.data.updated_at)) : "Never"}
                   </div>
                 </div>
               </div>

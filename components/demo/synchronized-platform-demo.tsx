@@ -19,6 +19,7 @@ import {
   CheckCircle
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 // =============================================================================
 // DEMO COMPONENT
@@ -315,7 +316,7 @@ export function SynchronizedPlatformDemo() {
                             <div key={event.id} className="p-3 bg-slate-800/30 rounded-lg">
                               <p className="text-sm font-medium text-white">{event.name}</p>
                               <p className="text-xs text-slate-400">
-                                {new Date(event.event_date).toLocaleDateString()} • {event.venue_name}
+                                {formatSafeDate(event.event_date)} • {event.venue_name}
                               </p>
                             </div>
                           ))}

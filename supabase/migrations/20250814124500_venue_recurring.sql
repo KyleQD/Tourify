@@ -75,6 +75,7 @@ DECLARE
   t RECORD;
   d DATE;
   count_inserted INTEGER := 0;
+  batch INTEGER;
   slot_start_ts TIMESTAMPTZ;
   slot_end_ts TIMESTAMPTZ;
 BEGIN
@@ -92,7 +93,8 @@ BEGIN
       INSERT INTO venue_booking_slots (venue_id, template_id, slot_start, slot_end)
       VALUES (t.venue_id, t.id, slot_start_ts, slot_end_ts)
       ON CONFLICT (venue_id, slot_start) DO NOTHING;
-      GET DIAGNOSTICS count_inserted = count_inserted + ROW_COUNT;
+      GET DIAGNOSTICS batch = ROW_COUNT;
+      count_inserted := count_inserted + batch;
     END IF;
     d := d + INTERVAL '1 day';
   END LOOP;

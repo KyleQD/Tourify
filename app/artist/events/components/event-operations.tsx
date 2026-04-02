@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Plus, Users, Settings, ClipboardList, AlertTriangle } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export interface StaffMember {
   id: string
@@ -97,7 +98,7 @@ export function EventOperations({ staff, tasks, equipment, onAddStaff, onAddTask
                 <div key={task.id} className="flex items-center justify-between">
                   <div>
                     <div className="text-sm text-white">{task.title}</div>
-                    <div className="text-xs text-slate-400">Due: {new Date(task.due_date).toLocaleDateString()}</div>
+                    <div className="text-xs text-slate-400">Due: {formatSafeDate(task.due_date)}</div>
                   </div>
                   <Badge variant={
                     task.priority === 'high' ? 'destructive' :
@@ -154,7 +155,7 @@ export function EventOperations({ staff, tasks, equipment, onAddStaff, onAddTask
                   <div>
                     <div className="text-sm font-medium text-white">{task.title}</div>
                     <div className="text-xs text-slate-400">
-                      Assigned to: {task.assigned_to} &middot; Due: {new Date(task.due_date).toLocaleDateString()}
+                      Assigned to: {task.assigned_to} &middot; Due: {formatSafeDate(task.due_date)}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

@@ -226,22 +226,66 @@ class VenueService {
       const { data, error } = await this.supabase
         .rpc('get_venue_dashboard_stats', { p_venue_id: venueId })
 
-      if (error) {
-        console.error('Error fetching venue stats:', error)
-        // Return default stats if function fails
-        return {
-          totalBookings: 0,
-          pendingRequests: 0,
-          thisMonthRevenue: 0,
-          averageRating: 0,
-          totalReviews: 0,
-          teamMembers: 0,
-          upcomingEvents: 0
-        }
+      if (!error && data) {
+        this.setCache(`stats_${venueId}`, data)
+        return data
       }
 
-      this.setCache(`stats_${venueId}`, data)
-      return data
+      console.error('Error fetching venue stats:', error)
+
+      // Fallback stats from direct tables when RPC is unavailable
+      const nowIso = new Date().toISOString()
+      const [approvedBookings, pendingRequests, reviewStats, teamMembers, eventsV2Count, legacyEventsCount] =
+        await Promise.all([
+          this.supabase
+            .from('venue_booking_requests')
+            .select('id', { count: 'exact', head: true })
+            .eq('venue_id', venueId)
+            .eq('status', 'approved'),
+          this.supabase
+            .from('venue_booking_requests')
+            .select('id', { count: 'exact', head: true })
+            .eq('venue_id', venueId)
+            .eq('status', 'pending'),
+          this.supabase
+            .from('venue_reviews')
+            .select('rating')
+            .eq('venue_id', venueId),
+          this.supabase
+            .from('venue_team_members')
+            .select('id', { count: 'exact', head: true })
+            .eq('venue_id', venueId)
+            .eq('status', 'active'),
+          this.supabase
+            .from('events_v2')
+            .select('id', { count: 'exact', head: true })
+            .eq('venue_id', venueId)
+            .gte('start_at', nowIso),
+          this.supabase
+            .from('events')
+            .select('id', { count: 'exact', head: true })
+            .eq('venue_id', venueId)
+            .gte('start_date', nowIso),
+        ])
+
+      const ratings = reviewStats.data || []
+      const averageRating =
+        ratings.length > 0
+          ? Number((ratings.reduce((sum, r: any) => sum + (Number(r.rating) || 0), 0) / ratings.length).toFixed(2))
+          : 0
+
+      const fallbackStats: VenueDashboardStats = {
+        totalBookings: approvedBookings.count || 0,
+        pendingRequests: pendingRequests.count || 0,
+        thisMonthRevenue: 0,
+        averageRating,
+        totalReviews: ratings.length,
+        teamMembers: teamMembers.count || 0,
+        upcomingEvents: (eventsV2Count.count || 0) + (legacyEventsCount.count || 0),
+      }
+
+      this.setCache(`stats_${venueId}`, fallbackStats)
+      return fallbackStats
     } catch (error) {
       console.error('Error in getVenueDashboardStats:', error)
       return {
@@ -449,6 +493,25 @@ class VenueService {
       const cached = this.getFromCache<any[]>(`upcoming_${venueId}`)
       if (cached) return cached
 
+      const nowIso = new Date().toISOString()
+      const { data: v2Data, error: v2Error } = await this.supabase
+        .from('events_v2')
+        .select('id, title, start_at, end_at, status, venue_id, settings')
+        .eq('venue_id', venueId)
+        .gte('start_at', nowIso)
+        .order('start_at', { ascending: true })
+        .limit(10)
+
+      if (!v2Error && v2Data) {
+        const normalizedV2Events = v2Data.map((event: any) => ({
+          ...event,
+          date: event.start_at,
+          event_table: 'events_v2'
+        }))
+        this.setCache(`upcoming_${venueId}`, normalizedV2Events)
+        return normalizedV2Events
+      }
+
       const { data, error } = await this.supabase
         .from('events')
         .select(`
@@ -456,17 +519,22 @@ class VenueService {
           venue_booking_requests!inner(venue_id)
         `)
         .eq('venue_booking_requests.venue_id', venueId)
-        .gte('start_date', new Date().toISOString())
+        .gte('start_date', nowIso)
         .order('start_date', { ascending: true })
         .limit(10)
 
       if (error) {
-        console.error('Error fetching upcoming events:', error)
+        console.error('Error fetching upcoming events:', v2Error || error)
         return []
       }
 
-      this.setCache(`upcoming_${venueId}`, data || [])
-      return data || []
+      const normalizedLegacyEvents = (data || []).map((event: any) => ({
+        ...event,
+        date: event.date || event.start_date || event.event_date || null,
+        event_table: 'events'
+      }))
+      this.setCache(`upcoming_${venueId}`, normalizedLegacyEvents)
+      return normalizedLegacyEvents
     } catch (error) {
       console.error('Error in getUpcomingEvents:', error)
       return []
@@ -526,8 +594,17 @@ class VenueService {
       const cached = this.getFromCache<any[]>(cacheKey)
       if (cached) return cached
 
-      // Prefer venue_id filter when available
-      const { data, error } = await this.supabase
+      const { data: v2Data, error: v2Error } = await this.supabase
+        .from('events_v2')
+        .select('id, title, start_at, end_at, status, venue_id, settings')
+        .eq('venue_id', venueId)
+        .gte('start_at', rangeStartIso)
+        .lte('start_at', rangeEndIso)
+        .order('start_at', { ascending: true })
+
+      let legacyData: any[] = []
+      let legacyError: any = null
+      const legacyDateQuery = await this.supabase
         .from('events')
         .select('*')
         .eq('venue_id', venueId)
@@ -535,13 +612,46 @@ class VenueService {
         .lte('date', rangeEndIso)
         .order('date', { ascending: true })
 
-      if (error) {
-        console.error('Error fetching venue events range:', error)
+      if (legacyDateQuery.error) {
+        const legacyStartDateQuery = await this.supabase
+          .from('events')
+          .select('*')
+          .eq('venue_id', venueId)
+          .gte('start_date', rangeStartIso)
+          .lte('start_date', rangeEndIso)
+          .order('start_date', { ascending: true })
+        legacyData = legacyStartDateQuery.data || []
+        legacyError = legacyStartDateQuery.error
+      } else {
+        legacyData = legacyDateQuery.data || []
+      }
+
+      if (v2Error && legacyError) {
+        console.error('Error fetching venue events range:', v2Error, legacyError)
         return []
       }
 
-      this.setCache(cacheKey, data || [])
-      return data || []
+      const normalizedV2Events = (v2Data || []).map((event: any) => ({
+        ...event,
+        date: event.start_at,
+        event_table: 'events_v2'
+      }))
+
+      const normalizedLegacyEvents = legacyData.map((event: any) => ({
+        ...event,
+        title: event.title || event.name || 'Event',
+        date: event.date || event.start_date || event.event_date || null,
+        event_table: 'events'
+      }))
+
+      const combinedEvents = [...normalizedV2Events, ...normalizedLegacyEvents].sort((a, b) => {
+        const firstTime = a.date ? new Date(a.date).getTime() : Number.MAX_SAFE_INTEGER
+        const secondTime = b.date ? new Date(b.date).getTime() : Number.MAX_SAFE_INTEGER
+        return firstTime - secondTime
+      })
+
+      this.setCache(cacheKey, combinedEvents)
+      return combinedEvents
     } catch (error) {
       console.error('Error in getVenueEventsByRange:', error)
       return []

@@ -24,6 +24,7 @@ import {
   Calendar,
   Clock
 } from "lucide-react"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface LogisticsStepProps {
   tourData: {
@@ -555,7 +556,7 @@ export function LogisticsStep({ tourData, updateTourData }: LogisticsStepProps) 
                   </div>
                   <div className="flex items-center space-x-2 text-sm text-slate-400">
                     <DollarSign className="w-3 h-3" />
-                    <span>${item.cost.toLocaleString()}</span>
+                    <span>{formatSafeCurrency(item.cost)}</span>
                   </div>
                 </div>
                 <div className="flex space-x-2">
@@ -617,20 +618,20 @@ export function LogisticsStep({ tourData, updateTourData }: LogisticsStepProps) 
         <div className="space-y-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Transportation:</span>
-            <span className="text-white">${tourData.transportation.cost.toLocaleString()}</span>
+            <span className="text-white">{formatSafeCurrency(tourData.transportation.cost)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Accommodation:</span>
-            <span className="text-white">${tourData.accommodation.cost.toLocaleString()}</span>
+            <span className="text-white">{formatSafeCurrency(tourData.accommodation.cost)}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Equipment:</span>
-            <span className="text-white">${tourData.equipment.reduce((sum, item) => sum + item.cost, 0).toLocaleString()}</span>
+            <span className="text-white">{formatSafeCurrency(tourData.equipment.reduce((sum, item) => sum + item.cost, 0))}</span>
           </div>
           <div className="border-t border-slate-700 pt-3">
             <div className="flex justify-between font-semibold">
               <span className="text-white">Total Logistics Cost:</span>
-              <span className="text-green-400">${totalLogisticsCost.toLocaleString()}</span>
+              <span className="text-green-400">{formatSafeCurrency(totalLogisticsCost)}</span>
             </div>
           </div>
         </div>

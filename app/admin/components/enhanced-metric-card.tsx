@@ -156,7 +156,7 @@ export function EnhancedMetricCard({
             {lastUpdated && (
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Last updated</span>
-                <span>{lastUpdated.toLocaleTimeString()}</span>
+                <span>{new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastUpdated)}</span>
               </div>
             )}
           </div>

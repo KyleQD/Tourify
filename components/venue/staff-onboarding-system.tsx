@@ -16,6 +16,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Switch } from "@/components/ui/switch"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   Users,
   Plus,
@@ -408,7 +409,7 @@ export default function StaffOnboardingSystem() {
                         <span className="text-sm text-white capitalize">{candidate.stage.replace('_', ' ')}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs text-slate-400">
-                        <span>Applied: {new Date(candidate.applicationDate).toLocaleDateString()}</span>
+                        <span>Applied: {formatSafeDate(candidate.applicationDate)}</span>
                         <span className="capitalize">{candidate.status}</span>
                       </div>
                     </div>

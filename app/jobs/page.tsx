@@ -3,10 +3,10 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
+import { Tabs, TabsContent, TabsTrigger } from '@/components/ui/tabs'
+import { SurfaceCard, SurfaceHero, SurfaceTabsList } from '@/components/surface/surface-primitives'
 import { JobCard } from '@/components/artist-jobs/job-card'
 import { JobFilters } from '@/components/artist-jobs/job-filters'
 import { JobPostingModal } from '@/components/artist-jobs/job-posting-modal'
@@ -41,10 +41,14 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useMultiAccount } from '@/hooks/use-multi-account'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function JobsPage() {
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
+  const router = useRouter()
+  const { toast } = useToast()
   const [jobs, setJobs] = useState<ArtistJob[]>([])
   const [collaborations, setCollaborations] = useState<ArtistJob[]>([])
   const [categories, setCategories] = useState<ArtistJobCategory[]>([])
@@ -136,6 +140,11 @@ export default function JobsPage() {
       }
     } catch (error) {
       console.error('Error fetching saved jobs:', error)
+      toast({
+        title: 'Unable to load saved jobs',
+        description: 'Please refresh and try again.',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -173,10 +182,16 @@ export default function JobsPage() {
     if (!user) return
     setIsLoading(true)
     try {
-      // TODO: Implement user applications endpoint
-      setUserApplications([])
+      const response = await fetch('/api/artist-jobs/applications?format=cards')
+      const data = await response.json()
+      if (data.success) setUserApplications(data.data || [])
     } catch (error) {
       console.error('Error fetching user applications:', error)
+      toast({
+        title: 'Unable to load applications',
+        description: 'Please refresh and try again.',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -224,6 +239,11 @@ export default function JobsPage() {
       }
     } catch (error) {
       console.error('Error saving job:', error)
+      toast({
+        title: 'Save failed',
+        description: 'Could not save this job right now.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -244,13 +264,50 @@ export default function JobsPage() {
       }
     } catch (error) {
       console.error('Error unsaving job:', error)
+      toast({
+        title: 'Update failed',
+        description: 'Could not remove this saved job right now.',
+        variant: 'destructive',
+      })
     }
   }
 
   const handleApplyToJob = async (jobId: string) => {
-    if (!user) return
-    // TODO: Implement job application flow
-    console.log('Apply to job:', jobId)
+    if (!user?.email) {
+      router.push('/login')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/artist-jobs/${jobId}/applications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          job_id: jobId,
+          contact_email: user.email,
+          preferred_contact_method: 'email',
+        }),
+      })
+
+      const data = await response.json()
+      if (!data.success) throw new Error(data.error || 'Failed to apply to job')
+      await fetchJobs()
+      await fetchUserApplications()
+      setActiveTab('applications')
+      toast({
+        title: 'Application submitted',
+        description: 'Your application is now visible in the Applications tab.',
+      })
+    } catch (error) {
+      console.error('Error applying to job:', error)
+      toast({
+        title: 'Application failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleJobCreated = (newJob: any) => {
@@ -294,6 +351,15 @@ export default function JobsPage() {
       page: 1,
       per_page: 20
     })
+  }
+
+  const getStaffingJobHref = (job: any) => {
+    const id = job?.template_id || job?.id
+    if (!id) return null
+    if (typeof id !== 'string') return null
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
+    if (!isUuid) return null
+    return `/jobs/${id}`
   }
 
   const getDisplayJobs = () => {
@@ -347,47 +413,49 @@ export default function JobsPage() {
       <div className="max-w-7xl mx-auto p-6 relative z-10">
         {/* Header */}
         <motion.div 
-          className="flex items-center justify-between mb-8"
+          className="mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className="flex items-center gap-4">
-            <motion.div 
-              className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-600 flex items-center justify-center shadow-2xl border border-white/10"
-              whileHover={{ 
-                rotate: 360,
-                scale: 1.1,
-                transition: { duration: 0.6, ease: "easeInOut" }
-              }}
-            >
-              <Briefcase className="w-8 h-8 text-white drop-shadow-sm" />
-            </motion.div>
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-300 bg-clip-text text-transparent">
-                Jobs & Opportunities
-              </h1>
-              <p className="text-slate-300 text-lg mt-1">
-                Find gigs, collaborations, and music industry opportunities
-              </p>
+          <SurfaceHero className="flex items-center justify-between p-6">
+            <div className="flex items-center gap-4">
+              <motion.div 
+                className="h-16 w-16 rounded-2xl bg-gradient-to-br from-purple-500 via-fuchsia-500 to-pink-600 flex items-center justify-center shadow-2xl border border-white/10"
+                whileHover={{ 
+                  rotate: 360,
+                  scale: 1.1,
+                  transition: { duration: 0.6, ease: "easeInOut" }
+                }}
+              >
+                <Briefcase className="w-8 h-8 text-white drop-shadow-sm" />
+              </motion.div>
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-slate-200 to-slate-300 bg-clip-text text-transparent">
+                  Jobs & Opportunities
+                </h1>
+                <p className="text-slate-300 text-lg mt-1">
+                  Find paid roles, build collaborations, and move faster on real opportunities.
+                </p>
+              </div>
             </div>
-          </div>
-          <motion.div
-            whileHover={{ 
-              y: -4, 
-              scale: 1.05,
-              transition: { type: "spring", stiffness: 400, damping: 17 }
-            }}
-            className="group"
-          >
-            <Button
-              onClick={() => setIsJobModalOpen(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 shadow-xl hover:shadow-purple-500/25 transition-all duration-300 rounded-xl px-6 py-3"
+            <motion.div
+              whileHover={{ 
+                y: -4, 
+                scale: 1.05,
+                transition: { type: "spring", stiffness: 400, damping: 17 }
+              }}
+              className="group"
             >
-              <Plus className="h-5 w-5 mr-2" />
-              Post a Job
-            </Button>
-          </motion.div>
+              <Button
+                onClick={() => setIsJobModalOpen(true)}
+                className="rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-3 text-white shadow-xl transition-all duration-300 hover:from-purple-600 hover:to-pink-600 hover:shadow-purple-500/25"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Post a Job
+              </Button>
+            </motion.div>
+          </SurfaceHero>
         </motion.div>
 
         {/* Featured Jobs */}
@@ -398,7 +466,7 @@ export default function JobsPage() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="mb-8"
           >
-            <Card className="bg-gradient-to-r from-slate-800/50 to-slate-900/50 border border-slate-700/50 backdrop-blur-xl shadow-2xl">
+            <SurfaceCard className="bg-gradient-to-r from-slate-800/50 to-slate-900/50 shadow-2xl">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
                   <Star className="h-6 w-6 text-yellow-400" />
@@ -427,7 +495,7 @@ export default function JobsPage() {
                   ))}
                 </div>
               </CardContent>
-            </Card>
+            </SurfaceCard>
           </motion.div>
         )}
 
@@ -450,7 +518,7 @@ export default function JobsPage() {
                 transition: { type: "spring", stiffness: 400, damping: 17 }
               }}
             >
-              <Card className="bg-slate-800/30 border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/50 transition-all duration-300">
+              <SurfaceCard className="bg-slate-800/30 backdrop-blur-sm transition-all duration-300 hover:bg-slate-800/50">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div>
@@ -469,7 +537,7 @@ export default function JobsPage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </SurfaceCard>
             </motion.div>
           ))}
         </motion.div>
@@ -504,7 +572,7 @@ export default function JobsPage() {
             transition={{ duration: 0.5, delay: 0.6 }}
           >
             <Tabs value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="grid w-full grid-cols-5 mb-6 bg-slate-800/50 backdrop-blur-xl border border-slate-700/30 rounded-xl p-1">
+              <SurfaceTabsList className="mb-6 grid w-full grid-cols-5 backdrop-blur-xl">
                 <TabsTrigger 
                   value="all" 
                   className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white transition-all duration-300"
@@ -540,7 +608,7 @@ export default function JobsPage() {
                 <Briefcase className="h-4 w-4 mr-2" />
                 Staffing
               </TabsTrigger>
-              </TabsList>
+              </SurfaceTabsList>
 
               <TabsContent value={activeTab} className="space-y-4">
                 <AnimatePresence mode="wait">
@@ -577,8 +645,8 @@ export default function JobsPage() {
                           }}
                         >
                           {activeTab === 'staffing' ? (
-                            <a href={`/jobs/${(job as any).template_id || (job as any).id}`} className="block">
-                              <Card className="bg-slate-800/30 border-slate-700/50 hover:bg-slate-800/50 transition-all duration-300">
+                            <a href={getStaffingJobHref(job as any) || '#'} className="block">
+                              <SurfaceCard className="bg-slate-800/30 transition-all duration-300 hover:bg-slate-800/50">
                                 <CardHeader className="pb-2">
                                   <CardTitle className="text-white flex items-center gap-2">
                                     <Briefcase className="h-5 w-5 text-purple-400" />
@@ -588,29 +656,34 @@ export default function JobsPage() {
                                 <CardContent className="text-slate-300 text-sm">
                                   <div className="flex flex-wrap items-center gap-3">
                                     {(job as any).organization_name && (
-                                      <Badge variant="secondary" className="bg-slate-700/50 border-slate-600/50 rounded-lg">
+                                      <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
                                         <Building2 className="h-3.5 w-3.5 mr-1" />
                                         {(job as any).organization_name}
                                       </Badge>
                                     )}
                                     {(job as any).location && (
-                                      <Badge variant="secondary" className="bg-slate-700/50 border-slate-600/50 rounded-lg">
+                                      <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
                                         <MapPin className="h-3.5 w-3.5 mr-1" />
                                         {(job as any).location}
                                       </Badge>
                                     )}
                                     {(job as any).experience_level && (
-                                      <Badge variant="secondary" className="bg-slate-700/50 border-slate-600/50 rounded-lg">
+                                      <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
                                         <Target className="h-3.5 w-3.5 mr-1" />
                                         {(job as any).experience_level}
                                       </Badge>
                                     )}
                                     {(job as any).urgent && (
-                                      <Badge className="bg-red-600/20 text-red-300 border-red-600/30 rounded-lg">Urgent</Badge>
+                                      <Badge className="rounded-lg border-red-600/30 bg-red-600/20 text-red-300">Urgent</Badge>
                                     )}
                                   </div>
+                                  {!getStaffingJobHref(job as any) && (
+                                    <p className="text-xs text-amber-300 mt-3">
+                                      This posting is syncing. Details will be available shortly.
+                                    </p>
+                                  )}
                                 </CardContent>
-                              </Card>
+                              </SurfaceCard>
                             </a>
                           ) : (
                             <JobCard
@@ -636,21 +709,21 @@ export default function JobsPage() {
                           <Briefcase className="h-12 w-12 text-slate-400" />
                         </div>
                         <h3 className="text-xl font-semibold text-white mb-2">
-                          {activeTab === 'saved' ? 'No Saved Jobs' : 
-                           activeTab === 'applications' ? 'No Applications' : 
-                           activeTab === 'collaborations' ? 'No Collaborations Found' :
-                           'No Jobs Found'}
+                          {activeTab === 'saved' ? 'No saved roles yet' : 
+                           activeTab === 'applications' ? 'No applications yet' : 
+                           activeTab === 'collaborations' ? 'No collaboration roles found' :
+                           'No roles found'}
                         </h3>
                         <p className="text-slate-400 mb-6">
-                          {activeTab === 'saved' ? 'Jobs you save will appear here' : 
-                           activeTab === 'applications' ? 'Your job applications will appear here' : 
-                           activeTab === 'collaborations' ? 'No collaboration opportunities available. Check back later or post your own!' :
-                           'Try adjusting your filters or check back later for new opportunities'}
+                          {activeTab === 'saved' ? 'Saved roles show up here for quick follow-up.' : 
+                           activeTab === 'applications' ? 'Your submitted applications will appear here.' : 
+                           activeTab === 'collaborations' ? 'No collaboration opportunities are live right now. Check back soon or post one.' :
+                           'Adjust filters or check back soon for fresh opportunities.'}
                         </p>
                         {activeTab === 'all' && (
                           <Button
                             onClick={() => setIsJobModalOpen(true)}
-                            className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
+                            className="rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600"
                           >
                             <Plus className="h-4 w-4 mr-2" />
                             Post a Job

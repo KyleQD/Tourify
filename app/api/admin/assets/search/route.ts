@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export const GET = withAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
     const url = new URL(request.url)
     const q = url.searchParams.get('q') || ''

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Image from 'next/image'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface ContentItem {
   id: string
@@ -202,7 +203,7 @@ export function VirtualizedContentList({
                         {item.metadata?.date && (
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            <span>{new Date(item.metadata.date).toLocaleDateString()}</span>
+                            <span>{formatSafeDate(item.metadata.date)}</span>
                           </div>
                         )}
                         <div className="flex items-center gap-1">

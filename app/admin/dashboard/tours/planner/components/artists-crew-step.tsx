@@ -17,6 +17,7 @@ import {
   Calendar,
   CheckCircle
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface ArtistsCrewStepProps {
   tourData: {
@@ -368,7 +369,7 @@ export function ArtistsCrewStep({ tourData, updateTourData }: ArtistsCrewStepPro
                 <div className="mb-3">
                   <h5 className="font-medium text-white">{event.name}</h5>
                   <p className="text-sm text-slate-400">
-                    {new Date(event.date).toLocaleDateString()} at {event.venue}
+                    {formatSafeDate(event.date)} at {event.venue}
                   </p>
                 </div>
                 

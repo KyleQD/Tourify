@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withAuth } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export const GET = withAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
     const { pathname } = new URL(request.url)
     const parts = pathname.split('/')

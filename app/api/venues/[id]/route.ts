@@ -116,15 +116,67 @@ export async function GET(
       upcoming_events: 0
     }
 
-    // Get recent events at this venue
-    const { data: recentEvents } = await supabase
-      .from('events')
-      .select('id, title, description, event_date, event_time, ticket_price, status')
-      .eq('venue_id', venue.id)
-      .eq('status', 'published')
-      .gte('event_date', new Date().toISOString())
-      .order('event_date', { ascending: true })
-      .limit(5)
+    const today = new Date().toISOString().slice(0, 10)
+
+    // Get recent/upcoming events at this venue from legacy + canonical tables
+    const [legacyEventsResult, v2EventsResult] = await Promise.all([
+      supabase
+        .from('events')
+        .select('id, title, name, description, event_date, event_time, ticket_price, status, start_date, date')
+        .eq('venue_id', venue.id)
+        .in('status', ['published', 'scheduled', 'confirmed', 'in_progress'])
+        .order('event_date', { ascending: true })
+        .limit(8),
+      supabase
+        .from('events_v2')
+        .select('id, title, status, start_at, settings')
+        .contains('settings', { venue_profile_id: venue.id })
+        .in('status', ['confirmed', 'advancing', 'onsite'])
+        .gte('start_at', new Date().toISOString())
+        .order('start_at', { ascending: true })
+        .limit(8),
+    ])
+
+    const legacyEvents = (legacyEventsResult.data || [])
+      .filter((event: any) => {
+        const dateKey = event.event_date || event.start_date || event.date || null
+        if (!dateKey) return false
+        return String(dateKey).slice(0, 10) >= today
+      })
+      .map((event: any) => ({
+        id: event.id,
+        title: event.title || event.name || 'Event',
+        description: event.description || null,
+        event_date: event.event_date || event.start_date || event.date || null,
+        event_time: event.event_time || null,
+        ticket_price: event.ticket_price || null,
+        status: event.status || 'scheduled',
+        event_table: 'events'
+      }))
+
+    const v2Events = (v2EventsResult.data || []).map((event: any) => {
+      const settings = event.settings && typeof event.settings === 'object'
+        ? (event.settings as Record<string, unknown>)
+        : {}
+      return {
+        id: event.id,
+        title: event.title || 'Event',
+        description: typeof settings.description === 'string' ? settings.description : null,
+        event_date: event.start_at ? String(event.start_at).slice(0, 10) : null,
+        event_time: event.start_at ? String(event.start_at).slice(11, 16) : null,
+        ticket_price: typeof settings.ticket_price === 'number' ? settings.ticket_price : null,
+        status: event.status || 'confirmed',
+        event_table: 'events_v2'
+      }
+    })
+
+    const recentEvents = [...legacyEvents, ...v2Events]
+      .sort((a, b) => {
+        const firstDate = a.event_date ? new Date(a.event_date).getTime() : Number.MAX_SAFE_INTEGER
+        const secondDate = b.event_date ? new Date(b.event_date).getTime() : Number.MAX_SAFE_INTEGER
+        return firstDate - secondDate
+      })
+      .slice(0, 5)
 
     // Get venue stats from views table if it exists
     try {
@@ -140,7 +192,7 @@ export async function GET(
       stats.monthly_views = Math.floor(Math.random() * 1000) + 100
     }
 
-    stats.upcoming_events = recentEvents?.length || 0
+    stats.upcoming_events = recentEvents.length
 
     // Get user profile info if available
     let userProfile = null
@@ -160,11 +212,18 @@ export async function GET(
       }
     }
 
+    const upcomingEvents = recentEvents.map((event) => ({
+      ...event,
+      date: event.event_date,
+      eventDate: event.event_date,
+    }))
+
     const enhancedVenue = {
       ...venue,
       tagline: venue.description?.split('.')[0] || '',
       stats,
       recent_events: recentEvents || [],
+      upcomingEvents,
       user_profile: userProfile,
       // Generate a URL-friendly slug
       url_slug: venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || venue.id
@@ -208,13 +267,23 @@ export async function PUT(
     }
 
     // Update venue profile
+    const updateFields: any = {
+      ...body,
+      updated_at: new Date().toISOString(),
+    }
+
+    if (typeof body?.venue_name === 'string' && body.venue_name.trim()) {
+      updateFields.url_slug = body.venue_name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    }
+
     const { data: updatedVenue, error: updateError } = await supabase
       .from('venue_profiles')
-      .update({
-        ...body,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updateFields)
       .eq('id', params.id)
+      .eq('user_id', user.id)
       .select()
       .single()
 

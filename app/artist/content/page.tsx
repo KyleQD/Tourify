@@ -31,6 +31,7 @@ import { ArtistAnalyticsOverview } from '@/components/dashboard/artist-analytics
 import { ScheduledPostsPanel } from '@/components/cross-platform/scheduled-posts-panel'
 import { HashtagGroupsPanel } from '@/components/cross-platform/hashtag-groups-panel'
 import { CrossPlatformAnalyticsOverview } from '@/components/cross-platform/analytics-overview'
+import { buildAnalyticsDataFromArtistStats } from '@/lib/artist/build-analytics-from-stats'
 
 interface ContentFeature {
   label: string
@@ -165,6 +166,7 @@ export default function ContentDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
   const { stats } = useArtist()
+  const analyticsData = useMemo(() => buildAnalyticsDataFromArtistStats(stats), [stats])
 
   const contentFeatures: ContentFeature[] = useMemo(() => {
     const totals = {
@@ -434,7 +436,7 @@ export default function ContentDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.7 }}
         >
-          <ArtistAnalyticsOverview />
+          <ArtistAnalyticsOverview data={analyticsData} />
         </motion.div>
 
         {/* Cross-platform Analytics */}

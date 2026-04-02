@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { Users } from "lucide-react"
 import type { VenueEvent } from "@/app/venue/lib/hooks/use-venue-events"
+import { formatSafeTime } from "@/lib/events/admin-event-normalization"
 import DetailsTab from "./details-tab"
 import AttendeesTab from "./attendees-tab"
 import EquipmentTab from "./equipment-tab"
@@ -32,8 +33,8 @@ export default function EventTabs({ event }: EventTabsProps) {
     ticketPrice: undefined,
     location: event.location,
     date: event.startDate,
-    startTime: new Date(event.startDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    endTime: new Date(event.endDate).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    startTime: formatSafeTime(event.startDate),
+    endTime: formatSafeTime(event.endDate),
     type: event.type,
     status: event.isPublic ? "public" : "private",
   }

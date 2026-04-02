@@ -573,7 +573,7 @@ export function AutomatedSetupWorkflows({ vendorId, siteMapId }: AutomatedSetupW
                   <div className="text-right text-sm text-gray-600">
                     <p>Team: {execution.teamMembers.length} members</p>
                     {execution.estimatedCompletion && (
-                      <p>ETA: {new Date(execution.estimatedCompletion).toLocaleTimeString()}</p>
+                      <p>ETA: {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(execution.estimatedCompletion))}</p>
                     )}
                   </div>
                 </div>

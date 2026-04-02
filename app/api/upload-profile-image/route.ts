@@ -24,6 +24,12 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
+    if (!['avatar', 'header'].includes(type)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid upload type' },
+        { status: 400 }
+      )
+    }
 
     console.log('Uploading profile image:', { type, fileName: file.name, size: file.size })
 
@@ -45,59 +51,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the storage bucket if it doesn't exist
+    // Storage bucket must be provisioned through setup/migrations, not user uploads
     const { data: buckets } = await supabase.storage.listBuckets()
     const profileImagesBucket = buckets?.find((b: any) => b.name === 'profile-images')
     
     if (!profileImagesBucket) {
-      console.log('Creating profile-images bucket...')
-      const { error: bucketError } = await supabase.storage.createBucket('profile-images', {
-        public: true,
-        fileSizeLimit: maxSize,
-        allowedMimeTypes: acceptedTypes
-      })
-      
-      if (bucketError) {
-        console.error('Bucket creation error:', bucketError)
-        return NextResponse.json(
-          { success: false, error: 'Failed to create storage bucket' },
-          { status: 500 }
-        )
-      }
-    }
-
-    // Add header_url column to profiles table if it doesn't exist
-    const { error: columnError } = await supabase.rpc('exec_sql', {
-      sql_query: `
-        DO $$ 
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM information_schema.columns 
-                WHERE table_name = 'profiles' AND column_name = 'header_url'
-            ) THEN
-                ALTER TABLE profiles ADD COLUMN header_url TEXT;
-                RAISE NOTICE 'Added header_url column to profiles table';
-            ELSE
-                RAISE NOTICE 'header_url column already exists';
-            END IF;
-        END $$;
-      `
-    })
-
-    if (columnError) {
-      console.error('Column addition error:', columnError)
-      // Try alternative approach - check if column exists first
-      const { data: columns, error: checkError } = await supabase
-        .from('information_schema.columns')
-        .select('column_name')
-        .eq('table_name', 'profiles')
-        .eq('column_name', 'header_url')
-
-      if (checkError) {
-        console.error('Column check error:', checkError)
-      } else if (!columns || columns.length === 0) {
-        console.log('header_url column does not exist, will use metadata approach')
-      }
+      return NextResponse.json(
+        { success: false, error: 'Storage is not configured. Contact support.' },
+        { status: 503 }
+      )
     }
 
     // Generate file path
@@ -133,9 +95,6 @@ export async function POST(request: NextRequest) {
 
     console.log('Upload successful:', publicUrl)
 
-    // Try to update profile with image URL
-    let profileUpdateSuccess = false
-    
     // First, try updating the specific column
     const updateData = type === 'avatar' 
       ? { avatar_url: publicUrl }
@@ -180,7 +139,6 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           )
         } else {
-          profileUpdateSuccess = true
           console.log('Profile updated successfully using metadata approach')
           console.log('Header URL saved to metadata:', publicUrl)
           // Best-effort: try to set cover_image in case migration ran after first attempt
@@ -195,9 +153,6 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
-    } else {
-      profileUpdateSuccess = true
-      console.log('Profile updated successfully using direct column approach')
     }
 
     return NextResponse.json({

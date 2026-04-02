@@ -20,6 +20,7 @@ import {
   Target,
   Zap
 } from "lucide-react"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 
 // Event Status Badge Component
 export function EventStatusBadge({ status }: { status: string }) {
@@ -209,16 +210,16 @@ export function BudgetCategoryCard({
       <CardContent className="space-y-3">
         <div className="flex justify-between text-sm">
           <span className="text-slate-400">Spent</span>
-          <span className="text-white">${category.spent.toLocaleString()}</span>
+          <span className="text-white">{formatSafeCurrency(category.spent)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-slate-400">Allocated</span>
-          <span className="text-white">${category.allocated.toLocaleString()}</span>
+          <span className="text-white">{formatSafeCurrency(category.allocated)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-slate-400">Remaining</span>
           <span className={`${remaining >= 0 ? "text-green-400" : "text-red-400"}`}>
-            ${remaining.toLocaleString()}
+            {formatSafeCurrency(remaining)}
           </span>
         </div>
         <Progress 
@@ -248,19 +249,19 @@ export function CampaignMetrics({
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <div className="text-center p-3 rounded-lg bg-slate-800/30 border border-slate-700">
-        <div className="text-2xl font-bold text-blue-400">{metrics.reach.toLocaleString()}</div>
+        <div className="text-2xl font-bold text-blue-400">{formatSafeNumber(metrics.reach)}</div>
         <div className="text-xs text-slate-400">Reach</div>
       </div>
       <div className="text-center p-3 rounded-lg bg-slate-800/30 border border-slate-700">
-        <div className="text-2xl font-bold text-green-400">{metrics.engagement.toLocaleString()}</div>
+        <div className="text-2xl font-bold text-green-400">{formatSafeNumber(metrics.engagement)}</div>
         <div className="text-xs text-slate-400">Engagement</div>
       </div>
       <div className="text-center p-3 rounded-lg bg-slate-800/30 border border-slate-700">
-        <div className="text-2xl font-bold text-yellow-400">{metrics.clicks.toLocaleString()}</div>
+        <div className="text-2xl font-bold text-yellow-400">{formatSafeNumber(metrics.clicks)}</div>
         <div className="text-xs text-slate-400">Clicks</div>
       </div>
       <div className="text-center p-3 rounded-lg bg-slate-800/30 border border-slate-700">
-        <div className="text-2xl font-bold text-purple-400">{metrics.conversions.toLocaleString()}</div>
+        <div className="text-2xl font-bold text-purple-400">{formatSafeNumber(metrics.conversions)}</div>
         <div className="text-xs text-slate-400">Conversions</div>
       </div>
     </div>

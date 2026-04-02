@@ -31,6 +31,7 @@ import {
   VenuePermission,
   PermissionName
 } from '@/types/database.types'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface UserRoleAssignmentProps {
   venueId: string
@@ -398,7 +399,7 @@ export function UserRoleAssignment({ venueId }: UserRoleAssignmentProps) {
                             {role.expires_at && (
                               <Badge variant="outline" className="text-xs">
                                 <Clock className="mr-1 h-3 w-3" />
-                                Expires {new Date(role.expires_at).toLocaleDateString()}
+                                Expires {formatSafeDate(role.expires_at)}
                               </Badge>
                             )}
                           </div>

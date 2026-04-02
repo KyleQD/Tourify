@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { SiteMap, SiteMapZone, GlampingTent } from "@/types/site-map"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface MobileSiteMapViewerProps {
   siteMapId: string
@@ -575,8 +576,8 @@ export function MobileSiteMapViewer({
                 {(selectedItem.checkInDate || selectedItem.checkOutDate) && (
                   <div className="flex items-center gap-1 text-sm">
                     <Clock className="h-4 w-4" />
-                    {selectedItem.checkInDate && new Date(selectedItem.checkInDate).toLocaleDateString()}
-                    {selectedItem.checkOutDate && ` - ${new Date(selectedItem.checkOutDate).toLocaleDateString()}`}
+                    {selectedItem.checkInDate && formatSafeDate(selectedItem.checkInDate)}
+                    {selectedItem.checkOutDate && ` - ${formatSafeDate(selectedItem.checkOutDate)}`}
                   </div>
                 )}
                 

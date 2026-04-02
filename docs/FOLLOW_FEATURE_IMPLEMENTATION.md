@@ -28,7 +28,7 @@ The follow functionality and personal feed system have been successfully impleme
 
 | Feed Type | Location | Content | Purpose |
 |-----------|----------|---------|---------|
-| **For You Feed** | `/feed` page | All public posts from all accounts | Discovery and exploration |
+| **News Feed** | `/feed` page | All public posts from all accounts | Discovery and exploration |
 | **Personal Feed** | Home page "following" tab | Posts from followed accounts only | Personalized content |
 
 ## 🚀 How to Test
@@ -45,7 +45,7 @@ The follow functionality and personal feed system have been successfully impleme
 3. You should see posts only from accounts you follow
 4. If you don't follow anyone, you'll see an empty feed
 
-### 3. **View For You Feed**
+### 3. **View News Feed**
 1. Navigate to `/feed`
 2. You should see all public posts from all accounts
 3. This includes posts from accounts you don't follow
@@ -124,7 +124,7 @@ POST /api/social/follow
 The follow feature is now fully functional! Users can:
 - Follow and unfollow accounts
 - View personalized feeds
-- Discover new content in the For You feed
+- Discover new content in the News feed
 - Enjoy a complete social media experience
 
 The implementation follows best practices for:

@@ -42,6 +42,7 @@ import {
   FileText,
   BarChart3,
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock data for equipment
 const equipmentData = [
@@ -541,7 +542,7 @@ export function EquipmentManagement() {
                       <TableCell>
                         <div className="font-medium">{item.name}</div>
                         <div className="text-sm text-muted-foreground">
-                          Last maintained: {new Date(item.lastMaintenance).toLocaleDateString()}
+                          Last maintained: {formatSafeDate(item.lastMaintenance)}
                         </div>
                       </TableCell>
                       <TableCell>{item.category}</TableCell>
@@ -621,7 +622,7 @@ export function EquipmentManagement() {
                               : "Chauvet Intimidator Spot 375Z"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Scheduled: {new Date(2025, 3, 15 + i * 5).toLocaleDateString()}
+                          Scheduled: {formatSafeDate(new Date(2025, 3, 15 + i * 5).toISOString())}
                         </p>
                       </div>
                     </div>
@@ -672,7 +673,7 @@ export function EquipmentManagement() {
                           Rented to: {i === 1 ? "Local Music Festival" : "Corporate Event"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Return due: {new Date(2025, 3, 20 + i * 3).toLocaleDateString()}
+                          Return due: {formatSafeDate(new Date(2025, 3, 20 + i * 3).toISOString())}
                         </p>
                       </div>
                     </div>

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Truck, Mail, Phone, DollarSign, Building2 } from "lucide-react"
 import { toast } from "sonner"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface TourVendor {
   id: string
@@ -269,7 +270,7 @@ export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVend
                       {vendor.contract_amount && (
                         <div className="flex items-center space-x-1">
                           <DollarSign className="h-3 w-3 text-slate-500" />
-                          <span className="text-xs text-slate-500">${vendor.contract_amount.toLocaleString()}</span>
+                          <span className="text-xs text-slate-500">{formatSafeCurrency(vendor.contract_amount)}</span>
                         </div>
                       )}
                     </div>

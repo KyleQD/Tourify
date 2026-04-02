@@ -188,7 +188,13 @@ export function MarketingHub() {
                             </Badge>
                             {campaign.scheduledFor && (
                               <span className="text-sm text-gray-500">
-                                Scheduled: {new Date(campaign.scheduledFor).toLocaleString()}
+                                Scheduled: {new Intl.DateTimeFormat("en-US", {
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }).format(new Date(campaign.scheduledFor))}
                               </span>
                             )}
                           </div>
@@ -235,7 +241,13 @@ export function MarketingHub() {
                             </Badge>
                             {post.scheduledFor && (
                               <span className="text-sm text-gray-500">
-                                Scheduled: {new Date(post.scheduledFor).toLocaleString()}
+                                Scheduled: {new Intl.DateTimeFormat("en-US", {
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }).format(new Date(post.scheduledFor))}
                               </span>
                             )}
                           </div>
@@ -284,7 +296,13 @@ export function MarketingHub() {
                                 {"title" in item ? item.title : item.content.substring(0, 30) + "..."}
                               </h4>
                               <p className="text-sm text-gray-500">
-                                Scheduled: {new Date(item.scheduledFor!).toLocaleString()}
+                                Scheduled: {new Intl.DateTimeFormat("en-US", {
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }).format(new Date(item.scheduledFor!))}
                               </p>
                             </div>
                             <Badge variant="outline">

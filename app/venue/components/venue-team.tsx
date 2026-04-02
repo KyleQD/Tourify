@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogFooter } from "@/components/ui/alert-dialog"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export interface TeamMember {
   id: string
@@ -197,7 +198,7 @@ export function VenueTeam({ members, onAdd, onRemove, onEdit }: VenueTeamProps) 
                   <div className="text-gray-300 mb-2">{job.description}</div>
                   {job.requirements && <div className="text-xs text-gray-400 mb-2">Requirements: {job.requirements}</div>}
                   <div className="text-xs text-gray-400">Contact: {job.contactEmail}</div>
-                  <div className="text-xs text-gray-500 mt-1">Posted {job.postedAt.toLocaleDateString()}</div>
+                  <div className="text-xs text-gray-500 mt-1">Posted {formatSafeDate(job.postedAt.toISOString())}</div>
                 </CardContent>
               </Card>
             ))}

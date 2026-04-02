@@ -75,6 +75,7 @@ import {
   SortAsc as SortAscIcon,
   SortDesc as SortDescIcon
 } from "lucide-react"
+import { mapAdminEventStatus, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 
 interface SearchFilter {
   id: string
@@ -121,6 +122,18 @@ export default function AdvancedSearch({
   onBulkAction,
   className = ""
 }: AdvancedSearchProps) {
+  const normalizedData = useMemo(() => {
+    if (dataType !== "events") return data
+    return (data || []).map((item: any) => {
+      const normalizedEvent = normalizeAdminEvent(item)
+      return {
+        ...item,
+        ...normalizedEvent,
+        status: mapAdminEventStatus(item?.status),
+      }
+    })
+  }, [data, dataType])
+
   // State
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
@@ -169,13 +182,13 @@ export default function AdvancedSearch({
 
   // Filtered data
   const filteredData = useMemo(() => {
-    let filtered = [...data]
+    let filtered = [...normalizedData]
 
     // Search term filter
     if (searchTerm) {
       filtered = filtered.filter(item => {
         const searchFields = dataType === 'tours' ? [item.name, item.artist] :
-                           dataType === 'events' ? [item.name, item.venue_name] :
+                           dataType === 'events' ? [item.name || item.title, item.venue_name || item.venueName] :
                            dataType === 'artists' ? [item.name] :
                            [item.name]
         
@@ -187,14 +200,17 @@ export default function AdvancedSearch({
 
     // Status filter
     if (selectedStatus.length > 0) {
-      filtered = filtered.filter(item => selectedStatus.includes(item.status))
+      filtered = filtered.filter(item => {
+        if (dataType === 'events') return selectedStatus.includes(mapAdminEventStatus(item.status))
+        return selectedStatus.includes(item.status)
+      })
     }
 
     // Date range filter
     if (dateRange.start || dateRange.end) {
       filtered = filtered.filter(item => {
         const itemDate = dataType === 'tours' ? item.start_date :
-                        dataType === 'events' ? item.event_date :
+                        dataType === 'events' ? (item.event_date || item.date || item.start_at) :
                         null
         
         if (!itemDate) return true
@@ -213,7 +229,7 @@ export default function AdvancedSearch({
     if (priceRange[0] > 0 || priceRange[1] < 10000) {
       filtered = filtered.filter(item => {
         const price = dataType === 'tours' ? item.revenue :
-                     dataType === 'events' ? item.expected_revenue :
+                     dataType === 'events' ? (item.expected_revenue || item.actual_revenue || item.revenue || 0) :
                      dataType === 'artists' ? item.revenue :
                      item.revenue
         
@@ -225,7 +241,7 @@ export default function AdvancedSearch({
     if (selectedLocations.length > 0) {
       filtered = filtered.filter(item => {
         const location = dataType === 'tours' ? item.location :
-                        dataType === 'events' ? item.venue_location :
+                        dataType === 'events' ? (item.venue_location || item.venue_name || item.venueName || item.location) :
                         dataType === 'artists' ? item.location :
                         item.location
         
@@ -243,8 +259,14 @@ export default function AdvancedSearch({
 
     // Sorting
     filtered.sort((a, b) => {
-      const aValue = a[sortBy]
-      const bValue = b[sortBy]
+      const aValue =
+        dataType === 'events' && sortBy === 'event_date'
+          ? (a.event_date || a.date || a.start_at || '')
+          : a[sortBy]
+      const bValue =
+        dataType === 'events' && sortBy === 'event_date'
+          ? (b.event_date || b.date || b.start_at || '')
+          : b[sortBy]
       
       if (typeof aValue === 'string' && typeof bValue === 'string') {
         return sortOrder === 'asc' ? 
@@ -260,7 +282,7 @@ export default function AdvancedSearch({
     })
 
     return filtered
-  }, [data, searchTerm, selectedStatus, dateRange, priceRange, selectedLocations, selectedTags, sortBy, sortOrder, dataType])
+  }, [normalizedData, searchTerm, selectedStatus, dateRange, priceRange, selectedLocations, selectedTags, sortBy, sortOrder, dataType])
 
   // Apply filter
   useEffect(() => {

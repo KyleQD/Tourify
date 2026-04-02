@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar, Download, Edit, Filter, Mail, MessageSquare, Phone, Plus, Search, Trash2, Users } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 // Mock customer data
 const mockCustomers = [
@@ -395,13 +397,13 @@ export function CustomerRelationship() {
                               </div>
                               <div className="bg-gray-700 rounded-md p-3 text-center">
                                 <div className="text-2xl font-bold">
-                                  ${getCustomer(selectedCustomer)?.totalSpent.toLocaleString()}
+                                  {formatSafeCurrency(getCustomer(selectedCustomer)?.totalSpent || 0)}
                                 </div>
                                 <div className="text-xs text-gray-400">Total Spent</div>
                               </div>
                               <div className="bg-gray-700 rounded-md p-3 text-center">
                                 <div className="text-2xl font-bold">
-                                  {new Date(getCustomer(selectedCustomer)?.lastContact || "").toLocaleDateString()}
+                                  {formatSafeDate(getCustomer(selectedCustomer)?.lastContact || "")}
                                 </div>
                                 <div className="text-xs text-gray-400">Last Contact</div>
                               </div>
@@ -419,14 +421,14 @@ export function CustomerRelationship() {
                                       <span className="font-medium">{interaction.subject}</span>
                                     </div>
                                     <span className="text-xs text-gray-400">
-                                      {new Date(interaction.date).toLocaleDateString()}
+                                      {formatSafeDate(interaction.date)}
                                     </span>
                                   </div>
                                   <p className="text-sm text-gray-300">{interaction.content}</p>
                                   {interaction.followUp && (
                                     <div className="flex items-center gap-2 mt-2 text-xs text-yellow-400">
                                       <Calendar className="h-3 w-3" />
-                                      <span>Follow-up: {new Date(interaction.followUp).toLocaleDateString()}</span>
+                                      <span>Follow-up: {formatSafeDate(interaction.followUp)}</span>
                                     </div>
                                   )}
                                 </div>
@@ -484,7 +486,7 @@ export function CustomerRelationship() {
                           <div className="flex items-center gap-2">
                             {getInteractionIcon(interaction.type)}
                             <span className="text-sm text-gray-400">
-                              {new Date(interaction.date).toLocaleDateString()}
+                              {formatSafeDate(interaction.date)}
                             </span>
                           </div>
                         </div>
@@ -494,7 +496,7 @@ export function CustomerRelationship() {
                         {interaction.followUp && (
                           <div className="flex items-center gap-2 mt-2 text-xs text-yellow-400">
                             <Calendar className="h-3 w-3" />
-                            <span>Follow-up: {new Date(interaction.followUp).toLocaleDateString()}</span>
+                            <span>Follow-up: {formatSafeDate(interaction.followUp)}</span>
                           </div>
                         )}
 
@@ -548,7 +550,7 @@ export function CustomerRelationship() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Calendar className="h-4 w-4 text-yellow-400" />
-                          <span className="font-medium">{new Date(interaction.followUp!).toLocaleDateString()}</span>
+                          <span className="font-medium">{formatSafeDate(interaction.followUp!)}</span>
                         </div>
                         <Badge variant="outline" className="bg-yellow-900/20 text-yellow-400 border-yellow-800">
                           Pending

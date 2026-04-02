@@ -114,6 +114,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Replace helpers if remote has older signatures (e.g. different param names)
+DROP FUNCTION IF EXISTS is_valid_music_type(TEXT);
+DROP FUNCTION IF EXISTS is_valid_image_type(TEXT) CASCADE;
+
 -- Function to validate music file types
 CREATE OR REPLACE FUNCTION is_valid_music_type(mime_type TEXT)
 RETURNS BOOLEAN AS $$

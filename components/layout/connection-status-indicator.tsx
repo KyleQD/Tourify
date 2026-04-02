@@ -126,7 +126,7 @@ export function ConnectionStatusIndicator({
             <p>{statusStyles.description}</p>
             {lastConnected && !isConnected && (
               <p className="text-xs text-slate-400 mt-1">
-                Last connected: {lastConnected.toLocaleTimeString()}
+                Last connected: {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastConnected)}
               </p>
             )}
           </TooltipContent>
@@ -176,7 +176,7 @@ export function ConnectionStatusIndicator({
               </div>
               {lastConnected && (
                 <div className="text-xs text-slate-500">
-                  Last connected: {lastConnected.toLocaleTimeString()}
+                  Last connected: {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastConnected)}
                 </div>
               )}
             </div>
@@ -252,7 +252,7 @@ export function ConnectionStatusBar({
           )}
           {lastUpdate && (
             <span>
-              Updated {lastUpdate.toLocaleTimeString()}
+              Updated {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(lastUpdate)}
             </span>
           )}
         </div>

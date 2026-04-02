@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, Users, DollarSign, Target, Calendar, Settings, Plus } from "lucide-react"
-import { Header } from "@/components/header"
-import { PageHeader } from "@/components/page-header"
+import { useState, useEffect, useMemo } from 'react'
+import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings } from "lucide-react"
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { AdminPageHeader } from "../components/admin-page-header"
+import { AdminStatCard } from "../components/admin-stat-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +15,34 @@ import { useToast } from "@/components/ui/use-toast"
 import { TicketSharingTools } from "@/components/ticketing/ticket-sharing-tools"
 import { CampaignManager } from "@/components/ticketing/campaign-manager"
 import { type TicketingMetrics, type TicketType, type TicketSale, type TicketCampaign, type PromoCode, type SocialMediaPerformance } from "@/types/ticketing"
+import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
+
+/** API aggregates use `clicks`, `conversions`, `revenue`; UI uses ticketing types. */
+function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] {
+  if (!Array.isArray(rows)) return []
+  return rows.map((row, index) => {
+    const r = row as Record<string, unknown>
+    const clicks = Number(r.clicks ?? r.clicks_count ?? 0)
+    const conversions = Number(r.conversions ?? r.conversions_count ?? 0)
+    const revenue = Number(r.revenue ?? r.revenue_generated ?? 0)
+    const platform = String(r.platform ?? 'unknown')
+    return {
+      id: String(r.id ?? `${platform}-${index}`),
+      event_id: String(r.event_id ?? ''),
+      platform,
+      post_id: typeof r.post_id === 'string' ? r.post_id : undefined,
+      post_url: typeof r.post_url === 'string' ? r.post_url : undefined,
+      shares_count: Number(r.shares_count ?? 0),
+      clicks_count: clicks,
+      conversions_count: conversions,
+      revenue_generated: revenue,
+      engagement_rate: Number(r.engagement_rate ?? 0),
+      post_date: typeof r.post_date === 'string' ? r.post_date : undefined,
+      created_at: typeof r.created_at === 'string' ? r.created_at : new Date().toISOString(),
+      conversion_rate: clicks > 0 ? (conversions / clicks) * 100 : 0,
+    }
+  })
+}
 
 export default function TicketingPage() {
   const [metrics, setMetrics] = useState<TicketingMetrics | null>(null)
@@ -38,13 +67,23 @@ export default function TicketingPage() {
 
   const fetchEvents = async () => {
     try {
-      const response = await fetch('/api/events', {
+      const response = await fetch('/api/admin/events', {
         credentials: 'include'
       })
       
       if (response.ok) {
         const data = await response.json()
-        setEvents(data.events || [])
+        const raw = data.events || []
+        setEvents(
+          raw.map((event: any) => {
+            const normalizedEvent = normalizeAdminEvent(event)
+            return {
+              id: normalizedEvent.id,
+              title: normalizedEvent.name || 'Untitled',
+              event_date: normalizedEvent.event_date || '',
+            }
+          })
+        )
       } else {
         console.error('Failed to fetch events')
         setEvents([])
@@ -136,7 +175,7 @@ export default function TicketingPage() {
       const socialData = await socialResponse.json()
       
       if (socialResponse.ok) {
-        setSocialPerformance(socialData.social_performance || [])
+        setSocialPerformance(mapApiSocialPerformanceToUi(socialData.social_performance))
       } else {
         setSocialPerformance([])
       }
@@ -181,6 +220,11 @@ export default function TicketingPage() {
     return new Intl.NumberFormat('en-US').format(num)
   }
 
+  const selectedEventData = useMemo(
+    () => events.find((event) => event.id === selectedEvent),
+    [events, selectedEvent]
+  )
+
   function getSaleEventTitle(sale: TicketSale) {
     const anySale = sale as any
     if (anySale?.event && typeof anySale.event.title === 'string') return anySale.event.title as string
@@ -188,30 +232,13 @@ export default function TicketingPage() {
     return 'Unknown Event'
   }
 
-  const handleExportData = async () => {
-    try {
-      // For now, just show a success message since the API might not be ready
-      toast({
-        title: 'Export Successful',
-        description: 'Ticket data has been exported',
-      })
-    } catch (error) {
-      toast({
-        title: 'Export Failed',
-        description: 'Failed to export ticket data',
-        variant: 'destructive'
-      })
-    }
-  }
-
   if (loading) {
     return (
-      <div className="container mx-auto p-4">
-        <Header />
-        <PageHeader
+      <div className="space-y-6">
+        <AdminPageHeader
           title="Ticketing"
+          subtitle="Manage ticket sales and analytics"
           icon={Ticket}
-          description="Manage ticket sales, pricing, and distribution for all your events"
         />
         <div className="flex items-center justify-center p-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
@@ -221,21 +248,20 @@ export default function TicketingPage() {
   }
 
   return (
-    <div className="container mx-auto p-4">
-      <Header />
-      <PageHeader
+    <div className="space-y-6">
+      <AdminPageHeader
         title="Ticketing"
+        subtitle="Manage ticket sales and analytics"
         icon={Ticket}
-        description="Manage ticket sales, pricing, and distribution for all your events"
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm grid w-full grid-cols-5">
+          <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             <BarChart3 className="h-4 w-4" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="campaigns" className="flex items-center gap-2">
+          <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             <Target className="h-4 w-4" />
             Campaigns
           </TabsTrigger>
@@ -243,11 +269,11 @@ export default function TicketingPage() {
             <Share2 className="h-4 w-4" />
             Sharing
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2">
+          <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             <TrendingUp className="h-4 w-4" />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2">
+          <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             <Settings className="h-4 w-4" />
             Settings
           </TabsTrigger>
@@ -255,77 +281,68 @@ export default function TicketingPage() {
 
         <TabsContent value="overview" className="space-y-6">
           {/* Enhanced Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <MetricCard 
-              title="Total Tickets Sold" 
-              value={formatNumber(metrics?.total_tickets_sold || 0)} 
-              trend={`${metrics?.weekly_trend || 0}% from last week`} 
-              trendUp={(metrics?.weekly_trend ?? 0) > 0} 
-              icon={Ticket} 
-            />
-            <MetricCard
-              title="Revenue Generated"
-              value={formatCurrency(metrics?.revenue_generated || 0)}
-              trend={`${metrics?.revenue_trend || 0}% from last week`}
-              trendUp={(metrics?.revenue_trend ?? 0) > 0}
-              icon={DollarSign}
-            />
-            <MetricCard 
-              title="Conversion Rate" 
-              value={`${metrics?.conversion_rate || 0}%`} 
-              trend="vs last week" 
-              trendUp={null} 
-              icon={TrendingUp} 
-            />
-            <MetricCard 
-              title="Social Shares" 
-              value={formatNumber(metrics?.social_shares || 0)} 
-              trend="Total shares" 
-              trendUp={null} 
-              icon={Share2} 
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics?.total_tickets_sold || 0)} icon={Ticket} color="purple" size="lg" change={metrics?.weekly_trend || undefined} trend={(metrics?.weekly_trend ?? 0) > 0 ? 'up' : (metrics?.weekly_trend ?? 0) < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics?.revenue_generated || 0)} icon={DollarSign} color="green" size="lg" change={metrics?.revenue_trend || undefined} trend={(metrics?.revenue_trend ?? 0) > 0 ? 'up' : (metrics?.revenue_trend ?? 0) < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Conversion Rate" value={`${metrics?.conversion_rate || 0}%`} icon={TrendingUp} color="blue" size="lg" />
+            <AdminStatCard title="Social Shares" value={formatNumber(metrics?.social_shares || 0)} icon={Share2} color="cyan" size="lg" />
           </div>
 
           {/* Ticket Types and Sales Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2">
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-slate-100 flex items-center text-base">
-                    <BarChart3 className="mr-2 h-5 w-5 text-purple-500" />
-                    Ticket Sales Overview
-                  </CardTitle>
-                  <div className="flex items-center space-x-2">
-                    <Select value={selectedEvent} onValueChange={setSelectedEvent}>
-                      <SelectTrigger className="w-[180px] h-8 text-xs bg-slate-800/70 border-slate-700">
-                        <SelectValue placeholder="Select Event" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700">
-                        <SelectItem value="all">All Events</SelectItem>
-                        {events.map((event) => (
-                          <SelectItem key={event.id} value={event.id}>
-                            {event.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button variant="outline" size="sm" className="h-8 border-slate-700" onClick={handleExportData}>
-                      <Download className="h-3.5 w-3.5 mr-1" /> Export
-                    </Button>
+              <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+                <CardHeader className="space-y-2 pb-2">
+                  <div className="flex flex-row items-center justify-between gap-4">
+                    <CardTitle className="text-lg font-semibold text-white flex items-center">
+                      <BarChart3 className="mr-2 h-5 w-5 text-purple-500" />
+                      Ticket Sales Overview
+                    </CardTitle>
+                    <div className="flex items-center space-x-2 shrink-0">
+                      <Select value={selectedEvent} onValueChange={setSelectedEvent}>
+                        <SelectTrigger className="w-[180px] h-8 text-xs bg-slate-800/70 border-slate-700">
+                          <SelectValue placeholder="Select Event" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          <SelectItem value="all">All Events</SelectItem>
+                          {events.map((event) => (
+                            <SelectItem key={event.id} value={event.id}>
+                              {event.title}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 border-slate-700"
+                        onClick={() => {
+                          const header = 'Order,Customer,Event,Amount,Date,Status\n'
+                          const rows = sales.map(s => [s.order_number, s.customer_name, s.event_title, s.total_amount, s.purchase_date, s.payment_status].join(',')).join('\n')
+                          const blob = new Blob([header + rows], { type: 'text/csv' })
+                          const u = URL.createObjectURL(blob)
+                          const a = document.createElement('a'); a.href = u; a.download = 'ticket-sales.csv'; a.click()
+                          URL.revokeObjectURL(u)
+                        }}
+                      >
+                        <Download className="h-3.5 w-3.5 mr-1" /> Export
+                      </Button>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-80 w-full relative bg-slate-800/30 rounded-lg border border-slate-700/50 overflow-hidden p-4">
-                    <TicketSalesChart />
+                  <div className="h-80 w-full relative bg-slate-800/30 rounded-sm border border-slate-700/50 backdrop-blur-sm overflow-hidden p-4">
+                    <TicketSalesChart sales={sales} />
                   </div>
                 </CardContent>
               </Card>
             </div>
 
             <div>
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+              <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-slate-100 text-base">Ticket Types</CardTitle>
+                  <CardTitle className="text-lg font-semibold text-white">Ticket Types</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -355,28 +372,28 @@ export default function TicketingPage() {
           </div>
 
           {/* Recent Transactions */}
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+          <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-slate-100 text-base">Recent Transactions</CardTitle>
+              <CardTitle className="text-lg font-semibold text-white">Recent Transactions</CardTitle>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="all" className="w-full">
-                <TabsList className="bg-slate-800/50 p-1 mb-4">
+                <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm mb-4">
                   <TabsTrigger
                     value="all"
-                    className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     All Transactions
                   </TabsTrigger>
                   <TabsTrigger
                     value="completed"
-                    className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     Completed
                   </TabsTrigger>
                   <TabsTrigger
                     value="refunded"
-                    className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10"
                   >
                     Refunded
                   </TabsTrigger>
@@ -427,7 +444,7 @@ export default function TicketingPage() {
                                 event={getSaleEventTitle(sale)}
                                 ticketType={sale.ticket_type?.name || 'Unknown Type'}
                                 amount={formatCurrency(sale.total_amount)}
-                                date={new Date(sale.purchase_date).toLocaleDateString()}
+                                date={formatSafeDate(sale.purchase_date)}
                                 status={sale.payment_status}
                               />
                             ))
@@ -476,7 +493,7 @@ export default function TicketingPage() {
                               event={getSaleEventTitle(sale)}
                               ticketType={sale.ticket_type?.name || 'Unknown Type'}
                               amount={formatCurrency(sale.total_amount)}
-                              date={new Date(sale.purchase_date).toLocaleDateString()}
+                              date={formatSafeDate(sale.purchase_date)}
                               status={sale.payment_status}
                             />
                           ))}
@@ -524,7 +541,7 @@ export default function TicketingPage() {
                               event={getSaleEventTitle(sale)}
                               ticketType={sale.ticket_type?.name || 'Unknown Type'}
                               amount={formatCurrency(sale.total_amount)}
-                              date={new Date(sale.purchase_date).toLocaleDateString()}
+                              date={formatSafeDate(sale.purchase_date)}
                               status={sale.payment_status}
                             />
                           ))}
@@ -549,10 +566,10 @@ export default function TicketingPage() {
         <TabsContent value="sharing" className="space-y-6">
           <TicketSharingTools
             eventId={selectedEvent === 'all' ? '' : selectedEvent}
-            event={selectedEvent !== 'all' ? events.find(e => e.id === selectedEvent) ? {
+            event={selectedEvent !== 'all' ? selectedEventData ? {
               id: selectedEvent,
-              title: events.find(e => e.id === selectedEvent)?.title || 'Selected Event',
-              date: events.find(e => e.id === selectedEvent)?.event_date || new Date().toISOString(),
+              title: selectedEventData.title || 'Selected Event',
+              date: selectedEventData.event_date || new Date().toISOString(),
               location: 'Event Location'
             } : {
               id: selectedEvent,
@@ -578,9 +595,9 @@ export default function TicketingPage() {
         <TabsContent value="analytics" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Social Performance */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-slate-100">Social Media Performance</CardTitle>
+                <CardTitle className="text-lg font-semibold text-white">Social Media Performance</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -588,7 +605,7 @@ export default function TicketingPage() {
                     <p className="text-slate-400 text-center py-4">No social performance data available</p>
                   ) : (
                     socialPerformance.map((performance) => (
-                      <div key={performance.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                      <div key={performance.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-sm">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 bg-purple-500/20 rounded-full flex items-center justify-center">
                             <Share2 className="h-4 w-4 text-purple-400" />
@@ -614,9 +631,9 @@ export default function TicketingPage() {
             </Card>
 
             {/* Campaign Performance */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-slate-100">Campaign Performance</CardTitle>
+                <CardTitle className="text-lg font-semibold text-white">Campaign Performance</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -624,7 +641,7 @@ export default function TicketingPage() {
                     <p className="text-slate-400 text-center py-4">No campaigns available</p>
                   ) : (
                     campaigns.map((campaign) => (
-                      <div key={campaign.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                      <div key={campaign.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-sm">
                         <div>
                           <p className="text-sm font-medium text-slate-200">{campaign.name}</p>
                           <p className="text-xs text-slate-400">{campaign.campaign_type}</p>
@@ -647,9 +664,9 @@ export default function TicketingPage() {
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-6">
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+          <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-slate-100">Ticketing Settings</CardTitle>
+              <CardTitle className="text-lg font-semibold text-white">Ticketing Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -681,78 +698,51 @@ export default function TicketingPage() {
   )
 }
 
-interface MetricCardProps {
-  title: string
-  value: string
-  trend: string
-  trendUp: boolean | null
-  icon: any
-}
 
-function MetricCard({ title, value, trend, trendUp, icon: Icon }: MetricCardProps) {
+function TicketSalesChart({ sales }: { sales: any[] }) {
+  const chartData = useMemo(() => {
+    if (!sales || sales.length === 0) return []
+    const grouped: Record<string, { date: string; revenue: number; tickets: number }> = {}
+    sales.forEach((s: any) => {
+      const d = s.purchase_date ? new Date(s.purchase_date).toISOString().slice(0, 10) : null
+      if (!d) return
+      if (!grouped[d]) grouped[d] = { date: d, revenue: 0, tickets: 0 }
+      grouped[d].revenue += Number(s.total_amount) || 0
+      grouped[d].tickets += Number(s.quantity) || 1
+    })
+    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date))
+  }, [sales])
+
+  if (chartData.length === 0) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center text-center px-6">
+        <LineChart className="h-10 w-10 text-slate-500 mb-3 opacity-70" />
+        <p className="text-sm text-slate-300 font-medium">No sales data yet</p>
+        <p className="text-xs text-slate-500 mt-1">Sales will appear here as tickets are sold.</p>
+      </div>
+    )
+  }
+
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-      <CardContent className="pt-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-sm text-slate-400">{title}</p>
-            <h3 className="text-2xl font-bold mt-1 text-white">{value}</h3>
-            <p
-              className={`text-xs mt-1 flex items-center ${
-                trendUp === true ? "text-green-400" : trendUp === false ? "text-red-400" : "text-slate-400"
-              }`}
-            >
-              {trendUp === true && <TrendingUp className="h-3 w-3 mr-1" />}
-              {trendUp === false && <TrendingUp className="h-3 w-3 mr-1 rotate-180" />}
-              {trend}
-            </p>
-          </div>
-          <div className="bg-purple-500/20 p-2 rounded-md">
-            <Icon className="h-5 w-5 text-purple-500" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function TicketSalesChart() {
-  return (
-    <div className="h-full w-full flex flex-col">
-      <div className="flex justify-between text-xs text-slate-400 mb-4">
-        <div>Daily Ticket Sales - Last 30 Days</div>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center">
-            <div className="h-2 w-2 rounded-full bg-purple-500 mr-1"></div>
-            General Admission
-          </div>
-          <div className="flex items-center">
-            <div className="h-2 w-2 rounded-full bg-pink-500 mr-1"></div>
-            VIP Access
-          </div>
-        </div>
-      </div>
-
-      <div className="flex-1 flex items-end space-x-1">
-        {Array.from({ length: 30 }).map((_, i) => {
-          const generalHeight = Math.floor(Math.random() * 60) + 10
-          const vipHeight = Math.floor(Math.random() * 30) + 5
-
-          return (
-            <div key={i} className="flex-1 flex flex-col items-center justify-end h-full">
-              <div className="w-full bg-purple-500/80 rounded-t" style={{ height: `${generalHeight}%` }}></div>
-              <div className="w-full bg-pink-500/80 rounded-t mt-0.5" style={{ height: `${vipHeight}%` }}></div>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="mt-4 flex justify-between text-xs text-slate-500">
-        <div>Jun 24</div>
-        <div>Jul 8</div>
-        <div>Jul 24</div>
-      </div>
-    </div>
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={chartData}>
+        <defs>
+          <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="5%" stopColor="#a855f7" stopOpacity={0.4} />
+            <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+        <XAxis dataKey="date" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+        <YAxis stroke="#94a3b8" tick={{ fontSize: 11 }} />
+        <Tooltip
+          contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #475569', borderRadius: 8 }}
+          labelStyle={{ color: '#e2e8f0' }}
+          itemStyle={{ color: '#c084fc' }}
+        />
+        <Area type="monotone" dataKey="revenue" stroke="#a855f7" fillOpacity={1} fill="url(#colorRevenue)" name="Revenue ($)" />
+      </AreaChart>
+    </ResponsiveContainer>
   )
 }
 
@@ -768,7 +758,7 @@ interface TicketTypeItemProps {
 
 function TicketTypeItem({ name, price, sold, total, percentage, soldOut, category }: TicketTypeItemProps) {
   return (
-    <div className="bg-slate-800/50 rounded-md p-3 border border-slate-700/50">
+    <div className="bg-slate-800/50 rounded-sm p-3 border border-slate-700/50 backdrop-blur-sm hover:border-slate-600/50 transition-all duration-200">
       <div className="flex justify-between items-start mb-2">
         <div>
           <div className="text-sm font-medium text-slate-200">{name}</div>

@@ -468,7 +468,7 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
                         {item.latitude.toFixed(6)}, {item.longitude.toFixed(6)}
                       </p>
                       <p className="text-gray-600">
-                        Updated {new Date(item.lastUpdate).toLocaleTimeString()}
+                        Updated {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(item.lastUpdate))}
                       </p>
                     </div>
                     
@@ -511,7 +511,7 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
                   <p className="text-sm font-medium">{alert.equipmentName}</p>
                   <p className="text-xs text-gray-600">{alert.message}</p>
                   <p className="text-xs text-gray-500 mt-1">
-                    {new Date(alert.timestamp).toLocaleTimeString()}
+                    {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(alert.timestamp))}
                   </p>
                 </div>
               ))}
@@ -615,7 +615,13 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
                     </div>
                     <div className="flex justify-between">
                       <span>Last Update:</span>
-                      <span>{new Date(selectedEquipment.lastUpdate).toLocaleString()}</span>
+                      <span>{new Intl.DateTimeFormat("en-US", {
+                        year: "numeric",
+                        month: "numeric",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }).format(new Date(selectedEquipment.lastUpdate))}</span>
                     </div>
                   </div>
                 </div>

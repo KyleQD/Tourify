@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   User,
   MapPin,
@@ -399,10 +400,7 @@ export function ArtistPublicProfileView({
                   )}
                   <span className="flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
                     <Calendar className="h-4 w-4" />
-                    Joined {new Date(profile.created_at).toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })}
+                    Joined {formatSafeDate(profile.created_at)}
                   </span>
                 </div>
 
@@ -685,7 +683,7 @@ export function ArtistPublicProfileView({
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-white/70">
                           <Calendar className="h-4 w-4" />
-                          <span>{new Date(event.date).toLocaleDateString()}</span>
+                          <span>{formatSafeDate(event.date)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-white/70">
                           <Ticket className="h-4 w-4" />

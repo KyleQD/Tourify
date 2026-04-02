@@ -19,13 +19,12 @@ import {
   Eye,
   Edit,
   MoreHorizontal,
-  CheckCircle,
   AlertCircle,
-  Star,
   Target,
-  Zap
 } from "lucide-react"
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth, addMonths, subMonths, addDays, startOfWeek, endOfWeek } from "date-fns"
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isToday, isSameMonth, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek } from "date-fns"
+import { mapAdminEventStatus } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface CalendarItem {
   id: string
@@ -53,6 +52,17 @@ interface DashboardCalendarProps {
   className?: string
 }
 
+function mapEventStatusToCalendarStatus(status?: string): CalendarItem["status"] {
+  const normalizedStatus = mapAdminEventStatus(status)
+  if (normalizedStatus === "scheduled") return "scheduled"
+  if (normalizedStatus === "confirmed") return "confirmed"
+  if (normalizedStatus === "in_progress") return "confirmed"
+  if (normalizedStatus === "completed") return "completed"
+  if (normalizedStatus === "cancelled") return "cancelled"
+  if (normalizedStatus === "postponed") return "pending"
+  return "scheduled"
+}
+
 export default function DashboardCalendar({ 
   tours = [], 
   events = [], 
@@ -70,185 +80,98 @@ export default function DashboardCalendar({
   const calendarItems = useMemo(() => {
     const items: CalendarItem[] = []
 
-    // Add tours
     tours.forEach(tour => {
-      if (tour.startDate) {
-        items.push({
-          id: `tour-${tour.id}`,
-          title: tour.name,
-          type: 'tour',
-          date: new Date(tour.startDate),
-          startTime: tour.startTime,
-          endTime: tour.endTime,
-          location: tour.venues?.[0]?.name || 'TBD',
-          status: tour.status,
-          attendees: tour.totalCapacity,
-          revenue: tour.totalRevenue,
-          color: 'bg-purple-500',
-          description: tour.description,
-          tags: ['Tour', tour.status]
-        })
-      }
-    })
-
-    // Add events
-    events.forEach(event => {
-      if (event.date) {
-        items.push({
-          id: `event-${event.id}`,
-          title: event.name,
-          type: 'event',
-          date: new Date(event.date),
-          startTime: event.startTime,
-          endTime: event.endTime,
-          location: event.venueName || 'TBD',
-          status: event.status,
-          attendees: event.capacity,
-          revenue: event.expectedRevenue,
-          color: 'bg-blue-500',
-          description: event.description,
-          tags: ['Event', event.status]
-        })
-      }
-    })
-
-    // Add sample tasks (you can replace with real task data)
-    const sampleTasks = [
-      {
-        id: 'task-1',
-        title: 'Review tour contracts',
-        type: 'task' as const,
-        date: new Date(),
-        status: 'pending' as const,
-        priority: 'high' as const,
-        color: 'bg-orange-500',
-        tags: ['Task', 'High Priority']
-      },
-      {
-        id: 'task-2',
-        title: 'Update event marketing materials',
-        type: 'task' as const,
-        date: addDays(new Date(), 2),
-        status: 'pending' as const,
-        priority: 'medium' as const,
-        color: 'bg-yellow-500',
-        tags: ['Task', 'Marketing']
-      },
-      {
-        id: 'task-3',
-        title: 'Finalize venue bookings',
-        type: 'task' as const,
-        date: addDays(new Date(), 5),
-        status: 'pending' as const,
-        priority: 'urgent' as const,
-        color: 'bg-red-500',
-        tags: ['Task', 'Urgent']
-      },
-      {
-        id: 'task-4',
-        title: 'Band rehearsal',
-        type: 'meeting' as const,
-        date: addDays(new Date(), 1),
-        status: 'confirmed' as const,
-        priority: 'high' as const,
-        color: 'bg-green-500',
-        tags: ['Meeting', 'Band']
-      },
-      {
-        id: 'task-5',
-        title: 'Sound check',
-        type: 'reminder' as const,
-        date: addDays(new Date(), 3),
-        status: 'scheduled' as const,
-        priority: 'medium' as const,
-        color: 'bg-blue-500',
-        tags: ['Reminder', 'Technical']
-      },
-      {
-        id: 'task-6',
-        title: 'Merchandise inventory',
-        type: 'task' as const,
-        date: addDays(new Date(), 7),
-        status: 'pending' as const,
-        priority: 'low' as const,
+      const rawDate = tour.start_date || tour.startDate || tour.start_at
+      if (!rawDate) return
+      const d = new Date(rawDate)
+      if (Number.isNaN(d.getTime())) return
+      items.push({
+        id: `tour-${tour.id}`,
+        title: tour.name || tour.title || 'Tour',
+        type: 'tour',
+        date: d,
+        startTime: tour.startTime,
+        endTime: tour.endTime,
+        location: tour.venues?.[0]?.name || 'TBD',
+        status: mapEventStatusToCalendarStatus(tour.status),
+        attendees: tour.totalCapacity || tour.total_capacity,
+        revenue: tour.totalRevenue || tour.total_revenue,
         color: 'bg-purple-500',
-        tags: ['Task', 'Inventory']
+        description: tour.description,
+        tags: ['Tour', tour.status || 'scheduled']
+      })
+    })
+
+    events.forEach(event => {
+      const rawDate = event.event_date || event.date || event.start_at
+      if (!rawDate) return
+      const d = new Date(rawDate)
+      if (Number.isNaN(d.getTime())) return
+      items.push({
+        id: `event-${event.id}`,
+        title: event.name || event.title || 'Event',
+        type: 'event',
+        date: d,
+        startTime: event.startTime || event.event_time,
+        endTime: event.endTime,
+        location: event.venue_name || event.venueName || 'TBD',
+        status: mapEventStatusToCalendarStatus(event.status),
+        attendees: event.capacity,
+        revenue: event.expectedRevenue || event.actual_revenue || event.expected_revenue,
+        color: 'bg-blue-500',
+        description: event.description,
+        tags: ['Event', event.status || 'scheduled']
+      })
+    })
+
+    const taskPriorityColor: Record<string, string> = {
+      urgent: 'bg-red-500',
+      high: 'bg-orange-500',
+      medium: 'bg-yellow-500',
+      low: 'bg-purple-500'
+    }
+
+    function mapLogisticsStatusToCalendar(
+      s: string | undefined
+    ): CalendarItem['status'] {
+      switch (s) {
+        case 'completed':
+          return 'completed'
+        case 'cancelled':
+          return 'cancelled'
+        case 'confirmed':
+          return 'confirmed'
+        case 'needs_attention':
+          return 'overdue'
+        case 'in_progress':
+          return 'scheduled'
+        case 'pending':
+        default:
+          return 'pending'
       }
-    ]
-
-    // Add sample events if no real events
-    if (events.length === 0) {
-      const sampleEvents = [
-        {
-          id: 'sample-event-1',
-          title: 'Summer Music Festival',
-          type: 'event' as const,
-          date: addDays(new Date(), 10),
-          startTime: '18:00',
-          endTime: '23:00',
-          location: 'Central Park',
-          status: 'confirmed' as const,
-          attendees: 5000,
-          revenue: 75000,
-          color: 'bg-blue-500',
-          description: 'Annual summer music festival featuring local and national artists',
-          tags: ['Event', 'Festival']
-        },
-        {
-          id: 'sample-event-2',
-          title: 'Jazz Night',
-          type: 'event' as const,
-          date: addDays(new Date(), 15),
-          startTime: '20:00',
-          endTime: '22:30',
-          location: 'Blue Note Club',
-          status: 'scheduled' as const,
-          attendees: 200,
-          revenue: 8000,
-          color: 'bg-blue-500',
-          description: 'Intimate jazz performance with local artists',
-          tags: ['Event', 'Jazz']
-        }
-      ]
-      items.push(...sampleEvents)
     }
 
-    // Add sample tours if no real tours
-    if (tours.length === 0) {
-      const sampleTours = [
-        {
-          id: 'sample-tour-1',
-          title: 'West Coast Tour',
-          type: 'tour' as const,
-          date: addDays(new Date(), 20),
-          startTime: '19:30',
-          endTime: '22:00',
-          location: 'Multiple Cities',
-          status: 'scheduled' as const,
-          attendees: 1500,
-          revenue: 45000,
-          color: 'bg-purple-500',
-          description: 'Multi-city tour across the west coast',
-          tags: ['Tour', 'Multi-City']
-        },
-        {
-          id: 'sample-tour-2',
-          title: 'European Summer Tour',
-          type: 'tour' as const,
-          date: addDays(new Date(), 45),
-          startTime: '20:00',
-          endTime: '23:00',
-          location: 'Europe',
-          status: 'confirmed' as const,
-          attendees: 3000,
-          revenue: 120000,
-          color: 'bg-purple-500',
-          description: 'Summer tour across major European cities',
-          tags: ['Tour', 'International']
-        }
-      ]
-      items.push(...sampleTours)
-    }
+    tasks.forEach((task) => {
+      const rawDue = task.due_date ?? task.dueDate
+      if (rawDue === undefined || rawDue === null || rawDue === '') return
+      const date = rawDue instanceof Date ? rawDue : new Date(rawDue)
+      if (Number.isNaN(date.getTime())) return
+
+      const tid = String(task.id ?? '')
+      const priority = (task.priority ?? 'medium') as string
+      items.push({
+        id: tid.startsWith('task-') ? tid : `task-${tid}`,
+        title: task.title ?? 'Task',
+        type: 'task',
+        date,
+        status: mapLogisticsStatusToCalendar(task.status),
+        priority: priority as CalendarItem['priority'],
+        color: taskPriorityColor[priority] ?? 'bg-slate-600',
+        description: task.description ?? undefined,
+        location: task.assignedTo ?? task.assigned_to ?? undefined,
+        tags: ['Task', String(task.status ?? 'pending')]
+      })
+    })
 
     return items.sort((a, b) => a.date.getTime() - b.date.getTime())
   }, [tours, events, tasks])
@@ -258,18 +181,29 @@ export default function DashboardCalendar({
     return calendarItems.filter(item => isSameDay(item.date, date))
   }, [calendarItems])
 
-  // Get month data
   const monthData = useMemo(() => {
     const start = startOfMonth(currentDate)
     const end = endOfMonth(currentDate)
     const days = eachDayOfInterval({ start, end })
 
-    return days.map(day => ({
+    const leadingBlanks = start.getDay()
+    const blankCells = Array.from({ length: leadingBlanks }, (_, i) => ({
+      date: null as unknown as Date,
+      items: [] as CalendarItem[],
+      isCurrentMonth: false,
+      isToday: false,
+      isBlank: true,
+    }))
+
+    const dayCells = days.map(day => ({
       date: day,
       items: getItemsForDate(day),
       isCurrentMonth: isSameMonth(day, currentDate),
-      isToday: isToday(day)
+      isToday: isToday(day),
+      isBlank: false,
     }))
+
+    return [...blankCells, ...dayCells]
   }, [currentDate, getItemsForDate])
 
   // Get week data
@@ -286,21 +220,24 @@ export default function DashboardCalendar({
     }))
   }, [currentDate, getItemsForDate])
 
-  // Navigation
-  const goToPrevious = () => {
-    if (viewMode === 'month') {
-      setCurrentDate(subMonths(currentDate, 1))
-    } else if (viewMode === 'week') {
-      setCurrentDate(subMonths(currentDate, 1))
+  const dayData = useMemo(() => {
+    return {
+      date: currentDate,
+      items: getItemsForDate(currentDate),
+      isToday: isToday(currentDate),
     }
+  }, [currentDate, getItemsForDate])
+
+  const goToPrevious = () => {
+    if (viewMode === 'month') setCurrentDate(subMonths(currentDate, 1))
+    else if (viewMode === 'week') setCurrentDate(subWeeks(currentDate, 1))
+    else setCurrentDate(subDays(currentDate, 1))
   }
 
   const goToNext = () => {
-    if (viewMode === 'month') {
-      setCurrentDate(addMonths(currentDate, 1))
-    } else if (viewMode === 'week') {
-      setCurrentDate(addMonths(currentDate, 1))
-    }
+    if (viewMode === 'month') setCurrentDate(addMonths(currentDate, 1))
+    else if (viewMode === 'week') setCurrentDate(addWeeks(currentDate, 1))
+    else setCurrentDate(addDays(currentDate, 1))
   }
 
   const goToToday = () => setCurrentDate(new Date())
@@ -365,58 +302,60 @@ export default function DashboardCalendar({
       {/* Calendar Days */}
       <div className="grid grid-cols-7 gap-1">
         {monthData.map((dayData, index) => (
-          <motion.div
-            key={index}
-            className={`
-              min-h-[140px] p-2 border border-slate-700/50 rounded-lg cursor-pointer
-              ${dayData.isCurrentMonth ? 'bg-slate-800/50' : 'bg-slate-900/30'}
-              ${dayData.isToday ? 'ring-2 ring-blue-500' : ''}
-              ${selectedDate && isSameDay(dayData.date, selectedDate) ? 'ring-2 ring-purple-500' : ''}
-              hover:bg-slate-700/50 transition-colors
-            `}
-            onClick={() => handleDateClick(dayData.date)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            {/* Date Number */}
-            <div className={`
-              text-sm font-medium mb-2
-              ${dayData.isCurrentMonth ? 'text-white' : 'text-slate-600'}
-              ${dayData.isToday ? 'text-blue-400' : ''}
-            `}>
-              {format(dayData.date, 'd')}
-            </div>
+          dayData.isBlank ? (
+            <div key={`blank-${index}`} className="min-h-[140px]" />
+          ) : (
+            <motion.div
+              key={index}
+              className={`
+                min-h-[140px] p-2 border border-slate-700/50 rounded-lg cursor-pointer
+                ${dayData.isCurrentMonth ? 'bg-slate-800/50' : 'bg-slate-900/30'}
+                ${dayData.isToday ? 'ring-2 ring-blue-500' : ''}
+                ${selectedDate && dayData.date && isSameDay(dayData.date, selectedDate) ? 'ring-2 ring-purple-500' : ''}
+                hover:bg-slate-700/50 transition-colors
+              `}
+              onClick={() => handleDateClick(dayData.date)}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className={`
+                text-sm font-medium mb-2
+                ${dayData.isCurrentMonth ? 'text-white' : 'text-slate-600'}
+                ${dayData.isToday ? 'text-blue-400' : ''}
+              `}>
+                {dayData.date && format(dayData.date, 'd')}
+              </div>
 
-            {/* Items */}
-            <div className="space-y-1">
-              <AnimatePresence>
-                {dayData.items.slice(0, 4).map((item, itemIndex) => (
-                  <motion.div
-                    key={item.id}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    className={`
-                      ${item.color} text-white text-xs p-1 rounded cursor-pointer
-                      hover:opacity-80 transition-opacity border-l-2 ${getPriorityColor(item.priority)}
-                    `}
-                    onClick={(e) => handleItemClick(item, e)}
-                  >
-                    <div className="flex items-center space-x-1">
-                      {getItemIcon(item.type)}
-                      <span className="truncate">{item.title}</span>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-              
-              {dayData.items.length > 4 && (
-                <div className="text-xs text-slate-400 text-center">
-                  +{dayData.items.length - 4} more
-                </div>
-              )}
-            </div>
-          </motion.div>
+              <div className="space-y-1">
+                <AnimatePresence>
+                  {dayData.items.slice(0, 4).map((item) => (
+                    <motion.div
+                      key={item.id}
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      className={`
+                        ${item.color} text-white text-xs p-1 rounded cursor-pointer
+                        hover:opacity-80 transition-opacity border-l-2 ${getPriorityColor(item.priority)}
+                      `}
+                      onClick={(e) => handleItemClick(item, e)}
+                    >
+                      <div className="flex items-center space-x-1">
+                        {getItemIcon(item.type)}
+                        <span className="truncate">{item.title}</span>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                {dayData.items.length > 4 && (
+                  <div className="text-xs text-slate-400 text-center">
+                    +{dayData.items.length - 4} more
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )
         ))}
       </div>
     </div>
@@ -532,6 +471,14 @@ export default function DashboardCalendar({
             Week
           </Button>
           <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setViewMode('day')}
+            className={viewMode === 'day' ? 'bg-blue-600 text-white' : ''}
+          >
+            Day
+          </Button>
+          <Button
             onClick={() => onAddItem?.('event')}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -544,7 +491,42 @@ export default function DashboardCalendar({
       {/* Calendar Grid */}
       <Card className="bg-slate-900/50 border-slate-700/50">
         <CardContent className="p-6">
-          {viewMode === 'month' ? renderMonthView() : renderWeekView()}
+          {viewMode === 'month' && renderMonthView()}
+          {viewMode === 'week' && renderWeekView()}
+          {viewMode === 'day' && (
+            <div className="space-y-3">
+              <div className="text-center pb-4 border-b border-slate-700/50">
+                <p className={`text-2xl font-semibold ${dayData.isToday ? 'text-blue-400' : 'text-white'}`}>
+                  {format(dayData.date, 'EEEE, MMMM d, yyyy')}
+                </p>
+              </div>
+              {dayData.items.length === 0 ? (
+                <p className="text-slate-400 text-center py-8">No items scheduled for this date</p>
+              ) : (
+                <div className="space-y-2">
+                  {dayData.items.map(item => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg cursor-pointer hover:bg-slate-700/50 transition-colors"
+                      onClick={() => { setSelectedItem(item); onItemClick?.(item) }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-lg ${item.color}`}>{getItemIcon(item.type)}</div>
+                        <div>
+                          <h4 className="font-medium text-white">{item.title}</h4>
+                          <div className="flex items-center gap-4 text-sm text-slate-400">
+                            {item.startTime && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{item.startTime}</span>}
+                            {item.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{item.location}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={`text-xs ${getStatusColor(item.status)}`}>{item.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -603,7 +585,7 @@ export default function DashboardCalendar({
                               {item.revenue && (
                                 <span className="flex items-center space-x-1">
                                   <DollarSign className="h-3 w-3" />
-                                  <span>${item.revenue.toLocaleString()}</span>
+                                  <span>{formatSafeCurrency(item.revenue)}</span>
                                 </span>
                               )}
                             </div>

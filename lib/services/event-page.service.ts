@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase'
 
+type EventTableName = 'artist_events' | 'events' | 'events_v2'
+
 export class EventPageService {
   private static instance: EventPageService
   private supabase = createClient()
@@ -14,7 +16,7 @@ export class EventPageService {
   /**
    * Create event page settings when a new event is created
    */
-  async createEventPageSettings(eventId: string, eventTable: 'artist_events' | 'events' = 'artist_events') {
+  async createEventPageSettings(eventId: string, eventTable: EventTableName = 'artist_events') {
     try {
       const { data, error } = await this.supabase
         .from('event_page_settings')
@@ -57,10 +59,10 @@ export class EventPageService {
   /**
    * Get event page data including attendance, posts, and settings
    */
-  async getEventPageData(eventId: string, eventTable: 'artist_events' | 'events' = 'artist_events') {
+  async getEventPageData(eventId: string, eventTable: EventTableName = 'artist_events') {
     try {
       // Get event details
-      const tableName = eventTable === 'artist_events' ? 'artist_events' : 'events'
+      const tableName: EventTableName = eventTable
       const { data: event, error: eventError } = await this.supabase
         .from(tableName)
         .select('*')
@@ -164,7 +166,7 @@ export class EventPageService {
       custom_fields: Record<string, any>
       seo_settings: { title?: string; description?: string; keywords: string[] }
     }>,
-    eventTable: 'artist_events' | 'events' = 'artist_events'
+    eventTable: EventTableName = 'artist_events'
   ) {
     try {
       const { data, error } = await this.supabase
@@ -198,7 +200,7 @@ export class EventPageService {
     eventId: string,
     userId: string,
     status: 'attending' | 'interested' | 'not_going',
-    eventTable: 'artist_events' | 'events' = 'artist_events'
+    eventTable: EventTableName = 'artist_events'
   ) {
     try {
       const { data, error } = await this.supabase
@@ -239,7 +241,7 @@ export class EventPageService {
       is_announcement?: boolean
       is_pinned?: boolean
       visibility?: 'public' | 'attendees' | 'collaborators'
-      eventTable?: 'artist_events' | 'events'
+      eventTable?: EventTableName
     } = {}
   ) {
     try {
@@ -311,11 +313,11 @@ export class EventPageService {
   /**
    * Check if user can manage event
    */
-  async canUserManageEvent(userId: string, eventId: string, eventTable: 'artist_events' | 'events' = 'artist_events'): Promise<boolean> {
+  async canUserManageEvent(userId: string, eventId: string, eventTable: EventTableName = 'artist_events'): Promise<boolean> {
     try {
       // Check if user is the event creator
-      const tableName = eventTable === 'artist_events' ? 'artist_events' : 'events'
-      const userIdColumn = eventTable === 'artist_events' ? 'user_id' : 'created_by'
+      const tableName: EventTableName = eventTable
+      const userIdColumn = eventTable === 'artist_events' ? 'user_id' : eventTable === 'events' ? 'artist_id' : 'created_by'
       
       const { data: event, error: eventError } = await this.supabase
         .from(tableName)
@@ -349,7 +351,7 @@ export class EventPageService {
   /**
    * Check if user can post to event
    */
-  async canUserPostToEvent(userId: string, eventId: string, eventTable: 'artist_events' | 'events' = 'artist_events'): Promise<boolean> {
+  async canUserPostToEvent(userId: string, eventId: string, eventTable: EventTableName = 'artist_events'): Promise<boolean> {
     try {
       // Check if user can manage the event
       if (await this.canUserManageEvent(userId, eventId, eventTable)) {

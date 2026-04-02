@@ -21,6 +21,9 @@ const ContractSchema = z.object({
   terms: z.string().optional().or(z.literal('')),
   notes: z.string().optional().or(z.literal('')),
   document_url: z.string().url().optional().or(z.literal('')),
+  counterparty_user_id: z.string().uuid().optional().nullable(),
+  template_id: z.string().max(200).optional().nullable(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const createContractAction = action

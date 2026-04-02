@@ -1,1144 +1,846 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { toast } from "sonner"
-import { EnhancedPublicProfileView } from "@/components/profile/enhanced-public-profile-view"
-import socialInteractionsService from "@/lib/services/social-interactions.service"
-import { useAuth } from "@/contexts/auth-context"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
+import { toast } from "sonner"
+import { useAuth } from "@/contexts/auth-context"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
+import { SurfaceCard, SurfaceHero, SurfaceInput, SurfaceTabsList } from "@/components/surface/surface-primitives"
 import {
+  ArrowRight,
+  Briefcase,
+  Calendar,
   Compass,
   Flame,
-  Calendar,
-  Users,
-  Music2,
-  Building2,
+  GraduationCap,
+  Loader2,
   MapPin,
-  ArrowRight,
-  PlayCircle,
+  Search,
   Sparkles,
   TrendingUp,
-  Star,
-  Verified,
-  Eye,
-  Heart,
-  Share2,
-  Loader2,
-  Search
+  Users,
+  Zap,
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
-interface DemoProfile {
+interface DiscoverProfile {
   id: string
   username: string
-  account_type: 'general' | 'artist' | 'venue'
-  profile_data: any
-  avatar_url?: string
-  cover_image?: string
-  verified: boolean
+  account_type: "artist" | "venue" | "general"
+  display_name: string
+  avatar_url?: string | null
   bio?: string
-  location?: string
-  social_links: any
+  location?: string | null
+  verified: boolean
   stats: {
     followers: number
     following: number
     posts: number
-    likes: number
-    views: number
-    streams?: number
-    events?: number
-    rating?: number
   }
+}
+
+interface DiscoverEvent {
+  id: string
+  slug: string | null
+  title: string
+  description?: string | null
+  event_date?: string | null
+  venue_name?: string | null
+  venue_city?: string | null
+  venue_state?: string | null
+  attendance: {
+    attending: number
+    interested: number
+    total: number
+  }
+}
+
+interface DiscoverPost {
+  id: string
+  content: string
   created_at: string
-  is_demo?: boolean
+  likes_count: number
+  comments_count: number
+  shares_count: number
+  profiles: {
+    id: string
+    username: string
+    full_name?: string
+    avatar_url?: string
+    is_verified?: boolean
+  }
+}
+
+interface ForYouItem {
+  id: string
+  item_type: "post" | "event" | "profile"
+  score: number
+  post?: DiscoverPost
+  event?: DiscoverEvent
+  profile?: DiscoverProfile
+}
+
+interface DiscoverPayload {
+  success: boolean
+  sections: {
+    for_you: ForYouItem[]
+    trending: DiscoverPost[]
+    upcoming: DiscoverEvent[]
+    people: DiscoverProfile[]
+    artists: DiscoverProfile[]
+    venues: DiscoverProfile[]
+    suggestions: DiscoverProfile[]
+  }
+  stats: {
+    trending_count: number
+    upcoming_count: number
+    people_count: number
+    suggestions_count: number
+  }
+}
+
+interface IntentOption {
+  id: DiscoverIntent
+  label: string
+  description: string
+  icon: React.ReactNode
+}
+
+type DiscoverIntent = "grow" | "network" | "book" | "learn"
+type DiscoverTab = "for-you" | "events" | "trending" | "people"
+
+const intentOptions: IntentOption[] = [
+  {
+    id: "grow",
+    label: "Grow Reach",
+    description: "Spot proven creators and formats you can apply this week.",
+    icon: <TrendingUp className="h-4 w-4" />,
+  },
+  {
+    id: "network",
+    label: "Build Team",
+    description: "Connect with collaborators, venues, and operators that move projects forward.",
+    icon: <Users className="h-4 w-4" />,
+  },
+  {
+    id: "book",
+    label: "Book Shows",
+    description: "Find active stages and demand signals so you can close more dates.",
+    icon: <Calendar className="h-4 w-4" />,
+  },
+  {
+    id: "learn",
+    label: "Sharpen Skills",
+    description: "Learn from high-signal posts and repeat what already works.",
+    icon: <GraduationCap className="h-4 w-4" />,
+  },
+]
+
+async function reverseGeocode({
+  latitude,
+  longitude,
+}: {
+  latitude: number
+  longitude: number
+}) {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+      {
+        headers: {
+          "Accept-Language": "en",
+        },
+      }
+    )
+
+    if (!response.ok) throw new Error("Reverse geocode failed")
+
+    const data = await response.json()
+    const address = data?.address || {}
+
+    const city =
+      address.city ||
+      address.town ||
+      address.village ||
+      address.hamlet ||
+      address.county ||
+      ""
+    const state = address.state || address.region || ""
+
+    if (city && state) return `${city}, ${state}`
+    if (city) return String(city)
+    if (state) return String(state)
+  } catch (error) {
+    console.warn("Reverse geocoding failed, using coordinate fallback:", error)
+  }
+
+  return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
 }
 
 export default function DiscoverPage() {
-  const [profiles, setProfiles] = useState<DemoProfile[]>([])
-  const [trendingPosts, setTrendingPosts] = useState<any[]>([])
-  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [selectedProfile, setSelectedProfile] = useState<DemoProfile | null>(null)
-  const [showProfileModal, setShowProfileModal] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const { user: currentUser } = useAuth()
   const router = useRouter()
+  const { user } = useAuth()
+
+  const [isLoading, setIsLoading] = useState(true)
+  const [isLocating, setIsLocating] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const [locationInput, setLocationInput] = useState("")
+  const [appliedLocation, setAppliedLocation] = useState("")
+  const [selectedIntent, setSelectedIntent] = useState<DiscoverIntent>("grow")
+  const [activeTab, setActiveTab] = useState<DiscoverTab>("for-you")
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
+  const [stats, setStats] = useState<DiscoverPayload["stats"]>({
+    trending_count: 0,
+    upcoming_count: 0,
+    people_count: 0,
+    suggestions_count: 0,
+  })
+  const [sections, setSections] = useState<DiscoverPayload["sections"]>({
+    for_you: [],
+    trending: [],
+    upcoming: [],
+    people: [],
+    artists: [],
+    venues: [],
+    suggestions: [],
+  })
 
   useEffect(() => {
-    loadDiscover()
-  }, [])
+    loadDiscover(selectedIntent, appliedLocation)
+  }, [selectedIntent, appliedLocation])
 
-  const loadDiscover = async () => {
+  async function loadDiscover(intent: DiscoverIntent, location: string) {
+    setIsLoading(true)
     try {
-      setIsLoading(true)
-      
-      // Fetch real platform data from enhanced discover API
-      const discoverRes = await fetch('/api/discover')
+      const locationParam = location.trim() ? `&location=${encodeURIComponent(location.trim())}` : ""
+      const response = await fetch(`/api/discover?limit=12&intent=${intent}${locationParam}`)
+      if (!response.ok) throw new Error("Failed to load discover")
 
-      if (discoverRes.ok) {
-        const discover = await discoverRes.json()
-        
-        // Set real platform data
-        setTrendingPosts(discover.sections?.trending || [])
-        setUpcomingEvents(discover.sections?.upcoming || [])
-        
-        // Combine artists and venues for profiles
-        const allProfiles = [
-          ...(discover.sections?.artists || []),
-          ...(discover.sections?.venues || [])
-        ]
-        setProfiles(allProfiles)
-        
-        console.log('✅ Loaded real platform data:', {
-          posts: discover.sections?.trending?.length || 0,
-          events: discover.sections?.upcoming?.length || 0,
-          artists: discover.sections?.artists?.length || 0,
-          venues: discover.sections?.venues?.length || 0,
-          stats: discover.stats
-        })
-      } else {
-        // Fallback to unified search if discover API fails
-        console.log('⚠️ Discover API failed, falling back to unified search')
-        const unifiedRes = await fetch('/api/search/unified?limit=20')
-        if (unifiedRes.ok) {
-          const unified = await unifiedRes.json()
-          setProfiles(unified.unified_results || [])
-        }
-      }
+      const payload = (await response.json()) as DiscoverPayload
+      setSections(payload.sections)
+      setStats(payload.stats)
     } catch (error) {
-      console.error('Error fetching platform data:', error)
-      toast.error('Error loading discover content')
+      console.error("Discover load error:", error)
+      toast.error("Unable to load discover right now")
     } finally {
       setIsLoading(false)
     }
   }
 
-  const openProfileModal = (profile: any) => {
-    setSelectedProfile(profile)
-    setShowProfileModal(true)
-  }
-
-  const handleFollow = async (profileId: string) => {
-    if (!currentUser) {
-      toast.error('Please sign in to follow profiles')
+  async function handleFollow(profileId: string) {
+    if (!user) {
+      toast.error("Please sign in to follow people")
       return
     }
 
+    const isFollowing = followingIds.has(profileId)
+    const action = isFollowing ? "unfollow" : "follow"
+
     try {
-      const isFollowing = false // You'd check actual follow status
-      const action = isFollowing ? 'unfollow' : 'follow'
-      
-      if ((socialInteractionsService as any).followUser) {
-        await (socialInteractionsService as any).followUser(profileId, action)
-      }
-      toast.success(action === 'follow' ? 'Now following!' : 'Unfollowed')
+      const response = await fetch("/api/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          following_id: profileId,
+          action,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Follow update failed")
+
+      setFollowingIds((prev) => {
+        const updated = new Set(prev)
+        if (isFollowing) updated.delete(profileId)
+        else updated.add(profileId)
+        return updated
+      })
+
+      toast.success(isFollowing ? "Unfollowed" : "Following")
     } catch (error) {
-      console.error('Follow error:', error)
-      toast.error('Failed to update follow status')
+      console.error("Follow action failed:", error)
+      toast.error("Could not update follow status")
     }
   }
 
-  const handleShare = async (profile: any) => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `${profile.username}'s Profile`,
-          text: `Check out ${profile.username} on Tourify!`,
-          url: window.location.href
+  async function handleUseCurrentLocation() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast.error("Geolocation is not supported in this browser")
+      return
+    }
+
+    setIsLocating(true)
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 12000,
+          maximumAge: 300000,
         })
-      } catch (err) {
-        console.log("Share failed:", err)
+      })
+
+      const { latitude, longitude } = position.coords
+      const resolvedLocation = await reverseGeocode({ latitude, longitude })
+
+      setLocationInput(resolvedLocation)
+      setAppliedLocation(resolvedLocation)
+      toast.success(`Using location: ${resolvedLocation}`)
+    } catch (error) {
+      const geolocationError = error as GeolocationPositionError
+      if (geolocationError?.code === 1) {
+        toast.error("Location permission denied")
+      } else if (geolocationError?.code === 2) {
+        toast.error("Unable to detect current location")
+      } else if (geolocationError?.code === 3) {
+        toast.error("Location request timed out")
+      } else {
+        toast.error("Failed to use current location")
       }
-    } else {
-      try {
-        await navigator.clipboard.writeText(window.location.href)
-        toast.success('Profile link copied to clipboard!')
-      } catch (err) {
-        toast.error('Failed to copy link')
-      }
+    } finally {
+      setIsLocating(false)
     }
   }
 
-  // Consistent result counts for all sections
-  const ITEMS_PER_SECTION = 4 // Reduced to 4 for horizontal scrolling
-  
-  // Filter profiles based on search query
-  const filteredProfiles = useMemo(() => {
-    if (!searchQuery.trim()) return profiles
-    
-    const query = searchQuery.toLowerCase().trim()
-    return profiles.filter(profile => {
-      const searchableText = [
-        profile.username,
-        profile.profile_data?.full_name,
-        profile.profile_data?.bio,
-        profile.profile_data?.location,
-        profile.account_type,
-        ...(profile.profile_data?.tags || [])
-      ].join(' ').toLowerCase()
-      
-      return searchableText.includes(query)
-    })
-  }, [profiles, searchQuery])
-  
-  const artists = useMemo(() => filteredProfiles.filter(p => p.account_type === 'artist').slice(0, ITEMS_PER_SECTION), [filteredProfiles])
-  const venues = useMemo(() => filteredProfiles.filter(p => p.account_type === 'venue').slice(0, ITEMS_PER_SECTION), [filteredProfiles])
-  
-  // Filter trending posts and events based on search query
-  const filteredTrendingPosts = useMemo(() => {
-    if (!searchQuery.trim()) return trendingPosts
-    
-    const query = searchQuery.toLowerCase().trim()
-    return trendingPosts.filter(post => {
-      const searchableText = [
-        post.content,
-        post.author?.username,
-        post.author?.name,
-        ...(post.tags || [])
-      ].join(' ').toLowerCase()
-      
-      return searchableText.includes(query)
-    })
-  }, [trendingPosts, searchQuery])
-  
-  const filteredUpcomingEvents = useMemo(() => {
-    if (!searchQuery.trim()) return upcomingEvents
-    
-    const query = searchQuery.toLowerCase().trim()
-    return upcomingEvents.filter(event => {
-      const searchableText = [
-        event.title,
-        event.description,
-        event.venue?.name,
-        event.venue?.location,
-        ...(event.tags || [])
-      ].join(' ').toLowerCase()
-      
-      return searchableText.includes(query)
-    })
-  }, [upcomingEvents, searchQuery])
+  const filtered = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return sections
 
-  // Animation variants
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -20 }
-  }
+    const textIncludes = (...values: Array<string | null | undefined>) =>
+      values.some((value) => String(value || "").toLowerCase().includes(query))
 
-  const staggerContainer = {
-    animate: {
-      transition: {
-        staggerChildren: 0.1
-      }
+    return {
+      ...sections,
+      for_you: sections.for_you.filter((item) => {
+        if (item.post) return textIncludes(item.post.content, item.post.profiles.username)
+        if (item.event) return textIncludes(item.event.title, item.event.venue_name, item.event.venue_city)
+        if (item.profile) return textIncludes(item.profile.display_name, item.profile.username, item.profile.bio, item.profile.location)
+        return false
+      }),
+      trending: sections.trending.filter((post) => textIncludes(post.content, post.profiles.username)),
+      upcoming: sections.upcoming.filter((event) => textIncludes(event.title, event.venue_name, event.venue_city, event.venue_state)),
+      people: sections.people.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
+      artists: sections.artists.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
+      venues: sections.venues.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
+      suggestions: sections.suggestions.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
     }
-  }
+  }, [sections, searchQuery])
 
-  const floatingAnimation = {
-    y: [0, -10, 0],
-    transition: {
-      duration: 3,
-      repeat: Infinity
-    }
-  }
+  const audienceSignal = stats.people_count + stats.suggestions_count + stats.trending_count * 2
+  const tabAvailability = useMemo(
+    () => ({
+      "for-you": filtered.for_you.length > 0,
+      events: filtered.upcoming.length > 0,
+      trending: filtered.trending.length > 0,
+      people: filtered.people.length > 0,
+    }),
+    [filtered]
+  )
+  const visibleTabs = useMemo(
+    () => (Object.entries(tabAvailability) as Array<[DiscoverTab, boolean]>)
+      .filter(([, isVisible]) => isVisible)
+      .map(([tab]) => tab),
+    [tabAvailability]
+  )
+
+  useEffect(() => {
+    if (isLoading) return
+    if (visibleTabs.includes(activeTab)) return
+    setActiveTab(visibleTabs[0] || "for-you")
+  }, [activeTab, isLoading, visibleTabs])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-full blur-3xl"
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-blue-500/5 to-cyan-500/5 rounded-full blur-3xl"
-          animate={{
-            y: [0, -15, 0],
-            transition: {
-              duration: 4,
-              repeat: Infinity,
-              delay: 1
-            }
-          }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-r from-emerald-500/3 to-teal-500/3 rounded-full blur-3xl"
-          animate={{
-            y: [0, -8, 0],
-            x: [0, 8, 0],
-            transition: {
-              duration: 5,
-              repeat: Infinity,
-              delay: 2
-            }
-          }}
-        />
-      </div>
-
-      <div className="relative z-10 space-y-8 p-6 lg:p-8">
-      {/* Hero */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900/50 via-purple-900/30 to-slate-900/50 border border-white/10 backdrop-blur-xl"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5" />
-        <div className="relative p-8 md:p-12 text-center">
-
-            <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3, duration: 0.6 }}
-              className="text-4xl md:text-6xl font-bold text-white mb-4 leading-tight"
-            >
-              Find new{" "}
-              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-                artists
-              </span>
-              ,{" "}
-              <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-                events
-              </span>{" "}
-              and{" "}
-              <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
-                venues
-              </span>
-            </motion.h1>
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.6 }}
-              className="text-gray-300 max-w-3xl mx-auto text-lg mb-6"
-            >
-              Curated just for you. Explore trending posts, upcoming events, and people you'll love to follow.
-            </motion.p>
-
+    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white">
+      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        <SurfaceHero className="p-8 space-y-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="space-y-3 max-w-4xl">
+              <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-sm text-purple-200">
+                <Compass className="h-4 w-4" />
+                Opportunity Radar
+              </div>
+              <h1 className="text-3xl md:text-5xl font-bold leading-tight">
+                Find the right opportunities faster
+              </h1>
+              <p className="text-slate-300 text-base md:text-lg">
+                Track what is moving now, connect with the right people, and turn momentum into bookings, growth, and real outcomes.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button asChild variant="outline" className="border-white/20 text-slate-200 hover:bg-white/10">
+                <Link href="/feed">Pulse</Link>
+              </Button>
+              <Button asChild className="rounded-xl bg-purple-600 hover:bg-purple-700">
+                <Link href="/events">Explore Events</Link>
+              </Button>
+            </div>
           </div>
-        </motion.div>
 
-      {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-        >
-      <Tabs defaultValue="foryou" className="space-y-8">
-            <TabsList className="bg-slate-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-1 w-full overflow-x-auto">
-              <TabsTrigger value="foryou" className="rounded-xl data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-200">
-                <Sparkles className="h-4 w-4 mr-2" />
-                For You
-              </TabsTrigger>
-              <TabsTrigger value="artists" className="rounded-xl data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-200">
-                <Music2 className="h-4 w-4 mr-2" />
-                Artists
-              </TabsTrigger>
-              <TabsTrigger value="events" className="rounded-xl data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-200">
-                <Calendar className="h-4 w-4 mr-2" />
-                Events
-              </TabsTrigger>
-              <TabsTrigger value="venues" className="rounded-xl data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-200">
-                <Building2 className="h-4 w-4 mr-2" />
-                Venues
-              </TabsTrigger>
-              <TabsTrigger value="music" className="rounded-xl data-[state=active]:bg-pink-500/20 data-[state=active]:text-pink-200">
-                <Flame className="h-4 w-4 mr-2" />
-                Trending
-              </TabsTrigger>
-        </TabsList>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <SignalCard label="Trending signals" value={stats.trending_count} icon={<Flame className="h-4 w-4" />} />
+            <SignalCard label="Upcoming events" value={stats.upcoming_count} icon={<Calendar className="h-4 w-4" />} />
+            <SignalCard label="People to meet" value={stats.people_count} icon={<Users className="h-4 w-4" />} />
+            <SignalCard label="Opportunity index" value={audienceSignal} icon={<Zap className="h-4 w-4" />} />
+          </div>
 
-        {/* For You */}
-        <TabsContent value="foryou" className="space-y-8">
-              {/* Simple Search Bar */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7, duration: 0.6 }}
-                className="max-w-md mx-auto"
-              >
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    placeholder="Search artists, venues, events..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-900/50 border border-white/10 rounded-2xl text-white placeholder:text-gray-400 focus:outline-none focus:border-purple-500/50 focus:ring-2 focus:ring-purple-500/20 backdrop-blur-sm transition-all duration-200"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-                {searchQuery && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-center mt-2 text-sm text-gray-400"
-                  >
-                    Searching for "{searchQuery}" • {filteredProfiles.length + filteredTrendingPosts.length + filteredUpcomingEvents.length} results
-                  </motion.div>
-                )}
-              </motion.div>
+          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-100">
+            <Sparkles className="h-3.5 w-3.5" />
+            RSS-only mode enabled
+          </div>
 
-          {/* Trending Posts */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-              >
-                <CategorySection 
-                  title="Trending Now" 
-                  icon={<Flame className="h-4 w-4" />} 
-                  href="/feed"
-                  description="Hot content from the community"
-                >
-                  <HorizontalScrollGrid>
-                    {isLoading && <SkeletonHorizontal count={4} />}
-                    {!isLoading && filteredTrendingPosts.slice(0, 4).map((p, index) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group flex-shrink-0"
-                      >
-                        <TrendingPostCard post={p} />
-                      </motion.div>
-                    ))}
-                  </HorizontalScrollGrid>
-                </CategorySection>
-              </motion.div>
-
-              {/* Featured Artists */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.9, duration: 0.6 }}
-              >
-                <CategorySection 
-                  title="Featured Artists" 
-                  icon={<Music2 className="h-4 w-4" />} 
-                  href="/artists"
-                  description="Discover talented musicians"
-                >
-                  <HorizontalScrollGrid>
-                    {isLoading && <SkeletonHorizontal count={4} />}
-                    {!isLoading && artists.slice(0, 4).map((p, index) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group flex-shrink-0"
-                      >
-                        <CompactProfileCard profile={p} onOpen={openProfileModal} />
-                      </motion.div>
-                    ))}
-                  </HorizontalScrollGrid>
-                </CategorySection>
-              </motion.div>
-
-          {/* Upcoming Events */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.0, duration: 0.6 }}
-              >
-                <CategorySection 
-                  title="Upcoming Events" 
-                  icon={<Calendar className="h-4 w-4" />} 
-                  href="/events"
-                  description="Don't miss these shows"
-                >
-                  <HorizontalScrollGrid>
-                    {isLoading && <SkeletonHorizontal count={4} />}
-                    {!isLoading && filteredUpcomingEvents.slice(0, 4).map((e, index) => (
-                      <motion.div
-                        key={e.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group flex-shrink-0"
-                      >
-                        <CompactEventCard event={e} />
-                      </motion.div>
-                    ))}
-                  </HorizontalScrollGrid>
-                </CategorySection>
-              </motion.div>
-
-              {/* Popular Venues */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.1, duration: 0.6 }}
-              >
-                <CategorySection 
-                  title="Popular Venues" 
-                  icon={<Building2 className="h-4 w-4" />} 
-                  href="/venues"
-                  description="Amazing places to perform"
-                >
-                  <HorizontalScrollGrid>
-                    {isLoading && <SkeletonHorizontal count={4} />}
-                    {!isLoading && venues.slice(0, 4).map((p, index) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group flex-shrink-0"
-                      >
-                        <CompactProfileCard profile={p} onOpen={openProfileModal} isVenue />
-                      </motion.div>
-                    ))}
-                  </HorizontalScrollGrid>
-                </CategorySection>
-              </motion.div>
-        </TabsContent>
-
-        {/* Artists */}
-        <TabsContent value="artists" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <DiscoverSection title="Top Artists" icon={<Music2 className="h-4 w-4" />} href="/artists">
-                  <ConsistentGrid>
-                    {isLoading && <SkeletonGrid count={ITEMS_PER_SECTION} />}
-                    {!isLoading && artists.map((p, index) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group"
-                      >
-                        <ProfileCard profile={p} onOpen={openProfileModal} />
-                      </motion.div>
-                    ))}
-                  </ConsistentGrid>
-                </DiscoverSection>
-              </motion.div>
-        </TabsContent>
-
-        {/* Events */}
-        <TabsContent value="events" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-          <DiscoverSection title="Upcoming Events" icon={<Calendar className="h-4 w-4" />} href="/events">
-                  <ConsistentGrid>
-                    {isLoading && <SkeletonGrid count={ITEMS_PER_SECTION} />}
-                    {!isLoading && upcomingEvents.slice(0, ITEMS_PER_SECTION).map((e, index) => (
-                      <motion.div
-                        key={e.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group"
-                      >
-                        <EventCard event={e} />
-                      </motion.div>
-                    ))}
-                  </ConsistentGrid>
-          </DiscoverSection>
-              </motion.div>
-        </TabsContent>
-
-        {/* Venues */}
-        <TabsContent value="venues" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <DiscoverSection title="Featured Venues" icon={<Building2 className="h-4 w-4" />} href="/venues">
-                  <ConsistentGrid>
-                    {isLoading && <SkeletonGrid count={ITEMS_PER_SECTION} />}
-                    {!isLoading && venues.map((p, index) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group"
-                      >
-                        <ProfileCard profile={p} onOpen={openProfileModal} isVenue />
-                      </motion.div>
-                    ))}
-                  </ConsistentGrid>
-                </DiscoverSection>
-              </motion.div>
-        </TabsContent>
-
-        {/* Music */}
-        <TabsContent value="music" className="space-y-6">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-              >
-                <DiscoverSection title="Trending Music" icon={<Flame className="h-4 w-4" />} href="/feed">
-                  <ConsistentGrid>
-                    {isLoading && <SkeletonGrid count={ITEMS_PER_SECTION} />}
-                    {!isLoading && trendingPosts.slice(0, ITEMS_PER_SECTION).map((p, index) => (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 * index, duration: 0.4 }}
-                        whileHover={{ scale: 1.02, y: -2 }}
-                        className="group"
-                      >
-                        <MusicCard post={p} />
-                      </motion.div>
-                    ))}
-                  </ConsistentGrid>
-          </DiscoverSection>
-              </motion.div>
-        </TabsContent>
-      </Tabs>
-        </motion.div>
-
-      {/* Profile Modal */}
-      <Dialog open={showProfileModal} onOpenChange={setShowProfileModal}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900/95 backdrop-blur-xl border-slate-700/50 rounded-3xl">
-          <DialogHeader>
-              <DialogTitle className="text-white flex items-center gap-2">
-                <Eye className="h-5 w-5 text-purple-400" />
-                Profile Details
-              </DialogTitle>
-          </DialogHeader>
-          {selectedProfile && (
-            <EnhancedPublicProfileView 
-              profile={{
-                id: selectedProfile.id,
-                username: selectedProfile.username,
-                account_type: selectedProfile.account_type,
-                profile_data: selectedProfile.profile_data,
-                avatar_url: selectedProfile.avatar_url,
-                cover_image: selectedProfile.cover_image,
-                verified: selectedProfile.verified,
-                bio: selectedProfile.bio,
-                location: selectedProfile.location,
-                social_links: selectedProfile.social_links,
-                stats: selectedProfile.stats,
-                created_at: selectedProfile.created_at
-              }}
-              onFollow={(id) => handleFollow(id)}
-              onShare={(profile) => handleShare(profile)}
+          <div className="mt-2 max-w-xl relative">
+            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <SurfaceInput
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search people, events, venues, opportunities..."
+              className="pl-9"
             />
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative w-full max-w-sm">
+              <MapPin className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <SurfaceInput
+                value={locationInput}
+                onChange={(event) => setLocationInput(event.target.value)}
+                placeholder="Narrow results by location (city, state)"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10"
+              onClick={() => setAppliedLocation(locationInput.trim())}
+            >
+              Apply Location
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10"
+              onClick={handleUseCurrentLocation}
+              disabled={isLocating}
+            >
+              {isLocating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
+              Use my current location
+            </Button>
+            {appliedLocation ? (
+              <Button
+                variant="ghost"
+                className="text-slate-300 hover:text-white hover:bg-white/10"
+                onClick={() => {
+                  setLocationInput("")
+                  setAppliedLocation("")
+                }}
+              >
+                Clear
+              </Button>
+            ) : null}
+            {appliedLocation ? (
+              <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30">
+                Near {appliedLocation}
+              </Badge>
+            ) : null}
+          </div>
+        </SurfaceHero>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-semibold">Choose your outcome</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            {intentOptions.map((intentOption) => (
+              <button
+                key={intentOption.id}
+                onClick={() => setSelectedIntent(intentOption.id)}
+                className={`text-left rounded-2xl border p-4 transition ${
+                  selectedIntent === intentOption.id
+                    ? "border-purple-400/60 bg-purple-500/10"
+                    : "border-white/10 bg-slate-900/50 hover:border-white/20"
+                }`}
+              >
+                <div className="flex items-center gap-2 text-sm text-purple-200 mb-2">
+                  {intentOption.icon}
+                  {intentOption.label}
+                </div>
+                <p className="text-sm text-slate-300">{intentOption.description}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <QuickPathCard
+            title="Land paid work"
+            description="Open active roles and apply where demand is already live."
+            href="/jobs"
+            icon={<Briefcase className="h-4 w-4" />}
+          />
+          <QuickPathCard
+            title="Find collaborators"
+            description="Connect with artists and teams ready to build now."
+            href="/friends/search"
+            icon={<Users className="h-4 w-4" />}
+          />
+          <QuickPathCard
+            title="Track live demand"
+            description="See which events and venues are accelerating."
+            href="/discover/events"
+            icon={<Calendar className="h-4 w-4" />}
+          />
+          <QuickPathCard
+            title="Study winning content"
+            description="Open top-performing posts in Pulse and adapt the playbook."
+            href="/feed"
+            icon={<Sparkles className="h-4 w-4" />}
+          />
+        </section>
+
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DiscoverTab)} className="space-y-6">
+          <SurfaceTabsList>
+            {(isLoading || tabAvailability["for-you"]) ? (
+              <TabsTrigger value="for-you"><Sparkles className="h-4 w-4 mr-2" />For You</TabsTrigger>
+            ) : null}
+            {(isLoading || tabAvailability.people) ? (
+              <TabsTrigger value="people"><Users className="h-4 w-4 mr-2" />People</TabsTrigger>
+            ) : null}
+            {(isLoading || tabAvailability.events) ? (
+              <TabsTrigger value="events"><Calendar className="h-4 w-4 mr-2" />Events</TabsTrigger>
+            ) : null}
+            {(isLoading || tabAvailability.trending) ? (
+              <TabsTrigger value="trending"><Flame className="h-4 w-4 mr-2" />Trending</TabsTrigger>
+            ) : null}
+          </SurfaceTabsList>
+
+          <TabsContent value="for-you" className="space-y-6">
+            <SectionHeader title="High-impact picks for your goal" href="/friends/search" />
+            {isLoading ? <LoadingGrid /> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.for_you.map((item) => (
+                  <ForYouCard
+                    key={item.id}
+                    item={item}
+                    onOpenProfile={(profile) => openProfile(router, profile)}
+                    onOpenEvent={(event) => openEvent(router, event)}
+                    onOpenPost={() => router.push("/feed")}
+                  />
+                ))}
+              </div>
+            )}
+            {!isLoading && filtered.for_you.length === 0 ? (
+              <EmptyState message="No RSS matches for this goal right now. Try another intent or remove location filtering." />
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="people" className="space-y-6">
+            <SectionHeader title="People driving momentum right now" href="/friends/search" />
+            {isLoading ? <LoadingGrid /> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {filtered.people.slice(0, 12).map((profile) => (
+                  <ProfileCard
+                    key={profile.id}
+                    profile={profile}
+                    isFollowing={followingIds.has(profile.id)}
+                    onFollow={handleFollow}
+                    onOpen={() => openProfile(router, profile)}
+                  />
+                ))}
+              </div>
+            )}
+            {!isLoading && filtered.people.length === 0 ? (
+              <EmptyState message="People suggestions are disabled in RSS-only mode." />
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="events" className="space-y-6">
+            <SectionHeader title="Where demand is building now" href="/events" />
+            {isLoading ? <LoadingGrid /> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.upcoming.map((event) => (
+                  <EventCard key={event.id} event={event} onOpen={() => openEvent(router, event)} />
+                ))}
+              </div>
+            )}
+            {!isLoading && filtered.upcoming.length === 0 ? (
+              <EmptyState message="No event-like stories were detected from RSS right now." />
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="trending" className="space-y-6">
+            <SectionHeader title="Content with traction" href="/feed" />
+            {isLoading ? <LoadingGrid /> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.trending.map((post) => (
+                  <PostCard key={post.id} post={post} onOpen={() => router.push("/feed")} />
+                ))}
+              </div>
+            )}
+            {!isLoading && filtered.trending.length === 0 ? (
+              <EmptyState message="No trending RSS stories available right now. Try changing location or refresh." />
+            ) : null}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
 }
 
-// Enhanced Subcomponents with Consistent Design
-function DiscoverSection({ title, icon, href, children }: { title: string; icon?: React.ReactNode; href?: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl">
-          {icon}
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-white">{title}</h3>
-            <p className="text-sm text-gray-400">Discover amazing content</p>
-          </div>
-        </div>
-        {href && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10 hover:border-white/30 transition-all duration-200" 
-            onClick={() => (window.location.href = href)}
-          >
-              See more
-            <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-        )}
-              </div>
-      {children}
-            </div>
-  )
-}
-
-function ConsistentGrid({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {children}
-              </div>
-  )
-}
-
-function SkeletonGrid({ count = 8 }: { count?: number }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: i * 0.1 }}
-          className="h-[280px] bg-slate-800/50 rounded-2xl animate-pulse"
-        />
-      ))}
-    </>
-  )
-}
-
-function ProfileCard({ profile, onOpen, isVenue = false }: { profile: DemoProfile; onOpen: (p: DemoProfile) => void; isVenue?: boolean }) {
-  const displayName = profile.profile_data?.name || profile.username
-  const colorScheme = isVenue ? 'emerald' : 'purple'
-  const router = useRouter()
-  
-  const handleViewProfile = () => {
-    // Navigate to the appropriate profile page
-    if (isVenue) {
-      router.push(`/venue/${profile.username}`)
-    } else {
-      router.push(`/artist/${profile.username}`)
-    }
-  }
-  
-  return (
-    <Card className="h-full bg-slate-900/50 border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-purple-500/30 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-purple-500/10 cursor-pointer" onClick={() => onOpen(profile)}>
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-12 w-12 border border-white/20">
-            <AvatarImage src={profile.avatar_url} />
-            <AvatarFallback className={`bg-gradient-to-r ${isVenue ? 'from-emerald-500 to-teal-500' : 'from-purple-500 to-pink-500'} text-white`}>
-              {displayName?.[0] || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1">
-              <span className="text-white font-medium text-sm truncate">{displayName}</span>
-              {profile.verified && <Verified className="h-3 w-3 text-blue-400 flex-shrink-0" />}
-            </div>
-            <div className="text-xs text-gray-400 truncate">
-              {profile.location || (isVenue ? 'Venue' : 'Artist')}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {profile.stats?.followers || 0}
-            </div>
-            <div className="flex items-center gap-1">
-              <Star className="h-3 w-3" />
-              {profile.stats?.rating || 4.5}
-            </div>
-          </div>
-          <Badge className={`text-xs ${
-            isVenue ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' :
-            'bg-purple-500/20 text-purple-200 border-purple-500/30'
-          }`}>
-            {isVenue ? 'Venue' : 'Artist'}
-          </Badge>
-        </div>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={(e) => {
-            e.stopPropagation()
-            handleViewProfile()
-          }}
-          className={`w-full rounded-xl ${
-            isVenue ? 'border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/20 hover:border-emerald-400/60' :
-            'border-purple-500/40 text-purple-200 hover:bg-purple-500/20 hover:border-purple-400/60'
-          } transition-all duration-200`}
-        >
-          <Eye className="h-3.5 w-3.5 mr-2" />
-          View Profile
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
-
-function EventCard({ event }: { event: any }) {
-  const router = useRouter()
-  
-  const handleViewEvent = () => {
-    // Navigate to the event page
-    if (event.slug) {
-      router.push(`/events/${event.slug}`)
-    } else if (event.id) {
-      router.push(`/events/${event.id}`)
-    }
-  }
-
-  return (
-    <Card className="h-full bg-slate-900/50 border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-blue-500/30 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-blue-500/10">
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          <div className="p-2 bg-blue-500/20 rounded-xl">
-            <Calendar className="h-4 w-4 text-blue-400" />
-          </div>
-          <Badge className="bg-blue-500/20 text-blue-200 border-blue-500/30 text-xs">
-            Event
-          </Badge>
-        </div>
-        <div className="flex-1 mb-4">
-          <h3 className="text-white font-medium text-sm mb-2 line-clamp-2">{event.name || event.title}</h3>
-          <div className="space-y-1">
-            <div className="text-xs text-gray-400 flex items-center gap-2">
-              <Calendar className="h-3 w-3" />
-              {new Date(event.event_date || event.date).toLocaleDateString()}
-            </div>
-            {event.venue_name && (
-              <div className="text-xs text-gray-400 flex items-center gap-2">
-                <MapPin className="h-3 w-3" />
-                <span className="truncate">{event.venue_name}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleViewEvent}
-          className="w-full rounded-xl border-blue-500/40 text-blue-200 hover:bg-blue-500/20 hover:border-blue-400/60 transition-all duration-200"
-        >
-          View Event
-          <ArrowRight className="h-3 w-3 ml-2" />
-        </Button>
-      </CardContent>
-    </Card>
-  )
-}
-
-function MusicCard({ post }: { post: any }) {
-  return (
-    <Card className="h-full bg-slate-900/50 border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-pink-500/30 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-pink-500/10">
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-10 w-10 border border-white/20">
-            <AvatarImage src={post.profiles?.avatar_url || ''} />
-            <AvatarFallback className="bg-gradient-to-r from-pink-500 to-red-500 text-white text-sm">
-              {(post.profiles?.username || 'U')[0]}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="text-white text-sm font-medium truncate">{post.profiles?.username || 'user'}</div>
-            <div className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString()}</div>
-          </div>
-          <Flame className="h-4 w-4 text-pink-400" />
-        </div>
-        <div className="text-gray-200 text-sm line-clamp-3 flex-1 mb-4">{post.content}</div>
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Heart className="h-3 w-3" />
-              {Math.floor(Math.random() * 100) + 10}
-            </div>
-            <div className="flex items-center gap-1">
-              <Eye className="h-3 w-3" />
-              {Math.floor(Math.random() * 500) + 50}
-            </div>
-          </div>
-          <Share2 className="h-3 w-3 hover:text-white cursor-pointer transition-colors" />
-        </div>
-        <Button size="sm" variant="outline" className="w-full rounded-xl border-pink-500/40 text-pink-200 hover:bg-pink-500/20 hover:border-pink-400/60 transition-all duration-200">
-          <PlayCircle className="h-3.5 w-3.5 mr-2" />
-          Open Post
-              </Button>
-        </CardContent>
-      </Card>
-  )
-}
-
-// New Category-based Components for Horizontal Scrolling
-function CategorySection({ title, icon, href, description, children }: { 
-  title: string; 
-  icon?: React.ReactNode; 
-  href?: string; 
-  description?: string;
-  children: React.ReactNode 
+function SignalCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
 }) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl">
+    <SurfaceCard className="bg-slate-900/70">
+      <CardContent className="p-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs text-slate-400">{label}</p>
+          <p className="text-2xl font-semibold">{value}</p>
+        </div>
+        <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-200">
+          {icon}
+        </div>
+      </CardContent>
+    </SurfaceCard>
+  )
+}
+
+function QuickPathCard({
+  title,
+  description,
+  href,
+  icon,
+}: {
+  title: string
+  description: string
+  href: string
+  icon: React.ReactNode
+}) {
+  return (
+    <Link href={href}>
+      <SurfaceCard className="hover:border-purple-400/40 transition h-full">
+        <CardContent className="p-4 space-y-2">
+          <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-200">
             {icon}
           </div>
-          <div>
-            <h3 className="text-xl font-bold text-white">{title}</h3>
-            {description && <p className="text-sm text-gray-400">{description}</p>}
-          </div>
-        </div>
-        {href && (
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10 hover:border-white/30 transition-all duration-200" 
-            onClick={() => (window.location.href = href)}
-          >
-            See more
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        )}
-      </div>
-      {children}
+          <p className="font-semibold">{title}</p>
+          <p className="text-sm text-slate-400">{description}</p>
+        </CardContent>
+      </SurfaceCard>
+    </Link>
+  )
+}
+
+function SectionHeader({ title, href }: { title: string; href: string }) {
+  return (
+    <div className="flex items-center justify-between">
+      <h2 className="text-2xl font-semibold">{title}</h2>
+      <Button asChild variant="outline" size="sm" className="border-white/20 text-slate-200 hover:bg-white/10">
+        <Link href={href}>
+          See more
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Link>
+      </Button>
     </div>
   )
 }
 
-function HorizontalScrollGrid({ children }: { children: React.ReactNode }) {
+function LoadingGrid() {
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
-      <style jsx>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
-      {children}
-    </div>
-  )
-}
-
-function SkeletonHorizontal({ count = 4 }: { count?: number }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: i * 0.1 }}
-          className="w-[280px] h-[200px] bg-slate-800/50 rounded-2xl animate-pulse flex-shrink-0"
-        />
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {Array.from({ length: 6 }).map((_, index) => (
+        <SurfaceCard key={index} className="bg-slate-900/50">
+          <CardContent className="p-6 flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
+            <span className="text-slate-300">Loading discover content...</span>
+          </CardContent>
+        </SurfaceCard>
       ))}
-    </>
+    </div>
   )
 }
 
-function TrendingPostCard({ post }: { post: any }) {
-  const router = useRouter()
-  
-  const handleViewPost = () => {
-    // Determine the correct route based on post type
-    if (post.type === 'blog' || post.content_type === 'blog') {
-      // For blog posts, use the blog route
-      if (post.slug) {
-        router.push(`/blog/${post.slug}`)
-      } else if (post.id) {
-        router.push(`/artist/features/blog/${post.id}`)
-      }
-    } else {
-      // For regular posts, use the posts route
-      router.push(`/venue/dashboard/posts/${post.id}`)
-    }
-  }
-
+function EmptyState({ message }: { message: string }) {
   return (
-    <Card className="w-[280px] h-[200px] bg-slate-900/50 border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-purple-500/30 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-purple-500/10">
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-8 w-8 border border-white/20">
-            <AvatarImage src={post.profiles?.avatar_url || ''} />
-            <AvatarFallback className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs">
-              {(post.profiles?.username || 'U')[0]}
-            </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-            <div className="text-white text-xs font-medium truncate">{post.profiles?.username || 'user'}</div>
-            <div className="text-xs text-gray-400">{new Date(post.created_at).toLocaleDateString()}</div>
-          </div>
-          <TrendingUp className="h-4 w-4 text-purple-400" />
-        </div>
-        <div className="text-gray-200 text-sm line-clamp-3 flex-1 mb-3">{post.content}</div>
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-          <div className="flex items-center gap-2">
-            <Heart className="h-3 w-3" />
-            <span>{Math.floor(Math.random() * 100) + 10}</span>
-            <Eye className="h-3 w-3 ml-2" />
-            <span>{Math.floor(Math.random() * 500) + 50}</span>
-          </div>
-          <Share2 className="h-3 w-3 hover:text-white cursor-pointer transition-colors" />
-        </div>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleViewPost}
-          className="w-full rounded-xl border-purple-500/40 text-purple-200 hover:bg-purple-500/20 hover:border-purple-400/60 transition-all duration-200"
-        >
-          <PlayCircle className="h-3 w-3 mr-2" />
-          View
-        </Button>
-      </CardContent>
-    </Card>
+    <SurfaceCard className="bg-slate-900/60">
+      <CardContent className="p-6 text-sm text-slate-300">{message}</CardContent>
+    </SurfaceCard>
   )
 }
 
-function CompactProfileCard({ profile, onOpen, isVenue = false }: { 
-  profile: DemoProfile; 
-  onOpen: (p: DemoProfile) => void; 
-  isVenue?: boolean 
+function ForYouCard({
+  item,
+  onOpenProfile,
+  onOpenEvent,
+  onOpenPost,
+}: {
+  item: ForYouItem
+  onOpenProfile: (profile: DiscoverProfile) => void
+  onOpenEvent: (event: DiscoverEvent) => void
+  onOpenPost: () => void
 }) {
-  const displayName = profile.profile_data?.name || profile.username
-  const router = useRouter()
-  
-  const handleViewProfile = () => {
-    // Navigate to the appropriate profile page
-    if (isVenue) {
-      router.push(`/venue/${profile.username}`)
-    } else {
-      router.push(`/artist/${profile.username}`)
-    }
-  }
-  
+  if (item.profile)
+    return (
+      <ProfileCard profile={item.profile} onFollow={() => null} onOpen={() => onOpenProfile(item.profile!)} isFollowing={false} hideFollow />
+    )
+
+  if (item.event)
+    return (
+      <EventCard event={item.event} onOpen={() => onOpenEvent(item.event!)} />
+    )
+
+  if (item.post)
+    return (
+      <PostCard post={item.post} onOpen={onOpenPost} />
+    )
+
+  return null
+}
+
+function ProfileCard({
+  profile,
+  onOpen,
+  onFollow,
+  isFollowing,
+  hideFollow = false,
+}: {
+  profile: DiscoverProfile
+  onOpen: () => void
+  onFollow: (profileId: string) => void
+  isFollowing: boolean
+  hideFollow?: boolean
+}) {
   return (
-    <Card className="w-[280px] h-[200px] bg-slate-900/50 border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-emerald-500/30 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-emerald-500/10 cursor-pointer" onClick={() => onOpen(profile)}>
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-3">
+    <motion.div whileHover={{ y: -2 }}>
+      <SurfaceCard className="h-full">
+        <CardHeader className="pb-2">
           <div className="flex items-center gap-3">
-            <Avatar className="h-12 w-12 border border-white/20">
-              <AvatarImage src={profile.avatar_url} />
-              <AvatarFallback className={`bg-gradient-to-r ${isVenue ? 'from-emerald-500 to-teal-500' : 'from-purple-500 to-pink-500'} text-white`}>
-                {displayName?.[0] || 'U'}
-              </AvatarFallback>
+            <Avatar>
+              <AvatarImage src={profile.avatar_url || ""} />
+              <AvatarFallback>{profile.display_name.charAt(0)}</AvatarFallback>
             </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1">
-                <span className="text-white font-medium text-sm truncate">{displayName}</span>
-                {profile.verified && <Verified className="h-3 w-3 text-blue-400 flex-shrink-0" />}
-              </div>
-              <div className="text-xs text-gray-400 truncate">
-                {profile.location || (isVenue ? 'Venue' : 'Artist')}
-              </div>
+            <div className="min-w-0">
+              <CardTitle className="text-base truncate">{profile.display_name}</CardTitle>
+              <p className="text-xs text-slate-400 truncate">@{profile.username}</p>
             </div>
           </div>
-          {!profile.is_demo && (
-            <div className="flex-shrink-0">
-              <Badge className="bg-green-500/20 text-green-200 border-green-500/30 text-xs px-2 py-1">
-                Live
-              </Badge>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center justify-between text-xs text-gray-400 mb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {profile.stats?.followers || 0}
-            </div>
-            <div className="flex items-center gap-1">
-              <Star className="h-3 w-3" />
-              {profile.stats?.rating || 4.5}
-            </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2 flex-wrap">
+            <Badge variant="secondary" className="capitalize">{profile.account_type}</Badge>
+            {profile.verified ? <Badge className="bg-blue-500/20 text-blue-200">Verified</Badge> : null}
           </div>
-          <Badge className={`text-xs ${
-            isVenue ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' :
-            'bg-purple-500/20 text-purple-200 border-purple-500/30'
-          }`}>
-            {isVenue ? 'Venue' : 'Artist'}
-          </Badge>
-        </div>
-        <div className="flex-1" />
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={(e) => {
-            e.stopPropagation()
-            handleViewProfile()
-          }}
-          className={`w-full rounded-xl ${
-            isVenue ? 'border-emerald-500/40 text-emerald-200 hover:bg-emerald-500/20 hover:border-emerald-400/60' :
-            'border-purple-500/40 text-purple-200 hover:bg-purple-500/20 hover:border-purple-400/60'
-          } transition-all duration-200`}
-        >
-          <Eye className="h-3 w-3 mr-2" />
-          View Profile
-        </Button>
-      </CardContent>
-    </Card>
+          <p className="text-sm text-slate-300 line-clamp-2">{profile.bio || "No bio yet."}</p>
+          {profile.location ? (
+            <div className="text-xs text-slate-400 flex items-center gap-1">
+              <MapPin className="h-3 w-3" />
+              {profile.location}
+            </div>
+          ) : null}
+          <div className="text-xs text-slate-400">{profile.stats.followers} followers</div>
+          <div className="flex gap-2">
+            <Button onClick={onOpen} size="sm" variant="outline" className="flex-1 rounded-xl border-white/20">
+              View
+            </Button>
+            {!hideFollow ? (
+              <Button onClick={() => onFollow(profile.id)} size="sm" className="flex-1 rounded-xl">
+                {isFollowing ? "Following" : "Follow"}
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </SurfaceCard>
+    </motion.div>
   )
 }
 
-function CompactEventCard({ event }: { event: any }) {
-  const router = useRouter()
-  
-  const handleViewEvent = () => {
-    // Navigate to the event page
-    if (event.slug) {
-      router.push(`/events/${event.slug}`)
-    } else if (event.id) {
-      router.push(`/events/${event.id}`)
-    }
+function EventCard({ event, onOpen }: { event: DiscoverEvent; onOpen: () => void }) {
+  return (
+    <motion.div whileHover={{ y: -2 }}>
+      <SurfaceCard className="h-full">
+        <CardHeader>
+          <CardTitle className="text-base">{event.title}</CardTitle>
+          <p className="text-xs text-slate-400">{formatSafeDate(event.event_date || null)}</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-slate-300 line-clamp-2">{event.description || "No description yet."}</p>
+          <div className="text-xs text-slate-400 flex items-center gap-1">
+            <MapPin className="h-3 w-3" />
+            {[event.venue_name, event.venue_city, event.venue_state].filter(Boolean).join(", ") || "Venue TBD"}
+          </div>
+          <div className="text-xs text-slate-400">{event.attendance.total} interested/attending</div>
+          <Button onClick={onOpen} size="sm" className="w-full rounded-xl">
+            <Calendar className="h-3.5 w-3.5 mr-2" />
+            View Event
+          </Button>
+        </CardContent>
+      </SurfaceCard>
+    </motion.div>
+  )
+}
+
+function PostCard({ post, onOpen }: { post: DiscoverPost; onOpen: () => void }) {
+  return (
+    <motion.div whileHover={{ y: -2 }}>
+      <SurfaceCard className="h-full">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Avatar className="h-8 w-8">
+                <AvatarImage src={post.profiles.avatar_url || ""} />
+                <AvatarFallback>{post.profiles.username.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{post.profiles.full_name || post.profiles.username}</p>
+                <p className="text-xs text-slate-400 truncate">@{post.profiles.username}</p>
+              </div>
+            </div>
+            <TrendingUp className="h-4 w-4 text-purple-300" />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-slate-300 line-clamp-4">{post.content || "No content available."}</p>
+          <div className="text-xs text-slate-400 flex items-center gap-3">
+            <span>{post.likes_count} likes</span>
+            <span>{post.comments_count} comments</span>
+            <span>{post.shares_count} shares</span>
+          </div>
+          <div className="text-xs text-slate-500">{formatSafeDate(post.created_at)}</div>
+          <Button onClick={onOpen} size="sm" variant="outline" className="w-full rounded-xl border-white/20">
+            <Sparkles className="h-3.5 w-3.5 mr-2" />
+            Open in Pulse
+          </Button>
+        </CardContent>
+      </SurfaceCard>
+    </motion.div>
+  )
+}
+
+function openProfile(router: ReturnType<typeof useRouter>, profile: DiscoverProfile) {
+  if (profile.account_type === "artist") {
+    router.push(`/artist/${profile.username}`)
+    return
   }
 
-  return (
-    <Card className="w-[280px] h-[200px] bg-slate-900/50 border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm hover:border-blue-500/30 transition-all duration-300 group-hover:shadow-lg group-hover:shadow-blue-500/10">
-      <CardContent className="p-4 h-full flex flex-col">
-        <div className="flex items-center justify-between mb-3">
-          <div className="p-2 bg-blue-500/20 rounded-xl">
-            <Calendar className="h-4 w-4 text-blue-400" />
-          </div>
-          <Badge className="bg-blue-500/20 text-blue-200 border-blue-500/30 text-xs">
-            Event
-          </Badge>
-        </div>
-        <div className="flex-1 mb-4">
-          <h3 className="text-white font-medium text-sm mb-2 line-clamp-2">{event.name || event.title}</h3>
-          <div className="space-y-1">
-            <div className="text-xs text-gray-400 flex items-center gap-2">
-              <Calendar className="h-3 w-3" />
-              {new Date(event.event_date || event.date).toLocaleDateString()}
-            </div>
-            {event.venue_name && (
-              <div className="text-xs text-gray-400 flex items-center gap-2">
-                <MapPin className="h-3 w-3" />
-                <span className="truncate">{event.venue_name}</span>
-              </div>
-            )}
-          </div>
-        </div>
-        <Button 
-          size="sm" 
-          variant="outline" 
-          onClick={handleViewEvent}
-          className="w-full rounded-xl border-blue-500/40 text-blue-200 hover:bg-blue-500/20 hover:border-blue-400/60 transition-all duration-200"
-        >
-          View Event
-          <ArrowRight className="h-3 w-3 ml-2" />
-        </Button>
-      </CardContent>
-    </Card>
-  )
+  if (profile.account_type === "venue") {
+    router.push(`/venue/${profile.username}`)
+    return
+  }
+
+  router.push(`/profile/${profile.username}`)
+}
+
+function openEvent(router: ReturnType<typeof useRouter>, event: DiscoverEvent) {
+  if (event.slug) {
+    router.push(`/events/${event.slug}`)
+    return
+  }
+
+  router.push(`/events/${event.id}`)
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export async function GET(request: NextRequest) {
   try {
@@ -200,7 +201,7 @@ export async function POST(request: NextRequest) {
           .from("equipment_setup_workflows")
           .insert([{
             site_map_id: data.siteMapId,
-            name: `${template.name} - ${new Date().toLocaleDateString()}`,
+            name: `${template.name} - ${formatSafeDate(new Date().toISOString())}`,
             description: template.description,
             estimated_duration_minutes: template.estimated_duration,
             priority: template.priority,

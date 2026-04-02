@@ -11,6 +11,13 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useAdminStats } from "../hooks/use-admin-stats"
 import {
   Home,
@@ -21,45 +28,24 @@ import {
   Users,
   DollarSign,
   Package,
-  MessageSquare,
   Settings,
   Music,
   Building,
   BarChart3,
-  Shield,
-  FileText,
-  Bell,
   Search,
   ChevronDown,
   ChevronRight,
-  Zap,
   Activity,
   Award,
   Crown,
   Target,
   Clock,
-  MapPin,
-  Star,
-  TrendingUp,
-  Eye,
-  Heart,
-  Sparkles,
-  Coffee,
-  Headphones,
   Radio,
-  Mic,
-  Camera,
-  Volume2,
   Plus,
   Menu,
-  X,
-  Handshake,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings as SettingsIcon,
-  ChevronLeft,
-  Filter,
-  RefreshCw,
-  Bookmark,
-  ExternalLink
 } from "lucide-react"
 
 interface NavItem {
@@ -79,6 +65,7 @@ interface NavItem {
 
 export function OptimizedSidebar() {
   const pathname = usePathname()
+  const { currentAccount } = useMultiAccount()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -88,13 +75,23 @@ export function OptimizedSidebar() {
   // Fetch real admin stats
   const { stats, isLoading } = useAdminStats()
 
+  const profile = currentAccount?.profile_data as
+    | { display_name?: string; username?: string; organization_name?: string }
+    | undefined
+  const sidebarHeaderTitle =
+    (currentAccount as { display_name?: string } | null)?.display_name ||
+    (currentAccount as { username?: string } | null)?.username ||
+    profile?.display_name ||
+    profile?.username ||
+    profile?.organization_name ||
+    "Organizer"
+
   // Create navigation items with real data
   const navItems: NavItem[] = [
     { 
       label: "Dashboard", 
       href: "/admin/dashboard", 
       icon: Home,
-      badge: "Overview",
       description: "Main dashboard overview",
       shortcut: "⌘1"
     },
@@ -107,9 +104,9 @@ export function OptimizedSidebar() {
       description: "Manage tours and itineraries",
       shortcut: "⌘2",
       children: [
-        { label: "Active Tours", href: "/admin/dashboard/tours/active", icon: Activity, description: "Currently running tours" },
-        { label: "Planning", href: "/admin/dashboard/tours/planning", icon: Target, description: "Tours in planning phase" },
-        { label: "Archive", href: "/admin/dashboard/tours/archive", icon: Package, description: "Completed tours" }
+        { label: "Active Tours", href: "/admin/dashboard/tours?status=active", icon: Activity, description: "Currently running tours" },
+        { label: "Planning", href: "/admin/dashboard/tours?status=planning", icon: Target, description: "Tours in planning phase" },
+        { label: "Archive", href: "/admin/dashboard/tours?status=completed", icon: Package, description: "Completed tours" }
       ]
     },
     { 
@@ -121,9 +118,9 @@ export function OptimizedSidebar() {
       description: "Event management and scheduling",
       shortcut: "⌘3",
       children: [
-        { label: "Upcoming", href: "/admin/dashboard/events/upcoming", icon: Clock, description: "Future events" },
-        { label: "Live Events", href: "/admin/dashboard/events/live", icon: Radio, description: "Currently happening" },
-        { label: "Past Events", href: "/admin/dashboard/events/past", icon: Award, description: "Completed events" }
+        { label: "Upcoming", href: "/admin/dashboard/events?status=upcoming", icon: Clock, description: "Future events" },
+        { label: "Live Events", href: "/admin/dashboard/events?status=live", icon: Radio, description: "Currently happening" },
+        { label: "Past Events", href: "/admin/dashboard/events?status=past", icon: Award, description: "Completed events" }
       ]
     },
     { 
@@ -134,11 +131,6 @@ export function OptimizedSidebar() {
       badgeColor: "bg-pink-500/20 text-pink-400",
       description: "Artist profiles and bookings",
       shortcut: "⌘4",
-      children: [
-        { label: "Active Artists", href: "/admin/dashboard/artists/active", icon: Mic, description: "Currently booked artists" },
-        { label: "Bookings", href: "/admin/dashboard/artists/bookings", icon: Calendar, description: "Booking requests" },
-        { label: "Contracts", href: "/admin/dashboard/artists/contracts", icon: FileText, description: "Artist contracts" }
-      ]
     },
     { 
       label: "Venues", 
@@ -148,11 +140,6 @@ export function OptimizedSidebar() {
       badgeColor: "bg-orange-500/20 text-orange-400",
       description: "Venue partnerships and management",
       shortcut: "⌘5",
-      children: [
-        { label: "Partner Venues", href: "/admin/dashboard/venues/partners", icon: Sparkles, description: "Official partners" },
-        { label: "Requests", href: "/admin/dashboard/venues/requests", icon: Bell, description: "New venue requests" },
-        { label: "Contracts", href: "/admin/dashboard/venues/contracts", icon: FileText, description: "Venue agreements" }
-      ]
     },
     { 
       label: "Ticketing", 
@@ -263,8 +250,8 @@ export function OptimizedSidebar() {
                 <Crown className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-white">Admin Panel</h2>
-                <p className="text-xs text-slate-400">Event Management</p>
+                <h2 className="text-base font-bold text-white">{sidebarHeaderTitle}</h2>
+                <p className="text-xs text-slate-400">Event & Tour Management</p>
               </div>
             </div>
           )}
@@ -274,7 +261,7 @@ export function OptimizedSidebar() {
             onClick={() => setIsCollapsed(!isCollapsed)}
             className="text-slate-400 hover:text-white h-8 w-8 p-0"
           >
-            {isCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+            {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </Button>
         </div>
       </div>
@@ -312,7 +299,7 @@ export function OptimizedSidebar() {
                           href={item.href}
                           className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
                             isActive 
-                              ? 'bg-gradient-to-r from-purple-600/20 to-blue-600/20 text-white border border-purple-500/30' 
+                              ? "bg-purple-600/10 text-white border-l-2 border-l-purple-500" 
                               : 'hover:bg-slate-800/50 text-slate-300 hover:text-white'
                           }`}
                         >
@@ -405,25 +392,44 @@ export function OptimizedSidebar() {
 
 
 
-      {/* Quick Actions - Compact */}
       {!isCollapsed && (
         <div className="p-3">
           <div className="flex space-x-1.5">
-            <Button
-              size="sm"
-              className="flex-1 h-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 text-xs"
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Create
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 h-8 border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
-            >
-              <Settings className="h-3 w-3 mr-1" />
-              Settings
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  className="flex-1 w-full h-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Create
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="start"
+                className="w-48 bg-slate-900 border-slate-700 text-slate-100"
+              >
+                <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
+                  <Link href="/admin/dashboard/tours/planner">New Tour</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
+                  <Link href="/admin/dashboard/events/create">New Event</Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
+                  <Link href="/admin/job-postings/new">New Job Posting</Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Link href="/admin/dashboard/settings" className="flex-1">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full h-8 border-slate-700 text-slate-300 hover:bg-slate-800 text-xs"
+              >
+                <Settings className="h-3 w-3 mr-1" />
+                Settings
+              </Button>
+            </Link>
           </div>
         </div>
       )}
@@ -439,7 +445,7 @@ export function OptimizedSidebar() {
           variant="ghost"
           size="sm"
           onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="fixed top-4 left-4 z-50 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
+          className="fixed top-4 left-4 z-[100] ml-2 mt-2 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
         >
           <Menu className="h-5 w-5 text-white" />
         </Button>

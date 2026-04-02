@@ -58,6 +58,7 @@ import {
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
 import { useCurrentVenue } from '@/hooks/use-venue'
 import type { StaffMember, JobPostingTemplate, OnboardingCandidate } from '@/types/admin-onboarding'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface TeamMember extends StaffMember {
   onboarding_progress?: number
@@ -84,13 +85,17 @@ export default function TeamManagementPage() {
   const { toast } = useToast()
   const { venue } = useCurrentVenue()
 
-  const venueId = venue?.id || 'mock-venue-id'
+  const venueId = venue?.id
 
   useEffect(() => {
-    loadTeamData()
+    if (venueId) loadTeamData()
   }, [jobId, venueId])
 
   async function loadTeamData() {
+    if (!venueId) {
+      setIsLoading(false)
+      return
+    }
     try {
       setIsLoading(true)
       setError(null)
@@ -375,7 +380,7 @@ export default function TeamManagementPage() {
                               {member.hire_date && (
                                 <div className="flex items-center gap-1">
                                   <CalendarIcon className="h-4 w-4" />
-                                  <span>Hired {new Date(member.hire_date).toLocaleDateString()}</span>
+                                  <span>Hired {formatSafeDate(member.hire_date)}</span>
                                 </div>
                               )}
                               {member.performance_rating && (
@@ -461,7 +466,7 @@ export default function TeamManagementPage() {
                             <div className="flex items-center gap-4 text-sm text-slate-400">
                               <div className="flex items-center gap-1">
                                 <CalendarIcon className="h-4 w-4" />
-                                <span>Applied {new Date(candidate.application_date).toLocaleDateString()}</span>
+                                <span>Applied {formatSafeDate(candidate.application_date)}</span>
                               </div>
                               <div className="flex items-center gap-1">
                                 <Target className="h-4 w-4" />
@@ -609,7 +614,7 @@ export default function TeamManagementPage() {
                   <Label className="text-white">Hire Date</Label>
                   <p className="text-slate-300">
                     {selectedMember.hire_date 
-                      ? new Date(selectedMember.hire_date).toLocaleDateString()
+                      ? formatSafeDate(selectedMember.hire_date)
                       : 'Not specified'
                     }
                   </p>
@@ -628,7 +633,7 @@ export default function TeamManagementPage() {
                   <Label className="text-white">Last Active</Label>
                   <p className="text-slate-300">
                     {selectedMember.last_active 
-                      ? new Date(selectedMember.last_active).toLocaleDateString()
+                      ? formatSafeDate(selectedMember.last_active)
                       : 'Unknown'
                     }
                   </p>

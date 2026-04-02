@@ -11,6 +11,8 @@ import {
   Calendar, MapPin, ExternalLink, BarChart3, 
   Settings, Download, Share2
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface TicketEvent {
   id: string
@@ -73,12 +75,7 @@ function EventTicketCard({ event }: { event: TicketEvent }) {
           <div>
             <CardTitle className="text-white text-lg">{event.name}</CardTitle>
             <CardDescription className="text-gray-400">
-              {new Date(event.date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
+              {formatSafeDate(event.date)}
             </CardDescription>
           </div>
           <Badge className={`${
@@ -109,7 +106,7 @@ function EventTicketCard({ event }: { event: TicketEvent }) {
             <div className="text-xs text-gray-400">Remaining</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-400">${event.revenue.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-purple-400">{formatSafeCurrency(event.revenue)}</div>
             <div className="text-xs text-gray-400">Revenue</div>
           </div>
         </div>

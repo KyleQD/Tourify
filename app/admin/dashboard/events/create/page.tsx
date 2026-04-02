@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,7 +22,30 @@ interface Artist {
   requestType?: string
 }
 
+function parseOptionalVenueUuid(value: string): string | null {
+  const u = value.trim()
+  if (!u) return null
+  if (
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(u)
+  ) {
+    return u
+  }
+  return null
+}
+
+function toStartIso(date: string, time: string): string {
+  const t = (time || "00:00").slice(0, 5)
+  return new Date(`${date}T${t}:00`).toISOString()
+}
+
+function addTwoHoursIso(startIso: string): string {
+  const d = new Date(startIso)
+  d.setTime(d.getTime() + 2 * 60 * 60 * 1000)
+  return d.toISOString()
+}
+
 export default function CreateEventPage() {
+  const router = useRouter()
   const [eventData, setEventData] = React.useState({
     title: "",
     description: "",
@@ -73,26 +97,58 @@ export default function CreateEventPage() {
   }
 
   const handleCreateEvent = async () => {
+    if (!eventData.date) return
+
     setIsLoading(true)
     try {
-      // Create event logic here
-      const eventPayload = {
-        ...eventData,
-        artists: bookedArtists
+      const startAt = toStartIso(eventData.date, eventData.time)
+      const endAt = addTwoHoursIso(startAt)
+      const venueId = parseOptionalVenueUuid(eventData.venue)
+      const capacityRaw = eventData.capacity.trim()
+      const capacity =
+        capacityRaw === "" ? null : Number.parseInt(capacityRaw, 10)
+      const capacityPayload =
+        capacity !== null && !Number.isNaN(capacity) ? capacity : null
+
+      const response = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: eventData.title.trim(),
+          description: eventData.description || "",
+          start_at: startAt,
+          end_at: endAt,
+          venue_id: venueId,
+          capacity: capacityPayload,
+          status: "draft",
+        }),
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        toast({
+          title: "Error",
+          description:
+            typeof data?.error === "string"
+              ? data.error
+              : "Failed to create event. Please try again.",
+          variant: "destructive",
+        })
+        return
       }
-      
-      // Mock API call
-      console.log("Creating event:", eventPayload)
-      
+
       toast({
         title: "Event created successfully",
-        description: "Your event has been created and artist booking requests have been sent."
+        description: "Your event has been saved as a draft.",
       })
-    } catch (error) {
+      router.push("/admin/dashboard/events")
+    } catch {
       toast({
         title: "Error",
         description: "Failed to create event. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       })
     } finally {
       setIsLoading(false)

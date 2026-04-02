@@ -36,7 +36,7 @@ This will test:
 - ✅ RSS feed fetching
 - ✅ Database permissions
 
-### 4. **Check Your FYP**
+### 4. **Check Your News Feed**
 Navigate to `/feed` and click the **"News"** tab. You should see:
 - Real RSS content from Billboard, Pitchfork, etc.
 - Mixed with your local platform posts
@@ -63,7 +63,7 @@ After running the fixed migration, you should see:
 ✅ RLS policies created
 ✅ Sample entries inserted
 ✅ RSS feeds accessible
-✅ News content in FYP
+✅ News content in the News feed
 ```
 
 ## 🆘 **Still Having Issues?**

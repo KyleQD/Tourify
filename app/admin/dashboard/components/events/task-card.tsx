@@ -12,6 +12,7 @@ import {
 } from "../ui/dropdown-menu"
 import { SlackService } from "../../lib/slack-service"
 import type { Task, TaskStatus } from "./task-dialog"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface TaskCardProps {
   task: Task
@@ -58,7 +59,7 @@ export function TaskCard({ task, eventId, eventName, onEdit, onDelete, onStatusC
         )}
         <div>
           <h4 className="font-medium text-slate-200">{task.name}</h4>
-          <p className="text-sm text-slate-400">Due: {new Date(task.dueDate).toLocaleDateString()}</p>
+          <p className="text-sm text-slate-400">Due: {formatSafeDate(task.dueDate)}</p>
           {task.description && <p className="text-xs text-slate-500 mt-1">{task.description}</p>}
         </div>
       </div>

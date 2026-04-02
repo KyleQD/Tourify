@@ -33,6 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { VenueShift, VenueShiftAssignment, VenueTeamMember, ShiftStatus, AssignmentStatus } from '@/types/database.types'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface ShiftCalendarProps {
   venueId: string
@@ -282,11 +283,11 @@ export function ShiftCalendar({ venueId }: ShiftCalendarProps) {
   }
 
   const formatTime = (time: string) => {
-    return new Date(`2000-01-01T${time}`).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
+    return new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
       hour12: true
-    })
+    }).format(new Date(`2000-01-01T${time}`))
   }
 
   const calendarDays = getCalendarDays()
@@ -310,10 +311,7 @@ export function ShiftCalendar({ venueId }: ShiftCalendarProps) {
           </Button>
           
           <h2 className="text-lg font-semibold">
-            {currentDate.toLocaleDateString('en-US', {
-              month: 'long',
-              year: 'numeric'
-            })}
+            {formatSafeDate(currentDate.toISOString())}
           </h2>
           
           <Button
@@ -534,7 +532,7 @@ export function ShiftCalendar({ venueId }: ShiftCalendarProps) {
                 <div>
                   <Label className="text-sm font-medium">Date & Time</Label>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(selectedShift.shift_date).toLocaleDateString()} • {formatTime(selectedShift.start_time)} - {formatTime(selectedShift.end_time)}
+                    {formatSafeDate(selectedShift.shift_date)} • {formatTime(selectedShift.start_time)} - {formatTime(selectedShift.end_time)}
                   </p>
                 </div>
                 <div>

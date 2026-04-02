@@ -243,7 +243,7 @@ export function ForYouPage() {
         sortBy: sortBy
       })
       
-      console.log('[FYP] Loading content for tab:', activeTab)
+      console.log('[NewsFeed] Loading content for tab:', activeTab)
       
       // Fetch content based on active tab
       if (activeTab === 'all') {
@@ -274,7 +274,7 @@ export function ForYouPage() {
         
         // Add RSS news to hybrid content
         if (newsData.success && newsData.news && newsData.news.length > 0) {
-          console.log('[FYP] Successfully fetched RSS news:', newsData.news.length, 'items')
+          console.log('[NewsFeed] Successfully fetched RSS news:', newsData.news.length, 'items')
           
           // Convert RSS items to ContentItem format
           const rssContent = newsData.news.map((item: any, index: number) => ({
@@ -300,7 +300,7 @@ export function ForYouPage() {
           }))
           
           hybridContent = [...rssContent, ...hybridContent]
-          console.log('[FYP] Hybrid content created with RSS news:', hybridContent.length, 'total items')
+          console.log('[NewsFeed] Hybrid content created with RSS news:', hybridContent.length, 'total items')
         }
         
         // Ensure we always have some content
@@ -764,7 +764,7 @@ export function ForYouPage() {
   const filteredContent = useMemo(() => {
     let filtered = content
 
-    console.log('[FYP] Filtering content:', {
+    console.log('[NewsFeed] Filtering content:', {
       totalContent: content.length,
       activeTab,
       searchQuery,
@@ -787,13 +787,13 @@ export function ForYouPage() {
         
         return searchableText.includes(query)
       })
-      console.log('[FYP] Search filtering applied, remaining items:', filtered.length)
+      console.log('[NewsFeed] Search filtering applied, remaining items:', filtered.length)
     }
 
     // Apply tab filtering
     if (activeTab !== 'all') {
       filtered = filtered.filter(item => item.type === activeTab)
-      console.log('[FYP] Tab filtering applied for', activeTab, 'remaining items:', filtered.length)
+      console.log('[NewsFeed] Tab filtering applied for', activeTab, 'remaining items:', filtered.length)
     }
 
     // Apply sorting based on selected option
@@ -808,7 +808,7 @@ export function ForYouPage() {
         return (b.relevance_score || 0) - (a.relevance_score || 0)
       })
       
-      console.log('[FYP] Positive sentiment sorting applied:', 
+      console.log('[NewsFeed] Positive sentiment sorting applied:', 
         filtered.map(item => ({
           title: item.title,
           positiveScore: item.positiveScore,
@@ -818,11 +818,11 @@ export function ForYouPage() {
     } else if (sortBy === 'relevant') {
       // Sort by relevance score (highest first)
       filtered = [...filtered].sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0))
-      console.log('[FYP] Relevance sorting applied')
+      console.log('[NewsFeed] Relevance sorting applied')
     } else if (sortBy === 'recent') {
       // Sort by creation date (newest first)
       filtered = [...filtered].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      console.log('[FYP] Recent sorting applied')
+      console.log('[NewsFeed] Recent sorting applied')
     } else if (sortBy === 'popular') {
       // Sort by engagement (likes + views + shares + comments)
       filtered = [...filtered].sort((a, b) => {
@@ -830,11 +830,11 @@ export function ForYouPage() {
         const bEngagement = (b.engagement?.likes || 0) + (b.engagement?.views || 0) + (b.engagement?.shares || 0) + (b.engagement?.comments || 0)
         return bEngagement - aEngagement
       })
-      console.log('[FYP] Popular sorting applied')
+      console.log('[NewsFeed] Popular sorting applied')
     } else {
       // Default: sort by recent
       filtered = [...filtered].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-      console.log('[FYP] Default recent sorting applied')
+      console.log('[NewsFeed] Default recent sorting applied')
     }
 
     return filtered
@@ -953,7 +953,7 @@ export function ForYouPage() {
   }
 
   useEffect(() => {
-    console.log('[FYP] useEffect triggered, calling loadPersonalizedContent')
+    console.log('[NewsFeed] useEffect triggered, calling loadPersonalizedContent')
     loadPersonalizedContent()
   }, [sortBy, activeTab])
 
@@ -976,7 +976,7 @@ export function ForYouPage() {
           className="text-center mb-8"
         >
           <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">
-            For You <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">Feed</span>
+            News <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400">Feed</span>
           </h1>
           <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto">
             Discover music, events, and discussions tailored to your taste
@@ -1143,7 +1143,7 @@ export function ForYouPage() {
               )}
             </motion.div>
 
-            {/* Optional For You Mix Carousel - Only show when explicitly enabled */}
+            {/* Optional News Mix Carousel - Only show when explicitly enabled */}
             {false && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -1152,7 +1152,7 @@ export function ForYouPage() {
                 className="mb-6"
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">For You Mix</h2>
+                  <h2 className="text-xl font-bold text-white">News Mix</h2>
                   <Button variant="ghost" className="text-purple-400 hover:text-purple-300">
                     View All
                   </Button>

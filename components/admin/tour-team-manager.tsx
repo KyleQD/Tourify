@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Users, Mail, Phone, Calendar, User, UserPlus, Building } from "lucide-react"
 import { toast } from "sonner"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface TourMember {
   id: string
@@ -468,7 +469,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                         <div className="flex items-center space-x-1">
                           <Calendar className="h-3 w-3 text-slate-500" />
                           <span className="text-xs text-slate-500">
-                            Arrives: {new Date(member.arrival_date).toLocaleDateString()}
+                            Arrives: {formatSafeDate(member.arrival_date)}
                           </span>
                         </div>
                       )}

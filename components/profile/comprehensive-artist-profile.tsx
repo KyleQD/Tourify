@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 import { PublicMusicDisplay } from "@/components/music/public-music-display"
 import { ArtistEPKSection } from "@/components/epk/artist-epk-section"
@@ -485,7 +486,7 @@ export function ComprehensiveArtistProfile({
                       <Music className="h-4 w-4 text-purple-400" />
                       <span className="text-white/80 text-sm">Joined Tourify</span>
                       <span className="text-white/50 text-xs ml-auto">
-                        {new Date(profile.created_at).toLocaleDateString()}
+                        {formatSafeDate(profile.created_at)}
                       </span>
                     </div>
                     {profile.stats.streams && profile.stats.streams > 0 && (
@@ -899,10 +900,7 @@ export function ComprehensiveArtistProfile({
                   <div className="flex justify-between items-center">
                     <span className="text-white/70">Member Since</span>
                     <span className="text-white font-medium">
-                      {new Date(profile.created_at).toLocaleDateString('en-US', { 
-                        month: 'long', 
-                        year: 'numeric' 
-                      })}
+                      {formatSafeDate(profile.created_at)}
                     </span>
                   </div>
                 </CardContent>

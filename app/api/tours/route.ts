@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const createTourSchema = z.object({
   name: z.string().min(1, 'Tour name is required'),
@@ -14,24 +14,9 @@ const createTourSchema = z.object({
   crew_size: z.number().int().min(0, 'Crew size must be non-negative').optional(),
 })
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
     console.log('[Tours API] GET request started')
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tours API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      console.log('[Tours API] User lacks admin permissions for viewing tours')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
@@ -40,19 +25,10 @@ export async function GET(request: NextRequest) {
 
     console.log('[Tours API] Fetching tours for user:', user.id)
 
-    // Build query to fetch tours with embedded events for calendar population
+    // Build query to fetch tours
     let query = supabase
       .from('tours')
-      .select(`
-        *,
-        events (
-          id,
-          name,
-          event_date,
-          status,
-          venue_name
-        )
-      `)
+      .select('*')
       .eq('user_id', user.id) // Use user_id instead of artist_id
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
@@ -77,11 +53,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch tours' }, { status: 500 })
     }
 
-    console.log('[Tours API] Successfully fetched tours:', tours?.length || 0)
+    const safeTours = tours || []
+    const tourIds = safeTours.map((tour: any) => tour.id)
+    let eventsByTour = new Map<string, any[]>()
+    if (tourIds.length > 0) {
+      const { data: links } = await supabase
+        .from('tour_events')
+        .select(`
+          tour_id,
+          ordinal,
+          events_v2 (
+            id,
+            title,
+            status,
+            start_at,
+            settings
+          )
+        `)
+        .in('tour_id', tourIds)
+        .order('ordinal', { ascending: true })
+
+      for (const link of links || []) {
+        const event = link.events_v2
+        if (!event) continue
+        const settings = event.settings && typeof event.settings === 'object'
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        const mappedEvent = {
+          id: event.id,
+          name: event.title,
+          event_date: event.start_at ? String(event.start_at).slice(0, 10) : null,
+          status: event.status,
+          venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : 'Venue',
+        }
+        const existing = eventsByTour.get(link.tour_id) || []
+        existing.push(mappedEvent)
+        eventsByTour.set(link.tour_id, existing)
+      }
+    }
+
+    const toursWithEvents = safeTours.map((tour: any) => ({
+      ...tour,
+      events: eventsByTour.get(tour.id) || [],
+    }))
+
+    console.log('[Tours API] Successfully fetched tours:', toursWithEvents.length)
 
     return NextResponse.json({ 
       success: true, 
-      tours: tours || [],
+      tours: toursWithEvents,
       message: 'Tours fetched successfully' 
     })
 
@@ -93,26 +113,11 @@ export async function GET(request: NextRequest) {
       message: 'Error occurred while fetching tours' 
     })
   }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
     console.log('[Tours API] POST request started')
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tours API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      console.log('[Tours API] User lacks admin permissions for creating tours')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
 
     const body = await request.json()
     const validatedData = createTourSchema.parse(body)
@@ -140,34 +145,41 @@ export async function POST(request: NextRequest) {
 
     console.log('[Tours API] Tour created successfully:', tour.id)
 
-    // Create a default event for the tour so it appears on the events tab and calendar
-    const defaultEvent = {
-      tour_id: tour.id,
-      name: `${tour.name} - Tour Event`,
-      description: `Default event for ${tour.name}`,
-      venue_name: 'TBD',
-      event_date: validatedData.start_date,
-      event_time: '19:00',
-      capacity: 0,
-      status: 'scheduled',
-      created_by: user.id,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+    // Create a default event linked via tour_events for immediate calendar visibility
+    let createdDefaultEvent = false
+    if (tour.org_id) {
+      const slug = `${tour.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 48)}-${Date.now().toString(36)}`
+      const startAt = new Date(`${validatedData.start_date}T19:00:00`).toISOString()
+      const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+
+      const { data: eventV2, error: eventV2Error } = await supabase
+        .from('events_v2')
+        .insert({
+          org_id: tour.org_id,
+          venue_id: null,
+          title: `${tour.name} - Tour Event`,
+          slug,
+          status: 'inquiry',
+          start_at: startAt,
+          end_at: endAt,
+          capacity: 0,
+          settings: { description: `Default event for ${tour.name}`, venue_label: 'TBD' },
+          created_by: user.id,
+        })
+        .select('id')
+        .single()
+
+      if (!eventV2Error && eventV2?.id) {
+        const { error: linkError } = await supabase
+          .from('tour_events')
+          .insert({ tour_id: tour.id, event_id: eventV2.id, ordinal: 0 })
+        if (!linkError) createdDefaultEvent = true
+      } else {
+        console.error('[Tours API] Error creating default events_v2 event:', eventV2Error)
+      }
     }
 
-    const { data: event, error: eventError } = await supabase
-      .from('events')
-      .insert(defaultEvent)
-      .select('*')
-      .single()
-
-    if (eventError) {
-      console.error('[Tours API] Error creating default event:', eventError)
-      // Don't fail the tour creation if event creation fails
-    } else {
-      console.log('[Tours API] Default event created successfully:', event.id)
-      
-      // Update tour with total_shows count
+    if (createdDefaultEvent) {
       await supabase
         .from('tours')
         .update({ total_shows: 1 })
@@ -187,4 +199,4 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+})

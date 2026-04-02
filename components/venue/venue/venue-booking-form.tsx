@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueBookingFormProps {
   venue: any
@@ -19,7 +20,7 @@ export function VenueBookingForm({ venue, selectedDate, onCancel, onSubmit }: Ve
             <CardTitle>Booking Request</CardTitle>
             <CardDescription>
               {selectedDate
-                ? `Request to book ${venue.name} on ${selectedDate.toLocaleDateString()}`
+                ? `Request to book ${venue.name} on ${formatSafeDate(selectedDate.toISOString())}`
                 : `Request to book ${venue.name}`}
             </CardDescription>
           </div>

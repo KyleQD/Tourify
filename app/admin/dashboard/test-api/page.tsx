@@ -16,8 +16,6 @@ export default function TestAPIPage() {
     setError(null)
     
     try {
-      console.log('Testing API endpoints...')
-      
       // Test stats API
       const statsResponse = await fetch('/api/admin/dashboard/stats', {
         credentials: 'include',
@@ -26,12 +24,9 @@ export default function TestAPIPage() {
         }
       })
       
-      console.log('Stats API response status:', statsResponse.status)
-      
       if (statsResponse.ok) {
         const stats = await statsResponse.json()
         setStatsData(stats)
-        console.log('Stats API data:', stats)
       } else {
         const errorText = await statsResponse.text()
         console.error('Stats API error:', errorText)
@@ -46,12 +41,9 @@ export default function TestAPIPage() {
         }
       })
       
-      console.log('Tours API response status:', toursResponse.status)
-      
       if (toursResponse.ok) {
         const tours = await toursResponse.json()
         setToursData(tours)
-        console.log('Tours API data:', tours)
       } else {
         const errorText = await toursResponse.text()
         console.error('Tours API error:', errorText)
@@ -66,12 +58,9 @@ export default function TestAPIPage() {
         }
       })
       
-      console.log('Events API response status:', eventsResponse.status)
-      
       if (eventsResponse.ok) {
         const events = await eventsResponse.json()
         setEventsData(events)
-        console.log('Events API data:', events)
       } else {
         const errorText = await eventsResponse.text()
         console.error('Events API error:', errorText)

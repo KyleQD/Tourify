@@ -120,6 +120,7 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 
 -- Add foreign key for cover_photo_id (must be done after photos table is created)
+ALTER TABLE photo_albums DROP CONSTRAINT IF EXISTS fk_photo_albums_cover_photo;
 ALTER TABLE photo_albums 
 ADD CONSTRAINT fk_photo_albums_cover_photo 
 FOREIGN KEY (cover_photo_id) REFERENCES photos(id) ON DELETE SET NULL;
@@ -313,6 +314,35 @@ ALTER TABLE photo_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE album_likes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photo_comments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public albums are viewable by everyone" ON photo_albums;
+DROP POLICY IF EXISTS "Users can view their own albums" ON photo_albums;
+DROP POLICY IF EXISTS "Users can create their own albums" ON photo_albums;
+DROP POLICY IF EXISTS "Users can update their own albums" ON photo_albums;
+DROP POLICY IF EXISTS "Users can delete their own albums" ON photo_albums;
+DROP POLICY IF EXISTS "Public photos are viewable by everyone" ON photos;
+DROP POLICY IF EXISTS "Users can view their own photos" ON photos;
+DROP POLICY IF EXISTS "Buyers can view photos they purchased" ON photos;
+DROP POLICY IF EXISTS "Users can create their own photos" ON photos;
+DROP POLICY IF EXISTS "Users can update their own photos" ON photos;
+DROP POLICY IF EXISTS "Users can delete their own photos" ON photos;
+DROP POLICY IF EXISTS "Tags are viewable if photo is viewable" ON photo_tags;
+DROP POLICY IF EXISTS "Authenticated users can create tags" ON photo_tags;
+DROP POLICY IF EXISTS "Users can delete tags they created" ON photo_tags;
+DROP POLICY IF EXISTS "Photo owners can delete any tags on their photos" ON photo_tags;
+DROP POLICY IF EXISTS "Users can view their purchases" ON photo_purchases;
+DROP POLICY IF EXISTS "Sellers can view sales of their photos" ON photo_purchases;
+DROP POLICY IF EXISTS "Users can create purchases" ON photo_purchases;
+DROP POLICY IF EXISTS "Anyone can view photo likes" ON photo_likes;
+DROP POLICY IF EXISTS "Authenticated users can like photos" ON photo_likes;
+DROP POLICY IF EXISTS "Users can unlike photos they liked" ON photo_likes;
+DROP POLICY IF EXISTS "Anyone can view album likes" ON album_likes;
+DROP POLICY IF EXISTS "Authenticated users can like albums" ON album_likes;
+DROP POLICY IF EXISTS "Users can unlike albums they liked" ON album_likes;
+DROP POLICY IF EXISTS "Comments are viewable if photo is viewable" ON photo_comments;
+DROP POLICY IF EXISTS "Authenticated users can comment on photos" ON photo_comments;
+DROP POLICY IF EXISTS "Users can update their own comments" ON photo_comments;
+DROP POLICY IF EXISTS "Users can delete their own comments" ON photo_comments;
+
 -- Photo Albums Policies
 CREATE POLICY "Public albums are viewable by everyone"
   ON photo_albums FOR SELECT
@@ -480,6 +510,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_album_photo_count ON photos;
 CREATE TRIGGER trigger_update_album_photo_count
 AFTER INSERT OR DELETE ON photos
 FOR EACH ROW
@@ -502,6 +533,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_photo_likes_count ON photo_likes;
 CREATE TRIGGER trigger_update_photo_likes_count
 AFTER INSERT OR DELETE ON photo_likes
 FOR EACH ROW
@@ -524,6 +556,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_album_likes_count ON album_likes;
 CREATE TRIGGER trigger_update_album_likes_count
 AFTER INSERT OR DELETE ON album_likes
 FOR EACH ROW
@@ -546,6 +579,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS trigger_update_photo_purchases_count ON photo_purchases;
 CREATE TRIGGER trigger_update_photo_purchases_count
 AFTER INSERT OR UPDATE ON photo_purchases
 FOR EACH ROW

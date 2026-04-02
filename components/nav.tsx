@@ -165,7 +165,7 @@ export function Nav() {
             onClick={() => router.push('/feed')}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            For You
+            Pulse
           </Button>
           <Button
             variant="ghost"

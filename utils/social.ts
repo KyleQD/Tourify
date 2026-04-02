@@ -1,7 +1,8 @@
 import { MusicRelease } from "@/types/social"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export const formatReleaseDate = (date: string) => {
-  return new Date(date).toLocaleDateString()
+  return formatSafeDate(date)
 }
 
 export const formatTrackCount = (count: number) => {

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { Music, Calendar, MapPin, Clock, DollarSign, CheckCircle, XCircle, Eye, MessageSquare } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface BookingRequest {
   id: string
@@ -172,7 +173,7 @@ export default function BookingsPage() {
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm">
-                      {new Date(booking.booking_details.performanceDate).toLocaleDateString()}
+                      {formatSafeDate(booking.booking_details.performanceDate)}
                     </span>
                   </div>
                   {booking.booking_details.performanceTime && (
@@ -222,7 +223,7 @@ export default function BookingsPage() {
                               <div>
                                 <Label className="text-sm font-medium">Performance Date</Label>
                                 <p className="text-sm">
-                                  {new Date(selectedBooking.booking_details.performanceDate).toLocaleDateString()}
+                                  {formatSafeDate(selectedBooking.booking_details.performanceDate)}
                                 </p>
                               </div>
                               {selectedBooking.booking_details.performanceTime && (

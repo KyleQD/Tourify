@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest, withAuth } from '@/lib/auth/api-auth'
+import { withAuth } from '@/lib/auth/api-auth'
+import { createClient } from '@/lib/supabase/server'
 
-export async function GET(request: NextRequest, context: any) {
+export async function GET(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
   try {
-    const auth = await authenticateApiRequest(request)
-    let supabase
-    if (auth) supabase = auth.supabase
-    else {
-      const { createClient } = await import('@/lib/supabase/server')
-      supabase = await createClient()
-    }
-
-    const slug = context?.params?.slug
+    const supabase = await createClient()
+    const { slug } = await context.params
     if (!slug) return NextResponse.json({ error: 'Missing forum slug' }, { status: 400 })
 
     const { data: forum } = await supabase
@@ -44,10 +41,13 @@ export async function GET(request: NextRequest, context: any) {
   }
 }
 
-export const POST = withAuth(async (request, { supabase, user }) => {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await context.params
+  return withAuth(async (_request, { supabase, user }) => {
   try {
-    const { params } = (request as any)
-    const slug = params?.slug || request.url.split('/forums/')[1]?.split('/')[0]
     if (!slug) return NextResponse.json({ error: 'Missing forum slug' }, { status: 400 })
 
     const { data: forum } = await supabase
@@ -73,6 +73,7 @@ export const POST = withAuth(async (request, { supabase, user }) => {
   } catch (err) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-})
+  })(request)
+}
 
 

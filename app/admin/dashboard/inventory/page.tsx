@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Box, Download, FileText, Package, Plus, Search, Truck } from "lucide-react"
 import { Header } from "@/components/header"
 import { PageHeader } from "@/components/page-header"
@@ -10,6 +11,26 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 
 export default function InventoryPage() {
+  const [items, setItems] = useState<any[]>([])
+
+  useEffect(() => {
+    async function fetchItems() {
+      try {
+        const res = await fetch('/api/admin/logistics/items', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setItems(data.items || data.data || [])
+        }
+      } catch { /* graceful fallback */ }
+    }
+    fetchItems()
+  }, [])
+
+  const total = items.length
+  const available = items.filter((i: any) => i.status === 'available' || i.status === 'completed').length
+  const inUse = items.filter((i: any) => i.status === 'in_progress' || i.status === 'in_use').length
+  const maintenance = items.filter((i: any) => i.status === 'maintenance').length
+
   return (
     <div className="container mx-auto p-4">
       <Header />
@@ -33,30 +54,30 @@ export default function InventoryPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <InventorySummaryCard title="Total Items" value="248" category="All Categories" icon={Box} />
-        <InventorySummaryCard title="Available" value="185" category="74.6% of inventory" icon={Package} />
-        <InventorySummaryCard title="In Use" value="63" category="25.4% of inventory" icon={Truck} />
-        <InventorySummaryCard title="Maintenance" value="12" category="4.8% of inventory" icon={FileText} />
+        <InventorySummaryCard title="Total Items" value={String(total)} category="All Categories" icon={Box} />
+        <InventorySummaryCard title="Available" value={String(available)} category={total > 0 ? `${((available / total) * 100).toFixed(1)}% of inventory` : '0%'} icon={Package} />
+        <InventorySummaryCard title="In Use" value={String(inUse)} category={total > 0 ? `${((inUse / total) * 100).toFixed(1)}% of inventory` : '0%'} icon={Truck} />
+        <InventorySummaryCard title="Maintenance" value={String(maintenance)} category={total > 0 ? `${((maintenance / total) * 100).toFixed(1)}% of inventory` : '0%'} icon={FileText} />
       </div>
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="bg-slate-800/50 p-1 mb-6">
-          <TabsTrigger value="all" className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400">
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 mb-6 rounded-sm border border-slate-700/30">
+          <TabsTrigger value="all" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             All Items
           </TabsTrigger>
-          <TabsTrigger value="sound" className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400">
+          <TabsTrigger value="sound" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             Sound
           </TabsTrigger>
           <TabsTrigger
             value="lighting"
-            className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400"
+            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200"
           >
             Lighting
           </TabsTrigger>
-          <TabsTrigger value="stage" className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400">
+          <TabsTrigger value="stage" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             Stage
           </TabsTrigger>
-          <TabsTrigger value="other" className="data-[state=active]:bg-slate-700 data-[state=active]:text-purple-400">
+          <TabsTrigger value="other" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             Other
           </TabsTrigger>
         </TabsList>

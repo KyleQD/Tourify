@@ -23,6 +23,7 @@ import {
 import Image from 'next/image'
 import { toast } from 'sonner'
 import { formatDistanceToNow } from 'date-fns'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 interface MusicTrack {
   id: string
@@ -388,7 +389,7 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
                             {track.release_date && (
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
-                                {new Date(track.release_date).toLocaleDateString()}
+                                {formatSafeDate(track.release_date)}
                               </span>
                             )}
                           </div>

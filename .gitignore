@@ -24,5 +24,11 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-next-env.d.tspublic/audio/*.wav
+next-env.d.ts
+public/audio/*.wav
 public/audio/*.mp3
+
+# local deployment artifacts
+logs/
+.production.pid
+.demo.pid

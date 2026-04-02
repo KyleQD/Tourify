@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const createVendorSchema = z.object({
   name: z.string().min(1, 'Vendor name is required'),
@@ -19,24 +19,10 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour Vendors API] GET request for tour vendors:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Vendors API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Vendors API] User lacks admin permissions for viewing tour vendors')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour Vendors API] GET request for tour vendors:', id)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -72,40 +58,29 @@ export async function GET(
 
     console.log('[Tour Vendors API] Successfully fetched vendors:', vendors?.length || 0)
 
-    return NextResponse.json({ 
-      success: true, 
-      vendors: vendors || [],
-      message: 'Tour vendors fetched successfully' 
-    })
+      return NextResponse.json({ 
+        success: true, 
+        vendors: vendors || [],
+        message: 'Tour vendors fetched successfully' 
+      })
 
-  } catch (error) {
-    console.error('[Tour Vendors API] Error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+    } catch (error) {
+      console.error('[Tour Vendors API] Error:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 }
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const { id } = await params
-    console.log('[Tour Vendors API] POST request for tour vendor:', id)
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      console.log('[Tour Vendors API] Authentication failed')
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check if user has admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user, { tourId: id })
-    if (!hasAdminAccess) {
-      console.log('[Tour Vendors API] User lacks admin permissions for creating tour vendors')
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
+  const { id } = await params
+  return withAdminAuth(async (_request, { user, supabase }) => {
+    try {
+      console.log('[Tour Vendors API] POST request for tour vendor:', id)
 
     const body = await request.json()
     const validatedData = createVendorSchema.parse(body)
@@ -152,20 +127,23 @@ export async function POST(
 
     console.log('[Tour Vendors API] Successfully created vendor:', vendor.id)
 
-    return NextResponse.json({ 
-      success: true, 
-      vendor,
-      message: 'Vendor added successfully to tour' 
-    })
-
-  } catch (error) {
-    console.error('[Tour Vendors API] Error:', error)
-    if (error instanceof z.ZodError) {
       return NextResponse.json({ 
-        error: 'Validation error', 
-        details: error.errors 
-      }, { status: 400 })
+        success: true, 
+        vendor,
+        message: 'Vendor added successfully to tour' 
+      })
+
+    } catch (error) {
+      console.error('[Tour Vendors API] Error:', error)
+      if (error instanceof z.ZodError) {
+        return NextResponse.json({ 
+          error: 'Validation error', 
+          details: error.errors 
+        }, { status: 400 })
+      }
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+  }, {
+    tourIdFromRequest: () => id
+  })(request)
 } 

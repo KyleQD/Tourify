@@ -35,23 +35,58 @@ export interface AccountMetrics {
 }
 
 export class DashboardService {
+  private static async getUserEventCount(userId: string) {
+    const [legacyEvents, v2Events] = await Promise.all([
+      supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', userId),
+      supabase.from('events_v2').select('*', { count: 'exact', head: true }).eq('created_by', userId),
+    ])
+    return (legacyEvents.count || 0) + (v2Events.count || 0)
+  }
+
+  private static async getRecentUserEvents(userId: string) {
+    const [legacyEvents, v2Events] = await Promise.all([
+      supabase
+        .from('events')
+        .select('id, title, created_at, capacity')
+        .eq('organizer_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(3),
+      supabase
+        .from('events_v2')
+        .select('id, title, created_at, capacity')
+        .eq('created_by', userId)
+        .order('created_at', { ascending: false })
+        .limit(3),
+    ])
+
+    const legacy = legacyEvents.data || []
+    const modern = (v2Events.data || []).map(event => ({
+      ...event,
+      title: event.title || 'Event',
+    }))
+
+    return [...legacy, ...modern]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 3)
+  }
+
   // Get real dashboard stats for a user
   static async getDashboardStats(userId: string): Promise<DashboardStats> {
     try {
       // Aggregate real metrics
-      const [likesAgg, sharesAgg, viewsAgg, followersAgg, eventsAgg] = await Promise.all([
+      const [likesAgg, sharesAgg, viewsAgg, followersAgg, eventCount] = await Promise.all([
         supabase.from('post_likes').select('*', { count: 'exact', head: true }).eq('post_owner_id', userId),
         supabase.from('post_shares').select('*', { count: 'exact', head: true }).eq('post_owner_id', userId),
         supabase.from('post_views').select('*', { count: 'exact', head: true }).eq('post_owner_id', userId),
         supabase.from('followers').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-        supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', userId),
+        this.getUserEventCount(userId),
       ])
 
       const likes = likesAgg.count || 0
       const shares = sharesAgg.count || 0
       const views = viewsAgg.count || 0
       const followers = followersAgg.count || 0
-      const events = eventsAgg.count || 0
+      const events = eventCount || 0
 
       // Derive engagement and completion simply and deterministically
       const engagement = followers > 0 ? Math.min(100, Math.round(((likes + shares) / followers) * 10)) : 0
@@ -106,14 +141,9 @@ export class DashboardService {
       }
 
       // Get recent events
-      const { data: recentEvents } = await supabase
-        .from('events')
-        .select('*')
-        .eq('organizer_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(3)
+      const recentEvents = await this.getRecentUserEvents(userId)
 
-      if (recentEvents) {
+      if (recentEvents.length > 0) {
         recentEvents.forEach((event, index) => {
           activities.push({
             id: `event-${event.id}`,
@@ -182,23 +212,29 @@ export class DashboardService {
         // Calculate urgent count based on account type
         let urgentCount = 0
         if (account.account_type === 'venue') {
-          // Check for pending bookings
-          const { count: pendingBookings } = await supabase
-            .from('bookings')
+          // Check for pending booking requests (canonical venue table)
+          const { count: pendingVenueRequests } = await supabase
+            .from('venue_booking_requests')
             .select('*', { count: 'exact', head: true })
             .eq('venue_id', account.profile_id)
             .eq('status', 'pending')
           
-          urgentCount = pendingBookings || 0
+          urgentCount = pendingVenueRequests || 0
         } else if (account.account_type === 'artist') {
           // Check for booking requests
-          const { count: bookingRequests } = await supabase
+          const { count: legacyBookingRequests } = await supabase
             .from('booking_requests')
             .select('*', { count: 'exact', head: true })
             .eq('artist_id', account.profile_id)
             .eq('status', 'pending')
+
+          const { count: venueBookingRequests } = await supabase
+            .from('venue_booking_requests')
+            .select('*', { count: 'exact', head: true })
+            .eq('requester_id', account.profile_id)
+            .eq('status', 'pending')
           
-          urgentCount = bookingRequests || 0
+          urgentCount = (legacyBookingRequests || 0) + (venueBookingRequests || 0)
         }
 
         metrics.push({

@@ -231,7 +231,7 @@ export function KeyboardShortcutsHelp({ isOpen, onClose }: KeyboardShortcutsHelp
             ) : (
               // Categorized View
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                <TabsList className="grid w-full grid-cols-4 bg-slate-800">
+                <TabsList className="grid w-full grid-cols-4 bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
                   {Object.keys(shortcutsByCategory).map(category => (
                     <TabsTrigger key={category} value={category} className="text-xs">
                       {category.charAt(0).toUpperCase() + category.slice(1)}

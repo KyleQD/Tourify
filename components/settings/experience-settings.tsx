@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Loader2, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { NeoDateInput } from '@/components/ui/neo-date-input'
 
 interface ExperienceItem {
   id: string
@@ -85,11 +86,11 @@ export function ExperienceSettings() {
             </div>
             <div>
               <Label className="text-white">Start Date</Label>
-              <Input type="date" value={form.start_date || ''} onChange={e => setForm(prev => ({ ...prev, start_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
+              <NeoDateInput value={form.start_date || ''} onChange={e => setForm(prev => ({ ...prev, start_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
             </div>
             <div>
               <Label className="text-white">End Date</Label>
-              <Input type="date" value={form.end_date || ''} onChange={e => setForm(prev => ({ ...prev, end_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
+              <NeoDateInput value={form.end_date || ''} onChange={e => setForm(prev => ({ ...prev, end_date: e.target.value }))} className="bg-white/5 border-white/20 text-white rounded-xl" />
             </div>
             <div className="md:col-span-2">
               <Label className="text-white">Description</Label>
@@ -129,11 +130,11 @@ export function ExperienceSettings() {
                   </div>
                   <div>
                     <Label className="text-white">Start</Label>
-                    <Input type="date" defaultValue={item.start_date || ''} onBlur={e => updateItem(item.id, { start_date: e.target.value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
+                    <NeoDateInput defaultValue={item.start_date || ''} onBlur={e => updateItem(item.id, { start_date: (e.target as HTMLInputElement).value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
                   </div>
                   <div>
                     <Label className="text-white">End</Label>
-                    <Input type="date" defaultValue={item.end_date || ''} onBlur={e => updateItem(item.id, { end_date: e.target.value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
+                    <NeoDateInput defaultValue={item.end_date || ''} onBlur={e => updateItem(item.id, { end_date: (e.target as HTMLInputElement).value })} className="bg-white/5 border-white/20 text-white rounded-xl" />
                   </div>
                   <div className="md:col-span-2">
                     <Label className="text-white">Description</Label>

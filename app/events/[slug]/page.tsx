@@ -9,10 +9,11 @@ interface EventPageProps {
 export default async function EventPage({ params }: EventPageProps) {
   const { slug } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Try by slug first
   let { data: event, error } = await supabase
-    .from('artist_events')
+    .from('events')
     .select('*')
     .eq('slug', slug)
     .single()
@@ -20,7 +21,7 @@ export default async function EventPage({ params }: EventPageProps) {
   if (error || !event) {
     // Fallback: treat param as id
     const { data: byId, error: idErr } = await supabase
-      .from('artist_events')
+      .from('events')
       .select('*')
       .eq('id', slug)
       .single()
@@ -28,6 +29,9 @@ export default async function EventPage({ params }: EventPageProps) {
     if (idErr || !byId) notFound()
     event = byId
   }
+
+  const isOwner = !!user && event.artist_id === user.id
+  if (event.status !== "published" && !isOwner) notFound()
 
   return <EnhancedEventPage eventId={event.id} event={event} />
 }

@@ -46,41 +46,37 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/auth-context'
+import { formatSafeNumber } from "@/lib/format/number-format"
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { EnhancedEventCreator } from '@/components/events/enhanced-event-creator'
+import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 interface Event {
   id?: string
-  title: string
+  name: string
   description?: string
-  type: 'concert' | 'festival' | 'tour' | 'recording' | 'interview' | 'other'
+  event_type: 'concert' | 'festival' | 'tour' | 'recording' | 'interview' | 'other'
   venue_name?: string
-  venue_address?: string
-  venue_city?: string
-  venue_state?: string
-  venue_country?: string
+  address?: string
+  city?: string
+  state?: string
+  country?: string
   event_date: string
   start_time?: string
   end_time?: string
   doors_open?: string
-  ticket_url?: string
-  ticket_price_min?: number
-  ticket_price_max?: number
   capacity?: number
-  expected_attendance?: number
-  status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
-  is_public: boolean
-  poster_url?: string
+  status: 'draft' | 'published' | 'cancelled'
   setlist?: string[]
-  notes?: string
+  tags?: string[]
   slug?: string
+  artist_id?: string
   created_at?: string
-  updated_at?: string
 }
 
 export default function EventsPage() {
@@ -99,16 +95,16 @@ export default function EventsPage() {
   // Stats calculation
   const stats = {
     totalEvents: events.length,
-    upcomingEvents: events.filter(e => e.status === 'upcoming').length,
-    completedEvents: events.filter(e => e.status === 'completed').length,
+    upcomingEvents: events.filter(e => e.status === 'published').length,
+    completedEvents: 0,
     cancelledEvents: events.filter(e => e.status === 'cancelled').length,
     totalCapacity: events.reduce((sum, e) => sum + (e.capacity || 0), 0)
   }
 
   // Load events
   useEffect(() => {
-      loadEvents()
-  }, [])
+    if (user) loadEvents()
+  }, [user])
 
   const loadEvents = async () => {
     if (!user) return
@@ -116,9 +112,9 @@ export default function EventsPage() {
     try {
       setIsLoading(true)
       const { data, error } = await supabase
-        .from('artist_events')
+        .from('events')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('artist_id', user.id)
         .order('event_date', { ascending: true })
 
       if (error) throw error
@@ -134,7 +130,7 @@ export default function EventsPage() {
   const handleDeleteEvent = async (eventId: string) => {
     try {
       const { error } = await supabase
-        .from('artist_events')
+        .from('events')
         .delete()
         .eq('id', eventId)
 
@@ -146,6 +142,23 @@ export default function EventsPage() {
     } catch (error) {
       console.error('Error deleting event:', error)
       toast.error('Failed to delete event')
+    }
+  }
+
+  const handlePublishEvent = async (eventId: string) => {
+    try {
+      const { error } = await supabase
+        .from("events")
+        .update({ status: "published" })
+        .eq("id", eventId)
+        .eq("artist_id", user?.id)
+
+      if (error) throw error
+      await loadEvents()
+      toast.success("Event published")
+    } catch (error) {
+      console.error("Error publishing event:", error)
+      toast.error("Failed to publish event")
     }
   }
 
@@ -174,7 +187,7 @@ export default function EventsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-purple-500">
+          <div className="rounded-2xl border border-purple-400/30 bg-gradient-to-br from-blue-500/25 to-purple-500/25 p-3">
             <Calendar className="h-6 w-6 text-white" />
           </div>
           <div>
@@ -189,12 +202,12 @@ export default function EventsPage() {
               onClick={() => {
                 // Simple CSV export functionality
                 const csvData = events.map(event => ({
-                  title: event.title,
+                  title: event.name,
                   date: event.event_date,
                   venue: event.venue_name || '',
-                  city: event.venue_city || '',
+                  city: event.city || '',
                   status: event.status,
-                  type: event.type
+                  type: event.event_type
                 }))
                 
                 const headers = Object.keys(csvData[0])
@@ -228,7 +241,7 @@ export default function EventsPage() {
               setEditingEvent(null)
               setShowCreateModal(true)
             }}
-            className="bg-purple-600 hover:bg-purple-700 text-white"
+            className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Event
@@ -287,7 +300,7 @@ export default function EventsPage() {
             <div className="flex items-center justify-between">
               <div>
                   <p className="text-sm text-gray-400">Total Capacity</p>
-                  <p className="text-2xl font-bold text-white">{stats.totalCapacity.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-white">{formatSafeNumber(stats.totalCapacity)}</p>
               </div>
                 <Users className="h-8 w-8 text-purple-500" />
             </div>
@@ -306,9 +319,9 @@ export default function EventsPage() {
                 <Calendar className="h-16 w-16 text-gray-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">No events yet</h3>
                 <p className="text-gray-400 mb-6">Create your first event to get started</p>
-                <Button 
+                <Button
                   onClick={() => setShowCreateModal(true)}
-                  className="bg-purple-600 hover:bg-purple-700"
+                  className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Create Event
@@ -317,30 +330,19 @@ export default function EventsPage() {
           ) : (
             <div className="space-y-4">
               {events.map((event) => (
-                  <div key={event.id} className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
+                  <div key={event.id} className={dashboardCreatePattern.panel}>
                     <div className="flex-shrink-0">
-                      {event.poster_url ? (
-                        <Image
-                          src={event.poster_url}
-                          alt={event.title}
-                          width={80}
-                          height={80}
-                          className="rounded-lg object-cover"
-                        />
-                      ) : (
-                        <div className="w-20 h-20 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                          <Calendar className="h-8 w-8 text-white" />
-                        </div>
-                          )}
-                        </div>
+                      <div className="flex h-20 w-20 items-center justify-center rounded-xl border border-purple-400/30 bg-gradient-to-br from-purple-500/30 to-blue-500/30">
+                        <Calendar className="h-8 w-8 text-white" />
+                      </div>
+                    </div>
                         
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-lg font-semibold text-white truncate">{event.title}</h3>
+                        <h3 className="text-lg font-semibold text-white truncate">{event.name}</h3>
                         <Badge 
                           variant={
-                            event.status === 'upcoming' ? 'default' :
-                            event.status === 'completed' ? 'secondary' :
+                            event.status === 'published' ? 'default' :
                             event.status === 'cancelled' ? 'destructive' :
                             'outline'
                           }
@@ -349,7 +351,7 @@ export default function EventsPage() {
                           {event.status.replace('_', ' ')}
                         </Badge>
                           </div>
-                      <p className="text-gray-400 text-sm mb-2">{event.description}</p>
+                      <p className="text-gray-400 text-sm mb-2">{event.description || "No description"}</p>
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
@@ -358,7 +360,7 @@ export default function EventsPage() {
                           {event.venue_name && (
                           <span className="flex items-center gap-1">
                             <MapPin className="h-4 w-4" />
-                            {event.venue_name}
+                            {event.venue_name || "TBD"}
                           </span>
                         )}
                             {event.capacity && (
@@ -373,7 +375,7 @@ export default function EventsPage() {
                       <div className="flex items-center gap-2">
                         <Button
                           onClick={() => router.push(`/artist/events/${event.id}/manage`)}
-                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
                           size="sm"
                         >
                           Manage Event
@@ -386,6 +388,16 @@ export default function EventsPage() {
                         >
                           View Public Page
                         </Button>
+                        {event.status === "draft" && (
+                          <Button
+                            onClick={() => event.id && handlePublishEvent(event.id)}
+                            variant="outline"
+                            className="border-green-600 text-green-300 hover:bg-green-900/20"
+                            size="sm"
+                          >
+                            Publish Event
+                          </Button>
+                        )}
                       
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

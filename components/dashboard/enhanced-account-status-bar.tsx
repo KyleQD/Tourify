@@ -19,6 +19,7 @@ import {
   Zap
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 
 interface AccountStatus {
   accountId: string
@@ -118,22 +119,8 @@ export function EnhancedAccountStatusBar() {
         const success = await switchAccount(account.accountId, account.accountType)
         
         if (success) {
-          // Navigate to the appropriate dashboard based on account type
-          let targetRoute = '/dashboard'
-          switch (account.accountType) {
-            case 'artist':
-              targetRoute = '/artist'
-              break
-            case 'venue':
-              targetRoute = '/venue'
-              break
-            case 'admin':
-              targetRoute = '/admin/dashboard'
-              break
-          }
-          
-          // Navigate to the target route
-          router.push(targetRoute)
+          const targetRoute = getDashboardPathForAccountType(account.accountType)
+          router.replace(targetRoute)
         }
       } catch (error) {
         console.error('Error switching account:', error)

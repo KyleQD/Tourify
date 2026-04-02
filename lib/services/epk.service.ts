@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase/client'
+import { normalizeEpkAppearance, type EpkAppearance } from '@/lib/epk/epk-appearance'
 
 interface EPKData {
+  epkSlug: string
   artistName: string
   bio: string
   genre: string
@@ -82,6 +84,22 @@ interface EPKData {
   customDomain: string
   seoTitle: string
   seoDescription: string
+  layout: {
+    preset: 'booker' | 'festival' | 'press'
+    sectionOrder: string[]
+    sectionVisibility: Record<string, boolean>
+  }
+  bookingAssets: {
+    techRiderUrl: string
+    stagePlotUrl: string
+    oneLiner: string
+  }
+  quality: {
+    score: number
+    missing: string[]
+  }
+  epkFont: 'sans' | 'serif' | 'display' | 'geometric' | 'mono'
+  epkAppearance: EpkAppearance
 }
 
 interface EPKSettings {
@@ -93,6 +111,7 @@ interface EPKSettings {
   custom_domain?: string
   seo_title?: string
   seo_description?: string
+  epk_slug?: string
   settings: Record<string, any>
   created_at?: string
   updated_at?: string
@@ -104,6 +123,7 @@ class EPKService {
       // Load all data in parallel for better performance
       const [
         artistProfile,
+        profileSummary,
         epkSettings,
         musicTracks,
         upcomingEvents,
@@ -111,6 +131,7 @@ class EPKService {
         artistStats
       ] = await Promise.all([
         this.getArtistProfile(userId),
+        this.getProfileSummary(userId),
         this.getEPKSettings(userId),
         this.getMusicTracks(userId),
         this.getUpcomingEvents(userId),
@@ -121,6 +142,7 @@ class EPKService {
       // Transform and combine data into EPK format
       return await this.transformToEPKData({
         artistProfile,
+        profileSummary,
         epkSettings,
         musicTracks,
         upcomingEvents,
@@ -171,6 +193,17 @@ class EPKService {
     }
   }
 
+  private async getProfileSummary(userId: string) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('avatar_url, cover_image, location, website, social_links')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (error) return null
+    return data
+  }
+
   private async getMusicTracks(userId: string) {
     try {
       const { data, error } = await supabase
@@ -199,24 +232,72 @@ class EPKService {
 
   private async getUpcomingEvents(userId: string) {
     try {
-      const { data, error } = await supabase
-        .from('artist_events')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('event_date', new Date().toISOString())
-        .order('event_date', { ascending: true })
-        .limit(10)
+      const [legacyEventsResult, artistEventsResult, v2EventsResult] = await Promise.all([
+        supabase
+          .from('events')
+          .select('*')
+          .eq('artist_id', userId)
+          .eq('status', 'published')
+          .gte('event_date', new Date().toISOString().slice(0, 10))
+          .order('event_date', { ascending: true })
+          .limit(10),
+        supabase
+          .from('artist_events')
+          .select('*')
+          .eq('user_id', userId)
+          .gte('event_date', new Date().toISOString())
+          .order('event_date', { ascending: true })
+          .limit(10),
+        supabase
+          .from('events_v2')
+          .select('id, title, status, start_at, end_at, capacity, settings')
+          .eq('created_by', userId)
+          .in('status', ['confirmed', 'advancing', 'onsite'])
+          .gte('start_at', new Date().toISOString())
+          .order('start_at', { ascending: true })
+          .limit(10),
+      ])
 
-      if (error && error.code !== 'PGRST116') {
-        // If the table doesn't exist, return empty array
-        if (error.message.includes('does not exist')) {
-          console.warn('Artist events table does not exist yet')
-          return []
-        }
-        throw error
+      if (legacyEventsResult.error && legacyEventsResult.error.code !== 'PGRST116') {
+        throw legacyEventsResult.error
+      }
+      if (artistEventsResult.error && artistEventsResult.error.code !== 'PGRST116') {
+        throw artistEventsResult.error
+      }
+      if (v2EventsResult.error && v2EventsResult.error.code !== 'PGRST116') {
+        throw v2EventsResult.error
       }
 
-      return data || []
+      const legacyEvents = legacyEventsResult.data || []
+      const artistEvents = artistEventsResult.data || []
+      const v2Events = (v2EventsResult.data || []).map((event: any) => {
+        const settings = event.settings && typeof event.settings === 'object'
+          ? event.settings as Record<string, unknown>
+          : {}
+        return {
+          id: event.id,
+          event_date: event.start_at ? String(event.start_at).slice(0, 10) : null,
+          venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : 'TBA',
+          city: typeof settings.venue_city === 'string' ? settings.venue_city : null,
+          state: typeof settings.venue_state === 'string' ? settings.venue_state : null,
+          ticket_url: typeof settings.ticket_url === 'string' ? settings.ticket_url : '',
+          status: event.status,
+          capacity: event.capacity,
+          expected_attendance: null,
+          set_length: null,
+          notes: typeof settings.description === 'string' ? settings.description : null,
+          name: event.title,
+          title: event.title,
+        }
+      })
+
+      return [...legacyEvents, ...artistEvents, ...v2Events]
+        .sort((a: any, b: any) => {
+          const firstDate = a.event_date ? new Date(a.event_date).getTime() : Number.MAX_SAFE_INTEGER
+          const secondDate = b.event_date ? new Date(b.event_date).getTime() : Number.MAX_SAFE_INTEGER
+          return firstDate - secondDate
+        })
+        .slice(0, 10)
     } catch (error) {
       console.warn('Error loading artist events:', error)
       return []
@@ -252,11 +333,12 @@ class EPKService {
   private async getArtistStats(userId: string) {
     try {
       // Fetch integrations analytics and profile aggregate
-      const [integrations, profileAgg, tracks, completedEvents] = await Promise.all([
+      const [integrations, profileAgg, tracks, completedLegacyEvents, completedV2Events] = await Promise.all([
         supabase.from('artist_social_integrations').select('platform, analytics').eq('user_id', userId),
         supabase.from('profiles').select('social_followers').eq('id', userId).single(),
         supabase.from('artist_music').select('stats').eq('user_id', userId),
-        supabase.from('artist_events').select('id', { count: 'exact', head: true }).eq('user_id', userId).eq('status', 'completed')
+        supabase.from('events').select('id', { count: 'exact', head: true }).eq('artist_id', userId).eq('status', 'published'),
+        supabase.from('events_v2').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('status', 'settled'),
       ])
 
       // Followers from profile aggregate with fallback to integrations
@@ -286,12 +368,13 @@ class EPKService {
       // Sum track streams if available
       const totalTrackStreams = (tracks.data || []).reduce((sum: number, t: any) => sum + (t?.stats?.plays || 0), 0)
       const totalStreams = totalTrackStreams + youtubeViews
+      const eventsPlayed = (completedLegacyEvents.count || 0) + (completedV2Events.count || 0)
 
       return {
         followers,
         monthlyListeners,
         totalStreams,
-        eventsPlayed: completedEvents.count || 0
+        eventsPlayed
       }
     } catch {
       return {
@@ -305,13 +388,17 @@ class EPKService {
 
   private async transformToEPKData({
     artistProfile,
+    profileSummary,
     epkSettings,
     musicTracks,
     upcomingEvents,
     artistPhotos,
     artistStats
   }: any): Promise<EPKData> {
-    const socialLinks = artistProfile?.social_links || {}
+    const artistName = artistProfile?.artist_name || ''
+    const epkSlug = epkSettings?.epk_slug || createEpkSlug(artistName)
+
+    const socialLinks = artistProfile?.social_links || profileSummary?.social_links || {}
     const professionalSettings = artistProfile?.settings?.professional || {}
     const preferences = artistProfile?.settings?.preferences || {}
 
@@ -345,7 +432,7 @@ class EPKService {
     const music = musicTracks.map((track: any) => ({
       id: track.id,
       title: track.title || 'Untitled',
-      url: track.file_url || '',
+      url: track.file_url || track.spotify_url || track.apple_music_url || track.soundcloud_url || track.youtube_url || '',
       releaseDate: track.release_date || track.created_at,
       streams: track.stats?.plays || 0,
       coverArt: track.cover_art_url || '',
@@ -353,14 +440,16 @@ class EPKService {
       featured: track.is_featured || false
     }))
 
-    // Transform events from artist_events table structure
+    // Transform events from unified events table structure with legacy fallback support
     const upcomingShows = upcomingEvents.map((event: any) => ({
       id: event.id,
       date: event.event_date,
-      venue: event.venue_name || 'TBA',
-      location: event.venue_city && event.venue_state 
-        ? `${event.venue_city}, ${event.venue_state}` 
-        : (event.venue_city || event.venue_state || 'TBA'),
+      venue: event.venue_name || event.name || 'TBA',
+      location: event.city && event.state
+        ? `${event.city}, ${event.state}`
+        : event.venue_city && event.venue_state
+          ? `${event.venue_city}, ${event.venue_state}`
+          : (event.city || event.state || event.venue_city || event.venue_state || 'TBA'),
       ticketUrl: event.ticket_url || '',
       status: event.status === 'upcoming' ? 'upcoming' as const : 
               event.status === 'completed' ? 'completed' as const :
@@ -376,8 +465,8 @@ class EPKService {
     // Transform photos
     const photos = artistPhotos.map((photo: any) => ({
       id: photo.id,
-      url: photo.file_url,
-      caption: photo.caption || '',
+      url: photo.image_url || photo.file_url || '',
+      caption: photo.caption || photo.title || photo.description || '',
       isHero: photo.is_featured || false
     }))
 
@@ -400,26 +489,69 @@ class EPKService {
       }
     }
 
+    const settings = epkSettings?.settings || {}
+    const sectionOrder = Array.isArray(settings?.layout?.sectionOrder)
+      ? settings.layout.sectionOrder
+      : ['hero', 'one-liner', 'bio', 'music', 'stats', 'shows', 'press', 'media', 'contact', 'social', 'booking']
+    const sectionVisibility = settings?.layout?.sectionVisibility && typeof settings.layout.sectionVisibility === 'object'
+      ? settings.layout.sectionVisibility
+      : {
+        hero: true,
+        "one-liner": true,
+        bio: true,
+        music: true,
+        stats: true,
+        shows: true,
+        press: true,
+        media: true,
+        contact: true,
+        social: true,
+        booking: true
+      }
+    const quality = computeEPKQuality({
+      artistName,
+      bio: artistProfile?.bio || '',
+      musicCount: music.length,
+      photoCount: photos.length,
+      hasPress: Array.isArray(settings?.pressItems) && settings.pressItems.length > 0,
+      hasBookingEmail: Boolean(contact.bookingEmail || contact.email),
+      hasOneLiner: Boolean(settings?.bookingAssets?.oneLiner)
+    })
+
     return {
+      epkSlug,
       artistName: artistProfile?.artist_name || '',
       bio: artistProfile?.bio || '',
       genre: artistProfile?.genres?.[0] || '',
       location: professionalSettings.location || '',
-      avatarUrl: '', // This would come from user profile or storage
-      coverUrl: '', // This would come from artist photos or storage
+      avatarUrl: profileSummary?.avatar_url || '',
+      coverUrl: profileSummary?.cover_image || photos.find((photo: any) => photo.isHero)?.url || '',
       theme: epkSettings?.theme || 'dark',
       template: epkSettings?.template || 'modern',
       isPublic: epkSettings?.is_public ?? false,
       stats: artistStats,
       music,
       photos,
-      press: [], // This would be loaded from artist_press or similar table
+      press: Array.isArray(settings?.pressItems) ? settings.pressItems : [],
       contact,
       social,
       upcomingShows,
       customDomain: epkSettings?.custom_domain || '',
       seoTitle: epkSettings?.seo_title || `${artistProfile?.artist_name} - Electronic Press Kit`,
-      seoDescription: epkSettings?.seo_description || artistProfile?.bio || ''
+      seoDescription: epkSettings?.seo_description || artistProfile?.bio || '',
+      layout: {
+        preset: settings?.layout?.preset || 'booker',
+        sectionOrder,
+        sectionVisibility
+      },
+      bookingAssets: {
+        techRiderUrl: settings?.bookingAssets?.techRiderUrl || '',
+        stagePlotUrl: settings?.bookingAssets?.stagePlotUrl || '',
+        oneLiner: settings?.bookingAssets?.oneLiner || ''
+      },
+      quality,
+      epkFont: (settings.epkFont as EPKData['epkFont']) || 'sans',
+      epkAppearance: normalizeEpkAppearance(settings.epkAppearance, epkSettings?.template)
     }
   }
 
@@ -498,7 +630,13 @@ class EPKService {
       epkData.isPublic !== undefined ||
       epkData.customDomain ||
       epkData.seoTitle ||
-      epkData.seoDescription
+      epkData.seoDescription ||
+      epkData.layout ||
+      epkData.bookingAssets ||
+      epkData.epkFont ||
+      epkData.epkAppearance ||
+      epkData.epkSlug ||
+      epkData.press !== undefined
     )
   }
 
@@ -560,6 +698,28 @@ class EPKService {
 
     private async saveEPKSettings(userId: string, epkData: Partial<EPKData>) {
     try {
+      const existing = await this.getEPKSettings(userId)
+      const prev =
+        existing?.settings && typeof existing.settings === 'object'
+          ? (existing.settings as Record<string, unknown>)
+          : {}
+      const nextSettings = {
+        ...prev,
+        pressItems: Array.isArray(epkData.press)
+          ? epkData.press
+          : Array.isArray(prev.pressItems)
+            ? prev.pressItems
+            : [],
+        layout: epkData.layout ?? prev.layout,
+        bookingAssets: epkData.bookingAssets ?? prev.bookingAssets,
+        epkFont: epkData.epkFont ?? prev.epkFont ?? 'sans',
+        epkAppearance:
+          epkData.epkAppearance !== undefined
+            ? epkData.epkAppearance
+            : (prev.epkAppearance as EpkAppearance | undefined) ??
+              normalizeEpkAppearance(undefined, epkData.template || 'modern')
+      }
+
       const epkSettings: Partial<EPKSettings> = {
         user_id: userId,
         theme: epkData.theme || 'dark',
@@ -568,33 +728,24 @@ class EPKService {
         custom_domain: epkData.customDomain || undefined,
         seo_title: epkData.seoTitle || undefined,
         seo_description: epkData.seoDescription || undefined,
-        settings: {},
+        epk_slug: epkData.epkSlug || createEpkSlug(epkData.artistName || ''),
+        settings: nextSettings,
         updated_at: new Date().toISOString()
       }
 
-      // Try to update first, then insert if doesn't exist
-      const { error: updateError } = await supabase
+      const { error: upsertError } = await supabase
         .from('artist_epk_settings')
-        .update(epkSettings)
-        .eq('user_id', userId)
+        .upsert({
+          ...epkSettings,
+          created_at: new Date().toISOString()
+        }, { onConflict: 'user_id' })
 
-      if (updateError && updateError.code === 'PGRST116') {
-        // No existing record, create new one
-        const { error: insertError } = await supabase
-          .from('artist_epk_settings')
-          .insert({
-            ...epkSettings,
-            created_at: new Date().toISOString()
-          })
-
-        if (insertError) throw insertError
-      } else if (updateError) {
-        // If the table doesn't exist, just log a warning and continue
-        if (updateError.message.includes('does not exist')) {
+      if (upsertError) {
+        if (upsertError.message.includes('does not exist')) {
           console.warn('EPK settings table does not exist yet, skipping settings save')
           return
         }
-        throw updateError
+        throw upsertError
       }
     } catch (error) {
       console.warn('Error saving EPK settings:', error)
@@ -604,24 +755,29 @@ class EPKService {
 
   async getPublicEPKData(artistSlug: string): Promise<EPKData | null> {
     try {
-      // First, find the artist by slug/name
-      const { data: artistProfile, error: profileError } = await supabase
+      const normalizedSlug = createEpkSlug(artistSlug)
+      const { data: publicSettings, error: publicSettingsError } = await supabase
+        .from('artist_epk_settings')
+        .select('user_id, is_public, epk_slug')
+        .eq('epk_slug', normalizedSlug)
+        .eq('is_public', true)
+        .maybeSingle()
+
+      if (publicSettingsError && !publicSettingsError.message.includes('does not exist')) return null
+      if (publicSettings?.user_id) return await this.loadEPKData(publicSettings.user_id)
+
+      // Legacy fallback while old links are still in circulation
+      const { data: artistProfile } = await supabase
         .from('artist_profiles')
-        .select('user_id, *')
-        .or(`artist_name.ilike.%${artistSlug}%`)
-        .single()
+        .select('user_id, artist_name')
+        .ilike('artist_name', artistSlug.replace(/-/g, ' '))
+        .maybeSingle()
 
-      if (profileError || !artistProfile) {
-        return null
-      }
+      if (!artistProfile?.user_id) return null
 
-      // Check if EPK is public
       const epkSettings = await this.getEPKSettings(artistProfile.user_id)
-      if (!epkSettings?.is_public) {
-        return null
-      }
+      if (!epkSettings?.is_public) return null
 
-      // Load the full EPK data
       return await this.loadEPKData(artistProfile.user_id)
     } catch (error) {
       console.error('Error loading public EPK data:', error)
@@ -631,4 +787,37 @@ class EPKService {
 }
 
 export const epkService = new EPKService()
-export type { EPKData, EPKSettings } 
+export type { EPKData, EPKSettings, EpkAppearance } 
+
+export function createEpkSlug(input: string): string {
+  return String(input || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+export function computeEPKQuality(input: {
+  artistName: string
+  bio: string
+  musicCount: number
+  photoCount: number
+  hasPress: boolean
+  hasBookingEmail: boolean
+  hasOneLiner: boolean
+}): { score: number; missing: string[] } {
+  const missing: string[] = []
+  if (!input.artistName) missing.push('artist name')
+  if (!input.bio || input.bio.length < 120) missing.push('full bio')
+  if (input.musicCount < 3) missing.push('at least 3 tracks')
+  if (input.photoCount < 4) missing.push('at least 4 press photos')
+  if (!input.hasPress) missing.push('press highlights')
+  if (!input.hasBookingEmail) missing.push('booking contact')
+  if (!input.hasOneLiner) missing.push('one-line artist pitch')
+
+  const maxChecks = 7
+  const passed = maxChecks - missing.length
+  return { score: Math.max(0, Math.round((passed / maxChecks) * 100)), missing }
+}

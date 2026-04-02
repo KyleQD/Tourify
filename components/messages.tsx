@@ -262,7 +262,7 @@ export default function Messages() {
                       >
                         <p className="text-sm">{message.content}</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(message.created_at).toLocaleTimeString()}
+                          {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(message.created_at))}
                         </p>
                       </div>
                     </div>

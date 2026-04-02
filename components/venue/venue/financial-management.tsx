@@ -30,6 +30,7 @@ import {
   TrendingUp,
   Upload,
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock invoices data
 const mockInvoices = [
@@ -345,11 +346,7 @@ export function FinancialManagement() {
 
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    return formatSafeDate(dateString)
   }
 
   // Get invoice status badge color

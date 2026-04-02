@@ -15,6 +15,7 @@ import { TeamRole } from '../types/team'
 import { ChatMessage } from '../types/chat'
 import { PromotionsTab } from './promotions-tab'
 import { Promotion } from '../types/promotion'
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface EventManagementModalProps {
   event: EventFormData | null
@@ -136,7 +137,7 @@ function EventDetailsForm({ event, isEditing, onChange, errors }: {
         <>
           <div className="font-bold text-lg">{event.title}</div>
           <div className="text-gray-400 mb-2">{event.description}</div>
-          <div className="text-sm text-gray-400">Date: {event.date.toLocaleDateString()} {event.startTime} - {event.endTime}</div>
+          <div className="text-sm text-gray-400">Date: {formatSafeDate(event.date.toISOString())} {event.startTime} - {event.endTime}</div>
           <div className="text-sm text-gray-400">Capacity: {event.capacity}</div>
           <div className="text-sm text-gray-400">Ticket Price: ${event.ticketPrice}</div>
           <div className="text-sm text-gray-400">Visibility: {event.isPublic ? "Public" : "Private"}</div>

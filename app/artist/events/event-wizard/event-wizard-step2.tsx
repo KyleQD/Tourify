@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { NeoDateInput } from "@/components/ui/neo-date-input"
 
 const taskSchema = z.object({
   title: z.string().min(2, "Task title required"),
@@ -55,7 +56,7 @@ export function EventWizardStep2({ onNext, defaultValues }: EventWizardStep2Prop
         {fields.map((field, idx) => (
           <div key={field.id} className="flex gap-2 mb-2 items-end">
             <Input placeholder="Task Title" {...register(`tasks.${idx}.title` as const)} />
-            <Input type="date" placeholder="Due Date" {...register(`tasks.${idx}.dueDate` as const)} />
+            <NeoDateInput placeholder="Due Date" {...register(`tasks.${idx}.dueDate` as const)} />
             <Button type="button" variant="destructive" onClick={() => remove(idx)} disabled={fields.length === 1}>Remove</Button>
           </div>
         ))}

@@ -26,7 +26,9 @@ import {
   Heart,
   Headphones,
 } from "lucide-react"
+import { formatSafeNumber } from "@/lib/format/number-format"
 import Image from "next/image"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export function MusicLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid")
@@ -101,11 +103,7 @@ export function MusicLibrary() {
 
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    return formatSafeDate(dateString)
   }
 
   // Toggle play/pause
@@ -269,7 +267,7 @@ export function MusicLibrary() {
                     </div>
                     <div className="flex items-center">
                       <Headphones className="h-3 w-3 mr-1" />
-                      <span>{item.plays.toLocaleString()}</span>
+                      <span>{formatSafeNumber(item.plays)}</span>
                     </div>
                   </div>
                 </div>
@@ -330,11 +328,11 @@ export function MusicLibrary() {
                       </div>
                       <div className="flex items-center">
                         <Headphones className="h-3 w-3 mr-1" />
-                        <span>{item.plays.toLocaleString()} plays</span>
+                        <span>{formatSafeNumber(item.plays)} plays</span>
                       </div>
                       <div className="flex items-center">
                         <Heart className="h-3 w-3 mr-1" />
-                        <span>{item.likes.toLocaleString()} likes</span>
+                        <span>{formatSafeNumber(item.likes)} likes</span>
                       </div>
                     </div>
                   </div>

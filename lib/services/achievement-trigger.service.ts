@@ -4,6 +4,29 @@ import { achievementService } from './achievement.service'
 export class AchievementTriggerService {
   private supabase = createClientComponentClient()
 
+  private async recordMetric(args: {
+    metricKey: string
+    eventType: string
+    delta?: number
+    absoluteValue?: number
+    eventData?: Record<string, any>
+    relatedProjectId?: string
+    relatedEventId?: string
+    relatedCollaborationId?: string
+  }) {
+    await achievementService.recordAchievementProgress({
+      metric_key: args.metricKey,
+      metric_value: args.absoluteValue,
+      evaluation_mode: args.absoluteValue !== undefined ? 'absolute' : 'increment',
+      event_type: args.eventType,
+      event_value: args.delta ?? 1,
+      event_data: args.eventData ?? {},
+      related_project_id: args.relatedProjectId,
+      related_event_id: args.relatedEventId,
+      related_collaboration_id: args.relatedCollaborationId
+    })
+  }
+
   // =============================================
   // PROFILE COMPLETION TRIGGERS
   // =============================================
@@ -14,11 +37,11 @@ export class AchievementTriggerService {
       await this.grantProfileCompletionBadge(userId, profileType)
       
       // Award "First Steps" achievement
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'first-steps-achievement',
-        event_type: 'profile_completed',
-        event_value: 1,
-        event_data: { profile_type: profileType }
+      await this.recordMetric({
+        metricKey: 'profile_completion_score',
+        eventType: 'profile_completed',
+        absoluteValue: 100,
+        eventData: { profile_type: profileType }
       })
 
       console.log(`✅ Profile completion triggered for user ${userId}`)
@@ -77,42 +100,31 @@ export class AchievementTriggerService {
     duration?: number
   }): Promise<void> {
     try {
-      // Award "First Job" achievement
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'first-job-achievement',
-        event_type: 'job_completed',
-        event_value: 1,
-        related_project_id: jobData.jobId
-      })
-
-      // Award "First Client" achievement
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'first-client-achievement',
-        event_type: 'client_acquired',
-        event_value: 1,
-        related_project_id: jobData.jobId
+      await this.recordMetric({
+        metricKey: 'projects_completed_total',
+        eventType: 'job_completed',
+        delta: 1,
+        relatedProjectId: jobData.jobId
       })
 
       // Check for high rating achievements
       if (jobData.clientRating && jobData.clientRating >= 4.5) {
-        await achievementService.recordAchievementProgress({
-          achievement_id: 'client-favorite-achievement',
-          event_type: 'high_rating_received',
-          event_value: Math.round(jobData.clientRating * 10),
-          related_project_id: jobData.jobId
+        await this.recordMetric({
+          metricKey: 'high_rating_events_total',
+          eventType: 'high_rating_received',
+          delta: 1,
+          relatedProjectId: jobData.jobId
         })
       }
 
       // Check for earnings achievements
       if (jobData.earnings) {
-        if (jobData.earnings >= 10000) {
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'business-owner-achievement',
-            event_type: 'earnings_milestone',
-            event_value: jobData.earnings,
-            related_project_id: jobData.jobId
-          })
-        }
+        await this.recordMetric({
+          metricKey: 'revenue_total',
+          eventType: 'earnings_milestone',
+          absoluteValue: jobData.earnings,
+          relatedProjectId: jobData.jobId
+        })
       }
 
       console.log(`✅ Job completion triggered for user ${userId}`)
@@ -134,40 +146,38 @@ export class AchievementTriggerService {
   }): Promise<void> {
     try {
       if (eventData.isPerformer) {
-        // Award "First Performance" achievement
-        await achievementService.recordAchievementProgress({
-          achievement_id: 'first-gig-achievement',
-          event_type: 'performance_completed',
-          event_value: 1,
-          related_event_id: eventData.eventId
+        await this.recordMetric({
+          metricKey: 'events_completed_total',
+          eventType: 'performance_completed',
+          delta: 1,
+          relatedEventId: eventData.eventId
         })
 
         // Check for sold out shows
         if (eventData.attendance && eventData.venueSize && eventData.attendance >= eventData.venueSize * 0.95) {
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'sold-out-achievement',
-            event_type: 'sold_out_show',
-            event_value: 1,
-            related_event_id: eventData.eventId
+          await this.recordMetric({
+            metricKey: 'sold_out_events_total',
+            eventType: 'sold_out_show',
+            delta: 1,
+            relatedEventId: eventData.eventId
           })
         }
 
         // Check for festival headlining
         if (eventData.eventType === 'festival' && eventData.venueSize && eventData.venueSize >= 1000) {
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'festival-headliner-achievement',
-            event_type: 'festival_headlined',
-            event_value: 1,
-            related_event_id: eventData.eventId
+          await this.recordMetric({
+            metricKey: 'festival_headlines_total',
+            eventType: 'festival_headlined',
+            delta: 1,
+            relatedEventId: eventData.eventId
           })
         }
       } else {
-        // Award "Event Attendee" achievement for non-performers
-        await achievementService.recordAchievementProgress({
-          achievement_id: 'event-attendee-achievement',
-          event_type: 'event_attended',
-          event_value: 1,
-          related_event_id: eventData.eventId
+        await this.recordMetric({
+          metricKey: 'events_attended_total',
+          eventType: 'event_attended',
+          delta: 1,
+          relatedEventId: eventData.eventId
         })
       }
 
@@ -189,29 +199,20 @@ export class AchievementTriggerService {
     duration?: number
   }): Promise<void> {
     try {
-      // Award "Team Player" achievement
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'team-player-achievement',
-        event_type: 'collaboration_completed',
-        event_value: 1,
-        related_collaboration_id: collaborationData.collaborationId
-      })
-
-      // Check for collaboration master (10+ collaborations)
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'collaboration-master-achievement',
-        event_type: 'collaboration_completed',
-        event_value: 1,
-        related_collaboration_id: collaborationData.collaborationId
+      await this.recordMetric({
+        metricKey: 'collaborations_completed_total',
+        eventType: 'collaboration_completed',
+        delta: 1,
+        relatedCollaborationId: collaborationData.collaborationId
       })
 
       // Check for cross-genre collaboration
       if (collaborationData.genres.length >= 2) {
-        await achievementService.recordAchievementProgress({
-          achievement_id: 'cross-genre-pioneer-achievement',
-          event_type: 'cross_genre_collaboration',
-          event_value: collaborationData.genres.length,
-          related_collaboration_id: collaborationData.collaborationId
+        await this.recordMetric({
+          metricKey: 'cross_genre_collaborations_total',
+          eventType: 'cross_genre_collaboration',
+          delta: 1,
+          relatedCollaborationId: collaborationData.collaborationId
         })
       }
 
@@ -233,40 +234,29 @@ export class AchievementTriggerService {
   }): Promise<void> {
     try {
       if (musicData.isAlbum) {
-        // Award "Album Artist" achievement
-        await achievementService.recordAchievementProgress({
-          achievement_id: 'album-artist-achievement',
-          event_type: 'album_released',
-          event_value: 1,
-          related_project_id: musicData.trackId
+        await this.recordMetric({
+          metricKey: 'albums_released_total',
+          eventType: 'album_released',
+          delta: 1,
+          relatedProjectId: musicData.trackId
         })
       } else {
-        // Award "First Track" achievement
-        await achievementService.recordAchievementProgress({
-          achievement_id: 'first-track-achievement',
-          event_type: 'track_uploaded',
-          event_value: 1,
-          related_project_id: musicData.trackId
+        await this.recordMetric({
+          metricKey: 'tracks_public_total',
+          eventType: 'track_uploaded',
+          delta: 1,
+          relatedProjectId: musicData.trackId
         })
       }
 
       // Check for streaming milestones
       if (musicData.streams) {
-        if (musicData.streams >= 1000000) {
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'viral-sensation-achievement',
-            event_type: 'streams_reached',
-            event_value: musicData.streams,
-            related_project_id: musicData.trackId
-          })
-        } else if (musicData.streams >= 10000) {
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'hit-maker-achievement',
-            event_type: 'streams_reached',
-            event_value: musicData.streams,
-            related_project_id: musicData.trackId
-          })
-        }
+        await this.recordMetric({
+          metricKey: 'track_plays_total',
+          eventType: 'streams_reached',
+          absoluteValue: musicData.streams,
+          relatedProjectId: musicData.trackId
+        })
       }
 
       console.log(`✅ Music upload triggered for user ${userId}`)
@@ -287,31 +277,30 @@ export class AchievementTriggerService {
     try {
       switch (actionData.actionType) {
         case 'help':
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'helper-achievement',
-            event_type: 'artist_helped',
-            event_value: 1,
-            event_data: { target_user_id: actionData.targetUserId }
+          await this.recordMetric({
+            metricKey: 'artists_helped_total',
+            eventType: 'artist_helped',
+            delta: 1,
+            eventData: { target_user_id: actionData.targetUserId }
           })
           break
 
         case 'mentor':
-          await achievementService.recordAchievementProgress({
-            achievement_id: 'mentor-achievement',
-            event_type: 'artist_mentored',
-            event_value: 1,
-            event_data: { target_user_id: actionData.targetUserId }
+          await this.recordMetric({
+            metricKey: 'artists_mentored_total',
+            eventType: 'artist_mentored',
+            delta: 1,
+            eventData: { target_user_id: actionData.targetUserId }
           })
           break
 
         case 'follow':
-          if (actionData.followersCount && actionData.followersCount >= 1000) {
-            await achievementService.recordAchievementProgress({
-              achievement_id: 'community-champion-achievement',
-              event_type: 'followers_gained',
-              event_value: actionData.followersCount
-            })
-          }
+          if (!actionData.followersCount) break
+          await this.recordMetric({
+            metricKey: 'followers_total',
+            eventType: 'followers_gained',
+            absoluteValue: actionData.followersCount
+          })
           break
       }
 
@@ -331,25 +320,13 @@ export class AchievementTriggerService {
     endorserId: string
   }): Promise<void> {
     try {
-      // Award "Endorsed" achievement for receiving endorsements
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'endorsed-achievement',
-        event_type: 'endorsement_received',
-        event_value: endorsementData.level,
-        event_data: { 
+      await this.recordMetric({
+        metricKey: 'endorsements_received_total',
+        eventType: 'endorsement_received',
+        delta: 1,
+        eventData: {
           skill: endorsementData.skill,
           endorser_id: endorsementData.endorserId
-        }
-      })
-
-      // Award "Endorser" achievement for giving endorsements
-      await achievementService.recordAchievementProgress({
-        achievement_id: 'endorser-achievement',
-        event_type: 'endorsement_given',
-        event_value: endorsementData.level,
-        event_data: { 
-          skill: endorsementData.skill,
-          endorsee_id: userId
         }
       })
 
@@ -371,30 +348,27 @@ export class AchievementTriggerService {
     try {
       switch (milestoneData.milestoneType) {
         case 'projects_completed':
-          if (milestoneData.value >= 100) {
-            await achievementService.recordAchievementProgress({
-              achievement_id: 'century-club-achievement',
-              event_type: 'projects_completed',
-              event_value: milestoneData.value,
-              related_project_id: milestoneData.projectId
-            })
-          }
+          await this.recordMetric({
+            metricKey: 'projects_completed_total',
+            eventType: 'projects_completed',
+            absoluteValue: milestoneData.value,
+            relatedProjectId: milestoneData.projectId
+          })
           break
 
         case 'platform_years':
-          if (milestoneData.value >= 5) {
-            await achievementService.recordAchievementProgress({
-              achievement_id: 'veteran-achievement',
-              event_type: 'platform_years',
-              event_value: milestoneData.value
-            })
-          } else if (milestoneData.value >= 1) {
-            await achievementService.recordAchievementProgress({
-              achievement_id: 'first-year-achievement',
-              event_type: 'platform_years',
-              event_value: milestoneData.value
-            })
-          }
+          await this.recordMetric({
+            metricKey: 'platform_years',
+            eventType: 'platform_years',
+            absoluteValue: milestoneData.value
+          })
+          break
+        case 'response_rate':
+          await this.recordMetric({
+            metricKey: 'response_rate',
+            eventType: 'response_rate',
+            absoluteValue: milestoneData.value
+          })
           break
       }
 

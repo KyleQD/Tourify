@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Endorsement } from "@/types/achievements"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface EndorsementCardProps {
   endorsement: Endorsement
@@ -225,7 +226,7 @@ export function EndorsementCard({
             <div className="flex items-center gap-4 text-xs text-gray-500">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
-                {new Date(endorsement.created_at).toLocaleDateString()}
+                {formatSafeDate(endorsement.created_at)}
               </div>
 
               {/* Context badges */}

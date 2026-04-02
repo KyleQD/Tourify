@@ -71,6 +71,7 @@ import {
   Info,
   X
 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface DashboardWidget {
   id: string
@@ -309,7 +310,7 @@ export function CustomizableDashboard({ userId, onWidgetUpdate, className = "" }
             events: events.slice(0, 5).map(event => ({
               id: event.id,
               name: event.name,
-              date: new Date(event.event_date).toLocaleDateString(),
+              date: formatSafeDate(event.event_date),
               venue: event.venue?.name || 'TBD',
               status: event.status,
               capacity: event.capacity || 0,

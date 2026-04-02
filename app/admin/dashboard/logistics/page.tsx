@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Bell, Box, Building, Calendar, Clock, FileText, MapPin, MessageSquare, Plane, Truck, Users, Utensils, Plus, Edit, Trash2, AlertCircle, Loader2, Zap, Guitar, Mic, Piano, Drum, CheckCircle, Target } from "lucide-react"
 import { Header } from "@/components/header"
-import { PageHeader } from "@/components/page-header"
+import { AdminPageHeader } from "../components/admin-page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
@@ -22,6 +22,8 @@ import { SiteMapManager } from "@/components/admin/logistics/site-map-manager"
 import { SiteMapManagerEnhanced } from "@/components/admin/logistics/site-map-manager-enhanced"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 export default function LogisticsPage() {
   const { toast } = useToast()
@@ -35,7 +37,7 @@ export default function LogisticsPage() {
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-slate-400">Loading...</p>
         </div>
       </div>
     )
@@ -158,9 +160,9 @@ export default function LogisticsPage() {
         rentals: { percentage: rentalPercentage, items: activeRentals, completed: activeRentals, status: rentalStatus, revenue: totalRentalRevenue },
         lodging: { percentage: lodgingPercentage, items: activeLodgingBookings, completed: activeLodgingBookings, status: lodgingStatus, revenue: totalLodgingRevenue },
         travelCoordination: { percentage: travelCoordinationPercentage, items: totalTravelGroups, completed: fullyCoordinatedGroups, status: travelCoordinationStatus, travelers: totalTravelers },
-        accommodations: { percentage: 90, items: 12, completed: 11, status: 'Confirmed' }, // Mock data for now
-        catering: { percentage: 10, items: 5, completed: 0, status: 'Not Started' }, // Mock data for now
-        communication: { percentage: 75, items: 16, completed: 12, status: 'Active' } // Mock data for now
+        accommodations: { percentage: lodgingPercentage, items: activeLodgingBookings, completed: activeLodgingBookings, status: lodgingStatus },
+        catering: { percentage: 0, items: 0, completed: 0, status: 'Not Started' },
+        communication: { percentage: 0, items: 0, completed: 0, status: 'Not Started' }
       }
     } catch (error) {
       console.error('Error calculating metrics:', error)
@@ -191,13 +193,13 @@ export default function LogisticsPage() {
     return (
       <div className="container mx-auto p-4">
         <Header />
-        <PageHeader
+        <AdminPageHeader
           title="Logistics Management"
           icon={Truck}
-          description="Coordinate transportation, equipment, and venue logistics for all events"
+          subtitle="Coordinate transportation, equipment, and venue logistics for all events"
         />
         
-        <Card className="bg-slate-900/50 border-red-500/20 backdrop-blur-sm">
+        <Card className="rounded-sm bg-red-950/20 backdrop-blur-sm border-red-500/20">
           <CardContent className="p-8 text-center">
             <div className="flex flex-col items-center space-y-4">
               <AlertCircle className="h-16 w-16 text-red-500" />
@@ -229,10 +231,10 @@ export default function LogisticsPage() {
   return (
     <div className="container mx-auto p-4">
       <Header />
-      <PageHeader
+      <AdminPageHeader
         title="Logistics Management"
         icon={Truck}
-        description="Coordinate transportation, equipment, and venue logistics for all events"
+        subtitle="Coordinate transportation, equipment, and venue logistics for all events"
       />
 
       {/* Scope selector */}
@@ -241,10 +243,10 @@ export default function LogisticsPage() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="bg-slate-900/80 p-1 mb-8 grid grid-cols-8 gap-2 backdrop-blur-xl border border-slate-700/30 rounded-2xl shadow-2xl shadow-slate-900/50">
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 mb-6 grid grid-cols-8 gap-1 rounded-sm">
           <TabsTrigger
             value="overview"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500/30 data-[state=active]:to-blue-500/30 data-[state=active]:text-purple-300 data-[state=active]:border-purple-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <Truck className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -254,7 +256,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="transportation"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500/30 data-[state=active]:to-cyan-500/30 data-[state=active]:text-blue-300 data-[state=active]:border-blue-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <Truck className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -264,7 +266,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="accommodations"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-500/30 data-[state=active]:to-emerald-500/30 data-[state=active]:text-green-300 data-[state=active]:border-green-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <Building className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -274,7 +276,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="equipment"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-orange-500/30 data-[state=active]:to-red-500/30 data-[state=active]:text-orange-300 data-[state=active]:border-orange-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-orange-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <Box className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -284,7 +286,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="backline"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500/30 data-[state=active]:to-pink-500/30 data-[state=active]:text-purple-300 data-[state=active]:border-purple-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <Zap className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -294,7 +296,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="catering"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-yellow-500/30 data-[state=active]:to-orange-500/30 data-[state=active]:text-yellow-300 data-[state=active]:border-yellow-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-yellow-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <Utensils className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -304,7 +306,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="communication"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-cyan-500/30 data-[state=active]:to-blue-500/30 data-[state=active]:text-cyan-300 data-[state=active]:border-cyan-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-cyan-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <MessageSquare className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -314,7 +316,7 @@ export default function LogisticsPage() {
           
           <TabsTrigger
             value="site-maps"
-            className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-emerald-500/30 data-[state=active]:to-teal-500/30 data-[state=active]:text-emerald-300 data-[state=active]:border-emerald-400/50 data-[state=active]:shadow-lg data-[state=active]:shadow-emerald-500/25 data-[state=active]:backdrop-blur-sm relative group hover:bg-slate-800/50 hover:scale-105 transition-all duration-500 rounded-xl p-4 border border-transparent"
+            className="group data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm py-2 px-3 transition-colors"
           >
             <div className="flex items-center justify-center space-x-2">
               <MapPin className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" />
@@ -333,7 +335,7 @@ export default function LogisticsPage() {
             <>
               {/* Quick Stats Summary */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <Card className="bg-gradient-to-r from-blue-600/10 to-cyan-600/10 border-blue-500/20 backdrop-blur-sm">
+                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -343,14 +345,14 @@ export default function LogisticsPage() {
                         </p>
                         <p className="text-xs text-slate-400 mt-1">Complete across all categories</p>
                       </div>
-                      <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                      <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-sm shadow-lg shadow-blue-500/20 flex items-center justify-center">
                         <Target className="h-6 w-6 text-white" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-r from-green-600/10 to-emerald-600/10 border-green-500/20 backdrop-blur-sm">
+                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -360,14 +362,14 @@ export default function LogisticsPage() {
                         </p>
                         <p className="text-xs text-slate-400 mt-1">Total logistics items</p>
                       </div>
-                      <div className="h-12 w-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                      <div className="h-12 w-12 bg-gradient-to-r from-green-500 to-emerald-500 rounded-sm shadow-lg shadow-green-500/20 flex items-center justify-center">
                         <CheckCircle className="h-6 w-6 text-white" />
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-r from-purple-600/10 to-pink-600/10 border-purple-500/20 backdrop-blur-sm">
+                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
@@ -377,7 +379,7 @@ export default function LogisticsPage() {
                         </p>
                         <p className="text-xs text-slate-400 mt-1">Items completed</p>
                       </div>
-                      <div className="h-12 w-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                      <div className="h-12 w-12 bg-gradient-to-r from-purple-500 to-pink-500 rounded-sm shadow-lg shadow-purple-500/20 flex items-center justify-center">
                         <Zap className="h-6 w-6 text-white" />
                       </div>
                     </div>
@@ -387,7 +389,7 @@ export default function LogisticsPage() {
             </>
           )}
 
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm mb-6">
+          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
             <CardHeader className="pb-2">
               <CardTitle className="text-slate-100 flex items-center text-base">
                 <Calendar className="mr-2 h-5 w-5 text-purple-500" />
@@ -405,7 +407,13 @@ export default function LogisticsPage() {
                     .map((t: any) => (
                       <TimelineItem
                         key={t.id}
-                        date={new Date(t.due_date || t.departure_time).toLocaleString()}
+                        date={new Intl.DateTimeFormat("en-US", {
+                          year: "numeric",
+                          month: "numeric",
+                          day: "numeric",
+                          hour: "numeric",
+                          minute: "2-digit",
+                        }).format(new Date(t.due_date || t.departure_time))}
                         title={t.title || t.type || 'Logistics Item'}
                         description={t.description || ''}
                         status={t.status || 'scheduled'}
@@ -418,7 +426,7 @@ export default function LogisticsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-slate-100 flex items-center text-base">
                 <Users className="mr-2 h-5 w-5 text-purple-500" />
@@ -473,7 +481,7 @@ export default function LogisticsPage() {
               <span className="ml-2 text-slate-400">Loading transportation data...</span>
             </div>
           ) : (
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm mb-6">
+            <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
               <CardHeader className="pb-2">
                 <CardTitle className="text-slate-100 flex items-center justify-between text-base">
                   <div className="flex items-center">
@@ -520,7 +528,13 @@ export default function LogisticsPage() {
                           {transportationData.transportation.map((transport) => (
                             <TransportationRow
                               key={transport.id}
-                              dateTime={new Date(transport.departure_time).toLocaleString()}
+                              dateTime={new Intl.DateTimeFormat("en-US", {
+                                year: "numeric",
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              }).format(new Date(transport.departure_time))}
                               description={`${transport.type} - ${transport.vehicle_details?.description || 'Transport'}`}
                               provider={transport.provider || 'TBD'}
                               from={transport.departure_location}
@@ -547,7 +561,7 @@ export default function LogisticsPage() {
             </Card>
           )}
 
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-slate-100 flex items-center text-base">
                 <FileText className="mr-2 h-5 w-5 text-purple-500" />
@@ -555,38 +569,9 @@ export default function LogisticsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ProviderCard
-                  name="Elite Transport Services"
-                  type="VIP Transportation"
-                  contact="John Driver"
-                  phone="(555) 123-4567"
-                  email="john@elitetransport.com"
-                />
-
-                <ProviderCard
-                  name="Roadrunner Logistics"
-                  type="Equipment Transport"
-                  contact="Sarah Trucker"
-                  phone="(555) 234-5678"
-                  email="sarah@roadrunner.com"
-                />
-
-                <ProviderCard
-                  name="City Shuttle Services"
-                  type="Staff Transportation"
-                  contact="Mike Shuttle"
-                  phone="(555) 345-6789"
-                  email="mike@cityshuttle.com"
-                />
-
-                <ProviderCard
-                  name="Luxury Limos"
-                  type="VIP Limousines"
-                  contact="Lisa Luxury"
-                  phone="(555) 456-7890"
-                  email="lisa@luxurylimos.com"
-                />
+              <div className="text-center py-6">
+                <Truck className="h-10 w-10 text-slate-500 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">Vendor data will populate from event vendor requests.</p>
               </div>
             </CardContent>
           </Card>
@@ -617,7 +602,7 @@ export default function LogisticsPage() {
           ) : (
             <>
               {/* Backline Inventory */}
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm mb-6">
+              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-slate-100 flex items-center justify-between text-base">
                     <div className="flex items-center">
@@ -687,7 +672,7 @@ export default function LogisticsPage() {
               </Card>
 
               {/* Active Rentals */}
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm mb-6">
+              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-slate-100 flex items-center text-base">
                     <Calendar className="mr-2 h-5 w-5 text-purple-500" />
@@ -726,20 +711,20 @@ export default function LogisticsPage() {
 
               {/* Rental Analytics */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-slate-100 text-sm">Revenue This Month</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-green-400">
-                      ${rentalAnalytics?.[0]?.total_revenue?.toLocaleString() || '0'}
+                      {formatSafeCurrency(rentalAnalytics?.[0]?.total_revenue || 0)}
                     </div>
                     <p className="text-xs text-slate-400 mt-1">
                       {rentalAnalytics?.[0]?.total_rentals || 0} total rentals
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-slate-100 text-sm">Active Rentals</CardTitle>
                   </CardHeader>
@@ -752,7 +737,7 @@ export default function LogisticsPage() {
                     </p>
                   </CardContent>
                 </Card>
-                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-slate-100 text-sm">Utilization Rate</CardTitle>
                   </CardHeader>
@@ -771,7 +756,7 @@ export default function LogisticsPage() {
         </TabsContent>
 
         <TabsContent value="catering" className="mt-0">
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm mb-6">
+          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
             <CardHeader className="pb-2">
               <CardTitle className="text-slate-100 flex items-center text-base">
                 <Utensils className="mr-2 h-5 w-5 text-purple-500" />
@@ -845,7 +830,7 @@ export default function LogisticsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-slate-100 flex items-center text-base">
                 <FileText className="mr-2 h-5 w-5 text-purple-500" />
@@ -854,37 +839,10 @@ export default function LogisticsPage() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ProviderCard
-                  name="Gourmet Caterers"
-                  type="Full-Service Catering"
-                  contact="Chef Maria Rodriguez"
-                  phone="(555) 789-0123"
-                  email="maria@gourmetcaterers.com"
-                />
-
-                <ProviderCard
-                  name="Elite Event Catering"
-                  type="VIP & Premium Catering"
-                  contact="Chef James Wilson"
-                  phone="(555) 890-1234"
-                  email="james@eliteeventcatering.com"
-                />
-
-                <ProviderCard
-                  name="Nightlife Catering Co."
-                  type="After-Hours Catering"
-                  contact="Chef Daniel Black"
-                  phone="(555) 901-2345"
-                  email="daniel@nightlifecatering.com"
-                />
-
-                <ProviderCard
-                  name="Fresh Bites Food Trucks"
-                  type="Mobile Food Service"
-                  contact="Lisa Green"
-                  phone="(555) 012-3456"
-                  email="lisa@freshbites.com"
-                />
+                <div className="col-span-full text-center py-6">
+                  <FileText className="h-10 w-10 text-slate-500 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400">Catering vendors will populate from event vendor requests.</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -896,7 +854,7 @@ export default function LogisticsPage() {
             <LogisticsCollaboration 
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
-              teamMembers={['John Smith', 'Sarah Johnson', 'Mike Wilson', 'Lisa Davis']}
+              teamMembers={[]}
             />
           </div>
         </TabsContent>
@@ -930,7 +888,7 @@ function LogisticsStatusCard({ title, icon: Icon, status, percentage, items, com
   }
 
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+    <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
       <CardContent className="pt-6">
         <div className="flex justify-between items-start mb-4">
           <div>
@@ -1567,11 +1525,7 @@ function RentalCard({ instrument, client, startDate, endDate, dailyRate, totalAm
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric'
-    })
+    return formatSafeDate(dateString)
   }
 
   const daysRemaining = () => {

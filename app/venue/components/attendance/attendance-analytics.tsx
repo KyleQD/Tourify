@@ -9,6 +9,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format, subDays } from "date-fns"
 import { CalendarIcon, Download, TrendingUp, Users, CheckCircle2 } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock data for analytics
 const mockAttendanceData = {
@@ -236,7 +237,7 @@ export default function AttendanceAnalytics() {
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium">{event.title}</h4>
-                        <p className="text-sm text-muted-foreground">{new Date(event.date).toLocaleDateString()}</p>
+                        <p className="text-sm text-muted-foreground">{formatSafeDate(event.date)}</p>
                       </div>
                       <div className="text-right">
                         <p className="font-medium">{event.attendance}</p>

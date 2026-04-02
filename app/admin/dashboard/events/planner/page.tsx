@@ -63,6 +63,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { TimePicker } from "@/components/ui/time-picker"
 import { toast } from "@/hooks/use-toast"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 
 // Event Planning Steps
 const PLANNING_STEPS = [
@@ -977,15 +978,17 @@ function VenueScheduleStep({ eventData, updateEventData }: {
 
   const checkScheduleConflicts = (newItem: any, existingSchedule: any[]) => {
     const conflicts: string[] = []
-    const newStart = new Date(`2000-01-01T${newItem.startTime}`)
-    const newEnd = new Date(`2000-01-01T${newItem.endTime}`)
+    const newStart = parseTimeToMinutes(newItem.startTime)
+    const newEnd = parseTimeToMinutes(newItem.endTime)
+    if (newStart === null || newEnd === null) return conflicts
 
     existingSchedule.forEach(item => {
       if (item.venue === newItem.venue) {
-        const existingStart = new Date(`2000-01-01T${item.startTime}`)
-        const existingEnd = new Date(`2000-01-01T${item.endTime}`)
+        const existingStart = parseTimeToMinutes(item.startTime)
+        const existingEnd = parseTimeToMinutes(item.endTime)
+        if (existingStart === null || existingEnd === null) return
 
-        if ((newStart < existingEnd && newEnd > existingStart)) {
+        if (newStart < existingEnd && newEnd > existingStart) {
           conflicts.push(`Time conflict with "${item.title}"`)
         }
       }
@@ -997,12 +1000,12 @@ function VenueScheduleStep({ eventData, updateEventData }: {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "venues" | "schedule")}>
-        <TabsList className="grid w-full grid-cols-2 bg-slate-800">
-          <TabsTrigger value="venues" className="data-[state=active]:bg-purple-600">
+        <TabsList className="grid w-full grid-cols-2 bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+          <TabsTrigger value="venues" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             <Building className="h-4 w-4 mr-2" />
             Venues
           </TabsTrigger>
-          <TabsTrigger value="schedule" className="data-[state=active]:bg-purple-600">
+          <TabsTrigger value="schedule" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
             <Calendar className="h-4 w-4 mr-2" />
             Schedule
           </TabsTrigger>
@@ -1200,7 +1203,8 @@ function TicketingStep({ eventData, onUpdate }: {
   }
 
   const totalRevenue = ticketTypes.reduce((sum, ticket) => {
-    const price = ticket.earlyBirdPrice && new Date() < new Date(ticket.earlyBirdEndDate!) 
+    const earlyBirdEndDate = parseDateOrUndefined(ticket.earlyBirdEndDate)
+    const price = ticket.earlyBirdPrice && earlyBirdEndDate && new Date() < earlyBirdEndDate
       ? ticket.earlyBirdPrice 
       : ticket.price
     return sum + (price * ticket.quantity)
@@ -1226,7 +1230,7 @@ function TicketingStep({ eventData, onUpdate }: {
         </div>
         <div className="text-right">
           <div className="text-2xl font-bold text-green-600">
-            ${totalRevenue.toLocaleString()}
+            {formatSafeCurrency(totalRevenue)}
           </div>
           <div className="text-sm text-muted-foreground">
             Potential Revenue
@@ -1321,7 +1325,7 @@ function TicketingStep({ eventData, onUpdate }: {
                   <Input
                     type="number"
                     value={capacity.totalCapacity}
-                    onChange={(e) => setCapacity({ ...capacity, totalCapacity: parseInt(e.target.value) })}
+                    onChange={(e) => setCapacity({ ...capacity, totalCapacity: parseIntegerInput(e.target.value) })}
                     min="1"
                   />
                 </div>
@@ -1341,7 +1345,7 @@ function TicketingStep({ eventData, onUpdate }: {
                     <Input
                       type="number"
                       value={capacity.waitlistCapacity}
-                      onChange={(e) => setCapacity({ ...capacity, waitlistCapacity: parseInt(e.target.value) })}
+                      onChange={(e) => setCapacity({ ...capacity, waitlistCapacity: parseIntegerInput(e.target.value) })}
                       min="1"
                     />
                   </div>
@@ -1412,7 +1416,7 @@ function TicketingStep({ eventData, onUpdate }: {
           </div>
           <div>
             <span className="text-muted-foreground">Total Tickets:</span>
-            <span className="ml-2 font-medium">{totalTickets.toLocaleString()}</span>
+            <span className="ml-2 font-medium">{formatSafeNumber(totalTickets)}</span>
           </div>
                      <div>
              <span className="text-muted-foreground">Custom Fields:</span>
@@ -1425,6 +1429,48 @@ function TicketingStep({ eventData, onUpdate }: {
 }
 
 // Ticket Type Card Component
+function parseDateOrUndefined(value?: string | null) {
+  if (!value) return undefined
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return undefined
+  return parsed
+}
+
+function parseIntegerInput(value: string) {
+  const parsed = parseInt(value, 10)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+function parseDecimalInput(value: string) {
+  const parsed = parseFloat(value)
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+function parseTimeToMinutes(value?: string) {
+  if (!value || !value.includes(":")) return null
+  const [hourValue, minuteValue] = value.split(":")
+  const hours = parseInt(hourValue, 10)
+  const minutes = parseInt(minuteValue, 10)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
+function toLocalDateTimeInputValue(value?: string | null) {
+  if (!value) return ""
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return ""
+  const offsetMs = parsed.getTimezoneOffset() * 60_000
+  return new Date(parsed.getTime() - offsetMs).toISOString().slice(0, 16)
+}
+
+function toIsoFromLocalDateTime(value: string, fallbackValue: string) {
+  if (!value) return fallbackValue
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return fallbackValue
+  return parsed.toISOString()
+}
+
 function TicketTypeCard({ 
   ticket, 
   onUpdate, 
@@ -1497,7 +1543,11 @@ function TicketTypeCard({
               <Input
                 type="number"
                 value={ticket.quantity}
-                onChange={(e) => onUpdate({ quantity: parseInt(e.target.value) })}
+                  onChange={(e) =>
+                    onUpdate({
+                      quantity: Number.isNaN(parseInt(e.target.value, 10)) ? 0 : parseInt(e.target.value, 10),
+                    })
+                  }
                 min="1"
               />
             </div>
@@ -1511,7 +1561,11 @@ function TicketTypeCard({
                 <Input
                   type="number"
                   value={ticket.price}
-                  onChange={(e) => onUpdate({ price: parseFloat(e.target.value) })}
+                  onChange={(e) =>
+                    onUpdate({
+                      price: Number.isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value),
+                    })
+                  }
                   min="0"
                   step="0.01"
                   className="pl-8"
@@ -1575,7 +1629,13 @@ function TicketTypeCard({
                     <Input
                       type="number"
                       value={ticket.earlyBirdPrice}
-                      onChange={(e) => onUpdate({ earlyBirdPrice: parseFloat(e.target.value) })}
+                      onChange={(e) =>
+                        onUpdate({
+                          earlyBirdPrice: Number.isNaN(parseFloat(e.target.value))
+                            ? 0
+                            : parseFloat(e.target.value),
+                        })
+                      }
                       min="0"
                       step="0.01"
                       className="pl-8"
@@ -1586,8 +1646,14 @@ function TicketTypeCard({
                   <label className="text-xs text-muted-foreground">End Date</label>
                   <Input
                     type="datetime-local"
-                    value={ticket.earlyBirdEndDate ? new Date(ticket.earlyBirdEndDate).toISOString().slice(0, 16) : ''}
-                    onChange={(e) => onUpdate({ earlyBirdEndDate: new Date(e.target.value).toISOString() })}
+                    value={toLocalDateTimeInputValue(ticket.earlyBirdEndDate)}
+                    onChange={(e) =>
+                      onUpdate({
+                        earlyBirdEndDate: e.target.value
+                          ? toIsoFromLocalDateTime(e.target.value, ticket.earlyBirdEndDate || "")
+                          : null,
+                      })
+                    }
                   />
                 </div>
               </div>
@@ -1600,16 +1666,24 @@ function TicketTypeCard({
               <label className="text-xs text-muted-foreground">Available From</label>
               <Input
                 type="datetime-local"
-                value={new Date(ticket.availableFrom).toISOString().slice(0, 16)}
-                onChange={(e) => onUpdate({ availableFrom: new Date(e.target.value).toISOString() })}
+                value={toLocalDateTimeInputValue(ticket.availableFrom)}
+                onChange={(e) =>
+                  onUpdate({
+                    availableFrom: toIsoFromLocalDateTime(e.target.value, ticket.availableFrom),
+                  })
+                }
               />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Available Until</label>
               <Input
                 type="datetime-local"
-                value={new Date(ticket.availableUntil).toISOString().slice(0, 16)}
-                onChange={(e) => onUpdate({ availableUntil: new Date(e.target.value).toISOString() })}
+                value={toLocalDateTimeInputValue(ticket.availableUntil)}
+                onChange={(e) =>
+                  onUpdate({
+                    availableUntil: toIsoFromLocalDateTime(e.target.value, ticket.availableUntil),
+                  })
+                }
               />
             </div>
           </div>
@@ -2753,16 +2827,16 @@ function FinancialsReportingStep({ eventData, updateEventData }: {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
             <div className="text-center p-4 rounded-lg bg-slate-900/50 border border-slate-700">
               <h4 className="text-sm font-medium text-slate-400 mb-2">Total Budget</h4>
-              <p className="text-2xl font-bold text-white">${eventData.budget.totalBudget.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white">{formatSafeCurrency(eventData.budget.totalBudget)}</p>
             </div>
             <div className="text-center p-4 rounded-lg bg-slate-900/50 border border-slate-700">
               <h4 className="text-sm font-medium text-slate-400 mb-2">Total Spent</h4>
-              <p className="text-2xl font-bold text-white">${calculateTotalSpent().toLocaleString()}</p>
+              <p className="text-2xl font-bold text-white">{formatSafeCurrency(calculateTotalSpent())}</p>
             </div>
             <div className="text-center p-4 rounded-lg bg-slate-900/50 border border-slate-700">
               <h4 className="text-sm font-medium text-slate-400 mb-2">Remaining</h4>
               <p className={`text-2xl font-bold ${calculateRemainingBudget() >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ${calculateRemainingBudget().toLocaleString()}
+                {formatSafeCurrency(calculateRemainingBudget())}
               </p>
             </div>
           </div>
@@ -2781,7 +2855,7 @@ function FinancialsReportingStep({ eventData, updateEventData }: {
                       <div>
                         <h4 className="font-medium text-white">{category.name}</h4>
                         <p className="text-sm text-slate-400">
-                          ${category.spent.toLocaleString()} / ${category.allocated.toLocaleString()}
+                          {formatSafeCurrency(category.spent)} / {formatSafeCurrency(category.allocated)}
                         </p>
                       </div>
                     </div>
@@ -2845,13 +2919,13 @@ function FinancialsReportingStep({ eventData, updateEventData }: {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="text-center p-6 rounded-lg bg-slate-900/50 border border-slate-700">
               <h4 className="text-lg font-medium text-white mb-2">Expected Revenue</h4>
-              <p className="text-3xl font-bold text-green-400">${eventData.budget.expectedRevenue.toLocaleString()}</p>
+              <p className="text-3xl font-bold text-green-400">{formatSafeCurrency(eventData.budget.expectedRevenue)}</p>
               <p className="text-sm text-slate-400 mt-2">Total projected income</p>
             </div>
             <div className="text-center p-6 rounded-lg bg-slate-900/50 border border-slate-700">
               <h4 className="text-lg font-medium text-white mb-2">Net Profit</h4>
               <p className={`text-3xl font-bold ${eventData.budget.expectedRevenue - eventData.budget.totalBudget >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                ${(eventData.budget.expectedRevenue - eventData.budget.totalBudget).toLocaleString()}
+                {formatSafeCurrency(eventData.budget.expectedRevenue - eventData.budget.totalBudget)}
               </p>
               <p className="text-sm text-slate-400 mt-2">Revenue minus expenses</p>
             </div>
@@ -2942,7 +3016,7 @@ function ReviewPublishStep({
       item: "Budget planning complete", 
       completed: eventData.budget.totalBudget > 0, 
       required: false,
-      details: `$${eventData.budget.totalBudget.toLocaleString()} budget allocated`
+      details: `${formatSafeCurrency(eventData.budget.totalBudget)} budget allocated`
     },
     { 
       item: "Schedule finalized", 
@@ -2954,7 +3028,7 @@ function ReviewPublishStep({
       item: "Financial projections set", 
       completed: eventData.budget.expectedRevenue > 0, 
       required: false,
-      details: `$${eventData.budget.expectedRevenue.toLocaleString()} expected revenue`
+      details: `${formatSafeCurrency(eventData.budget.expectedRevenue)} expected revenue`
     }
   ]
 
@@ -3042,7 +3116,7 @@ function ReviewPublishStep({
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-slate-900/50">
+            <TabsList className="grid w-full grid-cols-4 bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
               <TabsTrigger value="overview" className="text-slate-400">Overview</TabsTrigger>
               <TabsTrigger value="checklist" className="text-slate-400">Checklist</TabsTrigger>
               <TabsTrigger value="details" className="text-slate-400">Details</TabsTrigger>
@@ -3074,16 +3148,16 @@ function ReviewPublishStep({
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-slate-400">Budget:</span>
-                        <span className="text-white">${eventData.budget.totalBudget.toLocaleString()}</span>
+                        <span className="text-white">{formatSafeCurrency(eventData.budget.totalBudget)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Revenue:</span>
-                        <span className="text-white">${eventData.budget.expectedRevenue.toLocaleString()}</span>
+                        <span className="text-white">{formatSafeCurrency(eventData.budget.expectedRevenue)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Profit:</span>
                         <span className={`${eventData.budget.expectedRevenue - eventData.budget.totalBudget >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ${(eventData.budget.expectedRevenue - eventData.budget.totalBudget).toLocaleString()}
+                          {formatSafeCurrency(eventData.budget.expectedRevenue - eventData.budget.totalBudget)}
                         </span>
                       </div>
                     </div>
@@ -3287,7 +3361,7 @@ function VenueCard({ venue, onUpdate, onRemove }: {
               <div>
                 <Label className="text-slate-400">Date</Label>
                 <DatePicker
-                  date={venue.selectedDate ? new Date(venue.selectedDate) : undefined}
+                  date={parseDateOrUndefined(venue.selectedDate)}
                   onDateChange={(date) => onUpdate({ selectedDate: date?.toISOString().split('T')[0] })}
                   className="mt-1"
                 />
@@ -3417,7 +3491,7 @@ function VenueBrowser({
                         {venue.venue_types?.join(', ') || 'Venue'}
                       </span>
                       <span className="text-slate-300">
-                        {venue.capacity ? `${venue.capacity.toLocaleString()} capacity` : 'Capacity TBD'}
+                        {venue.capacity ? `${formatSafeNumber(venue.capacity)} capacity` : 'Capacity TBD'}
                       </span>
                     </div>
                     {venue.description && (
@@ -3450,7 +3524,7 @@ function VenueBrowser({
                   <div>
                     <Label className="text-slate-400">Capacity</Label>
                     <p className="text-white">
-                      {selectedVenue.capacity ? `${selectedVenue.capacity.toLocaleString()}` : 'Capacity TBD'}
+                      {selectedVenue.capacity ? `${formatSafeNumber(selectedVenue.capacity)}` : 'Capacity TBD'}
                     </p>
                   </div>
                   <div>
@@ -3521,9 +3595,11 @@ function ScheduleTimeline({ schedule, venues, onRemoveItem }: {
   venues: any[]
   onRemoveItem: (itemId: string) => void
 }) {
-  const sortedSchedule = [...schedule].sort((a, b) => 
-    new Date(`2024-01-01 ${a.startTime}`).getTime() - new Date(`2024-01-01 ${b.startTime}`).getTime()
-  )
+  const sortedSchedule = [...schedule].sort((a, b) => {
+    const firstStart = parseTimeToMinutes(a.startTime) ?? 0
+    const secondStart = parseTimeToMinutes(b.startTime) ?? 0
+    return firstStart - secondStart
+  })
 
   const getScheduleTypeColor = (type: string) => {
     switch (type) {
@@ -3561,10 +3637,7 @@ function ScheduleTimeline({ schedule, venues, onRemoveItem }: {
                   <div>
                     <Label className="text-slate-400">Duration</Label>
                     <p className="text-white">
-                      {Math.abs(
-                        new Date(`2024-01-01 ${item.endTime}`).getTime() - 
-                        new Date(`2024-01-01 ${item.startTime}`).getTime()
-                      ) / (1000 * 60)} minutes
+                      {Math.abs((parseTimeToMinutes(item.endTime) ?? 0) - (parseTimeToMinutes(item.startTime) ?? 0))} minutes
                     </p>
                   </div>
                 </div>
@@ -3804,7 +3877,7 @@ function CampaignCard({
         <div className="grid grid-cols-2 gap-4 mb-4 text-sm">
           <div>
             <Label className="text-slate-400">Budget</Label>
-            <p className="text-white">${campaign.budget.toLocaleString()}</p>
+            <p className="text-white">{formatSafeCurrency(campaign.budget)}</p>
           </div>
           <div>
             <Label className="text-slate-400">Platform</Label>
@@ -3985,7 +4058,7 @@ function CampaignFormModal({
                 id="budget"
                 type="number"
                 value={form.budget}
-                onChange={(e) => setForm({ ...form, budget: parseFloat(e.target.value) || 0 })}
+                onChange={(e) => setForm({ ...form, budget: parseDecimalInput(e.target.value) })}
                 placeholder="1000"
                 className="bg-slate-800 border-slate-700 text-white"
               />
@@ -3996,7 +4069,7 @@ function CampaignFormModal({
             <div>
               <Label htmlFor="start-date" className="text-white">Start Date</Label>
               <DatePicker
-                date={form.startDate ? new Date(form.startDate) : undefined}
+                date={parseDateOrUndefined(form.startDate)}
                 onDateChange={(date) => setForm({ ...form, startDate: date?.toISOString().split('T')[0] || "" })}
                 className="bg-slate-800 border-slate-700 text-white"
               />
@@ -4005,7 +4078,7 @@ function CampaignFormModal({
             <div>
               <Label htmlFor="end-date" className="text-white">End Date</Label>
               <DatePicker
-                date={form.endDate ? new Date(form.endDate) : undefined}
+                date={parseDateOrUndefined(form.endDate)}
                 onDateChange={(date) => setForm({ ...form, endDate: date?.toISOString().split('T')[0] || "" })}
                 className="bg-slate-800 border-slate-700 text-white"
               />
@@ -4187,7 +4260,7 @@ function ContentFormModal({
           <div>
             <Label htmlFor="scheduled-date" className="text-white">Scheduled Date</Label>
             <DatePicker
-              date={form.scheduledDate ? new Date(form.scheduledDate) : undefined}
+              date={parseDateOrUndefined(form.scheduledDate)}
               onDateChange={(date) => setForm({ ...form, scheduledDate: date?.toISOString().split('T')[0] || "" })}
               className="bg-slate-800 border-slate-700 text-white"
             />
@@ -4287,7 +4360,7 @@ function BudgetFormModal({
               id="allocated"
               type="number"
               value={form.allocated}
-              onChange={(e) => setForm({ ...form, allocated: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => setForm({ ...form, allocated: parseDecimalInput(e.target.value) })}
               placeholder="1000"
               className="bg-slate-800 border-slate-700 text-white"
               required
@@ -4300,7 +4373,7 @@ function BudgetFormModal({
               id="spent"
               type="number"
               value={form.spent}
-              onChange={(e) => setForm({ ...form, spent: parseFloat(e.target.value) || 0 })}
+              onChange={(e) => setForm({ ...form, spent: parseDecimalInput(e.target.value) })}
               placeholder="0"
               className="bg-slate-800 border-slate-700 text-white"
             />
@@ -4380,7 +4453,7 @@ function RevenueFormModal({
                   value={source.amount}
                   onChange={(e) => {
                     const updatedSources = [...form.sources]
-                    updatedSources[index].amount = parseFloat(e.target.value) || 0
+                    updatedSources[index].amount = parseDecimalInput(e.target.value)
                     setForm({ ...form, sources: updatedSources })
                   }}
                   placeholder="0"
@@ -4394,7 +4467,7 @@ function RevenueFormModal({
             <div className="flex justify-between items-center">
               <span className="text-white font-medium">Total Expected Revenue:</span>
               <span className="text-2xl font-bold text-green-400">
-                ${form.sources.reduce((total, source) => total + source.amount, 0).toLocaleString()}
+                {formatSafeCurrency(form.sources.reduce((total, source) => total + source.amount, 0))}
               </span>
             </div>
           </div>
@@ -4488,16 +4561,16 @@ function EventPreviewModal({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Budget:</span>
-                  <span className="text-white">${eventData.budget.totalBudget.toLocaleString()}</span>
+                  <span className="text-white">{formatSafeCurrency(eventData.budget.totalBudget)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Expected Revenue:</span>
-                  <span className="text-white">${eventData.budget.expectedRevenue.toLocaleString()}</span>
+                  <span className="text-white">{formatSafeCurrency(eventData.budget.expectedRevenue)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Net Profit:</span>
                   <span className={`${eventData.budget.expectedRevenue - eventData.budget.totalBudget >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    ${(eventData.budget.expectedRevenue - eventData.budget.totalBudget).toLocaleString()}
+                    {formatSafeCurrency(eventData.budget.expectedRevenue - eventData.budget.totalBudget)}
                   </span>
                 </div>
               </div>

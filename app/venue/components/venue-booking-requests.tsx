@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronRight } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueBookingRequestsProps {
   venue: any
@@ -28,7 +29,7 @@ export function VenueBookingRequests({ venue }: VenueBookingRequestsProps) {
                 <div>
                   <h3 className="font-medium text-white">{request.eventName}</h3>
                   <p className="text-sm text-gray-400">
-                    {new Date(request.date).toLocaleDateString()} • {request.attendees} attendees
+                    {formatSafeDate(request.date)} • {request.attendees} attendees
                   </p>
                 </div>
                 <Badge variant="outline" className="bg-yellow-900/20 text-yellow-400 border-yellow-800">

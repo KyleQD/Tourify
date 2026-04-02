@@ -298,7 +298,7 @@ export function useTourAccess(tourId?: string) {
   }
 }
 
-// Hook for loading roles and permissions
+// Hook for loading roles and permissions - fetches from the unified /api/admin/rbac/roles API
 export function useRolesAndPermissions() {
   const [roles, setRoles] = useState<TourManagementRole[]>([])
   const [permissions, setPermissions] = useState<TourManagementPermission[]>([])
@@ -310,13 +310,33 @@ export function useRolesAndPermissions() {
       setLoading(true)
       setError(null)
 
-      const [rolesData, permissionsData] = await Promise.all([
-        rbacService.getAllRoles(),
-        rbacService.getAllPermissions()
+      const [apiRolesRes, permissionsData] = await Promise.allSettled([
+        fetch('/api/admin/rbac/roles', { credentials: 'include' }).then(r => r.json()),
+        rbacService.getAllPermissions(),
       ])
 
-      setRoles(rolesData)
-      setPermissions(permissionsData)
+      if (apiRolesRes.status === 'fulfilled' && apiRolesRes.value?.roles) {
+        const mapped = apiRolesRes.value.roles.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          display_name: r.display_name || r.name,
+          description: r.description || '',
+          is_system_role: r.is_system_role ?? false,
+          permission_count: r.permission_count ?? 0,
+          active_users: r.active_users ?? 0,
+          category: r.scope_type || 'entity',
+          created_at: r.created_at,
+          updated_at: r.updated_at,
+        }))
+        setRoles(mapped)
+      } else {
+        const fallbackRoles = await rbacService.getAllRoles()
+        setRoles(fallbackRoles)
+      }
+
+      if (permissionsData.status === 'fulfilled') {
+        setPermissions(permissionsData.value)
+      }
     } catch (err) {
       console.error('Error loading roles and permissions:', err)
       setError(err instanceof Error ? err.message : 'Failed to load roles and permissions')

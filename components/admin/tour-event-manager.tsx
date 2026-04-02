@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Music, MapPin, Calendar, DollarSign, Users, Eye } from "lucide-react"
 import { toast } from "sonner"
+import { formatSafeDate, mapAdminEventStatus, parseIsoDateParts } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface Event {
   id: string
@@ -42,6 +44,46 @@ interface Event {
   special_requirements?: string
   load_in_time?: string
   sound_check_time?: string
+}
+
+function normalizeManagerEvent(event: any, tourId: string): Event {
+  const settings = event?.settings && typeof event.settings === 'object'
+    ? (event.settings as Record<string, unknown>)
+    : {}
+  const startAt = event?.start_at || event?.startAt || null
+  const parsedStart = parseIsoDateParts(startAt)
+  const safeDate = parsedStart.date
+  const safeTime = parsedStart.time
+  return {
+    id: event?.id || `event-${Date.now()}`,
+    name: event?.name || event?.title || 'Event',
+    description: event?.description || (typeof settings.description === 'string' ? settings.description : ''),
+    tour_id: event?.tour_id || tourId,
+    venue_name: event?.venue_name || (typeof settings.venue_label === 'string' ? settings.venue_label : ''),
+    venue_id: event?.venue_id,
+    venue_address: event?.venue_address || '',
+    event_date: event?.event_date || event?.date || safeDate,
+    event_time: event?.event_time || event?.time || safeTime,
+    doors_open: event?.doors_open || '',
+    duration_minutes: Number(event?.duration_minutes || 0),
+    status: mapAdminEventStatus(event?.status),
+    capacity: Number(event?.capacity || 0),
+    tickets_sold: Number(event?.tickets_sold || 0),
+    ticket_price: Number(event?.ticket_price || 0),
+    vip_price: Number(event?.vip_price || 0),
+    expected_revenue: Number(event?.expected_revenue || 0),
+    actual_revenue: Number(event?.actual_revenue || 0),
+    expenses: Number(event?.expenses || 0),
+    venue_contact_name: event?.venue_contact_name || '',
+    venue_contact_email: event?.venue_contact_email || '',
+    venue_contact_phone: event?.venue_contact_phone || '',
+    sound_requirements: event?.sound_requirements || '',
+    lighting_requirements: event?.lighting_requirements || '',
+    stage_requirements: event?.stage_requirements || '',
+    special_requirements: event?.special_requirements || '',
+    load_in_time: event?.load_in_time || '',
+    sound_check_time: event?.sound_check_time || '',
+  }
 }
 
 interface TourEventManagerProps {
@@ -236,12 +278,12 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
       
       if (isEdit) {
         const updatedEvents = events.map(event => 
-          event.id === selectedEvent?.id ? result.event : event
+          event.id === selectedEvent?.id ? normalizeManagerEvent(result.event, tourId) : event
         )
         onEventsUpdate(updatedEvents)
         toast.success('Event updated successfully')
       } else {
-        const newEvents = [...events, result.event]
+        const newEvents = [...events, normalizeManagerEvent(result.event, tourId)]
         onEventsUpdate(newEvents)
         toast.success('Event added successfully')
       }
@@ -308,8 +350,10 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
 
   const filteredEvents = events.filter(event => {
     const matchesStatus = filterStatus === 'all' || event.status === filterStatus
-    const matchesSearch = event.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         event.venue_name.toLowerCase().includes(searchTerm.toLowerCase())
+    const eventName = event.name || ''
+    const venueName = event.venue_name || ''
+    const matchesSearch = eventName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         venueName.toLowerCase().includes(searchTerm.toLowerCase())
     return matchesStatus && matchesSearch
   })
 
@@ -372,7 +416,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
                       <div className="flex items-center space-x-1">
                         <Calendar className="h-3 w-3 text-slate-500" />
                         <span className="text-xs text-slate-500">
-                          {new Date(event.event_date).toLocaleDateString()}
+                          {formatSafeDate(event.event_date)}
                         </span>
                       </div>
                       <div className="flex items-center space-x-1">
@@ -384,7 +428,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
                       <div className="flex items-center space-x-1">
                         <DollarSign className="h-3 w-3 text-slate-500" />
                         <span className="text-xs text-slate-500">
-                          ${event.actual_revenue.toLocaleString()}
+                          {formatSafeCurrency(event.actual_revenue)}
                         </span>
                       </div>
                     </div>

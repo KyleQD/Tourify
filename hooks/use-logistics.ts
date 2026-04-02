@@ -19,6 +19,10 @@ interface LogisticsData {
 interface UseLogisticsOptions {
   eventId?: string
   tourId?: string
+  /**
+   * When set, only that slice is loaded from `/api/admin/logistics/items`.
+   * When omitted, transportation, equipment, assignments, and metrics are fetched together (combined dashboards).
+   */
   type?: 'transportation' | 'equipment' | 'assignments' | 'analytics'
   status?: string
   category?: string
@@ -51,7 +55,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
   const {
     eventId,
     tourId,
-    type = 'transportation',
+    type,
     status,
     category,
     availability,
@@ -72,35 +76,36 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
       setLoading(true)
       setError(null)
 
-      const params = new URLSearchParams({
-        type,
-        limit: limit.toString(),
-        offset: offset.toString()
-      })
-
-      if (eventId) params.append('event_id', eventId)
-      if (tourId) params.append('tour_id', tourId)
-      if (status) params.append('status', status)
-      if (category) params.append('category', category)
-      if (availability) params.append('availability', availability)
-
-      const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+      const appendCommonQuery = (params: URLSearchParams) => {
+        params.set('limit', limit.toString())
+        params.set('offset', offset.toString())
+        if (eventId) params.set('eventId', eventId)
+        if (tourId) params.set('tourId', tourId)
+        if (status) params.append('status', status)
+        if (category) params.append('category', category)
+        if (availability) params.append('availability', availability)
       }
-
-      const result = await response.json()
 
       // Transform the data based on type
       let transformedData: LogisticsData
 
       if (type === 'transportation') {
+        const params = new URLSearchParams()
+        params.set('type', 'transportation')
+        appendCommonQuery(params)
+
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
         transformedData = {
           transportation: result.items || [],
           equipment: [],
@@ -115,6 +120,23 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
           }
         }
       } else if (type === 'equipment') {
+        const params = new URLSearchParams()
+        params.set('type', 'equipment')
+        appendCommonQuery(params)
+
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+
         transformedData = {
           transportation: [],
           equipment: result.items || [],
@@ -129,6 +151,23 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
           }
         }
       } else if (type === 'assignments') {
+        const params = new URLSearchParams()
+        params.set('type', 'assignments')
+        appendCommonQuery(params)
+
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+
         transformedData = {
           transportation: [],
           equipment: [],
@@ -143,6 +182,23 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
           }
         }
       } else if (type === 'analytics') {
+        const params = new URLSearchParams()
+        params.set('type', 'analytics')
+        appendCommonQuery(params)
+
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const result = await response.json()
+
         transformedData = {
           transportation: [],
           equipment: [],
@@ -157,18 +213,21 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
           }
         }
       } else {
-        // Fetch all data types
+        const baseParams = new URLSearchParams()
+        appendCommonQuery(baseParams)
+        const baseQuery = baseParams.toString()
+
         const [transportationRes, equipmentRes, assignmentsRes, analyticsRes] = await Promise.all([
-          fetch(`/api/admin/logistics/items?type=transportation&${params.toString()}`, {
+          fetch(`/api/admin/logistics/items?type=transportation&${baseQuery}`, {
             credentials: 'include'
           }),
-          fetch(`/api/admin/logistics/items?type=equipment&${params.toString()}`, {
+          fetch(`/api/admin/logistics/items?type=equipment&${baseQuery}`, {
             credentials: 'include'
           }),
-          fetch(`/api/admin/logistics/items?type=assignments&${params.toString()}`, {
+          fetch(`/api/admin/logistics/items?type=assignments&${baseQuery}`, {
             credentials: 'include'
           }),
-          fetch(`/api/admin/logistics/metrics?${params.toString()}`, {
+          fetch(`/api/admin/logistics/metrics?${baseQuery}`, {
             credentials: 'include'
           })
         ])
@@ -184,7 +243,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
           transportation: transportationData.items || [],
           equipment: equipmentData.items || [],
           assignments: assignmentsData.items || [],
-          analytics: analyticsData.analytics || {
+          analytics: analyticsData.metrics || analyticsData.analytics || {
             transportCostsByType: {},
             equipmentByCategory: {},
             equipmentCondition: {},
@@ -237,14 +296,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/logistics/items', {
+      const response = await fetch(`/api/admin/logistics/items/${encodeURIComponent(id)}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id,
           type: 'transportation',
           ...updateData
         })
@@ -294,14 +352,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/logistics/items', {
+      const response = await fetch(`/api/admin/logistics/items/${encodeURIComponent(id)}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id,
           type: 'equipment',
           ...updateData
         })
@@ -348,14 +405,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/logistics/items', {
+      const response = await fetch(`/api/admin/logistics/items/${encodeURIComponent(id)}`, {
         method: 'PUT',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          id,
           type: 'assignment',
           ...updateData
         })

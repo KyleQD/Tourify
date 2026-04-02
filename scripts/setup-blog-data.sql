@@ -1,4 +1,4 @@
--- Setup Blog Data for For You Feed
+-- Setup Blog Data for News Feed
 -- This script ensures the blog posts from Sarah Johnson and Alex Chen are available
 
 -- Enable required extensions
@@ -395,7 +395,7 @@ BEGIN
   RAISE NOTICE '========================';
   RAISE NOTICE '✅ Sarah Johnson account and blog post created';
   RAISE NOTICE '✅ Alex Chen account and blog post created';
-  RAISE NOTICE '✅ Both blog posts are now available in the For You Feed';
+  RAISE NOTICE '✅ Both blog posts are now available in the News Feed';
   RAISE NOTICE '';
   RAISE NOTICE 'Blog Posts Available:';
   RAISE NOTICE '1. "The Future of Independent Music" by Sarah Johnson';

@@ -23,6 +23,7 @@ import {
   Ticket,
   X,
 } from "lucide-react"
+import { formatSafeDate, formatSafeDateTime, formatSafeTime } from "@/lib/events/admin-event-normalization"
 
 // Mock data for available integrations
 const availableIntegrations = [
@@ -332,7 +333,7 @@ export default function TicketingIntegrations() {
                         <div>
                           <CardTitle>{integration.name}</CardTitle>
                           <CardDescription>
-                            Last synced: {new Date(integration.lastSync!).toLocaleString()}
+                            Last synced: {formatSafeDateTime(integration.lastSync!)}
                           </CardDescription>
                         </div>
                       </div>
@@ -604,8 +605,8 @@ export default function TicketingIntegrations() {
                             <span className="mr-2">{importItem.platform}</span>
                             <span>•</span>
                             <span className="ml-2">
-                              {new Date(importItem.importDate).toLocaleDateString()}{" "}
-                              {new Date(importItem.importDate).toLocaleTimeString()}
+                              {formatSafeDate(importItem.importDate)}{" "}
+                              {formatSafeTime(importItem.importDate)}
                             </span>
                           </div>
                         </div>

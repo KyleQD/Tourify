@@ -107,10 +107,30 @@ export default function RBACManagementPage() {
     return acc
   }, {} as Record<string, TourManagementPermission[]>)
 
-  // Handle role creation
   const handleCreateRole = async () => {
+    if (!newRole.name.trim() || !newRole.display_name.trim()) {
+      toast({ title: "Error", description: "Name and display name are required.", variant: "destructive" })
+      return
+    }
+
     try {
-      // Implementation would go here
+      const res = await fetch('/api/admin/rbac/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRole.name.toLowerCase().replace(/\s+/g, '_'),
+          display_name: newRole.display_name,
+          description: newRole.description,
+          scope_type: 'entity',
+          permission_ids: newRole.permissions,
+        }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to create role')
+      }
+
       toast({
         title: "Role Created",
         description: `Role "${newRole.display_name}" has been created successfully.`,
@@ -118,10 +138,10 @@ export default function RBACManagementPage() {
       setShowCreateRole(false)
       setNewRole({ name: '', display_name: '', description: '', permissions: [] })
       await refreshData()
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to create role. Please try again.",
+        description: error?.message || "Failed to create role. Please try again.",
         variant: "destructive",
       })
     }
@@ -147,10 +167,12 @@ export default function RBACManagementPage() {
     }
   }
 
-  // Get permission count for a role
   const getPermissionCount = (role: TourManagementRole) => {
-    // This would be calculated from the role permissions
-    return Math.floor(Math.random() * 15) + 5 // Mock data
+    return (role as any).permission_count ?? 0
+  }
+
+  const getActiveUsers = (role: TourManagementRole) => {
+    return (role as any).active_users ?? 0
   }
 
   if (!isAllowed) {
@@ -171,7 +193,7 @@ export default function RBACManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-white">
             Role & Permission Management
           </h1>
           <p className="text-slate-400 mt-1">Manage user roles and permissions for tour/event management</p>
@@ -180,14 +202,14 @@ export default function RBACManagementPage() {
           <Button 
             variant="outline" 
             onClick={() => setShowAssignRole(true)}
-            className="bg-slate-800/50 border-slate-600"
+            className="bg-slate-800/50 border-slate-600 backdrop-blur-sm transition-all duration-200"
           >
             <UserCheck className="h-4 w-4 mr-2" />
             Assign Roles
           </Button>
           <Button 
             onClick={() => setShowCreateRole(true)} 
-            className="bg-gradient-to-r from-purple-500 to-pink-600"
+            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
           >
             <Plus className="h-4 w-4 mr-2" />
             Create Role
@@ -196,16 +218,16 @@ export default function RBACManagementPage() {
       </div>
 
       <Tabs defaultValue="roles" className="space-y-6">
-        <TabsList className="bg-slate-800/50 border-slate-700">
-          <TabsTrigger value="roles" className="data-[state=active]:bg-purple-600">
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
+          <TabsTrigger value="roles" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Crown className="h-4 w-4 mr-2" />
             Roles
           </TabsTrigger>
-          <TabsTrigger value="permissions" className="data-[state=active]:bg-purple-600">
+          <TabsTrigger value="permissions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10">
             <Shield className="h-4 w-4 mr-2" />
             Permissions
           </TabsTrigger>
-          <TabsTrigger value="matrix" className="data-[state=active]:bg-purple-600">
+          <TabsTrigger value="matrix" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
             <Settings className="h-4 w-4 mr-2" />
             Permission Matrix
           </TabsTrigger>
@@ -221,12 +243,12 @@ export default function RBACManagementPage() {
               return (
                 <Card 
                   key={role.id} 
-                  className="bg-slate-800/50 border-slate-700 hover:border-purple-600 transition-all cursor-pointer group"
+                  className="bg-slate-800/50 border-slate-700 hover:border-purple-500/40 transition-all duration-300 cursor-pointer group"
                   onClick={() => setSelectedRole(role)}
                 >
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <div className={`p-2 rounded-lg bg-gradient-to-r ${gradient}`}>
+                      <div className={`p-2 rounded-sm bg-gradient-to-r shadow-lg ${gradient}`}>
                         <IconComponent className="h-5 w-5 text-white" />
                       </div>
                       <div className="flex items-center space-x-2">
@@ -266,11 +288,10 @@ export default function RBACManagementPage() {
                         </Badge>
                       </div>
 
-                      {/* Role Stats */}
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-slate-400">Active Users</span>
                         <span className="text-slate-200 font-medium">
-                          {Math.floor(Math.random() * 50)} {/* Mock data */}
+                          {getActiveUsers(role)}
                         </span>
                       </div>
 
@@ -333,7 +354,7 @@ export default function RBACManagementPage() {
                     {categoryPermissions.map((permission) => (
                       <div
                         key={permission.id}
-                        className="p-3 rounded-lg bg-slate-900/50 border border-slate-700 hover:border-purple-600 transition-colors"
+                        className="p-3 rounded-lg bg-slate-900/60 backdrop-blur-sm border border-slate-700 hover:border-purple-500/40 transition-all duration-300"
                       >
                         <div className="flex items-center justify-between mb-1">
                           <h4 className="font-medium text-white text-sm">
@@ -357,7 +378,7 @@ export default function RBACManagementPage() {
 
         {/* Permission Matrix Tab */}
         <TabsContent value="matrix" className="space-y-4">
-          <Card className="bg-slate-800/50 border-slate-700">
+          <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-white">Permission Matrix</CardTitle>
               <CardDescription>
@@ -366,12 +387,45 @@ export default function RBACManagementPage() {
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <div className="min-w-full">
-                  {/* Matrix implementation would go here */}
-                  <div className="text-center py-8 text-slate-400">
-                    Permission matrix visualization coming soon...
-                  </div>
-                </div>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-2 px-3 text-slate-400 font-medium sticky left-0 bg-slate-800/50">Permission</th>
+                      {roles.map((role) => (
+                        <th key={role.id} className="text-center py-2 px-2 text-slate-400 font-medium min-w-[80px]">
+                          <span className="text-xs">{role.display_name}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Object.entries(permissionsByCategory).map(([category, catPerms]) => (
+                      <>
+                        <tr key={`cat-${category}`} className="bg-slate-900/30">
+                          <td colSpan={roles.length + 1} className="py-1.5 px-3 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                            {category.replace(/_/g, ' ')}
+                          </td>
+                        </tr>
+                        {catPerms.map((perm) => (
+                          <tr key={perm.id} className="border-b border-slate-800 hover:bg-slate-800/30">
+                            <td className="py-1.5 px-3 text-slate-300 text-xs sticky left-0 bg-slate-800/50">{perm.display_name}</td>
+                            {roles.map((role) => {
+                              const hasPermission = (role as any).permissions?.includes(perm.id) ||
+                                (role as any).permission_count > 0
+                              return (
+                                <td key={role.id} className="text-center py-1.5 px-2">
+                                  <div className={`mx-auto h-4 w-4 rounded-sm ${hasPermission ? 'bg-purple-500/30' : ''} flex items-center justify-center`}>
+                                    {hasPermission && <CheckCircle className="h-3 w-3 text-purple-400" />}
+                                  </div>
+                                </td>
+                              )
+                            })}
+                          </tr>
+                        ))}
+                      </>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>
@@ -465,13 +519,13 @@ export default function RBACManagementPage() {
               <Button 
                 variant="outline" 
                 onClick={() => setShowCreateRole(false)}
-                className="border-slate-600"
+                className="border-slate-600 backdrop-blur-sm transition-all duration-200"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleCreateRole} 
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
               >
                 Create Role
               </Button>
@@ -532,13 +586,13 @@ export default function RBACManagementPage() {
               <Button 
                 variant="outline" 
                 onClick={() => setShowAssignRole(false)}
-                className="border-slate-600"
+                className="border-slate-600 backdrop-blur-sm transition-all duration-200"
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleAssignRole} 
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
                 disabled={!selectedRole || !selectedUser}
               >
                 Assign Role

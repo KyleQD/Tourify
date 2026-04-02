@@ -431,7 +431,7 @@ export function HelpSystem({ isOpen, onClose, currentPage, showOnboarding = fals
             {/* Sidebar */}
             <div className="w-80 border-r border-slate-700 bg-slate-800/50">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-                <TabsList className="grid w-full grid-cols-3 bg-slate-800">
+                <TabsList className="grid w-full grid-cols-3 bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
                   <TabsTrigger value="search" className="text-xs">Search</TabsTrigger>
                   <TabsTrigger value="topics" className="text-xs">Topics</TabsTrigger>
                   <TabsTrigger value="onboarding" className="text-xs">Tour</TabsTrigger>

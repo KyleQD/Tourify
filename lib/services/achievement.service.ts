@@ -20,9 +20,35 @@ import {
   BadgeStats,
   EndorsementStats
 } from '@/types/achievements'
+import { achievementEngine } from '@/lib/services/achievement-engine.service'
+
+type ProfileStub = {
+  id: string
+  username: string | null
+  full_name: string | null
+  avatar_url: string | null
+}
 
 export class AchievementService {
   private supabase = createClientComponentClient()
+
+  /** Batch-fetch profiles without PostgREST embeds (avoids PGRST200 when FK names differ). */
+  private async fetchProfilesMap(ids: string[]): Promise<Record<string, ProfileStub>> {
+    const unique = [...new Set(ids.filter(Boolean))]
+    if (unique.length === 0) return {}
+
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', unique)
+
+    if (error || !data?.length) return {}
+
+    return (data as ProfileStub[]).reduce<Record<string, ProfileStub>>((acc, row) => {
+      acc[row.id] = row
+      return acc
+    }, {})
+  }
 
   // =============================================
   // ACHIEVEMENTS
@@ -114,24 +140,73 @@ export class AchievementService {
       const { data: { user } } = await this.supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      const { error } = await this.supabase
-        .from('achievement_progress_events')
-        .insert({
-          user_id: user.id,
-          achievement_id: request.achievement_id,
-          event_type: request.event_type,
-          event_value: request.event_value || 1,
-          event_data: request.event_data || {},
-          related_project_id: request.related_project_id,
-          related_event_id: request.related_event_id,
-          related_collaboration_id: request.related_collaboration_id
-        })
+      // Legacy path: if explicit achievement_id is provided, keep event insert behavior.
+      if (request.achievement_id) {
+        const { error } = await this.supabase
+          .from('achievement_progress_events')
+          .insert({
+            user_id: user.id,
+            achievement_id: request.achievement_id,
+            metric_key: request.metric_key ?? null,
+            metric_value: request.metric_value ?? null,
+            event_type: request.event_type,
+            event_value: request.event_value || 1,
+            event_data: request.event_data || {},
+            related_project_id: request.related_project_id,
+            related_event_id: request.related_event_id,
+            related_collaboration_id: request.related_collaboration_id
+          })
+        if (error) throw error
+        return
+      }
 
-      if (error) throw error
+      // Metric path: evaluate unlocks against active achievement definitions.
+      if (request.metric_key) {
+        await achievementEngine.recordMetricEvent({
+          supabase: this.supabase,
+          userId: user.id,
+          metricKey: request.metric_key,
+          eventType: request.event_type,
+          delta: request.evaluation_mode === 'absolute' ? undefined : request.event_value || 1,
+          absoluteValue: request.evaluation_mode === 'absolute' ? request.metric_value : undefined,
+          eventData: request.event_data || {},
+          relatedEventId: request.related_event_id,
+          relatedProjectId: request.related_project_id,
+          relatedCollaborationId: request.related_collaboration_id
+        })
+        return
+      }
     } catch (error) {
       console.error('Error recording achievement progress:', error)
       throw error
     }
+  }
+
+  async recordMetricProgress(args: {
+    metric_key: string
+    event_type: string
+    delta?: number
+    absolute_value?: number
+    event_data?: Record<string, any>
+    related_project_id?: string
+    related_event_id?: string
+    related_collaboration_id?: string
+  }): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    await achievementEngine.recordMetricEvent({
+      supabase: this.supabase,
+      userId: user.id,
+      metricKey: args.metric_key,
+      eventType: args.event_type,
+      delta: args.delta ?? 1,
+      absoluteValue: args.absolute_value,
+      eventData: args.event_data ?? {},
+      relatedProjectId: args.related_project_id,
+      relatedEventId: args.related_event_id,
+      relatedCollaborationId: args.related_collaboration_id
+    })
   }
 
   // =============================================
@@ -282,18 +357,59 @@ export class AchievementService {
 
   async getUserEndorsements(userId: string): Promise<EndorsementsResponse> {
     try {
-      const { data: endorsements, error: endorsementsError } = await this.supabase
+      const { data: endorsementRows, error: endorsementsError } = await this.supabase
         .from('endorsements')
-        .select(`
-          *,
-          endorser:profiles!endorsements_endorser_id_fkey(id, username, full_name, avatar_url),
-          endorsee:profiles!endorsements_endorsee_id_fkey(id, username, full_name, avatar_url)
-        `)
+        .select('*')
         .eq('endorsee_id', userId)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
 
-      if (endorsementsError) throw endorsementsError
+      if (endorsementsError) {
+        console.warn('[achievements] endorsements query:', endorsementsError.message)
+      }
+
+      let rows = endorsementRows || []
+      if (!rows.length && endorsementsError) {
+        // Canonical fallback: environments that only have skill_endorsements.
+        const { data: skillRows } = await this.supabase
+          .from('skill_endorsements')
+          .select('*')
+          .eq('endorsed_id', userId)
+          .order('created_at', { ascending: false })
+
+        rows = (skillRows || []).map((r: any) => ({
+          id: r.id,
+          endorser_id: r.endorser_id,
+          endorsee_id: r.endorsed_id,
+          skill: r.skill,
+          category: null,
+          level: 3,
+          comment: null,
+          project_id: null,
+          collaboration_id: null,
+          event_id: null,
+          job_id: null,
+          is_verified: false,
+          verified_by: null,
+          verified_at: null,
+          is_active: true,
+          created_at: r.created_at,
+          updated_at: r.created_at
+        }))
+      }
+
+      const ids = new Set<string>()
+      rows.forEach((e: { endorser_id?: string; endorsee_id?: string }) => {
+        if (e.endorser_id) ids.add(e.endorser_id)
+        if (e.endorsee_id) ids.add(e.endorsee_id)
+      })
+      const profileById = await this.fetchProfilesMap([...ids])
+
+      const endorsements: Endorsement[] = rows.map((e: Endorsement) => ({
+        ...e,
+        endorser: e.endorser_id ? profileById[e.endorser_id] : undefined,
+        endorsee: e.endorsee_id ? profileById[e.endorsee_id] : undefined
+      }))
 
       const { data: skills, error: skillsError } = await this.supabase
         .from('user_skills')
@@ -306,13 +422,14 @@ export class AchievementService {
 
       if (skillsError) throw skillsError
 
-      const totalEndorsements = endorsements?.length || 0
-      const averageLevel = endorsements?.length > 0 
-        ? endorsements.reduce((sum, e) => sum + e.level, 0) / endorsements.length 
-        : 0
+      const totalEndorsements = endorsements.length
+      const averageLevel =
+        totalEndorsements > 0
+          ? endorsements.reduce((sum, e) => sum + e.level, 0) / totalEndorsements
+          : 0
 
       return {
-        endorsements: endorsements || [],
+        endorsements,
         skills: skills || [],
         total_endorsements: totalEndorsements,
         average_level: averageLevel
@@ -402,15 +519,16 @@ export class AchievementService {
           event_id: request.event_id,
           job_id: request.job_id
         })
-        .select(`
-          *,
-          endorser:profiles!endorsements_endorser_id_fkey(id, username, full_name, avatar_url),
-          endorsee:profiles!endorsements_endorsee_id_fkey(id, username, full_name, avatar_url)
-        `)
+        .select('*')
         .single()
 
       if (error) throw error
-      return data
+      const map = await this.fetchProfilesMap([data.endorser_id, data.endorsee_id])
+      return {
+        ...data,
+        endorser: map[data.endorser_id],
+        endorsee: map[data.endorsee_id]
+      } as Endorsement
     } catch (error) {
       console.error('Error creating endorsement:', error)
       throw error
@@ -428,15 +546,16 @@ export class AchievementService {
           updated_at: new Date().toISOString()
         })
         .eq('id', endorsementId)
-        .select(`
-          *,
-          endorser:profiles!endorsements_endorser_id_fkey(id, username, full_name, avatar_url),
-          endorsee:profiles!endorsements_endorsee_id_fkey(id, username, full_name, avatar_url)
-        `)
+        .select('*')
         .single()
 
       if (error) throw error
-      return data
+      const map = await this.fetchProfilesMap([data.endorser_id, data.endorsee_id])
+      return {
+        ...data,
+        endorser: map[data.endorser_id],
+        endorsee: map[data.endorsee_id]
+      } as Endorsement
     } catch (error) {
       console.error('Error updating endorsement:', error)
       throw error

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { useMultiAccount, useAccountSwitching } from '@/hooks/use-multi-account'
 import { useRouter } from 'next/navigation'
 import { ProfileType } from '@/lib/services/account-management.service'
+import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
 
 const accountTypeIcons = {
   general: User,
@@ -58,23 +59,12 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
         await onAccountSwitch(profileId, accountType)
       } else {
         await switchAccount(profileId, accountType)
-        
-        let targetRoute = '/dashboard'
-        switch (accountType) {
-          case 'artist':
-            targetRoute = '/artist'
-            break
-          case 'venue':
-            targetRoute = '/venue'
-            break
-          case 'admin':
-            targetRoute = '/admin/dashboard'
-            break
-        }
-        
+
+        const targetRoute = getDashboardPathForAccountType(accountType)
+
         await router.prefetch(targetRoute)
         await new Promise(resolve => setTimeout(resolve, 100))
-        router.push(targetRoute)
+        router.replace(targetRoute)
       }
     } catch (error) {
       console.error('Failed to switch account:', error)

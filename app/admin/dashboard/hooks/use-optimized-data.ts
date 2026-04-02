@@ -104,19 +104,12 @@ export function useOptimizedData<T = any>({
   }), [endpoint, ttl, enabled])
 
   const fetchData = useCallback(async (params?: Record<string, any>) => {
-    console.log('[useOptimizedData] fetchData called for endpoint:', memoizedOptions.endpoint)
-    
-    if (!memoizedOptions.enabled) {
-      console.log('[useOptimizedData] fetchData disabled for endpoint:', memoizedOptions.endpoint)
-      return
-    }
+    if (!memoizedOptions.enabled) return
 
     const cacheKey = getCacheKey(memoizedOptions.endpoint, params)
     const cachedData = getCachedData<T>(cacheKey)
 
-    // Return cached data immediately if available
     if (cachedData) {
-      console.log('[useOptimizedData] Using cached data for endpoint:', memoizedOptions.endpoint)
       setState(prev => ({
         ...prev,
         data: cachedData,
@@ -127,8 +120,6 @@ export function useOptimizedData<T = any>({
       memoizedOnSuccess(cachedData)
       return
     }
-
-    console.log('[useOptimizedData] Fetching fresh data for endpoint:', memoizedOptions.endpoint)
 
     // Cancel previous request if still pending
     if (abortControllerRef.current) {
@@ -150,8 +141,6 @@ export function useOptimizedData<T = any>({
         })
       }
 
-      console.log('[useOptimizedData] Making request to:', url.toString())
-
       const response = await fetch(url.toString(), {
         signal: abortControllerRef.current.signal,
         credentials: 'include', // Include auth cookies
@@ -160,17 +149,12 @@ export function useOptimizedData<T = any>({
         }
       })
 
-      console.log('[useOptimizedData] Response status:', response.status, 'for endpoint:', memoizedOptions.endpoint)
-
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
 
       const rawData = await response.json()
-      console.log('[useOptimizedData] Raw data received for endpoint:', memoizedOptions.endpoint, rawData)
-      
       const transformedData = memoizedTransform(rawData)
-      console.log('[useOptimizedData] Transformed data for endpoint:', memoizedOptions.endpoint, transformedData)
 
       // Cache the data
       setCachedData(cacheKey, transformedData, memoizedOptions.ttl)
@@ -184,12 +168,7 @@ export function useOptimizedData<T = any>({
 
       memoizedOnSuccess(transformedData)
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[useOptimizedData] Request aborted for endpoint:', memoizedOptions.endpoint)
-        return // Request was cancelled
-      }
-
-      console.error('[useOptimizedData] Error fetching data for endpoint:', memoizedOptions.endpoint, error)
+      if (error instanceof Error && error.name === 'AbortError') return
       
       const errorMessage = error instanceof Error ? error.message : 'An error occurred'
       setState(prev => ({
@@ -203,8 +182,6 @@ export function useOptimizedData<T = any>({
   }, [memoizedOptions, memoizedOnSuccess, memoizedOnError, memoizedTransform])
 
   const refetch = useCallback((params?: Record<string, any>) => {
-    console.log('[useOptimizedData] Refetch called for endpoint:', memoizedOptions.endpoint)
-    // Clear cache for this endpoint to force fresh fetch
     const cacheKey = getCacheKey(memoizedOptions.endpoint, params)
     dataCache.delete(cacheKey)
     return fetchData(params)
@@ -226,10 +203,8 @@ export function useOptimizedData<T = any>({
 
   // Set up auto-refetch interval - FIXED: removed problematic dependencies
   useEffect(() => {
-    console.log('[useOptimizedData] Setting up auto-refetch for endpoint:', memoizedOptions.endpoint)
     if (refetchInterval && memoizedOptions.enabled) {
       intervalRef.current = setInterval(() => {
-        console.log('[useOptimizedData] Auto-refetch triggered for endpoint:', memoizedOptions.endpoint)
         fetchData()
       }, refetchInterval)
 
@@ -243,7 +218,6 @@ export function useOptimizedData<T = any>({
 
   // Initial fetch - FIXED: removed problematic dependencies
   useEffect(() => {
-    console.log('[useOptimizedData] Initial fetch effect for endpoint:', memoizedOptions.endpoint, 'enabled:', memoizedOptions.enabled)
     if (memoizedOptions.enabled) {
       fetchData()
     }

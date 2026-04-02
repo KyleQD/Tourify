@@ -50,53 +50,48 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'event_attendance' AND policyname = 'creator_manage_attendance'
   ) THEN
-    EXECUTE $$
+    EXECUTE $policy$
       CREATE POLICY creator_manage_attendance ON event_attendance
       USING (
         EXISTS (
           SELECT 1 FROM events e
           WHERE e.id = event_attendance.event_id
-            AND (e.user_id = auth.uid() OR e.created_by = auth.uid())
+            AND (e.created_by = auth.uid())
         )
       )
       WITH CHECK (
         EXISTS (
           SELECT 1 FROM events e
           WHERE e.id = event_attendance.event_id
-            AND (e.user_id = auth.uid() OR e.created_by = auth.uid())
+            AND (e.created_by = auth.uid())
         )
       );
-    $$;
+    $policy$;
   END IF;
 
   -- users can upsert their own RSVP
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'event_attendance' AND policyname = 'user_manage_own_rsvp'
   ) THEN
-    EXECUTE $$
+    EXECUTE $policy$
       CREATE POLICY user_manage_own_rsvp ON event_attendance
       FOR INSERT WITH CHECK (user_id = auth.uid());
-    $$;
-    EXECUTE $$
+    $policy$;
+    EXECUTE $policy$
       CREATE POLICY user_update_own_rsvp ON event_attendance
       FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-    $$;
-    EXECUTE $$
+    $policy$;
+    EXECUTE $policy$
       CREATE POLICY user_read_published_event ON event_attendance
       FOR SELECT USING (
-        EXISTS (
-          SELECT 1 FROM events e
-          WHERE e.id = event_attendance.event_id
-            AND (e.is_public = true AND e.status IN ('published','completed'))
-        )
-        OR user_id = auth.uid()
+        user_id = auth.uid()
         OR EXISTS (
           SELECT 1 FROM events e
           WHERE e.id = event_attendance.event_id
-            AND (e.user_id = auth.uid() OR e.created_by = auth.uid())
+            AND (e.created_by = auth.uid())
         )
       );
-    $$;
+    $policy$;
   END IF;
 END $$;
 
@@ -172,37 +167,24 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'event_guestlist' AND policyname = 'creator_manage_guestlist'
   ) THEN
-    EXECUTE $$
+    EXECUTE $policy$
       CREATE POLICY creator_manage_guestlist ON event_guestlist
       USING (
         EXISTS (
           SELECT 1 FROM events e
           WHERE e.id = event_guestlist.event_id
-            AND (e.user_id = auth.uid() OR e.created_by = auth.uid())
+            AND (e.created_by = auth.uid())
         )
       )
       WITH CHECK (
         EXISTS (
           SELECT 1 FROM events e
           WHERE e.id = event_guestlist.event_id
-            AND (e.user_id = auth.uid() OR e.created_by = auth.uid())
+            AND (e.created_by = auth.uid())
         )
       );
-    $$;
+    $policy$;
   END IF;
-
-  -- public read for published & public events (guestlist often remains private; keep off by default)
-  -- Uncomment below if you want public read of guestlist counts/rows
-  -- EXECUTE $$
-  --   CREATE POLICY public_read_guestlist ON event_guestlist
-  --   FOR SELECT USING (
-  --     EXISTS (
-  --       SELECT 1 FROM events e
-  --       WHERE e.id = event_guestlist.event_id
-  --         AND (e.is_public = true AND e.status IN ('published','completed'))
-  --     )
-  --   );
-  -- $$;
 END $$;
 
 -- updated_at trigger

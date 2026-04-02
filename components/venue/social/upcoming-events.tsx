@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Calendar, MapPin, RefreshCw, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { format } from "date-fns"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 interface UpcomingEventsProps {
   limit?: number
@@ -156,7 +157,7 @@ export function UpcomingEvents({ limit = 3, showRefresh = true, className = "" }
                 </div>
                 <div className="flex items-center text-xs text-gray-400">
                   <Users className="h-3 w-3 mr-1 flex-shrink-0" />
-                  <span>{event.attendees.toLocaleString()} attending</span>
+                  <span>{formatSafeNumber(event.attendees)} attending</span>
                 </div>
               </div>
             ))}

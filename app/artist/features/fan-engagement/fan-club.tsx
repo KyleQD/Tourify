@@ -143,7 +143,13 @@ export function FanClubManager() {
                               {message.sender === "artist" ? "You" : "Fan"}
                             </span>
                             <span className="text-sm text-gray-500">
-                              {new Date(message.timestamp).toLocaleString()}
+                              {new Intl.DateTimeFormat("en-US", {
+                                year: "numeric",
+                                month: "numeric",
+                                day: "numeric",
+                                hour: "numeric",
+                                minute: "2-digit",
+                              }).format(new Date(message.timestamp))}
                             </span>
                           </div>
                           <p className="mt-1">{message.content}</p>
@@ -172,7 +178,13 @@ export function FanClubManager() {
                           <h4 className="font-medium">{newsletter.title}</h4>
                           <p className="text-sm text-gray-500 mt-1">
                             {newsletter.status === "sent" 
-                              ? `Sent on ${new Date(newsletter.sentAt!).toLocaleString()}`
+                              ? `Sent on ${new Intl.DateTimeFormat("en-US", {
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                }).format(new Date(newsletter.sentAt!))}`
                               : "Draft"}
                           </p>
                         </div>

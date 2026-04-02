@@ -17,6 +17,9 @@ create index if not exists idx_logistics_activity_task on logistics_activity(tas
 
 alter table logistics_activity enable row level security;
 
+drop policy if exists "log_act_read_linked_task" on logistics_activity;
+drop policy if exists "log_act_insert_linked_task" on logistics_activity;
+
 create policy "log_act_read_linked_task" on logistics_activity
   for select using (
     auth.role() = 'authenticated' and exists (

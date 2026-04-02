@@ -1,27 +1,27 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Select, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Calendar } from "@/components/ui/calendar"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { motion, AnimatePresence } from "framer-motion"
+import { AdminPageHeader } from "../components/admin-page-header"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 import {
   Building,
   Search,
   Plus,
   Filter,
   Star,
-  TrendingUp,
-  TrendingDown,
   Eye,
   Edit,
   MoreVertical,
@@ -77,8 +77,16 @@ import {
   Handshake,
   Bookmark,
   Map,
-  Navigation
+  Navigation,
 } from "lucide-react"
+import { AdminEmptyState } from "../components/admin-empty-state"
+import { AdminPageSkeleton } from "../components/admin-page-skeleton"
+import { AdminStatCard } from "../components/admin-stat-card"
+import { statusBadgeClass } from "../components/admin-badge-utils"
+import { SurfaceInput } from "@/components/surface/surface-primitives"
+import { AdminSurfaceCard } from "../components/admin-surface-card"
+import { AdminSurfaceSelectTrigger, AdminSurfaceTabsList } from "../components/admin-surface-controls"
+import { AdminPageActionsRow } from "../components/admin-page-actions-row"
 
 interface Venue {
   id: string
@@ -150,205 +158,73 @@ interface BookingRequest {
   special_requirements?: string
 }
 
-export default function VenuesPage() {
-  const [venues, setVenues] = useState<Venue[]>([
-    {
-      id: '1',
-      name: 'Madison Square Garden',
-      owner_name: 'MSG Entertainment',
-      email: 'bookings@msg.com',
-      phone: '+1 (212) 465-6741',
-      avatar_url: '/venue/msg.jpg',
-      description: 'Iconic arena in the heart of Manhattan, perfect for major concerts and events',
-      address: '4 Pennsylvania Plaza',
-      city: 'New York',
-      state: 'NY',
-      country: 'USA',
-      capacity: 20000,
-      venue_types: ['Arena', 'Concert Hall', 'Sports Venue'],
-      status: 'active',
-      tier: 'exclusive',
-      amenities: {
-        sound_system: true,
-        lighting_system: true,
-        stage: true,
-        parking: true,
-        wifi: true,
-        catering: true,
-        security: true,
-        accessibility: true,
-        green_room: true,
-        bar_service: true
-      },
-      social_links: {
-        website: 'https://msg.com',
-        instagram: '@thegarden',
-        twitter: '@TheGarden'
-      },
-      stats: {
-        total_bookings: 125,
-        completed_events: 120,
-        total_revenue: 2500000,
-        average_rating: 4.9,
-        response_rate: 98,
-        booking_success_rate: 85
-      },
-      pricing: {
-        base_rate: 50000,
-        hourly_rate: 5000,
-        deposit_required: true,
-        cancellation_policy: '30 days notice required'
-      },
-      availability_status: 'busy',
-      last_event: '2025-06-20',
-      joined_date: '2022-01-15',
-      verification_status: 'verified',
-      contract_status: 'active',
-      partnership_level: 'exclusive'
+function mapProfileToVenue(p: any): Venue {
+  return {
+    id: p.id,
+    name: p.full_name || p.venue_name || p.username || 'Unknown Venue',
+    owner_name: p.owner_name,
+    email: p.email || '',
+    phone: p.phone || undefined,
+    avatar_url: p.avatar_url || undefined,
+    description: p.bio || p.description || undefined,
+    address: p.address || '',
+    city: p.city || p.location || '',
+    state: p.state || '',
+    country: p.country || 'USA',
+    capacity: p.capacity || 0,
+    venue_types: p.venue_types || [],
+    status: 'active',
+    tier: 'basic',
+    amenities: p.amenities || {
+      sound_system: false, lighting_system: false, stage: false,
+      parking: false, wifi: false, catering: false,
+      security: false, accessibility: false, green_room: false, bar_service: false
     },
-    {
-      id: '2',
-      name: 'Brooklyn Warehouse',
-      owner_name: 'Underground Events LLC',
-      email: 'info@brooklynwarehouse.com',
-      phone: '+1 (718) 555-0123',
-      avatar_url: '/venue/warehouse.jpg',
-      description: 'Industrial warehouse space perfect for electronic music events and festivals',
-      address: '1234 Industrial Blvd',
-      city: 'Brooklyn',
-      state: 'NY',
-      country: 'USA',
-      capacity: 2500,
-      venue_types: ['Warehouse', 'Club', 'Festival Space'],
-      status: 'active',
-      tier: 'premium',
-      amenities: {
-        sound_system: true,
-        lighting_system: true,
-        stage: false,
-        parking: true,
-        wifi: true,
-        catering: false,
-        security: true,
-        accessibility: true,
-        green_room: true,
-        bar_service: true
-      },
-      social_links: {
-        website: 'https://brooklynwarehouse.com',
-        instagram: '@brooklynwarehouse'
-      },
-      stats: {
-        total_bookings: 78,
-        completed_events: 75,
-        total_revenue: 750000,
-        average_rating: 4.6,
-        response_rate: 92,
-        booking_success_rate: 78
-      },
-      pricing: {
-        base_rate: 8500,
-        hourly_rate: 750,
-        deposit_required: true,
-        cancellation_policy: '14 days notice required'
-      },
-      availability_status: 'available',
-      last_event: '2025-06-18',
-      joined_date: '2023-03-20',
-      verification_status: 'verified',
-      contract_status: 'active',
-      partnership_level: 'preferred'
+    social_links: p.social_links || {},
+    stats: {
+      total_bookings: 0, completed_events: 0, total_revenue: 0,
+      average_rating: 0, response_rate: 0, booking_success_rate: 0
     },
-    {
-      id: '3',
-      name: 'Central Park Bandshell',
-      owner_name: 'NYC Parks Department',
-      email: 'permits@nycparks.org',
-      phone: '+1 (212) 360-8111',
-      avatar_url: '/venue/bandshell.jpg',
-      description: 'Outdoor amphitheater in Central Park, ideal for summer concerts and festivals',
-      address: 'Central Park',
-      city: 'New York',
-      state: 'NY',
-      country: 'USA',
-      capacity: 5000,
-      venue_types: ['Outdoor', 'Amphitheater', 'Park'],
-      status: 'active',
-      tier: 'partner',
-      amenities: {
-        sound_system: false,
-        lighting_system: false,
-        stage: true,
-        parking: false,
-        wifi: false,
-        catering: false,
-        security: true,
-        accessibility: true,
-        green_room: false,
-        bar_service: false
-      },
-      social_links: {
-        website: 'https://nycparks.org'
-      },
-      stats: {
-        total_bookings: 45,
-        completed_events: 42,
-        total_revenue: 350000,
-        average_rating: 4.4,
-        response_rate: 85,
-        booking_success_rate: 72
-      },
-      pricing: {
-        base_rate: 12000,
-        deposit_required: false,
-        cancellation_policy: '7 days notice required'
-      },
-      availability_status: 'available',
-      last_event: '2025-06-15',
-      joined_date: '2024-01-10',
-      verification_status: 'verified',
-      contract_status: 'pending',
-      partnership_level: 'standard'
-    }
-  ])
+    pricing: { base_rate: 0, deposit_required: false, cancellation_policy: '' },
+    availability_status: 'available',
+    joined_date: p.created_at || new Date().toISOString(),
+    verification_status: p.verified ? 'verified' : 'unverified',
+    contract_status: 'none',
+    partnership_level: 'standard'
+  }
+}
 
-  const [filteredVenues, setFilteredVenues] = useState<Venue[]>(venues)
+export default function VenuesPage() {
+  const [venues, setVenues] = useState<Venue[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchVenues() {
+      try {
+        const res = await fetch('/api/search?q=&type=venues&limit=50', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          const list = data.results?.venues ?? []
+          setVenues(list.map(mapProfileToVenue))
+        }
+      } catch (err) {
+        console.error('Failed to fetch venues:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchVenues()
+  }, [])
+
+  const [filteredVenues, setFilteredVenues] = useState<Venue[]>([])
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [tierFilter, setTierFilter] = useState<string>("all")
   const [activeTab, setActiveTab] = useState("overview")
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
-  const [isCreateOpen, setIsCreateOpen] = useState(false)
 
-  // Mock booking requests
-  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([
-    {
-      id: '1',
-      venue_id: '1',
-      event_name: 'Summer Music Festival',
-      requester_name: 'Festival Productions',
-      event_date: '2025-08-15',
-      event_type: 'Festival',
-      expected_attendance: 15000,
-      status: 'pending',
-      requested_at: '2025-06-25T10:30:00Z',
-      budget_range: '$40,000 - $60,000',
-      special_requirements: 'Need extended load-in time and additional security'
-    },
-    {
-      id: '2',
-      venue_id: '2',
-      event_name: 'Electronic Night',
-      requester_name: 'Underground Events',
-      event_date: '2025-07-22',
-      event_type: 'Club Night',
-      expected_attendance: 2000,
-      status: 'approved',
-      requested_at: '2025-06-20T14:15:00Z',
-      budget_range: '$8,000 - $12,000'
-    }
-  ])
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
 
   // Filter venues based on search and filters
   useEffect(() => {
@@ -379,20 +255,20 @@ export default function VenuesPage() {
       case 'active':
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Active</Badge>
       case 'inactive':
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Inactive</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Inactive</Badge>
       case 'pending':
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Pending</Badge>
       case 'verified':
         return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Verified</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Unknown</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Unknown</Badge>
     }
   }
 
   const getTierBadge = (tier: string) => {
     switch (tier) {
       case 'basic':
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Basic</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Basic</Badge>
       case 'premium':
         return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Premium</Badge>
       case 'partner':
@@ -400,7 +276,7 @@ export default function VenuesPage() {
       case 'exclusive':
         return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30"><Crown className="h-3 w-3 mr-1" />Exclusive</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Unknown</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Unknown</Badge>
     }
   }
 
@@ -413,7 +289,7 @@ export default function VenuesPage() {
       case 'unavailable':
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><XCircle className="h-3 w-3 mr-1" />Unavailable</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30">Unknown</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30">Unknown</Badge>
     }
   }
 
@@ -426,7 +302,7 @@ export default function VenuesPage() {
       case 'rejected':
         return <Badge className="bg-red-500/20 text-red-400 border-red-500/30"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>
       default:
-        return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30"><AlertTriangle className="h-3 w-3 mr-1" />Unverified</Badge>
+        return <Badge className="bg-slate-500/20 text-slate-400 border border-slate-500/30"><AlertTriangle className="h-3 w-3 mr-1" />Unverified</Badge>
     }
   }
 
@@ -439,107 +315,78 @@ export default function VenuesPage() {
     return num.toString()
   }
 
-  const StatCard = ({ title, value, icon: Icon, color, trend }: {
-    title: string
-    value: string | number
-    icon: any
-    color: string
-    trend?: number
-  }) => (
-    <Card className="bg-slate-900/50 border-slate-700/50">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-slate-400">{title}</p>
-            <p className="text-xl font-bold text-white">{value}</p>
-            {trend !== undefined && (
-              <div className="flex items-center mt-1">
-                {trend > 0 ? (
-                  <TrendingUp className="h-3 w-3 text-green-400 mr-1" />
-                ) : (
-                  <TrendingDown className="h-3 w-3 text-red-400 mr-1" />
-                )}
-                <span className={`text-xs ${trend > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {trend > 0 ? '+' : ''}{trend}%
-                </span>
-              </div>
-            )}
-          </div>
-          <div className={`p-2 rounded-lg ${color}`}>
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  )
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
-      <div className="container mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              Venue Coordination
-            </h1>
-            <p className="text-slate-400 mt-2">
-              Manage venue partnerships, bookings, and relationship coordination
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <Button 
-              onClick={() => setIsCreateOpen(true)}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Venue
-            </Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-          </div>
-        </div>
+    <div className="container mx-auto space-y-6">
+        <AdminPageHeader
+          title="Venue Management"
+          subtitle="Manage venue partnerships, bookings, and relationship coordination"
+          icon={Building}
+          actions={
+            <AdminPageActionsRow>
+              <Button
+                type="button"
+                disabled
+                title="Venue creation is not available in admin yet"
+                className="bg-gradient-to-r from-purple-600/50 to-blue-600/50 text-white border-0 opacity-60 cursor-not-allowed"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Venue
+              </Button>
+              <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 backdrop-blur-sm transition-all duration-200">
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+            </AdminPageActionsRow>
+          }
+        />
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard
+        {isLoading ? (
+          <AdminPageSkeleton />
+        ) : (
+          <>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <AdminStatCard
             title="Total Venues"
             value={venues.length}
             icon={Building}
-            color="bg-orange-600"
-            trend={8}
+            color="blue"
+            size="default"
           />
-          <StatCard
+          <AdminStatCard
             title="Active Venues"
             value={venues.filter(v => v.status === 'active').length}
             icon={Activity}
-            color="bg-green-600"
-            trend={12}
+            color="green"
+            size="default"
           />
-          <StatCard
-            title="Total Capacity"
-            value={formatNumber(venues.reduce((sum, v) => sum + v.capacity, 0))}
-            icon={Users}
-            color="bg-blue-600"
-            trend={15}
-          />
-          <StatCard
+          <AdminStatCard
             title="Avg Rating"
-            value={(venues.reduce((sum, v) => sum + v.stats.average_rating, 0) / venues.length).toFixed(1)}
+            value={
+              venues.length > 0
+                ? (venues.reduce((sum, v) => sum + (v.stats.average_rating || 0), 0) / venues.length).toFixed(1)
+                : '0.0'
+            }
             icon={Star}
-            color="bg-yellow-600"
-            trend={5}
+            color="amber"
+            size="default"
+          />
+          <AdminStatCard
+            title="Total Revenue"
+            value={`$${formatNumber(venues.reduce((sum, v) => sum + (v.stats.total_revenue || 0), 0))}`}
+            icon={DollarSign}
+            color="orange"
+            size="default"
           />
         </div>
 
         {/* Search and Filters */}
-        <Card className="bg-slate-900/50 border-slate-700/50">
+        <AdminSurfaceCard>
           <CardContent className="p-6">
             <div className="flex flex-col lg:flex-row gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
+                <SurfaceInput
                   placeholder="Search venues by name, location, or type..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -547,9 +394,9 @@ export default function VenuesPage() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full lg:w-48 bg-slate-800/50 border-slate-700/50 text-white">
+                <AdminSurfaceSelectTrigger className="w-full lg:w-48">
                   <SelectValue placeholder="Status" />
-                </SelectTrigger>
+                </AdminSurfaceSelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
@@ -558,9 +405,9 @@ export default function VenuesPage() {
                 </SelectContent>
               </Select>
               <Select value={tierFilter} onValueChange={setTierFilter}>
-                <SelectTrigger className="w-full lg:w-48 bg-slate-800/50 border-slate-700/50 text-white">
+                <AdminSurfaceSelectTrigger className="w-full lg:w-48">
                   <SelectValue placeholder="Tier" />
-                </SelectTrigger>
+                </AdminSurfaceSelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Tiers</SelectItem>
                   <SelectItem value="basic">Basic</SelectItem>
@@ -571,7 +418,7 @@ export default function VenuesPage() {
               </Select>
             </div>
           </CardContent>
-        </Card>
+        </AdminSurfaceCard>
 
         {/* Venues Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -583,7 +430,7 @@ export default function VenuesPage() {
               whileHover={{ scale: 1.02 }}
               transition={{ duration: 0.2 }}
             >
-              <Card className="bg-slate-900/50 border-slate-700/50 hover:bg-slate-900/70 transition-all duration-300 group cursor-pointer">
+              <AdminSurfaceCard className="hover:border-purple-500/30 transition-all duration-300 group cursor-pointer">
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
@@ -716,9 +563,12 @@ export default function VenuesPage() {
                           View
                         </Button>
                         <Button
+                          type="button"
                           variant="ghost"
                           size="sm"
-                          className="text-slate-400 hover:text-white"
+                          disabled
+                          title="Edit is not implemented"
+                          className="text-slate-500 cursor-not-allowed opacity-60"
                         >
                           <Edit className="h-4 w-4 mr-1" />
                           Edit
@@ -727,15 +577,25 @@ export default function VenuesPage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
+              </AdminSurfaceCard>
             </motion.div>
           ))}
         </div>
 
+        {filteredVenues.length === 0 && !isLoading && (
+          <AdminEmptyState
+            icon={Building}
+            title="No venues found"
+            description="Venues will appear when your search returns results"
+          />
+        )}
+          </>
+        )}
+
         {/* Recent Booking Requests */}
-        <Card className="bg-slate-900/50 border-slate-700/50">
+        <AdminSurfaceCard>
           <CardHeader>
-            <CardTitle className="text-white flex items-center">
+            <CardTitle className="text-lg font-semibold text-white flex items-center">
               <Bell className="h-5 w-5 mr-2 text-yellow-400" />
               Recent Booking Requests
             </CardTitle>
@@ -745,7 +605,7 @@ export default function VenuesPage() {
               {bookingRequests.map((request) => {
                 const venue = venues.find(v => v.id === request.venue_id)
                 return (
-                  <div key={request.id} className="flex items-center justify-between p-4 bg-slate-800/50 rounded-lg">
+                  <div key={request.id} className="flex items-center justify-between rounded-xl bg-slate-800/50 p-4 backdrop-blur-sm">
                     <div className="flex items-center space-x-4">
                       <Avatar className="h-10 w-10">
                         <AvatarFallback>{venue?.name[0]}</AvatarFallback>
@@ -753,7 +613,7 @@ export default function VenuesPage() {
                       <div>
                         <h4 className="font-medium text-white">{request.event_name}</h4>
                         <p className="text-sm text-slate-400">
-                          {venue?.name} • {new Date(request.event_date).toLocaleDateString()}
+                          {venue?.name} • {formatSafeDate(request.event_date)}
                         </p>
                       </div>
                     </div>
@@ -762,11 +622,11 @@ export default function VenuesPage() {
                         <p className="text-sm text-slate-400">Expected</p>
                         <p className="font-medium text-white">{formatNumber(request.expected_attendance)}</p>
                       </div>
-                      <Badge className={
-                        request.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                        request.status === 'approved' ? 'bg-green-500/20 text-green-400' :
-                        'bg-red-500/20 text-red-400'
-                      }>
+                      <Badge
+                        className={statusBadgeClass(
+                          request.status === "approved" ? "confirmed" : request.status
+                        )}
+                      >
                         {request.status}
                       </Badge>
                       <Button variant="ghost" size="sm">
@@ -778,7 +638,7 @@ export default function VenuesPage() {
               })}
             </div>
           </CardContent>
-        </Card>
+        </AdminSurfaceCard>
 
         {/* Venue Details Dialog */}
         <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
@@ -816,40 +676,43 @@ export default function VenuesPage() {
                 </div>
 
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="bg-slate-800">
+                  <AdminSurfaceTabsList>
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="amenities">Amenities</TabsTrigger>
                     <TabsTrigger value="bookings">Bookings</TabsTrigger>
                     <TabsTrigger value="pricing">Pricing</TabsTrigger>
                     <TabsTrigger value="analytics">Analytics</TabsTrigger>
-                  </TabsList>
+                  </AdminSurfaceTabsList>
 
                   <TabsContent value="overview" className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <StatCard
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <AdminStatCard
                         title="Capacity"
                         value={formatNumber(selectedVenue.capacity)}
                         icon={Users}
-                        color="bg-blue-600"
+                        color="blue"
+                        size="default"
                       />
-                      <StatCard
+                      <AdminStatCard
                         title="Total Bookings"
                         value={selectedVenue.stats.total_bookings}
                         icon={CalendarIcon}
-                        color="bg-green-600"
+                        color="green"
+                        size="default"
                       />
-                      <StatCard
+                      <AdminStatCard
                         title="Total Revenue"
                         value={`$${formatNumber(selectedVenue.stats.total_revenue)}`}
                         icon={DollarSign}
-                        color="bg-yellow-600"
+                        color="amber"
+                        size="default"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="bg-slate-800/50 border-slate-700/50">
+                      <AdminSurfaceCard>
                         <CardHeader>
-                          <CardTitle className="text-white">Contact Information</CardTitle>
+                          <CardTitle className="text-lg font-semibold text-white">Contact Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                           <div className="flex items-center space-x-3">
@@ -869,11 +732,11 @@ export default function VenuesPage() {
                             </div>
                           )}
                         </CardContent>
-                      </Card>
+                      </AdminSurfaceCard>
 
-                      <Card className="bg-slate-800/50 border-slate-700/50">
+                      <AdminSurfaceCard>
                         <CardHeader>
-                          <CardTitle className="text-white">Performance Metrics</CardTitle>
+                          <CardTitle className="text-lg font-semibold text-white">Performance Metrics</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                           <div className="flex justify-between">
@@ -892,14 +755,14 @@ export default function VenuesPage() {
                             <span className="text-white">{selectedVenue.stats.booking_success_rate}%</span>
                           </div>
                         </CardContent>
-                      </Card>
+                      </AdminSurfaceCard>
                     </div>
                   </TabsContent>
 
                   <TabsContent value="amenities">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <AdminSurfaceCard>
                       <CardHeader>
-                        <CardTitle className="text-white">Venue Amenities</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Venue Amenities</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -923,7 +786,7 @@ export default function VenuesPage() {
                             return (
                               <div 
                                 key={amenity} 
-                                className={`flex items-center space-x-3 p-3 rounded-lg ${
+                                className={`flex items-center space-x-3 p-3 rounded-xl ${
                                   available ? 'bg-green-500/10 border border-green-500/20' : 'bg-slate-700/50'
                                 }`}
                               >
@@ -943,27 +806,27 @@ export default function VenuesPage() {
                           })}
                         </div>
                       </CardContent>
-                    </Card>
+                    </AdminSurfaceCard>
                   </TabsContent>
 
                   <TabsContent value="pricing">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <AdminSurfaceCard>
                       <CardHeader>
-                        <CardTitle className="text-white">Pricing Information</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Pricing Information</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div>
                             <Label className="text-slate-400">Base Rate</Label>
                             <p className="text-2xl font-bold text-green-400">
-                              ${selectedVenue.pricing.base_rate.toLocaleString()}
+                              {formatSafeCurrency(selectedVenue.pricing.base_rate)}
                             </p>
                           </div>
                           {selectedVenue.pricing.hourly_rate && (
                             <div>
                               <Label className="text-slate-400">Hourly Rate</Label>
                               <p className="text-2xl font-bold text-blue-400">
-                                ${selectedVenue.pricing.hourly_rate.toLocaleString()}/hr
+                                {formatSafeCurrency(selectedVenue.pricing.hourly_rate)}/hr
                               </p>
                             </div>
                           )}
@@ -979,13 +842,13 @@ export default function VenuesPage() {
                           <p className="text-white">{selectedVenue.pricing.cancellation_policy}</p>
                         </div>
                       </CardContent>
-                    </Card>
+                    </AdminSurfaceCard>
                   </TabsContent>
 
                   <TabsContent value="bookings">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <AdminSurfaceCard>
                       <CardHeader>
-                        <CardTitle className="text-white">Booking History</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Booking History</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-center py-8 text-slate-400">
@@ -994,13 +857,13 @@ export default function VenuesPage() {
                           <p className="text-sm">Connect to the booking management system</p>
                         </div>
                       </CardContent>
-                    </Card>
+                    </AdminSurfaceCard>
                   </TabsContent>
 
                   <TabsContent value="analytics">
-                    <Card className="bg-slate-800/50 border-slate-700/50">
+                    <AdminSurfaceCard>
                       <CardHeader>
-                        <CardTitle className="text-white">Performance Analytics</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Performance Analytics</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="text-center py-8 text-slate-400">
@@ -1009,14 +872,13 @@ export default function VenuesPage() {
                           <p className="text-sm">Revenue trends, booking patterns, and performance metrics</p>
                         </div>
                       </CardContent>
-                    </Card>
+                    </AdminSurfaceCard>
                   </TabsContent>
                 </Tabs>
               </div>
             )}
           </DialogContent>
         </Dialog>
-      </div>
     </div>
   )
 } 

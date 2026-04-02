@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ChevronRight } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface VenueUpcomingEventsProps {
   venue: any
@@ -23,7 +24,7 @@ export function VenueUpcomingEvents({ venue }: VenueUpcomingEventsProps) {
               <div>
                 <h3 className="font-medium text-white">{event.title}</h3>
                 <p className="text-sm text-gray-400">
-                  {new Date(event.date).toLocaleDateString()} • {event.ticketsSold}/{event.capacity} tickets
+                  {formatSafeDate(event.date)} • {event.ticketsSold}/{event.capacity} tickets
                 </p>
               </div>
               <Badge>{event.status}</Badge>

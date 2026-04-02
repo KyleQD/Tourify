@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { type TicketType, type TicketSale, type SharePlatform, type PromoCode } from '@/types/ticketing'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 export class TicketingService {
   private supabase = supabase
@@ -360,7 +361,7 @@ export class TicketingService {
 
   private generateTicketPostContent(event: any, ticketType?: any): string {
     const priceText = ticketType ? ` starting at $${ticketType.price}` : ''
-    const dateText = event?.date ? new Date(event.date).toLocaleDateString() : ''
+    const dateText = event?.date ? formatSafeDate(event.date) : ''
     const locationText = event?.location || ''
     
     return `🎫 ${event?.title}${priceText}\n📅 ${dateText}\n📍 ${locationText}\n\nGet your tickets now! #LiveMusic #Events`
@@ -368,7 +369,7 @@ export class TicketingService {
 
   private generateTicketMessageContent(event: any, ticketType?: any): string {
     const priceText = ticketType ? ` starting at $${ticketType.price}` : ''
-    const dateText = event?.date ? new Date(event.date).toLocaleDateString() : ''
+    const dateText = event?.date ? formatSafeDate(event.date) : ''
     const locationText = event?.location || ''
     
     return `Hey! I thought you might be interested in this event:\n\n🎫 ${event?.title}${priceText}\n📅 ${dateText}\n📍 ${locationText}\n\nCheck it out and let me know if you want to go together!`

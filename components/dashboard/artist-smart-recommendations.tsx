@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -23,21 +23,11 @@ import {
   DollarSign,
   BarChart3
 } from 'lucide-react'
-
-interface Recommendation {
-  id: string
-  type: 'content' | 'event' | 'collaboration' | 'revenue' | 'audience' | 'platform'
-  title: string
-  description: string
-  impact: 'high' | 'medium' | 'low'
-  effort: 'high' | 'medium' | 'low'
-  estimatedValue: number
-  confidence: number
-  actionUrl?: string
-  actionText?: string
-  tags: string[]
-  priority: number
-}
+import {
+  buildArtistRecommendations,
+  type Recommendation,
+  type ProfileFlags,
+} from '@/lib/artist/build-artist-recommendations'
 
 interface SmartRecommendationsProps {
   artistStats?: {
@@ -71,98 +61,12 @@ interface SmartRecommendationsProps {
     id: string
     title: string
     date: string
-    venue: string
-    ticketSales: number
-    capacity: number
+    venue?: string
+    ticketSales?: number
+    capacity?: number
   }>
+  profileFlags?: ProfileFlags
 }
-
-const mockRecommendations: Recommendation[] = [
-  {
-    id: '1',
-    type: 'content',
-    title: 'Optimize Your Top-Performing Track',
-    description: 'Your track "Midnight Dreams" has 2.3x higher engagement than average. Consider creating a music video or remix to capitalize on this momentum.',
-    impact: 'high',
-    effort: 'medium',
-    estimatedValue: 1500,
-    confidence: 92,
-    actionUrl: '/artist/content',
-    actionText: 'View Content',
-    tags: ['music', 'optimization', 'engagement'],
-    priority: 1
-  },
-  {
-    id: '2',
-    type: 'event',
-    title: 'Promote Your Upcoming Show',
-    description: 'Your show at "The Grand Hall" in 2 weeks is only 45% sold. Boost ticket sales with targeted social media campaigns.',
-    impact: 'high',
-    effort: 'low',
-    estimatedValue: 800,
-    confidence: 88,
-    actionUrl: '/artist/events',
-    actionText: 'Manage Events',
-    tags: ['promotion', 'tickets', 'social media'],
-    priority: 2
-  },
-  {
-    id: '3',
-    type: 'collaboration',
-    title: 'Collaborate with Local Artists',
-    description: '3 artists in your area have similar fan bases. Consider collaboration opportunities to expand your reach.',
-    impact: 'medium',
-    effort: 'medium',
-    estimatedValue: 600,
-    confidence: 75,
-    actionUrl: '/artist/community',
-    actionText: 'Find Artists',
-    tags: ['collaboration', 'networking', 'growth'],
-    priority: 3
-  },
-  {
-    id: '4',
-    type: 'revenue',
-    title: 'Launch Merchandise Collection',
-    description: 'Your fan base has grown 40% this month. Launch exclusive merchandise to increase revenue streams.',
-    impact: 'medium',
-    effort: 'high',
-    estimatedValue: 1200,
-    confidence: 82,
-    actionUrl: '/artist/business',
-    actionText: 'Business Tools',
-    tags: ['merchandise', 'revenue', 'fans'],
-    priority: 4
-  },
-  {
-    id: '5',
-    type: 'audience',
-    title: 'Engage with Your Top Fans',
-    description: 'You have 15 super fans who engage with 80% of your content. Create exclusive content for them.',
-    impact: 'medium',
-    effort: 'low',
-    estimatedValue: 400,
-    confidence: 90,
-    actionUrl: '/artist/community',
-    actionText: 'Fan Engagement',
-    tags: ['fans', 'engagement', 'exclusive'],
-    priority: 5
-  },
-  {
-    id: '6',
-    type: 'platform',
-    title: 'Optimize Your Profile',
-    description: 'Your profile completion is at 75%. Complete your bio and add more photos to increase discoverability.',
-    impact: 'low',
-    effort: 'low',
-    estimatedValue: 200,
-    confidence: 95,
-    actionUrl: '/artist/profile',
-    actionText: 'Complete Profile',
-    tags: ['profile', 'discovery', 'optimization'],
-    priority: 6
-  }
-]
 
 const getTypeIcon = (type: Recommendation['type']) => {
   switch (type) {
@@ -192,18 +96,72 @@ const getEffortColor = (effort: Recommendation['effort']) => {
   }
 }
 
+const EMPTY_STATS: NonNullable<SmartRecommendationsProps['artistStats']> = {
+  totalRevenue: 0,
+  totalFans: 0,
+  totalStreams: 0,
+  engagementRate: 0,
+  monthlyListeners: 0,
+  totalTracks: 0,
+  totalEvents: 0,
+  totalCollaborations: 0,
+  musicCount: 0,
+  videoCount: 0,
+  photoCount: 0,
+  blogCount: 0,
+  eventCount: 0,
+  merchandiseCount: 0,
+  totalPlays: 0,
+  totalViews: 0,
+}
+
 export function ArtistSmartRecommendations({ 
   artistStats, 
   recentContent, 
-  upcomingEvents 
+  upcomingEvents,
+  profileFlags = { hasBio: true, hasGenres: true, hasArtistName: true },
 }: SmartRecommendationsProps) {
   const [selectedType, setSelectedType] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'priority' | 'impact' | 'effort' | 'value'>('priority')
 
+  const built = useMemo(() => {
+    const stats = artistStats ?? EMPTY_STATS
+    const content = (recentContent ?? []).map((c) => ({
+      ...c,
+      shares: c.shares ?? 0,
+    }))
+    const events = (upcomingEvents ?? []).map((e) => ({
+      ...e,
+      venue: e.venue ?? '',
+      ticketSales: e.ticketSales,
+      capacity: e.capacity,
+    }))
+    return buildArtistRecommendations({
+      stats: {
+        totalRevenue: stats.totalRevenue,
+        totalFans: stats.totalFans,
+        totalStreams: stats.totalStreams,
+        engagementRate: stats.engagementRate,
+        monthlyListeners: stats.monthlyListeners,
+        musicCount: stats.musicCount,
+        videoCount: stats.videoCount,
+        photoCount: stats.photoCount,
+        blogCount: stats.blogCount,
+        eventCount: stats.eventCount,
+        merchandiseCount: stats.merchandiseCount,
+        totalPlays: stats.totalPlays,
+        totalViews: stats.totalViews,
+      },
+      recentContent: content,
+      upcomingEvents: events,
+      profile: profileFlags,
+    })
+  }, [artistStats, recentContent, upcomingEvents, profileFlags])
+
   // Filter recommendations based on selected type
   const filteredRecommendations = selectedType === 'all' 
-    ? mockRecommendations 
-    : mockRecommendations.filter(rec => rec.type === selectedType)
+    ? built 
+    : built.filter(rec => rec.type === selectedType)
 
   // Sort recommendations
   const sortedRecommendations = [...filteredRecommendations].sort((a, b) => {
@@ -217,7 +175,10 @@ export function ArtistSmartRecommendations({
   })
 
   const totalPotentialValue = sortedRecommendations.reduce((sum, rec) => sum + rec.estimatedValue, 0)
-  const averageConfidence = sortedRecommendations.reduce((sum, rec) => sum + rec.confidence, 0) / sortedRecommendations.length
+  const averageConfidence =
+    sortedRecommendations.length > 0
+      ? sortedRecommendations.reduce((sum, rec) => sum + rec.confidence, 0) / sortedRecommendations.length
+      : 0
 
   const typeFilters = [
     { value: 'all', label: 'All', icon: <Lightbulb className="h-4 w-4" /> },

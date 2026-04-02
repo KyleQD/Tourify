@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useRouter } from "next/navigation"
 import { Calendar, Globe, MapPin, MessageSquare, Music, Search, User } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface UnifiedSearchProps {
   trigger?: React.ReactNode
@@ -174,7 +175,7 @@ export function UnifiedSearch({ trigger }: UnifiedSearchProps) {
                               <MapPin className="h-3 w-3 mr-1" />
                               <span>{result.location}</span>
                               <span className="mx-1">•</span>
-                              <span>{new Date(result.date).toLocaleDateString()}</span>
+                              <span>{formatSafeDate(result.date)}</span>
                             </div>
                           </div>
                         </div>

@@ -1,5 +1,6 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/supabase'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 export interface PostTemplate {
   id: string
@@ -398,8 +399,11 @@ export class CrossPlatformPostingService {
 
     // Replace date/time variables
     const now = new Date()
-    processedContent = processedContent.replace(/{today}/g, now.toLocaleDateString())
-    processedContent = processedContent.replace(/{time}/g, now.toLocaleTimeString())
+    processedContent = processedContent.replace(/{today}/g, formatSafeDate(now.toISOString()))
+    processedContent = processedContent.replace(
+      /{time}/g,
+      new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(now)
+    )
     processedContent = processedContent.replace(/{date}/g, now.toISOString().split('T')[0])
 
     return processedContent

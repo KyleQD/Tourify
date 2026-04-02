@@ -7,6 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Download, LineChart, TrendingUp, Users, Zap } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 // Mock analytics data
 const mockAttendanceData = [
@@ -102,11 +104,7 @@ export function AdvancedAnalytics() {
 
   // Format date
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    })
+    return formatSafeDate(dateString)
   }
 
   // Format percentage
@@ -158,9 +156,11 @@ export function AdvancedAnalytics() {
                     <Users className="h-5 w-5 text-purple-400" />
                   </div>
                   <div className="text-3xl font-bold mb-1">
-                    {Math.round(
-                      mockAttendanceData.reduce((sum, item) => sum + item.attendance, 0) / mockAttendanceData.length,
-                    ).toLocaleString()}
+                    {formatSafeNumber(
+                      Math.round(
+                        mockAttendanceData.reduce((sum, item) => sum + item.attendance, 0) / mockAttendanceData.length,
+                      ),
+                    )}
                   </div>
                   <p className="text-sm text-gray-400">Per event</p>
                   <div className="mt-2 flex items-center text-xs">

@@ -1,48 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request, { user, supabase }) => {
   try {
-    console.log('[Admin Notifications API] GET request started')
-    
-    // Return mock notifications data
-    const mockNotifications = [
-      {
-        id: '1',
-        title: 'New Tour Created',
-        message: 'Summer Festival Tour has been created successfully',
-        type: 'success',
-        created_at: '2024-08-04T10:30:00Z',
-        read: false
-      },
-      {
-        id: '2',
-        title: 'Event Reminder',
-        message: 'Winter Concert Series starts in 2 weeks',
-        type: 'info',
-        created_at: '2024-08-04T09:15:00Z',
-        read: true
-      },
-      {
-        id: '3',
-        title: 'Revenue Update',
-        message: 'Monthly revenue target exceeded by 15%',
-        type: 'success',
-        created_at: '2024-08-03T16:45:00Z',
-        read: false
-      }
-    ]
+    const { data: notifications, error } = await supabase
+      .from('notifications')
+      .select('id, title, message, type, created_at, read')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(20)
 
-    console.log('[Admin Notifications API] Returning mock notifications')
+    if (error) {
+      return NextResponse.json({
+        success: true,
+        notifications: [],
+        timestamp: new Date().toISOString()
+      })
+    }
 
     return NextResponse.json({
       success: true,
-      notifications: mockNotifications,
+      notifications: notifications || [],
       timestamp: new Date().toISOString()
     })
-
   } catch (error) {
     console.error('[Admin Notifications API] Error:', error)
-    
     return NextResponse.json({
       success: false,
       error: 'Failed to fetch notifications',
@@ -50,4 +32,4 @@ export async function GET(request: NextRequest) {
       timestamp: new Date().toISOString()
     }, { status: 500 })
   }
-} 
+}) 

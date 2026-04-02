@@ -53,11 +53,25 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { achievement_id, event_type, event_value, event_data, related_project_id, related_event_id, related_collaboration_id } = body
+    const {
+      achievement_id,
+      metric_key,
+      metric_value,
+      evaluation_mode,
+      event_type,
+      event_value,
+      event_data,
+      related_project_id,
+      related_event_id,
+      related_collaboration_id
+    } = body
 
     // Record achievement progress
     await achievementService.recordAchievementProgress({
       achievement_id,
+      metric_key,
+      metric_value,
+      evaluation_mode,
       event_type,
       event_value,
       event_data,

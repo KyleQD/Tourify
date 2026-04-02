@@ -30,11 +30,43 @@ export async function POST(request: NextRequest) {
     }
 
     // Create basic profile
+
+    const computedUsername = user.email?.split('@')[0] || `user-${user.id.slice(0, 8)}`
+
+    const cleanedBase = computedUsername
+      .toLowerCase()
+      .replace(/[^a-zA-Z0-9_-]/g, '')
+
+    const baseForCustomUrl = cleanedBase.length >= 3 ? cleanedBase : `user-${user.id.slice(0, 8)}`
+
+    // Ensure custom_url is unique (it has a DB unique constraint)
+    const generateUniqueCustomUrl = async () => {
+      for (let i = 0; i < 25; i++) {
+        const candidateRaw = i === 0 ? baseForCustomUrl : `${baseForCustomUrl}-${i}`
+        const candidate = candidateRaw.slice(0, 30)
+
+        if (candidate.length < 3) continue
+
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('custom_url', candidate)
+          .limit(1)
+
+        if (!existing || existing.length === 0) return candidate
+      }
+
+      throw new Error('Failed to generate unique custom_url')
+    }
+
+    const customUrl = await generateUniqueCustomUrl()
+
     const { data: newProfile, error: createError } = await supabase
       .from('profiles')
       .insert({
         id: user.id,
-        username: user.email?.split('@')[0] || `user-${user.id.slice(0, 8)}`,
+        username: computedUsername,
+        custom_url: customUrl,
         full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
         bio: null,
         avatar_url: user.user_metadata?.avatar_url || null,

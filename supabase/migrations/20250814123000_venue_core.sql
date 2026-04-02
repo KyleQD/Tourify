@@ -185,7 +185,7 @@ ALTER TABLE venue_social_integrations ENABLE ROW LEVEL SECURITY;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_booking_requests' AND polname = 'Venue owners can manage all booking requests for their venues'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_booking_requests' AND policyname = 'Venue owners can manage all booking requests for their venues'
   ) THEN
     CREATE POLICY "Venue owners can manage all booking requests for their venues"
       ON venue_booking_requests FOR ALL
@@ -195,7 +195,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_booking_requests' AND polname = 'Users can view and manage their own booking requests'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_booking_requests' AND policyname = 'Users can view and manage their own booking requests'
   ) THEN
     CREATE POLICY "Users can view and manage their own booking requests"
       ON venue_booking_requests FOR ALL
@@ -205,7 +205,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_documents' AND polname = 'Venue owners can manage their venue documents'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_documents' AND policyname = 'Venue owners can manage their venue documents'
   ) THEN
     CREATE POLICY "Venue owners can manage their venue documents"
       ON venue_documents FOR ALL
@@ -215,7 +215,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_documents' AND polname = 'Public documents are viewable by everyone'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_documents' AND policyname = 'Public documents are viewable by everyone'
   ) THEN
     CREATE POLICY "Public documents are viewable by everyone"
       ON venue_documents FOR SELECT USING (is_public = true);
@@ -224,7 +224,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_team_members' AND polname = 'Venue owners can manage their team members'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_team_members' AND policyname = 'Venue owners can manage their team members'
   ) THEN
     CREATE POLICY "Venue owners can manage their team members"
       ON venue_team_members FOR ALL
@@ -234,7 +234,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_team_members' AND polname = 'Team members can view their own profile'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_team_members' AND policyname = 'Team members can view their own profile'
   ) THEN
     CREATE POLICY "Team members can view their own profile"
       ON venue_team_members FOR SELECT
@@ -244,7 +244,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND polname = 'Anyone can view venue reviews'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND policyname = 'Anyone can view venue reviews'
   ) THEN
     CREATE POLICY "Anyone can view venue reviews" ON venue_reviews FOR SELECT USING (true);
   END IF;
@@ -252,7 +252,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND polname = 'Users can create reviews'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND policyname = 'Users can create reviews'
   ) THEN
     CREATE POLICY "Users can create reviews" ON venue_reviews FOR INSERT WITH CHECK (reviewer_id = auth.uid());
   END IF;
@@ -260,7 +260,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND polname = 'Reviewers can update their own reviews'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND policyname = 'Reviewers can update their own reviews'
   ) THEN
     CREATE POLICY "Reviewers can update their own reviews" ON venue_reviews FOR UPDATE USING (reviewer_id = auth.uid());
   END IF;
@@ -268,7 +268,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND polname = 'Venue owners can respond to reviews'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_reviews' AND policyname = 'Venue owners can respond to reviews'
   ) THEN
     CREATE POLICY "Venue owners can respond to reviews" ON venue_reviews FOR UPDATE
       USING (venue_id IN (SELECT id FROM venue_profiles WHERE user_id = auth.uid()));
@@ -277,7 +277,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_analytics' AND polname = 'Venue owners can view their analytics'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_analytics' AND policyname = 'Venue owners can view their analytics'
   ) THEN
     CREATE POLICY "Venue owners can view their analytics" ON venue_analytics FOR SELECT
       USING (venue_id IN (SELECT id FROM venue_profiles WHERE user_id = auth.uid()));
@@ -286,7 +286,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_availability' AND polname = 'Venue owners can manage their availability'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_availability' AND policyname = 'Venue owners can manage their availability'
   ) THEN
     CREATE POLICY "Venue owners can manage their availability" ON venue_availability FOR ALL
       USING (venue_id IN (SELECT id FROM venue_profiles WHERE user_id = auth.uid()));
@@ -295,7 +295,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_availability' AND polname = 'Anyone can view venue availability'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_availability' AND policyname = 'Anyone can view venue availability'
   ) THEN
     CREATE POLICY "Anyone can view venue availability" ON venue_availability FOR SELECT USING (true);
   END IF;
@@ -303,7 +303,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_pricing' AND polname = 'Venue owners can manage their pricing'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_pricing' AND policyname = 'Venue owners can manage their pricing'
   ) THEN
     CREATE POLICY "Venue owners can manage their pricing" ON venue_pricing FOR ALL
       USING (venue_id IN (SELECT id FROM venue_profiles WHERE user_id = auth.uid()));
@@ -312,7 +312,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_pricing' AND polname = 'Anyone can view active pricing packages'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_pricing' AND policyname = 'Anyone can view active pricing packages'
   ) THEN
     CREATE POLICY "Anyone can view active pricing packages" ON venue_pricing FOR SELECT USING (is_active = true);
   END IF;
@@ -320,7 +320,7 @@ END $$;
 
 DO $$ BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_social_integrations' AND polname = 'Venue owners can manage their social integrations'
+    SELECT 1 FROM pg_policies WHERE schemaname = current_schema() AND tablename = 'venue_social_integrations' AND policyname = 'Venue owners can manage their social integrations'
   ) THEN
     CREATE POLICY "Venue owners can manage their social integrations" ON venue_social_integrations FOR ALL
       USING (venue_id IN (SELECT id FROM venue_profiles WHERE user_id = auth.uid()));
@@ -340,7 +340,7 @@ BEGIN
   SELECT jsonb_build_object(
     'totalBookings', COALESCE((SELECT COUNT(*) FROM venue_booking_requests WHERE venue_id = p_venue_id AND status = 'approved'), 0),
     'pendingRequests', COALESCE((SELECT COUNT(*) FROM venue_booking_requests WHERE venue_id = p_venue_id AND status = 'pending'), 0),
-    'thisMonthRevenue', COALESCE((SELECT SUM(revenue) FROM venue_analytics WHERE venue_id = p_venue_id AND date >= date_trunc(''month'', CURRENT_DATE)), 0),
+    'thisMonthRevenue', COALESCE((SELECT SUM(revenue) FROM venue_analytics WHERE venue_id = p_venue_id AND date >= date_trunc('month', CURRENT_DATE)), 0),
     'averageRating', COALESCE((SELECT AVG(rating)::DECIMAL(3,2) FROM venue_reviews WHERE venue_id = p_venue_id), 0),
     'totalReviews', COALESCE((SELECT COUNT(*) FROM venue_reviews WHERE venue_id = p_venue_id), 0),
     'teamMembers', COALESCE((SELECT COUNT(*) FROM venue_team_members WHERE venue_id = p_venue_id AND status = 'active'), 0),

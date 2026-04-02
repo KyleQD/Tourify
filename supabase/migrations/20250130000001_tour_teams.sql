@@ -72,6 +72,37 @@ CREATE TABLE IF NOT EXISTS tour_team_members (
     UNIQUE(team_id, user_id, tour_id)
 );
 
+-- Legacy `tour_teams` may exist without `created_by`
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'tour_teams') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'tour_teams' AND column_name = 'created_by'
+    ) THEN
+      ALTER TABLE public.tour_teams ADD COLUMN created_by UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'tour_team_members') THEN
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'tour_team_members' AND column_name = 'team_id'
+    ) THEN
+      ALTER TABLE public.tour_team_members ADD COLUMN team_id UUID REFERENCES public.tour_teams(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'tour_team_members' AND column_name = 'assigned_by'
+    ) THEN
+      ALTER TABLE public.tour_team_members ADD COLUMN assigned_by UUID REFERENCES auth.users(id) ON DELETE CASCADE;
+    END IF;
+  END IF;
+END $$;
+
 -- =============================================================================
 -- BASIC INDEXES FOR PERFORMANCE
 -- =============================================================================

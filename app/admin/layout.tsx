@@ -9,6 +9,7 @@ import { useMultiAccount } from '@/hooks/use-multi-account'
 import { Card } from '@/components/ui/card'
 import { Loader2, Shield, AlertTriangle } from 'lucide-react'
 import { EnhancedNotificationCenter } from '@/components/notifications/enhanced-notification-center'
+import { AccountRouteGuard } from '@/components/account/account-route-guard'
 import './globals.css'
 
 interface AdminLayoutProps {
@@ -22,23 +23,17 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => { setMounted(true) }, [])
 
-  useEffect(() => {
-    if (mounted) {
-      console.log('[Admin Layout] Access check - isAdmin:', isInAdminContext, 'hasAdminAccess:', hasAdminAccess, 'accounts:', accounts?.length)
-      console.log('[Admin Layout] Available accounts:', accounts?.map(acc => `${acc.account_type} (${acc.profile_data?.display_name || acc.profile_data?.organization_name || 'No name'})`))
-      console.log('[Admin Layout] Current account:', currentAccount?.account_type, 'loading:', isLoading)
-    }
-  }, [mounted, currentAccount, accounts, isLoading])
-
   const isInAdminContext = currentAccount?.account_type === 'admin'
   const hasAdminAccounts = accounts?.some(acc => acc.account_type === 'admin') || false
   const hasAdminAccess = isInAdminContext || hasAdminAccounts
 
   if (!mounted || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center">
-        <Card className="admin-metric-card p-8 text-center max-w-md">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-red-400" />
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 bg-blue-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+        <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm p-8 text-center max-w-md relative z-10">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-400" />
           <h2 className="text-xl font-semibold text-white mb-2">Loading Event & Tour Management</h2>
           <p className="text-slate-400">Setting up your dashboard...</p>
         </Card>
@@ -48,8 +43,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (error && !hasAdminAccess) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center">
-        <Card className="admin-metric-card border-red-700 text-center max-w-md">
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+        <Card className="rounded-sm bg-slate-900/60 border-red-700/40 backdrop-blur-sm text-center max-w-md relative z-10">
           <AlertTriangle className="h-8 w-8 mx-auto mb-4 text-red-500" />
           <h2 className="text-xl font-semibold text-white mb-2">Authentication Error</h2>
           <p className="text-slate-400 mb-4">{error}</p>
@@ -61,8 +57,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   if (!hasAdminAccess && !isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center">
-        <Card className="admin-metric-card border-amber-700 text-center max-w-md">
+      <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white flex items-center justify-center relative overflow-hidden">
+        <div className="absolute top-20 left-20 w-96 h-96 bg-purple-500/[0.04] rounded-full blur-3xl pointer-events-none" />
+        <Card className="rounded-sm bg-slate-900/60 border-amber-700/40 backdrop-blur-sm text-center max-w-md relative z-10">
           <Shield className="h-8 w-8 mx-auto mb-4 text-amber-500" />
           <h2 className="text-xl font-semibold text-white mb-2">Admin Access Required</h2>
           <p className="text-slate-400 mb-4">You need an organizer account to access this area.</p>
@@ -72,13 +69,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     )
   }
 
-  console.log('[Admin Layout] Allowing access - Admin account found:', !!accounts?.find(acc => acc.account_type === 'admin'))
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white">
-      <main className="min-h-screen admin-content">
-        {children}
-      </main>
+    <div className="text-white">
+      <AccountRouteGuard />
+      {children}
       <EnhancedNotificationCenter />
     </div>
   )

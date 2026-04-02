@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Progress } from "@/components/ui/progress"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import {
   Play,
   Pause,
@@ -429,7 +430,7 @@ export function ArtistProfileEnhanced({ profile, isOwnProfile = false, onFollow,
                       <div>
                         <h3 className="text-lg font-semibold text-white">{show.venue}</h3>
                         <p className="text-white/70">{show.city}</p>
-                        <p className="text-sm text-white/60">{new Date(show.date).toLocaleDateString()}</p>
+                        <p className="text-sm text-white/60">{formatSafeDate(show.date)}</p>
                       </div>
                       
                       <div className="flex items-center gap-3">

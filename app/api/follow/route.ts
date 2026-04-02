@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { achievementEngine } from '@/lib/services/achievement-engine.service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,6 +57,21 @@ export async function POST(request: NextRequest) {
           { status: 500 }
         )
       }
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('followers_count')
+        .eq('id', following_id)
+        .single()
+
+      await achievementEngine.recordMetricEvent({
+        supabase: supabase as any,
+        userId: following_id,
+        metricKey: 'followers_total',
+        eventType: 'follower_gained',
+        absoluteValue: profile?.followers_count ?? undefined,
+        eventSource: 'api_follow'
+      })
 
       return NextResponse.json({ 
         success: true, 

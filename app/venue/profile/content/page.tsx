@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import ContentUploader from "../../components/content-uploader"
 import { mockContent } from "../../../lib/mock-data"
 import Image from "next/image"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Mock user ID for demo purposes
 const CURRENT_USER_ID = "user-1"
@@ -287,7 +288,7 @@ function ContentCard({ item }: ContentCardProps) {
             {item.comments || 0}
           </span>
         </div>
-        <span className="text-xs">{new Date(item.createdAt || Date.now()).toLocaleDateString()}</span>
+        <span className="text-xs">{formatSafeDate(item.createdAt || new Date().toISOString())}</span>
       </CardFooter>
     </Card>
   )
@@ -330,7 +331,7 @@ function ContentListItem({ item }: ContentCardProps) {
               {item.comments}
             </span>
           </div>
-          <span className="text-xs text-muted-foreground">{new Date(item.createdAt || Date.now()).toLocaleDateString()}</span>
+          <span className="text-xs text-muted-foreground">{formatSafeDate(item.createdAt || new Date().toISOString())}</span>
         </div>
       </div>
     </div>

@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge'
 import { useMultiAccount, useAccountSwitching } from '@/hooks/use-multi-account'
 import { useRouter } from 'next/navigation'
 import { ProfileType } from '@/lib/services/account-management.service'
+import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
 
 const accountTypeIcons = {
   general: User,
@@ -66,31 +67,16 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
           venueService.setCurrentVenueId(profileId)
         }
         
-        // Enhanced navigation with preloading
-        let targetRoute = '/dashboard'
-        switch (accountType) {
-          case 'artist':
-            targetRoute = '/artist'
-            break
-          case 'venue':
-            targetRoute = '/venue'
-            break
-          case 'admin':
-            targetRoute = '/admin/dashboard'
-            break
-        }
-        
-        // Preload and navigate
+        const targetRoute = getDashboardPathForAccountType(accountType)
+
         await router.prefetch(targetRoute)
         await new Promise(resolve => setTimeout(resolve, 100))
-        router.push(targetRoute)
+        router.replace(targetRoute)
       }
     } catch (error) {
       console.error('Failed to switch account:', error)
       // Fallback to hard navigation on error
-      const fallbackRoute = accountType === 'artist' ? '/artist' : 
-                           accountType === 'venue' ? '/venue' : 
-                           accountType === 'admin' ? '/admin/dashboard' : '/dashboard'
+      const fallbackRoute = getDashboardPathForAccountType(accountType)
       window.location.href = fallbackRoute
     } finally {
       setIsSwitching(false)

@@ -36,8 +36,14 @@ import {
   JobSearchResults 
 } from '@/types/artist-jobs'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/contexts/auth-context'
+import { useRouter } from 'next/navigation'
+import { useToast } from '@/components/ui/use-toast'
 
 export default function JobsPage() {
+  const { user } = useAuth()
+  const router = useRouter()
+  const { toast } = useToast()
   const [jobs, setJobs] = useState<ArtistJob[]>([])
   const [categories, setCategories] = useState<ArtistJobCategory[]>([])
   const [savedJobs, setSavedJobs] = useState<ArtistJob[]>([])
@@ -120,19 +126,29 @@ export default function JobsPage() {
       }
     } catch (error) {
       console.error('Error fetching saved jobs:', error)
+      toast({
+        title: 'Unable to load saved jobs',
+        description: 'Please refresh and try again.',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
   }
 
   const fetchUserApplications = async () => {
-    // This would need to be implemented in the API
     setIsLoading(true)
     try {
-      // TODO: Implement user applications endpoint
-      setUserApplications([])
+      const response = await fetch('/api/artist-jobs/applications?format=cards')
+      const data = await response.json()
+      if (data.success) setUserApplications(data.data || [])
     } catch (error) {
       console.error('Error fetching user applications:', error)
+      toast({
+        title: 'Unable to load applications',
+        description: 'Please refresh and try again.',
+        variant: 'destructive',
+      })
     } finally {
       setIsLoading(false)
     }
@@ -168,6 +184,11 @@ export default function JobsPage() {
       }
     } catch (error) {
       console.error('Error saving job:', error)
+      toast({
+        title: 'Save failed',
+        description: 'Could not save this job right now.',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -194,12 +215,50 @@ export default function JobsPage() {
       }
     } catch (error) {
       console.error('Error unsaving job:', error)
+      toast({
+        title: 'Update failed',
+        description: 'Could not remove this saved job right now.',
+        variant: 'destructive',
+      })
     }
   }
 
   const handleApplyToJob = async (jobId: string) => {
-    // TODO: Implement job application flow
-    console.log('Apply to job:', jobId)
+    if (!user?.email) {
+      router.push('/login')
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/artist-jobs/${jobId}/applications`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          job_id: jobId,
+          contact_email: user.email,
+          preferred_contact_method: 'email',
+        }),
+      })
+
+      const data = await response.json()
+      if (!data.success) throw new Error(data.error || 'Failed to apply')
+      await fetchJobs()
+      await fetchUserApplications()
+      setActiveTab('applications')
+      toast({
+        title: 'Application submitted',
+        description: 'Your application is now visible in Applications.',
+      })
+    } catch (error) {
+      console.error('Error applying to job:', error)
+      toast({
+        title: 'Application failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive',
+      })
+    }
   }
 
   const handleJobCreated = (newJob: any) => {

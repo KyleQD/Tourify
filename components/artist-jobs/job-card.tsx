@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { JobCardProps, ArtistJob } from '@/types/artist-jobs'
 import { formatDistanceToNow } from 'date-fns'
+import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
 const categoryIcons = {
   'Music': Music,
@@ -75,12 +76,7 @@ function formatEventDate(dateString: string | null): string {
   if (!dateString) return 'Date TBD'
   
   const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
+  return formatSafeDate(date.toISOString())
 }
 
 export function JobCard({ 
@@ -237,6 +233,20 @@ export function JobCard({
               )}
             </div>
           )}
+
+          {showApplicationStatus && job.hiring_milestones?.length ? (
+            <div className="flex flex-wrap gap-1">
+              {job.hiring_milestones.slice(0, 4).map((milestone) => (
+                <Badge
+                  key={milestone.key}
+                  variant={milestone.completed ? 'default' : 'outline'}
+                  className={milestone.completed ? 'bg-green-600 text-white' : 'text-gray-400'}
+                >
+                  {milestone.label}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between pt-2 border-t border-gray-800">
             <div className="flex items-center gap-2">

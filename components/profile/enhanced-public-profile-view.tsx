@@ -53,6 +53,7 @@ import {
   Settings
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface EnhancedPublicProfileProps {
   profile: {
@@ -233,7 +234,7 @@ export function EnhancedPublicProfileView({
         const mappedExp: Experience[] = (experiencesProp as any[] | undefined)?.map((ex: any) => {
           const start = ex.start_date ? new Date(ex.start_date) : null
           const end = ex.end_date ? new Date(ex.end_date) : null
-          const duration = start ? `${start.toLocaleDateString()} - ${end ? end.toLocaleDateString() : 'Present'}` : ''
+          const duration = start ? `${formatSafeDate(start.toISOString())} - ${end ? formatSafeDate(end.toISOString()) : 'Present'}` : ''
           return {
             id: ex.id,
             title: ex.title,
@@ -720,7 +721,7 @@ export function EnhancedPublicProfileView({
                           <div className="flex items-center gap-4 text-xs text-white/60 mt-1">
                             <span>{track.duration}</span>
                             <span>{formatStreams(track.streams)} streams</span>
-                            <span>{new Date(track.release_date).toLocaleDateString()}</span>
+                            <span>{formatSafeDate(track.release_date)}</span>
                           </div>
                         </div>
                         
@@ -801,7 +802,7 @@ export function EnhancedPublicProfileView({
                             
                             <div className="flex items-center justify-between">
                               <span className="text-white/60 text-sm">
-                                Completed {new Date(project.completion_date).toLocaleDateString()}
+                                Completed {formatSafeDate(project.completion_date)}
                               </span>
                               {project.url && (
                                 <Button 
@@ -939,7 +940,7 @@ export function EnhancedPublicProfileView({
                           <div>
                             <h4 className="text-white font-medium">{cert.name}</h4>
                             <p className="text-white/70 text-sm">{cert.organization}</p>
-                            <p className="text-white/60 text-xs">{new Date(cert.date).toLocaleDateString()}</p>
+                            <p className="text-white/60 text-xs">{formatSafeDate(cert.date)}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             {cert.verified && (
@@ -987,7 +988,7 @@ export function EnhancedPublicProfileView({
                           </Badge>
                         </div>
                         <p className="text-white/70 text-sm">{show.city}</p>
-                        <p className="text-white/60 text-xs">{new Date(show.date).toLocaleDateString()}</p>
+                        <p className="text-white/60 text-xs">{formatSafeDate(show.date)}</p>
                         {show.ticket_url && (
                           <Button 
                             size="sm" 

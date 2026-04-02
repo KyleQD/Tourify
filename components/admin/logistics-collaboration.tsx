@@ -22,6 +22,7 @@ import {
   Settings
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface CollaborationMessage {
   id: string
@@ -123,13 +124,14 @@ export function LogisticsCollaboration({
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return "TBD"
     const now = new Date()
     const diff = now.getTime() - date.getTime()
     
     if (diff < 60000) return 'Just now'
     if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`
     if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`
-    return date.toLocaleDateString()
+    return formatSafeDate(timestamp)
   }
 
   return (

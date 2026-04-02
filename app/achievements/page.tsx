@@ -169,6 +169,27 @@ export default function AchievementsPage() {
     return userBadges.find(ub => ub.badge_id === badgeId)
   }
 
+  const userAchievementById = new Map(userAchievements.map(ua => [ua.achievement_id, ua]))
+  const roadmapItems = achievements
+    .filter(achievement => !userAchievementById.get(achievement.id)?.is_completed)
+    .map(achievement => {
+      const ua = userAchievementById.get(achievement.id)
+      const current = ua?.current_value ?? 0
+      const target = ua?.target_value ?? Number(achievement.target_value || achievement.requirements?.target || 1)
+      const progress = target > 0 ? Math.min(100, Math.round((current / target) * 100)) : 0
+      return { achievement, current, target, progress }
+    })
+    .sort((a, b) => b.progress - a.progress)
+    .slice(0, 6)
+
+  const completedByCategory = userAchievements
+    .filter(ua => ua.is_completed && ua.achievement?.category)
+    .reduce<Record<string, number>>((acc, ua) => {
+      const category = ua.achievement?.category || 'other'
+      acc[category] = (acc[category] || 0) + 1
+      return acc
+    }, {})
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-emerald-900/20 to-slate-900 flex items-center justify-center">
@@ -324,6 +345,41 @@ export default function AchievementsPage() {
 
           {/* Achievements Tab */}
           <TabsContent value="achievements" className="space-y-6">
+            {roadmapItems.length > 0 && (
+              <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white">Roadmap</CardTitle>
+                  <CardDescription className="text-white/60">Closest achievements to unlock next</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {roadmapItems.map(({ achievement, current, target, progress }) => (
+                    <div key={achievement.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-white/90">{achievement.name}</span>
+                        <span className="text-white/60">{current}/{target}</span>
+                      </div>
+                      <Progress value={progress} className="h-2 bg-white/10" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {Object.keys(completedByCategory).length > 0 && (
+              <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white">Completed by Category</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-wrap gap-2">
+                  {Object.entries(completedByCategory).map(([category, count]) => (
+                    <Badge key={category} variant="outline" className="border-white/25 text-white/80">
+                      {category}: {count}
+                    </Badge>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredAchievements.map((achievement) => (
                 <AchievementCard

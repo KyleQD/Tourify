@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TrendingUp, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { formatSafeNumber } from "@/lib/format/number-format"
 
 interface TrendingTopicsProps {
   limit?: number
@@ -105,7 +106,7 @@ export function TrendingTopics({ limit = 5, showRefresh = true, className = "" }
                 >
                   #{topic.tag}
                 </Badge>
-                <span className="text-xs text-gray-400">{topic.posts.toLocaleString()} posts</span>
+                <span className="text-xs text-gray-400">{formatSafeNumber(topic.posts)} posts</span>
               </div>
             ))}
           </div>

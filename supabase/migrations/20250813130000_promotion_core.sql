@@ -132,7 +132,18 @@ DO $$ BEGIN
   END IF;
 END $$;
 
-CREATE INDEX IF NOT EXISTS idx_follows_target ON follows(target_type, target_id);
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'follows' AND column_name = 'target_type'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'follows' AND column_name = 'target_id'
+  ) THEN
+    EXECUTE 'CREATE INDEX IF NOT EXISTS idx_follows_target ON follows(target_type, target_id)';
+  END IF;
+END $$;
 
 -- 5) feed_events (server-managed fanout)
 CREATE TABLE IF NOT EXISTS feed_events (

@@ -493,6 +493,117 @@ interface RSSItem {
 const RSS_CACHE = new Map<string, { data: RSSItem[], timestamp: number }>()
 const CACHE_DURATION = 10 * 60 * 1000 // 10 minutes
 
+function decodeXmlText(value: string) {
+  return String(value || '')
+    .replace(/^<!\[CDATA\[(.*)\]\]>$/s, '$1')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim()
+}
+
+function pickFirstMatch(xml: string, patterns: RegExp[]) {
+  for (const pattern of patterns) {
+    const match = xml.match(pattern)
+    if (match?.[1]) return decodeXmlText(match[1])
+  }
+  return ''
+}
+
+function parseRssItems(params: { xmlText: string; source: typeof RSS_SOURCES[0] }) {
+  const items: RSSItem[] = []
+  const itemRegex = /<item\b[^>]*>([\s\S]*?)<\/item>/gi
+  let itemMatch: RegExpExecArray | null
+
+  while ((itemMatch = itemRegex.exec(params.xmlText)) && items.length < 14) {
+    const itemXml = itemMatch[1]
+    const title = pickFirstMatch(itemXml, [/<title[^>]*>([\s\S]*?)<\/title>/i])
+    const description = pickFirstMatch(itemXml, [/<description[^>]*>([\s\S]*?)<\/description>/i])
+    const link = pickFirstMatch(itemXml, [/<link[^>]*>([\s\S]*?)<\/link>/i])
+    const pubDate = pickFirstMatch(itemXml, [/<pubDate[^>]*>([\s\S]*?)<\/pubDate>/i, /<dc:date[^>]*>([\s\S]*?)<\/dc:date>/i])
+    const author = pickFirstMatch(itemXml, [/<author[^>]*>([\s\S]*?)<\/author>/i, /<dc:creator[^>]*>([\s\S]*?)<\/dc:creator>/i])
+    const category = pickFirstMatch(itemXml, [/<category[^>]*>([\s\S]*?)<\/category>/i]) || params.source.category
+
+    if (!title || !link) continue
+
+    const mediaUrl = pickFirstMatch(itemXml, [
+      /<media:content[^>]+url=["']([^"']+)["']/i,
+      /<enclosure[^>]+url=["']([^"']+)["']/i,
+      /<img[^>]+src=["']([^"']+)["']/i
+    ])
+
+    items.push({
+      id: `${params.source.name.toLowerCase().replace(/\s+/g, '-')}-${items.length}-${Date.now()}`,
+      title,
+      description,
+      link,
+      pubDate: pubDate || new Date().toISOString(),
+      author: author || params.source.name,
+      category,
+      image: mediaUrl || `https://dummyimage.com/400x250/ef4444/ffffff?text=${params.source.name.charAt(0)}`,
+      source: params.source.name,
+      priority: params.source.priority
+    })
+  }
+
+  return items
+}
+
+function parseAtomItems(params: { xmlText: string; source: typeof RSS_SOURCES[0] }) {
+  const entries: RSSItem[] = []
+  const entryRegex = /<entry\b[^>]*>([\s\S]*?)<\/entry>/gi
+  let entryMatch: RegExpExecArray | null
+
+  while ((entryMatch = entryRegex.exec(params.xmlText)) && entries.length < 14) {
+    const entryXml = entryMatch[1]
+    const title = pickFirstMatch(entryXml, [/<title[^>]*>([\s\S]*?)<\/title>/i])
+    const summary = pickFirstMatch(entryXml, [/<summary[^>]*>([\s\S]*?)<\/summary>/i, /<content[^>]*>([\s\S]*?)<\/content>/i])
+    const link = pickFirstMatch(entryXml, [/<link[^>]+href=["']([^"']+)["']/i, /<id[^>]*>([\s\S]*?)<\/id>/i])
+    const published = pickFirstMatch(entryXml, [/<updated[^>]*>([\s\S]*?)<\/updated>/i, /<published[^>]*>([\s\S]*?)<\/published>/i])
+    const author = pickFirstMatch(entryXml, [/<author>[\s\S]*?<name[^>]*>([\s\S]*?)<\/name>[\s\S]*?<\/author>/i])
+
+    if (!title || !link) continue
+
+    entries.push({
+      id: `${params.source.name.toLowerCase().replace(/\s+/g, '-')}-atom-${entries.length}-${Date.now()}`,
+      title,
+      description: summary,
+      link,
+      pubDate: published || new Date().toISOString(),
+      author: author || params.source.name,
+      category: params.source.category,
+      image: `https://dummyimage.com/400x250/ef4444/ffffff?text=${params.source.name.charAt(0)}`,
+      source: params.source.name,
+      priority: params.source.priority
+    })
+  }
+
+  return entries
+}
+
+async function fetchFeedXml(url: string) {
+  const primary = await fetch(url, {
+    signal: AbortSignal.timeout(12000),
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; TourifyBot/1.0)',
+      Accept: 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8'
+    }
+  })
+  if (primary.ok) return primary.text()
+
+  // Fallback proxy for feeds that block direct requests.
+  const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`
+  const fallback = await fetch(proxyUrl, {
+    signal: AbortSignal.timeout(12000),
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; TourifyBot/1.0)' }
+  })
+  if (!fallback.ok) return ''
+  const payload = await fallback.json()
+  return String(payload?.contents || '')
+}
+
 async function fetchRSSFeed(source: typeof RSS_SOURCES[0]): Promise<RSSItem[]> {
   const cacheKey = source.name
   const cached = RSS_CACHE.get(cacheKey)
@@ -502,71 +613,19 @@ async function fetchRSSFeed(source: typeof RSS_SOURCES[0]): Promise<RSSItem[]> {
   }
 
   try {
-    // Use a CORS proxy to fetch RSS feeds
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(source.url)}`
-    const response = await fetch(proxyUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; TourifyBot/1.0)'
-      }
-    })
-
-    if (!response.ok) {
-      console.warn(`Failed to fetch RSS from ${source.name}: ${response.status}`)
+    const xmlText = await fetchFeedXml(source.url)
+    if (!xmlText) {
+      console.warn(`Failed to fetch RSS from ${source.name}: empty response`)
       return []
     }
 
-    const data = await response.json()
-    const xmlText = data.contents
-
-    // Parse XML (simplified parsing)
-    const items: RSSItem[] = []
-    const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/g
-    let match
-
-    while ((match = itemRegex.exec(xmlText)) && items.length < 10) {
-      const itemXml = match[1]
-      
-      const titleMatch = itemXml.match(/<title[^>]*>([^<]+)<\/title>/)
-      const descriptionMatch = itemXml.match(/<description[^>]*>([^<]+)<\/description>/)
-      const linkMatch = itemXml.match(/<link[^>]*>([^<]+)<\/link>/)
-      const pubDateMatch = itemXml.match(/<pubDate[^>]*>([^<]+)<\/pubDate>/)
-      const authorMatch = itemXml.match(/<author[^>]*>([^<]+)<\/author>/)
-      const categoryMatch = itemXml.match(/<category[^>]*>([^<]+)<\/category>/)
-      
-      if (titleMatch && linkMatch) {
-        const title = titleMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-        const description = descriptionMatch ? descriptionMatch[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') : ''
-        const link = linkMatch[1]
-        const pubDate = pubDateMatch ? pubDateMatch[1] : new Date().toISOString()
-        const author = authorMatch ? authorMatch[1] : source.name
-        const category = categoryMatch ? categoryMatch[1] : source.category
-
-        // Extract image from description or use placeholder
-        let image = `https://dummyimage.com/400x250/ef4444/ffffff?text=${source.name.charAt(0)}`
-        const imgMatch = itemXml.match(/<img[^>]+src="([^"]+)"/)
-        if (imgMatch) {
-          image = imgMatch[1]
-        }
-
-        items.push({
-          id: `${source.name.toLowerCase().replace(/\s+/g, '-')}-${items.length}`,
-          title,
-          description,
-          link,
-          pubDate,
-          author,
-          category,
-          image,
-          source: source.name,
-          priority: source.priority
-        })
-      }
-    }
+    const items = parseRssItems({ xmlText, source })
+    const parsedItems = items.length ? items : parseAtomItems({ xmlText, source })
 
     // Cache the results
-    RSS_CACHE.set(cacheKey, { data: items, timestamp: Date.now() })
+    RSS_CACHE.set(cacheKey, { data: parsedItems, timestamp: Date.now() })
     
-    return items
+    return parsedItems
   } catch (error) {
     console.error(`Error fetching RSS from ${source.name}:`, error)
     return []

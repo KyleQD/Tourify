@@ -24,6 +24,7 @@ import {
   Bell,
   Layers
 } from "lucide-react"
+import { formatSafeCurrency } from "@/lib/format/number-format"
 
 interface DashboardQuickHubProps {
   stats?: Partial<DashboardStats>
@@ -127,7 +128,7 @@ function fmt(value?: number) {
 
 function currency(value?: number) {
   if (!value) return '$0'
-  return `$${Number(value).toLocaleString()}`
+  return formatSafeCurrency(value)
 }
 
 function compact(value?: string, suffix?: string) {

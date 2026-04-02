@@ -22,6 +22,7 @@ import {
   Star
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface OnboardingStats {
   total: number
@@ -297,7 +298,7 @@ export default function OnboardingDashboard({
                     </div>
                     <div className="text-right">
                       <p className="text-slate-400 text-sm">
-                        {new Date(activity.timestamp).toLocaleDateString()}
+                        {formatSafeDate(activity.timestamp)}
                       </p>
                       <Badge variant="secondary" className="text-xs">
                         {activity.type}

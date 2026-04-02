@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateJobModal } from "../../components/jobs/create-job-modal"
 import { Briefcase, Search, MapPin, DollarSign, Calendar, Filter } from "lucide-react"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 export default function JobsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -173,12 +174,7 @@ export default function JobsPage() {
   }
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }
-    return new Date(dateString).toLocaleDateString("en-US", options)
+    return formatSafeDate(dateString)
   }
 
   const filteredMyJobs = myJobs.filter(

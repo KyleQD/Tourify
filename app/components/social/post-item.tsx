@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatDistanceToNow } from "date-fns"
 import { useRouter } from "next/navigation"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface PostItemProps {
   post: any
@@ -272,10 +273,10 @@ export function PostItem({
         <div className="space-y-1 text-sm">
           <div className="flex items-center text-gray-300">
             <Calendar className="h-4 w-4 mr-2 text-purple-400" />
-            {new Date(post.eventDetails.startDate).toLocaleDateString()}
+            {formatSafeDate(post.eventDetails.startDate)}
             {post.eventDetails.endDate &&
               post.eventDetails.startDate !== post.eventDetails.endDate &&
-              ` - ${new Date(post.eventDetails.endDate).toLocaleDateString()}`}
+              ` - ${formatSafeDate(post.eventDetails.endDate)}`}
           </div>
           {post.eventDetails.location && (
             <div className="flex items-center text-gray-300">

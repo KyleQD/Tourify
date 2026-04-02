@@ -80,7 +80,13 @@ export function AuthDebugger() {
             <li>Session: {sessionInfo?.session ? '✅ Present' : '❌ Missing'}</li>
             <li>User ID: {sessionInfo?.session?.user_id || '❌ None'}</li>
             <li>Access Token: {sessionInfo?.session?.access_token || '❌ Missing'}</li>
-            <li>Expires At: {sessionInfo?.session?.expires_at ? new Date(sessionInfo.session.expires_at * 1000).toLocaleString() : '❌ None'}</li>
+            <li>Expires At: {sessionInfo?.session?.expires_at ? new Intl.DateTimeFormat("en-US", {
+              year: "numeric",
+              month: "numeric",
+              day: "numeric",
+              hour: "numeric",
+              minute: "2-digit",
+            }).format(new Date(sessionInfo.session.expires_at * 1000)) : '❌ None'}</li>
             {sessionInfo?.error && <li className="text-red-400">Error: {sessionInfo.error}</li>}
           </ul>
         </div>

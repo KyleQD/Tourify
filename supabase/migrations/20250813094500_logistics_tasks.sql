@@ -70,7 +70,7 @@ alter table logistics_task_equipment enable row level security;
 
 do $$ begin
   if not exists (
-    select 1 from pg_policies where polname = 'log_tasks_read_all_auth'
+    select 1 from pg_policies where policyname = 'log_tasks_read_all_auth'
   ) then
     create policy "log_tasks_read_all_auth" on logistics_tasks
       for select using (auth.role() = 'authenticated');
@@ -79,7 +79,7 @@ end $$;
 
 do $$ begin
   if not exists (
-    select 1 from pg_policies where polname = 'log_tasks_write_creator_or_admin'
+    select 1 from pg_policies where policyname = 'log_tasks_write_creator_or_admin'
   ) then
     create policy "log_tasks_write_creator_or_admin" on logistics_tasks
       for all using (auth.role() = 'authenticated')
@@ -89,7 +89,7 @@ end $$;
 
 do $$ begin
   if not exists (
-    select 1 from pg_policies where polname = 'log_task_equipment_read_auth'
+    select 1 from pg_policies where policyname = 'log_task_equipment_read_auth'
   ) then
     create policy "log_task_equipment_read_auth" on logistics_task_equipment
       for select using (auth.role() = 'authenticated');
@@ -98,7 +98,7 @@ end $$;
 
 do $$ begin
   if not exists (
-    select 1 from pg_policies where polname = 'log_task_equipment_write_auth'
+    select 1 from pg_policies where policyname = 'log_task_equipment_write_auth'
   ) then
     create policy "log_task_equipment_write_auth" on logistics_task_equipment
       for all using (auth.role() = 'authenticated')

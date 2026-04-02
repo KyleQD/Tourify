@@ -8,6 +8,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 // Define interfaces for your data
 interface Event { id: string; name: string; venue: string; date: Date }
@@ -212,7 +213,7 @@ export default function Dashboard() {
                   <li key={b.id} className="flex justify-between items-center py-2">
                     <div>
                       <div className="font-medium">{b.client}</div>
-                      <div className="text-xs text-slate-400">{b.event} &middot; ${b.amount} &middot; {new Date(b.date).toLocaleDateString()}</div>
+                      <div className="text-xs text-slate-400">{b.event} &middot; ${b.amount} &middot; {formatSafeDate(b.date.toISOString())}</div>
                     </div>
                     <Button size="icon" variant="ghost" onClick={() => handleDeleteBooking(b.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                   </li>
@@ -260,7 +261,7 @@ export default function Dashboard() {
                   <li key={t.id} className="flex justify-between items-center py-2">
                     <div>
                       <div className="font-medium">{t.title}</div>
-                      <div className="text-xs text-slate-400">{t.description} &middot; {new Date(t.dueDate).toLocaleDateString()} &middot; {t.status}</div>
+                      <div className="text-xs text-slate-400">{t.description} &middot; {formatSafeDate(t.dueDate.toISOString())} &middot; {t.status}</div>
                     </div>
                     <Button size="icon" variant="ghost" onClick={() => handleDeleteTask(t.id)}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                   </li>
