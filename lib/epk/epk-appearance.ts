@@ -196,10 +196,10 @@ export function resolveEpkAppearanceForRender({
   const base = EPK_SKIN_TOKENS[skin]
   const mergedTokens = mergeTokens(base, appearance)
 
-  const rootStyle: CSSProperties = {}
-  if (appearance.accentHex) rootStyle["--epk-accent" as string] = appearance.accentHex
+  const rootStyle: CSSProperties & Record<string, string> = {}
+  if (appearance.accentHex) rootStyle["--epk-accent"] = appearance.accentHex
   if (appearance.textColorCustomHex)
-    rootStyle["--epk-custom-text" as string] = appearance.textColorCustomHex
+    rootStyle["--epk-custom-text"] = appearance.textColorCustomHex
 
   return {
     wrapperClassName: FONT_SCALE[appearance.fontSizeScale],
