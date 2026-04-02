@@ -60,23 +60,17 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[Main Middleware] Route type - Public: ${isPublicRoute}, Auth: ${isAuthRoute}, Protected: ${isProtectedRoute}, Root: ${isRootRoute}`)
 
-  // Handle root route redirects
+  // Root route now serves the connected hub experience for both
+  // authenticated and anonymous users.
   if (isRootRoute) {
-    if (user) {
-      console.log(`[Main Middleware] Authenticated user accessing root, redirecting to dashboard`)
-      const redirectUrl = new URL('/dashboard', request.url)
-      return NextResponse.redirect(redirectUrl)
-    } else {
-      console.log(`[Main Middleware] Unauthenticated user accessing root, redirecting to login`)
-      const redirectUrl = new URL('/login', request.url)
-      return NextResponse.redirect(redirectUrl)
-    }
+    console.log(`[Main Middleware] Root route requested, allowing connected hub render`)
+    return supabaseResponse
   }
 
   // Redirect authenticated users away from auth pages
   if (user && isAuthRoute) {
-    console.log(`[Main Middleware] Authenticated user accessing auth page, redirecting to dashboard`)
-    const redirectUrl = new URL('/dashboard', request.url)
+    console.log(`[Main Middleware] Authenticated user accessing auth page, redirecting to hub`)
+    const redirectUrl = new URL('/', request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
