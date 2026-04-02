@@ -282,6 +282,7 @@ async function fetchPostCandidates(params: { supabase: SupabaseClient; limit: nu
       .limit(params.limit)
 
     return (data || []).map(post => {
+      const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
       const strategy = chooseFanoutStrategy({
         followerCount: 1000,
         velocityPerMinute: Math.max(1, Math.floor(((post.likes_count || 0) + (post.comments_count || 0)) / 3))
@@ -298,10 +299,10 @@ async function fetchPostCandidates(params: { supabase: SupabaseClient; limit: nu
         topics: ['Community', 'Music News'],
         author: {
           id: String(post.user_id),
-          name: post.profiles?.username || 'User',
-          username: post.profiles?.username || 'user',
-          avatarUrl: post.profiles?.avatar_url || undefined,
-          isVerified: post.profiles?.verified || false
+          name: profile?.username || 'User',
+          username: profile?.username || 'user',
+          avatarUrl: profile?.avatar_url || undefined,
+          isVerified: profile?.verified || false
         },
         metrics: {
           likes: post.likes_count || 0,
