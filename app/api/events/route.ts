@@ -139,8 +139,9 @@ export const GET = withAuth(async (request, { user, supabase }) => {
         console.error('[events GET] tour_events filter failed:', linkError)
         return NextResponse.json({ success: false, error: 'Failed to list events' }, { status: 500 })
       }
-      eventIds = (links || []).map((r: { event_id: string }) => r.event_id)
-      if (eventIds.length === 0) {
+      const filteredEventIds = (links || []).map((record: { event_id: string }) => record.event_id)
+      eventIds = filteredEventIds
+      if (filteredEventIds.length === 0) {
         return NextResponse.json({ success: true, events: [] })
       }
     }
