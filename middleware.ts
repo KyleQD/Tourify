@@ -2,12 +2,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
-  const url = new URL(request.url)
-  if (url.hostname === 'tourify.live') {
-    url.hostname = 'www.tourify.live'
-    return NextResponse.redirect(url, 308)
-  }
-
   const { supabaseResponse, user } = await updateSession(request)
   const { pathname } = request.nextUrl
 

@@ -65,13 +65,12 @@ export class AuthService {
       if (data.enable_mfa !== undefined) metadata.enable_mfa = data.enable_mfa
       metadata.onboarding_completed = false
 
-      // Determine the correct redirect URL based on environment
-      const isProduction = process.env.NODE_ENV === 'production' || 
-                          window.location.hostname === 'demo.tourify.live'
-      
-      const redirectUrl = isProduction 
-        ? 'https://demo.tourify.live/auth/callback'
-        : `${window.location.origin}/auth/callback`
+      // Use the current host so callbacks work for tourify.live, demo, and local.
+      const baseOrigin =
+        typeof window !== 'undefined'
+          ? window.location.origin
+          : (process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live')
+      const redirectUrl = `${baseOrigin}/auth/callback`
 
       console.log('[AuthService] Using redirect URL:', redirectUrl)
 
@@ -256,13 +255,12 @@ export class AuthService {
         }
       }
 
-      // Determine the correct redirect URL based on environment
-      const isProduction = process.env.NODE_ENV === 'production' || 
-                          window.location.hostname === 'demo.tourify.live'
-      
-      const redirectUrl = isProduction 
-        ? 'https://demo.tourify.live/auth/reset-password'
-        : `${window.location.origin}/auth/reset-password`
+      // Use the current host so reset flow works for tourify.live and demo.
+      const baseOrigin =
+        typeof window !== 'undefined'
+          ? window.location.origin
+          : (process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live')
+      const redirectUrl = `${baseOrigin}/auth/reset-password`
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl
