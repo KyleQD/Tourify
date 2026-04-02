@@ -24,9 +24,9 @@ import { achievementEngine } from '@/lib/services/achievement-engine.service'
 
 type ProfileStub = {
   id: string
-  username: string | null
-  full_name: string | null
-  avatar_url: string | null
+  username: string
+  full_name?: string
+  avatar_url?: string
 }
 
 export class AchievementService {
@@ -44,8 +44,18 @@ export class AchievementService {
 
     if (error || !data?.length) return {}
 
-    return (data as ProfileStub[]).reduce<Record<string, ProfileStub>>((acc, row) => {
-      acc[row.id] = row
+    return (data as Array<{
+      id: string
+      username: string | null
+      full_name: string | null
+      avatar_url: string | null
+    }>).reduce<Record<string, ProfileStub>>((acc, row) => {
+      acc[row.id] = {
+        id: row.id,
+        username: row.username || 'user',
+        full_name: row.full_name || undefined,
+        avatar_url: row.avatar_url || undefined
+      }
       return acc
     }, {})
   }
