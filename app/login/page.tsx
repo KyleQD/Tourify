@@ -49,7 +49,9 @@ export default function LoginPage() {
     username: ""
   })
 
-  const redirectTo = searchParams.get('redirectTo') || '/dashboard'
+  const redirectTo = normalizePostLoginRedirect(
+    searchParams.get('redirectTo') || searchParams.get('next') || '/dashboard'
+  )
   const emailConfirmed = searchParams.get('message') === 'email_confirmed'
   const accountCreated = searchParams.get('message') === 'account_created'
   const confirmedEmail = searchParams.get('email') || ''
@@ -87,7 +89,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (isAuthenticated && success && !isRedirecting) {
       // User is now authenticated and we've shown success message
-      const validRedirectTo = redirectTo.startsWith('/') ? redirectTo : '/dashboard'
+      const validRedirectTo = normalizePostLoginRedirect(redirectTo)
       console.log('[Login] User authenticated, preparing redirect to:', validRedirectTo)
       
       setIsRedirecting(true)
@@ -1037,6 +1039,12 @@ function decodeTextEntity(value: string): string {
     .replace(/&#8211;/g, '-')
     .replace(/&#8212;/g, '-')
     .replace(/&amp;/g, '&')
+}
+
+function normalizePostLoginRedirect(target: string): string {
+  if (!target.startsWith('/')) return '/dashboard'
+  if (target === '/' || target.startsWith('/login') || target.startsWith('/auth')) return '/dashboard'
+  return target
 }
 
 const LOGIN_NEWS_CLIP_PATHS = [

@@ -7,7 +7,11 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
   // Get the redirect parameter if it exists
-  const redirectTo = requestUrl.searchParams.get("redirect") || "/"
+  const requestedRedirect =
+    requestUrl.searchParams.get("redirect") ||
+    requestUrl.searchParams.get("redirectTo") ||
+    "/dashboard"
+  const redirectTo = normalizeAuthCallbackRedirect(requestedRedirect)
   // Check if this is from a signup flow
   const type = requestUrl.searchParams.get("type") || "verification"
   // Check if email was confirmed
@@ -83,5 +87,11 @@ export async function GET(request: NextRequest) {
   // URL to redirect to after sign in process completes - use the redirect parameter if provided
   console.log(`[Auth Callback] Redirecting to: ${requestUrl.origin}${redirectTo}`)
   return NextResponse.redirect(`${requestUrl.origin}${redirectTo}`)
+}
+
+function normalizeAuthCallbackRedirect(target: string): string {
+  if (!target.startsWith('/')) return '/dashboard'
+  if (target === '/' || target.startsWith('/login') || target.startsWith('/auth')) return '/dashboard'
+  return target
 }
 

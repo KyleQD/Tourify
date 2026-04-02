@@ -1,6 +1,12 @@
-import { TourifyHubPage } from "@/components/hub/tourify-hub-page"
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 
-export default function HomePage() {
-  return <TourifyHubPage />
+export default async function HomePage() {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (user) redirect("/dashboard")
+  redirect("/login")
 }
-

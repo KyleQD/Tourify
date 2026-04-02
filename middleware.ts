@@ -54,24 +54,32 @@ export async function middleware(request: NextRequest) {
 
   console.log(`[Main Middleware] Route type - Public: ${isPublicRoute}, Auth: ${isAuthRoute}, Protected: ${isProtectedRoute}, Root: ${isRootRoute}`)
 
-  // Root route now serves the connected hub experience for both
-  // authenticated and anonymous users.
+  // Root route should route users to their primary experience:
+  // authenticated users -> dashboard, anonymous users -> login.
   if (isRootRoute) {
-    console.log(`[Main Middleware] Root route requested, allowing connected hub render`)
-    return supabaseResponse
+    if (user) {
+      console.log(`[Main Middleware] Authenticated user accessing root, redirecting to dashboard`)
+      const redirectUrl = new URL('/dashboard', request.url)
+      return NextResponse.redirect(redirectUrl)
+    }
+
+    console.log(`[Main Middleware] Unauthenticated user accessing root, redirecting to login`)
+    const redirectUrl = new URL('/login', request.url)
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Redirect authenticated users away from auth pages
   if (user && isAuthRoute) {
-    console.log(`[Main Middleware] Authenticated user accessing auth page, redirecting to hub`)
-    const redirectUrl = new URL('/', request.url)
+    console.log(`[Main Middleware] Authenticated user accessing auth page, redirecting to dashboard`)
+    const redirectUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
   if (!user && isProtectedRoute) {
     console.log(`[Main Middleware] Unauthenticated request to protected route, redirecting to login`)
     const redirectUrl = new URL('/login', request.url)
-    redirectUrl.searchParams.set('next', pathname)
+    const targetPath = `${pathname}${request.nextUrl.search || ''}`
+    redirectUrl.searchParams.set('redirectTo', targetPath)
     return NextResponse.redirect(redirectUrl)
   }
 
