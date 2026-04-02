@@ -103,28 +103,20 @@ export default function LoginPage() {
   useEffect(() => {
     let hasMounted = true
 
-    async function fetchNewsHighlights(location: string) {
+    async function fetchHubHighlights(location: string) {
       setIsLoadingNews(true)
       try {
         const locationQuery = location.trim()
-        const newsQueryParam = locationQuery ? `&query=${encodeURIComponent(locationQuery)}` : ""
-        const discoverLocationParam = locationQuery ? `&location=${encodeURIComponent(locationQuery)}` : ""
+        const locationParam = locationQuery ? `?location=${encodeURIComponent(locationQuery)}&intent=grow` : ""
 
-        const [newsResponse, discoverResponse] = await Promise.all([
-          fetch(`/api/news/feed?facet=top&limit=6${newsQueryParam}`),
-          fetch(`/api/discover?limit=6&intent=grow${discoverLocationParam}`),
-        ])
+        const response = await fetch(`/api/hub${locationParam}`)
+        if (!response.ok) throw new Error("Unable to fetch hub highlights")
 
-        if (!newsResponse.ok) throw new Error("Unable to fetch news highlights")
-
-        const newsData: LoginNewsResponse = await newsResponse.json()
-        const discoverData: LoginDiscoverResponse | null = discoverResponse.ok
-          ? await discoverResponse.json()
-          : null
+        const hubData: LoginHubResponse = await response.json()
 
         if (!hasMounted) return
 
-        const mappedHighlights = (newsData.items || []).slice(0, 6).map(item => ({
+        const mappedHighlights = (hubData.sections?.pulse || []).slice(0, 6).map(item => ({
           id: item.id,
           title: decodeTextEntity(item.title),
           sourceName: decodeTextEntity(item.sourceName),
@@ -133,7 +125,7 @@ export default function LoginPage() {
           summary: decodeTextEntity(item.summary || "Fresh movement across the music industry.")
         }))
 
-        const discoverItems = (discoverData?.sections?.upcoming || []).slice(0, 4).map((item) => ({
+        const discoverItems = (hubData.sections?.discover || []).slice(0, 4).map((item) => ({
           id: String(item.id),
           title: decodeTextEntity(item.title || "Live opportunity"),
           summary: decodeTextEntity(item.description || "High-signal demand from Discover."),
@@ -143,8 +135,8 @@ export default function LoginPage() {
 
         setNewsHighlights(mappedHighlights)
         setDiscoverHighlights(discoverItems)
-      } catch (newsError) {
-        console.error("[Login] News highlights fetch failed:", newsError)
+      } catch (hubError) {
+        console.error("[Login] Hub highlights fetch failed:", hubError)
         if (!hasMounted) return
         setNewsHighlights(FALLBACK_NEWS_HIGHLIGHTS)
         setDiscoverHighlights(FALLBACK_DISCOVER_HIGHLIGHTS)
@@ -153,7 +145,7 @@ export default function LoginPage() {
       }
     }
 
-    void fetchNewsHighlights(appliedLocation)
+    void fetchHubHighlights(appliedLocation)
 
     return () => {
       hasMounted = false
@@ -885,20 +877,17 @@ interface LoginNewsItem {
   summary: string
 }
 
-interface LoginNewsResponse {
-  items: Array<{
-    id: string
-    title: string
-    sourceName: string
-    topics: string[]
-    url?: string
-    summary?: string
-  }>
-}
-
-interface LoginDiscoverResponse {
+interface LoginHubResponse {
   sections?: {
-    upcoming?: Array<{
+    pulse?: Array<{
+      id: string
+      title: string
+      sourceName: string
+      topics: string[]
+      url?: string
+      summary?: string
+    }>
+    discover?: Array<{
       id: string
       title: string
       description?: string
