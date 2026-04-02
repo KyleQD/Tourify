@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { SurfaceCard, SurfaceHero, SurfaceInput } from "@/components/surface/surface-primitives"
 import { BrandLoadingScreen } from "@/components/ui/brand-loading-screen"
-import { Calendar, ExternalLink, Globe, Loader2, MapPin, Newspaper, Briefcase, Sparkles, Users } from "lucide-react"
+import { Calendar, ExternalLink, Globe, Loader2, MapPin, Newspaper, Briefcase, Sparkles, Users, Zap, BarChart3, Building2, ShieldCheck } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { TourifyLogo } from "@/components/tourify-logo"
 
 interface HubEvent {
   id: string
@@ -194,6 +195,28 @@ export function TourifyHubPage() {
       </div>
 
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 pb-20 pt-16 md:px-8">
+        {!user ? (
+          <div className="sticky top-10 z-30 rounded-2xl border border-white/20 bg-slate-950/70 px-4 py-3 backdrop-blur-2xl">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <TourifyLogo variant="white" size="lg" className="h-8 w-auto" />
+              <div className="flex items-center gap-2">
+                <Button asChild variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white">
+                  <Link href="/discover">Features</Link>
+                </Button>
+                <Button asChild variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white">
+                  <Link href="/feed">Pulse</Link>
+                </Button>
+                <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
+                  <Link href="/login">Sign In</Link>
+                </Button>
+                <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/30">
+                  <Link href="/signup">Sign Up Free</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <SurfaceHero className="space-y-6 p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-4xl space-y-3">
@@ -201,7 +224,9 @@ export function TourifyHubPage() {
                 <Sparkles className="mr-2 h-3.5 w-3.5" />
                 Tourify Connected Hub // 2026
               </Badge>
-              <h1 className="text-3xl font-black tracking-tight md:text-5xl">Connect Everything. Move Faster.</h1>
+              <h1 className="text-3xl font-black tracking-tight md:text-5xl">
+                {user ? "Connect Everything. Move Faster." : "Tourify is live. Build your profile and start booking now."}
+              </h1>
               <p className="text-base text-slate-200 md:text-lg">{heroSubtitle}</p>
               <p className="text-sm text-slate-300">
                 Built for the <span className="font-semibold text-white">2026 music operations cycle</span> with unified market signals.
@@ -214,12 +239,18 @@ export function TourifyHubPage() {
                 </Button>
               ) : (
                 <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/30">
-                  <Link href="/login">Sign In</Link>
+                  <Link href="/signup">Sign Up Free</Link>
                 </Button>
               )}
-              <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
-                <Link href="/feed">Open Pulse</Link>
-              </Button>
+              {!user ? (
+                <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
+                  <Link href="/login">Sign In</Link>
+                </Button>
+              ) : (
+                <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
+                  <Link href="/feed">Open Pulse</Link>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -368,6 +399,47 @@ export function TourifyHubPage() {
           </div>
         ) : null}
 
+        {!user ? (
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <FeatureShard
+              title="AI-Powered Matching"
+              description="Match instantly with venues, artists, and collaborators based on profile signal fit."
+              icon={<Zap className="h-5 w-5" />}
+            />
+            <FeatureShard
+              title="Real-Time Analytics"
+              description="Track engagement, bookings, and response performance in one command center."
+              icon={<BarChart3 className="h-5 w-5" />}
+            />
+            <FeatureShard
+              title="Unified Venue + Artist Ops"
+              description="Run scheduling, staffing, communications, and event workflows from one platform."
+              icon={<Building2 className="h-5 w-5" />}
+            />
+            <FeatureShard
+              title="Enterprise-Grade Security"
+              description="Protected auth, hardened APIs, and secure profile/account boundaries out of the box."
+              icon={<ShieldCheck className="h-5 w-5" />}
+            />
+          </section>
+        ) : null}
+
+        {!user ? (
+          <section className="rounded-3xl border border-white/20 bg-white/10 p-6 text-center backdrop-blur-2xl">
+            <p className="text-sm uppercase tracking-[0.16em] text-cyan-100">No Waitlist // 2026 Access Open</p>
+            <h3 className="mt-2 text-2xl font-black text-white md:text-3xl">Create your account and activate your Tourify profile today.</h3>
+            <p className="mt-2 text-sm text-slate-300">Start free, build your public presence, and unlock live opportunity flow in minutes.</p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
+                <Link href="/signup">Sign Up Free</Link>
+              </Button>
+              <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
+                <Link href="/login">Sign In</Link>
+              </Button>
+            </div>
+          </section>
+        ) : null}
+
         <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-center text-xs text-slate-300 backdrop-blur-2xl">
           <span className="font-semibold text-white">2026 Tourify Live Network</span> — Freshly ranked signals from Discover, Pulse, and Jobs.
         </div>
@@ -474,6 +546,26 @@ function ConversionShard({
         <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{title}</p>
         <p className="text-2xl font-black text-white">{value}</p>
         <p className="text-xs text-slate-300">{detail}</p>
+      </CardContent>
+    </SurfaceCard>
+  )
+}
+
+function FeatureShard({
+  title,
+  description,
+  icon,
+}: {
+  title: string
+  description: string
+  icon: React.ReactNode
+}) {
+  return (
+    <SurfaceCard className="bg-white/5">
+      <CardContent className="space-y-2 p-4">
+        <div className="inline-flex rounded-lg bg-purple-500/20 p-2 text-purple-100">{icon}</div>
+        <p className="text-base font-semibold text-white">{title}</p>
+        <p className="text-sm text-slate-300">{description}</p>
       </CardContent>
     </SurfaceCard>
   )
