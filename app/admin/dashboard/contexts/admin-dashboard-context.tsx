@@ -21,7 +21,7 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AdminDashboardContextType>(() => ({
     venueId: venue?.id,
-    accountId: currentAccount?.id,
+    accountId: currentAccount?.profile_id,
     accountType: currentAccount?.account_type,
     isAdmin: currentAccount?.account_type === 'admin',
     isLoading: accountLoading || venueLoading,
