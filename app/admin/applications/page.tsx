@@ -1207,7 +1207,7 @@ export default function ApplicationsPage() {
                             </Badge>
                             {event.metadata?.from_status && event.metadata?.to_status ? (
                               <Badge variant="secondary" className="bg-slate-700 text-slate-200">
-                                {event.metadata.from_status} -> {event.metadata.to_status}
+                                {event.metadata.from_status} {"->"} {event.metadata.to_status}
                               </Badge>
                             ) : null}
                             <span className="text-xs text-slate-400">{formatSafeDate(event.created_at)}</span>
