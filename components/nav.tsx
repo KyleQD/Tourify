@@ -82,7 +82,18 @@ export function Nav() {
 
   // Smart home navigation based on current account
   const getHomeRoute = () => {
-    return '/'
+    if (!currentAccount) return '/dashboard'
+
+    switch (currentAccount.account_type) {
+      case 'artist':
+        return '/artist'
+      case 'venue':
+        return '/venue'
+      case 'admin':
+        return '/admin/dashboard'
+      default:
+        return '/dashboard'
+    }
   }
 
   // Smart home button click handler
@@ -135,14 +146,13 @@ export function Nav() {
             size="sm" 
             className={`rounded-full transition-all duration-300 ${
               pathname === '/dashboard' || pathname === '/artist' || pathname === '/venue' || pathname === '/admin/dashboard'
-              || pathname === '/'
                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' 
                 : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
             }`}
             onClick={handleHomeClick}
           >
             <Home className="h-4 w-4 mr-2" />
-            Hub
+            Home
           </Button>
           <Button 
             variant="ghost" 
