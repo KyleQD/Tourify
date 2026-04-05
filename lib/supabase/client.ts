@@ -39,28 +39,41 @@ console.log('Anon Key:', supabaseAnonKey ? (hasPlaceholderValues ? '❌ Placehol
 const cookieStorage = {
   getItem: (key: string) => {
     if (typeof window === 'undefined') return null
-    
-    // Try to get from cookies first, then localStorage as fallback
-    const cookies = document.cookie.split(';')
-    const cookie = cookies.find(c => c.trim().startsWith(`${key}=`))
-    if (cookie) {
-      return decodeURIComponent(cookie.split('=')[1])
+
+    try {
+      const cookies = document.cookie.split(';')
+      for (const part of cookies) {
+        const trimmed = part.trim()
+        const eq = trimmed.indexOf('=')
+        if (eq === -1) continue
+        const name = trimmed.slice(0, eq)
+        if (name !== key) continue
+        const raw = trimmed.slice(eq + 1)
+        return decodeURIComponent(raw)
+      }
+    } catch (e) {
+      console.warn('[Supabase auth storage] Cookie read failed:', e)
     }
-    
-    // Fallback to localStorage for migration
-    return localStorage.getItem(key)
+
+    try {
+      return localStorage.getItem(key)
+    } catch {
+      return null
+    }
   },
   setItem: (key: string, value: string) => {
     if (typeof window === 'undefined') return
-    
-    // Set both cookie and localStorage for compatibility
-    const expires = new Date()
-    expires.setFullYear(expires.getFullYear() + 1) // 1 year expiry
-    
-    const secureAttribute = window.location.protocol === 'https:' ? '; Secure' : ''
-    document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secureAttribute}`
-    
-    // Also set in localStorage as backup
+
+    try {
+      const expires = new Date()
+      expires.setFullYear(expires.getFullYear() + 1)
+      const secureAttribute = window.location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secureAttribute}`
+    } catch (e) {
+      // Safari / strict privacy modes can throw SecurityError: The operation is insecure.
+      console.warn('[Supabase auth storage] Cookie write skipped; using localStorage only:', e)
+    }
+
     try {
       localStorage.setItem(key, value)
     } catch (e) {
@@ -69,10 +82,13 @@ const cookieStorage = {
   },
   removeItem: (key: string) => {
     if (typeof window === 'undefined') return
-    
-    // Remove from both cookie and localStorage
-    document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
-    
+
+    try {
+      document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
+    } catch (e) {
+      console.warn('[Supabase auth storage] Cookie remove failed:', e)
+    }
+
     try {
       localStorage.removeItem(key)
     } catch (e) {

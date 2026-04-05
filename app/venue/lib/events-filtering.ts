@@ -21,7 +21,7 @@ function isDraftStatus(status?: string): boolean {
   return normalizedStatus === "draft" || normalizedStatus === "inquiry" || normalizedStatus === "hold"
 }
 
-export function filterVenueEventsBySearch(events: VenueEventFilterItem[], query: string) {
+export function filterVenueEventsBySearch<T extends VenueEventFilterItem>(events: T[], query: string): T[] {
   const normalizedQuery = query.trim().toLowerCase()
   if (!normalizedQuery) return events
 
@@ -32,12 +32,12 @@ export function filterVenueEventsBySearch(events: VenueEventFilterItem[], query:
   )
 }
 
-export function filterVenueEventsByType(events: VenueEventFilterItem[], type: string) {
+export function filterVenueEventsByType<T extends VenueEventFilterItem>(events: T[], type: string): T[] {
   if (!type || type === "all") return events
   return events.filter((event) => event.type === type)
 }
 
-export function filterVenueEventsByTab(events: VenueEventFilterItem[], tab: VenueEventsTab, now = Date.now()) {
+export function filterVenueEventsByTab<T extends VenueEventFilterItem>(events: T[], tab: VenueEventsTab, now = Date.now()): T[] {
   if (tab === "my-events") return events
 
   if (tab === "draft")

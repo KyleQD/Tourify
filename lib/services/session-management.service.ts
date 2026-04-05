@@ -246,7 +246,8 @@ export class SessionManagementService {
         .eq('user_id', session.user.id)
         .eq('access_token_hash', this.hashToken(session.access_token))
         .eq('is_active', true)
-        .single()
+        .limit(1)
+        .maybeSingle()
 
       if (error || !data) return false
 

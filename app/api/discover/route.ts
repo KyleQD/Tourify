@@ -298,7 +298,7 @@ function normalizeSuggestions(payload: any): DiscoverProfile[] {
 function normalizeProfilesFromEnhanced(payload: any): DiscoverProfile[] {
   const results = Array.isArray(payload?.results) ? payload.results as EnhancedSearchProfile[] : []
   return results
-    .map((item) => ({
+    .map((item): DiscoverProfile => ({
       id: String(item.id || ''),
       username: String(item.username || ''),
       account_type: item.type === 'artist' ? 'artist' : item.type === 'venue' ? 'venue' : 'general',

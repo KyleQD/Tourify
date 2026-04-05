@@ -56,9 +56,8 @@ export async function middleware(request: NextRequest) {
       const redirectUrl = new URL('/dashboard', request.url)
       return NextResponse.redirect(redirectUrl)
     }
-
-    const redirectUrl = new URL('/login', request.url)
-    return NextResponse.redirect(redirectUrl)
+    // Anonymous users: marketing landing at `/` (aligned with demo.tourify.live); CTAs go to signup.
+    return supabaseResponse
   }
 
   // Canonical public venue profiles now live under /venues/[slug].

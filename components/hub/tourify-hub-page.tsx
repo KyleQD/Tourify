@@ -426,7 +426,7 @@ export function TourifyHubPage() {
 
         {!user ? (
           <section className="rounded-3xl border border-white/20 bg-white/10 p-6 text-center backdrop-blur-2xl">
-            <p className="text-sm uppercase tracking-[0.16em] text-cyan-100">No Waitlist // 2026 Access Open</p>
+            <p className="text-sm uppercase tracking-[0.16em] text-cyan-100">Open access // Join free</p>
             <h3 className="mt-2 text-2xl font-black text-white md:text-3xl">Create your account and activate your Tourify profile today.</h3>
             <p className="mt-2 text-sm text-slate-300">Start free, build your public presence, and unlock live opportunity flow in minutes.</p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">

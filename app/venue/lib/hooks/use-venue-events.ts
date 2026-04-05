@@ -292,7 +292,7 @@ export function useVenueEvents(options?: UseVenueEventsOptions) {
       let targetVenueId = options?.venueId || venueService.getActiveVenueId()
       if (!targetVenueId) {
         const currentVenue = await venueService.getCurrentUserVenue()
-        targetVenueId = currentVenue?.id || undefined
+        targetVenueId = currentVenue?.id || null
       }
 
       if (!targetVenueId) {

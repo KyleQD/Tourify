@@ -16,6 +16,25 @@ import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 
+interface EventMapItem {
+  id: string
+  title: string
+  description: string
+  venue: string
+  location: string
+  date: string
+  endDate: string | null
+  organizer: string
+  attendees: number
+  capacity: number
+  genres: string[]
+  ticketPrice: number
+  image: string
+  latitude: number
+  longitude: number
+  isMyEvent: boolean
+}
+
 export default function EventMapPage() {
   const { venue, isLoading: isVenueLoading } = useCurrentVenue()
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -26,7 +45,7 @@ export default function EventMapPage() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
   const [dateRange, setDateRange] = useState<string>("all")
 
-  const [events, setEvents] = useState<any[]>([])
+  const [events, setEvents] = useState<EventMapItem[]>([])
 
   useEffect(() => {
     async function loadEvents() {
@@ -35,7 +54,7 @@ export default function EventMapPage() {
       const inSixMonths = new Date()
       inSixMonths.setMonth(inSixMonths.getMonth() + 6)
       const rows = await venueService.getVenueEventsByRange(venue.id, now.toISOString(), inSixMonths.toISOString())
-      const mapped = rows.map((event: any) => {
+      const mapped = rows.map((event: any): EventMapItem => {
         const settings = event.settings && typeof event.settings === "object"
           ? (event.settings as Record<string, unknown>)
           : {}

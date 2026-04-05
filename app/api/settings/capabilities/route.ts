@@ -26,7 +26,10 @@ export async function GET(request: NextRequest) {
 
   const capabilities = extractCreatorCapabilitiesV1(settings)
   const topSkills = Array.isArray(profileRes.data?.top_skills) ? profileRes.data?.top_skills : []
-  const endorsementCounts = (endorsementsRes.data || []).reduce<Record<string, number>>((acc, item: any) => {
+  const endorsements = Array.isArray(endorsementsRes.data)
+    ? endorsementsRes.data as Array<{ skill?: string | null }>
+    : []
+  const endorsementCounts = endorsements.reduce((acc: Record<string, number>, item) => {
     if (!item?.skill) return acc
     acc[item.skill] = (acc[item.skill] || 0) + 1
     return acc

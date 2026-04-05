@@ -387,11 +387,14 @@ export class AccountManagementService {
       // Use authenticated Supabase client if provided (for API routes), otherwise use default client
       const clientToUse = authenticatedSupabase || supabase
       
+      // Use limit(1) + maybeSingle: duplicate user_sessions rows (or schema without UNIQUE(user_id))
+      // cause PostgREST 406 with .single() ("JSON object requested, multiple (or no) rows returned").
       const { data, error } = await clientToUse
         .from('user_sessions')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .limit(1)
+        .maybeSingle()
 
       if (error && error.code !== 'PGRST116') {
         // If table doesn't exist, return null (no session management available)
