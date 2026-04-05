@@ -28,11 +28,25 @@ import { ProfileAchievementsSection } from "@/components/achievements/profile-ac
 import { ArtistProfileIdentityCard } from "@/components/artist-profile/artist-profile-identity-card"
 import { dashboardCreatePattern } from "@/components/dashboard/dashboard-create-pattern"
 import { cn } from "@/lib/utils"
+import { extractCreatorCapabilitiesV1, serializeCapabilityList } from "@/lib/creator/capability-system"
 
 const musicGenres = [
   "Pop", "Rock", "Hip Hop", "Electronic", "Jazz", "Classical", "R&B", "Country",
   "Folk", "Blues", "Reggae", "Punk", "Metal", "Indie", "Alternative", "Funk",
   "Soul", "Gospel", "World", "Ambient", "House", "Techno", "Dubstep", "Other"
+]
+
+const creatorTypes = [
+  "Musician",
+  "Videographer",
+  "Photographer",
+  "Merch Creator",
+  "Designer",
+  "Producer",
+  "Stylist / Wardrobe",
+  "Visual Artist",
+  "Creative Entrepreneur",
+  "Other"
 ]
 
 interface FormState {
@@ -49,6 +63,11 @@ interface FormState {
   phone: string
   booking_rate: string
   availability: string
+  creator_type: string
+  service_offerings: string
+  products_for_sale: string
+  credentials: string
+  work_highlights: string
   equipment: string
   music_style: string
   experience_years: string
@@ -70,6 +89,7 @@ function buildFormFromProfile(
   const settings = profile.settings || {}
   const professional = settings.professional || {}
   const preferences = settings.preferences || {}
+  const capabilities = extractCreatorCapabilitiesV1(settings)
   const genres = Array.isArray(profile.genres) ? profile.genres.filter(Boolean) : []
 
   return {
@@ -86,6 +106,11 @@ function buildFormFromProfile(
     phone: professional.phone || "",
     booking_rate: professional.booking_rate || "",
     availability: professional.availability || "",
+    creator_type: capabilities.creatorType || professional.creator_type || professional.music_style || "",
+    service_offerings: serializeCapabilityList(capabilities.serviceOfferings || professional.service_offerings || professional.equipment),
+    products_for_sale: serializeCapabilityList(capabilities.productsForSale || professional.products_for_sale || professional.upcoming_releases),
+    credentials: serializeCapabilityList(capabilities.credentials),
+    work_highlights: serializeCapabilityList(capabilities.workHighlights || professional.notable_performances),
     equipment: professional.equipment || "",
     music_style: professional.music_style || "",
     experience_years: professional.experience_years || "",
@@ -134,6 +159,11 @@ export default function ArtistProfilePage() {
     phone: "",
     booking_rate: "",
     availability: "",
+    creator_type: "",
+    service_offerings: "",
+    products_for_sale: "",
+    credentials: "",
+    work_highlights: "",
     equipment: "",
     music_style: "",
     experience_years: "",
@@ -164,8 +194,9 @@ export default function ArtistProfilePage() {
 
   const genreLine = useMemo(() => {
     if (formData.genres.length) return formData.genres.join(" • ")
-    return "Add genres below"
-  }, [formData.genres])
+    if (formData.creator_type) return formData.creator_type
+    return "Add categories below"
+  }, [formData.genres, formData.creator_type])
 
   const handleInputChange = (field: keyof FormState, value: string | boolean | string[]) => {
     setFormData(prev => ({ ...prev, [field]: value }))
@@ -301,7 +332,7 @@ export default function ArtistProfilePage() {
               Artist profile
             </h1>
             <p className="mt-1 text-sm text-slate-400">
-              Edit what fans see on your public page and your booking details.
+              Build your public creator brand, services, and monetization details.
             </p>
             {saveProgress ? (
               <p className="mt-2 text-sm text-emerald-400/90">{saveProgress}</p>
@@ -419,7 +450,7 @@ export default function ArtistProfilePage() {
                   <CardHeader>
                     <CardTitle className="text-white">Basic information</CardTitle>
                     <CardDescription className="text-slate-400">
-                      Name, genres, bio, and location shown on your public artist page.
+                      Name, categories, bio, and location shown on your public creator page.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -450,8 +481,8 @@ export default function ArtistProfilePage() {
                     </div>
 
                     <div className={dashboardCreatePattern.fieldGroup}>
-                      <Label className="text-slate-300">Genres (up to 8)</Label>
-                      <p className={dashboardCreatePattern.subtleText}>Tap to add or remove — shown under your name in the hero.</p>
+                      <Label className="text-slate-300">Categories & styles (up to 8)</Label>
+                      <p className={dashboardCreatePattern.subtleText}>Pick genres, disciplines, or styles to help people discover your work.</p>
                       <div className="flex flex-wrap gap-2 pt-2">
                         {musicGenres.map(g => {
                           const active = formData.genres.includes(g)
@@ -544,13 +575,33 @@ export default function ArtistProfilePage() {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-white">
                       <Briefcase className="h-5 w-5 text-purple-400" />
-                      Professional &amp; booking
+                      Professional &amp; monetization
                     </CardTitle>
                     <CardDescription className="text-slate-400">
-                      Used for booking requests, EPK, and industry outreach — not all fields appear on the public hero.
+                      Used for jobs, booking requests, sales, and industry outreach.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Primary creator type</Label>
+                      <Select
+                        value={formData.creator_type || "__none"}
+                        onValueChange={v => handleInputChange("creator_type", v === "__none" ? "" : v)}
+                        disabled={isSaving}
+                      >
+                        <SelectTrigger className={dashboardCreatePattern.selectTrigger}>
+                          <SelectValue placeholder="Select your primary creator type" />
+                        </SelectTrigger>
+                        <SelectContent className="border-slate-700 bg-slate-900 text-white">
+                          <SelectItem value="__none">Not specified</SelectItem>
+                          {creatorTypes.map(type => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className={dashboardCreatePattern.fieldGroup}>
                         <Label className="flex items-center gap-2 text-slate-300">
@@ -611,18 +662,63 @@ export default function ArtistProfilePage() {
                         />
                       </div>
                       <div className={dashboardCreatePattern.fieldGroup}>
-                        <Label>Music style (extra detail)</Label>
+                        <Label>Discipline focus (extra detail)</Label>
                         <Input
                           value={formData.music_style}
                           onChange={e => handleInputChange("music_style", e.target.value)}
                           disabled={isSaving}
                           className={dashboardCreatePattern.input}
-                          placeholder="Subgenres, influences…"
+                          placeholder="Film, portraits, product design, custom merch, etc."
                         />
                       </div>
                     </div>
                     <div className={dashboardCreatePattern.fieldGroup}>
-                      <Label>Equipment &amp; setup</Label>
+                      <Label>Service offerings</Label>
+                      <Textarea
+                        value={formData.service_offerings}
+                        onChange={e => handleInputChange("service_offerings", e.target.value)}
+                        disabled={isSaving}
+                        rows={3}
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
+                        placeholder="e.g. Music videos, event photography, cover art, wardrobe styling, logo design"
+                      />
+                    </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Products for sale</Label>
+                      <Textarea
+                        value={formData.products_for_sale}
+                        onChange={e => handleInputChange("products_for_sale", e.target.value)}
+                        disabled={isSaving}
+                        rows={3}
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
+                        placeholder="e.g. Prints, presets, packs, merch, templates, digital downloads"
+                      />
+                    </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Credentials &amp; certifications</Label>
+                      <Textarea
+                        value={formData.credentials}
+                        onChange={e => handleInputChange("credentials", e.target.value)}
+                        disabled={isSaving}
+                        rows={3}
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
+                        placeholder="e.g. OSHA 30, Pro Tools Certified, First Aid/CPR, AWS CCP"
+                      />
+                      <p className={dashboardCreatePattern.subtleText}>Use commas or new lines to add multiple credentials.</p>
+                    </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Past work highlights</Label>
+                      <Textarea
+                        value={formData.work_highlights}
+                        onChange={e => handleInputChange("work_highlights", e.target.value)}
+                        disabled={isSaving}
+                        rows={3}
+                        className={cn(dashboardCreatePattern.input, "resize-y")}
+                        placeholder="e.g. Tour visuals for X, Editorial shoot for Y, Opened for Z, Campaign for Brand A"
+                      />
+                    </div>
+                    <div className={dashboardCreatePattern.fieldGroup}>
+                      <Label>Equipment &amp; production setup</Label>
                       <Textarea
                         value={formData.equipment}
                         onChange={e => handleInputChange("equipment", e.target.value)}
@@ -632,7 +728,7 @@ export default function ArtistProfilePage() {
                       />
                     </div>
                     <div className={dashboardCreatePattern.fieldGroup}>
-                      <Label>Notable performances</Label>
+                      <Label>Notable projects &amp; clients</Label>
                       <Textarea
                         value={formData.notable_performances}
                         onChange={e => handleInputChange("notable_performances", e.target.value)}
@@ -643,7 +739,7 @@ export default function ArtistProfilePage() {
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       <div className={dashboardCreatePattern.fieldGroup}>
-                        <Label>Record label</Label>
+                        <Label>Studio / label / brand</Label>
                         <Input
                           value={formData.record_label}
                           onChange={e => handleInputChange("record_label", e.target.value)}
@@ -662,7 +758,7 @@ export default function ArtistProfilePage() {
                       </div>
                     </div>
                     <div className={dashboardCreatePattern.fieldGroup}>
-                      <Label>Upcoming releases</Label>
+                      <Label>Upcoming drops &amp; launches</Label>
                       <Textarea
                         value={formData.upcoming_releases}
                         onChange={e => handleInputChange("upcoming_releases", e.target.value)}

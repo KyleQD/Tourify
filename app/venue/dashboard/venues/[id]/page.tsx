@@ -149,13 +149,54 @@ export default function VenuePage() {
   })
 
   useEffect(() => {
-    // In a real app, fetch venue data from API
     const loadVenue = async () => {
       setLoading(true)
       try {
-        // Simulate API call
-        await new Promise((resolve) => setTimeout(resolve, 800))
-        setVenue(mockVenue)
+        const venueId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : ""
+        if (!venueId) {
+          setVenue(mockVenue)
+          return
+        }
+
+        const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}`)
+        if (!response.ok) throw new Error("Failed to load venue")
+
+        const payload = await response.json()
+        const fetchedVenue = payload?.venue
+        if (!fetchedVenue) {
+          setVenue(mockVenue)
+          return
+        }
+
+        const mappedVenue = {
+          ...mockVenue,
+          id: fetchedVenue.id || mockVenue.id,
+          name: fetchedVenue.venue_name || mockVenue.name,
+          username: fetchedVenue.url_slug || fetchedVenue.venue_name?.toLowerCase().replace(/\s+/g, "-") || mockVenue.username,
+          description: fetchedVenue.description || mockVenue.description,
+          location: `${fetchedVenue.city || ""}${fetchedVenue.city && fetchedVenue.state ? ", " : ""}${fetchedVenue.state || ""}` || mockVenue.location,
+          address: fetchedVenue.address || mockVenue.address,
+          website: fetchedVenue.social_links?.website || mockVenue.website,
+          avatar: fetchedVenue.avatar_url || mockVenue.avatar,
+          coverImage: fetchedVenue.cover_image_url || mockVenue.coverImage,
+          capacity: Number(fetchedVenue.capacity || mockVenue.capacity),
+          type: fetchedVenue.venue_types?.[0] || mockVenue.type,
+          stats: {
+            events: Number(fetchedVenue.stats?.upcoming_events || mockVenue.stats.events),
+            capacity: Number(fetchedVenue.capacity || mockVenue.capacity),
+            rating: Number(fetchedVenue.stats?.average_rating || mockVenue.stats.rating),
+          },
+          upcomingEvents: (fetchedVenue.recent_events || []).map((event: any) => ({
+            id: event.id,
+            title: event.title || "Event",
+            artist: "Tourify Booking",
+            date: event.event_date || new Date().toISOString(),
+            ticketsSold: 0,
+            capacity: Number(fetchedVenue.capacity || 0),
+            status: event.status || "On Sale",
+          })),
+        }
+        setVenue(mappedVenue)
       } catch (error) {
         console.error("Error loading venue:", error)
         toast({
@@ -163,6 +204,7 @@ export default function VenuePage() {
           description: "Failed to load venue information",
           variant: "destructive",
         })
+        setVenue(mockVenue)
       } finally {
         setLoading(false)
       }
@@ -197,11 +239,14 @@ export default function VenuePage() {
   }
 
   const handleSubmitBooking = () => {
-    toast({
-      title: "Booking Request Submitted",
-      description: "Your booking request has been sent to the venue. They will contact you shortly.",
-    })
+    if (!venue?.id) return
+    const dateParam = selectedDate ? `?date=${encodeURIComponent(selectedDate.toISOString())}` : ""
+    router.push(`/venue/dashboard/venues/${venue.id}/booking-request${dateParam}`)
     setShowBookingForm(false)
+    toast({
+      title: "Continue booking request",
+      description: "Complete your booking in the full request flow.",
+    })
   }
 
   const toggleSection = (section: string) => {

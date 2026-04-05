@@ -10,6 +10,10 @@ import {
   normalizeSocialLinksForStorage,
   validateSocialField
 } from '@/lib/artist/profile-social-validation'
+import {
+  buildCreatorCapabilitiesV1,
+  serializeCapabilityList
+} from '@/lib/creator/capability-system'
 
 /** Public-facing identity row (profiles) — hero avatar, banner, location on /artist/[username] */
 export interface PublicProfileIdentity {
@@ -732,6 +736,9 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           phone: profileData.phone || '',
           booking_rate: profileData.booking_rate || '',
           availability: profileData.availability || '',
+          creator_type: profileData.creator_type || profileData.music_style || '',
+          service_offerings: serializeCapabilityList(profileData.service_offerings || profileData.equipment),
+          products_for_sale: serializeCapabilityList(profileData.products_for_sale || profileData.upcoming_releases),
           equipment: profileData.equipment || '',
           music_style: profileData.music_style || '',
           experience_years: profileData.experience_years || '',
@@ -746,7 +753,18 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           newsletter_signup: profileData.newsletter_signup || false,
           privacy_settings: profileData.privacy_settings || 'public',
           preferred_contact: profileData.preferred_contact || 'email'
-        }
+        },
+        capabilities_v1: buildCreatorCapabilitiesV1({
+          creatorType: profileData.creator_type || profileData.music_style,
+          serviceOfferings: profileData.service_offerings || profileData.equipment,
+          productsForSale: profileData.products_for_sale || profileData.upcoming_releases,
+          credentials: profileData.credentials,
+          workHighlights: profileData.work_highlights || profileData.notable_performances,
+          availableForHire: profileData.available_for_hire,
+          collaborationInterest: profileData.collaboration_interest,
+          availability: profileData.availability,
+          preferredContact: profileData.preferred_contact
+        })
       }
 
       const { error: profileError } = await supabase

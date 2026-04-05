@@ -8,6 +8,7 @@ import { ArrowLeft, Loader2, Users } from "lucide-react"
 import { toast } from "sonner"
 import { MessageModal } from "@/components/messaging/message-modal"
 import { FollowRequestsModal } from "@/components/profile/follow-requests-modal"
+import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { useAuth } from "@/contexts/auth-context"
 
 interface ProfileData {
@@ -167,19 +168,22 @@ export default function ProfilePage() {
   }
 
   const handleShare = async (profile: ProfileData) => {
+    const shareName = profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name || profile.username
+    const profileUrl = typeof window !== "undefined" ? window.location.href : `${process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live"}/profile/${profile.username}`
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `${profile.profile_data?.name || profile.username}'s Profile`,
-          text: `Check out ${profile.profile_data?.name || profile.username} on Tourify!`,
-          url: window.location.href
+          title: `${shareName} on Tourify`,
+          text: `Check out ${shareName}'s profile on Tourify`,
+          url: profileUrl
         })
       } else {
         // Fallback to copying URL
-        await navigator.clipboard.writeText(window.location.href)
+        await navigator.clipboard.writeText(profileUrl)
         toast.success('Profile link copied to clipboard!')
       }
     } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return
       console.error('Error sharing profile:', error)
       toast.error('Failed to share profile')
     }
@@ -255,6 +259,15 @@ export default function ProfilePage() {
         )}
       </div>
 
+      <div className="absolute right-4 top-4 z-50 hidden w-[420px] max-w-[calc(100vw-2rem)] lg:block">
+        <ProfileShareCard
+          username={profile.username}
+          displayName={profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name || profile.username}
+          sharePath="/profile"
+          compact
+        />
+      </div>
+
       {/* Profile View */}
       <EnhancedPublicProfileView
         profile={profile}
@@ -267,6 +280,15 @@ export default function ProfilePage() {
         experiences={experiences}
         certifications={certifications}
       />
+
+      <div className="mx-4 mt-4 lg:hidden">
+        <ProfileShareCard
+          username={profile.username}
+          displayName={profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name || profile.username}
+          sharePath="/profile"
+          compact
+        />
+      </div>
 
       {/* Message Modal */}
       {profile && (

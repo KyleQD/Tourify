@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 interface AuthSession {
   access_token: string
@@ -116,6 +117,11 @@ export async function authenticateApiRequest(request?: NextRequest): Promise<{ u
   try {
     if (!request) {
       return null
+    }
+
+    const mobileCompatibleAuth = await authenticateRequestWithBearerFallback(request)
+    if (mobileCompatibleAuth) {
+      return mobileCompatibleAuth
     }
     
     const supabase = await createServerClient()

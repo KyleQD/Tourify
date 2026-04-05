@@ -5,8 +5,8 @@ import { MainNav } from "../../../app/(main)/main-nav"
 import { BarChart3, Calendar, Home, ListMusic, Package, Settings, Ticket, Users, FileText, Globe } from "lucide-react"
 
 export const metadata: Metadata = {
-  title: "Artist Dashboard",
-  description: "Manage your music career with Tourify",
+  title: "Venue Dashboard",
+  description: "Manage venue operations, bookings, and analytics with Tourify",
 }
 
 interface DashboardLayoutProps {
@@ -20,16 +20,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="flex-1 flex flex-col md:flex-row">
         <aside className="w-full md:w-64 bg-gray-900 md:min-h-screen p-4">
           <nav className="space-y-1">
-            <NavItem href="/dashboard" icon={Home} label="Overview" />
-            <NavItem href="/dashboard/bookings" icon={Calendar} label="Bookings & Tour" />
-            <NavItem href="/dashboard/setlists" icon={ListMusic} label="Setlists" />
-            <NavItem href="/dashboard/merch" icon={Package} label="Merchandise" />
-            <NavItem href="/dashboard/tickets" icon={Ticket} label="Ticketing" />
-            <NavItem href="/dashboard/insights" icon={BarChart3} label="Listener Insights" />
-            <NavItem href="/dashboard/epk" icon={FileText} label="EPK Generator" />
-            <NavItem href="/dashboard/team" icon={Users} label="Team Management" />
-            <NavItem href="/dashboard/website" icon={Globe} label="Artist Website" />
-            <NavItem href="/dashboard/settings" icon={Settings} label="Settings" />
+            <NavItem href="/venue" icon={Home} label="Overview" />
+            <NavItem href="/venue/bookings" icon={Calendar} label="Bookings" />
+            <NavItem href="/venue/dashboard/events" icon={ListMusic} label="Events" />
+            <NavItem href="/venue/documents" icon={Package} label="Documents" />
+            <NavItem href="/venue/tickets" icon={Ticket} label="Ticketing" />
+            <NavItem href="/venue/analytics" icon={BarChart3} label="Venue Insights" />
+            <NavItem href="/venue/finances" icon={FileText} label="Finances" />
+            <NavItem href="/venue/staff" icon={Users} label="Staff Management" />
+            <NavItem href="/venue/overview" icon={Globe} label="Public Profile" />
+            <NavItem href="/venue/settings" icon={Settings} label="Settings" />
           </nav>
         </aside>
         <main className="flex-1 bg-background">{children}</main>

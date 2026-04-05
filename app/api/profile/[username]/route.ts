@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
+import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
 
 export async function GET(
   request: NextRequest,
@@ -150,17 +151,25 @@ export async function GET(
       // Artist
       const { data: artist, error: artistError } = await supabase
         .from('artist_profiles')
-        .select('artist_name,bio,genres,social_links,created_at,updated_at')
+        .select('artist_name,bio,genres,social_links,settings,created_at,updated_at')
         .eq('user_id', profile.id)
         .limit(1)
         .single()
 
       if (!artistError && artist) {
+        const capabilities = extractCreatorCapabilitiesV1(artist.settings)
         accountType = 'artist'
         profileData = {
           artist_name: artist.artist_name,
           bio: artist.bio ?? profile.bio,
           genre: Array.isArray(artist.genres) && artist.genres.length > 0 ? artist.genres[0] : undefined,
+          creator_type: capabilities.creatorType,
+          service_offerings: capabilities.serviceOfferings,
+          products_for_sale: capabilities.productsForSale,
+          credentials: capabilities.credentials,
+          work_highlights: capabilities.workHighlights,
+          available_for_hire: capabilities.availableForHire,
+          collaboration_interest: capabilities.collaborationInterest,
           website: profile.website,
           ...artist.social_links
         }

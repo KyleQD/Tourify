@@ -38,6 +38,7 @@ import { useCurrentVenue } from "./hooks/useCurrentVenue"
 import { getVenuePublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { VenueAccountSettings } from "@/components/settings/venue-account-settings"
 import { formatSafeDate, formatSafeDateTime } from "@/lib/events/admin-event-normalization"
+import { venueService } from "@/lib/services/venue.service"
 
 // Mock venue data - in a real app, this would come from an API
 const mockVenue = {
@@ -189,44 +190,7 @@ export default function VenueDashboard() {
   const [isCreateEventOpen, setIsCreateEventOpen] = useState(false)
   const [events, setEvents] = useState<EventFormData[]>([])
 
-  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([
-    {
-      id: "req-1",
-      eventName: "Electronic Music Showcase",
-      organizer: "Pulse Productions",
-      date: "2025-07-10T19:00:00",
-      attendees: 500,
-      status: "pending",
-      received: "2025-05-28T14:32:00",
-    },
-    {
-      id: "req-2",
-      eventName: "Album Release Party",
-      organizer: "Skyline Records",
-      date: "2025-07-15T20:00:00",
-      attendees: 350,
-      status: "pending",
-      received: "2025-05-27T09:15:00",
-    },
-    {
-      id: "req-3",
-      eventName: "Corporate Event",
-      organizer: "TechGiant Inc.",
-      date: "2025-07-22T18:00:00",
-      attendees: 200,
-      status: "pending",
-      received: "2025-05-26T16:45:00",
-    },
-    {
-      id: "req-4",
-      eventName: "Indie Rock Night",
-      organizer: "Underground Sounds",
-      date: "2025-07-25T21:00:00",
-      attendees: 400,
-      status: "pending",
-      received: "2025-05-25T11:20:00",
-    },
-  ])
+  const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([])
   const [bookingStatusFilter, setBookingStatusFilter] = useState<"all" | "pending" | "accepted" | "declined">("all")
   const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<EventFormData | null>(null)
@@ -252,6 +216,39 @@ export default function VenueDashboard() {
       })
     }
   }, [error, toast])
+
+  useEffect(() => {
+    async function loadBookingRequests() {
+      if (!venue?.id) {
+        setBookingRequests([])
+        return
+      }
+
+      try {
+        const requests = await venueService.getVenueBookingRequests(venue.id)
+        setBookingRequests(
+          requests.map((request) => ({
+            id: request.id,
+            eventName: request.event_name,
+            organizer: request.contact_email || "Unknown organizer",
+            date: request.event_date,
+            attendees: request.expected_attendance || 0,
+            status:
+              request.status === "approved"
+                ? "accepted"
+                : request.status === "rejected" || request.status === "cancelled"
+                  ? "declined"
+                  : "pending",
+            received: request.requested_at || request.created_at,
+          }))
+        )
+      } catch (bookingError) {
+        console.error("[Venue Dashboard] Failed to load booking requests:", bookingError)
+      }
+    }
+
+    void loadBookingRequests()
+  }, [venue?.id])
 
   const handleEditProfile = () => setIsEditProfileOpen(true)
 
@@ -327,9 +324,20 @@ export default function VenueDashboard() {
 
 
 
-  function handleAcceptBooking(requestId: string) {
-    setBookingRequests(prev =>
-      prev.map(req =>
+  async function handleAcceptBooking(requestId: string) {
+    try {
+      await venueService.respondToBookingRequest(requestId, "approved")
+    } catch (bookingError) {
+      toast({
+        title: "Failed to Accept Booking",
+        description: bookingError instanceof Error ? bookingError.message : "Please try again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setBookingRequests((prev) =>
+      prev.map((req) =>
         req.id === requestId ? { ...req, status: "accepted" } : req
       )
     )
@@ -353,17 +361,30 @@ export default function VenueDashboard() {
         }
       ])
       toast({ title: "Booking Accepted", description: `Added "${req.eventName}" to your events. Organizer notified.` })
+      await refreshVenue()
     }
   }
 
-  function handleDeclineBooking(requestId: string) {
-    setBookingRequests(prev =>
-      prev.map(req =>
+  async function handleDeclineBooking(requestId: string) {
+    try {
+      await venueService.respondToBookingRequest(requestId, "rejected")
+    } catch (bookingError) {
+      toast({
+        title: "Failed to Decline Booking",
+        description: bookingError instanceof Error ? bookingError.message : "Please try again.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setBookingRequests((prev) =>
+      prev.map((req) =>
         req.id === requestId ? { ...req, status: "declined" } : req
       )
     )
     const req = bookingRequests.find(r => r.id === requestId)
     if (req) toast({ title: "Booking Declined", description: `Declined "${req.eventName}". Organizer notified.` })
+    await refreshVenue()
   }
 
   function handleEditEvent(event: EventFormData) {

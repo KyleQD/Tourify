@@ -88,7 +88,7 @@ export function UpcomingEvents({ limit = 3, showRefresh = true, className = "" }
   }
 
   const handleEventClick = (eventId: string) => {
-    router.push(`/events/${eventId}`)
+    router.push(`/venue/events/${eventId}`)
   }
 
   const formatDate = (startDate: string, endDate: string) => {
@@ -165,7 +165,7 @@ export function UpcomingEvents({ limit = 3, showRefresh = true, className = "" }
               variant="outline"
               size="sm"
               className="w-full border-gray-700 text-gray-300"
-              onClick={() => router.push("/events")}
+              onClick={() => router.push("/venue/dashboard/events")}
             >
               View All Events
             </Button>

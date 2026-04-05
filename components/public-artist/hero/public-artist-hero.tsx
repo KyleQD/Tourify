@@ -11,11 +11,15 @@ import { paBtnRound, paHeroAspect, paHeroFrame, paShell, paStickyInner } from "@
 export function PublicArtistHero({
   hero,
   viewer,
+  creatorType,
+  isAvailableForHire,
   onBookNow,
   onPlayMusic
 }: {
   hero: PublicArtistHeroDTO
   viewer: PublicArtistViewerDTO
+  creatorType: string | null
+  isAvailableForHire: boolean
   onBookNow: () => void
   onPlayMusic: () => void
 }) {
@@ -30,10 +34,11 @@ export function PublicArtistHero({
 
   const subtitle = useMemo(() => {
     const bits = []
+    if (creatorType) bits.push(creatorType)
     if (hero.genres.length) bits.push(hero.genres.join(" • "))
     if (hero.location) bits.push(hero.location)
-    return bits.length ? bits.join(" • ") : "Music • Artist"
-  }, [hero.genres, hero.location])
+    return bits.length ? bits.join(" • ") : "Creator • Entrepreneur"
+  }, [hero.genres, hero.location, creatorType])
 
   const share = async () => {
     const url = window.location.href
@@ -90,7 +95,13 @@ export function PublicArtistHero({
                       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-white/80">
                         <span>{hero.followersCount.toLocaleString()} followers</span>
                         <span className="hidden text-white/35 sm:inline">•</span>
-                        <span>{hero.futureMonthlyListeners.toLocaleString()} monthly listeners</span>
+                        <span>{hero.futureMonthlyListeners.toLocaleString()} monthly reach</span>
+                        {isAvailableForHire ? (
+                          <>
+                            <span className="hidden text-white/35 sm:inline">•</span>
+                            <span className="text-emerald-300/90">Available for hire</span>
+                          </>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -106,17 +117,17 @@ export function PublicArtistHero({
                     </Button>
                     <Button onClick={onBookNow} className={`${paBtnRound} px-5`}>
                       <CalendarDays className="mr-2 h-4 w-4" />
-                      Book Now
+                      Hire / Book
                     </Button>
                     <Button variant="outline" onClick={onPlayMusic} className={`${paBtnRound} border-white/25 bg-white/5 px-5 text-white hover:bg-white/10`}>
                       <Play className="mr-2 h-4 w-4" />
-                      Play Music
+                      Explore Work
                     </Button>
                   </div>
                 </div>
 
                 {viewer.isOwner ? (
-                  <p className="mt-4 text-xs text-white/45">Viewing as owner — pin tracks or posts to highlight them at the top.</p>
+                  <p className="mt-4 text-xs text-white/45">Viewing as owner — pin your best work or posts to highlight them at the top.</p>
                 ) : null}
               </div>
             </div>
@@ -139,10 +150,10 @@ export function PublicArtistHero({
                 Share
               </Button>
               <Button size="sm" onClick={onBookNow} className={`${paBtnRound} px-3`}>
-                Book
+                Hire
               </Button>
               <Button size="sm" variant="outline" onClick={onPlayMusic} className={`${paBtnRound} border-white/20 px-3`}>
-                Play
+                Work
               </Button>
             </div>
           </div>

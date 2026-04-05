@@ -56,16 +56,16 @@ export function MobileNavigation() {
           </Button>
           <Button
             variant="ghost"
-            className={`flex flex-col h-full rounded-none ${isActive("/events") ? "text-primary" : ""}`}
-            onClick={() => handleNavigation("/events")}
+            className={`flex flex-col h-full rounded-none ${isActive("/venue/dashboard/events") ? "text-primary" : ""}`}
+            onClick={() => handleNavigation("/venue/dashboard/events")}
           >
             <Calendar className="h-5 w-5" />
             <span className="text-xs mt-1">Events</span>
           </Button>
           <Button
             variant="ghost"
-            className={`flex flex-col h-full rounded-none ${isActive("/teams") ? "text-primary" : ""}`}
-            onClick={() => handleNavigation("/teams")}
+            className={`flex flex-col h-full rounded-none ${isActive("/venue/staff") ? "text-primary" : ""}`}
+            onClick={() => handleNavigation("/venue/staff")}
           >
             <Users className="h-5 w-5" />
             <span className="text-xs mt-1">Team</span>
@@ -98,8 +98,8 @@ export function MobileNavigation() {
                 {[
                   { href: "/", icon: <Home className="h-4 w-4 mr-3" />, label: "Home" },
                   { href: "/dashboard", icon: <Search className="h-4 w-4 mr-3" />, label: "Dashboard" },
-                  { href: "/events", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Events" },
-                  { href: "/teams", icon: <Users className="h-4 w-4 mr-3" />, label: "Team" },
+                  { href: "/venue/dashboard/events", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Events" },
+                  { href: "/venue/staff", icon: <Users className="h-4 w-4 mr-3" />, label: "Team" },
                   { href: "/messages", icon: <MessageSquare className="h-4 w-4 mr-3" />, label: "Messages" },
                 ].map((item) => (
                   <Button
@@ -122,8 +122,8 @@ export function MobileNavigation() {
                 {[
                   { href: "/venues", icon: <Building className="h-4 w-4 mr-3" />, label: "Venues" },
                   { href: "/equipment", icon: <Music className="h-4 w-4 mr-3" />, label: "Equipment" },
-                  { href: "/bookings", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Bookings" },
-                  { href: "/finances", icon: <Briefcase className="h-4 w-4 mr-3" />, label: "Finances" },
+                  { href: "/venue/bookings", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Bookings" },
+                  { href: "/venue/finances", icon: <Briefcase className="h-4 w-4 mr-3" />, label: "Finances" },
                 ].map((item) => (
                   <Button
                     key={item.href}

@@ -122,6 +122,7 @@ export default function FinancesPage() {
   const { toast } = useToast()
   
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [manualTransactions, setManualTransactions] = useState<Transaction[]>([])
   const [summary, setSummary] = useState<FinancialSummary | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false)
@@ -155,91 +156,75 @@ export default function FinancesPage() {
     }
   }, [venue?.id, dateRange])
 
+  const calculateSummary = (items: Transaction[]) => {
+    const revenue = items.filter((transaction) => transaction.type === "income").reduce((sum, transaction) => sum + transaction.amount, 0)
+    const expenses = items.filter((transaction) => transaction.type === "expense").reduce((sum, transaction) => sum + transaction.amount, 0)
+    const profit = revenue - expenses
+
+    return {
+      totalRevenue: revenue,
+      totalExpenses: expenses,
+      netProfit: profit,
+      profitMargin: revenue > 0 ? (profit / revenue) * 100 : 0,
+      monthlyRevenue: revenue,
+      monthlyExpenses: expenses,
+      monthlyProfit: profit,
+      averageEventRevenue: revenue > 0 ? revenue / Math.max(1, items.filter((transaction) => transaction.type === "income").length) : 0,
+      unpaidInvoices: items.filter((transaction) => transaction.status === "pending" && transaction.type === "income").length,
+      overdueInvoices: items.filter((transaction) => transaction.status === "pending" && new Date(transaction.date).getTime() < Date.now() - 14 * 24 * 60 * 60 * 1000).length,
+    }
+  }
+
   const fetchFinancialData = async () => {
     if (!venue?.id) return
     
     try {
       setIsLoading(true)
-      
-      // Mock financial data - in real app, fetch from API
-const mockTransactions: Transaction[] = [
-  {
-          id: "txn-001",
-    type: "income",
-          category: "Event Bookings",
-          description: "Jazz Night Event Booking",
-          amount: 2500,
-          date: "2024-05-15",
-    status: "completed",
-          reference: "INV-001",
-          event_id: "evt-001",
-          created_at: "2024-05-15T10:00:00Z"
-  },
-  {
-          id: "txn-002",
-    type: "expense",
-          category: "Staff Wages",
-          description: "Sound Engineer - May 2024",
-          amount: 800,
-          date: "2024-05-15",
-    status: "completed",
-          reference: "PAY-001",
-          created_at: "2024-05-15T11:00:00Z"
-  },
-  {
-          id: "txn-003",
-    type: "income",
-          category: "Equipment Rental",
-          description: "Lighting Equipment Rental",
-          amount: 450,
-          date: "2024-05-14",
-    status: "completed",
-          reference: "RENT-001",
-          created_at: "2024-05-14T14:00:00Z"
-  },
-  {
-          id: "txn-004",
-    type: "expense",
-    category: "Utilities",
-          description: "Electricity Bill - May 2024",
-          amount: 380,
-          date: "2024-05-10",
-    status: "pending",
-          reference: "UTIL-001",
-          created_at: "2024-05-10T09:00:00Z"
-  },
-  {
-          id: "txn-005",
-          type: "income",
-          category: "Bar Sales",
-          description: "Bar Revenue - Weekend Events",
-          amount: 1200,
-          date: "2024-05-12",
-    status: "completed",
-          reference: "BAR-001",
-          created_at: "2024-05-12T22:00:00Z"
-  }
-]
+      const [bookingRequests, analytics] = await Promise.all([
+        venueService.getVenueBookingRequests(venue.id),
+        venueService.getVenueAnalytics(venue.id, 90),
+      ])
 
-      setTransactions(mockTransactions)
-      
-      // Calculate summary
-      const revenue = mockTransactions.filter(t => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
-      const expenses = mockTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + t.amount, 0)
-      const profit = revenue - expenses
-      
-      setSummary({
-        totalRevenue: revenue,
-        totalExpenses: expenses,
-        netProfit: profit,
-        profitMargin: revenue > 0 ? (profit / revenue) * 100 : 0,
-        monthlyRevenue: revenue,
-        monthlyExpenses: expenses,
-        monthlyProfit: profit,
-        averageEventRevenue: 2500,
-        unpaidInvoices: 3,
-        overdueInvoices: 1
+      const derivedTransactions: Transaction[] = bookingRequests.map((request) => {
+        const parsedBudget = Number((request.budget_range || "").replace(/[^0-9.]/g, ""))
+        const estimatedAmount = Number.isFinite(parsedBudget) && parsedBudget > 0
+          ? parsedBudget
+          : Number(request.expected_attendance || 0) * 25
+
+        return {
+          id: `booking-${request.id}`,
+          type: "income",
+          category: "Event Bookings",
+          description: request.event_name,
+          amount: estimatedAmount,
+          date: request.event_date || request.requested_at,
+          status: request.status === "approved" ? "completed" : request.status === "pending" ? "pending" : "cancelled",
+          reference: request.id,
+          event_id: request.id,
+          created_at: request.created_at,
+        }
       })
+
+      const utilityExpenses: Transaction[] = analytics
+        .filter((item) => item.revenue > 0)
+        .slice(0, 3)
+        .map((item, index) => ({
+          id: `ops-${item.id}`,
+          type: "expense" as const,
+          category: "Utilities",
+          description: `Estimated operating cost for ${format(new Date(item.date), "MMM yyyy")}`,
+          amount: Number((item.revenue * 0.18).toFixed(2)),
+          date: item.date,
+          status: "completed" as const,
+          reference: `OPS-${index + 1}`,
+          created_at: item.created_at,
+        }))
+
+      const nextTransactions = [...manualTransactions, ...derivedTransactions, ...utilityExpenses]
+        .sort((first, second) => new Date(second.date).getTime() - new Date(first.date).getTime())
+
+      setTransactions(nextTransactions)
+      setSummary(calculateSummary(nextTransactions))
       
     } catch (error) {
       console.error('Error fetching financial data:', error)
@@ -278,7 +263,7 @@ const mockTransactions: Transaction[] = [
   const handleAddTransaction = async () => {
     try {
     const transaction: Transaction = {
-        id: `txn-${Date.now()}`,
+        id: `manual-${Date.now()}`,
         type: newTransaction.type,
         category: newTransaction.category,
         description: newTransaction.description,
@@ -290,7 +275,12 @@ const mockTransactions: Transaction[] = [
         created_at: new Date().toISOString()
     }
 
-    setTransactions(prev => [transaction, ...prev])
+    setManualTransactions((current) => [transaction, ...current])
+    setTransactions((current) => {
+      const next = [transaction, ...current]
+      setSummary(calculateSummary(next))
+      return next
+    })
     setIsAddTransactionOpen(false)
     setNewTransaction({
       type: "income",
@@ -307,8 +297,6 @@ const mockTransactions: Transaction[] = [
         description: "Financial transaction has been recorded successfully.",
       })
       
-      // Recalculate summary
-      fetchFinancialData()
     } catch (error) {
       toast({
         title: "Error",

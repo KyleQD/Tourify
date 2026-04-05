@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Music, Building2, User, AlertCircle } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { ProfileShareCard } from "@/components/profile/profile-share-card"
 
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true)
@@ -188,6 +189,14 @@ export default function ProfilePage() {
             </CardHeader>
             <form onSubmit={handleUpdateProfile}>
               <CardContent className="space-y-4">
+                {username ? (
+                  <ProfileShareCard
+                    username={username}
+                    displayName={name || username}
+                    sharePath="/profile"
+                  />
+                ) : null}
+
                 {error && (
                   <Alert variant="destructive">
                     <AlertCircle className="h-4 w-4" />
@@ -242,14 +251,14 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-gray-500 mb-4">
-                An artist profile allows you to showcase your music, manage events, and connect with venues.
+                An artist profile lets you showcase what you create, offer services, sell products, and connect with clients or venues.
               </p>
               <div className="space-y-2 mb-4">
                 <p className="text-sm font-medium">Features include:</p>
                 <ul className="text-xs space-y-1 text-gray-400">
-                  <li>• Music upload and streaming</li>
+                  <li>• Creator showcase (music, photo, video, and more)</li>
                   <li>• Event creation and management</li>
-                  <li>• Fan engagement tools</li>
+                  <li>• Hire-me and collaboration tools</li>
                   <li>• Revenue analytics</li>
                 </ul>
               </div>

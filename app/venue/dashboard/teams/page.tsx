@@ -87,7 +87,7 @@ export default function TeamsPage() {
   // Handle tab change and update URL
   const handleTabChange = (value: string) => {
     setActiveTab(value)
-    router.push(`/teams?tab=${value}`, { scroll: false })
+    router.push(`/venue/dashboard/teams?tab=${value}`, { scroll: false })
   }
 
   // Handle navigation
@@ -118,7 +118,7 @@ export default function TeamsPage() {
                 size="sm"
                 variant="ghost"
                 className="h-8 w-8 p-0"
-                onClick={() => handleNavigation("/teams/create")}
+                onClick={() => handleNavigation("/venue/dashboard/teams")}
               >
                 <PlusCircle className="h-4 w-4" />
                 <span className="sr-only">Add team</span>
@@ -244,7 +244,7 @@ export default function TeamsPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-medium">Team Members</h3>
-                    <Button onClick={() => handleNavigation(`/teams/${selectedTeam.id}/add-member`)}>
+                    <Button onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                       <PlusCircle className="h-4 w-4 mr-2" />
                       Add Member
                     </Button>
@@ -276,7 +276,7 @@ export default function TeamsPage() {
                                 variant="ghost"
                                 size="icon"
                                 className="ml-auto"
-                                onClick={() => handleNavigation(`/teams/${selectedTeam.id}/member/${i}`)}
+                                onClick={() => handleNavigation(`/venue/dashboard/teams`)}
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
@@ -303,7 +303,7 @@ export default function TeamsPage() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => handleNavigation(`/teams/${selectedTeam.id}/members`)}
+                    onClick={() => handleNavigation(`/venue/dashboard/teams`)}
                   >
                     View All Members
                   </Button>
@@ -313,7 +313,7 @@ export default function TeamsPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-medium">Team Tasks</h3>
-                    <Button onClick={() => handleNavigation(`/teams/${selectedTeam.id}/add-task`)}>
+                    <Button onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                       <PlusCircle className="h-4 w-4 mr-2" />
                       Add Task
                     </Button>
@@ -350,7 +350,7 @@ export default function TeamsPage() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => handleNavigation(`/teams/${selectedTeam.id}/tasks`)}
+                    onClick={() => handleNavigation(`/venue/dashboard/teams`)}
                   >
                     View All Tasks
                   </Button>
@@ -360,7 +360,7 @@ export default function TeamsPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-medium">Team Schedule</h3>
-                    <Button onClick={() => handleNavigation(`/teams/${selectedTeam.id}/schedule`)}>
+                    <Button onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                       <Calendar className="h-4 w-4 mr-2" />
                       Manage Schedule
                     </Button>
@@ -371,7 +371,7 @@ export default function TeamsPage() {
                         <Calendar className="h-12 w-12 mx-auto text-muted-foreground" />
                         <h3 className="mt-4 text-lg font-medium">Schedule Manager</h3>
                         <p className="mt-2 text-sm text-muted-foreground">Manage your team's shifts and schedules</p>
-                        <Button className="mt-4" onClick={() => handleNavigation(`/teams/${selectedTeam.id}/schedule`)}>
+                        <Button className="mt-4" onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                           Open Schedule Manager
                         </Button>
                       </div>
@@ -383,7 +383,7 @@ export default function TeamsPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-medium">Team Communication</h3>
-                    <Button onClick={() => handleNavigation(`/teams/${selectedTeam.id}/message`)}>
+                    <Button onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                       <MessageCircle className="h-4 w-4 mr-2" />
                       New Message
                     </Button>
@@ -394,7 +394,7 @@ export default function TeamsPage() {
                         <MessageCircle className="h-12 w-12 mx-auto text-muted-foreground" />
                         <h3 className="mt-4 text-lg font-medium">Team Chat</h3>
                         <p className="mt-2 text-sm text-muted-foreground">Communicate with your team members</p>
-                        <Button className="mt-4" onClick={() => handleNavigation(`/teams/${selectedTeam.id}/chat`)}>
+                        <Button className="mt-4" onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                           Open Team Chat
                         </Button>
                       </div>
@@ -406,7 +406,7 @@ export default function TeamsPage() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-medium">Team Settings</h3>
-                    <Button onClick={() => handleNavigation(`/teams/${selectedTeam.id}/settings`)}>
+                    <Button onClick={() => handleNavigation(`/venue/dashboard/teams`)}>
                       <Settings className="h-4 w-4 mr-2" />
                       Edit Settings
                     </Button>

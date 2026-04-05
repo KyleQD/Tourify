@@ -11,6 +11,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Paperclip, Send, Smile, User, Users, MessageSquare } from "lucide-react"
+import { useCurrentVenue } from "../hooks/useCurrentVenue"
+import { venueService } from "@/lib/services/venue.service"
 
 // Mock conversation data
 const mockConversations = [
@@ -98,12 +100,67 @@ const mockMessages = [
 ]
 
 export function MessagingSystem() {
+  const { venue } = useCurrentVenue()
   const [activeTab, setActiveTab] = useState("all")
   const [activeConversation, setActiveConversation] = useState<string | null>("conv-1")
   const [message, setMessage] = useState("")
   const [conversations, setConversations] = useState(mockConversations)
   const [messages, setMessages] = useState(mockMessages)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    async function loadConversations() {
+      if (!venue?.id) return
+
+      const [bookings, teamMembers] = await Promise.all([
+        venueService.getVenueBookingRequests(venue.id),
+        venueService.getVenueTeamMembers(venue.id),
+      ])
+
+      const bookingConversations = bookings.slice(0, 10).map((booking) => ({
+        id: `booking-${booking.id}`,
+        name: booking.contact_email || "Organizer",
+        avatar: "/placeholder.svg",
+        lastMessage: booking.description || booking.event_name || "Booking inquiry",
+        time: new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit" }).format(new Date(booking.requested_at || booking.created_at || Date.now())),
+        unread: booking.status === "pending",
+        type: "client",
+      }))
+
+      const teamConversation = teamMembers.length > 0
+        ? [{
+            id: "team-channel",
+            name: "Venue Team",
+            avatar: "/placeholder.svg",
+            lastMessage: `${teamMembers.length} active staff members`,
+            time: "Today",
+            unread: false,
+            type: "team",
+          }]
+        : []
+
+      const nextConversations = [...bookingConversations, ...teamConversation]
+      if (nextConversations.length > 0) {
+        setConversations(nextConversations)
+        setActiveConversation(nextConversations[0].id)
+      }
+
+      if (bookingConversations.length > 0) {
+        setMessages(
+          bookingConversations.slice(0, 1).map((conversation, index) => ({
+            id: `live-msg-${index + 1}`,
+            sender: "them",
+            name: conversation.name,
+            avatar: conversation.avatar,
+            content: conversation.lastMessage,
+            time: conversation.time,
+          }))
+        )
+      }
+    }
+
+    void loadConversations()
+  }, [venue?.id])
 
   // Scroll to bottom of messages when messages change
   useEffect(() => {
@@ -113,11 +170,13 @@ export function MessagingSystem() {
   // Mark conversation as read when selected
   useEffect(() => {
     if (activeConversation) {
-      setConversations(
-        conversations.map((conv) => (conv.id === activeConversation ? { ...conv, unread: false } : conv)),
+      setConversations((currentConversations) =>
+        currentConversations.map((conversation) =>
+          conversation.id === activeConversation ? { ...conversation, unread: false } : conversation
+        )
       )
     }
-  }, [activeConversation, conversations])
+  }, [activeConversation])
 
   // Filter conversations based on active tab
   const filteredConversations = conversations.filter((conv) => {

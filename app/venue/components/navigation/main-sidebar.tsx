@@ -205,7 +205,7 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
                 variant="outline"
                 size="sm"
                 className="justify-start gap-1"
-                onClick={handleNavigation("/events/create")}
+                onClick={handleNavigation("/venue/dashboard/calendar")}
               >
                 <PlusCircle className="h-4 w-4" />
                 <span>Event</span>
@@ -223,7 +223,7 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
                 variant="outline"
                 size="sm"
                 className="justify-start gap-1"
-                onClick={handleNavigation("/bookings/create")}
+                onClick={handleNavigation("/venue/bookings")}
               >
                 <Clock className="h-4 w-4" />
                 <span>Booking</span>
@@ -244,12 +244,12 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
           <NavGroup title="Main" defaultOpen={true}>
             <NavItem href="/" icon={<Home className="h-4 w-4" />} label="Home" />
             <NavItem href="/dashboard" icon={<BarChart3 className="h-4 w-4" />} label="Dashboard" />
-            <NavItem href="/events" icon={<Calendar className="h-4 w-4" />} label="Events" badge={3} />
+            <NavItem href="/venue/dashboard/events" icon={<Calendar className="h-4 w-4" />} label="Events" badge={3} />
             <NavItem href="/music" icon={<Music className="h-4 w-4" />} label="Music" />
             <NavItem href="/network" icon={<Users className="h-4 w-4" />} label="Network" />
             <NavItem href="/messages" icon={<MessageSquare className="h-4 w-4" />} label="Messages" badge={2} />
-            <NavItem href="/bookings" icon={<Clock className="h-4 w-4" />} label="Bookings" badge={5} />
-            <NavItem href="/teams" icon={<Users className="h-4 w-4" />} label="Team" isNew={true} />
+            <NavItem href="/venue/bookings" icon={<Clock className="h-4 w-4" />} label="Bookings" badge={5} />
+            <NavItem href="/venue/staff" icon={<Users className="h-4 w-4" />} label="Team" isNew={true} />
           </NavGroup>
 
           {/* Content */}
@@ -264,8 +264,8 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
           <NavGroup title="Venues & Events">
             <NavItem href="/venues" icon={<Building className="h-4 w-4" />} label="Venues" />
             <NavItem href="/equipment" icon={<Mic className="h-4 w-4" />} label="Equipment" isNew={true} />
-            <NavItem href="/events/map" icon={<Map className="h-4 w-4" />} label="Event Map" />
-            <NavItem href="/tickets" icon={<Ticket className="h-4 w-4" />} label="Tickets" />
+            <NavItem href="/venue/dashboard/events/map" icon={<Map className="h-4 w-4" />} label="Event Map" />
+            <NavItem href="/venue/dashboard/tickets" icon={<Ticket className="h-4 w-4" />} label="Tickets" />
           </NavGroup>
 
           {/* Business */}
@@ -273,8 +273,8 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
             <NavItem href="/jobs" icon={<Briefcase className="h-4 w-4" />} label="Jobs" badge={3} />
             <NavItem href="/merch" icon={<ShoppingBag className="h-4 w-4" />} label="Merchandise" />
             <NavItem href="/promotions" icon={<Zap className="h-4 w-4" />} label="Promotions" />
-            <NavItem href="/analytics" icon={<BarChart3 className="h-4 w-4" />} label="Analytics" />
-            <NavItem href="/finances" icon={<DollarSign className="h-4 w-4" />} label="Finances" isNew={true} />
+            <NavItem href="/venue/analytics" icon={<BarChart3 className="h-4 w-4" />} label="Analytics" />
+            <NavItem href="/venue/finances" icon={<DollarSign className="h-4 w-4" />} label="Finances" isNew={true} />
           </NavGroup>
 
           {/* Resources */}

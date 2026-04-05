@@ -1,0 +1,34 @@
+name: Mobile Redirect Safety
+
+on:
+  pull_request:
+    paths:
+      - "app/auth/callback/route.ts"
+      - "app/auth/mobile-callback/route.ts"
+      - "lib/auth/mobile-redirect.ts"
+      - "scripts/test-mobile-redirect.ts"
+      - "package.json"
+      - ".github/workflows/mobile-redirect-safety.yml"
+  workflow_dispatch:
+
+jobs:
+  redirect-safety:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run mobile redirect safety test
+        run: npm run test:mobile-redirect
+
+      - name: Run auth callback redirect smoke test
+        run: npm run test:auth-redirects

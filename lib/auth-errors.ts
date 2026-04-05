@@ -88,6 +88,20 @@ export function mapAuthError(error: AuthError | Error | string): AuthErrorInfo {
     }
   }
 
+  // OAuth and social provider errors
+  if (errorMessage.includes('oauth') ||
+      errorMessage.includes('provider') ||
+      errorMessage.includes('access_denied') ||
+      errorMessage.includes('identity provider')) {
+    return {
+      message: 'Social sign-in failed',
+      description: 'We could not complete sign-in with that provider. Please try again or use email sign-in.',
+      actionable: true,
+      action: 'Retry social sign-in or continue with email',
+      severity: 'warning'
+    }
+  }
+
   // Network/connection errors
   if (errorMessage.includes('network') || 
       errorMessage.includes('connection') ||

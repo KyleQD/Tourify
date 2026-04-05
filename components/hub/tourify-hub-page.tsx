@@ -206,11 +206,11 @@ export function TourifyHubPage() {
                 <Button asChild variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white">
                   <Link href="/feed">Pulse</Link>
                 </Button>
-                <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
-                  <Link href="/login">Sign In</Link>
-                </Button>
                 <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/30">
-                  <Link href="/signup">Sign Up Free</Link>
+                  <Link href="/login?tab=signup">Sign Up Free</Link>
+                </Button>
+                <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
+                  <Link href="/login?tab=signin">Sign In</Link>
                 </Button>
               </div>
             </div>
@@ -239,12 +239,12 @@ export function TourifyHubPage() {
                 </Button>
               ) : (
                 <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/30">
-                  <Link href="/signup">Sign Up Free</Link>
+                  <Link href="/login?tab=signup">Sign Up Free</Link>
                 </Button>
               )}
               {!user ? (
                 <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
-                  <Link href="/login">Sign In</Link>
+                  <Link href="/login?tab=signin">Sign In</Link>
                 </Button>
               ) : (
                 <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
@@ -431,10 +431,10 @@ export function TourifyHubPage() {
             <p className="mt-2 text-sm text-slate-300">Start free, build your public presence, and unlock live opportunity flow in minutes.</p>
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                <Link href="/signup">Sign Up Free</Link>
+                <Link href="/login?tab=signup">Sign Up Free</Link>
               </Button>
               <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
-                <Link href="/login">Sign In</Link>
+                <Link href="/login?tab=signin">Sign In</Link>
               </Button>
             </div>
           </section>

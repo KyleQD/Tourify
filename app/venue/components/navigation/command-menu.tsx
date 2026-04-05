@@ -62,11 +62,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
             <LayoutDashboard className="mr-2 h-4 w-4" />
             <span>Dashboard</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/events"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/dashboard/events"))}>
             <Calendar className="mr-2 h-4 w-4" />
             <span>Events</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/teams"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/staff"))}>
             <Users className="mr-2 h-4 w-4" />
             <span>Team</span>
           </CommandItem>
@@ -85,7 +85,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
             <Mic className="mr-2 h-4 w-4" />
             <span>Equipment</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/finances"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/finances"))}>
             <DollarSign className="mr-2 h-4 w-4" />
             <span>Finances</span>
           </CommandItem>

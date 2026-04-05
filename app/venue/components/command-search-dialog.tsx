@@ -50,29 +50,29 @@ export function CommandSearchDialog() {
   }
 
   return (
-    <CommandDialog open={isOpen} onOpenChange={close}>
+    <CommandDialog open={isOpen} onOpenChange={(nextOpen) => !nextOpen && close()}>
       <CommandInput placeholder="Type a command or search..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 
         <CommandGroup heading="Navigation">
-          <CommandItem onSelect={() => runCommand(() => router.push("/dashboard"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/dashboard/dashboard"))}>
             <Home className="mr-2 h-4 w-4" />
             <span>Dashboard</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/events"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/dashboard/events"))}>
             <Calendar className="mr-2 h-4 w-4" />
             <span>Events</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/bookings"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/bookings"))}>
             <Clock className="mr-2 h-4 w-4" />
             <span>Bookings</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/team"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/staff"))}>
             <Users className="mr-2 h-4 w-4" />
             <span>Team</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/analytics"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/analytics"))}>
             <BarChart2 className="mr-2 h-4 w-4" />
             <span>Analytics</span>
           </CommandItem>
@@ -98,15 +98,15 @@ export function CommandSearchDialog() {
         <CommandSeparator />
 
         <CommandGroup heading="Create New">
-          <CommandItem onSelect={() => runCommand(() => router.push("/events/create"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/dashboard/calendar"))}>
             <PlusCircle className="mr-2 h-4 w-4" />
             <span>Create Event</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/bookings/create"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/bookings"))}>
             <PlusCircle className="mr-2 h-4 w-4" />
             <span>Create Booking</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/team/invite"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/staff"))}>
             <PlusCircle className="mr-2 h-4 w-4" />
             <span>Invite Team Member</span>
           </CommandItem>
@@ -119,11 +119,11 @@ export function CommandSearchDialog() {
             <Mic className="mr-2 h-4 w-4" />
             <span>Equipment Management</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/finances"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/finances"))}>
             <DollarSign className="mr-2 h-4 w-4" />
             <span>Financial Management</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/tickets"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/dashboard/tickets"))}>
             <Ticket className="mr-2 h-4 w-4" />
             <span>Ticket Management</span>
           </CommandItem>

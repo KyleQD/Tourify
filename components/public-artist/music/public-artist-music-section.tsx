@@ -12,11 +12,13 @@ import { paBtnRound, paCard, paInset, paRow } from "@/components/public-artist/p
 
 export function PublicArtistMusicSection({
   viewer,
+  creatorType,
   featuredTrack,
   tracks,
   defaultTrackId
 }: {
   viewer: PublicArtistViewerDTO
+  creatorType: string | null
   featuredTrack: PublicArtistTrackDTO | null
   tracks: PublicArtistTrackDTO[]
   defaultTrackId: string | null
@@ -56,19 +58,19 @@ export function PublicArtistMusicSection({
     <>
       <Card className={paCard}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold tracking-tight text-white">Featured Music</CardTitle>
+          <CardTitle className="text-lg font-semibold tracking-tight text-white">Featured Work</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {tracks.length === 0 ? (
             <div className={`${paInset} flex flex-col gap-3 p-5`}>
               <div className="text-sm text-white/70">
                 {showUploadEmptyState
-                  ? "Upload your first track to start building your public music profile."
-                  : "No tracks yet."}
+                  ? `Upload your first ${creatorType?.toLowerCase() === "musician" ? "track" : "audio sample"} to start building your public showcase.`
+                  : "No featured work yet."}
               </div>
               {showUploadEmptyState ? (
                 <Button asChild className={`${paBtnRound} w-fit px-5`}>
-                  <Link href="/artist/music">Upload your first track</Link>
+                  <Link href="/artist/music">Upload first sample</Link>
                 </Button>
               ) : null}
             </div>

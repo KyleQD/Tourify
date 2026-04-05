@@ -1,13 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
 
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
   const { pathname } = request.nextUrl
-
-  console.log(`[Main Middleware] Processing: ${pathname}`)
-  console.log(`[Main Middleware] User authenticated: ${!!user}`)
-  console.log(`[Main Middleware] User ID: ${user?.id || 'none'}`)
 
   // Define route categories
   const publicRoutes = [
@@ -52,31 +49,33 @@ export async function middleware(request: NextRequest) {
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isRootRoute = pathname === '/'
 
-  console.log(`[Main Middleware] Route type - Public: ${isPublicRoute}, Auth: ${isAuthRoute}, Protected: ${isProtectedRoute}, Root: ${isRootRoute}`)
-
   // Root route should route users to their primary experience:
   // authenticated users -> dashboard, anonymous users -> login.
   if (isRootRoute) {
     if (user) {
-      console.log(`[Main Middleware] Authenticated user accessing root, redirecting to dashboard`)
       const redirectUrl = new URL('/dashboard', request.url)
       return NextResponse.redirect(redirectUrl)
     }
 
-    console.log(`[Main Middleware] Unauthenticated user accessing root, redirecting to login`)
     const redirectUrl = new URL('/login', request.url)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Canonical public venue profiles now live under /venues/[slug].
+  // Keep /venue/* reserved for authenticated venue account surfaces.
+  const venueProfileRedirect = getLegacyVenueProfileRedirect(pathname)
+  if (venueProfileRedirect) {
+    const redirectUrl = new URL(venueProfileRedirect, request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
   // Redirect authenticated users away from auth pages
   if (user && isAuthRoute) {
-    console.log(`[Main Middleware] Authenticated user accessing auth page, redirecting to dashboard`)
     const redirectUrl = new URL('/dashboard', request.url)
     return NextResponse.redirect(redirectUrl)
   }
 
   if (!user && isProtectedRoute) {
-    console.log(`[Main Middleware] Unauthenticated request to protected route, redirecting to login`)
     const redirectUrl = new URL('/login', request.url)
     const targetPath = `${pathname}${request.nextUrl.search || ''}`
     redirectUrl.searchParams.set('redirectTo', targetPath)
@@ -85,22 +84,24 @@ export async function middleware(request: NextRequest) {
 
   // Handle legacy routes
   if (pathname === '/auth/signin' || pathname === '/signin') {
-    console.log(`[Main Middleware] Legacy route redirect: ${pathname} -> /login`)
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (pathname === '/auth/signup') {
-    console.log(`[Main Middleware] Legacy route redirect: ${pathname} -> /login`)
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Redirect /signup to /login
   if (pathname === '/signup') {
-    console.log(`[Main Middleware] Redirecting /signup to /login`)
-    return NextResponse.redirect(new URL('/login', request.url))
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('tab', 'signup')
+    request.nextUrl.searchParams.forEach((value, key) => {
+      if (key === 'tab') return
+      redirectUrl.searchParams.set(key, value)
+    })
+    return NextResponse.redirect(redirectUrl)
   }
 
-  console.log(`[Main Middleware] Allowing access to: ${pathname}`)
   return supabaseResponse
 }
 

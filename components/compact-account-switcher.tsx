@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2 } from 'lucide-react'
+import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,21 +23,24 @@ const accountTypeIcons = {
   general: User,
   artist: Music,
   venue: Building,
-  admin: Shield
+  admin: Shield,
+  staff: Briefcase
 }
 
 const accountTypeColors = {
   general: 'bg-blue-500',
   artist: 'bg-purple-500',
   venue: 'bg-green-500',
-  admin: 'bg-red-500'
+  admin: 'bg-red-500',
+  staff: 'bg-indigo-500'
 }
 
 const accountTypeLabels = {
   general: 'Personal',
   artist: 'Artist',
   venue: 'Venue',
-  admin: 'Organizer'
+  admin: 'Organizer',
+  staff: 'Staff'
 }
 
 interface CompactAccountSwitcherProps {
@@ -93,6 +96,8 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
         return currentAccount.profile_data?.venue_name || 'Venue'
       case 'admin':
         return currentAccount.profile_data?.organization_name || 'Organizer'
+      case 'staff':
+        return currentAccount.profile_data?.venue_profiles?.venue_name || currentAccount.profile_data?.role || 'Staff'
       default:
         return currentAccount.profile_data?.full_name || 'Personal'
     }
@@ -190,6 +195,8 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                         ? (account.profile_data?.venue_name || 'Venue Account')
                         : account.account_type === 'admin'
                         ? (account.profile_data?.organization_name || 'Organizer Account')
+                        : account.account_type === 'staff'
+                        ? (account.profile_data?.venue_profiles?.venue_name || account.profile_data?.role || 'Staff Account')
                         : (account.profile_data?.full_name || 'Personal Account')
                       }
                     </div>

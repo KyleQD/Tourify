@@ -17,13 +17,12 @@ export function GlobalNavigation() {
     setSidebarOpen(false)
   }, [pathname])
 
-  // Check if we're in a venue route
-  const isVenueRoute = pathname.startsWith("/(venue)") || pathname.startsWith("/venue")
+  const isVenueRoute = pathname.startsWith("/venue")
 
   return (
     <>
-      {/* Desktop sidebar - always present but hidden on venue routes */}
-      <MainSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} className={isVenueRoute ? "hidden" : ""} />
+      {/* Desktop sidebar - stays visible and switches to venue mode on /venue routes */}
+      <MainSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} mode={isVenueRoute ? "venue" : "default"} />
 
       {/* Top navigation - always present */}
       <TopNavigation onSidebarOpen={() => setSidebarOpen(true)} onCommandOpen={() => setCommandOpen(true)} />

@@ -34,7 +34,7 @@ export function useSocialIntegrations() {
       setError('Please sign in to connect accounts')
       if (typeof window !== 'undefined') {
         const redirect = encodeURIComponent(window.location.pathname)
-        window.location.href = `/login?redirect=${redirect}`
+        window.location.href = `/login?redirectTo=${redirect}&tab=signup`
       }
       throw new Error('not_authenticated')
     }

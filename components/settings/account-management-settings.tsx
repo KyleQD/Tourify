@@ -23,6 +23,7 @@ import {
   Music, 
   Building, 
   Shield, 
+  Briefcase,
   Trash2, 
   AlertTriangle,
   Crown,
@@ -44,21 +45,24 @@ const accountTypeIcons = {
   general: User,
   artist: Music,
   venue: Building,
-  admin: Shield
+  admin: Shield,
+  staff: Briefcase
 }
 
 const accountTypeColors = {
   general: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
   artist: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
   venue: 'bg-green-500/20 text-green-300 border-green-500/30',
-  admin: 'bg-red-500/20 text-red-300 border-red-500/30'
+  admin: 'bg-red-500/20 text-red-300 border-red-500/30',
+  staff: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
 }
 
 const accountTypeLabels = {
   general: 'Personal',
   artist: 'Artist',
   venue: 'Venue',
-  admin: 'Organizer'
+  admin: 'Organizer',
+  staff: 'Staff'
 }
 
 export function AccountManagementSettings({ activeTab }: AccountManagementSettingsProps) {
@@ -381,6 +385,8 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
         return account.profile_data?.venue_name || 'Venue Account'
       case 'admin':
         return account.profile_data?.organization_name || account.profile_data?.admin_name || 'Event & Tour Admin'
+      case 'staff':
+        return account.profile_data?.venue_profiles?.venue_name || account.profile_data?.role || 'Staff Account'
       default:
         return account.profile_data?.full_name || account.profile_data?.name || 'Personal Account'
     }

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/lib/database.types'
 
-export type ProfileType = 'general' | 'artist' | 'venue' | 'admin'
+export type ProfileType = 'general' | 'artist' | 'venue' | 'admin' | 'staff'
 
 export interface UserAccount {
   account_type: ProfileType
@@ -274,6 +274,39 @@ export class AccountManagementService {
         }
       } catch (venueError) {
         console.log('[Account Management] Venue profiles not available:', venueError)
+      }
+
+      // Try to get staff memberships tied to this user
+      try {
+        const { data: staffMemberships, error: staffError } = await clientToUse
+          .from('venue_team_members')
+          .select('id, venue_id, name, email, role, department, status, venue_profiles:venue_id(id, venue_name, url_slug)')
+          .eq('user_id', userId)
+          .in('status', ['active', 'inactive'])
+
+        if (staffMemberships && !staffError && staffMemberships.length > 0) {
+          staffMemberships.forEach((membership: any) => {
+            accounts.push({
+              account_type: 'staff',
+              profile_id: membership.id,
+              profile_data: {
+                ...membership,
+                display_name:
+                  membership?.venue_profiles?.venue_name || membership.name || membership.email || 'Staff',
+                account_display_type: 'Staff',
+              },
+              permissions: {
+                can_post: false,
+                can_manage_settings: false,
+                can_view_analytics: false,
+                can_manage_content: false,
+              },
+              is_active: membership.status === 'active',
+            })
+          })
+        }
+      } catch (staffError) {
+        console.log('[Account Management] Staff memberships not available:', staffError)
       }
 
       // Check for organizer accounts in dedicated organizer_accounts table (NEW ROBUST APPROACH)

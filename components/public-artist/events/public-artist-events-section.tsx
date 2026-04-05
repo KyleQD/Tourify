@@ -10,11 +10,15 @@ import { paBtnRound, paCard, paInset, paRow } from "@/components/public-artist/p
 export function PublicArtistEventsSection({
   artistUserId,
   artistName,
+  creatorType,
+  isAvailableForHire,
   upcomingEvents,
   onBookThisArtist
 }: {
   artistUserId: string
   artistName: string
+  creatorType: string | null
+  isAvailableForHire: boolean
   upcomingEvents: PublicArtistEventDTO[]
   onBookThisArtist: () => void
 }) {
@@ -24,13 +28,13 @@ export function PublicArtistEventsSection({
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
             <CalendarDays className="h-4 w-4 opacity-90" />
-            Upcoming Events
+            Bookings & Events
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {upcomingEvents.length === 0 ? (
             <div className={`${paInset} flex flex-col gap-3 p-5`}>
-              <div className="text-sm text-white/70">No upcoming events.</div>
+              <div className="text-sm text-white/70">No upcoming public events yet.</div>
               <Button asChild variant="secondary" className={`${paBtnRound} w-fit px-5`}>
                 <Link href="/artist/events">Add your first event</Link>
               </Button>
@@ -69,7 +73,7 @@ export function PublicArtistEventsSection({
 
           <div className="mt-5">
             <Button className={`${paBtnRound} w-full py-6 text-base`} onClick={onBookThisArtist}>
-              Book This Artist
+              {isAvailableForHire ? `Hire This ${creatorType || "Creator"}` : `Contact ${artistName} for Opportunities`}
             </Button>
           </div>
         </CardContent>

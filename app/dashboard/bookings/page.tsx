@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +28,7 @@ interface BookingRequest {
   }
   status: "pending" | "accepted" | "declined"
   request_type: string
+  token?: string
   response_message?: string
   created_at: string
   event_id?: string
@@ -42,7 +42,6 @@ export default function BookingsPage() {
   const [responseMessage, setResponseMessage] = React.useState("")
   const [responding, setResponding] = React.useState(false)
   const { toast } = useToast()
-  const router = useRouter()
 
   React.useEffect(() => {
     fetchBookingRequests()
@@ -50,9 +49,7 @@ export default function BookingsPage() {
 
   async function fetchBookingRequests() {
     try {
-      // TODO: Replace with actual user ID from auth context
-      const userId = "user-id-here" // This should come from auth
-      const response = await fetch(`/api/booking-requests?artistId=${userId}`)
+      const response = await fetch("/api/booking-requests")
       if (response.ok) {
         const data = await response.json()
         setBookings(data.data || [])
@@ -72,11 +69,21 @@ export default function BookingsPage() {
   async function respondToBooking(bookingId: string, status: "accepted" | "declined") {
     setResponding(true)
     try {
+      const booking = bookings.find(item => item.id === bookingId)
+      if (!booking?.token) {
+        toast({
+          title: "Unable to respond",
+          description: "This booking is missing a secure token and cannot be updated.",
+          variant: "destructive"
+        })
+        return
+      }
+
       const response = await fetch("/api/booking-requests", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          bookingId,
+          token: booking.token,
           status,
           responseMessage
         })

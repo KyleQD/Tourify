@@ -39,7 +39,7 @@ export default function VenueNavigation() {
     },
     {
       title: "Events",
-      href: "/events",
+      href: "/venue/dashboard/events",
       icon: <Calendar className="h-5 w-5" />,
     },
     {
@@ -49,12 +49,12 @@ export default function VenueNavigation() {
     },
     {
       title: "Finances",
-      href: "/finances",
+      href: "/venue/finances",
       icon: <CreditCard className="h-5 w-5" />,
     },
     {
       title: "Team",
-      href: "/teams",
+      href: "/venue/staff",
       icon: <Users className="h-5 w-5" />,
     },
     {
@@ -64,22 +64,22 @@ export default function VenueNavigation() {
     },
     {
       title: "Analytics",
-      href: "/analytics",
+      href: "/venue/analytics",
       icon: <BarChart3 className="h-5 w-5" />,
       submenu: [
         {
           title: "Overview",
-          href: "/analytics",
+          href: "/venue/analytics",
           icon: <Home className="h-4 w-4" />,
         },
         {
           title: "Attendance",
-          href: "/analytics/attendance",
+          href: "/venue/analytics",
           icon: <Users className="h-4 w-4" />,
         },
         {
           title: "Financial",
-          href: "/analytics/financial",
+          href: "/venue/finances",
           icon: <CreditCard className="h-4 w-4" />,
         },
       ],

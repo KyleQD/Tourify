@@ -1,23 +1,19 @@
 import { NextAuthOptions, getServerSession } from "next-auth"
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { prisma } from "../prisma"
-import GoogleProvider from "next-auth/providers/google"
 
+/**
+ * @deprecated Tourify auth runtime is now Supabase-only.
+ * This legacy NextAuth export is intentionally isolated to prevent
+ * split auth behavior if old endpoints import it.
+ */
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+  providers: [],
   callbacks: {
-    async session({ session, user }) {
+    async signIn() {
+      return false
+    },
+    async session({ session }) {
       if (session.user) {
-        ;(session.user as any).id = user.id
-        // Temporarily grant Pro access to all authenticated users
-        // to make upgraded account types free during beta
-        ;(session.user as any).isPro = true
+        ;(session.user as any).isPro = false
       }
       return session
     },

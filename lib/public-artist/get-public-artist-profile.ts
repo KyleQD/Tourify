@@ -2,6 +2,7 @@ import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { epkService } from '@/lib/services/epk.service'
 import type { PublicArtistPageDTO, PublicArtistStatsDTO, PublicArtistTrackDTO } from './public-artist-types'
+import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
 
 function buildStatsDTO(rpcStats: any, fallback: PublicArtistStatsDTO): PublicArtistStatsDTO {
   if (!rpcStats) return fallback
@@ -158,7 +159,7 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     totalRevenue: 0
   }
 
-  const [rpcStatsResult, tracksResult, eventsResult, photosResult, videosResult, postsResult, epkResult] = await Promise.all([
+  const [rpcStatsResult, tracksResult, eventsResult, photosResult, videosResult, productsResult, postsResult, epkResult] = await Promise.all([
     (async () => {
       try {
         return await supabase.rpc('get_enhanced_artist_stats', { artist_user_id: artistUserId })
@@ -244,6 +245,26 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
       .order('created_at', { ascending: false })
       .limit(10),
     supabase
+      .from('artist_merchandise')
+      .select(`
+        id,
+        name,
+        description,
+        type,
+        price,
+        currency,
+        inventory_count,
+        images,
+        is_featured,
+        status,
+        created_at
+      `)
+      .eq('user_id', artistUserId)
+      .eq('status', 'active')
+      .order('is_featured', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(12),
+    supabase
       .from('posts')
       .select(`
         id,
@@ -299,6 +320,24 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     }))
   ]
 
+  const productRows = productsResult?.data || []
+  const products = productRows.map((p: any) => {
+    const firstImage = Array.isArray(p.images) && p.images.length ? p.images[0] : null
+    return {
+      id: p.id,
+      name: String(p.name || 'Untitled Product'),
+      description: p.description ?? null,
+      type: p.type ?? null,
+      price: typeof p.price === 'number' ? p.price : Number(p.price ?? 0) || 0,
+      currency: p.currency ?? 'USD',
+      inventoryCount: Number(p.inventory_count ?? 0) || 0,
+      imageUrl: firstImage ? String(firstImage) : null,
+      isFeatured: Boolean(p.is_featured),
+      status: p.status ?? null
+    }
+  })
+  const featuredProducts = products.filter((p: any) => p.isFeatured)
+
   const eventsRows = eventsResult?.data || []
   const upcomingEvents = eventsRows.map((e: any) => ({
     id: e.id,
@@ -347,8 +386,22 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
  const settings = artistProfileRow.settings && typeof artistProfileRow.settings === 'object'
     ? artistProfileRow.settings
     : {}
+  const professional = (settings as { professional?: Record<string, unknown> }).professional || {}
+  const creatorCapabilities = extractCreatorCapabilitiesV1(settings)
+
+  const creatorType = creatorCapabilities.creatorType
+  const serviceOfferings = creatorCapabilities.serviceOfferings
+  const productsForSale = creatorCapabilities.productsForSale
+  const credentials = creatorCapabilities.credentials
+  const workHighlights = creatorCapabilities.workHighlights
+  const availableForHire = creatorCapabilities.availableForHire
+  const collaborationInterest = creatorCapabilities.collaborationInterest
+  const bookingRate = (professional['booking_rate'] as string | undefined)?.trim() || null
+  const availability = creatorCapabilities.availability
+  const preferredContact = creatorCapabilities.preferredContact
+
   const professionalLocation =
-    (settings as { professional?: { location?: string } }).professional?.location?.trim() || null
+    (professional['location'] as string | undefined)?.trim() || null
 
   const aboutBio = artistProfileRow.bio ?? resolvedProfile.bio ?? null
 
@@ -382,6 +435,10 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     media: {
       items: mediaItems
     },
+    products: {
+      featuredProducts,
+      products
+    },
     posts: {
       pinnedPosts,
       posts
@@ -395,6 +452,18 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
       totalTracks: stats.totalTracks,
       totalEvents: stats.totalEvents,
       totalRevenue: stats.totalRevenue
+    },
+    creator: {
+      primaryCreatorType: creatorType,
+      serviceOfferings,
+      productsForSale,
+      credentials,
+      workHighlights,
+      availableForHire,
+      collaborationInterest,
+      bookingRate,
+      availability,
+      preferredContact
     },
     epk: {
       epk

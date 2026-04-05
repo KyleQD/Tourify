@@ -85,7 +85,7 @@ export function CommandSearch() {
         </kbd>
       </Button>
 
-      <CommandDialog open={isOpen} onOpenChange={closeSearch}>
+      <CommandDialog open={isOpen} onOpenChange={(nextOpen) => !nextOpen && closeSearch()}>
         <div className="flex items-center border-b border-gray-700 px-3">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <CommandInput
@@ -138,11 +138,11 @@ export function CommandSearch() {
               {query.length === 0 && (
                 <>
                   <CommandGroup heading="Quick Actions">
-                    <CommandItem onSelect={() => handleSelect("/events/create")}>
+                    <CommandItem onSelect={() => handleSelect("/venue/dashboard/calendar")}>
                       <Calendar className="mr-2 h-4 w-4 text-purple-400" />
                       <span>Create New Event</span>
                     </CommandItem>
-                    <CommandItem onSelect={() => handleSelect("/bookings")}>
+                    <CommandItem onSelect={() => handleSelect("/venue/bookings")}>
                       <Clock className="mr-2 h-4 w-4 text-blue-400" />
                       <span>View Booking Requests</span>
                     </CommandItem>
@@ -150,7 +150,7 @@ export function CommandSearch() {
                       <FileText className="mr-2 h-4 w-4 text-orange-400" />
                       <span>Upload Documents</span>
                     </CommandItem>
-                    <CommandItem onSelect={() => handleSelect("/team")}>
+                    <CommandItem onSelect={() => handleSelect("/venue/staff")}>
                       <Users className="mr-2 h-4 w-4 text-green-400" />
                       <span>Manage Team</span>
                     </CommandItem>
@@ -159,14 +159,14 @@ export function CommandSearch() {
                   <CommandSeparator />
 
                   <CommandGroup heading="Recent">
-                    <CommandItem onSelect={() => handleSelect("/events/event-1")}>
+                    <CommandItem onSelect={() => handleSelect("/venue/dashboard/events")}>
                       <Calendar className="mr-2 h-4 w-4 text-purple-400" />
                       <div className="flex flex-col">
                         <span>Summer Jam Festival</span>
                         <span className="text-xs text-gray-400">Event on June 15, 2025</span>
                       </div>
                     </CommandItem>
-                    <CommandItem onSelect={() => handleSelect("/bookings/req-1")}>
+                    <CommandItem onSelect={() => handleSelect("/venue/bookings")}>
                       <Clock className="mr-2 h-4 w-4 text-blue-400" />
                       <div className="flex flex-col">
                         <span>Electronic Music Showcase</span>

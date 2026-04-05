@@ -31,6 +31,12 @@ import type {
   ShiftManagementStats,
   PerformanceStats
 } from '@/types/admin-onboarding'
+import {
+  decryptCredentialRecords,
+  encryptCredentialRecords,
+  summarizeCredentialRecords,
+  type EmployeeCredentialRecordInput,
+} from '@/lib/security/employee-credentials-vault'
 
 // Enhanced Zod schemas for validation
 const createJobPostingSchema = z.object({
@@ -397,6 +403,19 @@ function getFallbackData(type: string, venueId: string) {
 }
 
 export class AdminOnboardingStaffService {
+  private static async resolveCandidateUserId(input: { userId?: string | null; email?: string | null }) {
+    if (input.userId) return input.userId
+    if (!input.email) return null
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', input.email)
+      .maybeSingle()
+
+    return data?.id || null
+  }
+
   private static isValidUuid(id?: string) {
     if (!id) return false
     return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(id)
@@ -800,12 +819,19 @@ export class AdminOnboardingStaffService {
 
       if (candidateError) throw candidateError
 
+      const resolvedUserId = await this.resolveCandidateUserId({
+        userId: candidate.user_id,
+        email: candidate.email,
+      })
+
+      const credentialSummaries = this.extractCredentialSummary(candidate.onboarding_responses)
+
       // Create staff member
       const { data: staffMember, error: staffError } = await supabase
         .from('staff_members')
         .insert({
           venue_id: candidate.venue_id,
-          user_id: candidate.user_id,
+          user_id: resolvedUserId,
           name: candidate.name,
           email: candidate.email,
           phone: candidate.phone,
@@ -815,6 +841,11 @@ export class AdminOnboardingStaffService {
           status: 'active',
           hire_date: new Date().toISOString(),
           permissions: {},
+          emergency_contact: candidate.onboarding_responses?.emergency_contact || null,
+          notes: this.buildStaffNote({
+            note: candidate.notes,
+            credentialSummaries,
+          }),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -827,6 +858,7 @@ export class AdminOnboardingStaffService {
       await supabase
         .from('staff_onboarding_candidates')
         .update({
+          user_id: resolvedUserId || candidate.user_id || null,
           status: 'completed',
           stage: 'approved',
           onboarding_progress: 100,
@@ -887,6 +919,90 @@ export class AdminOnboardingStaffService {
       console.error('❌ [Admin Onboarding Staff Service] Error completing onboarding:', error)
       throw error
     }
+  }
+
+  private static buildStaffNote(input: {
+    note?: string | null
+    credentialSummaries: ReturnType<typeof summarizeCredentialRecords>
+  }) {
+    const content = {
+      note: input.note || null,
+      credential_summary: input.credentialSummaries,
+      synced_at: new Date().toISOString(),
+    }
+    return JSON.stringify(content)
+  }
+
+  private static extractCredentialSummary(onboardingResponses?: Record<string, any> | null) {
+    const secureCredentials = onboardingResponses?.secure_credentials
+    if (!secureCredentials?.envelope) return []
+
+    try {
+      const decrypted = decryptCredentialRecords(secureCredentials.envelope)
+      return summarizeCredentialRecords(decrypted)
+    } catch (error) {
+      console.warn('⚠️ [Admin Onboarding Staff Service] Failed to decrypt candidate credentials:', error)
+      return []
+    }
+  }
+
+  static async upsertCredentialRecords(input: {
+    candidateId: string
+    credentials: EmployeeCredentialRecordInput[]
+    actorUserId?: string
+  }): Promise<{ candidateId: string; count: number }> {
+    const { candidateId, credentials, actorUserId } = input
+    const tableExists = await checkTableExists('staff_onboarding_candidates')
+    if (!tableExists) throw new Error('Database table does not exist')
+
+    const { data: candidate, error: loadError } = await supabase
+      .from('staff_onboarding_candidates')
+      .select('id, onboarding_responses')
+      .eq('id', candidateId)
+      .single()
+
+    if (loadError || !candidate) throw new Error('Candidate not found')
+
+    const envelope = encryptCredentialRecords(credentials)
+    const nextResponses = {
+      ...(candidate.onboarding_responses || {}),
+      secure_credentials: {
+        envelope,
+        count: credentials.length,
+        updated_by: actorUserId || null,
+        updated_at: new Date().toISOString(),
+      },
+    }
+
+    const { error: updateError } = await supabase
+      .from('staff_onboarding_candidates')
+      .update({
+        onboarding_responses: nextResponses,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', candidateId)
+
+    if (updateError) throw updateError
+    return { candidateId, count: credentials.length }
+  }
+
+  static async getCredentialRecordSummary(candidateId: string) {
+    const tableExists = await checkTableExists('staff_onboarding_candidates')
+    if (!tableExists) throw new Error('Database table does not exist')
+
+    const { data: candidate, error: candidateError } = await supabase
+      .from('staff_onboarding_candidates')
+      .select('id, onboarding_responses')
+      .eq('id', candidateId)
+      .single()
+
+    if (candidateError || !candidate) throw new Error('Candidate not found')
+
+    const secureCredentials = candidate.onboarding_responses?.secure_credentials
+    if (!secureCredentials?.envelope) return []
+
+    const records = decryptCredentialRecords(secureCredentials.envelope)
+    return summarizeCredentialRecords(records)
   }
 
   /**

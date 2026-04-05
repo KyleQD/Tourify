@@ -43,6 +43,9 @@ interface DiscoverProfile {
     following: number
     posts: number
   }
+  creator_type?: string | null
+  service_offerings?: string[]
+  available_for_hire?: boolean
 }
 
 interface DiscoverEvent {
@@ -96,12 +99,14 @@ interface DiscoverPayload {
     artists: DiscoverProfile[]
     venues: DiscoverProfile[]
     suggestions: DiscoverProfile[]
+    hire_matches: DiscoverProfile[]
   }
   stats: {
     trending_count: number
     upcoming_count: number
     people_count: number
     suggestions_count: number
+    hire_matches_count: number
   }
 }
 
@@ -113,7 +118,7 @@ interface IntentOption {
 }
 
 type DiscoverIntent = "grow" | "network" | "book" | "learn"
-type DiscoverTab = "for-you" | "events" | "trending" | "people"
+type DiscoverTab = "for-you" | "events" | "trending" | "people" | "hire"
 
 const intentOptions: IntentOption[] = [
   {
@@ -192,6 +197,11 @@ export default function DiscoverPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [locationInput, setLocationInput] = useState("")
   const [appliedLocation, setAppliedLocation] = useState("")
+  const [creatorTypeInput, setCreatorTypeInput] = useState("")
+  const [serviceInput, setServiceInput] = useState("")
+  const [appliedCreatorType, setAppliedCreatorType] = useState("")
+  const [appliedService, setAppliedService] = useState("")
+  const [availableForHireOnly, setAvailableForHireOnly] = useState(false)
   const [selectedIntent, setSelectedIntent] = useState<DiscoverIntent>("grow")
   const [activeTab, setActiveTab] = useState<DiscoverTab>("for-you")
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
@@ -200,6 +210,7 @@ export default function DiscoverPage() {
     upcoming_count: 0,
     people_count: 0,
     suggestions_count: 0,
+    hire_matches_count: 0,
   })
   const [sections, setSections] = useState<DiscoverPayload["sections"]>({
     for_you: [],
@@ -209,17 +220,38 @@ export default function DiscoverPage() {
     artists: [],
     venues: [],
     suggestions: [],
+    hire_matches: [],
   })
 
   useEffect(() => {
-    loadDiscover(selectedIntent, appliedLocation)
-  }, [selectedIntent, appliedLocation])
+    loadDiscover({
+      intent: selectedIntent,
+      location: appliedLocation,
+      creatorType: appliedCreatorType,
+      service: appliedService,
+      availableForHire: availableForHireOnly
+    })
+  }, [selectedIntent, appliedLocation, appliedCreatorType, appliedService, availableForHireOnly])
 
-  async function loadDiscover(intent: DiscoverIntent, location: string) {
+  async function loadDiscover(params: {
+    intent: DiscoverIntent
+    location: string
+    creatorType?: string
+    service?: string
+    availableForHire?: boolean
+  }) {
     setIsLoading(true)
     try {
-      const locationParam = location.trim() ? `&location=${encodeURIComponent(location.trim())}` : ""
-      const response = await fetch(`/api/discover?limit=12&intent=${intent}${locationParam}`)
+      const discoverParams = new URLSearchParams({
+        limit: "12",
+        intent: params.intent
+      })
+      if (params.location.trim()) discoverParams.set("location", params.location.trim())
+      if (params.creatorType?.trim()) discoverParams.set("creatorType", params.creatorType.trim())
+      if (params.service?.trim()) discoverParams.set("service", params.service.trim())
+      if (params.availableForHire) discoverParams.set("availableForHire", "true")
+
+      const response = await fetch(`/api/discover?${discoverParams.toString()}`)
       if (!response.ok) throw new Error("Failed to load discover")
 
       const payload = (await response.json()) as DiscoverPayload
@@ -318,15 +350,16 @@ export default function DiscoverPage() {
       for_you: sections.for_you.filter((item) => {
         if (item.post) return textIncludes(item.post.content, item.post.profiles.username)
         if (item.event) return textIncludes(item.event.title, item.event.venue_name, item.event.venue_city)
-        if (item.profile) return textIncludes(item.profile.display_name, item.profile.username, item.profile.bio, item.profile.location)
+        if (item.profile) return textIncludes(item.profile.display_name, item.profile.username, item.profile.bio, item.profile.location, item.profile.creator_type, ...(item.profile.service_offerings || []))
         return false
       }),
       trending: sections.trending.filter((post) => textIncludes(post.content, post.profiles.username)),
       upcoming: sections.upcoming.filter((event) => textIncludes(event.title, event.venue_name, event.venue_city, event.venue_state)),
-      people: sections.people.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
-      artists: sections.artists.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
+      people: sections.people.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
+      artists: sections.artists.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
       venues: sections.venues.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
-      suggestions: sections.suggestions.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
+      suggestions: sections.suggestions.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
+      hire_matches: sections.hire_matches.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
     }
   }, [sections, searchQuery])
 
@@ -337,6 +370,7 @@ export default function DiscoverPage() {
       events: filtered.upcoming.length > 0,
       trending: filtered.trending.length > 0,
       people: filtered.people.length > 0,
+      hire: filtered.hire_matches.length > 0,
     }),
     [filtered]
   )
@@ -446,6 +480,69 @@ export default function DiscoverPage() {
               </Badge>
             ) : null}
           </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <SurfaceInput
+              value={creatorTypeInput}
+              onChange={(event) => setCreatorTypeInput(event.target.value)}
+              placeholder="Creator type (photographer, designer...)"
+            />
+            <SurfaceInput
+              value={serviceInput}
+              onChange={(event) => setServiceInput(event.target.value)}
+              placeholder="Service keyword (video, merch, styling...)"
+            />
+            <Button
+              variant={availableForHireOnly ? "default" : "outline"}
+              className={availableForHireOnly ? "rounded-xl bg-emerald-600 hover:bg-emerald-700" : "rounded-xl border-white/20 text-slate-200 hover:bg-white/10"}
+              onClick={() => setAvailableForHireOnly((current) => !current)}
+            >
+              <Briefcase className="h-4 w-4 mr-2" />
+              Available for hire only
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10"
+              onClick={() => {
+                setAppliedCreatorType(creatorTypeInput.trim())
+                setAppliedService(serviceInput.trim())
+              }}
+            >
+              Apply match filters
+            </Button>
+          </div>
+          {(appliedCreatorType || appliedService || availableForHireOnly) ? (
+            <div className="flex flex-wrap gap-2">
+              {appliedCreatorType ? (
+                <Badge className="bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-500/30">
+                  Creator: {appliedCreatorType}
+                </Badge>
+              ) : null}
+              {appliedService ? (
+                <Badge className="bg-cyan-500/20 text-cyan-100 border-cyan-500/30">
+                  Service: {appliedService}
+                </Badge>
+              ) : null}
+              {availableForHireOnly ? (
+                <Badge className="bg-emerald-500/20 text-emerald-100 border-emerald-500/30">
+                  Hire-ready only
+                </Badge>
+              ) : null}
+              <Button
+                variant="ghost"
+                className="h-7 px-2 text-xs text-slate-300 hover:bg-white/10"
+                onClick={() => {
+                  setCreatorTypeInput("")
+                  setServiceInput("")
+                  setAppliedCreatorType("")
+                  setAppliedService("")
+                  setAvailableForHireOnly(false)
+                }}
+              >
+                Clear filters
+              </Button>
+            </div>
+          ) : null}
         </SurfaceHero>
 
         <section className="space-y-3">
@@ -506,6 +603,9 @@ export default function DiscoverPage() {
             {(isLoading || tabAvailability.people) ? (
               <TabsTrigger value="people"><Users className="h-4 w-4 mr-2" />People</TabsTrigger>
             ) : null}
+            {(isLoading || tabAvailability.hire) ? (
+              <TabsTrigger value="hire"><Briefcase className="h-4 w-4 mr-2" />Hire Matches</TabsTrigger>
+            ) : null}
             {(isLoading || tabAvailability.events) ? (
               <TabsTrigger value="events"><Calendar className="h-4 w-4 mr-2" />Events</TabsTrigger>
             ) : null}
@@ -531,6 +631,26 @@ export default function DiscoverPage() {
             )}
             {!isLoading && filtered.for_you.length === 0 ? (
               <EmptyState message="No RSS matches for this goal right now. Try another intent or remove location filtering." />
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="hire" className="space-y-6">
+            <SectionHeader title="Creators ready for paid opportunities" href="/search" />
+            {isLoading ? <LoadingGrid /> : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {filtered.hire_matches.slice(0, 12).map((profile) => (
+                  <ProfileCard
+                    key={profile.id}
+                    profile={profile}
+                    isFollowing={followingIds.has(profile.id)}
+                    onFollow={handleFollow}
+                    onOpen={() => openProfile(router, profile)}
+                  />
+                ))}
+              </div>
+            )}
+            {!isLoading && filtered.hire_matches.length === 0 ? (
+              <EmptyState message="No hire-ready creator matches yet. Try broadening creator type or service filters." />
             ) : null}
           </TabsContent>
 
@@ -735,8 +855,27 @@ function ProfileCard({
           <div className="flex gap-2 flex-wrap">
             <Badge variant="secondary" className="capitalize">{profile.account_type}</Badge>
             {profile.verified ? <Badge className="bg-blue-500/20 text-blue-200">Verified</Badge> : null}
+            {profile.creator_type ? (
+              <Badge className="bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-500/30">
+                {profile.creator_type}
+              </Badge>
+            ) : null}
+            {profile.available_for_hire ? (
+              <Badge className="bg-emerald-500/20 text-emerald-100 border-emerald-500/30">
+                Available for hire
+              </Badge>
+            ) : null}
           </div>
           <p className="text-sm text-slate-300 line-clamp-2">{profile.bio || "No bio yet."}</p>
+          {profile.service_offerings?.length ? (
+            <div className="flex flex-wrap gap-1">
+              {profile.service_offerings.slice(0, 3).map((service) => (
+                <Badge key={service} variant="outline" className="border-white/20 text-slate-200">
+                  {service}
+                </Badge>
+              ))}
+            </div>
+          ) : null}
           {profile.location ? (
             <div className="text-xs text-slate-400 flex items-center gap-1">
               <MapPin className="h-3 w-3" />

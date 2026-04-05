@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import EventHeader from "../../components/event-details/event-header"
 import EventTabs from "../../components/event-details/event-tabs"
 import { useVenueEvents } from "../../lib/hooks/use-venue-events"
+import { useCurrentVenue } from "../../hooks/useCurrentVenue"
 
 interface EventDetailsPageProps {
   params: Promise<{
@@ -13,7 +14,8 @@ interface EventDetailsPageProps {
 }
 
 export default function EventDetailsPage({ params }: EventDetailsPageProps) {
-  const { events, isLoading } = useVenueEvents()
+  const { venue } = useCurrentVenue()
+  const { events, isLoading } = useVenueEvents({ venueId: venue?.id })
   const [selectedEvent, setSelectedEvent] = useState<any>(null)
   const [eventId, setEventId] = useState<string>("")
 

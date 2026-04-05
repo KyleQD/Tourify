@@ -16,15 +16,15 @@ export default function CrewProfilesPage() {
       <Breadcrumb className="mb-6">
         <BreadcrumbList>
           <BreadcrumbItem>
-            <BreadcrumbLink href="/dashboard">Dashboard</BreadcrumbLink>
+            <BreadcrumbLink href="/venue/dashboard/dashboard">Dashboard</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/team">Team Management</BreadcrumbLink>
+            <BreadcrumbLink href="/venue/staff">Team Management</BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
           <BreadcrumbItem>
-            <BreadcrumbLink href="/teams/crew-profiles">
+            <BreadcrumbLink href="/venue/dashboard/teams/crew-profiles">
               Crew Profiles
             </BreadcrumbLink>
           </BreadcrumbItem>

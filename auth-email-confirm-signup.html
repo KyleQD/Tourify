@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Confirm your Tourify account</title>
+    <style>
+      body { margin: 0; padding: 24px; background: #0f172a; color: #e2e8f0; font-family: Arial, sans-serif; }
+      .card { max-width: 600px; margin: 0 auto; background: #111827; border: 1px solid #334155; border-radius: 14px; padding: 28px; }
+      h1 { margin: 0 0 10px; font-size: 26px; color: #f8fafc; }
+      p { line-height: 1.6; color: #cbd5e1; }
+      .button { display: inline-block; margin: 20px 0; padding: 12px 20px; border-radius: 10px; text-decoration: none; color: #fff; background: linear-gradient(135deg, #7c3aed, #2563eb); font-weight: 700; }
+      .small { font-size: 13px; color: #94a3b8; word-break: break-all; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Confirm your email</h1>
+      <p>Welcome to Tourify. Confirm your email to finish account creation and continue to login.</p>
+      <p><a class="button" href="{{ .ConfirmationURL }}">Confirm email</a></p>
+      <p>If the button does not work, copy and paste this URL in your browser:</p>
+      <p class="small">{{ .ConfirmationURL }}</p>
+      <p class="small">If you did not create this account, you can ignore this message.</p>
+    </div>
+  </body>
+</html>

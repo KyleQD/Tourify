@@ -15,23 +15,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, FileText, HelpCircle, LogOut, Moon, Settings, Sun, User, Users } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useProfile } from "@/contexts/profile-context"
 
 export function UserMenu() {
   const router = useRouter()
-  const profileContext = useProfile() // Keep for future use but don't destructure non-existent properties
   const [theme, setTheme] = useState<"light" | "dark">("dark")
 
-  // Mock implementations since these don't exist in profile context
-  const profile = { name: "User", avatar: "/placeholder.svg" }
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light")
-  }
-
   const handleThemeToggle = () => {
-    const newTheme = theme === "dark" ? "light" : "dark"
-    setTheme(newTheme)
-    toggleTheme()
+    setTheme(theme === "dark" ? "light" : "dark")
   }
 
   return (
@@ -61,7 +51,7 @@ export function UserMenu() {
             <FileText className="mr-2 h-4 w-4" />
             <span>Dashboard</span>
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/events")}>
+          <DropdownMenuItem className="cursor-pointer" onClick={() => router.push("/venue/dashboard/events")}>
             <Calendar className="mr-2 h-4 w-4" />
             <span>Events</span>
             <Badge className="ml-auto h-5 w-5 p-0 flex items-center justify-center bg-purple-600 text-[10px]">3</Badge>

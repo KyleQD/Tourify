@@ -84,64 +84,108 @@ export default function AnalyticsPage() {
       // Get days based on period
       const days = period === "7d" ? 7 : period === "30d" ? 30 : period === "90d" ? 90 : 365
       
-      const [analytics, bookingRequests, reviews] = await Promise.all([
+      const rangeStart = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+      const rangeEnd = new Date().toISOString()
+
+      const [analytics, bookingRequests, reviews, events] = await Promise.all([
         venueService.getVenueAnalytics(venue.id, days),
         venueService.getVenueBookingRequests(venue.id),
-        venueService.getVenueReviews(venue.id)
+        venueService.getVenueReviews(venue.id),
+        venueService.getVenueEventsByRange(venue.id, rangeStart, rangeEnd),
       ])
 
       // Process analytics data
       const totalRevenue = analytics.reduce((sum, day) => sum + (day.revenue || 0), 0)
-      const totalAttendance = analytics.reduce((sum, day) => sum + (day.page_views || 0), 0)
+      const totalAttendance = analytics.reduce((sum, day) => sum + (day.unique_visitors || day.page_views || 0), 0)
       const totalEvents = analytics.reduce((sum, day) => sum + (day.events_hosted || 0), 0)
-      
-      // Calculate period changes (mock for demo - in real app, compare with previous period)
-      const mockData: AnalyticsData = {
+
+      const midpoint = Math.floor(analytics.length / 2)
+      const currentSlice = analytics.slice(midpoint)
+      const previousSlice = analytics.slice(0, midpoint)
+      const previousRevenue = previousSlice.reduce((sum, day) => sum + (day.revenue || 0), 0)
+      const previousAttendance = previousSlice.reduce((sum, day) => sum + (day.unique_visitors || day.page_views || 0), 0)
+      const currentRevenue = currentSlice.reduce((sum, day) => sum + (day.revenue || 0), 0)
+      const currentAttendance = currentSlice.reduce((sum, day) => sum + (day.unique_visitors || day.page_views || 0), 0)
+      const approvedBookings = bookingRequests.filter((request) => request.status === "approved")
+      const conversionRate = bookingRequests.length > 0 ? (approvedBookings.length / bookingRequests.length) * 100 : 0
+      const averageRating = reviews.length > 0
+        ? reviews.reduce((sum, review) => sum + Number(review.rating || 0), 0) / reviews.length
+        : 0
+
+      const monthMap = new Map<string, { month: string; revenue: number; attendance: number; events: number }>()
+      analytics.forEach((item) => {
+        const month = formatSafeDate(item.date).slice(0, 3)
+        const current = monthMap.get(month) || { month, revenue: 0, attendance: 0, events: 0 }
+        current.revenue += item.revenue || 0
+        current.attendance += item.unique_visitors || item.page_views || 0
+        current.events += item.events_hosted || 0
+        monthMap.set(month, current)
+      })
+
+      const eventTypeMap = new Map<string, { count: number; revenue: number }>()
+      events.forEach((event: any) => {
+        const settings = event.settings && typeof event.settings === "object"
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        const type = String(settings.event_type || event.type || "other")
+        const revenue = Number(settings.ticket_price || 0) * Number(event.capacity || 0)
+        const current = eventTypeMap.get(type) || { count: 0, revenue: 0 }
+        current.count += 1
+        current.revenue += Number.isFinite(revenue) ? revenue : 0
+        eventTypeMap.set(type, current)
+      })
+
+      const eventTypeData = Array.from(eventTypeMap.entries()).map(([type, data]) => ({
+        type,
+        count: data.count,
+        revenue: data.revenue,
+        percentage: events.length > 0 ? Math.round((data.count / events.length) * 100) : 0,
+      }))
+
+      const topEvents = events.slice(0, 5).map((event: any) => {
+        const settings = event.settings && typeof event.settings === "object"
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        return {
+          name: String(event.title || "Event"),
+          revenue: Number(settings.ticket_price || 0) * Number(event.capacity || 0),
+          attendance: Number(event.capacity || 0),
+          type: String(settings.event_type || event.type || "other"),
+          rating: Number(averageRating.toFixed(1)),
+        }
+      })
+
+      const liveData: AnalyticsData = {
         revenue: {
-          current: totalRevenue || 45231.89,
-          previous: 37654.21,
-          change: 20.1
+          current: currentRevenue || totalRevenue,
+          previous: previousRevenue,
+          change: previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0
         },
         attendance: {
-          current: totalAttendance || 4395,
-          previous: 3922,
-          change: 12.3
+          current: currentAttendance || totalAttendance,
+          previous: previousAttendance,
+          change: previousAttendance > 0 ? ((currentAttendance - previousAttendance) / previousAttendance) * 100 : 0
         },
         ticketSales: {
-          current: 2350,
-          previous: 2040,
-          change: 15.2
+          current: approvedBookings.reduce((sum, request) => sum + Number(request.expected_attendance || 0), 0),
+          previous: Math.max(0, approvedBookings.length > 0 ? approvedBookings.length * 50 : 0),
+          change: conversionRate
         },
         avgDuration: {
-          current: 3.5,
-          previous: 4.0,
-          change: -12.5
+          current: approvedBookings.length > 0
+            ? Number((approvedBookings.reduce((sum, request) => sum + Number(request.event_duration || 0), 0) / approvedBookings.length / 60).toFixed(1))
+            : 0,
+          previous: 0,
+          change: 0
         },
         bookingRequests: bookingRequests.length,
-        conversionRate: bookingRequests.length > 0 ? 
-          (bookingRequests.filter(r => r.status === 'approved').length / bookingRequests.length) * 100 : 0,
-        topEvents: [
-          { name: "Jazz Night Vol. 3", revenue: 8250, attendance: 245, type: "Music", rating: 4.8 },
-          { name: "Electronic Showcase", revenue: 7120, attendance: 210, type: "Music", rating: 4.6 },
-          { name: "Comedy Special", revenue: 5840, attendance: 180, type: "Entertainment", rating: 4.9 },
-          { name: "Album Release Party", revenue: 4950, attendance: 165, type: "Private", rating: 4.7 },
-        ],
-        monthlyData: [
-          { month: "Jan", revenue: 8400, attendance: 890, events: 12 },
-          { month: "Feb", revenue: 7800, attendance: 756, events: 10 },
-          { month: "Mar", revenue: 9200, attendance: 1045, events: 15 },
-          { month: "Apr", revenue: 8900, attendance: 967, events: 13 },
-          { month: "May", revenue: 10500, attendance: 1234, events: 18 },
-          { month: "Jun", revenue: 11200, attendance: 1398, events: 20 },
-        ],
-        eventTypeData: [
-          { type: "Music", count: 45, revenue: 28500, percentage: 62 },
-          { type: "Entertainment", count: 18, revenue: 12400, percentage: 27 },
-          { type: "Private", count: 8, revenue: 5200, percentage: 11 },
-        ]
+        conversionRate,
+        topEvents,
+        monthlyData: Array.from(monthMap.values()),
+        eventTypeData,
       }
 
-      setAnalyticsData(mockData)
+      setAnalyticsData(liveData)
     } catch (error) {
       console.error('Error fetching analytics:', error)
       toast({

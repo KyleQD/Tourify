@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '../database.types'
+import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 
 interface AuthSession {
   access_token: string
@@ -147,6 +148,15 @@ export class ProductionAuthService {
           error: 'Invalid request',
           details: 'No request object provided',
           status: 400
+        }
+      }
+
+      const mobileCompatibleAuth = await authenticateRequestWithBearerFallback(request)
+      if (mobileCompatibleAuth) {
+        const supabase = this.createServiceClient()
+        return {
+          user: mobileCompatibleAuth.user,
+          supabase
         }
       }
       

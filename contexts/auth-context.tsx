@@ -5,12 +5,15 @@ import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+type SocialProvider = 'google' | 'apple' | 'facebook'
+
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
   signUp: (email: string, password: string, metadata?: { full_name?: string; username?: string }) => Promise<{ error?: AuthError }>
+  signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
   signOut: () => Promise<{ error?: AuthError }>
   resetPassword: (email: string) => Promise<{ error?: AuthError }>
   updateProfile: (updates: { full_name?: string; username?: string; avatar_url?: string }) => Promise<{ error?: string }>
@@ -146,14 +149,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } as AuthError
         }
       }
+
+      const normalizedUsername = metadata?.username
+        ?.trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '')
+        .slice(0, 32)
+
+      if (normalizedUsername) {
+        try {
+          const usernameCheckResponse = await fetch(`/api/auth/check-username?username=${encodeURIComponent(normalizedUsername)}`)
+          const usernameCheckData = await usernameCheckResponse.json().catch(() => null)
+
+          if (!usernameCheckResponse.ok || !usernameCheckData?.available) {
+            return {
+              error: {
+                message: usernameCheckData?.message || 'That username is not available. Please choose another username.',
+                status: 400,
+                name: 'UsernameUnavailable'
+              } as AuthError
+            }
+          }
+        } catch (usernameCheckError) {
+          console.error('[Auth] Username check failed before signup:', usernameCheckError)
+        }
+      }
       
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo:
+            typeof window !== 'undefined'
+              ? `${window.location.origin}/auth/callback?type=signup&redirectTo=%2Flogin`
+              : undefined,
           data: {
             full_name: metadata?.full_name,
-            username: metadata?.username,
+            username: normalizedUsername || metadata?.username,
           },
         },
       })
@@ -176,6 +208,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           userFriendlyMessage = 'Password must be at least 6 characters long.'
         } else if (error.message.includes('already registered')) {
           userFriendlyMessage = 'An account with this email already exists. Please sign in instead.'
+        } else if (error.message.toLowerCase().includes('database error saving new user')) {
+          userFriendlyMessage = 'We could not create the account profile. This is usually a username conflict. Please choose a different username and try again.'
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
           userFriendlyMessage = 'Network error. Please check your internet connection and try again.'
         }
@@ -224,6 +258,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error: undefined }
     } catch (error) {
       console.error('[Auth] Sign out failed with exception:', error)
+      return { error: error as AuthError }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const signInWithSocial = async (provider: SocialProvider, redirectTo = '/dashboard') => {
+    try {
+      setLoading(true)
+      const origin = typeof window !== 'undefined' ? window.location.origin : ''
+      const normalizedRedirect = normalizeAuthRedirectPath(redirectTo)
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${origin}/auth/callback?redirectTo=${encodeURIComponent(normalizedRedirect)}&authType=social`
+        }
+      })
+
+      if (error) return { error }
+      return { error: undefined }
+    } catch (error) {
       return { error: error as AuthError }
     } finally {
       setLoading(false)
@@ -304,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signUp,
+    signInWithSocial,
     signOut,
     resetPassword,
     updateProfile,
@@ -315,4 +372,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-} 
+}
+
+function normalizeAuthRedirectPath(target: string): string {
+  if (!target?.startsWith('/')) return '/dashboard'
+  if (target === '/' || target.startsWith('/login') || target.startsWith('/auth')) return '/dashboard'
+  return target
+}

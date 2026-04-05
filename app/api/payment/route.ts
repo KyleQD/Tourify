@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import { resolveEventReference } from "../events/_lib/event-reference"
-import { createClient as createServerClient } from "@/lib/supabase/server"
+import { authenticateRequestWithBearerFallback } from "@/lib/auth/mobile-request-auth"
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-04-30.basil",
@@ -13,15 +13,6 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-async function getAuthenticatedContext() {
-  const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  return { supabase, user }
-}
-
 export async function POST(req: NextRequest) {
   try {
     if (!stripe) {
@@ -31,15 +22,15 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    const { supabase: userSupabase, user } = await getAuthenticatedContext()
-    if (!user?.id) {
+    const authResult = await authenticateRequestWithBearerFallback(req)
+    if (!authResult?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       )
     }
-
-    const { bookingId, eventId, ticketQuantity } = await req.json()
+    const { supabase: userSupabase, user } = authResult
+    const { bookingId, eventId, ticketQuantity, mobileRedirectUri } = await req.json()
     const normalizedTicketQuantity = Number(ticketQuantity || 1)
     if (!bookingId || !eventId || normalizedTicketQuantity <= 0) {
       return NextResponse.json(
@@ -124,6 +115,17 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin
+    const encodedMobileRedirect = typeof mobileRedirectUri === "string"
+      ? encodeURIComponent(mobileRedirectUri)
+      : null
+    const successUrl = encodedMobileRedirect
+      ? `${appUrl}/auth/mobile-callback?success=true&booking_id=${bookingId}&mobile_redirect_uri=${encodedMobileRedirect}&session_id={CHECKOUT_SESSION_ID}`
+      : `${appUrl}/bookings?success=true&booking_id=${bookingId}&session_id={CHECKOUT_SESSION_ID}`
+    const cancelUrl = encodedMobileRedirect
+      ? `${appUrl}/auth/mobile-callback?canceled=true&mobile_redirect_uri=${encodedMobileRedirect}`
+      : `${appUrl}/bookings?canceled=true`
+
     // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -141,8 +143,8 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/bookings?success=true&booking_id=${bookingId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/bookings?canceled=true`,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
       metadata: {
         bookingId,
         eventId: eventReference.id,
@@ -153,7 +155,7 @@ export async function POST(req: NextRequest) {
       customer_email: user.email || undefined,
     })
 
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: session.url, sessionId: session.id })
   } catch (error) {
     console.error("Payment error:", error)
     return NextResponse.json(
@@ -172,13 +174,14 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const { supabase: userSupabase, user } = await getAuthenticatedContext()
-    if (!user?.id) {
+    const authResult = await authenticateRequestWithBearerFallback(req)
+    if (!authResult?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
       )
     }
+    const { supabase: userSupabase, user } = authResult
 
     const { searchParams } = new URL(req.url)
     const sessionId = searchParams.get("session_id")

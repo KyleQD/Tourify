@@ -153,6 +153,15 @@ interface Show {
   ticket_url?: string
 }
 
+function parseListValue(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean)
+  if (typeof value !== "string") return []
+  return value
+    .split(/[\n,;]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export function EnhancedPublicProfileView({ 
   profile, 
   isOwnProfile = false, 
@@ -480,6 +489,20 @@ export function EnhancedPublicProfileView({
     }
     return profile.profile_data?.title || 'Professional'
   }
+
+  const creatorType = typeof profile.profile_data?.creator_type === "string"
+    ? profile.profile_data.creator_type
+    : null
+  const serviceOfferings = parseListValue(profile.profile_data?.service_offerings)
+  const productsForSale = parseListValue(profile.profile_data?.products_for_sale)
+  const credentials = parseListValue(profile.profile_data?.credentials)
+  const workHighlights = parseListValue(profile.profile_data?.work_highlights)
+  const hasCapabilityContent =
+    Boolean(creatorType) ||
+    serviceOfferings.length > 0 ||
+    productsForSale.length > 0 ||
+    credentials.length > 0 ||
+    workHighlights.length > 0
 
   return (
     <div className={`min-h-screen ${getBackgroundGradient()}`}>
@@ -823,6 +846,73 @@ export function EnhancedPublicProfileView({
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {hasCapabilityContent && (
+              <Card className="bg-white/10 backdrop-blur border-0 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Briefcase className="h-5 w-5 text-emerald-400" />
+                    Capabilities
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {creatorType ? (
+                    <div>
+                      <p className="text-xs text-white/60">Primary creator type</p>
+                      <p className="mt-1 text-base text-white">{creatorType}</p>
+                    </div>
+                  ) : null}
+                  {serviceOfferings.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-white/60">Service offerings</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {serviceOfferings.slice(0, 12).map((service) => (
+                          <Badge key={service} variant="secondary" className="bg-white/10 text-white/85">
+                            {service}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {productsForSale.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-white/60">Products for sale</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {productsForSale.slice(0, 12).map((product) => (
+                          <Badge key={product} variant="secondary" className="bg-purple-500/20 text-purple-100">
+                            {product}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {credentials.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-white/60">Credentials</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {credentials.slice(0, 12).map((credential) => (
+                          <Badge key={credential} variant="secondary" className="bg-emerald-500/20 text-emerald-100">
+                            {credential}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  {workHighlights.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-white/60">Past work highlights</p>
+                      <div className="mt-2 gap-2">
+                        {workHighlights.slice(0, 8).map((highlight) => (
+                          <p key={highlight} className="text-sm text-white/85">
+                            • {highlight}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             )}

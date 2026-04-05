@@ -12,6 +12,8 @@ export function getDashboardPathForAccountType(accountType: ProfileType | string
       return '/venue'
     case 'admin':
       return '/admin/dashboard'
+    case 'staff':
+      return '/venue/staff'
     case 'general':
     default:
       return '/dashboard'

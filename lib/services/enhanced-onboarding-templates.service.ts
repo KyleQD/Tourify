@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import { z } from 'zod'
+import {
+  ONBOARDING_POSITION_TEMPLATES,
+  getPositionTemplateByKey,
+  type OnboardingPositionTemplate,
+} from '@/lib/staff/onboarding-position-templates'
 
 // Validation schemas
 const onboardingFieldSchema = z.object({
@@ -48,6 +53,16 @@ const updateTemplateSchema = createTemplateSchema.partial().extend({
 })
 
 export class EnhancedOnboardingTemplatesService {
+  static getPositionTemplateCatalog() {
+    return ONBOARDING_POSITION_TEMPLATES
+  }
+
+  static getRequiredCredentialsForPosition(positionTemplateKey?: string | null) {
+    const preset = getPositionTemplateByKey(positionTemplateKey)
+    if (!preset) return []
+    return preset.requiredCredentials
+  }
+
   private static supabase = supabase
 
   /**
@@ -243,73 +258,22 @@ export class EnhancedOnboardingTemplatesService {
    */
   static async initializeDefaultTemplates(venueId: string) {
     try {
-      const defaultTemplates = [
-        {
-          name: "General Staff Onboarding",
-          description: "Comprehensive onboarding for general venue staff",
-          department: "Operations",
-          position: "General Staff",
-          employmentType: "full_time" as const,
-          fields: this.getGeneralStaffFields(),
-          estimatedDays: 7,
-          requiredDocuments: ["Government ID", "SSN Card", "Direct Deposit Form"],
-          assignees: ["HR Manager", "Department Head"],
-          tags: ["general", "staff", "operations"],
-          isDefault: true
-        },
-        {
-          name: "Security Staff Onboarding",
-          description: "Specialized onboarding for security personnel",
-          department: "Security",
-          position: "Security Guard",
-          employmentType: "full_time" as const,
-          fields: this.getSecurityStaffFields(),
-          estimatedDays: 10,
-          requiredDocuments: ["Security License", "CPR Certification", "Background Check"],
-          assignees: ["Security Manager", "HR Manager"],
-          tags: ["security", "licensed", "certified"],
-          isDefault: true
-        },
-        {
-          name: "Technical Staff Onboarding",
-          description: "Onboarding for audio, lighting, and technical staff",
-          department: "Technical",
-          position: "Technical Staff",
-          employmentType: "full_time" as const,
-          fields: this.getTechnicalStaffFields(),
-          estimatedDays: 14,
-          requiredDocuments: ["Technical Certifications", "Safety Training", "Equipment Training"],
-          assignees: ["Technical Manager", "Safety Officer"],
-          tags: ["technical", "certified", "safety"],
-          isDefault: true
-        },
-        {
-          name: "Management Onboarding",
-          description: "Comprehensive onboarding for management positions",
-          department: "Management",
-          position: "Manager",
-          employmentType: "full_time" as const,
-          fields: this.getManagementFields(),
-          estimatedDays: 21,
-          requiredDocuments: ["Management Certifications", "Leadership Training", "Background Check"],
-          assignees: ["HR Director", "Operations Director"],
-          tags: ["management", "leadership", "executive"],
-          isDefault: true
-        },
-        {
-          name: "Volunteer Onboarding",
-          description: "Streamlined onboarding for volunteer positions",
-          department: "Volunteer",
-          position: "Volunteer",
-          employmentType: "volunteer" as const,
-          fields: this.getVolunteerFields(),
-          estimatedDays: 3,
-          requiredDocuments: ["Volunteer Agreement", "Emergency Contact"],
-          assignees: ["Volunteer Coordinator"],
-          tags: ["volunteer", "simple", "quick"],
-          isDefault: true
-        }
-      ]
+      const defaultTemplates = ONBOARDING_POSITION_TEMPLATES.map((preset) => ({
+        name: `${preset.label} Onboarding`,
+        description: `Template for ${preset.label} onboarding`,
+        department: preset.department,
+        position: preset.position,
+        employmentType: preset.employmentType,
+        fields: this.getFieldsForPositionTemplate(preset),
+        estimatedDays: preset.estimatedDays,
+        requiredDocuments: [
+          ...preset.requiredDocuments,
+          ...preset.requiredCredentials.filter((credential) => credential.isRequired).map((credential) => credential.label),
+        ],
+        assignees: this.getDefaultAssigneesForDepartment(preset.department),
+        tags: [...preset.tags, 'templated', 'credentials'],
+        isDefault: true,
+      }))
 
       const createdTemplates = []
 
@@ -330,6 +294,33 @@ export class EnhancedOnboardingTemplatesService {
       console.error('❌ [Enhanced Onboarding Templates Service] Error initializing default templates:', error)
       throw error
     }
+  }
+
+  private static getDefaultAssigneesForDepartment(department: string) {
+    if (department === 'Security') return ['Security Manager', 'HR Manager']
+    if (department === 'Technical') return ['Technical Manager', 'Safety Officer']
+    if (department === 'Management') return ['HR Director', 'Operations Director']
+    if (department === 'Service') return ['Service Manager', 'HR Manager']
+    return ['HR Manager', 'Department Head']
+  }
+
+  private static getFieldsForPositionTemplate(template: OnboardingPositionTemplate) {
+    if (template.department === 'Security') return this.getSecurityStaffFields()
+    if (template.department === 'Technical') return this.getTechnicalStaffFields()
+    if (template.department === 'Management') return this.getManagementFields()
+    if (template.employmentType === 'volunteer') return this.getVolunteerFields()
+
+    const credentialFields = template.requiredCredentials.map((credential, index) => ({
+      id: `credential_${credential.key}`,
+      type: 'text' as const,
+      label: `${credential.label} Number / ID`,
+      required: credential.isRequired,
+      order: 20 + index,
+      section: 'Credential Wallet',
+      helpText: credential.notes || 'Upload supporting document in the credential wallet.',
+    }))
+
+    return [...this.getGeneralStaffFields(), ...credentialFields]
   }
 
   /**

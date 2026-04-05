@@ -17,7 +17,7 @@ const mockNotifications = {
       time: "2 hours ago",
       read: false,
       type: "booking",
-      link: "/bookings/req-1",
+      link: "/venue/bookings",
     },
     {
       id: "notif-2",
@@ -26,7 +26,7 @@ const mockNotifications = {
       time: "5 hours ago",
       read: true,
       type: "booking",
-      link: "/events/event-1",
+      link: "/venue/events/event-1",
     },
   ],
   messages: [
@@ -48,7 +48,7 @@ const mockNotifications = {
       time: "1 day ago",
       read: true,
       type: "system",
-      link: "/analytics",
+      link: "/venue/analytics",
     },
     {
       id: "notif-5",

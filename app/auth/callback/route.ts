@@ -2,6 +2,8 @@ import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import type { User } from "@supabase/supabase-js"
+import { buildSafeMobileRedirect } from "@/lib/auth/mobile-redirect"
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
@@ -12,8 +14,10 @@ export async function GET(request: NextRequest) {
     requestUrl.searchParams.get("redirectTo") ||
     "/dashboard"
   const redirectTo = normalizeAuthCallbackRedirect(requestedRedirect)
+  const mobileRedirectUri = requestUrl.searchParams.get("mobile_redirect_uri")
   // Check if this is from a signup flow
   const type = requestUrl.searchParams.get("type") || "verification"
+  const authType = requestUrl.searchParams.get("authType") || "email"
   // Check if email was confirmed
   const emailConfirmed = requestUrl.searchParams.get("email_confirmed") === "true"
   
@@ -31,14 +35,38 @@ export async function GET(request: NextRequest) {
       
       if (error) {
         console.error(`[Auth Callback] Error exchanging code:`, error)
-        // If there's an error, redirect to verification page with error state
-        return NextResponse.redirect(`${requestUrl.origin}/auth/verification?error=true&type=${type}&message=${encodeURIComponent(error.message)}`)
+        return NextResponse.redirect(
+          `${requestUrl.origin}/login?oauth_error=${encodeURIComponent(error.message)}&redirectTo=${encodeURIComponent(redirectTo)}`
+        )
       } else {
         console.log(`[Auth Callback] Session established for user: ${data?.session?.user?.id || 'unknown'}`)
         console.log(`[Auth Callback] Session token expires at: ${data?.session?.expires_at ? new Date(data.session.expires_at * 1000).toISOString() : 'unknown'}`)
+        const sessionUser = data?.session?.user
+
+        if (authType === "social" && sessionUser) {
+          if (mobileRedirectUri)
+            return NextResponse.redirect(
+              buildSafeMobileRedirect(mobileRedirectUri, {
+                success: "true",
+                next: redirectTo,
+              })
+            )
+          if (needsSocialAccountSetup(sessionUser))
+            return NextResponse.redirect(
+              `${requestUrl.origin}/onboarding?force=1&source=social&next=${encodeURIComponent(redirectTo)}`
+            )
+          return NextResponse.redirect(`${requestUrl.origin}${redirectTo}`)
+        }
         
         // For email verification flows, redirect to login page for sign in
         if (emailConfirmed || type === "signup") {
+          if (mobileRedirectUri)
+            return NextResponse.redirect(
+              buildSafeMobileRedirect(mobileRedirectUri, {
+                success: "true",
+                type,
+              })
+            )
           console.log(`[Auth Callback] Email confirmed, checking if user is authenticated`)
           
           // Check if user is already authenticated (some email confirmations auto-sign-in)
@@ -64,6 +92,13 @@ export async function GET(request: NextRequest) {
     }
   } else {
     console.log(`[Auth Callback] No code provided in request`)
+    const authErrorDescription =
+      requestUrl.searchParams.get("error_description") || requestUrl.searchParams.get("error")
+    if (authErrorDescription) {
+      return NextResponse.redirect(
+        `${requestUrl.origin}/login?oauth_error=${encodeURIComponent(authErrorDescription)}&redirectTo=${encodeURIComponent(redirectTo)}`
+      )
+    }
   }
 
   // Check if we have a session now
@@ -86,6 +121,14 @@ export async function GET(request: NextRequest) {
 
   // URL to redirect to after sign in process completes - use the redirect parameter if provided
   console.log(`[Auth Callback] Redirecting to: ${requestUrl.origin}${redirectTo}`)
+  if (mobileRedirectUri)
+    return NextResponse.redirect(
+      buildSafeMobileRedirect(mobileRedirectUri, {
+        success: "true",
+        next: redirectTo,
+      })
+    )
+
   return NextResponse.redirect(`${requestUrl.origin}${redirectTo}`)
 }
 
@@ -93,5 +136,12 @@ function normalizeAuthCallbackRedirect(target: string): string {
   if (!target.startsWith('/')) return '/dashboard'
   if (target === '/' || target.startsWith('/login') || target.startsWith('/auth')) return '/dashboard'
   return target
+}
+
+function needsSocialAccountSetup(user: User): boolean {
+  const metadata = user.user_metadata || {}
+  const fullName = metadata.full_name || metadata.name || metadata.display_name
+  const username = metadata.username || metadata.user_name || metadata.preferred_username
+  return !fullName || !username
 }
 

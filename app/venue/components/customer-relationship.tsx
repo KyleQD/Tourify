@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,6 +13,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Calendar, Download, Edit, Filter, Mail, MessageSquare, Phone, Plus, Search, Trash2, Users } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
+import { useCurrentVenue } from "../hooks/useCurrentVenue"
+import { venueService } from "@/lib/services/venue.service"
 
 // Mock customer data
 const mockCustomers = [
@@ -163,13 +165,69 @@ const mockInteractions = [
 ]
 
 export function CustomerRelationship() {
+  const { venue } = useCurrentVenue()
   const [activeTab, setActiveTab] = useState("customers")
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCustomer, setSelectedCustomer] = useState<string | null>("cust-1")
   const [selectedInteraction, setSelectedInteraction] = useState<string | null>(null)
+  const [customers, setCustomers] = useState(mockCustomers)
+  const [interactions, setInteractions] = useState(mockInteractions)
+
+  useEffect(() => {
+    async function loadCustomerData() {
+      if (!venue?.id) return
+      const [bookings, reviews] = await Promise.all([
+        venueService.getVenueBookingRequests(venue.id),
+        venueService.getVenueReviews(venue.id),
+      ])
+
+      const mappedCustomers = bookings.map((booking, index) => ({
+        id: `cust-${booking.id}`,
+        name: booking.contact_email?.split("@")[0] || `Customer ${index + 1}`,
+        email: booking.contact_email || "unknown@tourify.app",
+        phone: booking.contact_phone || "",
+        avatar: "/placeholder.svg",
+        type: "client",
+        lastContact: (booking.requested_at || booking.created_at || new Date().toISOString()).slice(0, 10),
+        events: booking.status === "approved" ? 1 : 0,
+        totalSpent: Number((booking.budget_range || "").replace(/[^0-9.]/g, "")) || 0,
+        tags: [booking.event_type || "booking"],
+        notes: booking.description || "No notes provided.",
+      }))
+
+      const mappedInteractions = [
+        ...bookings.map((booking) => ({
+          id: `int-booking-${booking.id}`,
+          customerId: `cust-${booking.id}`,
+          type: "email",
+          date: (booking.requested_at || booking.created_at || new Date().toISOString()).slice(0, 10),
+          subject: booking.event_name,
+          content: booking.description || "New booking request received.",
+          followUp: booking.status === "pending" ? new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : null,
+        })),
+        ...reviews.slice(0, 10).map((review) => ({
+          id: `int-review-${review.id}`,
+          customerId: `cust-review-${review.id}`,
+          type: "note",
+          date: review.created_at.slice(0, 10),
+          subject: review.title || `Review (${review.rating}/5)`,
+          content: review.comment || "Review submitted.",
+          followUp: null,
+        })),
+      ]
+
+      if (mappedCustomers.length > 0) {
+        setCustomers(mappedCustomers)
+        setSelectedCustomer(mappedCustomers[0].id)
+      }
+      if (mappedInteractions.length > 0) setInteractions(mappedInteractions)
+    }
+
+    void loadCustomerData()
+  }, [venue?.id])
 
   // Filter customers based on search query
-  const filteredCustomers = mockCustomers.filter((customer) => {
+  const filteredCustomers = customers.filter((customer) => {
     return (
       customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -180,12 +238,12 @@ export function CustomerRelationship() {
 
   // Get customer by ID
   const getCustomer = (id: string) => {
-    return mockCustomers.find((customer) => customer.id === id)
+    return customers.find((customer) => customer.id === id)
   }
 
   // Get interactions for a customer
   const getCustomerInteractions = (customerId: string) => {
-    return mockInteractions.filter((interaction) => interaction.customerId === customerId)
+    return interactions.filter((interaction) => interaction.customerId === customerId)
   }
 
   // Get interaction icon
@@ -458,7 +516,7 @@ export function CustomerRelationship() {
             </div>
 
             <div className="space-y-3">
-              {mockInteractions.map((interaction) => {
+              {interactions.map((interaction) => {
                 const customer = getCustomer(interaction.customerId)
                 return (
                   <div
@@ -540,7 +598,7 @@ export function CustomerRelationship() {
             </div>
 
             <div className="space-y-3">
-              {mockInteractions
+              {interactions
                 .filter((interaction) => interaction.followUp)
                 .sort((a, b) => new Date(a.followUp!).getTime() - new Date(b.followUp!).getTime())
                 .map((interaction) => {

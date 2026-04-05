@@ -19,5 +19,5 @@ export default async function ArtistPublicProfilePage({
     )
   }
 
-  return <PublicArtistPage dto={dto} />
+  return <PublicArtistPage dto={dto} username={username} />
 }

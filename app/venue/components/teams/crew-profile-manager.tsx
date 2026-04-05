@@ -413,7 +413,7 @@ export function CrewProfileManager() {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push("/team")}>
+          <Button variant="outline" onClick={() => router.push("/venue/staff")}>
             <Users className="h-4 w-4 mr-2" />
             Team Overview
           </Button>

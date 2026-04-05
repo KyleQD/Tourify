@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,8 +12,12 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { venueService } from "@/lib/services/venue.service"
+import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 
 export default function EventMapPage() {
+  const { venue, isLoading: isVenueLoading } = useCurrentVenue()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [distance, setDistance] = useState([50])
@@ -22,99 +26,43 @@ export default function EventMapPage() {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])
   const [dateRange, setDateRange] = useState<string>("all")
 
-  // Mock data for events
-  const events = [
-    {
-      id: "event-1",
-      title: "Summer Jam Festival",
-      description: "Annual music festival featuring top artists across multiple genres.",
-      venue: "Central Park",
-      location: "New York, NY",
-      date: "2025-06-15T14:00:00",
-      endDate: "2025-06-15T23:00:00",
-      organizer: "NYC Events",
-      attendees: 1250,
-      capacity: 2000,
-      genres: ["rock", "pop", "hip-hop"],
-      ticketPrice: 75,
-      image: "/placeholder.svg?height=200&width=400&text=Summer+Jam",
-      latitude: 40.785091,
-      longitude: -73.968285,
-      isMyEvent: true,
-    },
-    {
-      id: "event-2",
-      title: "Jazz Night",
-      description: "An evening of smooth jazz with local and international artists.",
-      venue: "Blue Note Jazz Club",
-      location: "New York, NY",
-      date: "2025-05-20T19:30:00",
-      endDate: "2025-05-20T23:00:00",
-      organizer: "Blue Note",
-      attendees: 120,
-      capacity: 150,
-      genres: ["jazz"],
-      ticketPrice: 45,
-      image: "/placeholder.svg?height=200&width=400&text=Jazz+Night",
-      latitude: 40.73061,
-      longitude: -73.935242,
-      isMyEvent: false,
-    },
-    {
-      id: "event-3",
-      title: "Electronic Dance Party",
-      description: "All-night dance party featuring top DJs and electronic music producers.",
-      venue: "Warehouse 33",
-      location: "Los Angeles, CA",
-      date: "2025-05-25T22:00:00",
-      endDate: "2025-05-26T06:00:00",
-      organizer: "LA Nightlife",
-      attendees: 850,
-      capacity: 1000,
-      genres: ["electronic", "dance"],
-      ticketPrice: 60,
-      image: "/placeholder.svg?height=200&width=400&text=EDM+Party",
-      latitude: 34.052235,
-      longitude: -118.243683,
-      isMyEvent: false,
-    },
-    {
-      id: "event-4",
-      title: "Acoustic Sessions",
-      description: "Intimate acoustic performances by singer-songwriters.",
-      venue: "The Listening Room",
-      location: "Nashville, TN",
-      date: "2025-06-05T19:00:00",
-      endDate: "2025-06-05T22:00:00",
-      organizer: "Nashville Music",
-      attendees: 75,
-      capacity: 100,
-      genres: ["folk", "acoustic"],
-      ticketPrice: 30,
-      image: "/placeholder.svg?height=200&width=400&text=Acoustic+Sessions",
-      latitude: 36.162664,
-      longitude: -86.781602,
-      isMyEvent: true,
-    },
-    {
-      id: "event-5",
-      title: "Hip-Hop Showcase",
-      description: "Showcasing the best up-and-coming hip-hop artists.",
-      venue: "The Fillmore",
-      location: "Miami, FL",
-      date: "2025-07-10T20:00:00",
-      endDate: "2025-07-11T01:00:00",
-      organizer: "Miami Beats",
-      attendees: 450,
-      capacity: 600,
-      genres: ["hip-hop", "rap"],
-      ticketPrice: 50,
-      image: "/placeholder.svg?height=200&width=400&text=Hip-Hop+Showcase",
-      latitude: 25.761681,
-      longitude: -80.191788,
-      isMyEvent: false,
-    },
-  ]
+  const [events, setEvents] = useState<any[]>([])
+
+  useEffect(() => {
+    async function loadEvents() {
+      if (!venue?.id) return
+      const now = new Date()
+      const inSixMonths = new Date()
+      inSixMonths.setMonth(inSixMonths.getMonth() + 6)
+      const rows = await venueService.getVenueEventsByRange(venue.id, now.toISOString(), inSixMonths.toISOString())
+      const mapped = rows.map((event: any) => {
+        const settings = event.settings && typeof event.settings === "object"
+          ? (event.settings as Record<string, unknown>)
+          : {}
+        const genre = typeof settings.event_type === "string" ? settings.event_type : "other"
+        return {
+          id: String(event.id),
+          title: String(event.title || "Event"),
+          description: typeof settings.description === "string" ? settings.description : "Venue event",
+          venue: typeof settings.venue_label === "string" ? settings.venue_label : venue.venue_name || venue.name,
+          location: `${venue.city || ""}${venue.city && venue.state ? ", " : ""}${venue.state || ""}` || "TBD",
+          date: event.date || new Date().toISOString(),
+          endDate: event.end_at || null,
+          organizer: "Venue Team",
+          attendees: 0,
+          capacity: Number(event.capacity || 0),
+          genres: [genre],
+          ticketPrice: Number(settings.ticket_price || 0),
+          image: "/placeholder.svg",
+          latitude: 0,
+          longitude: 0,
+          isMyEvent: true,
+        }
+      })
+      setEvents(mapped)
+    }
+    void loadEvents()
+  }, [venue?.id, venue?.city, venue?.state, venue?.name, venue?.venue_name])
 
   const allGenres = ["rock", "pop", "jazz", "hip-hop", "electronic", "dance", "folk", "acoustic", "rap", "classical"]
 
@@ -179,6 +127,13 @@ export default function EventMapPage() {
 
     return matchesSearch && matchesMyEvents && matchesGenres && matchesDateRange
   })
+
+  if (isVenueLoading)
+    return (
+      <div className="flex justify-center items-center h-96">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
 
   return (
     <div className="space-y-6 pb-20">

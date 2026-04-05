@@ -90,7 +90,7 @@ export function UnifiedSearch({ trigger }: UnifiedSearchProps) {
         router.push(`/profile/${result.username}`)
         return
       case "event":
-        router.push(`/events/${result.id}`)
+        router.push(`/venue/events/${result.id}`)
         return
       case "post":
         router.push(`/posts/${result.id}`)

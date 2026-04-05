@@ -1,22 +1,40 @@
 /*
  Minimal e2e harness to validate provider posting paths via Edge Function.
  Usage:
-  SUPABASE_URL=... SUPABASE_ANON_KEY=... USER_JWT=... npx tsx scripts/e2e-social-harness.ts
+  SUPABASE_URL=... USER_JWT=... npx tsx scripts/e2e-social-harness.ts
+  (also accepts NEXT_PUBLIC_SUPABASE_URL)
 */
 
 import 'dotenv/config'
 import fetch from 'node-fetch'
 
-function getEnv(name: string): string {
-  const v = process.env[name]
-  if (!v) throw new Error(`Missing env ${name}`)
-  return v
+function getEnv(names: string[]): string {
+  const value = names.map((name) => process.env[name]).find(Boolean)
+  if (!value) throw new Error(`Missing env ${names.join(' or ')}`)
+  return value
+}
+
+function hasAnyEnv(names: string[]): boolean {
+  return names.some((name) => Boolean(process.env[name]))
+}
+
+function logSkip(message: string) {
+  // eslint-disable-next-line no-console
+  console.warn(`[SKIP] ${message}`)
 }
 
 async function main() {
-  const supabaseUrl = getEnv('SUPABASE_URL')
-  const anon = getEnv('SUPABASE_ANON_KEY')
-  const userJwt = getEnv('USER_JWT')
+  if (!hasAnyEnv(['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'])) {
+    logSkip('Missing Supabase URL. Set SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL to run.')
+    return
+  }
+  if (!hasAnyEnv(['USER_JWT'])) {
+    logSkip('Missing USER_JWT. Social e2e requires a signed-in user JWT.')
+    return
+  }
+
+  const supabaseUrl = getEnv(['SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_URL'])
+  const userJwt = getEnv(['USER_JWT'])
 
   const url = `${supabaseUrl}/functions/v1/social-post`
   const res = await fetch(url, {

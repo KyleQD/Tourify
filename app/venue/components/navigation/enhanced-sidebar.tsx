@@ -59,9 +59,9 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
     { title: "Feed", href: "/feed", icon: Music },
     { title: "Network", href: "/network", icon: Users },
     { title: "Messages", href: "/messages", icon: MessageSquare, badge: 5 },
-    { title: "Events", href: "/events", icon: Calendar, badge: 3 },
+    { title: "Events", href: "/venue/dashboard/events", icon: Calendar, badge: 3 },
     { title: "Profile", href: "/profile", icon: User },
-    { title: "Teams", href: "/teams", icon: Users, badge: "New" },
+    { title: "Teams", href: "/venue/staff", icon: Users, badge: "New" },
   ]
 
   // Feature categories with their items
@@ -78,10 +78,10 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
     {
       name: "Team Management",
       items: [
-        { title: "My Teams", href: "/teams", icon: Users },
-        { title: "Task Management", href: "/teams?tab=tasks", icon: CheckSquare },
-        { title: "Shift Scheduling", href: "/teams?tab=shifts", icon: Calendar },
-        { title: "Team Chat", href: "/teams?tab=communication", icon: MessageCircle },
+        { title: "My Teams", href: "/venue/staff", icon: Users },
+        { title: "Task Management", href: "/venue/staff", icon: CheckSquare },
+        { title: "Shift Scheduling", href: "/venue/staff", icon: Calendar },
+        { title: "Team Chat", href: "/venue/staff", icon: MessageCircle },
       ],
     },
     {
@@ -97,8 +97,8 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
       name: "Events & Touring",
       items: [
         { title: "Calendar", href: "/calendar", icon: Calendar },
-        { title: "Event Map", href: "/events/map", icon: Globe },
-        { title: "Tickets", href: "/tickets", icon: Ticket },
+        { title: "Event Map", href: "/venue/dashboard/events/map", icon: Globe },
+        { title: "Tickets", href: "/venue/dashboard/tickets", icon: Ticket },
         { title: "Venues", href: "/venues", icon: Star },
       ],
     },
@@ -108,7 +108,7 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
         { title: "Jobs", href: "/jobs", icon: Briefcase, badge: 3 },
         { title: "Merch", href: "/merch", icon: ShoppingBag },
         { title: "Promotions", href: "/promotions", icon: Zap },
-        { title: "Analytics", href: "/analytics", icon: BarChart3 },
+        { title: "Analytics", href: "/venue/analytics", icon: BarChart3 },
       ],
     },
   ]

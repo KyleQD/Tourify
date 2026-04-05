@@ -58,6 +58,25 @@ function parseEventDurationMinutes(durationText?: string) {
   return Math.max(30, Math.round((endDate - startDate) / (1000 * 60)))
 }
 
+async function getManageableVenueIds(supabase: any, userId: string) {
+  const [{ data: ownerRows }, { data: memberRows }] = await Promise.all([
+    supabase
+      .from("venue_profiles")
+      .select("id")
+      .or(`user_id.eq.${userId},main_profile_id.eq.${userId}`),
+    supabase
+      .from("venue_team_members")
+      .select("venue_id")
+      .eq("user_id", userId)
+      .eq("status", "active")
+      .contains("permissions", { manage_bookings: true }),
+  ])
+
+  const ownerVenueIds = (ownerRows || []).map((row: { id: string }) => row.id)
+  const memberVenueIds = (memberRows || []).map((row: { venue_id: string }) => row.venue_id)
+  return Array.from(new Set([...ownerVenueIds, ...memberVenueIds].filter(Boolean)))
+}
+
 export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateApiRequest(req)
@@ -144,15 +163,15 @@ export async function POST(req: NextRequest) {
     const requesterEmail = validatedData.email || auth?.user?.email || null
     const hasLegacyTarget = Boolean(validatedData.eventId || validatedData.tourId)
 
-    if (!hasLegacyTarget && !validatedData.venueId) {
+    if (!hasLegacyTarget && !validatedData.venueId && !validatedData.artistId) {
       return NextResponse.json(
-        { error: "Booking target missing. Provide eventId, tourId, or venueId." },
+        { error: "Booking target missing. Provide artistId, eventId, tourId, or venueId." },
         { status: 400 }
       )
     }
 
     let bookingRequest: any = null
-    if (hasLegacyTarget) {
+    if (hasLegacyTarget || validatedData.artistId) {
       const { data, error } = await supabase
         .from("booking_requests")
         .insert({
@@ -271,6 +290,36 @@ export async function PATCH(req: NextRequest) {
     const hasVenueTarget = Boolean(validatedData.venueRequestId || validatedData.requestId)
 
     if (hasVenueTarget) {
+      const targetRequestId = validatedData.venueRequestId || validatedData.requestId
+      if (!targetRequestId) {
+        return NextResponse.json(
+          { error: "Venue booking request id is required" },
+          { status: 400 }
+        )
+      }
+
+      const { data: venueRequest, error: requestError } = await supabase
+        .from("venue_booking_requests")
+        .select("id, venue_id")
+        .eq("id", targetRequestId)
+        .maybeSingle()
+
+      if (requestError) throw requestError
+      if (!venueRequest?.id) {
+        return NextResponse.json(
+          { error: "Venue booking request not found" },
+          { status: 404 }
+        )
+      }
+
+      const manageableVenueIds = await getManageableVenueIds(supabase, user.id)
+      if (!venueRequest.venue_id || !manageableVenueIds.includes(venueRequest.venue_id)) {
+        return NextResponse.json(
+          { error: "Forbidden: you do not have venue booking permissions" },
+          { status: 403 }
+        )
+      }
+
       const venueStatus =
         validatedData.status === "accepted"
           ? "approved"
@@ -278,32 +327,24 @@ export async function PATCH(req: NextRequest) {
             ? "rejected"
             : "pending"
 
-      let venueQuery = supabase
+      const { error: rpcError } = await supabase.rpc("respond_to_booking_request", {
+        p_request_id: targetRequestId,
+        p_status: venueStatus,
+        p_response_message: validatedData.responseMessage || null,
+      })
+      if (rpcError) {
+        return NextResponse.json(
+          { error: rpcError.message },
+          { status: 500 }
+        )
+      }
+
+      const { data: venueBookingRequest, error: venueError } = await supabase
         .from("venue_booking_requests")
-        .update({
-          status: venueStatus,
-          response_message: validatedData.responseMessage || null,
-          responded_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-
-      if (validatedData.venueRequestId) {
-        venueQuery = venueQuery.eq("id", validatedData.venueRequestId)
-      } else if (validatedData.requestId) {
-        venueQuery = venueQuery.eq("id", validatedData.requestId)
-      }
-      venueQuery = venueQuery.eq("requester_id", user.id)
-
-      const { data: venueBookingRequest, error: venueError } = await venueQuery.select().single()
-      if (venueError) {
-        if (venueError.code === "PGRST116") {
-          return NextResponse.json(
-            { error: "Venue booking request not found" },
-            { status: 404 }
-          )
-        }
-        throw venueError
-      }
+        .select("*")
+        .eq("id", targetRequestId)
+        .single()
+      if (venueError) throw venueError
 
       return NextResponse.json({ success: true, data: venueBookingRequest })
     }

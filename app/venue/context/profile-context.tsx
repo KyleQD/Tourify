@@ -1,5 +1,6 @@
 "use client"
-import { createContext, useContext } from "react"
+import { createContext, useContext, useEffect, useState } from "react"
+import { venueService } from "@/lib/services/venue.service"
 
 interface ProfileContextType {
   profile: {
@@ -61,14 +62,85 @@ interface ProfileContextType {
 }
 
 const ProfileContext = createContext<ProfileContextType>({
-  profile: {
+  profile: getDefaultProfile(),
+  createEPK: async () => "",
+  upgradeToPremiumEPK: async () => false,
+})
+
+export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  const [profile, setProfile] = useState(getDefaultProfile())
+
+  useEffect(() => {
+    async function loadProfile() {
+      const venue = await venueService.getCurrentUserVenue()
+      if (!venue) return
+
+      const location = [venue.city, venue.state].filter(Boolean).join(", ")
+      const website =
+        typeof venue.social_links === "object" && venue.social_links
+          ? String((venue.social_links as Record<string, unknown>).website || "")
+          : ""
+      const contactEmail =
+        typeof venue.contact_info === "object" && venue.contact_info
+          ? String(
+              (venue.contact_info as Record<string, unknown>).booking_email ||
+                (venue.contact_info as Record<string, unknown>).email ||
+                ""
+            )
+          : ""
+      const phone =
+        typeof venue.contact_info === "object" && venue.contact_info
+          ? String((venue.contact_info as Record<string, unknown>).phone || "")
+          : ""
+
+      setProfile((currentProfile) => ({
+        ...currentProfile,
+        id: venue.id,
+        name: venue.venue_name || currentProfile.name,
+        avatar: venue.avatar_url || currentProfile.avatar,
+        type: venue.venue_types?.[0] || currentProfile.type,
+        description: venue.description || currentProfile.description,
+        bio: venue.description || currentProfile.bio,
+        artistType: "venue",
+        location: location || currentProfile.location,
+        website,
+        contactEmail,
+        phone,
+        capacity: venue.capacity ? String(venue.capacity) : currentProfile.capacity,
+      }))
+    }
+
+    void loadProfile()
+  }, [])
+
+  const value = {
+    profile,
+    createEPK: async () => {
+      // Simulate EPK creation and return a URL
+      return "https://tourify.com/epk/username"
+    },
+    upgradeToPremiumEPK: async () => {
+      // Simulate a successful upgrade
+      return true
+    },
+  }
+  
+  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
+}
+
+export function useProfile() {
+  return useContext(ProfileContext)
+}
+
+function getDefaultProfile() {
+  return {
     id: "",
     name: "",
     avatar: "",
     type: "",
     description: "",
     bio: "",
-    artistType: "",
+    artistType: "venue",
     location: "",
     website: "",
     contactEmail: "",
@@ -101,86 +173,5 @@ const ProfileContext = createContext<ProfileContextType>({
       taxRate: "",
       currency: "USD",
     },
-  },
-  createEPK: async () => "",
-  upgradeToPremiumEPK: async () => false,
-})
-
-export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  // TODO: Replace with actual profile data
-  const value = {
-    profile: {
-      id: "1",
-      name: "Test Venue",
-      avatar: "/placeholder.svg",
-      type: "Concert Hall",
-      description: "A premier venue for live music events",
-      bio: "A premier venue for live music events with state-of-the-art sound and lighting systems.",
-      artistType: "venue",
-      location: "New York, NY",
-      website: "https://testvenue.com",
-      contactEmail: "contact@testvenue.com",
-      phone: "+1 (555) 123-4567",
-      capacity: "500",
-      skills: ["Live Music", "Event Planning", "Sound Engineering"],
-      gallery: [
-        {
-          id: "1",
-          url: "/placeholder.svg",
-          type: "image"
-        }
-      ],
-      experience: [
-        {
-          title: "Venue Manager",
-          company: "Test Venue",
-          duration: "2020 - Present"
-        }
-      ],
-      certifications: [
-        {
-          title: "Event Management Certification",
-          organization: "Event Management Institute",
-          year: "2021"
-        }
-      ],
-      theme: "dark",
-      bookingSettings: {
-        leadTime: "2 weeks",
-        autoApprove: "never",
-        requireDeposit: false,
-        depositAmount: "",
-        cancellationPolicy: "",
-      },
-      notifications: {
-        newBookings: true,
-        bookingUpdates: true,
-        messages: true,
-        marketing: false,
-      },
-      team: {
-        members: [],
-        roles: [],
-      },
-      payment: {
-        acceptedMethods: [],
-        taxRate: "",
-        currency: "USD",
-      },
-    },
-    createEPK: async () => {
-      // Simulate EPK creation and return a URL
-      return "https://tourify.com/epk/username"
-    },
-    upgradeToPremiumEPK: async () => {
-      // Simulate a successful upgrade
-      return true
-    },
   }
-  
-  return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>
-}
-
-export function useProfile() {
-  return useContext(ProfileContext)
 }

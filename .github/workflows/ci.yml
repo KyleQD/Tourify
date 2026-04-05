@@ -31,5 +31,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Mobile redirect safety test
+        run: npm run test:mobile-redirect
+
+      - name: Auth callback redirect smoke test
+        run: npm run test:auth-redirects
+
+      - name: Venue operations safeguard test
+        run: npm run test:venue-ops
+
       - name: Build
         run: npm run build:vercel

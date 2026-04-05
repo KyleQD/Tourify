@@ -43,7 +43,6 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Sheet, SheetContent } from "@/components/ui/sheet"
-import { useToast } from "@/hooks/use-toast"
 import { TourifyLogo } from "@/components/tourify-logo"
 
 interface NavItemProps {
@@ -65,12 +64,12 @@ interface MainSidebarProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   className?: string
+  mode?: "default" | "venue"
 }
 
-export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarProps) {
+export function MainSidebar({ open, onOpenChange, className = "", mode = "default" }: MainSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { toast } = useToast()
 
   // Track expanded state of collapsible sections
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -117,11 +116,6 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
     // Navigate to the page
     router.push(href)
 
-    // Show toast for demonstration
-    toast({
-      title: "Navigating",
-      description: `Navigating to ${href}`,
-    })
   }
 
   // Render a navigation item
@@ -195,6 +189,22 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
       </div>
 
       <ScrollArea className="flex-1 px-2 py-4">
+        {mode === "venue" ? (
+          <div className="space-y-3 px-1">
+            <NavGroup title="Venue" defaultOpen={true}>
+              <NavItem href="/venue" icon={<Home className="h-4 w-4" />} label="Dashboard" />
+              <NavItem href="/venue/bookings" icon={<Clock className="h-4 w-4" />} label="Bookings" />
+              <NavItem href="/venue/overview" icon={<Building className="h-4 w-4" />} label="Overview" />
+              <NavItem href="/venue/events" icon={<Calendar className="h-4 w-4" />} label="Events" />
+              <NavItem href="/venue/analytics" icon={<BarChart3 className="h-4 w-4" />} label="Analytics" />
+              <NavItem href="/venue/finances" icon={<DollarSign className="h-4 w-4" />} label="Finances" />
+              <NavItem href="/venue/equipment" icon={<Mic className="h-4 w-4" />} label="Equipment" />
+              <NavItem href="/venue/documents" icon={<FileText className="h-4 w-4" />} label="Documents" />
+              <NavItem href="/venue/staff" icon={<Users className="h-4 w-4" />} label="Staff" />
+              <NavItem href="/venue/settings" icon={<Settings className="h-4 w-4" />} label="Settings" />
+            </NavGroup>
+          </div>
+        ) : (
         <div className="space-y-4">
           {/* Quick Actions */}
           <div className="px-3 py-2">
@@ -307,6 +317,7 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
             <NavItem href="/docs" icon={<BookOpen className="h-4 w-4" />} label="Documentation" />
           </NavGroup>
         </div>
+        )}
       </ScrollArea>
 
       <div className="mt-auto border-t p-4">

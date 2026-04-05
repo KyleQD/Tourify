@@ -7,29 +7,35 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { paBtnRound } from "@/components/public-artist/public-artist-ui"
 
 export function BookThisArtistModal({
   isOpen,
   onOpenChange,
   artistUserId,
-  artistName
+  artistName,
+  creatorType,
+  serviceOfferings
 }: {
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
   artistUserId: string
   artistName: string
+  creatorType?: string | null
+  serviceOfferings?: string[]
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
-  const [performanceType, setPerformanceType] = useState("performance")
+  const [performanceType, setPerformanceType] = useState("project")
   const [venue, setVenue] = useState("")
   const [location, setLocation] = useState("")
   const [performanceDate, setPerformanceDate] = useState("")
   const [compensation, setCompensation] = useState("")
   const [description, setDescription] = useState("")
   const [additionalNotes, setAdditionalNotes] = useState("")
+  const [requestType, setRequestType] = useState<"performance" | "collaboration">("performance")
 
   const submit = async () => {
     if (!venue || !location || !performanceDate || !compensation || !description) {
@@ -46,7 +52,7 @@ export function BookThisArtistModal({
           artistId: artistUserId,
           email: email || undefined,
           phone: phone || undefined,
-          requestType: "performance",
+          requestType,
           bookingDetails: {
             performanceType,
             description,
@@ -70,13 +76,14 @@ export function BookThisArtistModal({
       onOpenChange(false)
       setEmail("")
       setPhone("")
-      setPerformanceType("performance")
+      setPerformanceType("project")
       setVenue("")
       setLocation("")
       setPerformanceDate("")
       setCompensation("")
       setDescription("")
       setAdditionalNotes("")
+      setRequestType("performance")
     } catch (err) {
       console.error("Booking request error:", err)
       toast.error("Failed to send booking request.")
@@ -89,7 +96,8 @@ export function BookThisArtistModal({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg rounded-3xl border-white/10 bg-slate-950/95 shadow-2xl shadow-black/60 backdrop-blur-xl sm:rounded-3xl">
         <DialogHeader>
-          <DialogTitle className="text-white">Book {artistName}</DialogTitle>
+          <DialogTitle className="text-white">Hire or Book {artistName}</DialogTitle>
+          {creatorType ? <p className="text-sm text-white/60">{creatorType} request form</p> : null}
         </DialogHeader>
 
         <div className="grid gap-4">
@@ -114,22 +122,51 @@ export function BookThisArtistModal({
           </div>
 
           <div className="grid gap-2">
-            <Label className="text-white/80">Performance type</Label>
-            <Input
-              className="rounded-xl border-white/10 bg-white/5"
-              value={performanceType}
-              onChange={(e) => setPerformanceType(e.target.value)}
-              placeholder="Festival / Club show / Private event"
-            />
+            <Label className="text-white/80">Request category</Label>
+            <Select value={requestType} onValueChange={(value: "performance" | "collaboration") => setRequestType(value)}>
+              <SelectTrigger className="rounded-xl border-white/10 bg-white/5">
+                <SelectValue placeholder="Select request category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="performance">Paid booking / project</SelectItem>
+                <SelectItem value="collaboration">Collaboration</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
-            <Label className="text-white/80">Venue *</Label>
+            <Label className="text-white/80">Project type</Label>
+            {serviceOfferings?.length ? (
+              <Select value={performanceType} onValueChange={setPerformanceType}>
+                <SelectTrigger className="rounded-xl border-white/10 bg-white/5">
+                  <SelectValue placeholder="Select service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {serviceOfferings.map(service => (
+                    <SelectItem key={service} value={service}>
+                      {service}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom-project">Custom project</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                className="rounded-xl border-white/10 bg-white/5"
+                value={performanceType}
+                onChange={(e) => setPerformanceType(e.target.value)}
+                placeholder="Video shoot / Photo package / Live set / Design project"
+              />
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            <Label className="text-white/80">Business / venue *</Label>
             <Input
               className="rounded-xl border-white/10 bg-white/5"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
-              placeholder="Venue name"
+              placeholder="Company, brand, or venue name"
             />
           </div>
 
@@ -144,7 +181,7 @@ export function BookThisArtistModal({
           </div>
 
           <div className="grid gap-2">
-            <Label className="text-white/80">Performance date *</Label>
+            <Label className="text-white/80">Target date *</Label>
             <Input
               className="rounded-xl border-white/10 bg-white/5"
               value={performanceDate}
@@ -164,12 +201,12 @@ export function BookThisArtistModal({
           </div>
 
           <div className="grid gap-2">
-            <Label className="text-white/80">Description *</Label>
+            <Label className="text-white/80">Project scope *</Label>
             <Textarea
               className="min-h-[100px] rounded-xl border-white/10 bg-white/5"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Tell the artist about the show..."
+              placeholder="Share your goals, deliverables, timeline, and expectations..."
             />
           </div>
 

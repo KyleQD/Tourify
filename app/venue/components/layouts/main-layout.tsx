@@ -53,9 +53,9 @@ export function MainLayout({ children }: MainLayoutProps) {
   // Navigation items
   const mainNavItems = [
     { name: "Feed", href: "/feed", icon: "home" },
-    { name: "Team", href: "/teams", icon: "users" },
+    { name: "Team", href: "/venue/staff", icon: "users" },
     { name: "Messages", href: "/messages", icon: "message-square" },
-    { name: "Events", href: "/events", icon: "calendar" },
+    { name: "Events", href: "/venue/dashboard/events", icon: "calendar" },
     { name: "Music", href: "/music", icon: "music" },
     { name: "All Features", href: "/features", icon: "grid" },
   ]
@@ -388,10 +388,10 @@ export function MainLayout({ children }: MainLayoutProps) {
           </Button>
           <Button
             variant="ghost"
-            className={`flex-1 flex flex-col items-center py-2 ${pathname === "/teams" ? "text-purple-400" : ""}`}
+            className={`flex-1 flex flex-col items-center py-2 ${pathname === "/venue/staff" ? "text-purple-400" : ""}`}
             asChild
           >
-            <a href="/teams">
+            <a href="/venue/staff">
               <Users className="h-5 w-5" />
               <span className="text-xs mt-1">Team</span>
             </a>

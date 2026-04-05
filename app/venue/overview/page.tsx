@@ -172,156 +172,135 @@ export default function VenueOverviewPage() {
     
     try {
       setIsLoading(true)
-      
-      // Mock comprehensive venue overview data
-      const mockData: VenueOverviewData = {
+      const days = selectedTimeframe === "24h" ? 1 : selectedTimeframe === "7d" ? 7 : selectedTimeframe === "30d" ? 30 : 90
+      const rangeStart = startOfWeek(new Date()).toISOString()
+      const rangeEnd = endOfWeek(addDays(new Date(), days)).toISOString()
+
+      const [stats, bookings, reviews, teamMembers, equipment, analytics, events] = await Promise.all([
+        venueService.getVenueDashboardStats(venue.id),
+        venueService.getVenueBookingRequests(venue.id),
+        venueService.getVenueReviews(venue.id),
+        venueService.getVenueTeamMembers(venue.id),
+        venueService.getVenueEquipment(venue.id),
+        venueService.getVenueAnalytics(venue.id, days),
+        venueService.getVenueEventsByRange(venue.id, rangeStart, rangeEnd),
+      ])
+
+      const approvedBookings = bookings.filter((booking) => booking.status === "approved")
+      const pendingBookings = bookings.filter((booking) => booking.status === "pending")
+      const estimatedRevenue = approvedBookings.reduce((sum, booking) => {
+        const parsedBudget = Number((booking.budget_range || "").replace(/[^0-9.]/g, ""))
+        return sum + (Number.isFinite(parsedBudget) ? parsedBudget : 0)
+      }, 0)
+      const monthlyRevenue = analytics.reduce((sum, item) => sum + (item.revenue || 0), 0)
+      const profileViews = analytics.reduce((sum, item) => sum + (item.page_views || 0), 0)
+      const eventsToday = events.filter((event) => {
+        if (!event.date) return false
+        return isToday(new Date(event.date))
+      }).length
+
+      const upcomingEvents = events.slice(0, 5).map((event) => ({
+        id: String(event.id),
+        name: event.title || "Event",
+        artist: typeof event.artist_name === "string" ? event.artist_name : "Tourify Booking",
+        date: event.date || new Date().toISOString(),
+        time: event.date ? format(new Date(event.date), "HH:mm") : "TBD",
+        attendees: Number(event.capacity || 0),
+        status: event.status === "confirmed" ? "confirmed" as const : event.status === "inquiry" ? "pending" as const : "setup" as const,
+        priority: event.status === "confirmed" ? "high" as const : "medium" as const,
+      }))
+
+      const recentActivity: VenueOverviewData["recentActivity"] = [
+        ...pendingBookings.slice(0, 3).map((booking) => ({
+          id: `booking-${booking.id}`,
+          type: "booking" as const,
+          title: "New Booking Request",
+          description: `${booking.event_name} from ${booking.contact_email}`,
+          timestamp: booking.requested_at || booking.created_at,
+          priority: "high" as const,
+          actionRequired: true,
+        })),
+        ...reviews.slice(0, 2).map((review) => ({
+          id: `review-${review.id}`,
+          type: "review" as const,
+          title: `New ${review.rating}-Star Review`,
+          description: review.comment || "A venue review was submitted.",
+          timestamp: review.created_at,
+          priority: "low" as const,
+          actionRequired: false,
+        })),
+      ].sort((first, second) => new Date(second.timestamp).getTime() - new Date(first.timestamp).getTime())
+
+      const alerts: VenueOverviewData["alerts"] = []
+      const maintenanceCount = equipment.filter((item) => item.condition === "needs_repair" || item.condition === "out_of_service").length
+      if (maintenanceCount > 0) {
+        alerts.push({
+          id: "maintenance-alert",
+          type: "warning",
+          title: "Equipment Requires Attention",
+          message: `${maintenanceCount} equipment item(s) need maintenance or are out of service.`,
+          action: "Open Equipment",
+          actionUrl: "/venue/equipment",
+        })
+      }
+      if (pendingBookings.length > 0) {
+        alerts.push({
+          id: "booking-alert",
+          type: "info",
+          title: "Pending Booking Requests",
+          message: `You have ${pendingBookings.length} booking request(s) waiting for response.`,
+          action: "Review Requests",
+          actionUrl: "/venue/bookings",
+        })
+      }
+
+      const conversionRate = bookings.length > 0 ? (approvedBookings.length / bookings.length) * 100 : 0
+
+      const liveData: VenueOverviewData = {
         stats: {
-          totalRevenue: 45780,
-          monthlyRevenue: 12450,
-          totalBookings: 127,
-          activeBookings: 8,
-          averageRating: 4.8,
-          totalReviews: 94,
-          profileViews: 2340,
-          responseRate: 98.5
+          totalRevenue: estimatedRevenue + monthlyRevenue,
+          monthlyRevenue,
+          totalBookings: stats.totalBookings || bookings.length,
+          activeBookings: approvedBookings.length,
+          averageRating: stats.averageRating || 0,
+          totalReviews: stats.totalReviews || reviews.length,
+          profileViews,
+          responseRate: conversionRate,
         },
         quickStats: {
-          todayEvents: 2,
-          pendingRequests: 5,
-          unreadMessages: 3,
-          upcomingDeadlines: 2,
-          equipmentIssues: 1,
-          teamOnline: 4
+          todayEvents: eventsToday,
+          pendingRequests: pendingBookings.length,
+          unreadMessages: 0,
+          upcomingDeadlines: maintenanceCount,
+          equipmentIssues: maintenanceCount,
+          teamOnline: teamMembers.filter((member) => member.status === "active").length,
         },
-        upcomingEvents: [
-          {
-            id: "evt-1",
-            name: "Jazz & Blues Night",
-            artist: "The Blue Note Quartet",
-            date: new Date().toISOString(),
-            time: "19:00",
-            attendees: 180,
-            status: "confirmed",
-            priority: "high"
-          },
-          {
-            id: "evt-2", 
-            name: "Electronic Showcase",
-            artist: "Pulse Productions",
-            date: addDays(new Date(), 1).toISOString(),
-            time: "21:00",
-            attendees: 350,
-            status: "setup",
-            priority: "high"
-          },
-          {
-            id: "evt-3",
-            name: "Acoustic Sessions",
-            artist: "Sarah Williams",
-            date: addDays(new Date(), 3).toISOString(),
-            time: "20:00",
-            attendees: 120,
-            status: "confirmed",
-            priority: "medium"
-          }
-        ],
-        recentActivity: [
-          {
-            id: "act-1",
-            type: "booking",
-            title: "New Booking Request",
-            description: "Summer Festival by Red Rock Events for August 15th",
-            timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-            priority: "high",
-            actionRequired: true
-          },
-          {
-            id: "act-2",
-            type: "message",
-            title: "Message from Blue Note Quartet",
-            description: "Updated technical requirements for tonight's show",
-            timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-            priority: "medium",
-            actionRequired: true
-          },
-          {
-            id: "act-3",
-            type: "payment",
-            title: "Payment Received",
-            description: "$2,500 deposit for Electronic Showcase",
-            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            priority: "low",
-            actionRequired: false
-          },
-          {
-            id: "act-4",
-            type: "review",
-            title: "New 5-Star Review",
-            description: "Excellent venue and professional staff - Jazz Collective",
-            timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-            priority: "low",
-            actionRequired: false
-          }
-        ],
-        alerts: [
-          {
-            id: "alert-1",
-            type: "warning",
-            title: "Equipment Maintenance Due",
-            message: "Sound system maintenance is scheduled for tomorrow morning. Please coordinate with technical team.",
-            action: "Schedule Maintenance",
-            actionUrl: "/venue/equipment"
-          },
-          {
-            id: "alert-2",
-            type: "info",
-            title: "New Feature Available",
-            message: "Advanced analytics dashboard is now available for premium venues.",
-            action: "Learn More",
-            actionUrl: "/venue/analytics"
-          }
-        ],
+        upcomingEvents,
+        recentActivity: recentActivity.slice(0, 6),
+        alerts,
         insights: [
           {
-            id: "insight-1",
-            category: "revenue",
-            title: "Revenue Growth",
-            value: "+23%",
-            change: 23,
-            insight: "Revenue increased by 23% compared to last month",
-            recommendation: "Consider raising rates for peak weekend slots"
-          },
-          {
-            id: "insight-2",
+            id: "conversion-insight",
             category: "performance",
             title: "Booking Conversion",
-            value: "87%",
-            change: 12,
-            insight: "Booking conversion rate improved by 12%",
-            recommendation: "Your quick response time is driving higher conversions"
+            value: `${conversionRate.toFixed(1)}%`,
+            change: conversionRate,
+            insight: "Conversion is based on approved vs total booking requests.",
+            recommendation: "Respond quickly to pending requests to improve conversion.",
           },
           {
-            id: "insight-3",
-            category: "efficiency",
-            title: "Average Response Time",
-            value: "1.2h",
-            change: -30,
-            insight: "Response time decreased by 30% (faster responses)",
-            recommendation: "Maintain this excellent response rate to boost rankings"
-          },
-          {
-            id: "insight-4",
-            category: "opportunities",
-            title: "Underutilized Days",
-            value: "Tue-Wed",
+            id: "revenue-insight",
+            category: "revenue",
+            title: "Revenue in Period",
+            value: formatSafeCurrency(monthlyRevenue),
             change: 0,
-            insight: "Tuesday and Wednesday show low booking rates",
-            recommendation: "Consider offering midweek discounts or hosting regular events"
-          }
-        ]
+            insight: "Revenue reflects tracked analytics totals in the selected timeframe.",
+            recommendation: "Use analytics trends to identify peak booking windows.",
+          },
+        ],
       }
-      
-      setOverviewData(mockData)
+
+      setOverviewData(liveData)
       
     } catch (error) {
       console.error('Error fetching overview data:', error)

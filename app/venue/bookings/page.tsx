@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useDeferredValue, useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -15,11 +15,14 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useCurrentVenue } from "../hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
+import { useVenueCalendarData } from "../hooks/use-venue-calendar-data"
 import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
-import { format, startOfMonth, endOfMonth } from "date-fns"
-import { approveBookingAndMaybeCreateEvent } from "../actions/event-actions"
+import { format } from "date-fns"
+import { approveBookingAndMaybeCreateEvent, respondToVenueBookingRequest } from "../actions/event-actions"
 import RecurringTemplateForm from "../components/recurring-template-form"
+import { useRouter } from "next/navigation"
+import { getEventTypeBadgeColor, isSameCalendarDay } from "../lib/event-presentation"
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -27,18 +30,14 @@ import {
   DollarSign,
   Mail,
   Phone,
-  MapPin,
-  Filter,
   Search,
   MoreHorizontal,
   Check,
   X,
-  MessageSquare,
   Eye,
   Send,
   RefreshCw,
   AlertCircle,
-  Star,
   Download,
   Plus,
   CheckCircle,
@@ -83,21 +82,35 @@ const statusColors = {
 }
 
 export default function BookingsPage() {
+  const router = useRouter()
   const { venue, isLoading: venueLoading } = useCurrentVenue()
   const { toast } = useToast()
   
   const [bookings, setBookings] = useState<BookingRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isActionInProgress, setIsActionInProgress] = useState<string | null>(null)
   const [selectedBooking, setSelectedBooking] = useState<BookingRequest | null>(null)
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
-  const [calendarEvents, setCalendarEvents] = useState<BookingRequest[]>([])
-  const [calendarVenueEvents, setCalendarVenueEvents] = useState<Array<{ id: string; title: string; date: string }>>([])
+  const [activeTab, setActiveTab] = useState("requests")
+  const {
+    bookings: calendarEvents,
+    venueEvents: calendarVenueEvents,
+    isLoading: isCalendarLoading,
+    error: calendarError,
+    refresh: refreshCalendarData,
+  } = useVenueCalendarData({
+    venueId: venue?.id,
+    month: calendarMonth,
+    enabled: activeTab === "calendar",
+  })
   
   // Filter states
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [searchTerm, setSearchTerm] = useState("")
+  const deferredSearchTerm = useDeferredValue(searchTerm)
   const [dateFilter, setDateFilter] = useState<Date | undefined>()
   const [eventTypeFilter, setEventTypeFilter] = useState<string>("all")
   const [genreFilter, setGenreFilter] = useState<string>("all")
@@ -108,29 +121,16 @@ export default function BookingsPage() {
 
   useEffect(() => {
     if (venue?.id) {
-      fetchBookings()
+      void fetchBookings({ showLoading: true })
     }
   }, [venue?.id])
-  // Load approved bookings for calendar when month or venue changes
-  useEffect(() => {
-    if (!venue?.id) return
-    const rangeStart = startOfMonth(calendarMonth).toISOString()
-    const rangeEnd = endOfMonth(calendarMonth).toISOString()
-    ;(async () => {
-      const approved = await venueService.getConfirmedBookingsByRange(venue.id, rangeStart, rangeEnd)
-      setCalendarEvents(approved as unknown as BookingRequest[])
-      const venueEvents = await venueService.getVenueEventsByRange(venue.id, rangeStart, rangeEnd)
-      setCalendarVenueEvents(
-        (venueEvents || []).map((e: any) => ({ id: e.id, title: e.title ?? 'Event', date: e.date }))
-      )
-    })()
-  }, [venue?.id, calendarMonth])
 
-  const fetchBookings = async () => {
+  const fetchBookings = async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
     if (!venue?.id) return
     
     try {
-      setIsLoading(true)
+      if (showLoading) setIsLoading(true)
+      else setIsRefreshing(true)
       const bookingData = await venueService.getVenueBookingRequests(venue.id)
       const normalized = (bookingData || []).map((b: any) => ({
         ...b,
@@ -147,21 +147,37 @@ export default function BookingsPage() {
       })
     } finally {
       setIsLoading(false)
+      setIsRefreshing(false)
     }
   }
 
   const handleBookingAction = async (bookingId: string, action: "approved" | "rejected", message?: string) => {
+    const previousBookings = [...bookings]
     try {
-      await venueService.respondToBookingRequest(bookingId, action, message)
-      
-      // Update local state
-    setBookings(prev => prev.map(booking =>
-      booking.id === bookingId
+      setIsActionInProgress(bookingId)
+      setBookings(prev => prev.map(booking =>
+        booking.id === bookingId
           ? { ...booking, status: action, response_message: message || "", responded_at: new Date().toISOString() }
-        : booking
-    ))
-      
-    toast({
+          : booking
+      ))
+
+      if (action === "approved") {
+        const result = await approveBookingAndMaybeCreateEvent({
+          requestId: bookingId,
+          createEvent: true,
+          responseMessage: message,
+        })
+        if (!result.success) throw new Error(result.error || "Failed to approve booking request")
+      } else {
+        const result = await respondToVenueBookingRequest({
+          requestId: bookingId,
+          action: "rejected",
+          responseMessage: message,
+        })
+        if (!result.success) throw new Error(result.error || "Failed to reject booking request")
+      }
+
+      toast({
         title: action === "approved" ? "Booking Approved" : "Booking Rejected",
         description: `Successfully ${action} the booking request.`,
       })
@@ -169,49 +185,77 @@ export default function BookingsPage() {
       setIsResponseModalOpen(false)
       setSelectedBooking(null)
       setResponseMessage("")
+      setResponseAction(null)
+      await fetchBookings()
+      await refreshCalendarData()
     } catch (error) {
+      setBookings(previousBookings)
       console.error('Error responding to booking:', error)
       toast({
         title: "Error",
         description: "Failed to respond to booking request",
         variant: "destructive"
       })
+    } finally {
+      setIsActionInProgress(null)
     }
   }
 
-  const filteredBookings = bookings.filter(booking => {
-    // Status filter
-    if (statusFilter !== "all" && booking.status !== statusFilter) return false
-    
-    // Search filter
-    if (searchTerm && !booking.event_name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        !booking.contact_email.toLowerCase().includes(searchTerm.toLowerCase())) return false
-    
-    // Date filter
-    if (dateFilter) {
-      const bookingDate = new Date(booking.event_date)
-      const filterDate = dateFilter
-      if (bookingDate.toDateString() !== filterDate.toDateString()) return false
-    }
-    
-    // Event type filter
-    if (eventTypeFilter !== "all" && booking.event_type !== eventTypeFilter) return false
-    if (genreFilter !== "all" && (booking as any).genre !== genreFilter) return false
-    
-    return true
-  })
+  const filteredBookings = useMemo(() => {
+    return bookings.filter((booking) => {
+      if (statusFilter !== "all" && booking.status !== statusFilter) return false
 
-  const stats = {
+      if (
+        deferredSearchTerm &&
+        !booking.event_name.toLowerCase().includes(deferredSearchTerm.toLowerCase()) &&
+        !booking.contact_email.toLowerCase().includes(deferredSearchTerm.toLowerCase())
+      ) return false
+
+      if (dateFilter && !isSameCalendarDay(booking.event_date, dateFilter)) return false
+
+      if (eventTypeFilter !== "all" && booking.event_type !== eventTypeFilter) return false
+      if (genreFilter !== "all" && (booking as any).genre !== genreFilter) return false
+
+      return true
+    })
+  }, [bookings, statusFilter, deferredSearchTerm, dateFilter, eventTypeFilter, genreFilter])
+
+  const stats = useMemo(() => ({
     total: bookings.length,
-      pending: bookings.filter(b => b.status === "pending").length,
-      approved: bookings.filter(b => b.status === "approved").length,
-    rejected: bookings.filter(b => b.status === "rejected").length,
-  }
+    pending: bookings.filter((booking) => booking.status === "pending").length,
+    approved: bookings.filter((booking) => booking.status === "approved").length,
+    rejected: bookings.filter((booking) => booking.status === "rejected").length,
+  }), [bookings])
 
-  const upcomingEvents = bookings
-    .filter(b => b.status === "approved" && new Date(b.event_date) > new Date())
-    .sort((a, b) => new Date(a.event_date).getTime() - new Date(b.event_date).getTime())
-    .slice(0, 5)
+  const upcomingEvents = useMemo(() => {
+    const now = Date.now()
+    return bookings
+      .filter((booking) => booking.status === "approved" && new Date(booking.event_date).getTime() > now)
+      .sort((first, second) => new Date(first.event_date).getTime() - new Date(second.event_date).getTime())
+      .slice(0, 5)
+  }, [bookings])
+
+  const bookingsByDate = useMemo(() => {
+    const map = new Map<string, typeof calendarEvents>()
+    for (const booking of calendarEvents) {
+      const key = new Date(booking.event_date).toDateString()
+      const existing = map.get(key)
+      if (existing) existing.push(booking)
+      else map.set(key, [booking])
+    }
+    return map
+  }, [calendarEvents])
+
+  const venueEventsByDate = useMemo(() => {
+    const map = new Map<string, typeof calendarVenueEvents>()
+    for (const event of calendarVenueEvents) {
+      const key = new Date(event.date).toDateString()
+      const existing = map.get(key)
+      if (existing) existing.push(event)
+      else map.set(key, [event])
+    }
+    return map
+  }, [calendarVenueEvents])
 
   if (venueLoading || isLoading) {
     return (
@@ -240,15 +284,22 @@ export default function BookingsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchBookings}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              await fetchBookings()
+              await refreshCalendarData()
+            }}
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
+            {isRefreshing ? "Refreshing..." : "Refresh"}
           </Button>
           <Button variant="outline" size="sm">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button size="sm">
+          <Button size="sm" onClick={() => router.push("/venue/dashboard/calendar")}>
             <Plus className="h-4 w-4 mr-2" />
             Create Event
           </Button>
@@ -304,7 +355,7 @@ export default function BookingsPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="requests" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
           <TabsTrigger value="requests">Booking Requests</TabsTrigger>
           <TabsTrigger value="calendar">Calendar View</TabsTrigger>
@@ -526,25 +577,12 @@ export default function BookingsPage() {
                             <div className="flex gap-1">
                           <Button
                              size="sm"
-                                onClick={async () => {
-                                  const res = await approveBookingAndMaybeCreateEvent({ requestId: booking.id, createEvent: true })
-                                  if (!res.success) {
-                                    toast({ title: 'Failed to approve', description: res.error || 'Unknown error', variant: 'destructive' })
-                                  } else {
-                                    toast({ title: 'Booking Approved', description: 'Event created and calendar updated.' })
-                                    await fetchBookings()
-                                    const rangeStart = startOfMonth(calendarMonth).toISOString()
-                                    const rangeEnd = endOfMonth(calendarMonth).toISOString()
-                                    const approved = await venueService.getConfirmedBookingsByRange(venue!.id, rangeStart, rangeEnd)
-                                    setCalendarEvents(approved as unknown as BookingRequest[])
-                                    const venueEvents = await venueService.getVenueEventsByRange(venue!.id, rangeStart, rangeEnd)
-                                    setCalendarVenueEvents((venueEvents || []).map((e: any) => ({ id: e.id, title: e.title ?? 'Event', date: e.date })))
-                                  }
-                                }}
+                                onClick={() => handleBookingAction(booking.id, "approved")}
                                 className="bg-green-600 hover:bg-green-700"
+                                disabled={isActionInProgress === booking.id}
                           >
                                 <Check className="h-4 w-4 mr-2" />
-                            Approve
+                                {isActionInProgress === booking.id ? "Processing..." : "Approve"}
                           </Button>
                           <Button
                                 variant="destructive"
@@ -554,9 +592,10 @@ export default function BookingsPage() {
                                   setResponseAction("reject")
                                   setIsResponseModalOpen(true)
                                 }}
+                                disabled={isActionInProgress === booking.id}
                           >
                                 <X className="h-4 w-4 mr-2" />
-                                Reject
+                                {isActionInProgress === booking.id ? "Processing..." : "Reject"}
                           </Button>
                             </div>
                       )}
@@ -643,32 +682,46 @@ export default function BookingsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Simple month grid with approved bookings */}
-              <div className="grid grid-cols-7 gap-2">
-                {Array.from({ length: new Date(calendarMonth.getFullYear(), calendarMonth.getMonth()+1, 0).getDate() }).map((_, idx) => {
-                  const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), idx + 1)
-                  const items = calendarEvents.filter(e => new Date(e.event_date).toDateString() === date.toDateString())
-                  const venueItems = calendarVenueEvents.filter(e => new Date(e.date).toDateString() === date.toDateString())
-                  return (
-                    <div key={idx} className="border rounded-md p-2 min-h-24">
-                      <div className="text-xs font-medium text-muted-foreground">{idx + 1}</div>
-                      <div className="mt-1 space-y-1">
-                        {items.map(item => (
-                          <div key={item.id} className="text-xs rounded bg-green-100 text-green-800 px-1 py-0.5 flex items-center gap-1">
-                            <CheckCircle className="h-3 w-3" />
-                            <span className="truncate" title={item.event_name}>{item.event_name}</span>
-                          </div>
-                        ))}
-                        {venueItems.map(item => (
-                          <div key={item.id} className="text-xs rounded bg-blue-100 text-blue-800 px-1 py-0.5 truncate" title={item.title}>
-                            {item.title}
-                          </div>
-                        ))}
+              {isCalendarLoading ? (
+                <div className="flex h-48 items-center justify-center">
+                  <LoadingSpinner size="lg" />
+                </div>
+              ) : calendarError ? (
+                <div className="rounded-md border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+                  {calendarError}
+                </div>
+              ) : (
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: new Date(calendarMonth.getFullYear(), calendarMonth.getMonth()+1, 0).getDate() }).map((_, idx) => {
+                    const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), idx + 1)
+                    const dayKey = date.toDateString()
+                    const items = bookingsByDate.get(dayKey) || []
+                    const venueItems = venueEventsByDate.get(dayKey) || []
+                    return (
+                      <div key={idx} className="border rounded-md p-2 min-h-24">
+                        <div className="text-xs font-medium text-muted-foreground">{idx + 1}</div>
+                        <div className="mt-1 space-y-1">
+                          {items.map(item => (
+                            <div key={item.id} className="text-xs rounded bg-green-100 text-green-800 px-1 py-0.5 flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              <span className="truncate" title={item.event_name}>{item.event_name}</span>
+                            </div>
+                          ))}
+                          {venueItems.map(item => (
+                            <div
+                              key={item.id}
+                              className={`text-xs rounded text-white px-1 py-0.5 truncate ${getEventTypeBadgeColor(item.type)}`}
+                              title={item.title}
+                            >
+                              {item.title}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1005,9 +1058,14 @@ export default function BookingsPage() {
                   onClick={() => handleBookingAction(selectedBooking.id, (responseAction === "approve" ? "approved" : "rejected"), responseMessage)}
                   className={responseAction === "approve" ? "bg-green-600 hover:bg-green-700" : ""}
                   variant={responseAction === "reject" ? "destructive" : "default"}
+                  disabled={isActionInProgress === selectedBooking.id}
                 >
                   <Send className="h-4 w-4 mr-2" />
-                  {responseAction === "approve" ? "Approve & Send" : "Reject & Send"}
+                  {isActionInProgress === selectedBooking.id
+                    ? "Sending..."
+                    : responseAction === "approve"
+                      ? "Approve & Send"
+                      : "Reject & Send"}
                 </Button>
               </DialogFooter>
             </>

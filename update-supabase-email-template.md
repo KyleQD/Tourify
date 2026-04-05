@@ -15,7 +15,7 @@ Update the Supabase email template to redirect users to the correct login page.
 
 ### 2. Update the "Confirm signup" Template
 1. Click on the **"Confirm signup"** template
-2. Replace the current HTML content with the updated template from `updated-email-template.html`
+2. Replace the current HTML content with the template from `auth-email-confirm-signup.html`
 3. Make sure the **Subject** is: `Welcome to Tourify - Confirm Your Email`
 
 ### 3. Configure Redirect URLs
@@ -32,6 +32,7 @@ https://demo.tourify.live
 https://demo.tourify.live/auth/callback
 https://demo.tourify.live/login
 https://demo.tourify.live/dashboard
+https://demo.tourify.live/onboarding
 ```
 
 ### 4. Test the Flow
@@ -46,10 +47,11 @@ https://demo.tourify.live/dashboard
    - `components/profile-type-selection.tsx` - The component showing Artist/Venue/Industry/General profile selection
    - `components/profile-info-modal.tsx` - Modal used by the profile selection component
 
-2. **Updated email template:**
-   - Added clearer messaging about being redirected to login page
-   - Maintained professional Tourify branding
-   - Kept the same confirmation URL structure
+2. **Updated email templates:**
+   - `auth-email-confirm-signup.html`
+   - `auth-email-magic-link.html`
+   - `auth-email-reset-password.html`
+   - `auth-email-invite-user.html`
 
 3. **Verified auth callback:**
    - The callback route already properly redirects to login page after email confirmation

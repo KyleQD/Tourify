@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,14 +9,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateJobModal } from "../../components/jobs/create-job-modal"
 import { Briefcase, Search, MapPin, DollarSign, Calendar, Filter } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { venueService } from "@/lib/services/venue.service"
 
 export default function JobsPage() {
+  const { venue } = useCurrentVenue()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("my-jobs")
 
-  // Mock data for jobs
-  const myJobs = [
+  const [myJobs, setMyJobs] = useState([
     {
       id: "job-1",
       title: "Drummer Needed for Summer Tour",
@@ -81,9 +83,9 @@ export default function JobsPage() {
       applicants: 12,
       status: "closed",
     },
-  ]
+  ])
 
-  const availableJobs = [
+  const [availableJobs, setAvailableJobs] = useState([
     {
       id: "avail-1",
       title: "Lead Guitarist Needed",
@@ -162,7 +164,51 @@ export default function JobsPage() {
       postedBy: "Visionary Media",
       postedByImage: "/placeholder.svg?height=40&width=40&text=VM",
     },
-  ]
+  ])
+
+  useEffect(() => {
+    async function loadVenueJobs() {
+      if (!venue?.id) return
+      const [events, teamMembers] = await Promise.all([
+        venueService.getVenueEventsByRange(
+          venue.id,
+          new Date().toISOString(),
+          new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString()
+        ),
+        venueService.getVenueTeamMembers(venue.id),
+      ])
+
+      const generatedJobs = events.slice(0, 8).map((event: any) => ({
+        id: `job-${event.id}`,
+        title: `Crew needed: ${event.title || "Event"}`,
+        description: "Support staff needed for venue operations and guest management.",
+        location: `${venue.city || ""}${venue.city && venue.state ? ", " : ""}${venue.state || ""}` || "Venue",
+        type: "One-time",
+        category: "crew",
+        compensation: {
+          amount: 200,
+          type: "fixed",
+          details: "Per event shift",
+        },
+        postedDate: new Date().toISOString().slice(0, 10),
+        applicants: Math.max(0, Math.floor(Number(event.capacity || 0) / 150)),
+        status: "active",
+      }))
+
+      if (generatedJobs.length > 0) setMyJobs(generatedJobs)
+
+      if (teamMembers.length > 0) {
+        setAvailableJobs((currentJobs) =>
+          currentJobs.map((job, index) => ({
+            ...job,
+            postedBy: teamMembers[index % teamMembers.length].name || job.postedBy,
+          }))
+        )
+      }
+    }
+
+    void loadVenueJobs()
+  }, [venue?.id, venue?.city, venue?.state])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {

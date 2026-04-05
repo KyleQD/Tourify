@@ -21,9 +21,9 @@ export function QuickAccess({ className }: QuickAccessProps) {
     // In a real app, this would be fetched from an API or local storage
     setFavorites([
       { path: "/dashboard", label: "Dashboard", icon: "dashboard" },
-      { path: "/events", label: "Events", icon: "calendar" },
+      { path: "/venue/dashboard/events", label: "Events", icon: "calendar" },
       { path: "/music", label: "Music", icon: "music" },
-      { path: "/analytics", label: "Analytics", icon: "chart" },
+      { path: "/venue/analytics", label: "Analytics", icon: "chart" },
     ])
   }, [])
 
@@ -32,7 +32,7 @@ export function QuickAccess({ className }: QuickAccessProps) {
     // In a real app, this would be persisted in local storage
     const mockRecentPages = [
       { path: "/feed", label: "Feed", timestamp: Date.now() - 1000 * 60 * 5 }, // 5 minutes ago
-      { path: "/events/map", label: "Event Map", timestamp: Date.now() - 1000 * 60 * 30 }, // 30 minutes ago
+      { path: "/venue/dashboard/events/map", label: "Event Map", timestamp: Date.now() - 1000 * 60 * 30 }, // 30 minutes ago
       { path: "/messages", label: "Messages", timestamp: Date.now() - 1000 * 60 * 60 }, // 1 hour ago
       { path: "/epk", label: "EPK", timestamp: Date.now() - 1000 * 60 * 60 * 3 }, // 3 hours ago
     ]
@@ -71,11 +71,11 @@ export function QuickAccess({ className }: QuickAccessProps) {
 
   // Quick access items
   const quickAccessItems = [
-    { icon: <Calendar className="h-4 w-4" />, label: "Event", path: "/events/create" },
+    { icon: <Calendar className="h-4 w-4" />, label: "Event", path: "/venue/dashboard/calendar" },
     { icon: <Music className="h-4 w-4" />, label: "Upload", path: "/music/upload" },
     { icon: <Building className="h-4 w-4" />, label: "Venue", path: "/venues/create" },
     { icon: <Briefcase className="h-4 w-4" />, label: "Job", path: "/jobs/create" },
-    { icon: <Ticket className="h-4 w-4" />, label: "Ticket", path: "/tickets/create" },
+    { icon: <Ticket className="h-4 w-4" />, label: "Ticket", path: "/venue/dashboard/tickets" },
   ]
 
   return (

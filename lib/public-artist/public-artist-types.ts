@@ -115,6 +115,24 @@ export interface PublicArtistMediaGalleryDTO {
   items: PublicArtistMediaItemDTO[]
 }
 
+export interface PublicArtistProductDTO {
+  id: PublicArtistId
+  name: string
+  description: string | null
+  type: string | null
+  price: number | null
+  currency: string | null
+  inventoryCount: number | null
+  imageUrl: string | null
+  isFeatured: boolean
+  status: string | null
+}
+
+export interface PublicArtistProductsDTO {
+  featuredProducts: PublicArtistProductDTO[]
+  products: PublicArtistProductDTO[]
+}
+
 export interface PublicArtistPostDTO {
   id: PublicArtistId
   authorUserId: PublicUserId
@@ -155,6 +173,19 @@ export interface PublicArtistAboutDTO {
   bio: string | null
 }
 
+export interface PublicArtistCreatorDTO {
+  primaryCreatorType: string | null
+  serviceOfferings: string[]
+  productsForSale: string[]
+  credentials: string[]
+  workHighlights: string[]
+  availableForHire: boolean
+  collaborationInterest: boolean
+  bookingRate: string | null
+  availability: string | null
+  preferredContact: string | null
+}
+
 export interface PublicArtistEPKDTO {
   epk: EPKData | null
 }
@@ -166,8 +197,10 @@ export interface PublicArtistPageDTO {
   tracks: PublicArtistTracksDTO
   events: PublicArtistEventsDTO
   media: PublicArtistMediaGalleryDTO
+  products: PublicArtistProductsDTO
   posts: PublicArtistPostsDTO
   stats: PublicArtistStatsDTO
+  creator: PublicArtistCreatorDTO
   epk: PublicArtistEPKDTO
 }
 

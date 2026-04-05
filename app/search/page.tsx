@@ -19,7 +19,7 @@ import {
   Plus,
   Loader2,
   ArrowLeft,
-  X
+  BriefcaseBusiness
 } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
@@ -30,6 +30,9 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("all")
   const [isSearching, setIsSearching] = useState(false)
+  const [creatorTypeFilter, setCreatorTypeFilter] = useState("")
+  const [serviceFilter, setServiceFilter] = useState("")
+  const [availableForHireOnly, setAvailableForHireOnly] = useState(false)
   const [searchResults, setSearchResults] = useState<any>({ artists: [], venues: [], users: [], total: 0 })
   const [followedProfiles, setFollowedProfiles] = useState<Set<string>>(new Set())
   const [followStatuses, setFollowStatuses] = useState<Record<string, { isFollowing: boolean; hasRequest: boolean; requestStatus: string | null }>>({})
@@ -40,9 +43,19 @@ export default function SearchPage() {
   // Get search query from URL params
   useEffect(() => {
     const query = searchParams.get('q') || ''
+    const creatorType = searchParams.get('creatorType') || ''
+    const service = searchParams.get('service') || ''
+    const availableForHire = searchParams.get('availableForHire') === 'true'
     setSearchQuery(query)
+    setCreatorTypeFilter(creatorType)
+    setServiceFilter(service)
+    setAvailableForHireOnly(availableForHire)
     if (query) {
-      fetchSearchResults(query)
+      fetchSearchResults(query, {
+        creatorType,
+        service,
+        availableForHire
+      })
     }
   }, [searchParams])
 
@@ -90,16 +103,29 @@ export default function SearchPage() {
     }
   }
 
-  const fetchSearchResults = async (query: string) => {
+  const fetchSearchResults = async (
+    query: string,
+    options?: {
+      creatorType?: string
+      service?: string
+      availableForHire?: boolean
+    }
+  ) => {
     if (!query.trim()) return
     
     try {
       setIsSearching(true)
+      const creatorType = options?.creatorType ?? creatorTypeFilter
+      const service = options?.service ?? serviceFilter
+      const availableForHire = options?.availableForHire ?? availableForHireOnly
       const params = new URLSearchParams({
         q: query,
         type: activeTab,
         limit: '20'
       })
+      if (creatorType) params.set('creatorType', creatorType)
+      if (service) params.set('service', service)
+      if (availableForHire) params.set('availableForHire', 'true')
       
       // Prefer enhanced search API in production; group results by type to fit UI
       const response = await fetch(`/api/search/enhanced?${params.toString()}`)
@@ -129,7 +155,11 @@ export default function SearchPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+      const params = new URLSearchParams({ q: searchQuery.trim() })
+      if (creatorTypeFilter) params.set('creatorType', creatorTypeFilter)
+      if (serviceFilter) params.set('service', serviceFilter)
+      if (availableForHireOnly) params.set('availableForHire', 'true')
+      router.push(`/search?${params.toString()}`)
     }
   }
 
@@ -508,6 +538,29 @@ export default function SearchPage() {
               </Button>
             </div>
           </form>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:max-w-4xl sm:grid-cols-3">
+            <Input
+              value={creatorTypeFilter}
+              onChange={(event) => setCreatorTypeFilter(event.target.value)}
+              placeholder="Creator type (photographer, designer...)"
+              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+            />
+            <Input
+              value={serviceFilter}
+              onChange={(event) => setServiceFilter(event.target.value)}
+              placeholder="Service keyword (video, merch, logo...)"
+              className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
+            />
+            <Button
+              type="button"
+              variant={availableForHireOnly ? "default" : "outline"}
+              onClick={() => setAvailableForHireOnly(prev => !prev)}
+              className={availableForHireOnly ? "bg-emerald-600 hover:bg-emerald-700" : "border-white/20 text-white hover:bg-white/10"}
+            >
+              <BriefcaseBusiness className="h-4 w-4 mr-2" />
+              Available for hire only
+            </Button>
+          </div>
         </div>
 
         {/* Results Summary */}

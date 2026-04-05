@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 import { z } from 'zod'
+import { normalizeVenueSlug } from '@/lib/venue/routing'
 
 // GET - Get venue profile by ID or slug
 export async function GET(
@@ -47,29 +48,27 @@ export async function GET(
     if (isUUID) {
       query = query.eq('id', params.id)
     } else {
-      // For slug-based lookup, we need to match venues by their generated slug
-      // First, get all venues and find the one that matches the slug
-      const { data: allVenues, error: fetchError } = await supabase
+      // Prefer indexed slug lookup and avoid table-wide scans.
+      const normalizedSlug = normalizeVenueSlug(String(params.id))
+      const { data: slugVenue, error: fetchError } = await supabase
         .from('venue_profiles')
-        .select('id, venue_name')
-      
+        .select('id')
+        .or(`url_slug.eq.${params.id},url_slug.eq.${normalizedSlug}`)
+        .limit(1)
+        .maybeSingle()
+
       if (fetchError) {
         console.error('Error fetching venues for slug lookup:', fetchError)
         return NextResponse.json({ error: 'Failed to fetch venues' }, { status: 500 })
       }
-      
-      // Find venue that matches the slug
-      const matchingVenue = allVenues?.find(venue => {
-        const venueSlug = venue.venue_name?.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
-        return venueSlug === params.id
-      })
-      
-      if (!matchingVenue) {
-        return NextResponse.json({ error: 'Venue not found' }, { status: 404 })
+
+      if (slugVenue?.id) {
+        query = query.eq('id', slugVenue.id)
+      } else {
+        // Fallback for legacy venues that predate `url_slug`.
+        const legacyName = String(params.id).replace(/-/g, ' ')
+        query = query.eq('venue_name', legacyName)
       }
-      
-      // Now query with the found venue ID
-      query = query.eq('id', matchingVenue.id)
     }
 
     const { data: venue, error } = await query.single()
@@ -188,8 +187,8 @@ export async function GET(
 
       stats.monthly_views = viewStats?.length || 0
     } catch (error) {
-      // View tracking table might not exist, use mock data
-      stats.monthly_views = Math.floor(Math.random() * 1000) + 100
+      // View tracking table might not exist in all environments.
+      stats.monthly_views = 0
     }
 
     stats.upcoming_events = recentEvents.length

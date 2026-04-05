@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2 } from 'lucide-react'
+import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,21 +23,24 @@ const accountTypeIcons = {
   general: User,
   artist: Music,
   venue: Building,
-  admin: Shield
+  admin: Shield,
+  staff: Briefcase
 }
 
 const accountTypeColors = {
   general: 'bg-blue-500',
   artist: 'bg-purple-500',
   venue: 'bg-green-500',
-  admin: 'bg-red-500'
+  admin: 'bg-red-500',
+  staff: 'bg-indigo-500'
 }
 
 const accountTypeLabels = {
   general: 'Personal',
   artist: 'Artist',
   venue: 'Venue',
-  admin: 'Organizer'
+  admin: 'Organizer',
+  staff: 'Staff'
 }
 
 interface AccountSwitcherProps {
@@ -128,6 +131,8 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                     ? (currentAccount.profile_data?.venue_name || 'Venue Account')
                     : currentAccount.account_type === 'admin'
                     ? (currentAccount.profile_data?.organization_name || currentAccount.profile_data?.admin_name || 'Event & Tour Admin')
+                    : currentAccount.account_type === 'staff'
+                    ? (currentAccount.profile_data?.venue_profiles?.venue_name || currentAccount.profile_data?.role || 'Staff Account')
                     : (currentAccount.profile_data?.full_name || 'Personal Account')
                   }
                 </div>
@@ -199,6 +204,8 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                         ? (account.profile_data?.venue_name || 'Venue Account')
                         : account.account_type === 'admin'
                         ? (account.profile_data?.organization_name || account.profile_data?.admin_name || 'Event & Tour Admin')
+                        : account.account_type === 'staff'
+                        ? (account.profile_data?.venue_profiles?.venue_name || account.profile_data?.role || 'Staff Account')
                         : (account.profile_data?.full_name || 'Personal Account')
                       }
                     </div>
@@ -292,6 +299,9 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                     break
                   case 'admin':
                     router.push('/admin/settings')
+                    break
+                  case 'staff':
+                    router.push('/venue/staff')
                     break
                   default:
                     router.push('/settings')

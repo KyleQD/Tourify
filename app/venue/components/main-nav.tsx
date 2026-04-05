@@ -57,17 +57,17 @@ export function MainNav() {
       active: pathname.startsWith("/venues"),
     },
     {
-      href: "/events",
+      href: "/venue/dashboard/events",
       label: "Events",
       icon: <Calendar className="h-4 w-4 mr-2" />,
-      active: pathname.startsWith("/events"),
+      active: pathname.startsWith("/venue/dashboard/events"),
       badge: 3,
     },
     {
-      href: "/bookings",
+      href: "/venue/bookings",
       label: "Bookings",
       icon: <Clock className="h-4 w-4 mr-2" />,
-      active: pathname.startsWith("/bookings"),
+      active: pathname.startsWith("/venue/bookings"),
       badge: 5,
     },
     {
@@ -77,10 +77,10 @@ export function MainNav() {
       active: pathname.startsWith("/music"),
     },
     {
-      href: "/team",
+      href: "/venue/staff",
       label: "Teams",
       icon: <Users className="h-4 w-4 mr-2" />,
-      active: pathname.startsWith("/team"),
+      active: pathname.startsWith("/venue/staff"),
       isNew: true,
     },
     {
@@ -98,10 +98,10 @@ export function MainNav() {
       isNew: true,
     },
     {
-      href: "/finances",
+      href: "/venue/finances",
       label: "Finances",
       icon: <DollarSign className="h-4 w-4 mr-2" />,
-      active: pathname.startsWith("/finances"),
+      active: pathname.startsWith("/venue/finances"),
       isNew: true,
     },
   ]

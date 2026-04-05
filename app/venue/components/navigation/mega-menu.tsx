@@ -374,7 +374,7 @@ export function MegaMenu({ isOpen, onClose }: MegaMenuProps) {
               </h3>
               <ul className="space-y-3">
                 <li>
-                  <Link href="/events" className="flex items-center text-gray-300 hover:text-white" onClick={onClose}>
+                  <Link href="/venue/dashboard/events" className="flex items-center text-gray-300 hover:text-white" onClick={onClose}>
                     <span className="bg-green-500/20 p-1.5 rounded-md mr-3">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -399,7 +399,7 @@ export function MegaMenu({ isOpen, onClose }: MegaMenuProps) {
                 </li>
                 <li>
                   <Link
-                    href="/events/map"
+                    href="/venue/dashboard/events/map"
                     className="flex items-center text-gray-300 hover:text-white"
                     onClick={onClose}
                   >
@@ -425,7 +425,7 @@ export function MegaMenu({ isOpen, onClose }: MegaMenuProps) {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/tickets" className="flex items-center text-gray-300 hover:text-white" onClick={onClose}>
+                  <Link href="/venue/dashboard/tickets" className="flex items-center text-gray-300 hover:text-white" onClick={onClose}>
                     <span className="bg-green-500/20 p-1.5 rounded-md mr-3">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -450,7 +450,7 @@ export function MegaMenu({ isOpen, onClose }: MegaMenuProps) {
                 </li>
                 <li>
                   <Link
-                    href="/events/tours"
+                    href="/venue/dashboard/events"
                     className="flex items-center text-gray-300 hover:text-white"
                     onClick={onClose}
                   >

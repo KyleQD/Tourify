@@ -52,8 +52,11 @@ interface SearchFilters {
   type: 'all' | 'artists' | 'venues' | 'users'
   location: string
   genre: string
+  creatorType: string
+  service: string
   experience: 'beginner' | 'intermediate' | 'expert' | 'all'
   availability: 'available' | 'busy' | 'unavailable' | 'all'
+  availableForHire: boolean
   verified: boolean
   sortBy: 'relevance' | 'popularity' | 'recent' | 'rating'
   includeRecommendations: boolean
@@ -85,8 +88,11 @@ export function EnhancedSearch({
     type: 'all',
     location: '',
     genre: '',
+    creatorType: '',
+    service: '',
     experience: 'all',
     availability: 'all',
+    availableForHire: false,
     verified: false,
     sortBy: 'relevance',
     includeRecommendations: showRecommendations,
@@ -97,6 +103,7 @@ export function EnhancedSearch({
 
   // Available options for filters
   const genres = ['Rock', 'Pop', 'Hip Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B', 'Metal', 'Folk', 'Blues', 'Reggae']
+  const creatorTypes = ['Musician', 'Videographer', 'Photographer', 'Designer', 'Merch Creator', 'Producer', 'Stylist', 'Visual Artist']
   const locations = ['Los Angeles, CA', 'New York, NY', 'Nashville, TN', 'Austin, TX', 'Chicago, IL', 'Miami, FL', 'Seattle, WA', 'Denver, CO']
   const experiences = ['beginner', 'intermediate', 'expert']
   const availabilities = ['available', 'busy', 'unavailable']
@@ -161,8 +168,11 @@ export function EnhancedSearch({
       type: 'all',
       location: '',
       genre: '',
+      creatorType: '',
+      service: '',
       experience: 'all',
       availability: 'all',
+      availableForHire: false,
       verified: false,
       sortBy: 'relevance',
       includeRecommendations: showRecommendations,
@@ -298,6 +308,33 @@ export function EnhancedSearch({
                     </Select>
                   </div>
 
+                  {/* Creator Type Filter */}
+                  <div className="space-y-2">
+                    <Label className="text-white">Creator Type</Label>
+                    <Select value={filters.creatorType} onValueChange={(value) => handleFilterChange('creatorType', value)}>
+                      <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                        <SelectValue placeholder="Any creator type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-gray-800 border-gray-700">
+                        <SelectItem value="">Any creator type</SelectItem>
+                        {creatorTypes.map(item => (
+                          <SelectItem key={item} value={item}>{item}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Service Filter */}
+                  <div className="space-y-2">
+                    <Label className="text-white">Service Keyword</Label>
+                    <Input
+                      value={filters.service}
+                      onChange={(event) => handleFilterChange('service', event.target.value)}
+                      placeholder="video, photos, merch, design..."
+                      className="bg-gray-800 border-gray-700 text-white"
+                    />
+                  </div>
+
                   {/* Experience Filter */}
                   <div className="space-y-2">
                     <Label className="text-white">Experience</Label>
@@ -356,6 +393,14 @@ export function EnhancedSearch({
                       onCheckedChange={(checked) => handleFilterChange('verified', checked)}
                     />
                     <Label htmlFor="verified" className="text-white">Verified only</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="availableForHire"
+                      checked={filters.availableForHire}
+                      onCheckedChange={(checked) => handleFilterChange('availableForHire', Boolean(checked))}
+                    />
+                    <Label htmlFor="availableForHire" className="text-white">Available for hire</Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Checkbox

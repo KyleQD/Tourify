@@ -658,6 +658,67 @@ class VenueService {
     }
   }
 
+  async getVenueEventById(venueId: string, eventId: string): Promise<any | null> {
+    try {
+      const { data: v2Event } = await this.supabase
+        .from('events_v2')
+        .select('id, title, status, start_at, end_at, venue_id, capacity, settings')
+        .eq('id', eventId)
+        .eq('venue_id', venueId)
+        .maybeSingle()
+
+      if (v2Event) {
+        const settings = v2Event.settings && typeof v2Event.settings === 'object'
+          ? (v2Event.settings as Record<string, unknown>)
+          : {}
+
+        return {
+          id: v2Event.id,
+          title: v2Event.title || 'Event',
+          description: typeof settings.description === 'string' ? settings.description : '',
+          date: v2Event.start_at,
+          endDate: v2Event.end_at,
+          status: v2Event.status || 'inquiry',
+          type: typeof settings.event_type === 'string' ? settings.event_type : 'other',
+          capacity: Number(v2Event.capacity || 0),
+          ticketPrice: Number(settings.ticket_price || 0),
+          isPublic: Boolean(settings.is_public),
+          organizer: typeof settings.organizer_name === 'string' ? settings.organizer_name : 'Tourify',
+          venue: typeof settings.venue_label === 'string' ? settings.venue_label : 'Venue',
+          event_table: 'events_v2',
+        }
+      }
+
+      const { data: legacyEvent } = await this.supabase
+        .from('events')
+        .select('*')
+        .eq('id', eventId)
+        .eq('venue_id', venueId)
+        .maybeSingle()
+
+      if (!legacyEvent) return null
+
+      return {
+        id: legacyEvent.id,
+        title: legacyEvent.title || legacyEvent.name || 'Event',
+        description: legacyEvent.description || '',
+        date: legacyEvent.date || legacyEvent.start_date || legacyEvent.event_date || null,
+        endDate: null,
+        status: legacyEvent.status || 'scheduled',
+        type: legacyEvent.type || 'other',
+        capacity: Number(legacyEvent.capacity || 0),
+        ticketPrice: Number(legacyEvent.ticket_price || 0),
+        isPublic: true,
+        organizer: legacyEvent.organizer || 'Tourify',
+        venue: legacyEvent.location || 'Venue',
+        event_table: 'events',
+      }
+    } catch (error) {
+      console.error('Error in getVenueEventById:', error)
+      return null
+    }
+  }
+
   // =============================================================================
   // RECURRING EVENTS / SLOTS
   // =============================================================================

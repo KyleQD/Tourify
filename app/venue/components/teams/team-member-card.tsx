@@ -394,7 +394,7 @@ export function TeamMemberCard({ teamId }: TeamMemberCardProps) {
       )}
       <div className="flex justify-end mt-6">
         <ButtonLink variant="outline" asChild>
-          <a href="/teams/crew-profiles">
+          <a href="/venue/dashboard/teams/crew-profiles">
             <UserPlus className="h-4 w-4 mr-2" />
             Manage Crew Profiles
           </a>

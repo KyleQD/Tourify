@@ -11,6 +11,7 @@ import ArtistVenueOnboarding from "@/components/onboarding/artist-venue-onboardi
 import StaffOnboarding from "@/components/onboarding/staff-onboarding"
 import InvitationOnboarding from "@/components/onboarding/invitation-onboarding"
 import QuickSignupOnboarding from "@/components/onboarding/quick-signup-onboarding"
+import SocialAccountSetup from "@/components/onboarding/social-account-setup"
 
 interface OnboardingRouterProps {
   // Props will be determined by the specific onboarding type
@@ -32,9 +33,12 @@ export default function OnboardingRouter(props: OnboardingRouterProps) {
     const type = searchParams.get('type')
     const token = searchParams.get('token')
     const invitation = searchParams.get('invitation')
+    const source = searchParams.get('source')
     const step = searchParams.get('step')
 
-    if (token) {
+    if (source === 'social') {
+      setOnboardingType('social-account-setup')
+    } else if (token) {
       // Token-based onboarding (staff invitations)
       setOnboardingType('staff')
     } else if (invitation) {
@@ -84,6 +88,9 @@ export default function OnboardingRouter(props: OnboardingRouterProps) {
     
     case 'invitation':
       return <InvitationOnboarding />
+
+    case 'social-account-setup':
+      return <SocialAccountSetup />
     
     case 'quick-signup':
     default:

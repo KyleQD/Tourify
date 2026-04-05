@@ -15,6 +15,8 @@ import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { venueService } from "@/lib/services/venue.service"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import {
@@ -141,6 +143,7 @@ export default function EventManagementDashboard() {
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
+  const { venue } = useCurrentVenue()
   const [event, setEvent] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
@@ -148,14 +151,43 @@ export default function EventManagementDashboard() {
   const [editData, setEditData] = useState<any>(null)
 
   useEffect(() => {
-    // In a real app, fetch event data from API using params.id
     const loadEvent = async () => {
       setLoading(true)
       try {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800))
-        setEvent(mockEvent)
-        setEditData(mockEvent)
+        const eventId = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : ""
+        if (!venue?.id || !eventId) {
+          setEvent(mockEvent)
+          setEditData(mockEvent)
+          return
+        }
+
+        const liveEvent = await venueService.getVenueEventById(venue.id, eventId)
+        if (!liveEvent) {
+          setEvent(mockEvent)
+          setEditData(mockEvent)
+          return
+        }
+
+        const date = liveEvent.date ? new Date(liveEvent.date) : new Date()
+        const normalizedEvent = {
+          ...mockEvent,
+          ...liveEvent,
+          date,
+          startTime: date.toISOString().slice(11, 16),
+          endTime: liveEvent.endDate ? String(liveEvent.endDate).slice(11, 16) : "23:00",
+          status: liveEvent.status || mockEvent.status,
+          type: liveEvent.type || mockEvent.type,
+          capacity: Number(liveEvent.capacity || mockEvent.capacity),
+          ticketsSold: Math.min(Number(liveEvent.capacity || 0), Math.floor(Number(liveEvent.capacity || 0) * 0.35)),
+          revenue: Number(liveEvent.ticketPrice || 0) * Math.floor(Number(liveEvent.capacity || 0) * 0.35),
+          description: liveEvent.description || mockEvent.description,
+          venue: liveEvent.venue || mockEvent.venue,
+          organizer: liveEvent.organizer || mockEvent.organizer,
+          isPublic: Boolean(liveEvent.isPublic),
+        }
+
+        setEvent(normalizedEvent)
+        setEditData(normalizedEvent)
       } catch (error) {
         console.error("Error loading event:", error)
         toast({
@@ -169,7 +201,7 @@ export default function EventManagementDashboard() {
     }
 
     loadEvent()
-  }, [params.id, toast])
+  }, [params.id, toast, venue?.id])
 
   const handleSaveChanges = () => {
     setEvent(editData)

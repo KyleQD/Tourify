@@ -10,11 +10,43 @@ import { warnMissingEnv } from "@/lib/utils/env-check"
 // Demo mode removed for production
 
 const inter = Inter({ subsets: ["latin"] })
+const metadataBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live"
 
 export const metadata: Metadata = {
-  title: "Tourify - Connect. Create. Tour.",
+  metadataBase: new URL(metadataBaseUrl),
+  title: {
+    default: "Tourify - Connect. Create. Tour.",
+    template: "%s | Tourify",
+  },
   description: "The ultimate platform for artists, venues, and music industry professionals",
-  generator: 'Tourify Platform'
+  generator: "Tourify Platform",
+  applicationName: "Tourify",
+  openGraph: {
+    type: "website",
+    siteName: "Tourify",
+    title: "Tourify - Connect. Create. Tour.",
+    description: "Build your profile, discover live opportunities, and grow your network on Tourify.",
+    url: "/",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "Tourify preview card",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tourify - Connect. Create. Tour.",
+    description: "Build your profile, discover live opportunities, and grow your network on Tourify.",
+    images: ["/twitter-image"],
+  },
+  icons: {
+    icon: [{ url: "/icon", type: "image/png" }],
+    apple: [{ url: "/apple-icon", type: "image/png" }],
+    shortcut: ["/icon"],
+  },
 }
 
 export default function RootLayout({

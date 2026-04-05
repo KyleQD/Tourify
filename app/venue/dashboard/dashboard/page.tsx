@@ -24,7 +24,7 @@ export default function VenueDashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Venue Dashboard</h1>
-        <Button onClick={() => handleNavigation("/events/create")}>
+        <Button onClick={() => handleNavigation("/venue/dashboard/calendar")}>
           <Plus className="mr-2 h-4 w-4" />
           Create New Event
         </Button>
@@ -33,7 +33,7 @@ export default function VenueDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card
           className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-          onClick={() => handleNavigation("/events")}
+          onClick={() => handleNavigation("/venue/dashboard/events")}
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium flex items-center">
@@ -50,7 +50,7 @@ export default function VenueDashboardPage() {
 
         <Card
           className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-          onClick={() => handleNavigation("/bookings")}
+          onClick={() => handleNavigation("/venue/bookings")}
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium flex items-center">
@@ -67,7 +67,7 @@ export default function VenueDashboardPage() {
 
         <Card
           className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-          onClick={() => handleNavigation("/teams")}
+          onClick={() => handleNavigation("/venue/staff")}
         >
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-medium flex items-center">
@@ -123,7 +123,7 @@ export default function VenueDashboardPage() {
                     </div>
                   ))}
                 </div>
-                <Button variant="outline" className="w-full mt-4" onClick={() => handleNavigation("/activity")}>
+                <Button variant="outline" className="w-full mt-4" onClick={() => handleNavigation("/venue")}>
                   View All Activity
                 </Button>
               </CardContent>
@@ -140,7 +140,7 @@ export default function VenueDashboardPage() {
                       <DollarSign className="mr-2 h-5 w-5 text-green-400" />
                       <span>Monthly Revenue</span>
                     </div>
-                    <Button variant="link" onClick={() => handleNavigation("/finances")}>
+                    <Button variant="link" onClick={() => handleNavigation("/venue/finances")}>
                       <span className="font-medium">$24,500</span>
                     </Button>
                   </div>
@@ -150,7 +150,7 @@ export default function VenueDashboardPage() {
                       <Music className="mr-2 h-5 w-5 text-purple-400" />
                       <span>Performances</span>
                     </div>
-                    <Button variant="link" onClick={() => handleNavigation("/events")}>
+                    <Button variant="link" onClick={() => handleNavigation("/venue/dashboard/events")}>
                       <span className="font-medium">32 this month</span>
                     </Button>
                   </div>
@@ -160,12 +160,12 @@ export default function VenueDashboardPage() {
                       <Ticket className="mr-2 h-5 w-5 text-blue-400" />
                       <span>Tickets Sold</span>
                     </div>
-                    <Button variant="link" onClick={() => handleNavigation("/tickets")}>
+                    <Button variant="link" onClick={() => handleNavigation("/venue/dashboard/tickets")}>
                       <span className="font-medium">1,245</span>
                     </Button>
                   </div>
 
-                  <Button variant="outline" className="w-full mt-2" onClick={() => handleNavigation("/analytics")}>
+                  <Button variant="outline" className="w-full mt-2" onClick={() => handleNavigation("/venue/analytics")}>
                     <BarChart3 className="mr-2 h-4 w-4" />
                     View Analytics Dashboard
                   </Button>
@@ -179,7 +179,7 @@ export default function VenueDashboardPage() {
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Upcoming Events</CardTitle>
-              <Button size="sm" onClick={() => handleNavigation("/events")}>
+              <Button size="sm" onClick={() => handleNavigation("/venue/dashboard/events")}>
                 View All
               </Button>
             </CardHeader>
@@ -200,12 +200,12 @@ export default function VenueDashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => handleNavigation(`/events/${i}`)}>
+                    <Button size="sm" variant="outline" onClick={() => handleNavigation(`/venue/events/${i}`)}>
                       Details
                     </Button>
                   </div>
                 ))}
-                <Button className="w-full" onClick={() => handleNavigation("/events/create")}>
+                <Button className="w-full" onClick={() => handleNavigation("/venue/dashboard/calendar")}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create New Event
                 </Button>
@@ -218,7 +218,7 @@ export default function VenueDashboardPage() {
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Recent Bookings</CardTitle>
-              <Button size="sm" onClick={() => handleNavigation("/bookings")}>
+              <Button size="sm" onClick={() => handleNavigation("/venue/bookings")}>
                 View All
               </Button>
             </CardHeader>
@@ -239,12 +239,12 @@ export default function VenueDashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => handleNavigation(`/bookings/${i}`)}>
+                    <Button size="sm" variant="outline" onClick={() => handleNavigation("/venue/bookings")}>
                       Review
                     </Button>
                   </div>
                 ))}
-                <Button className="w-full" onClick={() => handleNavigation("/bookings/create")}>
+                <Button className="w-full" onClick={() => handleNavigation("/venue/bookings")}>
                   <Plus className="mr-2 h-4 w-4" />
                   Create New Booking
                 </Button>
@@ -257,7 +257,7 @@ export default function VenueDashboardPage() {
           <Card className="bg-gray-800 border-gray-700">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Financial Overview</CardTitle>
-              <Button size="sm" onClick={() => handleNavigation("/finances")}>
+              <Button size="sm" onClick={() => handleNavigation("/venue/finances")}>
                 View Details
               </Button>
             </CardHeader>
@@ -292,7 +292,7 @@ export default function VenueDashboardPage() {
                     </CardContent>
                   </Card>
                 </div>
-                <Button className="w-full" onClick={() => handleNavigation("/finances")}>
+                <Button className="w-full" onClick={() => handleNavigation("/venue/finances")}>
                   <DollarSign className="mr-2 h-4 w-4" />
                   View Financial Dashboard
                 </Button>

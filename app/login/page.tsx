@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,8 +16,7 @@ import Link from "next/link"
 import { TourifyLogo } from "@/components/tourify-logo"
 
 export default function LoginPage() {
-  const { user, loading, isAuthenticated, signIn, signUp } = useAuth()
-  const router = useRouter()
+  const { isAuthenticated, signIn, signUp, signInWithSocial } = useAuth()
   const searchParams = useSearchParams()
   
   // Form states
@@ -27,6 +26,19 @@ export default function LoginPage() {
   const [isRedirecting, setIsRedirecting] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isSocialSubmitting, setIsSocialSubmitting] = useState<"google" | "apple" | "facebook" | null>(null)
+  const [isUsernameEditedManually, setIsUsernameEditedManually] = useState(false)
+  const [usernameCheck, setUsernameCheck] = useState<{
+    normalized: string
+    available: boolean | null
+    isChecking: boolean
+    message: string
+  }>({
+    normalized: "",
+    available: null,
+    isChecking: false,
+    message: ""
+  })
   const [newsHighlights, setNewsHighlights] = useState<LoginNewsItem[]>([])
   const [discoverHighlights, setDiscoverHighlights] = useState<LoginDiscoverItem[]>([])
   const [isLoadingNews, setIsLoadingNews] = useState(true)
@@ -59,6 +71,9 @@ export default function LoginPage() {
   const inviteType = searchParams.get('type') || ''
   const position = searchParams.get('position') || ''
   const department = searchParams.get('department') || ''
+  const initialAuthTab: AuthTab = searchParams.get('tab') === 'signin' ? 'signin' : 'signup'
+  const oauthError = searchParams.get('oauth_error') || ''
+  const [activeAuthTab, setActiveAuthTab] = useState<AuthTab>(initialAuthTab)
 
   // Handle email confirmation and account creation messages
   useEffect(() => {
@@ -74,6 +89,86 @@ export default function LoginPage() {
       }
     }
   }, [emailConfirmed, accountCreated, confirmedEmail])
+
+  useEffect(() => {
+    if (!oauthError) return
+    setError(mapAuthError(decodeURIComponent(oauthError)))
+  }, [oauthError])
+
+  useEffect(() => {
+    setActiveAuthTab(initialAuthTab)
+  }, [initialAuthTab])
+
+  useEffect(() => {
+    if (isUsernameEditedManually) return
+    const generatedUsername = generateUsername({
+      fullName: signUpData.name,
+      email: signUpData.email,
+    })
+    if (!generatedUsername || generatedUsername === signUpData.username) return
+    setSignUpData(prev => ({ ...prev, username: generatedUsername }))
+  }, [isUsernameEditedManually, signUpData.name, signUpData.email, signUpData.username])
+
+  useEffect(() => {
+    if (activeAuthTab !== "signup") return
+
+    const normalized = normalizeUsername(signUpData.username)
+    if (!normalized) {
+      setUsernameCheck({
+        normalized: "",
+        available: null,
+        isChecking: false,
+        message: ""
+      })
+      return
+    }
+
+    let isCancelled = false
+    const timeoutId = setTimeout(async () => {
+      setUsernameCheck((current) => ({
+        ...current,
+        normalized,
+        isChecking: true
+      }))
+
+      try {
+        const response = await fetch(`/api/auth/check-username?username=${encodeURIComponent(normalized)}`)
+        const payload = await response.json().catch(() => null)
+
+        if (isCancelled) return
+
+        if (!response.ok) {
+          setUsernameCheck({
+            normalized,
+            available: null,
+            isChecking: false,
+            message: payload?.message || "Could not verify username right now."
+          })
+          return
+        }
+
+        setUsernameCheck({
+          normalized: payload?.username || normalized,
+          available: Boolean(payload?.available),
+          isChecking: false,
+          message: payload?.message || ""
+        })
+      } catch {
+        if (isCancelled) return
+        setUsernameCheck({
+          normalized,
+          available: null,
+          isChecking: false,
+          message: "Could not verify username right now."
+        })
+      }
+    }, 350)
+
+    return () => {
+      isCancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [activeAuthTab, signUpData.username])
 
   // Clear error when user starts typing
   useEffect(() => {
@@ -101,7 +196,7 @@ export default function LoginPage() {
         window.location.assign(validRedirectTo)
       }, 1000)
     }
-  }, [isAuthenticated, success, redirectTo, router, isRedirecting])
+  }, [isAuthenticated, success, redirectTo, isRedirecting])
 
   useEffect(() => {
     let hasMounted = true
@@ -222,6 +317,26 @@ export default function LoginPage() {
     }
   }
 
+  const handleSocialSignIn = async (provider: "google" | "apple" | "facebook") => {
+    setError(null)
+    setSuccess(null)
+    setIsSocialSubmitting(provider)
+    const result = await signInWithSocial(provider, redirectTo)
+    if (result.error) {
+      const errorInfo = mapAuthError(result.error)
+      setError(errorInfo)
+      setIsSocialSubmitting(null)
+    }
+  }
+
+  const handleAuthTabChange = (tab: AuthTab) => {
+    setActiveAuthTab(tab)
+    if (typeof window === 'undefined') return
+    const nextUrl = new URL(window.location.href)
+    nextUrl.searchParams.set('tab', tab)
+    window.history.replaceState({}, '', nextUrl.toString())
+  }
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -248,8 +363,28 @@ export default function LoginPage() {
       return
     }
 
+    const usernameToUse = signUpData.username.trim() || generateUsername({
+      fullName: signUpData.name,
+      email: signUpData.email,
+    })
+    const normalizedUsernameToUse = normalizeUsername(usernameToUse)
+
+    if (!normalizedUsernameToUse) {
+      setError(mapAuthError("Please enter a full name to generate your username"))
+      return
+    }
+
     if (!signUpData.username.trim()) {
-      setError(mapAuthError("Please enter a username"))
+      setSignUpData(prev => ({ ...prev, username: normalizedUsernameToUse }))
+    }
+
+    if (usernameCheck.isChecking) {
+      setError(mapAuthError("Checking username availability. Please wait a moment and try again."))
+      return
+    }
+
+    if (usernameCheck.available === false && usernameCheck.normalized === normalizedUsernameToUse) {
+      setError(mapAuthError("That username is already taken. Please choose another username."))
       return
     }
     
@@ -258,7 +393,7 @@ export default function LoginPage() {
     try {
       const result = await signUp(signUpData.email, signUpData.password, { 
         full_name: signUpData.name, 
-        username: signUpData.username 
+        username: normalizedUsernameToUse
       })
       
       if (result.error) {
@@ -349,7 +484,7 @@ export default function LoginPage() {
         <div className="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
           {/* Left Side - Branding & Info */}
-          <div className="text-center lg:text-left space-y-8">
+          <div className="order-2 lg:order-1 text-center lg:text-left space-y-8">
             {/* Logo */}
             <div className="flex justify-center lg:justify-start">
               <TourifyLogo 
@@ -600,7 +735,7 @@ export default function LoginPage() {
           </div>
           
           {/* Right Side - Auth Forms */}
-          <div className="w-full max-w-md mx-auto">
+          <div className="order-1 lg:order-2 w-full max-w-md mx-auto">
             <Card className="login-auth-shard bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden" style={{ clipPath: "polygon(3% 0, 100% 1%, 97% 100%, 0 96%, 1% 18%)" }}>
               <CardHeader className="text-center pb-6">
                 <div className="flex justify-center mb-4">
@@ -608,12 +743,12 @@ export default function LoginPage() {
                     <Sparkles className="h-6 w-6 text-white" />
                   </div>
                 </div>
-                <CardTitle className="text-2xl text-white font-bold">Welcome to the Future</CardTitle>
+                <CardTitle className="text-2xl text-white font-bold">Create your Tourify account</CardTitle>
                 <CardDescription className="text-gray-300">
-                  Sign in to your account or create a new one
+                  Start free in minutes and activate your profile fast.
                 </CardDescription>
                 <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-cyan-100">
-                  2026 Creator Access
+                  Priority Creator Access
                 </p>
               </CardHeader>
               
@@ -659,14 +794,54 @@ export default function LoginPage() {
                   />
                 )}
                 
-                <Tabs defaultValue="signin" className="w-full">
+                <Tabs value={activeAuthTab} onValueChange={(value) => handleAuthTabChange(value as AuthTab)} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 bg-white/10 backdrop-blur-sm">
-                    <TabsTrigger value="signin" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Sign In</TabsTrigger>
                     <TabsTrigger value="signup" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Sign Up</TabsTrigger>
+                    <TabsTrigger value="signin" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">Sign In</TabsTrigger>
                   </TabsList>
                   
                   {/* Sign In Tab */}
                   <TabsContent value="signin" className="space-y-4 mt-6">
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        onClick={() => void handleSocialSignIn("google")}
+                        disabled={isSubmitting || !!isSocialSubmitting}
+                      >
+                        {isSocialSubmitting === "google" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Continue with Google
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        onClick={() => void handleSocialSignIn("apple")}
+                        disabled={isSubmitting || !!isSocialSubmitting}
+                      >
+                        {isSocialSubmitting === "apple" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Continue with Apple
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        onClick={() => void handleSocialSignIn("facebook")}
+                        disabled={isSubmitting || !!isSocialSubmitting}
+                      >
+                        {isSocialSubmitting === "facebook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Continue with Facebook
+                      </Button>
+                    </div>
+                    <div className="relative py-1">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-white/20" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-slate-900/80 px-3 text-xs uppercase tracking-[0.14em] text-slate-300">or use email</span>
+                      </div>
+                    </div>
                     <form onSubmit={handleSignIn} className="space-y-4">
                       <div className="space-y-2">
                         <Label htmlFor="signin-email" className="text-white font-medium">Email</Label>
@@ -732,10 +907,56 @@ export default function LoginPage() {
                         </Link>
                       </Button>
                     </div>
+                    <div className="text-center text-sm text-gray-300">
+                      New to Tourify?{" "}
+                      <button type="button" className="font-semibold text-cyan-200 hover:text-cyan-100" onClick={() => handleAuthTabChange("signup")}>
+                        Create your account
+                      </button>
+                    </div>
                   </TabsContent>
                   
                   {/* Sign Up Tab */}
                   <TabsContent value="signup" className="space-y-4 mt-6">
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        onClick={() => void handleSocialSignIn("google")}
+                        disabled={isSubmitting || !!isSocialSubmitting}
+                      >
+                        {isSocialSubmitting === "google" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Sign up with Google
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        onClick={() => void handleSocialSignIn("apple")}
+                        disabled={isSubmitting || !!isSocialSubmitting}
+                      >
+                        {isSocialSubmitting === "apple" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Sign up with Apple
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                        onClick={() => void handleSocialSignIn("facebook")}
+                        disabled={isSubmitting || !!isSocialSubmitting}
+                      >
+                        {isSocialSubmitting === "facebook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Sign up with Facebook
+                      </Button>
+                    </div>
+                    <div className="relative py-1">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-white/20" />
+                      </div>
+                      <div className="relative flex justify-center">
+                        <span className="bg-slate-900/80 px-3 text-xs uppercase tracking-[0.14em] text-slate-300">or create with email</span>
+                      </div>
+                    </div>
                     <form onSubmit={handleSignUp} className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -757,13 +978,30 @@ export default function LoginPage() {
                           <Input
                             id="signup-username"
                             type="text"
-                            placeholder="johndoe"
+                            placeholder="auto-generated from your name"
                             value={signUpData.username}
-                            onChange={(e) => setSignUpData({ ...signUpData, username: e.target.value })}
+                            onChange={(e) => {
+                              setIsUsernameEditedManually(true)
+                              setSignUpData({ ...signUpData, username: normalizeUsername(e.target.value) })
+                            }}
                             className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
-                            required
                             disabled={isSubmitting}
                           />
+                          {signUpData.username ? (
+                            <div className="text-[11px]">
+                              {usernameCheck.isChecking ? (
+                                <p className="text-cyan-200">Checking username availability...</p>
+                              ) : usernameCheck.available === true ? (
+                                <p className="text-emerald-200">Username is available</p>
+                              ) : usernameCheck.available === false ? (
+                                <p className="text-rose-200">Username is taken. Try another.</p>
+                              ) : (
+                                <p className="text-amber-200">{usernameCheck.message || "We auto-fill this. You can customize anytime."}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-[11px] text-slate-300">We auto-fill this. You can customize anytime.</p>
+                          )}
                         </div>
                       </div>
                       
@@ -833,7 +1071,7 @@ export default function LoginPage() {
                       <Button 
                         type="submit" 
                         className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-green-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || usernameCheck.isChecking || usernameCheck.available === false}
                       >
                         {isSubmitting ? (
                           <div className="flex items-center">
@@ -858,6 +1096,12 @@ export default function LoginPage() {
                       <Link href="/privacy" className="text-purple-400 hover:text-purple-300 underline">
                         Privacy Policy
                       </Link>
+                    </div>
+                    <div className="text-center text-sm text-gray-300">
+                      Already have an account?{" "}
+                      <button type="button" className="font-semibold text-cyan-200 hover:text-cyan-100" onClick={() => handleAuthTabChange("signin")}>
+                        Sign in
+                      </button>
                     </div>
                     <div className="mt-3 rounded-lg border border-emerald-300/30 bg-emerald-300/10 px-3 py-2 text-center text-xs text-emerald-100">
                       Start free in 2026 and unlock live opportunity matching instantly.
@@ -1123,6 +1367,37 @@ const SIGNUP_STATS = [
   { value: "12K+", label: "Active venue partnerships" },
   { value: "2.8K", label: "New weekly collaboration matches" }
 ]
+
+type AuthTab = "signup" | "signin"
+
+function generateUsername({
+  fullName,
+  email,
+}: {
+  fullName: string
+  email: string
+}) {
+  const nameSeed = fullName
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "")
+  const emailSeed = email
+    .split("@")[0]
+    ?.trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "") || ""
+  const baseSeed = nameSeed || emailSeed
+  if (!baseSeed) return ""
+  return baseSeed.slice(0, 20)
+}
+
+function normalizeUsername(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 32)
+}
 
 async function reverseGeocode({
   latitude,

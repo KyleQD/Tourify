@@ -15,6 +15,9 @@ interface DiscoverProfile {
     following: number
     posts: number
   }
+  creator_type?: string | null
+  service_offerings?: string[]
+  available_for_hire?: boolean
 }
 
 interface DiscoverEvent {
@@ -66,12 +69,14 @@ interface DiscoverResponse {
     artists: DiscoverProfile[]
     venues: DiscoverProfile[]
     suggestions: DiscoverProfile[]
+    hire_matches: DiscoverProfile[]
   }
   stats: {
     trending_count: number
     upcoming_count: number
     people_count: number
     suggestions_count: number
+    hire_matches_count: number
   }
   generated_at: string
 }
@@ -87,6 +92,22 @@ interface RSSNewsItem {
   pubDate: string
   source: string
   category?: string
+}
+
+interface EnhancedSearchProfile {
+  id: string
+  type: 'artist' | 'venue' | 'user'
+  username: string
+  displayName: string
+  avatar?: string
+  bio?: string
+  location?: string
+  skills?: string[]
+  availability?: string
+  verified: boolean
+  followers: number
+  following: number
+  posts: number
 }
 
 function parseJsonSafe(value: string): any {
@@ -274,6 +295,30 @@ function normalizeSuggestions(payload: any): DiscoverProfile[] {
   })).filter((profile: DiscoverProfile) => profile.id && profile.username)
 }
 
+function normalizeProfilesFromEnhanced(payload: any): DiscoverProfile[] {
+  const results = Array.isArray(payload?.results) ? payload.results as EnhancedSearchProfile[] : []
+  return results
+    .map((item) => ({
+      id: String(item.id || ''),
+      username: String(item.username || ''),
+      account_type: item.type === 'artist' ? 'artist' : item.type === 'venue' ? 'venue' : 'general',
+      display_name: String(item.displayName || item.username || 'User'),
+      avatar_url: item.avatar || null,
+      bio: item.bio || '',
+      location: item.location || null,
+      verified: Boolean(item.verified),
+      stats: {
+        followers: Number(item.followers || 0),
+        following: Number(item.following || 0),
+        posts: Number(item.posts || 0),
+      },
+      creator_type: item.type === 'artist' ? (item.skills?.[0] || null) : null,
+      service_offerings: item.type === 'artist' ? (item.skills?.slice(1, 8) || []) : [],
+      available_for_hire: item.type === 'artist' ? item.availability === 'available' : false
+    }))
+    .filter((profile) => profile.id && profile.username)
+}
+
 function matchesLocation(value: string | null | undefined, location: string) {
   if (!value) return false
   return value.toLowerCase().includes(location.toLowerCase())
@@ -336,11 +381,46 @@ function rankForYou({
     .slice(0, 12)
 }
 
+function rankHireMatches({
+  profiles,
+  location,
+  creatorType,
+  service,
+}: {
+  profiles: DiscoverProfile[]
+  location?: string | null
+  creatorType?: string | null
+  service?: string | null
+}) {
+  const locationLower = location?.toLowerCase() || null
+  const creatorTypeLower = creatorType?.toLowerCase() || null
+  const serviceLower = service?.toLowerCase() || null
+
+  return [...profiles]
+    .map((profile) => {
+      let score = 0
+      if (profile.available_for_hire) score += 40
+      if (profile.verified) score += 15
+      score += Math.min(20, Math.floor((profile.stats.followers || 0) / 1000) * 2)
+
+      if (locationLower && profile.location?.toLowerCase().includes(locationLower)) score += 10
+      if (creatorTypeLower && profile.creator_type?.toLowerCase().includes(creatorTypeLower)) score += 15
+      if (serviceLower && (profile.service_offerings || []).some((item) => item.toLowerCase().includes(serviceLower))) score += 15
+
+      return { profile, score }
+    })
+    .sort((first, second) => second.score - first.score)
+    .map((entry) => entry.profile)
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const limit = Math.min(parseInt(searchParams.get('limit') || '12'), 30)
   const sectionLimit = Math.max(4, Math.min(limit, 12))
   const location = searchParams.get('location')?.trim() || null
+  const creatorType = searchParams.get('creatorType')?.trim() || null
+  const service = searchParams.get('service')?.trim() || null
+  const availableForHire = searchParams.get('availableForHire') === 'true'
   const intentParam = searchParams.get('intent')
   const intent: DiscoverIntent =
     intentParam === 'network' || intentParam === 'book' || intentParam === 'learn'
@@ -386,10 +466,32 @@ export async function GET(request: NextRequest) {
   const selectedRss = (locationFilteredRss.length ? locationFilteredRss : rssItems).slice(0, sectionLimit * 4)
   const posts = normalizePostsFromRss(selectedRss).slice(0, sectionLimit)
   const events = normalizeEventsFromRss(selectedRss).slice(0, sectionLimit)
-  const people: DiscoverProfile[] = []
-  const artists: DiscoverProfile[] = []
-  const venues: DiscoverProfile[] = []
-  const suggestions: DiscoverProfile[] = []
+
+  const peopleParams = new URLSearchParams({
+    limit: String(sectionLimit * 4),
+    type: 'all',
+    includeRecommendations: 'true',
+    sortBy: intent === 'network' ? 'popularity' : intent === 'book' ? 'relevance' : 'recent',
+  })
+  if (location) peopleParams.set('location', location)
+  if (creatorType) peopleParams.set('creatorType', creatorType)
+  if (service) peopleParams.set('service', service)
+  if (availableForHire || intent === 'book') peopleParams.set('availableForHire', 'true')
+
+  const enhancedPeoplePayload = await fetchJson(`/api/search/enhanced?${peopleParams.toString()}`)
+  const peopleRaw = normalizeProfilesFromEnhanced(enhancedPeoplePayload)
+  const artists = peopleRaw.filter((profile) => profile.account_type === 'artist').slice(0, sectionLimit)
+  const venues = peopleRaw.filter((profile) => profile.account_type === 'venue').slice(0, sectionLimit)
+  const people = peopleRaw.slice(0, sectionLimit)
+  const suggestions = peopleRaw
+    .filter((profile) => profile.verified || profile.available_for_hire)
+    .slice(0, sectionLimit)
+  const hireMatches = rankHireMatches({
+    profiles: peopleRaw.filter((profile) => profile.account_type === 'artist' && profile.available_for_hire),
+    location,
+    creatorType,
+    service,
+  }).slice(0, sectionLimit)
 
   const forYou = rankForYou({
     intent,
@@ -410,12 +512,14 @@ export async function GET(request: NextRequest) {
       artists,
       venues,
       suggestions,
+      hire_matches: hireMatches,
     },
     stats: {
       trending_count: posts.length,
       upcoming_count: events.length,
       people_count: people.length,
       suggestions_count: suggestions.length,
+      hire_matches_count: hireMatches.length,
     },
     generated_at: new Date().toISOString(),
   }
