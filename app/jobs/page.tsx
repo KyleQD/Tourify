@@ -25,6 +25,7 @@ import {
   Sparkles,
   Zap,
   Target,
+  Activity,
   Search,
   Loader2,
   Building2,
@@ -354,6 +355,9 @@ export default function JobsPage() {
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', tab)
+    router.replace(`/jobs?${params.toString()}`)
     setFilters({
       sort_by: 'created_at',
       sort_order: 'desc',
@@ -413,6 +417,27 @@ export default function JobsPage() {
     }
   ]
 
+  const staffingWorkflowLinks = [
+    {
+      title: 'Staffing board',
+      description: 'Published roles with credential and agreement-aware application flow.',
+      href: '/jobs?tab=staffing',
+      icon: Briefcase,
+    },
+    {
+      title: 'Staff operations health',
+      description: 'Monitor staffing API health, alerts, and self-heal controls.',
+      href: '/admin/dashboard/staff',
+      icon: Activity,
+    },
+    {
+      title: 'Tour workflow timeline',
+      description: 'Inspect task/message activity with filterable workflow events.',
+      href: '/admin/dashboard/tours?tab=overview&workflowFilter=automation&workflowDialog=1',
+      icon: MessageCircle,
+    },
+  ] as const
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 relative overflow-hidden">
       {/* Animated background elements */}
@@ -468,6 +493,37 @@ export default function JobsPage() {
         </motion.div>
 
         {user ? <MyStaffingApplications /> : null}
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="mb-8"
+        >
+          <SurfaceCard className="bg-slate-800/30 border-slate-700/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-white text-lg flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-cyan-300" />
+                Opportunities operations hub
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-3">
+              {staffingWorkflowLinks.map((item) => (
+                <a
+                  key={item.title}
+                  href={item.href}
+                  className="rounded-lg border border-slate-700 bg-slate-900/40 px-3 py-3 transition-colors hover:border-slate-500 hover:bg-slate-900/70"
+                >
+                  <p className="text-sm font-semibold text-white flex items-center gap-2">
+                    <item.icon className="h-4 w-4 text-purple-300" />
+                    {item.title}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-400">{item.description}</p>
+                </a>
+              ))}
+            </CardContent>
+          </SurfaceCard>
+        </motion.div>
 
         {/* Featured Jobs */}
         {featuredJobs.length > 0 && (
@@ -684,6 +740,23 @@ export default function JobsPage() {
                                         {(job as any).experience_level}
                                       </Badge>
                                     )}
+                                  {(job as any).employment_type && (
+                                    <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50 capitalize">
+                                      {(job as any).employment_type}
+                                    </Badge>
+                                  )}
+                                  {Number.isFinite(Number((job as any).applications_count)) ? (
+                                    <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
+                                      <Users className="h-3.5 w-3.5 mr-1" />
+                                      {Number((job as any).applications_count)} applications
+                                    </Badge>
+                                  ) : null}
+                                  {Number.isFinite(Number((job as any).views_count)) ? (
+                                    <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
+                                      <Eye className="h-3.5 w-3.5 mr-1" />
+                                      {Number((job as any).views_count)} views
+                                    </Badge>
+                                  ) : null}
                                     {(job as any).urgent && (
                                       <Badge className="rounded-lg border-red-600/30 bg-red-600/20 text-red-300">Urgent</Badge>
                                     )}

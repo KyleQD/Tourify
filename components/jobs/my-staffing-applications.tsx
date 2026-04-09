@@ -64,6 +64,17 @@ export function MyStaffingApplications() {
           <Briefcase className="h-5 w-5 text-cyan-400" />
           Your staffing applications
         </CardTitle>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <Link href="/jobs?tab=staffing" className="text-cyan-300 hover:underline">
+            Open staffing board
+          </Link>
+          <Link
+            href="/admin/dashboard/tours?tab=overview&workflowFilter=task&workflowDialog=1"
+            className="text-purple-300 hover:underline"
+          >
+            Open workflow timeline
+          </Link>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {rows.map((r) => {

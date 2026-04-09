@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
-import { Briefcase, MapPin, DollarSign } from "lucide-react"
+import { Briefcase, MapPin, DollarSign, Activity, MessageSquare } from "lucide-react"
 
 interface ArtistJobRow {
   id: string
@@ -48,6 +48,39 @@ export default function JobsPage() {
           Apply to W-2, contractor, and volunteer postings on the main board.{" "}
           <Link href="/jobs?tab=staffing" className="underline font-medium text-cyan-300 hover:text-white">
             Open Staffing tab
+          </Link>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-3 mb-8">
+          <Link
+            href="/jobs?tab=staffing"
+            className="rounded-lg border border-slate-700/60 bg-slate-800/40 p-3 hover:border-slate-500 transition-colors"
+          >
+            <p className="text-white text-sm font-semibold flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-cyan-300" />
+              Staffing opportunities
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Unified board with compliance-aware hiring flows.</p>
+          </Link>
+          <Link
+            href="/admin/dashboard/tours?tab=overview&workflowFilter=automation&workflowDialog=1"
+            className="rounded-lg border border-slate-700/60 bg-slate-800/40 p-3 hover:border-slate-500 transition-colors"
+          >
+            <p className="text-white text-sm font-semibold flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-purple-300" />
+              Workflow timeline
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Track task and communication escalations by tour.</p>
+          </Link>
+          <Link
+            href="/admin/dashboard/staff"
+            className="rounded-lg border border-slate-700/60 bg-slate-800/40 p-3 hover:border-slate-500 transition-colors"
+          >
+            <p className="text-white text-sm font-semibold flex items-center gap-2">
+              <Activity className="h-4 w-4 text-emerald-300" />
+              Staffing health
+            </p>
+            <p className="text-xs text-slate-400 mt-1">Review alerting, SLA trends, and remediation controls.</p>
           </Link>
         </div>
 
