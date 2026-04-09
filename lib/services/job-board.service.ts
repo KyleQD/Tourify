@@ -223,10 +223,13 @@ export class JobBoardService {
       if (filters?.urgent) {
         query = query.eq('urgent', true)
       }
-      if (filters?.organization_id) {
+      if (filters?.organization_id && filters?.created_by) {
+        query = query.or(
+          `organization_id.eq.${filters.organization_id},created_by.eq.${filters.created_by}`
+        )
+      } else if (filters?.organization_id) {
         query = query.eq('organization_id', filters.organization_id)
-      }
-      if (filters?.created_by) {
+      } else if (filters?.created_by) {
         query = query.eq('created_by', filters.created_by)
       }
       if (filters?.limit) {

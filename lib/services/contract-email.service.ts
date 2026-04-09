@@ -248,3 +248,31 @@ export function pickReminderDay(
   if (ms >= 5 * dayMs && !reminders.day5_sent_at) return "day5"
   return null
 }
+
+/** Same Resend transport as contract flows — use for hiring / compliance reminders tied to `agreement_acceptances`. */
+export async function sendComplianceHtmlEmail(input: {
+  toUserId: string
+  subject: string
+  html: string
+}): Promise<{ ok: boolean; error?: string }> {
+  const admin = getServiceSupabase()
+  const resend = getResend()
+  if (!admin) return { ok: false, error: "Server misconfigured (database)" }
+  if (!resend) {
+    console.warn("[contract-email] RESEND_API_KEY missing — compliance email skipped")
+    return { ok: false, error: "Email not configured" }
+  }
+  const toEmail = await getUserEmail(admin, input.toUserId)
+  if (!toEmail) return { ok: false, error: "Recipient email unavailable" }
+  const { error: sendErr } = await resend.emails.send({
+    from: getFromAddress(),
+    to: toEmail,
+    subject: input.subject,
+    html: input.html,
+  })
+  if (sendErr) {
+    console.error("[contract-email] compliance email failed", sendErr)
+    return { ok: false, error: sendErr.message }
+  }
+  return { ok: true }
+}

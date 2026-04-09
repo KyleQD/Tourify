@@ -4,6 +4,7 @@ import type { JobApplication } from '@/types/admin-onboarding'
 import { createClient } from '@/lib/supabase/server'
 import { CONTRACT_PROVIDERS, sendHireContractWithProvider } from '@/lib/contracts/provider-adapter'
 import { isJobApplicationStatus } from '@/lib/hiring/states'
+import { canReviewStaffingApplications } from '@/lib/auth/hiring-permissions'
 
 function isApplicationStatus(value: string): value is JobApplication['status'] {
   return isJobApplicationStatus(value)
@@ -25,6 +26,14 @@ const allowedApplicationTransitions: Record<string, string[]> = {
 function canTransitionApplicationStatus(currentStatus: string, nextStatus: string) {
   if (currentStatus === nextStatus) return true
   return (allowedApplicationTransitions[currentStatus] || []).includes(nextStatus)
+}
+
+async function hasVenueReviewAccess(input: {
+  userId: string
+  venueId?: string | null
+}): Promise<boolean> {
+  if (!input.venueId) return false
+  return canReviewStaffingApplications({ userId: input.userId, venueId: input.venueId })
 }
 
 async function writeHiringAuditEvent(input: {
@@ -84,6 +93,14 @@ async function writeHiringAuditEvent(input: {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const venueId = searchParams.get('venue_id')
 
@@ -93,6 +110,10 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       )
     }
+
+    const canReview = await hasVenueReviewAccess({ userId: user.id, venueId })
+    if (!canReview)
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
 
     const applications = await AdminOnboardingStaffService.getJobApplications(venueId)
     const applicationIds = applications.map((application) => application.id).filter(Boolean)
@@ -196,6 +217,13 @@ export async function POST(request: NextRequest) {
       if (currentError || !currentApplication)
         return NextResponse.json({ success: false, error: 'Application not found' }, { status: 404 })
 
+      const canReview = await hasVenueReviewAccess({
+        userId: user.id,
+        venueId: currentApplication.venue_id,
+      })
+      if (!canReview)
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+
       if (!canTransitionApplicationStatus(currentApplication.status, 'approved')) {
         return NextResponse.json(
           {
@@ -246,6 +274,28 @@ export async function POST(request: NextRequest) {
           : `/onboarding/${token}`
       } catch (invitationError) {
         console.warn('⚠️ [Applications API] Failed to create onboarding invitation:', invitationError)
+      }
+
+      // Ensure candidate workflow is represented in onboarding_workflows when table/schema supports it.
+      try {
+        const { data: existingWorkflow } = await supabase
+          .from('onboarding_workflows')
+          .select('id')
+          .eq('candidate_id', candidate.id)
+          .maybeSingle()
+        if (!existingWorkflow) {
+          await supabase.from('onboarding_workflows').insert({
+            venue_id: candidate.venue_id,
+            candidate_id: candidate.id,
+            job_posting_id: currentApplication.job_posting_id,
+            current_stage: 'onboarding_started',
+            status: 'active',
+            steps: [],
+            created_by: user.id,
+          })
+        }
+      } catch (workflowError) {
+        console.warn('⚠️ [Applications API] Failed to bootstrap onboarding workflow:', workflowError)
       }
 
       let contract: any = null
@@ -331,6 +381,13 @@ export async function POST(request: NextRequest) {
       if (currentError || !currentApplication)
         return NextResponse.json({ success: false, error: 'Application not found' }, { status: 404 })
 
+      const canReview = await hasVenueReviewAccess({
+        userId: user.id,
+        venueId: currentApplication.venue_id,
+      })
+      if (!canReview)
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+
       if (!canTransitionApplicationStatus(currentApplication.status, 'rejected')) {
         return NextResponse.json(
           {
@@ -404,6 +461,11 @@ export async function PATCH(request: NextRequest) {
         .single()
 
       if (!currentApplication) continue
+      const canReview = await hasVenueReviewAccess({
+        userId: user.id,
+        venueId: currentApplication.venue_id,
+      })
+      if (!canReview) continue
       if (!canTransitionApplicationStatus(currentApplication.status, status)) continue
       await AdminOnboardingStaffService.updateApplicationStatus(id, { status, feedback })
       await writeHiringAuditEvent({

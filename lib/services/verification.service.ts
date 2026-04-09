@@ -174,6 +174,32 @@ export class VerificationService {
       .single()
 
     if (error) throw error
+
+    // Integrate with staffing/compliance document registry when available.
+    try {
+      const { data: request } = await this.supabase
+        .from('verification_requests')
+        .select('account_id')
+        .eq('id', verificationRequestId)
+        .maybeSingle()
+
+      if (request?.account_id) {
+        await this.supabase.from('staff_documents').insert({
+          owner_user_id: request.account_id,
+          document_type: `verification:${documentType}`,
+          storage_bucket: 'verification-documents',
+          storage_path: fileName,
+          verified_status: 'pending',
+          metadata: {
+            source: 'verification_service',
+            verification_request_id: verificationRequestId,
+          },
+        })
+      }
+    } catch (registryError) {
+      console.warn('[VerificationService] staff_documents registry skipped:', registryError)
+    }
+
     return data
   }
 

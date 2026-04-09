@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Shield, Users, Settings, Activity } from 'lucide-react'
 import { RoleManagement } from '@/components/venue/staff/role-management'
 import { UserRoleAssignment } from '@/components/venue/staff/user-role-assignment'
+import { createClient } from '@/lib/supabase/server'
 
 interface RolesPermissionsPageProps {
   searchParams: Promise<{ venueId?: string }>
@@ -29,6 +30,27 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
     )
   }
 
+  const supabase = await createClient()
+  const [rolesResp, assignmentsResp, permissionsResp, auditResp] = await Promise.all([
+    supabase.from('rbac_roles').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('rbac_user_entity_roles')
+      .select('id', { count: 'exact', head: true })
+      .eq('entity_type', 'Venue')
+      .eq('entity_id', venueId)
+      .eq('is_active', true),
+    supabase.from('rbac_permissions').select('id', { count: 'exact', head: true }),
+    supabase
+      .from('rbac_permission_audit_log')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()),
+  ])
+
+  const totalRoles = rolesResp.count || 0
+  const activeUsers = assignmentsResp.count || 0
+  const systemPermissions = permissionsResp.count || 0
+  const recentActivity = auditResp.count || 0
+
   return (
     <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
@@ -50,9 +72,9 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
             <Shield className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12</div>
+            <div className="text-2xl font-bold">{totalRoles}</div>
             <p className="text-xs text-muted-foreground">
-              +2 from last month
+              Configured role templates
             </p>
           </CardContent>
         </Card>
@@ -62,9 +84,9 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">24</div>
+            <div className="text-2xl font-bold">{activeUsers}</div>
             <p className="text-xs text-muted-foreground">
-              +4 from last month
+              Active assignments for this venue
             </p>
           </CardContent>
         </Card>
@@ -74,9 +96,9 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
             <Settings className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">45</div>
+            <div className="text-2xl font-bold">{systemPermissions}</div>
             <p className="text-xs text-muted-foreground">
-              Across 9 categories
+              Total permission primitives
             </p>
           </CardContent>
         </Card>
@@ -86,9 +108,9 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">8</div>
+            <div className="text-2xl font-bold">{recentActivity}</div>
             <p className="text-xs text-muted-foreground">
-              Changes today
+              Permission changes in last 24h
             </p>
           </CardContent>
         </Card>

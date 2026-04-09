@@ -1,4 +1,3 @@
-import { describe, expect, it } from 'vitest'
 import { computeNextValue, resolveMode, resolveTarget, type AchievementRow } from './achievement-engine.service'
 
 function makeAchievement(overrides: Partial<AchievementRow> = {}): AchievementRow {

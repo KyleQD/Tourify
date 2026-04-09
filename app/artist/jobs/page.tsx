@@ -42,6 +42,15 @@ export default function JobsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/40 px-4 py-3 mb-8 text-cyan-100 text-sm">
+          <span className="font-medium">Venue staffing roles</span>
+          {" — "}
+          Apply to W-2, contractor, and volunteer postings on the main board.{" "}
+          <Link href="/jobs?tab=staffing" className="underline font-medium text-cyan-300 hover:text-white">
+            Open Staffing tab
+          </Link>
+        </div>
+
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div className="flex items-start gap-3">
             <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">

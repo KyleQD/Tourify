@@ -17,6 +17,9 @@ import { useCurrentVenue } from "@/hooks/use-venue"
 import StaffOnboardingSystem from "./components/staff-onboarding-system"
 import EnhancedStaffOnboarding from "./components/enhanced-staff-onboarding"
 import JobBoardIntegration from "./components/job-board-integration"
+import { EmployeeManagementOverview } from "@/components/staff/employee-management-overview"
+import { EmployeeRosterPanel } from "@/components/staff/employee-roster-panel"
+import { StaffingHealthPanel } from "@/components/staff/staffing-health-panel"
 import {
   Users,
   Plus,
@@ -119,8 +122,33 @@ export default function FuturisticStaffManagement() {
   const [isEmergencyMode, setIsEmergencyMode] = useState(false)
   const [showRoleDialog, setShowRoleDialog] = useState(false)
   const [showTeamDialog, setShowTeamDialog] = useState(false)
+  const [staffingPermissions, setStaffingPermissions] = useState({
+    can_manage_staffing: false,
+    can_review_staffing: false,
+  })
   const [selectedStaffForRole, setSelectedStaffForRole] = useState<string[]>([])
   const [bulkAction, setBulkAction] = useState<string>("")
+
+  useEffect(() => {
+    const venueId = venue?.id
+    if (venueLoading || !venueId) return
+    const resolvedVenueId: string = venueId
+    let cancelled = false
+    async function loadPermissions() {
+      try {
+        const response = await fetch(
+          `/api/staffing/permissions?venue_id=${encodeURIComponent(resolvedVenueId)}`,
+          { cache: 'no-store' }
+        )
+        const payload = await response.json()
+        if (!cancelled && payload?.success && payload?.data) setStaffingPermissions(payload.data)
+      } catch {}
+    }
+    loadPermissions()
+    return () => {
+      cancelled = true
+    }
+  }, [venue?.id, venueLoading])
 
   // Enhanced mock data with more realistic staff
   const staffMembers: StaffMember[] = [
@@ -408,6 +436,7 @@ export default function FuturisticStaffManagement() {
           <div className="flex items-center space-x-3">
             <Button 
               variant="outline" 
+              disabled={!staffingPermissions.can_manage_staffing}
               className="bg-slate-800/50 border-slate-600 hover:bg-slate-700/50 backdrop-blur-sm"
             >
               <Download className="h-4 w-4 mr-2" />
@@ -415,7 +444,10 @@ export default function FuturisticStaffManagement() {
             </Button>
             <Dialog>
               <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700">
+                <Button
+                  disabled={!staffingPermissions.can_manage_staffing}
+                  className="bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700"
+                >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Add Staff
                 </Button>
@@ -432,6 +464,19 @@ export default function FuturisticStaffManagement() {
             </Dialog>
           </div>
         </div>
+
+      <div className="mb-6">
+        <EmployeeManagementOverview
+          venueId={venue?.id || ''}
+          rolesHref={venue?.id ? `/venue/staff/roles-permissions?venueId=${encodeURIComponent(venue.id)}` : '/venue/staff/roles-permissions'}
+        />
+      </div>
+      <div className="mb-6">
+        <EmployeeRosterPanel venueId={venue?.id || ''} />
+      </div>
+      <div className="mb-6">
+        <StaffingHealthPanel venueId={venue?.id || ''} />
+      </div>
 
         {/* Real-time Stats Dashboard */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">

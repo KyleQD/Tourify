@@ -36,6 +36,20 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      {
+        source: '/onboarding/enhanced-onboarding-flow',
+        destination: '/onboarding',
+        permanent: false,
+      },
+      {
+        source: '/onboarding/enhanced-onboarding-flow/:path*',
+        destination: '/onboarding',
+        permanent: false,
+      },
+    ]
+  },
   images: {
     remotePatterns: [
       supabaseHost ? { protocol: 'https', hostname: supabaseHost, pathname: '/**' } : undefined,

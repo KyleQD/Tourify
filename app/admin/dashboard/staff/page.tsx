@@ -22,6 +22,9 @@ import EnhancedApplicationReview from "@/components/admin/enhanced-application-r
 import EnhancedOnboardingWizard from "@/components/admin/enhanced-onboarding-wizard"
 import EnhancedTeamManagement from "@/components/admin/enhanced-team-management"
 import EnhancedAnalyticsDashboard from "@/components/admin/enhanced-analytics-dashboard"
+import { EmployeeManagementOverview } from "@/components/staff/employee-management-overview"
+import { EmployeeRosterPanel } from "@/components/staff/employee-roster-panel"
+import { StaffingHealthPanel } from "@/components/staff/staffing-health-panel"
 import { AddStaffDialog } from "./add-staff-dialog"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminStatCard } from "../components/admin-stat-card"
@@ -165,6 +168,10 @@ export default function StaffPage() {
   const [communications, setCommunications] = useState<any[]>([])
   const [showAddStaffDialog, setShowAddStaffDialog] = useState(false)
   const [showJobPostingDialog, setShowJobPostingDialog] = useState(false)
+  const [staffingPermissions, setStaffingPermissions] = useState({
+    can_manage_staffing: false,
+    can_review_staffing: false,
+  })
   const { toast } = useToast()
   const { venue, loading: venueLoading } = useCurrentVenue()
   const venueId = venue?.id ?? ''
@@ -173,6 +180,25 @@ export default function StaffPage() {
     if (venueLoading) return
     loadDashboardData()
   }, [venueId, venueLoading])
+
+  useEffect(() => {
+    if (!venueId) return
+    let cancelled = false
+    async function loadPermissions() {
+      try {
+        const response = await fetch(
+          `/api/staffing/permissions?venue_id=${encodeURIComponent(venueId)}`,
+          { cache: 'no-store' }
+        )
+        const payload = await response.json()
+        if (!cancelled && payload?.success && payload?.data) setStaffingPermissions(payload.data)
+      } catch {}
+    }
+    loadPermissions()
+    return () => {
+      cancelled = true
+    }
+  }, [venueId])
 
   async function loadDashboardData() {
     try {
@@ -1064,6 +1090,7 @@ export default function StaffPage() {
           <>
             <Button
               onClick={() => setShowJobPostingDialog(true)}
+              disabled={!staffingPermissions.can_manage_staffing}
               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg shadow-purple-500/20 transition-all duration-300"
             >
               <Plus className="h-4 w-4 mr-2" />
@@ -1071,6 +1098,7 @@ export default function StaffPage() {
             </Button>
             <Button
               onClick={() => setShowAddStaffDialog(true)}
+              disabled={!staffingPermissions.can_manage_staffing}
               variant="outline"
               className="border-slate-600 hover:bg-slate-800 text-slate-300"
             >
@@ -1080,6 +1108,10 @@ export default function StaffPage() {
           </>
         }
       />
+
+      <EmployeeManagementOverview venueId={venueId} rolesHref="/admin/dashboard/rbac" />
+      <EmployeeRosterPanel venueId={venueId} />
+      <StaffingHealthPanel venueId={venueId} />
 
       <div className="space-y-6">
         {/* Enhanced Stats Overview */}

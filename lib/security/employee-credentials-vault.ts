@@ -30,12 +30,14 @@ export interface EmployeeCredentialSummary {
 }
 
 function getVaultSecret() {
-  const secret =
-    process.env.EMPLOYEE_CREDENTIALS_SECRET ||
-    process.env.ONBOARDING_CREDENTIALS_SECRET ||
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!secret) throw new Error('Missing credential vault secret')
-  return secret
+  const explicit =
+    process.env.EMPLOYEE_CREDENTIALS_SECRET || process.env.ONBOARDING_CREDENTIALS_SECRET
+  if (explicit) return explicit
+  if (process.env.NODE_ENV === 'production')
+    throw new Error('Set EMPLOYEE_CREDENTIALS_SECRET (or ONBOARDING_CREDENTIALS_SECRET) for credential encryption')
+  const fallback = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!fallback) throw new Error('Missing credential vault secret')
+  return fallback
 }
 
 function deriveKey(salt: Buffer) {

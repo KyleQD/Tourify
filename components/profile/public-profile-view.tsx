@@ -118,7 +118,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
     try {
       setJobsError(null)
       setJobsLoading(true)
-      const url = `/api/job-board?organization_id=${encodeURIComponent(profile.id)}&limit=12`
+      const url = `/api/job-board?organization_id=${encodeURIComponent(profile.id)}&created_by=${encodeURIComponent(profile.id)}&limit=12`
       const res = await fetch(url)
       const json = await res.json()
       if (json?.success) setJobs(json.data || [])

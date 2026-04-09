@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +43,22 @@ interface TourTeamManagerProps {
   onMembersUpdate: (members: TourMember[]) => void
 }
 
+interface WorkflowTask {
+  id: string
+  title: string
+  status: "todo" | "doing" | "done" | "blocked"
+  priority: "low" | "medium" | "high" | "critical"
+  assignee_id: string | null
+  due_at: string | null
+}
+
+interface WorkflowMessage {
+  id: string
+  body: string
+  sender_id: string | null
+  created_at: string
+}
+
 export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamManagerProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -59,6 +75,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const [userQuery, setUserQuery] = useState('')
   const [userResults, setUserResults] = useState<Array<{ id: string; email: string; display_name?: string }>>([])
   const [teams, setTeams] = useState<TourTeam[]>([])
+  const [workflowThreadId, setWorkflowThreadId] = useState<string | null>(null)
+  const [workflowTasks, setWorkflowTasks] = useState<WorkflowTask[]>([])
+  const [workflowMessages, setWorkflowMessages] = useState<WorkflowMessage[]>([])
+  const [isWorkflowLoading, setIsWorkflowLoading] = useState(false)
+  const [workflowTaskTitle, setWorkflowTaskTitle] = useState("")
+  const [workflowTaskPriority, setWorkflowTaskPriority] = useState<WorkflowTask["priority"]>("medium")
+  const [workflowTaskAssigneeId, setWorkflowTaskAssigneeId] = useState("")
+  const [workflowMessageBody, setWorkflowMessageBody] = useState("")
   const [newTeam, setNewTeam] = useState({
     name: '',
     role: '',
@@ -76,6 +100,120 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     responsibilities: '',
     team_id: ''
   })
+
+  useEffect(() => {
+    void syncWorkflow()
+  }, [tourId])
+
+  useEffect(() => {
+    async function syncParticipants() {
+      if (!workflowThreadId) return
+      const eligibleMembers = members.filter((member) => isUuid(member.id))
+      if (eligibleMembers.length === 0) return
+
+      await Promise.all(
+        eligibleMembers.map((member) =>
+          fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/participants`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              user_id: member.id,
+              role: member.role.toLowerCase().includes('manager') ? 'admin' : 'member',
+              permissions: ['messages.write', 'tasks.manage'],
+              status: member.status === 'declined' ? 'removed' : 'active',
+            }),
+          })
+        )
+      )
+    }
+
+    void syncParticipants()
+  }, [workflowThreadId, members])
+
+  async function syncWorkflow() {
+    setIsWorkflowLoading(true)
+    try {
+      const threadResponse = await fetch('/api/workflows/threads', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          scope_type: 'tour',
+          scope_id: tourId,
+          title: 'Tour workflow',
+        }),
+      })
+      if (!threadResponse.ok) return
+      const threadPayload = await threadResponse.json()
+      const threadId = threadPayload?.thread?.id
+      if (!threadId) return
+      setWorkflowThreadId(threadId)
+
+      const [tasksResponse, messagesResponse] = await Promise.all([
+        fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, { cache: 'no-store' }),
+        fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, { cache: 'no-store' }),
+      ])
+
+      if (tasksResponse.ok) {
+        const tasksPayload = await tasksResponse.json()
+        setWorkflowTasks(tasksPayload?.tasks || [])
+      }
+      if (messagesResponse.ok) {
+        const messagesPayload = await messagesResponse.json()
+        setWorkflowMessages(messagesPayload?.messages || [])
+      }
+    } catch (error) {
+      console.warn('[tour team manager] workflow sync skipped:', error)
+    } finally {
+      setIsWorkflowLoading(false)
+    }
+  }
+
+  function isUuid(value: string) {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  }
+
+  async function handleCreateWorkflowTask() {
+    if (!workflowThreadId || !workflowTaskTitle.trim()) return
+    try {
+      const assigneeId = workflowTaskAssigneeId && isUuid(workflowTaskAssigneeId)
+        ? workflowTaskAssigneeId
+        : undefined
+
+      const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: workflowTaskTitle.trim(),
+          priority: workflowTaskPriority,
+          assignee_id: assigneeId,
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to create workflow task')
+      setWorkflowTaskTitle("")
+      await syncWorkflow()
+      toast.success('Workflow task created')
+    } catch {
+      toast.error('Failed to create workflow task')
+    }
+  }
+
+  async function handleSendWorkflowMessage() {
+    if (!workflowThreadId || !workflowMessageBody.trim()) return
+    try {
+      const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ body: workflowMessageBody.trim() }),
+      })
+      if (!response.ok) throw new Error('Failed to send workflow message')
+      setWorkflowMessageBody("")
+      await syncWorkflow()
+      toast.success('Workflow message sent')
+    } catch {
+      toast.error('Failed to send workflow message')
+    }
+  }
 
   const resetForm = () => {
     setFormData({
@@ -361,6 +499,126 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           </Button>
         </div>
       </div>
+
+      <Card className="bg-slate-900/50 border-slate-700/50">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center justify-between">
+            <span>Unified Tour Workflow</span>
+            <Badge variant="secondary" className="bg-slate-800 text-slate-100">
+              {workflowThreadId ? 'Connected' : 'Disconnected'}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline">Tasks: {workflowTasks.length}</Badge>
+            <Badge variant="outline">Messages: {workflowMessages.length}</Badge>
+            <Badge variant="outline">Blocked: {workflowTasks.filter((task) => task.status === 'blocked').length}</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="border-slate-600 text-slate-300"
+              onClick={() => void syncWorkflow()}
+              disabled={isWorkflowLoading}
+            >
+              {isWorkflowLoading ? 'Syncing...' : 'Sync'}
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-slate-300">New workflow task</Label>
+              <Input
+                value={workflowTaskTitle}
+                onChange={(event) => setWorkflowTaskTitle(event.target.value)}
+                placeholder="Task title"
+                className="bg-slate-800 border-slate-700 text-white"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <Select
+                  value={workflowTaskPriority}
+                  onValueChange={(value) => setWorkflowTaskPriority(value as WorkflowTask["priority"])}
+                >
+                  <SelectTrigger className="bg-slate-800 border-slate-700 text-white">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  value={workflowTaskAssigneeId}
+                  onChange={(event) => setWorkflowTaskAssigneeId(event.target.value)}
+                  placeholder="Assignee user UUID"
+                  className="bg-slate-800 border-slate-700 text-white"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => void handleCreateWorkflowTask()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Create task
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-slate-300">Thread message</Label>
+              <Textarea
+                value={workflowMessageBody}
+                onChange={(event) => setWorkflowMessageBody(event.target.value)}
+                placeholder="Share update with the tour thread"
+                className="bg-slate-800 border-slate-700 text-white"
+                rows={3}
+              />
+              <Button
+                type="button"
+                onClick={() => void handleSendWorkflowMessage()}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                Send message
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label className="text-slate-400">Latest workflow tasks</Label>
+              <div className="space-y-2">
+                {workflowTasks.slice(0, 5).map((task) => (
+                  <div key={task.id} className="rounded-md border border-slate-700 bg-slate-800/50 px-3 py-2">
+                    <div className="text-sm text-white">{task.title}</div>
+                    <div className="text-xs text-slate-400">
+                      {task.status} · {task.priority} {task.due_at ? `· due ${formatSafeDate(task.due_at)}` : ''}
+                    </div>
+                  </div>
+                ))}
+                {workflowTasks.length === 0 ? (
+                  <div className="text-xs text-slate-500">No workflow tasks yet.</div>
+                ) : null}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-400">Latest workflow messages</Label>
+              <div className="space-y-2">
+                {workflowMessages.slice(-5).reverse().map((message) => (
+                  <div key={message.id} className="rounded-md border border-slate-700 bg-slate-800/50 px-3 py-2">
+                    <div className="text-sm text-white">{message.body}</div>
+                    <div className="text-xs text-slate-400">{formatSafeDate(message.created_at)}</div>
+                  </div>
+                ))}
+                {workflowMessages.length === 0 ? (
+                  <div className="text-xs text-slate-500">No workflow messages yet.</div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Teams Section */}
       {teams.length > 0 && (

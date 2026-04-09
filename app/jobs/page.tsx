@@ -41,13 +41,17 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
+import { MyStaffingApplications } from '@/components/jobs/my-staffing-applications'
+
+const VALID_JOB_TABS = new Set(['all', 'collaborations', 'saved', 'applications', 'staffing'])
 
 export default function JobsPage() {
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const [jobs, setJobs] = useState<ArtistJob[]>([])
   const [collaborations, setCollaborations] = useState<ArtistJob[]>([])
@@ -66,6 +70,11 @@ export default function JobsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [staffingJobs, setStaffingJobs] = useState<any[]>([])
+
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && VALID_JOB_TABS.has(tab)) setActiveTab(tab)
+  }, [searchParams])
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -457,6 +466,8 @@ export default function JobsPage() {
             </motion.div>
           </SurfaceHero>
         </motion.div>
+
+        {user ? <MyStaffingApplications /> : null}
 
         {/* Featured Jobs */}
         {featuredJobs.length > 0 && (

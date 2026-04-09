@@ -2,6 +2,7 @@ import Link from "next/link"
 import { ArrowRight, Building2, Mic2, Radio, Sparkles, Users } from "lucide-react"
 import { TourifyLogo } from "@/components/tourify-logo"
 import { Button } from "@/components/ui/button"
+import { LandingHeroWithAuth } from "@/components/marketing/landing-hero-auth"
 
 const SIGNUP_HREF = "/login?tab=signup"
 const SIGNIN_HREF = "/login?tab=signin"
@@ -76,29 +77,17 @@ export function TourifyLandingPage() {
 
       <main className="relative z-10">
         <section className="mx-auto max-w-6xl px-4 pb-20 pt-14 sm:px-6 sm:pt-20">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200/90">Tourify is live</p>
-            <h1 className="text-balance text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
-              Connect. Create. Tour.
-            </h1>
-            <p className="mx-auto mt-6 text-pretty text-lg text-slate-200 sm:text-xl">
-              The same platform you see on our demo — profiles, discovery, and booking tools for artists, venues, and the
-              industry around them. Create your account and start in minutes.
-            </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-              <Button
-                asChild
-                size="lg"
-                className="w-full min-w-[200px] bg-gradient-to-r from-purple-600 to-blue-600 text-base shadow-xl shadow-purple-500/30 hover:from-purple-700 hover:to-blue-700 sm:w-auto"
-              >
-                <Link href={SIGNUP_HREF}>
-                  Create free account
-                  <ArrowRight className="ml-2 h-5 w-5" aria-hidden />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline" className="w-full border-white/25 bg-white/5 text-white hover:bg-white/10 sm:w-auto">
-                <Link href={SIGNIN_HREF}>Already a member? Sign in</Link>
-              </Button>
+          <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-14">
+            <LandingHeroWithAuth />
+            <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:text-left lg:pt-4">
+              <p className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200/90">Tourify is live</p>
+              <h1 className="text-balance text-4xl font-bold tracking-tight text-white sm:text-5xl md:text-6xl">
+                Connect. Create. Tour.
+              </h1>
+              <p className="mx-auto mt-6 text-pretty text-lg text-slate-200 sm:text-xl lg:mx-0">
+                The same platform you see on our demo — profiles, discovery, and booking tools for artists, venues, and the
+                industry around them. Use the form to get started — switch tabs anytime to sign in.
+              </p>
             </div>
           </div>
 

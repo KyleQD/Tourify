@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-+|-+$/g, '')
-    const filePath = `credentials/${user.id}/${safeCertKey || 'credential'}-${Date.now()}.${fileExtension}`
+    const filePath = `staff-credentials/${user.id}/${safeCertKey || 'credential'}-${Date.now()}.${fileExtension}`
 
     const arrayBuffer = await file.arrayBuffer()
     const buffer = Buffer.from(arrayBuffer)
@@ -69,6 +69,17 @@ export async function POST(request: NextRequest) {
       .from('profile-images')
       .createSignedUrl(filePath, 60 * 60 * 24 * 7)
     const storageUri = `storage://profile-images/${filePath}`
+
+    const { error: registryErr } = await supabase.from('staff_documents').insert({
+      owner_user_id: user.id,
+      document_type: `certification:${safeCertKey || 'credential'}`,
+      storage_bucket: 'profile-images',
+      storage_path: filePath,
+      verified_status: 'pending',
+      metadata: { source: 'settings_certifications_upload' },
+    })
+    if (registryErr)
+      console.warn('[certifications upload] staff_documents registry skipped:', registryErr.message)
 
     return NextResponse.json({
       success: true,

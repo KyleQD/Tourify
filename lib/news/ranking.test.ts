@@ -1,5 +1,3 @@
-import { describe, expect, it } from 'vitest'
-
 import { applyCursorPagination, decodeNewsCursor, encodeNewsCursor, rankNewsItem, sortNewsByScore } from '@/lib/news/ranking'
 import type { NewsFeedItem } from '@/lib/news/types'
 
@@ -40,12 +38,16 @@ describe('news ranking', () => {
     const rankedA = rankNewsItem({
       item: base,
       subscribedTopics: new Set(['hip-hop']),
-      subscribedSourceNames: new Set()
+      subscribedSourceNames: new Set(),
+      interactionTopics: new Set(),
+      preferredLocations: new Set(),
     })
     const rankedB = rankNewsItem({
       item: base,
       subscribedTopics: new Set(),
-      subscribedSourceNames: new Set()
+      subscribedSourceNames: new Set(),
+      interactionTopics: new Set(),
+      preferredLocations: new Set(),
     })
     expect(rankedA.score).toBeGreaterThan(rankedB.score)
   })

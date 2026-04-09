@@ -3,6 +3,10 @@
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { hasEntityPermission } from '@/lib/services/rbac'
+import {
+  publishJobTemplateToBoardSurfaces,
+  type JobPostingTemplateRow,
+} from '@/lib/job-board/publish-template-to-board'
 
 const schema = z.object({
   venueId: z.string().uuid(),
@@ -117,6 +121,27 @@ export async function createJobPosting(input: CreateJobPostingInput) {
     await supabase
       .from('application_form_templates')
       .insert({ job_posting_id: posting.id, fields: data.application_form_template })
+  }
+
+  // Public job board + org profile surfaces (non-fatal if tables missing in dev)
+  try {
+    const { data: venue } = await supabase
+      .from('venues')
+      .select('id, name')
+      .eq('id', data.venueId)
+      .maybeSingle()
+
+    const orgName = venue?.name?.trim() || posting.title || 'Organization'
+    const publishResult = await publishJobTemplateToBoardSurfaces(supabase, {
+      template: posting as JobPostingTemplateRow,
+      userId,
+      organizationId: data.venueId,
+      organizationName: orgName,
+    })
+    if (!publishResult.ok)
+      console.warn('[createJobPosting] Board publish skipped:', publishResult.error)
+  } catch (e) {
+    console.warn('[createJobPosting] Board publish failed:', e)
   }
 
   // Optional: create vendor request for event staffing

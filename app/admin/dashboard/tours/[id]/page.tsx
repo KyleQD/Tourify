@@ -174,6 +174,33 @@ interface TourVendor {
   notes?: string
 }
 
+interface TourWorkflowSummary {
+  threadId: string | null
+  connected: boolean
+  tasksTotal: number
+  tasksDone: number
+  tasksBlocked: number
+  messagesTotal: number
+  overdueTasks: number
+  lastMessageAt: string | null
+}
+
+interface WorkflowAuditEvent {
+  id: string
+  action: string
+  entity_type: string
+  entity_id: string | null
+  created_at: string
+}
+
+type WorkflowActivityFilter = 'all' | 'automation' | 'task' | 'participant' | 'message' | 'thread'
+
+function parseWorkflowActivityFilter(value: string | null): WorkflowActivityFilter | null {
+  if (!value) return null
+  const allowed: WorkflowActivityFilter[] = ['all', 'automation', 'task', 'participant', 'message', 'thread']
+  return allowed.includes(value as WorkflowActivityFilter) ? (value as WorkflowActivityFilter) : null
+}
+
 export default function TourManagementPage() {
   const params = useParams()
   const router = useRouter()
@@ -192,6 +219,20 @@ export default function TourManagementPage() {
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
   const [tourFinances, setTourFinances] = useState<any[]>([])
+  const [workflowSummary, setWorkflowSummary] = useState<TourWorkflowSummary>({
+    threadId: null,
+    connected: false,
+    tasksTotal: 0,
+    tasksDone: 0,
+    tasksBlocked: 0,
+    messagesTotal: 0,
+    overdueTasks: 0,
+    lastMessageAt: null,
+  })
+  const [workflowAuditEvents, setWorkflowAuditEvents] = useState<WorkflowAuditEvent[]>([])
+  const [isWorkflowSummaryLoading, setIsWorkflowSummaryLoading] = useState(false)
+  const [workflowActivityFilter, setWorkflowActivityFilter] = useState<WorkflowActivityFilter>('all')
+  const [showWorkflowActivityDialog, setShowWorkflowActivityDialog] = useState(false)
   const [editForm, setEditForm] = useState<Partial<Tour>>({})
   const [shareUrl, setShareUrl] = useState('')
   const initialEventId = (searchParams.get('eventId') || undefined) as string | undefined
@@ -199,6 +240,14 @@ export default function TourManagementPage() {
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab) setActiveTab(tab)
+  }, [searchParams])
+
+  useEffect(() => {
+    const workflowFilter = parseWorkflowActivityFilter(searchParams.get('workflowFilter'))
+    if (workflowFilter) setWorkflowActivityFilter(workflowFilter)
+
+    const shouldOpenWorkflowDialog = searchParams.get('workflowDialog') === '1'
+    setShowWorkflowActivityDialog(shouldOpenWorkflowDialog)
   }, [searchParams])
 
   useEffect(() => {
@@ -303,6 +352,88 @@ export default function TourManagementPage() {
       fetchTourData()
     }
   }, [tourId])
+
+  useEffect(() => {
+    async function loadWorkflowSummary() {
+      if (!tourId) return
+      setIsWorkflowSummaryLoading(true)
+
+      try {
+        const threadResponse = await fetch('/api/workflows/threads', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            scope_type: 'tour',
+            scope_id: tourId,
+            title: 'Tour workflow',
+          }),
+        })
+
+        if (!threadResponse.ok) {
+          setWorkflowSummary((prev) => ({ ...prev, connected: false }))
+          return
+        }
+
+        const threadPayload = await threadResponse.json()
+        const threadId = threadPayload?.thread?.id || null
+        if (!threadId) {
+          setWorkflowSummary((prev) => ({ ...prev, connected: false }))
+          return
+        }
+
+        const [tasksResponse, messagesResponse, eventsResponse] = await Promise.all([
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, { cache: 'no-store' }),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, { cache: 'no-store' }),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/events?limit=120`, { cache: 'no-store' }),
+        ])
+
+        const tasksPayload = tasksResponse.ok ? await tasksResponse.json() : { tasks: [] }
+        const messagesPayload = messagesResponse.ok ? await messagesResponse.json() : { messages: [] }
+        const eventsPayload = eventsResponse.ok ? await eventsResponse.json() : { events: [] }
+        const tasks = Array.isArray(tasksPayload?.tasks) ? tasksPayload.tasks : []
+        const messages = Array.isArray(messagesPayload?.messages) ? messagesPayload.messages : []
+        const workflowEvents = Array.isArray(eventsPayload?.events) ? eventsPayload.events : []
+        const nowMs = Date.now()
+        const overdueTasks = tasks.filter((task: any) => {
+          if (task.status === 'done') return false
+          if (!task.due_at) return false
+          const dueAtMs = new Date(task.due_at).getTime()
+          if (Number.isNaN(dueAtMs)) return false
+          return dueAtMs < nowMs
+        }).length
+
+        setWorkflowSummary({
+          threadId,
+          connected: true,
+          tasksTotal: tasks.length,
+          tasksDone: tasks.filter((task: any) => task.status === 'done').length,
+          tasksBlocked: tasks.filter((task: any) => task.status === 'blocked').length,
+          messagesTotal: messages.length,
+          overdueTasks,
+          lastMessageAt:
+            messages.length > 0
+              ? String(messages[messages.length - 1]?.created_at || null)
+              : null,
+        })
+        setWorkflowAuditEvents(
+          workflowEvents.map((event: any) => ({
+            id: String(event.id),
+            action: String(event.action || 'unknown'),
+            entity_type: String(event.entity_type || 'entity'),
+            entity_id: event.entity_id ? String(event.entity_id) : null,
+            created_at: String(event.created_at || ''),
+          }))
+        )
+      } catch {
+        setWorkflowSummary((prev) => ({ ...prev, connected: false }))
+        setWorkflowAuditEvents([])
+      } finally {
+        setIsWorkflowSummaryLoading(false)
+      }
+    }
+
+    void loadWorkflowSummary()
+  }, [tourId, members.length, events.length])
 
   const handleStatusChange = async (newStatus: Tour['status']) => {
     try {
@@ -418,6 +549,76 @@ export default function TourManagementPage() {
       case 'cancelled': return <StopCircle className="h-4 w-4" />
       default: return <Clock className="h-4 w-4" />
     }
+  }
+
+  const getWorkflowActivityCategory = (event: WorkflowAuditEvent): WorkflowActivityFilter => {
+    if (event.action.startsWith('automation.')) return 'automation'
+    if (event.entity_type === 'task') return 'task'
+    if (event.entity_type === 'participant') return 'participant'
+    if (event.entity_type === 'message') return 'message'
+    return 'thread'
+  }
+
+  const filteredWorkflowAuditEvents = workflowAuditEvents.filter((event) => {
+    if (workflowActivityFilter === 'all') return true
+    return getWorkflowActivityCategory(event) === workflowActivityFilter
+  })
+
+  function setWorkflowFilterAndSyncUrl(filter: WorkflowActivityFilter) {
+    setWorkflowActivityFilter(filter)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('workflowFilter', filter)
+    router.replace(`/admin/dashboard/tours/${tourId}?${params.toString()}`)
+  }
+
+  function openFilteredWorkflowActivity(filter: WorkflowActivityFilter) {
+    setShowWorkflowActivityDialog(true)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', 'overview')
+    params.set('workflowDialog', '1')
+    params.set('workflowFilter', filter)
+    setWorkflowActivityFilter(filter)
+    router.replace(`/admin/dashboard/tours/${tourId}?${params.toString()}`)
+  }
+
+  function onWorkflowActivityDialogOpenChange(open: boolean) {
+    setShowWorkflowActivityDialog(open)
+    const params = new URLSearchParams(searchParams.toString())
+    if (open) params.set('workflowDialog', '1')
+    else params.delete('workflowDialog')
+    params.set('workflowFilter', workflowActivityFilter)
+    router.replace(`/admin/dashboard/tours/${tourId}?${params.toString()}`)
+  }
+
+  async function exportFilteredWorkflowActivityCsv() {
+    if (typeof window === 'undefined') return
+    if (filteredWorkflowAuditEvents.length === 0) {
+      toast.error('No workflow activity events to export')
+      return
+    }
+
+    const header = ['event_id', 'action', 'entity_type', 'entity_id', 'category', 'created_at']
+    const rows = filteredWorkflowAuditEvents.map((event) => [
+      event.id,
+      event.action,
+      event.entity_type,
+      event.entity_id || '',
+      getWorkflowActivityCategory(event),
+      event.created_at,
+    ])
+
+    const csv = [header, ...rows]
+      .map((columns) => columns.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(','))
+      .join('\n')
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const href = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = href
+    anchor.download = `tour-${tourId}-workflow-activity-${workflowActivityFilter}.csv`
+    anchor.click()
+    URL.revokeObjectURL(href)
+    toast.success('Workflow activity export generated')
   }
 
   if (isLoading) {
@@ -781,6 +982,107 @@ export default function TourManagementPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AdminSurfaceCard>
                 <CardHeader>
+                  <CardTitle className="text-white">Workflow status</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge className={workflowSummary.connected ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700 text-slate-300'}>
+                      {isWorkflowSummaryLoading ? 'Syncing...' : workflowSummary.connected ? 'Connected' : 'Not connected'}
+                    </Badge>
+                    <Badge variant="secondary" className="bg-slate-700 text-slate-100">
+                      Tasks {workflowSummary.tasksDone}/{workflowSummary.tasksTotal}
+                    </Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-700 text-slate-200"
+                      onClick={() => openFilteredWorkflowActivity('task')}
+                    >
+                      Blocked {workflowSummary.tasksBlocked}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-700 text-slate-200"
+                      onClick={() => openFilteredWorkflowActivity('task')}
+                    >
+                      Overdue {workflowSummary.overdueTasks}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-700 text-slate-200"
+                      onClick={() => openFilteredWorkflowActivity('message')}
+                    >
+                      Messages {workflowSummary.messagesTotal}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-700 text-slate-200"
+                      onClick={() => openFilteredWorkflowActivity('automation')}
+                    >
+                      Automation activity
+                    </Button>
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    {workflowSummary.lastMessageAt
+                      ? `Latest thread activity: ${formatSafeDate(workflowSummary.lastMessageAt)}`
+                      : 'No thread activity yet.'}
+                  </p>
+                  {workflowSummary.threadId ? (
+                    <p className="text-xs text-slate-500">thread: {workflowSummary.threadId}</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {(['all', 'automation', 'task', 'participant', 'message', 'thread'] as WorkflowActivityFilter[]).map((filter) => (
+                      <Button
+                        key={filter}
+                        type="button"
+                        size="sm"
+                        variant={workflowActivityFilter === filter ? 'default' : 'outline'}
+                        className={workflowActivityFilter === filter ? 'bg-indigo-600 hover:bg-indigo-700' : 'border-slate-700 text-slate-300'}
+                        onClick={() => setWorkflowFilterAndSyncUrl(filter)}
+                      >
+                        {filter}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="rounded-md border border-slate-700 bg-slate-900/40 p-2">
+                    <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Recent workflow activity</p>
+                    <div className="space-y-2">
+                      {filteredWorkflowAuditEvents.slice(0, 6).map((event) => (
+                        <div key={event.id} className="rounded border border-slate-800 bg-slate-800/40 px-2 py-1">
+                          <p className="text-xs text-slate-200">
+                            {event.action.replaceAll('_', ' ')} ({event.entity_type})
+                          </p>
+                          <p className="text-[11px] text-slate-500">{formatSafeDate(event.created_at)}</p>
+                        </div>
+                      ))}
+                      {filteredWorkflowAuditEvents.length === 0 ? (
+                        <p className="text-xs text-slate-500">No workflow activity events yet.</p>
+                      ) : null}
+                    </div>
+                  </div>
+                  {filteredWorkflowAuditEvents.length > 0 ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="border-slate-700 text-slate-300"
+                      onClick={() => setShowWorkflowActivityDialog(true)}
+                    >
+                      View full activity
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </AdminSurfaceCard>
+
+              <AdminSurfaceCard>
+                <CardHeader>
                   <CardTitle className="text-white">Tour Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1000,6 +1302,55 @@ export default function TourManagementPage() {
         </Tabs>
 
         {/* Dialogs */}
+        <Dialog open={showWorkflowActivityDialog} onOpenChange={onWorkflowActivityDialogOpenChange}>
+          <DialogContent className="max-w-2xl bg-slate-800 border-slate-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Workflow activity timeline</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {(['all', 'automation', 'task', 'participant', 'message', 'thread'] as WorkflowActivityFilter[]).map((filter) => (
+                  <Button
+                    key={filter}
+                    type="button"
+                    size="sm"
+                    variant={workflowActivityFilter === filter ? 'default' : 'outline'}
+                    className={workflowActivityFilter === filter ? 'bg-indigo-600 hover:bg-indigo-700' : 'border-slate-700 text-slate-300'}
+                    onClick={() => setWorkflowFilterAndSyncUrl(filter)}
+                  >
+                    {filter}
+                  </Button>
+                ))}
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-slate-700 text-slate-300"
+                  onClick={() => void exportFilteredWorkflowActivityCsv()}
+                >
+                  Export CSV
+                </Button>
+              </div>
+              <div className="max-h-[420px] space-y-2 overflow-y-auto rounded-md border border-slate-700 bg-slate-900/50 p-2">
+                {filteredWorkflowAuditEvents.map((event) => (
+                  <div key={event.id} className="rounded border border-slate-800 bg-slate-800/40 px-3 py-2">
+                    <p className="text-sm text-slate-200">
+                      {event.action.replaceAll('_', ' ')} ({event.entity_type})
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {formatSafeDate(event.created_at)}
+                      {event.entity_id ? ` · ${event.entity_id}` : ''}
+                    </p>
+                  </div>
+                ))}
+                {filteredWorkflowAuditEvents.length === 0 ? (
+                  <p className="text-sm text-slate-500">No activity events for this filter.</p>
+                ) : null}
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <AlertDialogContent className="bg-slate-800 border-slate-700">
             <AlertDialogHeader>

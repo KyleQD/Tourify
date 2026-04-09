@@ -29,11 +29,14 @@ export async function GET(
       )
     }
 
-    // Increment view count
-    await supabase
-      .from('job_posting_templates')
-      .update({ views_count: (jobPosting.views_count || 0) + 1 })
-      .eq('id', jobId)
+    // Increment view count (atomic via RPC when migration applied; fallback otherwise)
+    const { error: rpcErr } = await supabase.rpc('increment_job_posting_views', { p_job_id: jobId })
+    if (rpcErr) {
+      await supabase
+        .from('job_posting_templates')
+        .update({ views_count: (jobPosting.views_count || 0) + 1 })
+        .eq('id', jobId)
+    }
 
     return NextResponse.json({
       success: true,

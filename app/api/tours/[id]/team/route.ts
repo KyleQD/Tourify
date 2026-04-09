@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { ensureThreadForScope } from '@/lib/workflows/workflow-threads'
 
 const createTeamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -12,6 +13,10 @@ const createTeamMemberSchema = z.object({
   departure_date: z.string().optional(),
   responsibilities: z.string().optional()
 })
+
+function isWorkflowEnabled() {
+  return process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1'
+}
 
 export async function GET(
   request: NextRequest,
@@ -124,6 +129,41 @@ export async function POST(
     }
 
     console.log('[Tour Team API] Successfully created team member:', teamMember.id)
+
+    if (isWorkflowEnabled()) {
+      try {
+        const thread = await ensureThreadForScope({
+          supabase,
+          scopeType: 'tour',
+          scopeId: id,
+          userId: user.id,
+          title: `${tour.tour_name || 'Tour'} workflow`,
+        })
+
+        const { data: profileByEmail } = await supabase
+          .from('profiles')
+          .select('id, user_id')
+          .eq('email', validatedData.email)
+          .maybeSingle()
+
+        const participantUserId = (profileByEmail as any)?.user_id || (profileByEmail as any)?.id
+        if (participantUserId) {
+          await supabase.from('workflow_participants').upsert(
+            {
+              thread_id: thread.id,
+              user_id: participantUserId,
+              role: validatedData.role.toLowerCase().includes('manager') ? 'admin' : 'member',
+              permissions: ['messages.write', 'tasks.manage'],
+              status: validatedData.status === 'declined' ? 'removed' : 'active',
+              added_by: user.id,
+            },
+            { onConflict: 'thread_id,user_id' }
+          )
+        }
+      } catch (workflowError) {
+        console.warn('[Tour Team API] Workflow participant sync skipped:', workflowError)
+      }
+    }
 
       return NextResponse.json({ 
         success: true, 

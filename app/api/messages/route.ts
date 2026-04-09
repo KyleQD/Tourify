@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
 
 // Create service role client for database operations
 function createServiceRoleClient() {
@@ -62,6 +63,46 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get('conversationId')
+    const threadId = searchParams.get('threadId')
+
+    if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
+      const canReadThread = await hasWorkflowThreadPermission({
+        supabase: supabase as any,
+        threadId,
+        userId: user.id,
+        permission: 'read',
+      })
+
+      if (!canReadThread) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      const { data: workflowMessages, error: workflowMessagesError } = await supabase
+        .from('workflow_messages')
+        .select(`
+          id,
+          body,
+          sender_id,
+          message_type,
+          metadata,
+          created_at,
+          sender:profiles!sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('thread_id', threadId)
+        .order('created_at', { ascending: true })
+
+      if (workflowMessagesError) {
+        console.error('Error fetching workflow messages:', workflowMessagesError)
+        return NextResponse.json({ error: 'Failed to fetch workflow messages' }, { status: 500 })
+      }
+
+      return NextResponse.json({ messages: workflowMessages, source: 'workflow' })
+    }
 
     if (conversationId) {
       // Fetch messages for a specific conversation
@@ -144,7 +185,73 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceRoleClient()
-    const { recipientId, content } = await request.json()
+    const { recipientId, content, threadId, messageType, metadata } = await request.json()
+
+    if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
+      const canWriteThread = await hasWorkflowThreadPermission({
+        supabase: supabase as any,
+        threadId,
+        userId: user.id,
+        permission: 'write',
+      })
+
+      if (!canWriteThread) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+
+      if (!content?.trim()) {
+        return NextResponse.json({ error: 'Message content is required' }, { status: 400 })
+      }
+
+      const { data: workflowMessage, error: workflowMessageError } = await supabase
+        .from('workflow_messages')
+        .insert({
+          thread_id: threadId,
+          sender_id: user.id,
+          message_type: typeof messageType === 'string' ? messageType : 'text',
+          body: content.trim(),
+          metadata: metadata || {},
+        })
+        .select(`
+          id,
+          body,
+          sender_id,
+          message_type,
+          metadata,
+          created_at,
+          sender:profiles!sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single()
+
+      if (workflowMessageError) {
+        console.error('Error sending workflow message:', workflowMessageError)
+        return NextResponse.json({ error: 'Failed to send workflow message' }, { status: 500 })
+      }
+
+      await Promise.all([
+        supabase.from('workflow_threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId),
+        supabase.from('workflow_events_audit').insert({
+          thread_id: threadId,
+          actor_user_id: user.id,
+          action: 'message.created.bridge.legacy',
+          entity_type: 'message',
+          entity_id: workflowMessage.id,
+          metadata: { source: 'app/api/messages/route.ts' },
+        }),
+      ])
+
+      return NextResponse.json({
+        success: true,
+        message: workflowMessage,
+        threadId,
+        source: 'workflow',
+      })
+    }
 
     if (!recipientId || !content?.trim()) {
       return NextResponse.json({ 

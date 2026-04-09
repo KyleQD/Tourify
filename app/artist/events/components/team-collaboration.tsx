@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -145,6 +145,25 @@ interface TeamCollaborationProps {
   onRemoveTaskDependency: (taskId: string, dependencyId: string) => Promise<void>
 }
 
+interface WorkflowTask {
+  id: string
+  thread_id: string
+  title: string
+  description: string | null
+  assignee_id: string | null
+  status: "todo" | "doing" | "done" | "blocked"
+  priority: "low" | "medium" | "high" | "critical"
+  due_at: string | null
+}
+
+interface WorkflowMessage {
+  id: string
+  thread_id: string
+  sender_id: string | null
+  body: string
+  created_at: string
+}
+
 export function TeamCollaboration({ 
   eventId, 
   teamMembers, 
@@ -214,6 +233,57 @@ export function TeamCollaboration({
     until: undefined,
     message: undefined
   })
+  const [workflowThreadId, setWorkflowThreadId] = useState<string | null>(null)
+  const [workflowTasks, setWorkflowTasks] = useState<WorkflowTask[]>([])
+  const [workflowMessages, setWorkflowMessages] = useState<WorkflowMessage[]>([])
+  const [isWorkflowSyncing, setIsWorkflowSyncing] = useState(false)
+
+  useEffect(() => {
+    async function syncWorkflow() {
+      if (!eventId) return
+      setIsWorkflowSyncing(true)
+      try {
+        const threadResponse = await fetch("/api/workflows/threads", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ scope_type: "event", scope_id: eventId, title: "Event workflow" }),
+        })
+
+        if (!threadResponse.ok) return
+        const threadPayload = await threadResponse.json()
+        const threadId = threadPayload?.thread?.id
+        if (!threadId) return
+        setWorkflowThreadId(threadId)
+
+        const [tasksResponse, messagesResponse] = await Promise.all([
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, { cache: "no-store" }),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, { cache: "no-store" }),
+        ])
+
+        if (tasksResponse.ok) {
+          const tasksPayload = await tasksResponse.json()
+          setWorkflowTasks(tasksPayload?.tasks || [])
+        }
+        if (messagesResponse.ok) {
+          const messagesPayload = await messagesResponse.json()
+          setWorkflowMessages(messagesPayload?.messages || [])
+        }
+      } catch (error) {
+        console.warn("[team collaboration] workflow sync skipped", error)
+      } finally {
+        setIsWorkflowSyncing(false)
+      }
+    }
+
+    syncWorkflow()
+  }, [eventId])
+
+  const workflowTaskSummary = useMemo(() => {
+    const total = workflowTasks.length
+    const blocked = workflowTasks.filter((task) => task.status === "blocked").length
+    const done = workflowTasks.filter((task) => task.status === "done").length
+    return { total, blocked, done }
+  }, [workflowTasks])
 
   const handleAddMember = async () => {
     try {
@@ -247,6 +317,13 @@ export function TeamCollaboration({
     if (!newMessage.trim()) return
     try {
       await onSendMessage(newMessage, messageAttachments)
+      if (workflowThreadId) {
+        await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/messages`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ body: newMessage }),
+        })
+      }
       setNewMessage("")
       setMessageAttachments([])
       toast({
@@ -294,6 +371,21 @@ export function TeamCollaboration({
   const handleAddTask = async () => {
     try {
       await onAddTask(newTask)
+      if (workflowThreadId) {
+        await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            title: newTask.title,
+            description: newTask.description,
+            assignee_id: newTask.assigned_to || undefined,
+            due_at: newTask.due_date || undefined,
+            priority: newTask.priority,
+            status: "todo",
+            dependency_task_ids: newTask.dependencies || [],
+          }),
+        })
+      }
       setIsTaskModalOpen(false)
       setNewTask({
         title: "",
@@ -708,7 +800,20 @@ export function TeamCollaboration({
         <TabsContent value="tasks">
           <Card className="bg-slate-900 border-slate-700">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-slate-300">Team Tasks</CardTitle>
+              <div className="space-y-1">
+                <CardTitle className="text-slate-300">Team Tasks</CardTitle>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <Badge variant="secondary" className="bg-slate-800 text-slate-200">
+                    Workflow thread: {workflowThreadId ? "connected" : "legacy"}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-slate-800 text-slate-200">
+                    {isWorkflowSyncing ? "syncing..." : `${workflowTaskSummary.total} unified tasks`}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-slate-800 text-slate-200">
+                    {workflowTaskSummary.blocked} blocked
+                  </Badge>
+                </div>
+              </div>
               <Dialog open={isTaskModalOpen} onOpenChange={setIsTaskModalOpen}>
                 <DialogTrigger asChild>
                   <Button className="bg-purple-600 hover:bg-purple-700">
@@ -849,7 +954,19 @@ export function TeamCollaboration({
         <TabsContent value="messages">
           <Card className="bg-slate-900 border-slate-700">
             <CardHeader>
-              <CardTitle className="text-slate-300">Team Messages</CardTitle>
+              <div className="space-y-1">
+                <CardTitle className="text-slate-300">Team Messages</CardTitle>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <Badge variant="secondary" className="bg-slate-800 text-slate-200">
+                    Workflow feed: {workflowThreadId ? "enabled" : "disabled"}
+                  </Badge>
+                  {workflowMessages.length > 0 ? (
+                    <Badge variant="secondary" className="bg-slate-800 text-slate-200">
+                      {workflowMessages.length} unified messages
+                    </Badge>
+                  ) : null}
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

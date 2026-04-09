@@ -14,6 +14,7 @@
     "build:vercel": "next build",
     "start": "next start",
     "lint": "next lint",
+    "verify:ci": "npm run lint && NODE_OPTIONS='--max-old-space-size=4096' next build",
     "test": "jest",
     "test:mobile-redirect": "npx tsx scripts/test-mobile-redirect.ts",
     "test:auth-redirects": "npx tsx scripts/test-auth-callback-redirects.ts",
@@ -147,6 +148,7 @@
     "postcss": "^8",
     "prisma": "^6.7.0",
     "tailwindcss": "^3.4.17",
+    "ts-jest": "^29.4.9",
     "tsx": "^4.20.3",
     "typescript": "^5"
   }

@@ -554,6 +554,27 @@ export class AdminOnboardingStaffService {
         .single()
 
       if (error) throw error
+
+      // Keep public board/profile mirrors in sync when template status changes.
+      try {
+        const jobBoardTableExists = await checkTableExists('job_board_postings')
+        if (jobBoardTableExists) {
+          await supabase
+            .from('job_board_postings')
+            .update({ status })
+            .eq('template_id', jobId)
+        }
+        const orgBoardTableExists = await checkTableExists('organization_job_postings')
+        if (orgBoardTableExists) {
+          await supabase
+            .from('organization_job_postings')
+            .update({ status })
+            .eq('template_id', jobId)
+        }
+      } catch (mirrorError) {
+        console.warn('⚠️ [Admin Onboarding Staff Service] Failed syncing mirrored posting status:', mirrorError)
+      }
+
       return data
     } catch (error) {
       console.error('❌ [Admin Onboarding Staff Service] Error updating job posting status:', error)
@@ -624,6 +645,15 @@ export class AdminOnboardingStaffService {
         .single()
 
       if (error) throw error
+
+      if (data.status === 'approved') {
+        try {
+          await AdminOnboardingStaffService.createOrLinkCandidateFromApplication(applicationId)
+        } catch (linkErr) {
+          console.warn('⚠️ [Admin Onboarding Staff Service] createOrLinkCandidateFromApplication:', linkErr)
+        }
+      }
+
       return application
     } catch (error) {
       console.error('❌ [Admin Onboarding Staff Service] Error updating application status:', error)

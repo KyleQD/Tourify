@@ -3,6 +3,51 @@ import { supabase } from '@/lib/supabase/client'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
 
+/** List current user's staffing job applications (public board / job_posting_templates flow). */
+export async function GET(request: NextRequest) {
+  try {
+    const supabaseAuth = createRouteHandlerClient({ cookies })
+    const {
+      data: { user },
+    } = await supabaseAuth.auth.getUser()
+
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const limit = Math.min(Number(searchParams.get('limit')) || 50, 100)
+
+    const { data, error } = await supabaseAuth
+      .from('job_applications')
+      .select(
+        `
+        id,
+        status,
+        applied_at,
+        reviewed_at,
+        feedback,
+        job_posting_id,
+        venue_id,
+        job_posting:job_posting_templates(id, title, department, position, location, employment_type)
+      `
+      )
+      .eq('applicant_id', user.id)
+      .order('applied_at', { ascending: false })
+      .limit(limit)
+
+    if (error) {
+      console.error('[job-applications GET]', error)
+      return NextResponse.json({ success: false, error: 'Failed to load applications' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, data: data ?? [] })
+  } catch (e) {
+    console.error('[job-applications GET]', e)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabaseAuth = createRouteHandlerClient({ cookies })

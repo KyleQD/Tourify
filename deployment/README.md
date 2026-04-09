@@ -103,6 +103,17 @@ SESSION_SECRET=your_session_secret
 
 ## 🌐 Domain Configuration
 
+### Vercel: keep demo + apex on the same app (simplest)
+
+If CI deploys **one** Vercel project (see [`.github/README.md`](../.github/README.md)):
+
+1. In that project → **Domains**, attach **`tourify.live`** and **`www.tourify.live`** (and keep **`demo.tourify.live`**).
+2. Remove `tourify.live` from any older project (e.g. waitlist) so DNS resolves to this app.
+3. Set **Production** env `NEXT_PUBLIC_SITE_URL` to your canonical URL.
+4. Run **`npm run verify:ci`** locally before merging to `main` to match GitHub CI.
+
+Optional: enable the separate **Deploy Production** workflow only when you use a **second** Vercel project ID (`VERCEL_PROJECT_ID_PRODUCTION`).
+
 ### Production Domain
 - **Domain**: `tourify.live`
 - **Port**: 3000
