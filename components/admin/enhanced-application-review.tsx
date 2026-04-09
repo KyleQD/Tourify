@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useToast } from '@/components/ui/use-toast'
 import { 
   Search,
@@ -21,7 +22,6 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  Star,
   Download,
   Send,
   MessageSquare,
@@ -37,6 +37,8 @@ import {
   Phone,
   Mail,
   ExternalLink,
+  Info,
+  Loader2,
   Download as DownloadIcon,
   Upload,
   Send as SendIcon,
@@ -56,6 +58,13 @@ import {
 } from 'lucide-react'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import type { JobApplication, JobPostingTemplate } from '@/types/admin-onboarding'
+import { ApplicationStatusBadge } from '@/components/hiring/application-status-badge'
+import { ApplicationReviewActions } from '@/components/hiring/application-review-actions'
+import { ApplicationApplicantSummary } from '@/components/hiring/application-applicant-summary'
+import { ApplicationJobSummary } from '@/components/hiring/application-job-summary'
+import { ApplicationRating } from '@/components/hiring/application-rating'
+import { ApplicationInsightsBadges } from '@/components/hiring/application-insights-badges'
+import { ApplicationResponsesList } from '@/components/hiring/application-responses-list'
 
 interface EnhancedApplicationReviewProps {
   applications: JobApplication[]
@@ -75,6 +84,7 @@ interface ApplicationFilters {
   hasResume: boolean
   hasCoverLetter: boolean
   rating: string
+  vettingState: string
   searchQuery: string
 }
 
@@ -83,6 +93,37 @@ interface AutoScreeningResult {
   passed: boolean
   issues: string[]
   recommendations: string[]
+}
+
+interface VettingChecklistItem {
+  key: string
+  label: string
+  required: boolean
+  is_passed: boolean
+  reason_code?: string
+  evidence: Record<string, unknown>
+}
+
+interface VettingGate {
+  mode: 'off' | 'shadow' | 'enforce'
+  is_eligible: boolean
+  blocking_reasons: string[]
+  checklist: VettingChecklistItem[]
+}
+
+interface VettingSnapshot {
+  gate: VettingGate
+  verified_evidence: {
+    documents: Array<{ id: string; document_type: string; verified_status: string }>
+    agreements: Array<{ id: string }>
+    endorsements: Array<{ id: string; skill: string; level: number }>
+    followers_count: number
+    wallet?: { tier: string; total_points: number }
+  }
+}
+
+interface ReReviewRequestState {
+  requested_at: string
 }
 
 export default function EnhancedApplicationReview({
@@ -104,6 +145,7 @@ export default function EnhancedApplicationReview({
     hasResume: false,
     hasCoverLetter: false,
     rating: 'all',
+    vettingState: 'all',
     searchQuery: ''
   })
   const [showFilters, setShowFilters] = useState(false)
@@ -114,7 +156,133 @@ export default function EnhancedApplicationReview({
   const [bulkFeedback, setBulkFeedback] = useState<string>('')
   const [autoScreeningResults, setAutoScreeningResults] = useState<AutoScreeningResult[]>([])
   const [isAutoScreening, setIsAutoScreening] = useState(false)
+  const [vettingByApplication, setVettingByApplication] = useState<Record<string, VettingSnapshot>>({})
+  const [vettingLoadingId, setVettingLoadingId] = useState<string | null>(null)
+  const [requestEvidenceLoadingId, setRequestEvidenceLoadingId] = useState<string | null>(null)
+  const [isPrefetchingVetting, setIsPrefetchingVetting] = useState(false)
+  const [reReviewRequestedByApplication, setReReviewRequestedByApplication] = useState<
+    Record<string, ReReviewRequestState>
+  >({})
+  const lastPrefetchKeyRef = useRef<string>('')
+  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const { toast } = useToast()
+
+  async function loadVettingSnapshot(applicationId: string) {
+    if (vettingByApplication[applicationId]) return
+    setVettingLoadingId(applicationId)
+    try {
+      const response = await fetch(`/api/employer/vetting/${applicationId}`, {
+        credentials: 'include',
+      })
+      if (!response.ok) throw new Error('Failed vetting lookup')
+      const payload = await response.json()
+      if (payload?.success && payload?.data) {
+        setVettingByApplication((prev) => ({
+          ...prev,
+          [applicationId]: {
+            gate: payload.data.gate,
+            verified_evidence: payload.data.verified_evidence,
+          } as VettingSnapshot,
+        }))
+      }
+    } catch (error) {
+      console.warn('[application review] vetting lookup failed', error)
+    } finally {
+      setVettingLoadingId(null)
+    }
+  }
+
+  async function ensureVettingSnapshots(applicationIds: string[]) {
+    const missingIds = applicationIds.filter((applicationId) => !vettingByApplication[applicationId])
+    if (missingIds.length === 0) return
+
+    const results = await Promise.allSettled(
+      missingIds.map(async (applicationId) => {
+        const response = await fetch(`/api/employer/vetting/${applicationId}`, {
+          credentials: 'include',
+        })
+        if (!response.ok) return null
+        const payload = await response.json()
+        if (!payload?.success || !payload?.data) return null
+        return {
+          applicationId,
+          snapshot: {
+            gate: payload.data.gate,
+            verified_evidence: payload.data.verified_evidence,
+          } as VettingSnapshot,
+        }
+      })
+    )
+
+    const updates: Record<string, VettingSnapshot> = {}
+    results.forEach((result) => {
+      if (result.status !== 'fulfilled' || !result.value) return
+      updates[result.value.applicationId] = result.value.snapshot
+    })
+
+    if (Object.keys(updates).length > 0) {
+      setVettingByApplication((prev) => ({
+        ...prev,
+        ...updates,
+      }))
+    }
+  }
+
+  function buildRemediationMessage(input: {
+    applicantName: string
+    blockingReasons: string[]
+  }) {
+    const reasonLabels: Record<string, string> = {
+      missing_verified_document: 'Upload at least one verified credential document.',
+      required_certifications_missing: 'Upload all required certifications for this role.',
+      agreement_not_signed: 'Sign the required hiring agreement packet.',
+      missing_verified_endorsements: 'Request a verified endorsement tied to your work history.',
+    }
+
+    const bulletLines = input.blockingReasons.map((reason) => {
+      const description = reasonLabels[reason] || `Resolve: ${reason}`
+      return `- ${description}`
+    })
+
+    return [
+      `Hi ${input.applicantName},`,
+      '',
+      'Thanks for your application. Before we can move your status to approved, please complete the following verified requirements:',
+      ...bulletLines,
+      '',
+      'Once completed, reply here and our team will re-review your application.',
+    ].join('\n')
+  }
+
+  async function requestMissingEvidence(application: JobApplication, blockingReasons: string[]) {
+    try {
+      setRequestEvidenceLoadingId(application.id)
+      const message = buildRemediationMessage({
+        applicantName: application.applicant_name,
+        blockingReasons,
+      })
+      await onSendMessage(application.id, message)
+      setReReviewRequestedByApplication((prev) => ({
+        ...prev,
+        [application.id]: {
+          requested_at: new Date().toISOString(),
+        },
+      }))
+      toast({
+        title: 'Evidence Request Sent',
+        description: 'A remediation request was sent to the applicant.',
+      })
+    } catch (error) {
+      console.error('Failed to request missing evidence:', error)
+      toast({
+        title: 'Error',
+        description: 'Unable to send evidence request right now.',
+        variant: 'destructive',
+      })
+    } finally {
+      setRequestEvidenceLoadingId(null)
+    }
+  }
 
   // Auto-screening logic
   const runAutoScreening = async () => {
@@ -279,6 +447,21 @@ export default function EnhancedApplicationReview({
       filtered = filtered.filter(app => app.rating && app.rating >= rating)
     }
 
+    if (filters.vettingState !== 'all') {
+      filtered = filtered.filter((application) => {
+        const requestStatus = (application as any).evidence_request_status
+        const hasReReviewRequest = Boolean(requestStatus?.requested_at)
+        const vettingSnapshot = vettingByApplication[application.id]
+        const isEligible = Boolean(vettingSnapshot?.gate?.is_eligible)
+        const isBlocked = Boolean(vettingSnapshot && !vettingSnapshot.gate.is_eligible)
+
+        if (filters.vettingState === 're_review_requested') return hasReReviewRequest
+        if (filters.vettingState === 'ready_to_approve') return isEligible
+        if (filters.vettingState === 'needs_evidence') return isBlocked
+        return true
+      })
+    }
+
     if (filters.searchQuery) {
       const query = filters.searchQuery.toLowerCase()
       filtered = filtered.filter(app => 
@@ -289,7 +472,55 @@ export default function EnhancedApplicationReview({
     }
 
     setFilteredApplications(filtered)
-  }, [applications, filters, jobPostings])
+  }, [applications, filters, jobPostings, vettingByApplication])
+
+  useEffect(() => {
+    if (filters.vettingState === 'all') return
+    const applicationIds = applications.map((application) => application.id)
+    void ensureVettingSnapshots(applicationIds)
+  }, [filters.vettingState, applications])
+
+  useEffect(() => {
+    const initialApplicationIds = applications.slice(0, 20).map((application) => application.id)
+    if (initialApplicationIds.length === 0) return
+    const unresolvedIds = initialApplicationIds.filter((applicationId) => !vettingByApplication[applicationId])
+    if (unresolvedIds.length === 0) return
+
+    const prefetchKey = unresolvedIds.slice().sort().join(',')
+    if (lastPrefetchKeyRef.current === prefetchKey) return
+    lastPrefetchKeyRef.current = prefetchKey
+
+    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
+    prefetchTimerRef.current = setTimeout(() => {
+      setIsPrefetchingVetting(true)
+      ensureVettingSnapshots(unresolvedIds).finally(() => {
+        setIsPrefetchingVetting(false)
+      })
+    }, 150)
+  }, [applications, vettingByApplication])
+
+  useEffect(() => {
+    return () => {
+      if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    const persistedRequests: Record<string, ReReviewRequestState> = {}
+    applications.forEach((application) => {
+      const requestStatus = (application as any).evidence_request_status
+      if (!requestStatus?.requested_at) return
+      persistedRequests[application.id] = {
+        requested_at: requestStatus.requested_at,
+      }
+    })
+    if (Object.keys(persistedRequests).length > 0) {
+      setReReviewRequestedByApplication((prev) => ({
+        ...persistedRequests,
+        ...prev,
+      }))
+    }
+  }, [applications])
 
   const handleBulkUpdate = async () => {
     try {
@@ -326,35 +557,32 @@ export default function EnhancedApplicationReview({
   }
 
   const getStatusBadge = (status: string) => {
-    const config = {
-      pending: { label: 'Pending', variant: 'secondary' as const, color: 'bg-yellow-500' },
-      reviewed: { label: 'Reviewed', variant: 'outline' as const, color: 'bg-blue-500' },
-      approved: { label: 'Approved', variant: 'default' as const, color: 'bg-green-500' },
-      rejected: { label: 'Rejected', variant: 'destructive' as const, color: 'bg-red-500' },
-      shortlisted: { label: 'Shortlisted', variant: 'default' as const, color: 'bg-purple-500' },
-      withdrawn: { label: 'Withdrawn', variant: 'outline' as const, color: 'bg-gray-500' }
-    }
-
-    const statusConfig = config[status as keyof typeof config] || config.pending
-    return <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-  }
-
-  const getRatingStars = (rating?: number) => {
-    if (!rating) return null
-    return (
-      <div className="flex items-center gap-1">
-        {[...Array(5)].map((_, i) => (
-          <Star
-            key={i}
-            className={`h-3 w-3 ${i < rating ? 'text-yellow-400 fill-current' : 'text-gray-400'}`}
-          />
-        ))}
-        <span className="text-xs text-slate-400 ml-1">({rating})</span>
-      </div>
-    )
+    return <ApplicationStatusBadge status={status} />
   }
 
   const departments = [...new Set(jobPostings.map(jp => jp.department))]
+  const vettingCounts = {
+    needsEvidence: applications.filter((application) => {
+      const snapshot = vettingByApplication[application.id]
+      return Boolean(snapshot && !snapshot.gate.is_eligible)
+    }).length,
+    reReviewRequested: applications.filter((application) =>
+      Boolean((application as any).evidence_request_status?.requested_at)
+    ).length,
+    readyToApprove: applications.filter((application) =>
+      Boolean(vettingByApplication[application.id]?.gate?.is_eligible)
+    ).length,
+  }
+  const selectedJobPosting = selectedApplication
+    ? jobPostings.find((posting) => posting.id === selectedApplication.job_posting_id)
+    : null
+
+  function applyVettingStateFilter(value: ApplicationFilters['vettingState']) {
+    setFilters((prev) => ({
+      ...prev,
+      vettingState: value,
+    }))
+  }
 
   return (
     <div className="space-y-6">
@@ -402,6 +630,63 @@ export default function EnhancedApplicationReview({
             Export
           </Button>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant={filters.vettingState === 'all' ? 'default' : 'outline'}
+          onClick={() => applyVettingStateFilter('all')}
+          className={
+            filters.vettingState === 'all'
+              ? 'bg-slate-600 text-white'
+              : 'border-slate-600 text-slate-200 hover:bg-slate-700'
+          }
+        >
+          All ({applications.length})
+        </Button>
+        <Button
+          size="sm"
+          variant={filters.vettingState === 'needs_evidence' ? 'default' : 'outline'}
+          onClick={() => applyVettingStateFilter('needs_evidence')}
+          className={
+            filters.vettingState === 'needs_evidence'
+              ? 'bg-rose-600 text-white'
+              : 'border-rose-500/40 text-rose-300 hover:bg-rose-950/40'
+          }
+        >
+          {isPrefetchingVetting && (
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          )}
+          Blocked ({vettingCounts.needsEvidence})
+        </Button>
+        <Button
+          size="sm"
+          variant={filters.vettingState === 're_review_requested' ? 'default' : 'outline'}
+          onClick={() => applyVettingStateFilter('re_review_requested')}
+          className={
+            filters.vettingState === 're_review_requested'
+              ? 'bg-amber-600 text-white'
+              : 'border-amber-500/40 text-amber-300 hover:bg-amber-950/40'
+          }
+        >
+          Re-review ({vettingCounts.reReviewRequested})
+        </Button>
+        <Button
+          size="sm"
+          variant={filters.vettingState === 'ready_to_approve' ? 'default' : 'outline'}
+          onClick={() => applyVettingStateFilter('ready_to_approve')}
+          className={
+            filters.vettingState === 'ready_to_approve'
+              ? 'bg-emerald-600 text-white'
+              : 'border-emerald-500/40 text-emerald-300 hover:bg-emerald-950/40'
+          }
+        >
+          {isPrefetchingVetting && (
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+          )}
+          Ready ({vettingCounts.readyToApprove})
+        </Button>
       </div>
 
       {/* Filters */}
@@ -492,6 +777,24 @@ export default function EnhancedApplicationReview({
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label className="text-white text-sm">Vetting State</Label>
+                <Select
+                  value={filters.vettingState}
+                  onValueChange={(value) => setFilters({...filters, vettingState: value})}
+                >
+                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Vetting States</SelectItem>
+                    <SelectItem value="needs_evidence">Needs Evidence</SelectItem>
+                    <SelectItem value="re_review_requested">Re-review Requested</SelectItem>
+                    <SelectItem value="ready_to_approve">Ready to Approve</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="hasResume"
@@ -541,17 +844,12 @@ export default function EnhancedApplicationReview({
 
                 return (
                   <div key={result.applicationId} className="flex items-center justify-between p-4 bg-slate-700 rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-10 w-10">
-                        <AvatarFallback className="bg-purple-600 text-white">
-                          {application.applicant_name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h4 className="font-semibold text-white">{application.applicant_name}</h4>
-                        <p className="text-slate-400 text-sm">{application.applicant_email}</p>
-                      </div>
-                    </div>
+                    <ApplicationApplicantSummary
+                      applicantName={application.applicant_name}
+                      applicantEmail={application.applicant_email}
+                      avatarClassName="h-10 w-10"
+                      infoClassName="space-y-1"
+                    />
                     
                     <div className="flex items-center gap-4">
                       <div className="text-right">
@@ -613,6 +911,8 @@ export default function EnhancedApplicationReview({
               const jobPosting = jobPostings.find(jp => jp.id === application.job_posting_id)
               const isSelected = selectedApplications.includes(application.id)
               const screeningResult = autoScreeningResults.find(r => r.applicationId === application.id)
+              const vettingSnapshot = vettingByApplication[application.id]
+              const reReviewRequested = reReviewRequestedByApplication[application.id]
 
               return (
                 <div
@@ -644,48 +944,33 @@ export default function EnhancedApplicationReview({
                         onClick={(e) => e.stopPropagation()}
                       />
                       
-                      <Avatar className="h-12 w-12">
-                        <AvatarFallback className="bg-purple-600 text-white">
-                          {application.applicant_name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-semibold text-white">{application.applicant_name}</h4>
-                          {screeningResult && (
+                        <div className="mb-1 flex items-center gap-2">
+                          {screeningResult ? (
                             screeningResult.passed ? (
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             ) : (
                               <AlertTriangle className="h-4 w-4 text-red-500" />
                             )
-                          )}
+                          ) : null}
                         </div>
-                        
-                        <div className="flex items-center gap-4 text-sm text-slate-400">
-                          <div className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {application.applicant_email}
-                          </div>
-                          {application.applicant_phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {application.applicant_phone}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {formatSafeDate(application.applied_at)}
-                          </div>
-                        </div>
+
+                        <ApplicationApplicantSummary
+                          applicantName={application.applicant_name}
+                          applicantEmail={application.applicant_email}
+                          applicantPhone={application.applicant_phone}
+                          appliedAt={application.applied_at}
+                          avatarClassName="h-12 w-12"
+                          infoClassName="space-y-1"
+                        />
                         
                         {jobPosting && (
-                          <div className="flex items-center gap-2 mt-2">
-                            <Badge variant="outline" className="text-xs">
-                              {jobPosting.department}
-                            </Badge>
-                            <span className="text-slate-400 text-sm">{jobPosting.title}</span>
-                          </div>
+                          <ApplicationJobSummary
+                            displayMode="inline"
+                            title={jobPosting.title}
+                            department={jobPosting.department}
+                            className="mt-2"
+                          />
                         )}
                       </div>
                     </div>
@@ -693,7 +978,13 @@ export default function EnhancedApplicationReview({
                     <div className="flex items-center gap-4">
                       <div className="text-right">
                         {getStatusBadge(application.status)}
-                        {getRatingStars(application.rating)}
+                        <ApplicationInsightsBadges
+                          isEligible={vettingSnapshot ? vettingSnapshot.gate.is_eligible : null}
+                          reReviewRequestedAt={reReviewRequested?.requested_at}
+                          stackRight={true}
+                          className="mt-1"
+                        />
+                        <ApplicationRating rating={application.rating} size="sm" showValue={true} />
                       </div>
                       
                       <div className="flex gap-2">
@@ -702,38 +993,92 @@ export default function EnhancedApplicationReview({
                           size="sm"
                           onClick={(e) => {
                             e.stopPropagation()
+                            loadVettingSnapshot(application.id)
+                          }}
+                          className="text-cyan-300 hover:text-cyan-200"
+                          title="Fetch vetting reasons"
+                        >
+                          <Shield className="h-4 w-4" />
+                        </Button>
+
+                        {vettingSnapshot && !vettingSnapshot.gate.is_eligible && (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-rose-300 hover:text-rose-200"
+                                title="Why blocked"
+                              >
+                                <Info className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-80 bg-slate-900 border-slate-700 text-slate-100"
+                              align="end"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <div className="space-y-2">
+                                <p className="text-sm font-semibold">Why blocked</p>
+                                <div className="space-y-1">
+                                  {vettingSnapshot.gate.blocking_reasons.map((reason) => (
+                                    <p key={reason} className="text-xs text-rose-200">
+                                      - {reason}
+                                    </p>
+                                  ))}
+                                </div>
+                                <div className="pt-1 text-xs text-slate-400">
+                                  Gate mode: {vettingSnapshot.gate.mode}
+                                </div>
+                                <Button
+                                  size="sm"
+                                  className="w-full bg-rose-600 hover:bg-rose-700 text-white"
+                                  disabled={requestEvidenceLoadingId === application.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    requestMissingEvidence(application, vettingSnapshot.gate.blocking_reasons)
+                                  }}
+                                >
+                                  <Send className="h-3 w-3 mr-2" />
+                                  {requestEvidenceLoadingId === application.id
+                                    ? 'Sending request...'
+                                    : 'Request Missing Evidence'}
+                                </Button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setSelectedApplication(application)
                             setShowApplicationDetail(true)
+                            loadVettingSnapshot(application.id)
                           }}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
                         
-                        <Button
-                          variant="outline"
+                        <ApplicationReviewActions
+                          iconOnly={true}
                           size="sm"
-                          onClick={(e) => {
+                          approveVariant="outline"
+                          rejectVariant="outline"
+                          approveClassName="text-green-500 hover:text-green-400"
+                          rejectClassName="text-red-500 hover:text-red-400"
+                          onApprove={(e) => {
                             e.stopPropagation()
-                            // Handle quick approve
                             onUpdateStatus(application.id, 'approved')
                           }}
-                          className="text-green-500 hover:text-green-400"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
+                          onReject={(e) => {
                             e.stopPropagation()
-                            // Handle quick reject
                             onUpdateStatus(application.id, 'rejected')
                           }}
-                          className="text-red-500 hover:text-red-400"
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
+                        />
                       </div>
                     </div>
                   </div>
@@ -796,7 +1141,7 @@ export default function EnhancedApplicationReview({
                     {selectedApplication.rating && (
                       <div className="flex justify-between">
                         <span className="text-slate-400">Rating:</span>
-                        {getRatingStars(selectedApplication.rating)}
+                        <ApplicationRating rating={selectedApplication.rating} size="sm" showValue={true} />
                       </div>
                     )}
                   </div>
@@ -804,73 +1149,92 @@ export default function EnhancedApplicationReview({
                 
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white">Job Information</h3>
-                  {jobPostings.find(jp => jp.id === selectedApplication.job_posting_id) && (
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Position:</span>
-                        <span className="text-white">
-                          {jobPostings.find(jp => jp.id === selectedApplication.job_posting_id)?.title}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Department:</span>
-                        <span className="text-white">
-                          {jobPostings.find(jp => jp.id === selectedApplication.job_posting_id)?.department}
-                        </span>
-                      </div>
-                    </div>
-                  )}
+                  {selectedJobPosting ? (
+                    <ApplicationJobSummary
+                      displayMode="fields"
+                      title={selectedJobPosting.title}
+                      department={selectedJobPosting.department}
+                      location={selectedJobPosting.location}
+                    />
+                  ) : null}
                 </div>
+              </div>
+
+              <div className="space-y-3">
+                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-cyan-300" />
+                  Employer Vetting (Verified Evidence Only)
+                </h3>
+                {vettingLoadingId === selectedApplication.id && (
+                  <p className="text-sm text-slate-400">Loading vetting data...</p>
+                )}
+                {vettingByApplication[selectedApplication.id]?.gate && (
+                  <div className="space-y-3 rounded border border-slate-600 bg-slate-900/40 p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        className={
+                          vettingByApplication[selectedApplication.id].gate.is_eligible
+                            ? 'bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                            : 'bg-rose-500/20 border-rose-500/30 text-rose-300'
+                        }
+                      >
+                        {vettingByApplication[selectedApplication.id].gate.is_eligible ? 'Eligible' : 'Blocked'}
+                      </Badge>
+                      <Badge variant="outline" className="border-slate-500 text-slate-300">
+                        Mode: {vettingByApplication[selectedApplication.id].gate.mode}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      {vettingByApplication[selectedApplication.id].gate.checklist.map((item) => (
+                        <div
+                          key={item.key}
+                          className="flex items-center justify-between rounded border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm"
+                        >
+                          <p className="text-slate-200">
+                            {item.label}
+                            {item.required ? ' (required)' : ''}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={item.is_passed ? 'border-emerald-500/40 text-emerald-300' : 'border-rose-500/40 text-rose-300'}
+                          >
+                            {item.is_passed ? 'Pass' : item.reason_code || 'Fail'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs text-slate-300">
+                      <p>
+                        Docs: {vettingByApplication[selectedApplication.id].verified_evidence.documents.length}
+                      </p>
+                      <p>
+                        Agreements: {vettingByApplication[selectedApplication.id].verified_evidence.agreements.length}
+                      </p>
+                      <p>
+                        Endorsements: {vettingByApplication[selectedApplication.id].verified_evidence.endorsements.length}
+                      </p>
+                      <p>
+                        Followers: {vettingByApplication[selectedApplication.id].verified_evidence.followers_count}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Form Responses */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">Application Responses</h3>
-                <div className="space-y-3">
-                  {Object.entries(selectedApplication.form_responses || {}).map(([key, value]) => (
-                    <div key={key} className="p-3 bg-slate-700 rounded">
-                      <h4 className="font-medium text-white capitalize mb-1">
-                        {key.replace(/_/g, ' ')}
-                      </h4>
-                      <p className="text-slate-300 text-sm">{String(value)}</p>
-                    </div>
-                  ))}
-                </div>
+                <ApplicationResponsesList responses={selectedApplication.form_responses} compact={true} />
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 pt-4 border-t border-slate-600">
-                <Button
-                  onClick={() => onUpdateStatus(selectedApplication.id, 'approved')}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-                <Button
-                  onClick={() => onUpdateStatus(selectedApplication.id, 'rejected')}
-                  variant="destructive"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  onClick={() => onUpdateStatus(selectedApplication.id, 'shortlisted')}
-                  variant="outline"
-                >
-                  <Star className="h-4 w-4 mr-2" />
-                  Shortlist
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    // Handle send message
-                    onSendMessage(selectedApplication.id, 'Thank you for your application...')
-                  }}
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Send Message
-                </Button>
+              <div className="pt-4 border-t border-slate-600">
+                <ApplicationReviewActions
+                  onApprove={() => onUpdateStatus(selectedApplication.id, 'approved')}
+                  onReject={() => onUpdateStatus(selectedApplication.id, 'rejected')}
+                  onShortlist={() => onUpdateStatus(selectedApplication.id, 'shortlisted')}
+                  onMessage={() => onSendMessage(selectedApplication.id, 'Thank you for your application...')}
+                />
               </div>
             </div>
           )}

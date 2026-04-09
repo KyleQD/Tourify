@@ -7,12 +7,19 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { useToast } from '@/components/ui/use-toast'
+import { ApplicationReviewActions } from '@/components/hiring/application-review-actions'
+import { ApplicationApplicantSummary } from '@/components/hiring/application-applicant-summary'
+import { ApplicationJobSummary } from '@/components/hiring/application-job-summary'
+import { ApplicationRating } from '@/components/hiring/application-rating'
+import { ApplicationInsightsBadges } from '@/components/hiring/application-insights-badges'
+import { ApplicationResponsesList } from '@/components/hiring/application-responses-list'
+import { HiringStateCard } from '@/components/hiring/hiring-state-card'
+import { trackDashboardUxEvent } from '@/lib/analytics/ux-event-client'
 import { 
   Users, 
   Search, 
@@ -27,10 +34,6 @@ import {
   Download,
   Send,
   MessageSquare,
-  Calendar,
-  MapPin,
-  Phone,
-  Mail,
   AlertCircle,
   Loader2,
   ArrowRight,
@@ -81,6 +84,17 @@ interface ApplicationAuditEvent {
 type AuditPreset = 'all' | 'approvals' | 'rejections' | 'contracts' | 'onboarding'
 const AUDIT_CURL_AUTH_MODE_STORAGE_KEY = 'admin-applications-audit-curl-auth-mode'
 
+function createDefaultReviewData(status: JobApplication['status'] = 'approved') {
+  return {
+    status,
+    feedback: '',
+    rating: 0,
+    sendContract: status === 'approved',
+    contractProvider: 'internal',
+    contractTerms: '',
+  }
+}
+
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<ApplicationWithJob[]>([])
   const [filteredApplications, setFilteredApplications] = useState<ApplicationWithJob[]>([])
@@ -92,14 +106,7 @@ export default function ApplicationsPage() {
   const [selectedApplication, setSelectedApplication] = useState<ApplicationWithJob | null>(null)
   const [showApplicationModal, setShowApplicationModal] = useState(false)
   const [showReviewModal, setShowReviewModal] = useState(false)
-  const [reviewData, setReviewData] = useState({
-    status: 'approved' as JobApplication['status'],
-    feedback: '',
-    rating: 0,
-    sendContract: true,
-    contractProvider: 'internal',
-    contractTerms: '',
-  })
+  const [reviewData, setReviewData] = useState(createDefaultReviewData())
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [auditEvents, setAuditEvents] = useState<ApplicationAuditEvent[]>([])
   const [isAuditLoading, setIsAuditLoading] = useState(false)
@@ -572,20 +579,30 @@ export default function ApplicationsPage() {
         title: 'Application Updated',
         description: successDescription,
       })
+      void trackDashboardUxEvent({
+        eventName: 'admin_application_review_submitted',
+        surface: 'admin_applications',
+        metadata: {
+          applicationId: selectedApplication.id,
+          status: reviewData.status,
+          hasContract: reviewData.sendContract,
+        },
+      })
 
       setShowReviewModal(false)
       setSelectedApplication(null)
-      setReviewData({
-        status: 'approved',
-        feedback: '',
-        rating: 0,
-        sendContract: true,
-        contractProvider: 'internal',
-        contractTerms: '',
-      })
+      setReviewData(createDefaultReviewData())
       loadApplications() // Refresh data
     } catch (error) {
       console.error('Error updating application:', error)
+      void trackDashboardUxEvent({
+        eventName: 'admin_application_review_failed',
+        surface: 'admin_applications',
+        metadata: {
+          applicationId: selectedApplication.id,
+          status: reviewData.status,
+        },
+      })
       toast({
         title: 'Error',
         description: 'Failed to update application. Please try again.',
@@ -596,18 +613,11 @@ export default function ApplicationsPage() {
     }
   }
 
-  function getStatusBadge(status: string) {
-    const statusConfig = {
-      pending: { label: 'Pending Review', variant: 'secondary' as const, color: 'bg-yellow-500' },
-      reviewed: { label: 'Reviewed', variant: 'default' as const, color: 'bg-blue-500' },
-      approved: { label: 'Approved', variant: 'default' as const, color: 'bg-green-500' },
-      rejected: { label: 'Rejected', variant: 'destructive' as const, color: 'bg-red-500' },
-      shortlisted: { label: 'Shortlisted', variant: 'default' as const, color: 'bg-purple-500' },
-      withdrawn: { label: 'Withdrawn', variant: 'outline' as const, color: 'bg-gray-500' }
-    }
-
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending
-    return <Badge variant={config.variant}>{config.label}</Badge>
+  function openReviewModal(application: ApplicationWithJob, status: 'approved' | 'rejected', closeDetails = false) {
+    setSelectedApplication(application)
+    setReviewData(createDefaultReviewData(status))
+    setShowReviewModal(true)
+    if (closeDetails) setShowApplicationModal(false)
   }
 
   function getPriorityColor(application: ApplicationWithJob) {
@@ -623,45 +633,51 @@ export default function ApplicationsPage() {
 
   if (!venueId && !isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Card className="p-8 bg-slate-800 border-slate-700 text-center max-w-md">
-          <Users className="h-8 w-8 mx-auto mb-4 text-slate-500" />
-          <h2 className="text-xl font-semibold text-white mb-2">No Venue Linked</h2>
-          <p className="text-slate-400">Link a venue to your organizer account to manage job applications.</p>
-        </Card>
+      <div className="flex justify-center py-16">
+        <div className="w-full max-w-md">
+          <HiringStateCard
+            title="No Venue Linked"
+            description="Link a venue to your organizer account to manage job applications."
+            icon={Users}
+          />
+        </div>
       </div>
     )
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Card className="p-8 bg-slate-800 border-slate-700 text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-500" />
-          <h2 className="text-xl font-semibold text-white mb-2">Loading Applications</h2>
-          <p className="text-slate-400">Please wait...</p>
-        </Card>
+      <div className="flex justify-center py-16">
+        <div className="w-full max-w-md">
+          <HiringStateCard
+            title="Loading Applications"
+            description="Please wait..."
+            isLoading={true}
+          />
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <Card className="p-8 bg-slate-800 border-red-700 text-center max-w-md">
-          <AlertCircle className="h-8 w-8 mx-auto mb-4 text-red-500" />
-          <h2 className="text-xl font-semibold text-white mb-2">Error Loading Applications</h2>
-          <p className="text-slate-400 mb-4">{error}</p>
-          <Button onClick={loadApplications} variant="outline">
-            Try Again
-          </Button>
-        </Card>
+      <div className="flex justify-center py-16">
+        <div className="w-full max-w-md">
+          <HiringStateCard
+            title="Error Loading Applications"
+            description={error}
+            icon={AlertCircle}
+            className="border-red-700"
+            actionLabel="Try Again"
+            onAction={loadApplications}
+          />
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
+    <div className="space-y-0">
       {/* Header */}
       <div className="bg-slate-800 border-b border-slate-700 p-6">
         <div className="flex justify-between items-center">
@@ -730,18 +746,15 @@ export default function ApplicationsPage() {
       <div className="p-6">
         <div className="grid gap-4">
           {filteredApplications.length === 0 ? (
-            <Card className="bg-slate-800 border-slate-700">
-              <CardContent className="p-8 text-center">
-                <Users className="h-12 w-12 mx-auto mb-4 text-slate-500" />
-                <h3 className="text-lg font-semibold text-white mb-2">No Applications Found</h3>
-                <p className="text-slate-400">
-                  {applications.length === 0 
-                    ? 'No applications have been submitted yet.'
-                    : 'No applications match your current filters.'
-                  }
-                </p>
-              </CardContent>
-            </Card>
+            <HiringStateCard
+              title="No Applications Found"
+              description={
+                applications.length === 0
+                  ? 'No applications have been submitted yet.'
+                  : 'No applications match your current filters.'
+              }
+              icon={Users}
+            />
           ) : (
             filteredApplications.map((application) => (
               <Card 
@@ -754,44 +767,26 @@ export default function ApplicationsPage() {
               >
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start">
-                    <div className="flex items-start gap-4">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={(application as any).avatar_url || undefined} />
-                        <AvatarFallback className="bg-slate-700 text-white">
-                          {application.applicant_name.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-semibold text-white">{application.applicant_name}</h3>
-                          {getStatusBadge(application.status)}
-                        </div>
-                        <p className="text-slate-400 text-sm">{application.applicant_email}</p>
-                        <p className="text-slate-400 text-sm">
-                          Applied for: <span className="text-white">{application.job_posting?.title}</span>
-                        </p>
-                        <div className="flex items-center gap-4 text-sm text-slate-400">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-4 w-4" />
-                            <span>{formatSafeDate(application.applied_at)}</span>
-                          </div>
-                          {application.rating && (
-                            <div className="flex items-center gap-1">
-                              <Star className="h-4 w-4 text-yellow-500" />
-                              <span>{application.rating}/5</span>
-                            </div>
-                          )}
-                          {application.onboarding_status ? (
-                            <Badge variant="outline" className="border-cyan-500 text-cyan-300">
-                              Onboarding: {application.onboarding_status.stage}
-                            </Badge>
-                          ) : null}
-                          {application.contract_status ? (
-                            <Badge variant="outline" className="border-indigo-500 text-indigo-300">
-                              Contract: {application.contract_status.status}
-                            </Badge>
-                          ) : null}
-                        </div>
+                    <div className="space-y-2">
+                      <ApplicationApplicantSummary
+                        applicantName={application.applicant_name}
+                        applicantEmail={application.applicant_email}
+                        status={application.status}
+                        appliedAt={application.applied_at}
+                        avatarUrl={(application as any).avatar_url || undefined}
+                      />
+                      <ApplicationJobSummary
+                        displayMode="inline"
+                        prefixLabel="Applied for:"
+                        title={application.job_posting?.title}
+                        department={application.job_posting?.department}
+                      />
+                      <div className="flex items-center gap-4 text-sm text-slate-400">
+                        <ApplicationRating rating={application.rating} showValue={false} />
+                        <ApplicationInsightsBadges
+                          onboardingStage={application.onboarding_status?.stage}
+                          contractStatus={application.contract_status?.status}
+                        />
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -807,50 +802,19 @@ export default function ApplicationsPage() {
                         <Eye className="h-4 w-4 mr-2" />
                         View
                       </Button>
-                      {application.status === 'pending' && (
-                        <Button
+                      {application.status === 'pending' ? (
+                        <ApplicationReviewActions
                           size="sm"
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedApplication(application)
-                            setReviewData({
-                              status: 'approved',
-                              feedback: '',
-                              rating: 0,
-                              sendContract: true,
-                              contractProvider: 'internal',
-                              contractTerms: '',
-                            })
-                            setShowReviewModal(true)
+                          onApprove={(event) => {
+                            event.stopPropagation()
+                            openReviewModal(application, 'approved')
                           }}
-                        >
-                          <Check className="h-4 w-4 mr-2" />
-                          Approve
-                        </Button>
-                      )}
-                      {application.status === 'pending' && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedApplication(application)
-                            setReviewData({
-                              status: 'rejected',
-                              feedback: '',
-                              rating: 0,
-                              sendContract: false,
-                              contractProvider: 'internal',
-                              contractTerms: '',
-                            })
-                            setShowReviewModal(true)
+                          onReject={(event) => {
+                            event.stopPropagation()
+                            openReviewModal(application, 'rejected')
                           }}
-                        >
-                          <XIcon className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                      )}
+                        />
+                      ) : null}
                     </div>
                   </div>
                 </CardContent>
@@ -874,35 +838,16 @@ export default function ApplicationsPage() {
                   <CardTitle className="text-white">Applicant Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16">
-                      <AvatarImage src={(selectedApplication as any).avatar_url || undefined} />
-                      <AvatarFallback className="bg-slate-600 text-white">
-                        {selectedApplication.applicant_name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-2">
-                      <h3 className="text-xl font-semibold text-white">{selectedApplication.applicant_name}</h3>
-                      <div className="flex items-center gap-4 text-slate-400">
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-4 w-4" />
-                          <span>{selectedApplication.applicant_email}</span>
-                        </div>
-                        {selectedApplication.applicant_phone && (
-                          <div className="flex items-center gap-1">
-                            <Phone className="h-4 w-4" />
-                            <span>{selectedApplication.applicant_phone}</span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusBadge(selectedApplication.status)}
-                        <span className="text-slate-400 text-sm">
-                          Applied {formatSafeDate(selectedApplication.applied_at)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
+                  <ApplicationApplicantSummary
+                    applicantName={selectedApplication.applicant_name}
+                    applicantEmail={selectedApplication.applicant_email}
+                    applicantPhone={selectedApplication.applicant_phone}
+                    status={selectedApplication.status}
+                    appliedAt={selectedApplication.applied_at}
+                    avatarUrl={(selectedApplication as any).avatar_url || undefined}
+                    avatarClassName="h-16 w-16"
+                    infoClassName="space-y-3"
+                  />
                 </CardContent>
               </Card>
 
@@ -912,11 +857,12 @@ export default function ApplicationsPage() {
                   <CardTitle className="text-white">Job Details</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <h4 className="text-lg font-semibold text-white">{selectedApplication.job_posting?.title}</h4>
-                    <p className="text-slate-400">{selectedApplication.job_posting?.department} • {selectedApplication.job_posting?.position}</p>
-                    <p className="text-slate-400">{selectedApplication.job_posting?.location}</p>
-                  </div>
+                  <ApplicationJobSummary
+                    title={selectedApplication.job_posting?.title}
+                    department={selectedApplication.job_posting?.department}
+                    position={selectedApplication.job_posting?.position}
+                    location={selectedApplication.job_posting?.location}
+                  />
                 </CardContent>
               </Card>
 
@@ -926,18 +872,7 @@ export default function ApplicationsPage() {
                   <CardTitle className="text-white">Application Responses</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {Object.entries(selectedApplication.form_responses || {}).map(([key, value]) => (
-                      <div key={key} className="space-y-2">
-                        <Label className="text-white font-medium">
-                          {key.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                        </Label>
-                        <div className="bg-slate-600 rounded-lg p-3">
-                          <p className="text-slate-300">{String(value)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <ApplicationResponsesList responses={selectedApplication.form_responses} />
                 </CardContent>
               </Card>
 
@@ -950,46 +885,12 @@ export default function ApplicationsPage() {
                   Close
                 </Button>
                 <div className="flex gap-2">
-                  {selectedApplication.status === 'pending' && (
-                    <>
-                      <Button
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => {
-                          setReviewData({
-                            status: 'approved',
-                            feedback: '',
-                            rating: 0,
-                            sendContract: true,
-                            contractProvider: 'internal',
-                            contractTerms: '',
-                          })
-                          setShowReviewModal(true)
-                          setShowApplicationModal(false)
-                        }}
-                      >
-                        <Check className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => {
-                          setReviewData({
-                            status: 'rejected',
-                            feedback: '',
-                            rating: 0,
-                            sendContract: false,
-                            contractProvider: 'internal',
-                            contractTerms: '',
-                          })
-                          setShowReviewModal(true)
-                          setShowApplicationModal(false)
-                        }}
-                      >
-                        <XIcon className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                    </>
-                  )}
+                  {selectedApplication.status === 'pending' ? (
+                    <ApplicationReviewActions
+                      onApprove={() => openReviewModal(selectedApplication, 'approved', true)}
+                      onReject={() => openReviewModal(selectedApplication, 'rejected', true)}
+                    />
+                  ) : null}
                   <Button variant="outline">
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Send Message

@@ -45,6 +45,7 @@ import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { MyStaffingApplications } from '@/components/jobs/my-staffing-applications'
+import { trackDashboardUxEvent } from '@/lib/analytics/ux-event-client'
 
 const VALID_JOB_TABS = new Set(['all', 'collaborations', 'saved', 'applications', 'staffing'])
 
@@ -71,6 +72,7 @@ export default function JobsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [staffingJobs, setStaffingJobs] = useState<any[]>([])
+  const isAdminAccount = currentAccount?.account_type === 'admin'
 
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -289,6 +291,14 @@ export default function JobsPage() {
     }
 
     try {
+      void trackDashboardUxEvent({
+        eventName: 'job_apply_started',
+        surface: 'jobs_dashboard',
+        metadata: {
+          jobId,
+          accountType: currentAccount?.account_type ?? 'unknown',
+        },
+      })
       const response = await fetch(`/api/artist-jobs/${jobId}/applications`, {
         method: 'POST',
         headers: {
@@ -310,8 +320,25 @@ export default function JobsPage() {
         title: 'Application submitted',
         description: 'Your application is now visible in the Applications tab.',
       })
+      void trackDashboardUxEvent({
+        eventName: 'job_apply_succeeded',
+        surface: 'jobs_dashboard',
+        metadata: {
+          jobId,
+          accountType: currentAccount?.account_type ?? 'unknown',
+        },
+      })
     } catch (error) {
       console.error('Error applying to job:', error)
+      void trackDashboardUxEvent({
+        eventName: 'job_apply_failed',
+        surface: 'jobs_dashboard',
+        metadata: {
+          jobId,
+          accountType: currentAccount?.account_type ?? 'unknown',
+          error: error instanceof Error ? error.message : 'unknown',
+        },
+      })
       toast({
         title: 'Application failed',
         description: error instanceof Error ? error.message : 'Please try again.',
@@ -358,6 +385,14 @@ export default function JobsPage() {
     const params = new URLSearchParams(searchParams.toString())
     params.set('tab', tab)
     router.replace(`/jobs?${params.toString()}`)
+    void trackDashboardUxEvent({
+      eventName: 'jobs_tab_changed',
+      surface: 'jobs_dashboard',
+      metadata: {
+        tab,
+        accountType: currentAccount?.account_type ?? 'unknown',
+      },
+    })
     setFilters({
       sort_by: 'created_at',
       sort_order: 'desc',
@@ -426,14 +461,20 @@ export default function JobsPage() {
     },
     {
       title: 'Staff operations health',
-      description: 'Monitor staffing API health, alerts, and self-heal controls.',
-      href: '/admin/dashboard/staff',
+      description: isAdminAccount
+        ? 'Monitor staffing API health, alerts, and self-heal controls.'
+        : 'Track your submitted staffing applications and status updates.',
+      href: isAdminAccount ? '/admin/dashboard/staff' : '/jobs?tab=applications',
       icon: Activity,
     },
     {
-      title: 'Tour workflow timeline',
-      description: 'Inspect task/message activity with filterable workflow events.',
-      href: '/admin/dashboard/tours?tab=overview&workflowFilter=automation&workflowDialog=1',
+      title: isAdminAccount ? 'Tour workflow timeline' : 'Applications overview',
+      description: isAdminAccount
+        ? 'Inspect task/message activity with filterable workflow events.'
+        : 'Review your active applications and next hiring milestones.',
+      href: isAdminAccount
+        ? '/admin/dashboard/tours?tab=overview&workflowFilter=automation&workflowDialog=1'
+        : '/jobs?tab=applications',
       icon: MessageCircle,
     },
   ] as const

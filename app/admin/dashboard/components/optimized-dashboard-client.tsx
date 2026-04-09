@@ -50,6 +50,7 @@ import { statusBadgeClass } from "./admin-badge-utils"
 import type { AdminDashboardStats } from "@/types/admin"
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
+import { trackDashboardUxEvent } from "@/lib/analytics/ux-event-client"
 
 type DashboardStats = AdminDashboardStats
 
@@ -79,6 +80,31 @@ export default function OptimizedDashboardClient() {
   // UI state
   const [activeTab, setActiveTab] = useState('overview')
   const [showDataStatus, setShowDataStatus] = useState(false)
+
+  function handleTabChange(nextTab: string) {
+    setActiveTab(nextTab)
+    void trackDashboardUxEvent({
+      eventName: "admin_dashboard_tab_changed",
+      surface: "admin_dashboard",
+      metadata: { tab: nextTab },
+    })
+  }
+
+  function handleOpenHelp() {
+    openHelp()
+    void trackDashboardUxEvent({
+      eventName: "admin_dashboard_help_opened",
+      surface: "admin_dashboard",
+    })
+  }
+
+  function handleOpenShortcuts() {
+    openShortcuts()
+    void trackDashboardUxEvent({
+      eventName: "admin_dashboard_shortcuts_opened",
+      surface: "admin_dashboard",
+    })
+  }
 
   useEffect(() => {
     if (currentAccount?.account_type !== 'admin') {
@@ -114,6 +140,13 @@ export default function OptimizedDashboardClient() {
   // Help system
   const { isOpen: helpOpen, openHelp, closeHelp } = useHelpSystem()
   const { isOpen: shortcutsOpen, openHelp: openShortcuts, closeHelp: closeShortcuts } = useKeyboardShortcutsHelp()
+
+  useEffect(() => {
+    void trackDashboardUxEvent({
+      eventName: "admin_dashboard_viewed",
+      surface: "admin_dashboard",
+    })
+  }, [])
 
   // Fetch data only when organizer mode is active (avoids admin API calls with wrong account context)
   useEffect(() => {
@@ -527,11 +560,11 @@ export default function OptimizedDashboardClient() {
                   <Database className="h-4 w-4 mr-2" />
                   Data Status
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => openShortcuts()}>
+                <DropdownMenuItem onSelect={handleOpenShortcuts}>
                   <Keyboard className="h-4 w-4 mr-2" />
                   Keyboard shortcuts
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => openHelp()}>
+                <DropdownMenuItem onSelect={handleOpenHelp}>
                   <HelpCircle className="h-4 w-4 mr-2" />
                   Help
                 </DropdownMenuItem>
@@ -573,7 +606,7 @@ export default function OptimizedDashboardClient() {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30 flex overflow-x-auto sm:grid sm:grid-cols-6 w-full gap-1">
             <TabsTrigger value="overview" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Overview</TabsTrigger>
             <TabsTrigger value="tours" className="shrink-0 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tours</TabsTrigger>

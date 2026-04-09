@@ -54,82 +54,82 @@ const navigationConfig: Record<string, RoleNavConfig> = {
   admin: {
     primary: [
       { label: 'Dashboard', href: '/admin/dashboard', icon: Home, description: 'Platform overview' },
-      { label: 'Tours', href: '/admin/tours', icon: Calendar, description: 'Manage all tours' },
-      { label: 'Events', href: '/admin/events', icon: MapPin, description: 'Event management' },
-      { label: 'Communications', href: '/admin/communications', icon: MessageSquare, badge: 'Live', description: 'Real-time messaging' },
-      { label: 'Analytics', href: '/admin/analytics', icon: BarChart3, description: 'Platform insights' }
+      { label: 'Tours', href: '/admin/dashboard/tours', icon: Calendar, description: 'Manage all tours' },
+      { label: 'Events', href: '/admin/dashboard/events', icon: MapPin, description: 'Event management' },
+      { label: 'Communications', href: '/admin/dashboard/communications', icon: MessageSquare, badge: 'Live', description: 'Real-time messaging' },
+      { label: 'Analytics', href: '/admin/dashboard/analytics', icon: BarChart3, description: 'Platform insights' }
     ],
     secondary: [
-      { label: 'Staff Management', href: '/admin/staff', icon: Users, description: 'Team coordination' },
-      { label: 'Venues', href: '/admin/venues', icon: Building2, description: 'Venue directory' },
-      { label: 'Vendors', href: '/admin/vendors', icon: Truck, description: 'Vendor management' }
+      { label: 'Staff Management', href: '/admin/dashboard/staff', icon: Users, description: 'Team coordination' },
+      { label: 'Venues', href: '/admin/dashboard/venues', icon: Building2, description: 'Venue directory' },
+      { label: 'Vendors', href: '/admin/dashboard/logistics', icon: Truck, description: 'Vendor management' }
     ],
     tools: [
-      { label: 'Settings', href: '/admin/settings', icon: Settings, description: 'Platform configuration' },
-      { label: 'User Management', href: '/admin/users', icon: Shield, description: 'Access control' }
+      { label: 'Settings', href: '/admin/dashboard/settings', icon: Settings, description: 'Platform configuration' },
+      { label: 'User Management', href: '/admin/dashboard/rbac', icon: Shield, description: 'Access control' }
     ]
   },
 
   manager: {
     primary: [
-      { label: 'Dashboard', href: '/manager/dashboard', icon: Home, description: 'Management overview' },
-      { label: 'Tours', href: '/manager/tours', icon: Calendar, description: 'Tour operations' },
-      { label: 'Team', href: '/manager/team', icon: Users, description: 'Team management' },
-      { label: 'Communications', href: '/manager/communications', icon: MessageSquare, badge: 'Live', description: 'Team coordination' },
-      { label: 'Reports', href: '/manager/reports', icon: BarChart3, description: 'Performance reports' }
+      { label: 'Dashboard', href: '/admin/dashboard', icon: Home, description: 'Management overview' },
+      { label: 'Tours', href: '/admin/dashboard/tours', icon: Calendar, description: 'Tour operations' },
+      { label: 'Team', href: '/admin/dashboard/staff', icon: Users, description: 'Team management' },
+      { label: 'Communications', href: '/admin/dashboard/communications', icon: MessageSquare, badge: 'Live', description: 'Team coordination' },
+      { label: 'Reports', href: '/admin/dashboard/analytics', icon: BarChart3, description: 'Performance reports' }
     ],
     secondary: [
-      { label: 'Events', href: '/manager/events', icon: MapPin, description: 'Event oversight' },
-      { label: 'Venues', href: '/manager/venues', icon: Building2, description: 'Venue coordination' }
+      { label: 'Events', href: '/admin/dashboard/events', icon: MapPin, description: 'Event oversight' },
+      { label: 'Venues', href: '/admin/dashboard/venues', icon: Building2, description: 'Venue coordination' }
     ],
     tools: [
-      { label: 'Settings', href: '/manager/settings', icon: Settings, description: 'Preferences' }
+      { label: 'Settings', href: '/admin/dashboard/settings', icon: Settings, description: 'Preferences' }
     ]
   },
 
   tour_manager: {
     primary: [
-      { label: 'Tour Dashboard', href: '/tour/dashboard', icon: Home, description: 'Current tour status' },
-      { label: 'Schedule', href: '/tour/schedule', icon: Calendar, description: 'Tour timeline' },
-      { label: 'Crew', href: '/tour/crew', icon: Users, description: 'Crew coordination' },
-      { label: 'Communications', href: '/tour/communications', icon: MessageSquare, badge: 'Live', description: 'Team chat' },
-      { label: 'Logistics', href: '/tour/logistics', icon: Truck, description: 'Transportation & equipment' }
+      { label: 'Tour Dashboard', href: '/admin/dashboard/tours', icon: Home, description: 'Current tour status' },
+      { label: 'Schedule', href: '/admin/dashboard/events/planner', icon: Calendar, description: 'Tour timeline' },
+      { label: 'Crew', href: '/admin/dashboard/staff', icon: Users, description: 'Crew coordination' },
+      { label: 'Communications', href: '/admin/dashboard/communications', icon: MessageSquare, badge: 'Live', description: 'Team chat' },
+      { label: 'Logistics', href: '/admin/dashboard/logistics', icon: Truck, description: 'Transportation & equipment' }
     ],
     secondary: [
-      { label: 'Venues', href: '/tour/venues', icon: Building2, description: 'Venue coordination' },
-      { label: 'Budget', href: '/tour/budget', icon: BarChart3, description: 'Financial tracking' }
+      { label: 'Venues', href: '/admin/dashboard/venues', icon: Building2, description: 'Venue coordination' },
+      { label: 'Budget', href: '/admin/dashboard/finances', icon: BarChart3, description: 'Financial tracking' }
     ],
     tools: [
-      { label: 'Settings', href: '/tour/settings', icon: Settings, description: 'Tour preferences' }
+      { label: 'Settings', href: '/admin/dashboard/settings', icon: Settings, description: 'Tour preferences' }
     ]
   },
 
   event_coordinator: {
     primary: [
-      { label: 'Events', href: '/events/dashboard', icon: Home, description: 'Event management' },
-      { label: 'Schedule', href: '/events/schedule', icon: Calendar, description: 'Event timeline' },
-      { label: 'Staff', href: '/events/staff', icon: Users, description: 'Event staffing' },
-      { label: 'Communications', href: '/events/communications', icon: MessageSquare, description: 'Event coordination' }
+      { label: 'Events', href: '/admin/dashboard/events', icon: Home, description: 'Event management' },
+      { label: 'Schedule', href: '/admin/dashboard/events/planner', icon: Calendar, description: 'Event timeline' },
+      { label: 'Staff', href: '/admin/dashboard/staff', icon: Users, description: 'Event staffing' },
+      { label: 'Communications', href: '/admin/dashboard/communications', icon: MessageSquare, description: 'Event coordination' }
     ],
     secondary: [
-      { label: 'Venues', href: '/events/venues', icon: Building2, description: 'Venue management' },
-      { label: 'Reports', href: '/events/reports', icon: BarChart3, description: 'Event reports' }
+      { label: 'Venues', href: '/admin/dashboard/venues', icon: Building2, description: 'Venue management' },
+      { label: 'Reports', href: '/admin/dashboard/analytics', icon: BarChart3, description: 'Event reports' }
     ],
     tools: [
-      { label: 'Settings', href: '/events/settings', icon: Settings, description: 'Preferences' }
+      { label: 'Settings', href: '/admin/dashboard/settings', icon: Settings, description: 'Preferences' }
     ]
   },
 
   artist: {
     primary: [
-      { label: 'My Dashboard', href: '/artist/dashboard', icon: Home, description: 'Performance overview' },
-      { label: 'Schedule', href: '/artist/schedule', icon: Calendar, description: 'Upcoming performances' },
+      { label: 'My Dashboard', href: '/artist', icon: Home, description: 'Performance overview' },
+      { label: 'Schedule', href: '/artist/events', icon: Calendar, description: 'Upcoming performances' },
       { label: 'Music & Media', href: '/artist/music', icon: Music, description: 'Content management' },
       { label: 'Messages', href: '/artist/messages', icon: MessageSquare, description: 'Communications' }
     ],
     secondary: [
       { label: 'EPK', href: '/artist/epk', icon: Eye, description: 'Electronic press kit' },
-      { label: 'Analytics', href: '/artist/analytics', icon: BarChart3, description: 'Performance metrics' }
+      { label: 'Analytics', href: '/artist/dashboard/analytics', icon: BarChart3, description: 'Performance metrics' }
     ],
     tools: [
       { label: 'Settings', href: '/artist/settings', icon: Settings, description: 'Profile settings' }
@@ -138,47 +138,47 @@ const navigationConfig: Record<string, RoleNavConfig> = {
 
   crew_member: {
     primary: [
-      { label: 'My Tasks', href: '/crew/dashboard', icon: Home, description: 'Daily assignments' },
-      { label: 'Schedule', href: '/crew/schedule', icon: Calendar, description: 'Work schedule' },
-      { label: 'Team Chat', href: '/crew/messages', icon: MessageSquare, badge: 'Live', description: 'Crew coordination' }
+      { label: 'My Tasks', href: '/venue/staff', icon: Home, description: 'Daily assignments' },
+      { label: 'Schedule', href: '/venue/staff/scheduling', icon: Calendar, description: 'Work schedule' },
+      { label: 'Team Chat', href: '/messages', icon: MessageSquare, badge: 'Live', description: 'Crew coordination' }
     ],
     secondary: [
-      { label: 'Equipment', href: '/crew/equipment', icon: Truck, description: 'Equipment tracking' },
-      { label: 'Training', href: '/crew/training', icon: Shield, description: 'Safety & training' }
+      { label: 'Equipment', href: '/venue/dashboard/equipment', icon: Truck, description: 'Equipment tracking' },
+      { label: 'Training', href: '/venue/staff/roles-permissions', icon: Shield, description: 'Safety & training' }
     ],
     tools: [
-      { label: 'Settings', href: '/crew/settings', icon: Settings, description: 'Personal settings' }
+      { label: 'Settings', href: '/settings', icon: Settings, description: 'Personal settings' }
     ]
   },
 
   vendor: {
     primary: [
-      { label: 'Deliveries', href: '/vendor/dashboard', icon: Home, description: 'Delivery schedule' },
-      { label: 'Orders', href: '/vendor/orders', icon: Calendar, description: 'Order management' },
-      { label: 'Messages', href: '/vendor/messages', icon: MessageSquare, description: 'Client communication' }
+      { label: 'Deliveries', href: '/venue/dashboard/equipment', icon: Home, description: 'Delivery schedule' },
+      { label: 'Orders', href: '/venue/dashboard/tickets', icon: Calendar, description: 'Order management' },
+      { label: 'Messages', href: '/messages', icon: MessageSquare, description: 'Client communication' }
     ],
     secondary: [
-      { label: 'Inventory', href: '/vendor/inventory', icon: Truck, description: 'Stock management' },
-      { label: 'Reports', href: '/vendor/reports', icon: BarChart3, description: 'Business reports' }
+      { label: 'Inventory', href: '/venue/dashboard/equipment', icon: Truck, description: 'Stock management' },
+      { label: 'Reports', href: '/venue/dashboard/analytics', icon: BarChart3, description: 'Business reports' }
     ],
     tools: [
-      { label: 'Settings', href: '/vendor/settings', icon: Settings, description: 'Business settings' }
+      { label: 'Settings', href: '/venue/dashboard/settings', icon: Settings, description: 'Business settings' }
     ]
   },
 
   venue_owner: {
     primary: [
       { label: 'Venue Dashboard', href: '/venue/dashboard', icon: Home, description: 'Venue operations' },
-      { label: 'Bookings', href: '/venue/bookings', icon: Calendar, description: 'Event bookings' },
+      { label: 'Bookings', href: '/venue/dashboard/events', icon: Calendar, description: 'Event bookings' },
       { label: 'Staff', href: '/venue/staff', icon: Users, description: 'Venue staff' },
-      { label: 'Communications', href: '/venue/communications', icon: MessageSquare, description: 'Guest & staff messaging' }
+      { label: 'Communications', href: '/messages', icon: MessageSquare, description: 'Guest & staff messaging' }
     ],
     secondary: [
-      { label: 'Analytics', href: '/venue/analytics', icon: BarChart3, description: 'Venue performance' },
-      { label: 'Equipment', href: '/venue/equipment', icon: Truck, description: 'Venue equipment' }
+      { label: 'Analytics', href: '/venue/dashboard/analytics', icon: BarChart3, description: 'Venue performance' },
+      { label: 'Equipment', href: '/venue/dashboard/equipment', icon: Truck, description: 'Venue equipment' }
     ],
     tools: [
-      { label: 'Settings', href: '/venue/settings', icon: Settings, description: 'Venue management' }
+      { label: 'Settings', href: '/venue/dashboard/settings', icon: Settings, description: 'Venue management' }
     ]
   },
 

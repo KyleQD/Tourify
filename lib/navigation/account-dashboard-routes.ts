@@ -9,7 +9,7 @@ export function getDashboardPathForAccountType(accountType: ProfileType | string
     case 'artist':
       return '/artist'
     case 'venue':
-      return '/venue'
+      return '/venue/dashboard'
     case 'admin':
       return '/admin/dashboard'
     case 'staff':
@@ -26,5 +26,7 @@ export function getDashboardPathForAccountType(accountType: ProfileType | string
  */
 export function getRequiredAccountTypeForPathname(pathname: string): ProfileType | null {
   if (pathname.startsWith('/admin')) return 'admin'
+  if (pathname.startsWith('/venue')) return 'venue'
+  if (pathname.startsWith('/artist')) return 'artist'
   return null
 }

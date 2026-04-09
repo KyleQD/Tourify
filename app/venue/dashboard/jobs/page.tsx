@@ -7,208 +7,128 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateJobModal } from "../../components/jobs/create-job-modal"
-import { Briefcase, Search, MapPin, DollarSign, Calendar, Filter } from "lucide-react"
+import { Briefcase, Search, MapPin, DollarSign, Calendar, Filter, AlertCircle } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
-import { venueService } from "@/lib/services/venue.service"
+import { HiringStateCard } from "@/components/hiring/hiring-state-card"
+import { ApplicationStatusBadge } from "@/components/hiring/application-status-badge"
+
+interface VenueJobCard {
+  id: string
+  title: string
+  description: string
+  location: string
+  type: string
+  category: string
+  compensation: {
+    amount: number
+    type: "fixed" | "hourly"
+    details?: string
+  }
+  postedDate: string
+  applicants?: number
+  status?: string
+  postedBy?: string
+}
+
+interface VenueApplicationRow {
+  id: string
+  status: string
+  applied_at: string
+  job_posting_id: string
+  job_posting?: {
+    title?: string
+    department?: string
+    location?: string
+  } | null
+}
 
 export default function JobsPage() {
   const { venue } = useCurrentVenue()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("my-jobs")
-
-  const [myJobs, setMyJobs] = useState([
-    {
-      id: "job-1",
-      title: "Drummer Needed for Summer Tour",
-      description:
-        "Looking for an experienced drummer to join our summer tour across the US. Must be available from June to August.",
-      location: "Multiple Cities",
-      type: "Contract",
-      category: "musician",
-      compensation: {
-        amount: 5000,
-        type: "fixed",
-        details: "Plus per diem and accommodations",
-      },
-      postedDate: "2024-04-05",
-      applicants: 8,
-      status: "active",
-    },
-    {
-      id: "job-2",
-      title: "Sound Engineer for Nashville Show",
-      description:
-        "Need a professional sound engineer for our upcoming show in Nashville. Experience with live mixing required.",
-      location: "Nashville, TN",
-      type: "One-time",
-      category: "av-tech",
-      compensation: {
-        amount: 350,
-        type: "fixed",
-      },
-      postedDate: "2024-04-08",
-      applicants: 3,
-      status: "active",
-    },
-    {
-      id: "job-3",
-      title: "Merchandise Seller for LA Concert",
-      description: "Looking for someone to handle merchandise sales at our LA concert.",
-      location: "Los Angeles, CA",
-      type: "One-time",
-      category: "crew",
-      compensation: {
-        amount: 150,
-        type: "fixed",
-        details: "Plus commission on sales",
-      },
-      postedDate: "2024-04-10",
-      applicants: 5,
-      status: "active",
-    },
-    {
-      id: "job-4",
-      title: "Backup Vocalist for Recording Session",
-      description: "Need a female backup vocalist for a recording session next week.",
-      location: "New York, NY",
-      type: "One-time",
-      category: "musician",
-      compensation: {
-        amount: 200,
-        type: "fixed",
-      },
-      postedDate: "2024-03-25",
-      applicants: 12,
-      status: "closed",
-    },
-  ])
-
-  const [availableJobs, setAvailableJobs] = useState([
-    {
-      id: "avail-1",
-      title: "Lead Guitarist Needed",
-      description: "Rock band looking for a lead guitarist for upcoming tour.",
-      location: "Chicago, IL",
-      type: "Contract",
-      category: "musician",
-      compensation: {
-        amount: 4000,
-        type: "fixed",
-        details: "Plus per diem",
-      },
-      postedDate: "2024-04-07",
-      postedBy: "The Amplifiers",
-      postedByImage: "/placeholder.svg?height=40&width=40&text=TA",
-    },
-    {
-      id: "avail-2",
-      title: "Stage Manager for Festival",
-      description: "Looking for an experienced stage manager for a 3-day music festival.",
-      location: "Austin, TX",
-      type: "One-time",
-      category: "crew",
-      compensation: {
-        amount: 1500,
-        type: "fixed",
-      },
-      postedDate: "2024-04-09",
-      postedBy: "SoundWave Festival",
-      postedByImage: "/placeholder.svg?height=40&width=40&text=SF",
-    },
-    {
-      id: "avail-3",
-      title: "Security Staff for Concert Series",
-      description: "Hiring security personnel for summer concert series.",
-      location: "Miami, FL",
-      type: "Part-time",
-      category: "security",
-      compensation: {
-        amount: 25,
-        type: "hourly",
-      },
-      postedDate: "2024-04-11",
-      postedBy: "Beachside Venues",
-      postedByImage: "/placeholder.svg?height=40&width=40&text=BV",
-    },
-    {
-      id: "avail-4",
-      title: "Lighting Technician",
-      description: "Need a lighting technician for upcoming theater performances.",
-      location: "Seattle, WA",
-      type: "Contract",
-      category: "av-tech",
-      compensation: {
-        amount: 3000,
-        type: "fixed",
-        details: "For 10 shows",
-      },
-      postedDate: "2024-04-06",
-      postedBy: "Emerald City Productions",
-      postedByImage: "/placeholder.svg?height=40&width=40&text=EC",
-    },
-    {
-      id: "avail-5",
-      title: "Dancer for Music Video",
-      description: "Looking for contemporary dancers for a music video shoot.",
-      location: "Los Angeles, CA",
-      type: "One-time",
-      category: "dancer",
-      compensation: {
-        amount: 400,
-        type: "fixed",
-        details: "Per day, 2-day shoot",
-      },
-      postedDate: "2024-04-12",
-      postedBy: "Visionary Media",
-      postedByImage: "/placeholder.svg?height=40&width=40&text=VM",
-    },
-  ])
+  const [myJobs, setMyJobs] = useState<VenueJobCard[]>([])
+  const [availableJobs, setAvailableJobs] = useState<VenueJobCard[]>([])
+  const [applications, setApplications] = useState<VenueApplicationRow[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [didFail, setDidFail] = useState(false)
 
   useEffect(() => {
     async function loadVenueJobs() {
       if (!venue?.id) return
-      const [events, teamMembers] = await Promise.all([
-        venueService.getVenueEventsByRange(
-          venue.id,
-          new Date().toISOString(),
-          new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString()
-        ),
-        venueService.getVenueTeamMembers(venue.id),
-      ])
+      try {
+        setIsLoading(true)
+        setDidFail(false)
+        const [myJobsRes, boardRes, applicationsRes] = await Promise.all([
+          fetch(`/api/admin/job-postings?venue_id=${venue.id}`, { credentials: "include", cache: "no-store" }),
+          fetch("/api/job-board?limit=20", { credentials: "include", cache: "no-store" }),
+          fetch("/api/job-applications?limit=20", { credentials: "include", cache: "no-store" }),
+        ])
 
-      const generatedJobs = events.slice(0, 8).map((event: any) => ({
-        id: `job-${event.id}`,
-        title: `Crew needed: ${event.title || "Event"}`,
-        description: "Support staff needed for venue operations and guest management.",
-        location: `${venue.city || ""}${venue.city && venue.state ? ", " : ""}${venue.state || ""}` || "Venue",
-        type: "One-time",
-        category: "crew",
-        compensation: {
-          amount: 200,
-          type: "fixed",
-          details: "Per event shift",
-        },
-        postedDate: new Date().toISOString().slice(0, 10),
-        applicants: Math.max(0, Math.floor(Number(event.capacity || 0) / 150)),
-        status: "active",
-      }))
+        const [myJobsPayload, boardPayload, applicationsPayload] = await Promise.all([
+          myJobsRes.json(),
+          boardRes.json(),
+          applicationsRes.json(),
+        ])
 
-      if (generatedJobs.length > 0) setMyJobs(generatedJobs)
+        const normalizedMyJobs = Array.isArray(myJobsPayload?.data)
+          ? myJobsPayload.data.map((job: any) => ({
+              id: String(job.id),
+              title: job.title || "Untitled role",
+              description: job.description || "No description provided.",
+              location: job.location || "Venue",
+              type: String(job.employment_type || "contractor").replace(/_/g, " "),
+              category: job.role_type || job.department || "crew",
+              compensation: {
+                amount: Number(job.salary_range?.max || job.salary_range?.min || 0),
+                type: job.salary_range?.type === "hourly" ? "hourly" : "fixed",
+                details: job.salary_range?.min && job.salary_range?.max
+                  ? `${Number(job.salary_range.min)} - ${Number(job.salary_range.max)}`
+                  : undefined,
+              },
+              postedDate: job.created_at || new Date().toISOString(),
+              applicants: Number(job.applications_count || 0),
+              status: job.status || "draft",
+            }))
+          : []
 
-      if (teamMembers.length > 0) {
-        setAvailableJobs((currentJobs) =>
-          currentJobs.map((job, index) => ({
-            ...job,
-            postedBy: teamMembers[index % teamMembers.length].name || job.postedBy,
-          }))
-        )
+        const normalizedBoardJobs = Array.isArray(boardPayload?.data)
+          ? boardPayload.data.map((job: any) => ({
+              id: String(job.id),
+              title: job.title || "Untitled role",
+              description: job.description || "No description provided.",
+              location: job.location || "Remote",
+              type: String(job.employment_type || "contractor").replace(/_/g, " "),
+              category: job.role_type || job.department || "crew",
+              compensation: {
+                amount: Number(job.salary_range?.max || job.salary_range?.min || 0),
+                type: job.salary_range?.type === "hourly" ? "hourly" : "fixed",
+                details: job.salary_range?.min && job.salary_range?.max
+                  ? `${Number(job.salary_range.min)} - ${Number(job.salary_range.max)}`
+                  : undefined,
+              },
+              postedDate: job.created_at || new Date().toISOString(),
+              postedBy: job.organization_name || "Tourify venue",
+            }))
+          : []
+
+        const normalizedApplications = Array.isArray(applicationsPayload?.data)
+          ? (applicationsPayload.data as VenueApplicationRow[])
+          : []
+
+        setMyJobs(normalizedMyJobs)
+        setAvailableJobs(normalizedBoardJobs)
+        setApplications(normalizedApplications)
+      } catch {
+        setDidFail(true)
+      } finally {
+        setIsLoading(false)
       }
     }
 
     void loadVenueJobs()
-  }, [venue?.id, venue?.city, venue?.state])
+  }, [venue?.id])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -292,16 +212,31 @@ export default function JobsPage() {
         </TabsList>
 
         <TabsContent value="my-jobs" className="mt-6 space-y-6">
-          {filteredMyJobs.length === 0 ? (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="pt-6 text-center">
-                <p className="text-gray-400">No job postings found. Create your first job posting!</p>
-                <Button className="mt-4" onClick={() => setShowCreateModal(true)}>
-                  <Briefcase className="h-4 w-4 mr-2" />
-                  Post Job
-                </Button>
-              </CardContent>
-            </Card>
+          {isLoading ? (
+            <HiringStateCard
+              title="Loading Job Postings"
+              description="Loading your job postings..."
+              isLoading={true}
+              className="border-gray-800 bg-gray-900"
+            />
+          ) : didFail ? (
+            <HiringStateCard
+              title="Unable to Load Postings"
+              description="Could not load your postings right now."
+              icon={AlertCircle}
+              className="border-gray-800 bg-gray-900"
+              actionLabel="Retry"
+              onAction={() => window.location.reload()}
+            />
+          ) : filteredMyJobs.length === 0 ? (
+            <HiringStateCard
+              title="No Job Postings Yet"
+              description="No job postings found. Create your first job posting."
+              icon={Briefcase}
+              className="border-gray-800 bg-gray-900"
+              actionLabel="Post Job"
+              onAction={() => setShowCreateModal(true)}
+            />
           ) : (
             filteredMyJobs.map((job) => (
               <Card key={job.id} className="bg-gray-900 border-gray-800">
@@ -370,12 +305,20 @@ export default function JobsPage() {
         </TabsContent>
 
         <TabsContent value="available" className="mt-6 space-y-6">
-          {filteredAvailableJobs.length === 0 ? (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="pt-6 text-center">
-                <p className="text-gray-400">No available jobs found matching your search criteria.</p>
-              </CardContent>
-            </Card>
+          {isLoading ? (
+            <HiringStateCard
+              title="Loading Available Jobs"
+              description="Loading available jobs..."
+              isLoading={true}
+              className="border-gray-800 bg-gray-900"
+            />
+          ) : filteredAvailableJobs.length === 0 ? (
+            <HiringStateCard
+              title="No Available Matches"
+              description="No available jobs found matching your search criteria."
+              icon={Briefcase}
+              className="border-gray-800 bg-gray-900"
+            />
           ) : (
             filteredAvailableJobs.map((job) => (
               <Card key={job.id} className="bg-gray-900 border-gray-800">
@@ -420,7 +363,7 @@ export default function JobsPage() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button className="flex-1">Apply Now</Button>
+                    <Button className="flex-1">View Role</Button>
                     <Button variant="outline" className="border-gray-700">
                       Save
                     </Button>
@@ -432,14 +375,43 @@ export default function JobsPage() {
         </TabsContent>
 
         <TabsContent value="applications" className="mt-6">
-          <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="pt-6 text-center">
-              <p className="text-gray-400">You haven't applied to any jobs yet.</p>
-              <Button className="mt-4" onClick={() => setActiveTab("available")}>
-                Browse Available Jobs
-              </Button>
-            </CardContent>
-          </Card>
+          {isLoading ? (
+            <HiringStateCard
+              title="Loading Applications"
+              description="Loading your applications..."
+              isLoading={true}
+              className="border-gray-800 bg-gray-900"
+            />
+          ) : applications.length === 0 ? (
+            <HiringStateCard
+              title="No Applications Yet"
+              description="You haven't applied to any jobs yet."
+              icon={Briefcase}
+              className="border-gray-800 bg-gray-900"
+              actionLabel="Browse Available Jobs"
+              onAction={() => setActiveTab("available")}
+            />
+          ) : (
+            <div className="space-y-3">
+              {applications.map((application) => (
+                <Card key={application.id} className="bg-gray-900 border-gray-800">
+                  <CardContent className="pt-5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-white font-medium">
+                          {application.job_posting?.title || "Job posting"}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          Applied {formatDate(application.applied_at)}
+                        </p>
+                      </div>
+                      <ApplicationStatusBadge status={application.status} className="w-fit" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

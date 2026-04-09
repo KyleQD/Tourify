@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Loader2, Briefcase } from "lucide-react"
+import { ApplicationStatusBadge } from "@/components/hiring/application-status-badge"
+import { trackDashboardUxEvent } from "@/lib/analytics/ux-event-client"
 
 interface StaffingApplicationRow {
   id: string
@@ -65,14 +66,29 @@ export function MyStaffingApplications() {
           Your staffing applications
         </CardTitle>
         <div className="flex flex-wrap gap-3 text-xs">
-          <Link href="/jobs?tab=staffing" className="text-cyan-300 hover:underline">
+          <Link
+            href="/jobs?tab=staffing"
+            className="text-cyan-300 hover:underline"
+            onClick={() =>
+              void trackDashboardUxEvent({
+                eventName: "staffing_board_opened",
+                surface: "staffing_applications_card",
+              })
+            }
+          >
             Open staffing board
           </Link>
           <Link
-            href="/admin/dashboard/tours?tab=overview&workflowFilter=task&workflowDialog=1"
+            href="/jobs?tab=applications"
             className="text-purple-300 hover:underline"
+            onClick={() =>
+              void trackDashboardUxEvent({
+                eventName: "staffing_applications_tab_opened",
+                surface: "staffing_applications_card",
+              })
+            }
           >
-            Open workflow timeline
+            View application activity
           </Link>
         </div>
       </CardHeader>
@@ -94,9 +110,7 @@ export function MyStaffingApplications() {
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="secondary" className="capitalize bg-slate-700 text-slate-100">
-                  {r.status}
-                </Badge>
+                <ApplicationStatusBadge status={r.status} />
                 <Link
                   href={`/jobs/${r.job_posting_id}`}
                   className="text-sm text-cyan-400 hover:underline"
