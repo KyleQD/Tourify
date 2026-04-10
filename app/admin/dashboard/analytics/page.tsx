@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState, useMemo } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -241,6 +242,23 @@ export default function AnalyticsPage() {
           <span className="text-sm text-amber-400/90">{error}</span>
         ) : null}
       </div>
+
+      <Card className="rounded-sm border-emerald-500/30 bg-emerald-500/5 backdrop-blur-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center text-white">
+            <Radio className="mr-2 h-5 w-5 text-emerald-400" />
+            Connect Funnel Monitoring
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-300">
+            Track in-person connect conversion, timing, and top claim rejection reasons in the dedicated telemetry dashboard.
+          </p>
+          <Button asChild variant="outline" className="border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10">
+            <Link href="/admin/dashboard/connect">Open Connect Telemetry</Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <AdminStatCard title="Total Revenue" value={formatSafeCurrency(s.totalRevenue)} icon={DollarSign} color="green" size="lg" isLoading={isLoading && stats === null} />
