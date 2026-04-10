@@ -11,6 +11,7 @@ export default function RootLayout() {
           <Stack.Screen name="(auth)/login" />
           <Stack.Screen name="(auth)/signup" />
           <Stack.Screen name="(auth)/callback" />
+          <Stack.Screen name="connect/claim" />
           <Stack.Screen name="(tabs)" />
         </Stack>
       </AuthProvider>
