@@ -5,6 +5,13 @@ import { useSession } from "@/hooks/use-session"
 import { useAccountMode } from "@/hooks/use-account-mode"
 import { supabase } from "@/lib/supabase/client"
 import { getCreatorCapabilities, updateCreatorCapabilities } from "@/lib/api/creator-capabilities"
+import { isQueuedOfflineError } from "@/lib/api/client"
+import {
+  clearMeshRelayPackets,
+  getMeshSyncStats,
+  importPeerSyncPacketFromPicker,
+  sharePeerSyncPacket
+} from "@/lib/connectivity/peer-sync"
 
 interface VenueSummaryStats {
   totalRequests: number
@@ -53,6 +60,12 @@ export default function ProfileScreen() {
   const [capabilitiesForm, setCapabilitiesForm] = useState<CreatorCapabilityForm>(emptyCapabilitiesForm)
   const [isLoadingCapabilities, setIsLoadingCapabilities] = useState(false)
   const [isSavingCapabilities, setIsSavingCapabilities] = useState(false)
+  const [meshStats, setMeshStats] = useState({
+    queuedActions: 0,
+    storedPackets: 0,
+    relayablePackets: 0,
+    seenPackets: 0
+  })
 
   useEffect(() => {
     async function loadVenueStats() {
@@ -117,6 +130,57 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleSharePeerSync() {
+    try {
+      const result = await sharePeerSyncPacket()
+      if (!result.shared) {
+        Alert.alert("Share not available", result.reason)
+        return
+      }
+
+      Alert.alert(
+        "Sync packet ready",
+        `Shared ${result.packetCount || 0} packet(s) containing ${result.actionCount || 0} action(s).`
+      )
+      await refreshMeshStats()
+    } catch (error) {
+      Alert.alert("Share failed", error instanceof Error ? error.message : "Please try again")
+    }
+  }
+
+  async function handleImportPeerSync() {
+    try {
+      const result = await importPeerSyncPacketFromPicker()
+      if (!result.imported) {
+        Alert.alert("Import canceled", result.reason)
+        return
+      }
+
+      Alert.alert(
+        "Sync packet imported",
+        `Received ${result.receivedPackets} packet(s), accepted ${result.acceptedPackets}. Added ${result.addedActions} action(s). Relay-ready packets: ${result.relayedPacketsReady}.`
+      )
+      await refreshMeshStats()
+    } catch (error) {
+      Alert.alert("Import failed", error instanceof Error ? error.message : "Please try again")
+    }
+  }
+
+  async function refreshMeshStats() {
+    const stats = await getMeshSyncStats()
+    setMeshStats(stats)
+  }
+
+  async function handleClearRelayPackets() {
+    try {
+      await clearMeshRelayPackets()
+      await refreshMeshStats()
+      Alert.alert("Relay cache cleared", "Stored relay packets were removed from this device.")
+    } catch (error) {
+      Alert.alert("Clear failed", error instanceof Error ? error.message : "Please try again")
+    }
+  }
+
   async function handleSaveCapabilities() {
     try {
       setIsSavingCapabilities(true)
@@ -133,6 +197,10 @@ export default function ProfileScreen() {
       })
       Alert.alert("Saved", "Creator capabilities updated")
     } catch (error) {
+      if (isQueuedOfflineError(error)) {
+        Alert.alert("Queued", "No service right now. Your profile changes will sync when connection returns.")
+        return
+      }
       Alert.alert("Save failed", error instanceof Error ? error.message : "Please try again")
     } finally {
       setIsSavingCapabilities(false)
@@ -142,6 +210,10 @@ export default function ProfileScreen() {
   function updateCapabilitiesField<K extends keyof CreatorCapabilityForm>(field: K, value: CreatorCapabilityForm[K]) {
     setCapabilitiesForm((previous) => ({ ...previous, [field]: value }))
   }
+
+  useEffect(() => {
+    void refreshMeshStats()
+  }, [])
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#020617" }}>
@@ -263,6 +335,28 @@ export default function ProfileScreen() {
           </View>
         ) : null}
 
+        <View style={{ borderWidth: 1, borderColor: "#334155", borderRadius: 12, padding: 12, gap: 10 }}>
+          <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>Off-grid mesh sync</Text>
+          <Text style={{ color: "#94a3b8", fontSize: 13 }}>
+            Use AirDrop / Nearby Share / Bluetooth share channels to relay mesh packets device-to-device when service is unavailable.
+          </Text>
+          <Text style={{ color: "#cbd5e1", fontSize: 12 }}>
+            Queue: {meshStats.queuedActions} • Stored packets: {meshStats.storedPackets} • Relay-ready: {meshStats.relayablePackets}
+          </Text>
+          <Pressable onPress={handleSharePeerSync} style={secondaryActionButton}>
+            <Text style={secondaryActionButtonText}>Share mesh packet</Text>
+          </Pressable>
+          <Pressable onPress={handleImportPeerSync} style={secondaryActionButton}>
+            <Text style={secondaryActionButtonText}>Import mesh packet</Text>
+          </Pressable>
+          <Pressable onPress={() => void refreshMeshStats()} style={secondaryActionButton}>
+            <Text style={secondaryActionButtonText}>Refresh mesh stats</Text>
+          </Pressable>
+          <Pressable onPress={handleClearRelayPackets} style={secondaryDangerButton}>
+            <Text style={secondaryActionButtonText}>Clear relay cache</Text>
+          </Pressable>
+        </View>
+
         <Pressable onPress={handleSignOut} style={{ borderRadius: 12, backgroundColor: "#b91c1c", paddingVertical: 12 }}>
           <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>Sign out</Text>
         </Pressable>
@@ -270,6 +364,30 @@ export default function ProfileScreen() {
     </SafeAreaView>
   )
 }
+
+const secondaryActionButton = {
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#334155",
+  paddingVertical: 10,
+  paddingHorizontal: 12,
+  backgroundColor: "#0f172a"
+} as const
+
+const secondaryDangerButton = {
+  borderRadius: 10,
+  borderWidth: 1,
+  borderColor: "#7f1d1d",
+  paddingVertical: 10,
+  paddingHorizontal: 12,
+  backgroundColor: "#450a0a"
+} as const
+
+const secondaryActionButtonText = {
+  color: "#e2e8f0",
+  fontWeight: "700",
+  textAlign: "center"
+} as const
 
 function LabeledInput(params: {
   label: string

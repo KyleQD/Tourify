@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native"
 import { getNotifications, markAllNotificationsAsRead, NotificationItem } from "@/lib/api/notifications"
+import { isQueuedOfflineError } from "@/lib/api/client"
 import { useRealtimeNotifications } from "@/hooks/use-realtime-notifications"
 
 export default function NotificationsScreen() {
@@ -30,6 +31,10 @@ export default function NotificationsScreen() {
       await markAllNotificationsAsRead()
       await loadNotifications()
     } catch (error) {
+      if (isQueuedOfflineError(error)) {
+        Alert.alert("Queued", "We saved your request and will mark these as read when connection returns.")
+        return
+      }
       Alert.alert("Failed to update", error instanceof Error ? error.message : "Please try again")
     }
   }

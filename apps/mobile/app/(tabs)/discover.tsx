@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, Te
 import * as Location from "expo-location"
 import { getDiscoverFeed, DiscoverResponse } from "@/lib/api/discover"
 import { followUser } from "@/lib/api/follow"
+import { isQueuedOfflineError } from "@/lib/api/client"
 import { useAccountMode } from "@/hooks/use-account-mode"
 
 type DiscoverIntent = "grow" | "network" | "book" | "learn"
@@ -26,6 +27,14 @@ export default function DiscoverScreen() {
         [profileId]: true
       }))
     } catch (error) {
+      if (isQueuedOfflineError(error)) {
+        setFollowedIds((current) => ({
+          ...current,
+          [profileId]: true
+        }))
+        Alert.alert("Queued", "No service right now. We will sync this follow when connection returns.")
+        return
+      }
       Alert.alert("Follow failed", error instanceof Error ? error.message : "Please try again")
     }
   }
