@@ -35,6 +35,20 @@ export default function BookingRequestPage() {
     agreeToTerms: false,
   })
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
@@ -60,9 +74,8 @@ export default function BookingRequestPage() {
 
     try {
       const venueId = Array.isArray(params.id) ? params.id[0] : params.id
-      const response = await fetch("/api/booking-requests", {
+      const response = await fetch("/api/booking-requests", buildNoStoreInit({
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           venueId,
           email: formData.contactEmail,
@@ -90,7 +103,7 @@ export default function BookingRequestPage() {
             ].join(" | "),
           },
         }),
-      })
+      }))
 
       if (!response.ok) {
         throw new Error("Failed to submit booking request")

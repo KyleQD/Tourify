@@ -22,7 +22,8 @@ import {
   TrendingUp,
   Star,
   MoreHorizontal,
-  Image as ImageIcon
+  Image as ImageIcon,
+  RefreshCw
 } from "lucide-react"
 import Image from "next/image"
 import { 
@@ -87,10 +88,17 @@ export default function MerchandisePage() {
   const [isSaving, setIsSaving] = useState(false)
   const [newSize, setNewSize] = useState('')
   const [newColor, setNewColor] = useState('')
+  const [isImportingLegacy, setIsImportingLegacy] = useState(false)
+  const [backfillPreview, setBackfillPreview] = useState<{
+    totalLegacyItems: number
+    alreadyMigrated: number
+    pendingItems: number
+  } | null>(null)
 
   useEffect(() => {
     if (user) {
       loadItems()
+      void loadBackfillPreview()
     }
   }, [user])
 
@@ -139,6 +147,44 @@ export default function MerchandisePage() {
       toast.error('Failed to load merchandise items')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadBackfillPreview = async () => {
+    try {
+      const response = await fetch('/api/marketplace/migrations/backfill-artist-merch', { cache: 'no-store' })
+      const body = await response.json()
+      if (!response.ok) return
+      setBackfillPreview(body.data || null)
+    } catch (error) {
+      console.error('Error loading marketplace backfill preview:', error)
+    }
+  }
+
+  const handleImportLegacyMerchandise = async () => {
+    try {
+      setIsImportingLegacy(true)
+      const response = await fetch('/api/marketplace/migrations/backfill-artist-merch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: false, publishActiveItems: true }),
+      })
+      const body = await response.json()
+      if (!response.ok) {
+        toast.error(body.error || 'Failed to import legacy merch')
+        return
+      }
+
+      const insertedCount = Number(body.data?.inserted || 0)
+      if (insertedCount > 0) toast.success(`Imported ${insertedCount} products into Marketplace`)
+      else toast.success('No legacy products needed migration')
+
+      await Promise.all([loadItems(), loadBackfillPreview()])
+    } catch (error) {
+      console.error('Error importing legacy merch:', error)
+      toast.error('Failed to import legacy merch')
+    } finally {
+      setIsImportingLegacy(false)
     }
   }
 
@@ -361,7 +407,7 @@ export default function MerchandisePage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-blue-500">
             <ShoppingBag className="h-6 w-6 text-white" />
@@ -371,17 +417,36 @@ export default function MerchandisePage() {
             <p className="text-gray-400">Manage your products and inventory</p>
           </div>
         </div>
-        <Button 
-          onClick={() => {
-            setEditingItem(null)
-            setShowEditor(true)
-          }}
-          className="bg-purple-600 hover:bg-purple-700 text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isImportingLegacy || !backfillPreview || backfillPreview.pendingItems === 0}
+            onClick={() => void handleImportLegacyMerchandise()}
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            {isImportingLegacy ? 'Importing...' : 'Import to Marketplace'}
+          </Button>
+          <Button 
+            onClick={() => {
+              setEditingItem(null)
+              setShowEditor(true)
+            }}
+            className="bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Product
+          </Button>
+        </div>
       </div>
+
+      {backfillPreview ? (
+        <Card className="bg-slate-900/50 border-slate-700/50">
+          <CardContent className="p-4 text-sm text-slate-300">
+            Marketplace migration status: {backfillPreview.totalLegacyItems} legacy items, {backfillPreview.pendingItems} pending import, {backfillPreview.alreadyMigrated} already migrated.
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

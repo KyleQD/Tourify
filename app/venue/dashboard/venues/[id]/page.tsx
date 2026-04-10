@@ -148,6 +148,20 @@ export default function VenuePage() {
     specs: false,
   })
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     const loadVenue = async () => {
       setLoading(true)
@@ -158,7 +172,7 @@ export default function VenuePage() {
           return
         }
 
-        const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}`)
+        const response = await fetch(`/api/venues/${encodeURIComponent(venueId)}`, buildNoStoreInit())
         if (!response.ok) throw new Error("Failed to load venue")
 
         const payload = await response.json()

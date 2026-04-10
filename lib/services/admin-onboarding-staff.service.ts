@@ -37,6 +37,10 @@ import {
   summarizeCredentialRecords,
   type EmployeeCredentialRecordInput,
 } from '@/lib/security/employee-credentials-vault'
+import {
+  enforceHiringEligibilityGate,
+  isHiringEligibilityGateError,
+} from '@/lib/services/hiring-eligibility.service'
 
 // Enhanced Zod schemas for validation
 const createJobPostingSchema = z.object({
@@ -604,7 +608,37 @@ export class AdminOnboardingStaffService {
         .order('applied_at', { ascending: false })
 
       if (error) throw error
-      return data || []
+
+      const applicationRows = data || []
+      const applicationIds = applicationRows.map((application) => application.id).filter(Boolean)
+      if (applicationIds.length === 0) return applicationRows
+
+      const { data: evidenceRequestRows } = await supabase
+        .from('hiring_audit_events')
+        .select('application_id, actor_user_id, content, metadata, created_at')
+        .in('application_id', applicationIds)
+        .eq('action', 'request_evidence')
+        .order('created_at', { ascending: false })
+
+      const latestEvidenceRequestByApplication = new Map<string, any>()
+      ;(evidenceRequestRows || []).forEach((row: any) => {
+        if (latestEvidenceRequestByApplication.has(row.application_id)) return
+        latestEvidenceRequestByApplication.set(row.application_id, row)
+      })
+
+      return applicationRows.map((application: any) => {
+        const evidenceRequest = latestEvidenceRequestByApplication.get(application.id)
+        return {
+          ...application,
+          evidence_request_status: evidenceRequest
+            ? {
+                requested_at: evidenceRequest.created_at,
+                requested_by: evidenceRequest.actor_user_id,
+                message: evidenceRequest.metadata?.message || evidenceRequest.content || '',
+              }
+            : null,
+        }
+      })
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job applications, returning fallback:', error)
       return getFallbackData('applications', venueId) as JobApplication[]
@@ -616,7 +650,10 @@ export class AdminOnboardingStaffService {
    */
   static async updateApplicationStatus(
     applicationId: string,
-    data: UpdateApplicationStatusData
+    data: UpdateApplicationStatusData,
+    options?: {
+      skipEligibilityGate?: boolean
+    }
   ): Promise<JobApplication> {
     try {
       const { data: { user } } = await supabase.auth.getUser()
@@ -637,6 +674,13 @@ export class AdminOnboardingStaffService {
       if (data.feedback) updateData.feedback = data.feedback
       if (data.rating) updateData.rating = data.rating
 
+      if (data.status === 'approved' && !options?.skipEligibilityGate) {
+        await enforceHiringEligibilityGate({
+          supabase,
+          applicationId,
+        })
+      }
+
       const { data: application, error } = await supabase
         .from('job_applications')
         .update(updateData)
@@ -656,6 +700,7 @@ export class AdminOnboardingStaffService {
 
       return application
     } catch (error) {
+      if (isHiringEligibilityGateError(error)) throw error
       console.error('❌ [Admin Onboarding Staff Service] Error updating application status:', error)
       throw error
     }

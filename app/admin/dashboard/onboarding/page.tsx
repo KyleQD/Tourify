@@ -41,6 +41,20 @@ export default function OnboardingPage() {
   const [isCreating, setIsCreating] = React.useState(false)
   const { toast } = useToast()
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   const [formData, setFormData] = React.useState({
     name: "",
     description: "",
@@ -66,7 +80,7 @@ export default function OnboardingPage() {
 
   async function fetchTemplates() {
     try {
-      const response = await fetch("/api/onboarding-templates")
+      const response = await fetch("/api/onboarding-templates", buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setTemplates(data.templates || [])
@@ -81,11 +95,10 @@ export default function OnboardingPage() {
       const url = isCreating ? "/api/onboarding-templates" : `/api/onboarding-templates/${selectedTemplate?.id}`
       const method = isCreating ? "POST" : "PUT"
 
-      const response = await fetch(url, {
+      const response = await fetch(url, buildNoStoreInit({
         method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData)
-      })
+        body: JSON.stringify(formData),
+      }))
 
       if (response.ok) {
         toast({
@@ -110,9 +123,9 @@ export default function OnboardingPage() {
 
   async function deleteTemplate(templateId: string) {
     try {
-      const response = await fetch(`/api/onboarding-templates/${templateId}`, {
+      const response = await fetch(`/api/onboarding-templates/${templateId}`, buildNoStoreInit({
         method: "DELETE"
-      })
+      }))
 
       if (response.ok) {
         toast({

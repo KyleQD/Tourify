@@ -88,6 +88,20 @@ function statusColor(status: string): string {
   }
 }
 
+function buildNoStoreInit(input?: RequestInit): RequestInit {
+  return {
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...(input?.headers || {}),
+    },
+  }
+}
+
 export default function FinancesPage() {
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<FinancialOverview | null>(null)
@@ -108,7 +122,7 @@ export default function FinancesPage() {
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/finances?type=overview')
+      const res = await fetch('/api/admin/finances?type=overview', buildNoStoreInit())
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setOverview(data.overview)
@@ -131,9 +145,8 @@ export default function FinancesPage() {
 
     setAddingTx(true)
     try {
-      const res = await fetch('/api/admin/finances', {
+      const res = await fetch('/api/admin/finances', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create_transaction',
           type: newTx.type,
@@ -143,7 +156,7 @@ export default function FinancesPage() {
           vendor_name: newTx.vendor_name || undefined,
           payment_status: newTx.payment_status,
         }),
-      })
+      }))
 
       if (!res.ok) throw new Error('Failed to create')
       toast.success('Transaction created')
@@ -168,11 +181,10 @@ export default function FinancesPage() {
     }
     setAddingBudget(true)
     try {
-      const res = await fetch('/api/admin/finances', {
+      const res = await fetch('/api/admin/finances', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'create_budget', category: newBudget.category, allocated_amount: Number(newBudget.allocated_amount), notes: newBudget.notes || undefined }),
-      })
+      }))
       if (!res.ok) throw new Error('Failed')
       toast.success('Budget created')
       setShowBudgetDialog(false)

@@ -263,6 +263,12 @@ interface PageClientProps {
   initialTransactions: BusinessTransaction[]
 }
 
+interface DashboardPreferenceState {
+  showQuickStats: boolean
+  showTasks: boolean
+  showRecommendations: boolean
+}
+
 export default function BusinessDashboardClient({ initialStats, initialTransactions }: PageClientProps) {
   const { user } = useArtist()
 
@@ -271,11 +277,30 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
   const [businessStats, setBusinessStats] = useState<BusinessOverview | null>(() => initialStats ?? null)
   const [recentTransactions, setRecentTransactions] = useState<BusinessTransaction[]>(initialTransactions || [])
   const [isLoading, setIsLoading] = useState(false)
+  const [dashboardPreferences, setDashboardPreferences] = useState<DashboardPreferenceState>({
+    showQuickStats: true,
+    showTasks: true,
+    showRecommendations: true,
+  })
+
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
 
   const runClientFetch = useCallback(async () => {
     setIsLoading(true)
     try {
-      const res = await fetch("/api/artist/business/overview", { cache: "no-store" })
+      const res = await fetch("/api/artist/business/overview", buildNoStoreInit())
       if (res.status === 401) {
         setBusinessStats(emptyOverview())
         setRecentTransactions([])
@@ -309,6 +334,35 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
     if (initialStats !== null) return
     runClientFetch()
   }, [user, initialStats, runClientFetch])
+
+  useEffect(() => {
+    if (!user) return
+
+    let isMounted = true
+    async function loadDashboardPreferences() {
+      try {
+        const response = await fetch('/api/profile/current', buildNoStoreInit())
+        if (!response.ok) return
+
+        const data = await response.json()
+        const dashboardSettings = data?.profile?.profile_data?.profile_experience?.dashboard || {}
+        if (!isMounted) return
+
+        setDashboardPreferences({
+          showQuickStats: dashboardSettings.show_quick_stats !== false,
+          showTasks: dashboardSettings.show_tasks !== false,
+          showRecommendations: dashboardSettings.show_recommendations !== false,
+        })
+      } catch (error) {
+        console.error('Could not load dashboard preferences:', error)
+      }
+    }
+
+    loadDashboardPreferences()
+    return () => {
+      isMounted = false
+    }
+  }, [user])
 
   const filteredFeatures = useMemo(() => {
     return businessFeatures.filter(feature => {
@@ -433,93 +487,99 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
         </p>
       )}
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {quickStats.map((stat, index) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: index * 0.06 }}
-            whileHover={{ y: -4 }}
-          >
-            <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-sm font-medium text-slate-400">{stat.label}</p>
-                    <p className="text-2xl font-bold text-white">{stat.value}</p>
-                    <p
-                      className={cn(
-                        "text-xs flex items-center gap-1 mt-1",
-                        stat.trend === "down" ? "text-rose-400" : stat.trend === "up" ? "text-emerald-400" : "text-slate-400"
-                      )}
-                    >
-                      {stat.trend === "down" ? (
-                        <TrendingDown className="h-3 w-3 shrink-0" />
-                      ) : stat.trend === "up" ? (
-                        <TrendingUp className="h-3 w-3 shrink-0" />
-                      ) : null}
-                      {stat.sub}
-                    </p>
+      {dashboardPreferences.showQuickStats && (
+        <div className="grid gap-6 md:grid-cols-3">
+          {quickStats.map((stat, index) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: index * 0.06 }}
+              whileHover={{ y: -4 }}
+            >
+              <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="text-sm font-medium text-slate-400">{stat.label}</p>
+                      <p className="text-2xl font-bold text-white">{stat.value}</p>
+                      <p
+                        className={cn(
+                          "text-xs flex items-center gap-1 mt-1",
+                          stat.trend === "down" ? "text-rose-400" : stat.trend === "up" ? "text-emerald-400" : "text-slate-400"
+                        )}
+                      >
+                        {stat.trend === "down" ? (
+                          <TrendingDown className="h-3 w-3 shrink-0" />
+                        ) : stat.trend === "up" ? (
+                          <TrendingUp className="h-3 w-3 shrink-0" />
+                        ) : null}
+                        {stat.sub}
+                      </p>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 border border-purple-500/20 flex items-center justify-center">
+                      <stat.icon className="h-6 w-6 text-purple-200" />
+                    </div>
                   </div>
-                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500/30 to-blue-500/30 border border-purple-500/20 flex items-center justify-center">
-                    <stat.icon className="h-6 w-6 text-purple-200" />
-                  </div>
-                </div>
-                <Progress value={stat.progress} className="h-2 bg-slate-800" />
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+                  <Progress value={stat.progress} className="h-2 bg-slate-800" />
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
-            <CardHeader>
-              <CardTitle className="text-slate-200 flex items-center gap-2">
-                <Filter className="h-5 w-5 text-purple-400" />
-                Business Categories
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {categories.map(category => (
-                  <Button
-                    key={category.value}
-                    variant={selectedCategory === category.value ? "default" : "outline"}
-                    size="sm"
-                    type="button"
-                    onClick={() => setSelectedCategory(category.value)}
-                    className={cn(
-                      "transition-all duration-200 rounded-xl",
-                      selectedCategory === category.value
-                        ? dashboardCreatePattern.btnPrimary
-                        : dashboardCreatePattern.btnOutline
-                    )}
-                  >
-                    {category.label}
-                    <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-300 border-slate-600">
-                      {category.count}
-                    </Badge>
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {dashboardPreferences.showTasks && (
+            <>
+              <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
+                <CardHeader>
+                  <CardTitle className="text-slate-200 flex items-center gap-2">
+                    <Filter className="h-5 w-5 text-purple-400" />
+                    Business Categories
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {categories.map(category => (
+                      <Button
+                        key={category.value}
+                        variant={selectedCategory === category.value ? "default" : "outline"}
+                        size="sm"
+                        type="button"
+                        onClick={() => setSelectedCategory(category.value)}
+                        className={cn(
+                          "transition-all duration-200 rounded-xl",
+                          selectedCategory === category.value
+                            ? dashboardCreatePattern.btnPrimary
+                            : dashboardCreatePattern.btnOutline
+                        )}
+                      >
+                        {category.label}
+                        <Badge variant="secondary" className="ml-2 bg-slate-800 text-slate-300 border-slate-600">
+                          {category.count}
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
 
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          >
-            <AnimatePresence mode="wait">
-              {filteredFeatures.map((feature, index) => (
-                <BusinessFeatureCard key={feature.label} feature={feature} stats={statsForUi} index={index} />
-              ))}
-            </AnimatePresence>
-          </motion.div>
+              <motion.div
+                variants={staggerContainer}
+                initial="initial"
+                animate="animate"
+                className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              >
+                <AnimatePresence mode="wait">
+                  {filteredFeatures.map((feature, index) => (
+                    <BusinessFeatureCard key={feature.label} feature={feature} stats={statsForUi} index={index} />
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            </>
+          )}
         </div>
 
         <div className="space-y-6">
@@ -586,9 +646,10 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
                 <Link href="/artist/business/financial">View financial log</Link>
               </Button>
             </CardContent>
-          </Card>
+            </Card>
 
-          <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
+          {dashboardPreferences.showRecommendations && (
+            <Card className={cn(dashboardCreatePattern.panel, "border-slate-700/50")}>
             <CardHeader>
               <CardTitle className="text-slate-200 flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-400" />
@@ -616,7 +677,8 @@ export default function BusinessDashboardClient({ initialStats, initialTransacti
                 ))}
               </div>
             </CardContent>
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
     </div>

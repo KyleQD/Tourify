@@ -11,18 +11,25 @@ export default function TestAPIPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   const testAPI = async () => {
     setLoading(true)
     setError(null)
     
     try {
       // Test stats API
-      const statsResponse = await fetch('/api/admin/dashboard/stats', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      const statsResponse = await fetch('/api/admin/dashboard/stats', buildNoStoreInit())
       
       if (statsResponse.ok) {
         const stats = await statsResponse.json()
@@ -34,12 +41,7 @@ export default function TestAPIPage() {
       }
       
       // Test tours API
-      const toursResponse = await fetch('/api/admin/tours', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      const toursResponse = await fetch('/api/admin/tours', buildNoStoreInit())
       
       if (toursResponse.ok) {
         const tours = await toursResponse.json()
@@ -51,12 +53,7 @@ export default function TestAPIPage() {
       }
       
       // Test events API
-      const eventsResponse = await fetch('/api/admin/events', {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      const eventsResponse = await fetch('/api/admin/events', buildNoStoreInit())
       
       if (eventsResponse.ok) {
         const events = await eventsResponse.json()

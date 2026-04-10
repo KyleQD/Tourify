@@ -60,6 +60,20 @@ export default function JobsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Fetch categories on component mount
   useEffect(() => {
     fetchCategories()
@@ -79,7 +93,7 @@ export default function JobsPage() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/artist-jobs/categories')
+      const response = await fetch('/api/artist-jobs/categories', buildNoStoreInit())
       const data = await response.json()
       if (data.success) {
         setCategories(data.data)
@@ -103,7 +117,7 @@ export default function JobsPage() {
         }
       })
 
-      const response = await fetch(`/api/artist-jobs?${queryParams}`)
+      const response = await fetch(`/api/artist-jobs?${queryParams}`, buildNoStoreInit())
       const data = await response.json()
       if (data.success) {
         setSearchResults(data.data)
@@ -119,7 +133,7 @@ export default function JobsPage() {
   const fetchSavedJobs = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/artist-jobs/saved')
+      const response = await fetch('/api/artist-jobs/saved', buildNoStoreInit())
       const data = await response.json()
       if (data.success) {
         setSavedJobs(data.data)
@@ -139,7 +153,7 @@ export default function JobsPage() {
   const fetchUserApplications = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/artist-jobs/applications?format=cards')
+      const response = await fetch('/api/artist-jobs/applications?format=cards', buildNoStoreInit())
       const data = await response.json()
       if (data.success) setUserApplications(data.data || [])
     } catch (error) {
@@ -156,7 +170,7 @@ export default function JobsPage() {
 
   const fetchFeaturedJobs = async () => {
     try {
-      const response = await fetch('/api/artist-jobs?featured_only=true&per_page=5')
+      const response = await fetch('/api/artist-jobs?featured_only=true&per_page=5', buildNoStoreInit())
       const data = await response.json()
       if (data.success) {
         setFeaturedJobs(data.data.jobs)
@@ -168,13 +182,10 @@ export default function JobsPage() {
 
   const handleSaveJob = async (jobId: string) => {
     try {
-      const response = await fetch('/api/artist-jobs/saved', {
+      const response = await fetch('/api/artist-jobs/saved', buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ job_id: jobId, action: 'save' }),
-      })
+      }))
       
       if (response.ok) {
         // Update the job in the current list
@@ -194,13 +205,10 @@ export default function JobsPage() {
 
   const handleUnsaveJob = async (jobId: string) => {
     try {
-      const response = await fetch('/api/artist-jobs/saved', {
+      const response = await fetch('/api/artist-jobs/saved', buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ job_id: jobId, action: 'unsave' }),
-      })
+      }))
       
       if (response.ok) {
         // Update the job in the current list
@@ -230,17 +238,14 @@ export default function JobsPage() {
     }
 
     try {
-      const response = await fetch(`/api/artist-jobs/${jobId}/applications`, {
+      const response = await fetch(`/api/artist-jobs/${jobId}/applications`, buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           job_id: jobId,
           contact_email: user.email,
           preferred_contact_method: 'email',
         }),
-      })
+      }))
 
       const data = await response.json()
       if (!data.success) throw new Error(data.error || 'Failed to apply')

@@ -101,6 +101,11 @@ export interface JobApplication {
   offer_made: boolean
   offer_date?: string
   offer_details: Record<string, any>
+  evidence_request_status?: {
+    requested_at: string
+    requested_by?: string
+    message?: string
+  } | null
 }
 
 // New interface for auto-screening results

@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { withAdminAuth } from '@/lib/auth/api-auth'
+
+function hasSyntheticRecords(records: Array<{ id?: string }>) {
+  return records.some((record) => {
+    const id = typeof record?.id === 'string' ? record.id : ''
+    return id.startsWith('mock-') || id.startsWith('fallback-')
+  })
+}
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
+  return withAdminAuth(async (req) => {
+    const { searchParams } = new URL(req.url)
     const venueId = searchParams.get('venue_id')
 
     if (!venueId) {
@@ -16,38 +22,23 @@ export async function GET(request: NextRequest) {
     }
 
     const jobPostings = await AdminOnboardingStaffService.getJobPostings(venueId)
+    if (hasSyntheticRecords(jobPostings as Array<{ id?: string }>)) {
+      return NextResponse.json(
+        { success: false, error: 'Live job postings unavailable' },
+        { status: 503 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
       data: jobPostings
     })
-  } catch (error) {
-    console.error('❌ [Job Postings API] Error:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch job postings',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  })(request)
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const supabase = createRouteHandlerClient({ cookies })
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        { success: false, error: 'Authentication required' },
-        { status: 401 }
-      )
-    }
-
-    const body = await request.json()
+  return withAdminAuth(async (req) => {
+    const body = await req.json()
     const { venue_id, ...jobData } = body
 
     if (!venue_id) {
@@ -63,15 +54,5 @@ export async function POST(request: NextRequest) {
       success: true,
       data: jobPosting
     })
-  } catch (error) {
-    console.error('❌ [Job Postings API] Error creating job posting:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to create job posting',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  })(request)
 } 

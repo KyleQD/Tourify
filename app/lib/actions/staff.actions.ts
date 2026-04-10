@@ -3,6 +3,12 @@
 import { z } from 'zod'
 import { createSafeActionClient } from 'next-safe-action'
 import { createClient } from '@/lib/supabase/server'
+import { canReviewStaffingApplications } from '@/lib/auth/hiring-permissions'
+import { canTransitionApplicationStatus } from '@/lib/hiring/application-transitions'
+import {
+  evaluateHiringEligibility,
+  isHiringEligibilityGateError,
+} from '@/lib/services/hiring-eligibility.service'
 
 const action = createSafeActionClient()
 
@@ -121,30 +127,71 @@ const ReviewApplicationSchema = z.object({
 })
 
 export const reviewJobApplicationAction = action.schema(ReviewApplicationSchema).action(async ({ parsedInput }) => {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { success: false, error: 'Not authenticated' }
 
-  // Fetch application for venue guard
-  const { data: app, error: appErr } = await supabase
-    .from('job_applications')
-    .select('id, venue_id')
-    .eq('id', parsedInput.application_id)
-    .single()
-  if (appErr || !app) return { success: false, error: 'Application not found' }
+    // Fetch application for venue guard
+    const { data: app, error: appErr } = await supabase
+      .from('job_applications')
+      .select('id, venue_id, status')
+      .eq('id', parsedInput.application_id)
+      .single()
+    if (appErr || !app) return { success: false, error: 'Application not found' }
 
-  // TODO: verify user has admin access to app.venue_id
-  const hasAccess = true
-  if (!hasAccess) return { success: false, error: 'No access' }
+    const hasAccess = await canReviewStaffingApplications({
+      userId: user.id,
+      venueId: app.venue_id,
+    })
+    if (!hasAccess) return { success: false, error: 'No access' }
 
-  const { data, error } = await supabase
-    .from('job_applications')
-    .update({ status: parsedInput.status, feedback: parsedInput.feedback, rating: parsedInput.rating, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
-    .eq('id', parsedInput.application_id)
-    .select()
-    .single()
+    if (!canTransitionApplicationStatus(app.status, parsedInput.status))
+      return { success: false, error: `Cannot transition application from ${app.status} to ${parsedInput.status}` }
 
-  if (error) return { success: false, error: error.message }
-  return { success: true, data }
+    if (parsedInput.status === 'approved') {
+      const eligibility = await evaluateHiringEligibility({
+        supabase,
+        applicationId: parsedInput.application_id,
+      })
+      if (eligibility.mode === 'enforce' && !eligibility.is_eligible) {
+        return {
+          success: false,
+          error: 'Application cannot be approved until required verified evidence is complete',
+          code: 'HIRING_ELIGIBILITY_BLOCKED',
+          eligibility,
+        } as any
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('job_applications')
+      .update({
+        status: parsedInput.status,
+        feedback: parsedInput.feedback,
+        rating: parsedInput.rating,
+        reviewed_by: user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq('id', parsedInput.application_id)
+      .select()
+      .single()
+
+    if (error) return { success: false, error: error.message }
+    return { success: true, data }
+  } catch (error) {
+    if (isHiringEligibilityGateError(error)) {
+      return {
+        success: false,
+        error: 'Application cannot be approved until required verified evidence is complete',
+        code: 'HIRING_ELIGIBILITY_BLOCKED',
+        eligibility: error.assessment,
+      } as any
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unexpected error',
+    }
+  }
 })
 

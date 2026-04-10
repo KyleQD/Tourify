@@ -63,6 +63,19 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   private readonly maxErrors = 5
   private readonly errorWindow = 60000 // 1 minute
 
+  private buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   constructor(props: ErrorBoundaryProps) {
     super(props)
     this.state = {
@@ -165,13 +178,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       }
 
       // Send error report to server
-      await fetch('/api/admin/error-reporting', {
+      await fetch('/api/admin/error-reporting', this.buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(errorReport)
-      })
+        body: JSON.stringify(errorReport),
+      }))
 
       this.setState({ reported: true })
       toast.success('Error reported successfully')

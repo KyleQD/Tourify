@@ -31,10 +31,24 @@ export function GuestlistManager({ eventIdOrSlug }: Props) {
   const [form, setForm] = useState<Partial<Guest>>({ guests_count: 1, status: "invited" })
   const [counts, setCounts] = useState({ attending: 0, interested: 0, not_going: 0 })
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   async function loadGuests() {
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, { credentials: 'include' })
+      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, buildNoStoreInit())
       const json = await res.json()
       setGuests(json.guests || [])
     } catch (e) {
@@ -47,7 +61,7 @@ export function GuestlistManager({ eventIdOrSlug }: Props) {
   useEffect(() => { loadGuests() }, [eventIdOrSlug])
   useEffect(() => { (async () => {
     try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/attendance`, { credentials: 'include' })
+      const res = await fetch(`/api/events/${eventIdOrSlug}/attendance`, buildNoStoreInit())
       const json = await res.json()
       setCounts(json.counts || { attending: 0, interested: 0, not_going: 0 })
     } catch {}
@@ -55,12 +69,10 @@ export function GuestlistManager({ eventIdOrSlug }: Props) {
 
   async function addGuest() {
     try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, {
+      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(form)
-      })
+      }))
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to add guest')
       toast.success('Guest added')
@@ -73,12 +85,10 @@ export function GuestlistManager({ eventIdOrSlug }: Props) {
 
   async function updateGuest(guest: Guest, updates: Partial<Guest>) {
     try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, {
+      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, buildNoStoreInit({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ id: guest.id, ...updates })
-      })
+      }))
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || 'Failed to update guest')
       toast.success('Guest updated')

@@ -16,8 +16,15 @@ This document ties together **org roles** ([`supabase/migrations/20250816132000_
 - **Posting jobs:** [`app/actions/staffing/create-job-posting.ts`](../app/actions/staffing/create-job-posting.ts) — `hasEntityPermission(..., ASSIGN_EVENT_ROLES)`.
 - **Hiring helpers:** [`lib/auth/hiring-permissions.ts`](../lib/auth/hiring-permissions.ts) — reuse for new APIs.
 - **Approve applications:** [`app/api/admin/applications/route.ts`](../app/api/admin/applications/route.ts) — authenticated admin; extend with org/venue membership checks as you harden multi-tenant access.
+- **Eligibility gate evaluator:** [`lib/services/hiring-eligibility.service.ts`](../lib/services/hiring-eligibility.service.ts) — canonical pass/fail checklist and reason codes.
+- **Employer vetting API:** [`app/api/employer/vetting/[applicationId]/route.ts`](../app/api/employer/vetting/[applicationId]/route.ts) — verified-evidence-only view for staffing reviewers.
+- **Single-application patch hardening:** [`app/api/admin/applications/[id]/route.ts`](../app/api/admin/applications/[id]/route.ts) — now uses the same RBAC and transition guardrails as collection routes.
 
 ## Notes
 
 - Row Level Security on `job_applications`, `staff_onboarding_candidates`, and `staff_documents` must align with this matrix; APIs using the **service role** should remain minimal and audited.
 - “Reviewer without full HR access” (masked PII) is a **future** product slice: introduce a dedicated permission flag in `org_role_permissions` before exposing partial applicant views.
+- `FEATURE_HIRING_ELIGIBILITY_GATE` controls rollout mode:
+  - `off` / `0`: evaluator disabled
+  - `shadow`: evaluator runs and logs, but approvals still proceed
+  - `enforce` / `1`: evaluator blocks approvals with `409` and deterministic reason codes

@@ -14,7 +14,7 @@ import {
   Share2, 
   MoreHorizontal, 
   Music, 
-  Image, 
+  Image as ImageIcon, 
   Video, 
   FileText,
   MapPin,
@@ -72,6 +72,20 @@ export default function ArtistFeedPage() {
   const [feedFilter, setFeedFilter] = useState<'all' | 'following' | 'trending'>('all')
   const supabase = createClientComponentClient()
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Fetch user's own posts
   const fetchPosts = async () => {
     if (!user?.id) return
@@ -79,12 +93,7 @@ export default function ArtistFeedPage() {
     setIsLoading(true)
     try {
       // Fetch only current user's posts
-      const response = await fetch(`/api/feed/posts?type=user&user_id=${user.id}&limit=20`, {
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await fetch(`/api/feed/posts?type=user&user_id=${user.id}&limit=20`, buildNoStoreInit())
 
       if (!response.ok) {
         console.log('API Response Error:', response.status, 'using empty posts for now')
@@ -140,12 +149,10 @@ export default function ArtistFeedPage() {
       }
 
       // Fetch posts from followed users
-      const response = await fetch('/api/feed/posts?type=network&limit=30', {
+      const response = await fetch('/api/feed/posts?type=network&limit=30', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ following_ids: followingIds, limit: 30 })
-      })
+      }))
 
       if (!response.ok) {
         console.log('Network API Response Error:', response.status, 'using empty network posts')
@@ -324,15 +331,13 @@ export default function ArtistFeedPage() {
 
   const handleFollow = async (userId: string, action: 'follow' | 'unfollow') => {
     try {
-      const response = await fetch('/api/follow', {
+      const response = await fetch('/api/follow', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ 
           following_id: userId, 
           action 
         })
-      })
+      }))
 
       if (!response.ok) {
         toast.info('Follow functionality coming soon!')
@@ -370,7 +375,7 @@ export default function ArtistFeedPage() {
 
   const getPostTypeIcon = (type: string) => {
     switch (type) {
-      case 'image': return <Image className="h-4 w-4" />
+      case 'image': return <ImageIcon className="h-4 w-4" />
       case 'video': return <Video className="h-4 w-4" />
       case 'audio': return <Music className="h-4 w-4" />
       case 'document': return <FileText className="h-4 w-4" />
@@ -1051,7 +1056,7 @@ export default function ArtistFeedPage() {
                       <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                            <Image className="h-5 w-5 text-purple-400" />
+                            <ImageIcon className="h-5 w-5 text-purple-400" />
                           </div>
                           <div>
                             <p className="text-white text-sm">Behind the scenes studio session</p>

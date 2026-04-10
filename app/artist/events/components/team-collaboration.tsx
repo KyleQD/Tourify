@@ -238,16 +238,29 @@ export function TeamCollaboration({
   const [workflowMessages, setWorkflowMessages] = useState<WorkflowMessage[]>([])
   const [isWorkflowSyncing, setIsWorkflowSyncing] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-cache",
+        pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     async function syncWorkflow() {
       if (!eventId) return
       setIsWorkflowSyncing(true)
       try {
-        const threadResponse = await fetch("/api/workflows/threads", {
+        const threadResponse = await fetch("/api/workflows/threads", buildNoStoreInit({
           method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({ scope_type: "event", scope_id: eventId, title: "Event workflow" }),
-        })
+        }))
 
         if (!threadResponse.ok) return
         const threadPayload = await threadResponse.json()
@@ -256,8 +269,8 @@ export function TeamCollaboration({
         setWorkflowThreadId(threadId)
 
         const [tasksResponse, messagesResponse] = await Promise.all([
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, { cache: "no-store" }),
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, { cache: "no-store" }),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, buildNoStoreInit()),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, buildNoStoreInit()),
         ])
 
         if (tasksResponse.ok) {
@@ -318,11 +331,10 @@ export function TeamCollaboration({
     try {
       await onSendMessage(newMessage, messageAttachments)
       if (workflowThreadId) {
-        await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/messages`, {
+        await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/messages`, buildNoStoreInit({
           method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({ body: newMessage }),
-        })
+        }))
       }
       setNewMessage("")
       setMessageAttachments([])
@@ -372,9 +384,8 @@ export function TeamCollaboration({
     try {
       await onAddTask(newTask)
       if (workflowThreadId) {
-        await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, {
+        await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, buildNoStoreInit({
           method: "POST",
-          headers: { "content-type": "application/json" },
           body: JSON.stringify({
             title: newTask.title,
             description: newTask.description,
@@ -384,7 +395,7 @@ export function TeamCollaboration({
             status: "todo",
             dependency_task_ids: newTask.dependencies || [],
           }),
-        })
+        }))
       }
       setIsTaskModalOpen(false)
       setNewTask({

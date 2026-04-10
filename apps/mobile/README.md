@@ -34,3 +34,15 @@ npm run dev:mobile
 - Payment bridge support for mobile deep links
 - Release checklist in `docs/release-checklist.md`
 - iOS build/setup guide in `docs/ios-setup.md`
+- Launch runbook and store assets in `docs/launch/launch-runbook.md`
+
+## Launch package commands
+
+```bash
+npm run launch:assets
+npm run launch:screenshots
+npm run launch:validate
+npm run launch:check-images
+npm run launch:bundle
+npm run launch:ready
+```

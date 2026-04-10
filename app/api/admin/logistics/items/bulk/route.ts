@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
-import { createServerClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
 
 export const PUT = withAdminAuth(async (request) => {
   try {
-    const supabase = createServerClient()
+    const supabase = await createClient()
     const body = await request.json()
     const itemIds: string[] = body.itemIds || []
     const action: string = body.action

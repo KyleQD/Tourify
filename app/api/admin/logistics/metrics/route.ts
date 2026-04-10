@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 export async function GET(request: NextRequest) {
-  try {
-    const supabase = createServerClient()
+  return withAdminAuth(async () => {
+    const supabase = await createClient()
 
     // Count tasks by type and status
     const types = ['transportation','equipment','backline','lodging','catering','communication','rental']
@@ -32,8 +33,5 @@ export async function GET(request: NextRequest) {
     metrics['accommodations'] = metrics['lodging']
 
     return NextResponse.json({ success: true, metrics, timestamp: new Date().toISOString() })
-  } catch (error) {
-    console.error('[Logistics Metrics API] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch logistics metrics' }, { status: 500 })
-  }
+  })(request)
 }

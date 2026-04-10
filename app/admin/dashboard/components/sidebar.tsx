@@ -148,6 +148,13 @@ const navItems: NavItem[] = [
     href: "/admin/dashboard/communications", 
     icon: MessageSquare,
   },
+  {
+    label: "Marketplace",
+    href: "/admin/dashboard/marketplace",
+    icon: Package,
+    badge: "New",
+    badgeColor: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  },
   { 
     label: "Roles & Permissions", 
     href: "/admin/dashboard/rbac", 
@@ -167,8 +174,19 @@ export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [activeEvents, setActiveEvents] = useState<ActiveEvent[]>([])
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   useEffect(() => {
-    fetch('/api/admin/events?status=active', { credentials: 'include' })
+    fetch('/api/admin/events?status=active', buildNoStoreInit())
       .then(r => r.ok ? r.json() : { events: [] })
       .then(data => {
         const mapped = (data.events || []).slice(0, 3).map((e: any) => {

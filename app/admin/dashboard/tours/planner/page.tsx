@@ -243,6 +243,20 @@ export default function TourPlannerPage() {
     sponsors: []
   })
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   const updateTourData = (updates: Partial<TourData>) => {
     setTourData(prev => ({ ...prev, ...updates }))
   }
@@ -333,13 +347,10 @@ export default function TourPlannerPage() {
         }
       }
 
-      const response = await fetch('/api/tours/planner', {
+      const response = await fetch('/api/tours/planner', buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(apiData)
-      })
+        body: JSON.stringify(apiData),
+      }))
 
       if (!response.ok) {
         const errorData = await response.json()

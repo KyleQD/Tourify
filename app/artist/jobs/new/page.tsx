@@ -34,10 +34,24 @@ export default function NewJobPage() {
   const [documents, setDocuments] = useState<string[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await fetch("/api/artist-jobs/categories")
+        const response = await fetch("/api/artist-jobs/categories", buildNoStoreInit())
         const payload = await response.json()
         if (!payload.success) return
 
@@ -85,11 +99,8 @@ export default function NewJobPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch("/api/artist-jobs", {
+      const response = await fetch("/api/artist-jobs", buildNoStoreInit({
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           title,
           description,
@@ -104,7 +115,7 @@ export default function NewJobPage() {
           required_equipment: documents.filter(d => d.trim() !== ""),
           contact_email: user?.email || null,
         }),
-      })
+      }))
 
       if (!response.ok) {
         throw new Error("Failed to create job")

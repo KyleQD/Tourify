@@ -412,6 +412,7 @@ const artistNavigation = [
   { name: 'Feed', href: '/artist/feed', icon: Home },
   { name: 'Content', href: '/artist/content', icon: Video },
   { name: 'Music', href: '/artist/music', icon: Music2 },
+  { name: 'Store', href: '/artist/store', icon: ShoppingBag },
   { name: 'Community', href: '/artist/community', icon: Users },
   { name: 'Business', href: '/artist/business', icon: ShoppingBag },
   { name: 'Events', href: '/artist/events', icon: Calendar },

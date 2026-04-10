@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -87,7 +87,7 @@ export function OptimizedSidebar() {
     "Organizer"
 
   // Create navigation items with real data
-  const navItems: NavItem[] = [
+  const navItems: NavItem[] = useMemo(() => [
     { 
       label: "Dashboard", 
       href: "/admin/dashboard", 
@@ -189,7 +189,7 @@ export function OptimizedSidebar() {
       description: "System configuration",
       shortcut: "⌘,"
     }
-  ]
+  ], [stats])
 
   // Handle mobile responsiveness
   useEffect(() => {
@@ -220,7 +220,7 @@ export function OptimizedSidebar() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [navItems])
 
   const toggleExpanded = useCallback((href: string) => {
     setExpandedItems(prev => 

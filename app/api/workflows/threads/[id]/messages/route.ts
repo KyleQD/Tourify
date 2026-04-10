@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
+import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
 
 const createMessageSchema = z.object({
   body: z.string().min(1).max(5000),
@@ -97,6 +98,18 @@ export async function POST(
           entity_type: 'message',
           entity_id: data.id,
           metadata: { message_type: data.message_type },
+        }),
+        recordAchievementMetricEvent({
+          supabase,
+          userId: user.id,
+          metricKey: 'workflow_messages_sent_total',
+          eventType: 'workflow_message_sent',
+          delta: 1,
+          eventData: {
+            thread_id: id,
+            message_type: data.message_type,
+          },
+          relatedCollaborationId: id,
         }),
       ])
 

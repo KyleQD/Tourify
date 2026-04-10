@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -122,13 +122,78 @@ export default function ApplicationsPage() {
 
   const venueId = venue?.id
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
+  const loadApplications = useCallback(async () => {
+    if (!venueId) {
+      setIsLoading(false)
+      return
+    }
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const response = await fetch(`/api/admin/applications?venue_id=${venueId}`, buildNoStoreInit())
+      const payload = await response.json()
+      if (!payload.success) throw new Error(payload.error || 'Failed to load applications')
+      setApplications((payload.data || []) as ApplicationWithJob[])
+    } catch (err) {
+      console.error('Error loading applications:', err)
+      setError('Failed to load applications')
+      toast({
+        title: 'Error',
+        description: 'Failed to load applications. Please try again.',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }, [venueId, toast])
+
+  const filterApplications = useCallback(() => {
+    let filtered = applications
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter(app =>
+        app.applicant_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.applicant_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        app.job_posting?.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    }
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(app => app.status === statusFilter)
+    }
+
+    // Filter by job posting
+    if (jobFilter !== 'all') {
+      filtered = filtered.filter(app => app.job_posting_id === jobFilter)
+    }
+
+    setFilteredApplications(filtered)
+  }, [applications, searchQuery, statusFilter, jobFilter])
+
   useEffect(() => {
-    if (venueId) loadApplications()
-  }, [venueId])
+    if (venueId) void loadApplications()
+  }, [venueId, loadApplications])
 
   useEffect(() => {
     filterApplications()
-  }, [applications, searchQuery, statusFilter, jobFilter])
+  }, [filterApplications])
 
   useEffect(() => {
     if (!selectedApplication?.id || !showApplicationModal) return
@@ -154,36 +219,10 @@ export default function ApplicationsPage() {
     }
   }, [auditCurlAuthMode])
 
-  async function loadApplications() {
-    if (!venueId) {
-      setIsLoading(false)
-      return
-    }
-    try {
-      setIsLoading(true)
-      setError(null)
-
-      const response = await fetch(`/api/admin/applications?venue_id=${venueId}`, { cache: 'no-store' })
-      const payload = await response.json()
-      if (!payload.success) throw new Error(payload.error || 'Failed to load applications')
-      setApplications((payload.data || []) as ApplicationWithJob[])
-    } catch (err) {
-      console.error('Error loading applications:', err)
-      setError('Failed to load applications')
-      toast({
-        title: 'Error',
-        description: 'Failed to load applications. Please try again.',
-        variant: 'destructive'
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   async function loadApplicationAuditEvents(applicationId: string) {
     try {
       setIsAuditLoading(true)
-      const response = await fetch(`/api/admin/applications/${applicationId}/audit`, { cache: 'no-store' })
+      const response = await fetch(`/api/admin/applications/${applicationId}/audit`, buildNoStoreInit())
       const payload = await response.json()
       if (!payload.success) throw new Error(payload.error || 'Failed to load audit trail')
       setAuditEvents(payload.data || [])
@@ -513,31 +552,6 @@ export default function ApplicationsPage() {
     }
   }
 
-  function filterApplications() {
-    let filtered = applications
-
-    // Filter by search query
-    if (searchQuery) {
-      filtered = filtered.filter(app => 
-        app.applicant_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        app.applicant_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        app.job_posting?.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(app => app.status === statusFilter)
-    }
-
-    // Filter by job posting
-    if (jobFilter !== 'all') {
-      filtered = filtered.filter(app => app.job_posting_id === jobFilter)
-    }
-
-    setFilteredApplications(filtered)
-  }
-
   async function handleReviewApplication() {
     if (!selectedApplication) return
 
@@ -546,11 +560,8 @@ export default function ApplicationsPage() {
       let successDescription = `Application has been ${reviewData.status}.`
 
       if (reviewData.status === 'approved') {
-        const response = await fetch('/api/admin/applications', {
+        const response = await fetch('/api/admin/applications', buildNoStoreInit({
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             action: 'approve',
             application_id: selectedApplication.id,
@@ -558,7 +569,7 @@ export default function ApplicationsPage() {
             contract_provider: reviewData.contractProvider,
             contract_terms: reviewData.contractTerms || undefined,
           }),
-        })
+        }))
 
         const payload = await response.json()
         if (!payload.success) throw new Error(payload.error || 'Approval failed')

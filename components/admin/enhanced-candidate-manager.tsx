@@ -19,6 +19,8 @@ import {
   Clock,
   CheckCircle,
   XSquare,
+  Shield,
+  AlertTriangle,
   Edit,
   Trash2,
   Download,
@@ -33,6 +35,7 @@ import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 interface OnboardingCandidate {
   id: string
+  application_id?: string
   venue_id: string
   name: string
   email: string
@@ -73,6 +76,12 @@ interface EnhancedCandidateManagerProps {
   onSendMessage: (candidate: OnboardingCandidate) => void
 }
 
+interface CandidateVettingSnapshot {
+  mode: 'off' | 'shadow' | 'enforce'
+  is_eligible: boolean
+  blocking_reasons: string[]
+}
+
 export default function EnhancedCandidateManager({
   venueId,
   onEditCandidate,
@@ -90,6 +99,7 @@ export default function EnhancedCandidateManager({
   const [positionFilter, setPositionFilter] = useState<string>('all')
   const [sortBy, setSortBy] = useState<string>('created_at')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+  const [vettingByCandidate, setVettingByCandidate] = useState<Record<string, CandidateVettingSnapshot>>({})
 
   useEffect(() => {
     fetchCandidates()
@@ -105,7 +115,9 @@ export default function EnhancedCandidateManager({
       const response = await fetch(`/api/admin/onboarding/candidates?venue_id=${venueId}`)
       if (response.ok) {
         const data = await response.json()
-        setCandidates(data.data || [])
+        const candidateRows = data.data || []
+        setCandidates(candidateRows)
+        void loadCandidateVetting(candidateRows)
       }
     } catch (error) {
       console.error("Error fetching candidates:", error)
@@ -117,6 +129,40 @@ export default function EnhancedCandidateManager({
     } finally {
       setLoading(false)
     }
+  }
+
+  async function loadCandidateVetting(candidateRows: OnboardingCandidate[]) {
+    const vettingPairs = await Promise.all(
+      candidateRows.map(async (candidate) => {
+        if (!candidate.application_id) return null
+        try {
+          const response = await fetch(`/api/employer/vetting/${candidate.application_id}`, {
+            credentials: 'include',
+          })
+          if (!response.ok) return null
+          const payload = await response.json()
+          if (!payload?.success || !payload?.data?.gate) return null
+          return [
+            candidate.id,
+            {
+              mode: payload.data.gate.mode,
+              is_eligible: Boolean(payload.data.gate.is_eligible),
+              blocking_reasons: payload.data.gate.blocking_reasons || [],
+            } as CandidateVettingSnapshot,
+          ] as const
+        } catch {
+          return null
+        }
+      })
+    )
+
+    const nextMap: Record<string, CandidateVettingSnapshot> = {}
+    vettingPairs.forEach((entry) => {
+      if (!entry) return
+      nextMap[entry[0]] = entry[1]
+    })
+
+    setVettingByCandidate(nextMap)
   }
 
   function filterAndSortCandidates() {
@@ -469,6 +515,24 @@ export default function EnhancedCandidateManager({
                           {getStatusIcon(candidate.status)}
                           <span className="ml-1 capitalize">{candidate.status.replace('_', ' ')}</span>
                         </Badge>
+                        {vettingByCandidate[candidate.id] && (
+                          <Badge
+                            className={
+                              vettingByCandidate[candidate.id].is_eligible
+                                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                            }
+                          >
+                            {vettingByCandidate[candidate.id].is_eligible ? (
+                              <Shield className="h-3 w-3 mr-1" />
+                            ) : (
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                            )}
+                            {vettingByCandidate[candidate.id].is_eligible
+                              ? 'Eligible'
+                              : `Blocked (${vettingByCandidate[candidate.id].blocking_reasons.length})`}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                     

@@ -327,6 +327,34 @@ export interface TravelGroupUtilization {
 
 export function useTravelCoordination() {
   const { toast } = useToast()
+
+  function buildReadRequestInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
+  function buildMutationRequestInit(input: {
+    method: 'POST' | 'PUT' | 'DELETE'
+    body?: Record<string, unknown>
+  }): RequestInit {
+    return {
+      method: input.method,
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+      body: input.body ? JSON.stringify(input.body) : undefined,
+    }
+  }
   
   // State for different data types
   const [groups, setGroups] = useState<TravelGroup[]>([])
@@ -395,9 +423,7 @@ export function useTravelCoordination() {
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -446,9 +472,7 @@ export function useTravelCoordination() {
       if (params?.status) searchParams.append('status', params.status)
       if (params?.group_type) searchParams.append('group_type', params.group_type)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -494,9 +518,7 @@ export function useTravelCoordination() {
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -534,9 +556,7 @@ export function useTravelCoordination() {
       
       if (params?.status) searchParams.append('status', params.status)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -582,9 +602,7 @@ export function useTravelCoordination() {
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -622,9 +640,7 @@ export function useTravelCoordination() {
       
       if (params?.status) searchParams.append('status', params.status)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -662,9 +678,7 @@ export function useTravelCoordination() {
       
       if (params?.status) searchParams.append('status', params.status)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -704,9 +718,7 @@ export function useTravelCoordination() {
       if (params?.date_from) searchParams.append('date_from', params.date_from)
       if (params?.date_to) searchParams.append('date_to', params.date_to)
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -741,9 +753,7 @@ export function useTravelCoordination() {
         offset: params?.offset?.toString() || '0'
       })
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -778,9 +788,7 @@ export function useTravelCoordination() {
         offset: params?.offset?.toString() || '0'
       })
 
-      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, {
-        credentials: 'include'
-      })
+      const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -807,15 +815,16 @@ export function useTravelCoordination() {
 
   const createTravelGroup = useCallback(async (groupData: Partial<TravelGroup>) => {
     try {
-      const response = await fetch('/api/admin/travel-coordination', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'create_travel_group',
-          ...groupData
+      const response = await fetch(
+        '/api/admin/travel-coordination',
+        buildMutationRequestInit({
+          method: 'POST',
+          body: {
+            action: 'create_travel_group',
+            ...groupData,
+          },
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -844,16 +853,17 @@ export function useTravelCoordination() {
 
   const updateTravelGroup = useCallback(async (id: string, groupData: Partial<TravelGroup>) => {
     try {
-      const response = await fetch('/api/admin/travel-coordination', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'update_travel_group',
-          id,
-          ...groupData
+      const response = await fetch(
+        '/api/admin/travel-coordination',
+        buildMutationRequestInit({
+          method: 'PUT',
+          body: {
+            action: 'update_travel_group',
+            id,
+            ...groupData,
+          },
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -882,10 +892,10 @@ export function useTravelCoordination() {
 
   const deleteTravelGroup = useCallback(async (id: string) => {
     try {
-      const response = await fetch(`/api/admin/travel-coordination?action=delete_travel_group&id=${id}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      })
+      const response = await fetch(
+        `/api/admin/travel-coordination?action=delete_travel_group&id=${id}`,
+        buildMutationRequestInit({ method: 'DELETE' })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -913,15 +923,16 @@ export function useTravelCoordination() {
 
   const createGroupMember = useCallback(async (memberData: Partial<TravelGroupMember>) => {
     try {
-      const response = await fetch('/api/admin/travel-coordination', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'create_group_member',
-          ...memberData
+      const response = await fetch(
+        '/api/admin/travel-coordination',
+        buildMutationRequestInit({
+          method: 'POST',
+          body: {
+            action: 'create_group_member',
+            ...memberData,
+          },
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -950,16 +961,17 @@ export function useTravelCoordination() {
 
   const bulkCreateGroupMembers = useCallback(async (groupId: string, members: Partial<TravelGroupMember>[]) => {
     try {
-      const response = await fetch('/api/admin/travel-coordination', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'bulk_create_group_members',
-          group_id: groupId,
-          members
+      const response = await fetch(
+        '/api/admin/travel-coordination',
+        buildMutationRequestInit({
+          method: 'POST',
+          body: {
+            action: 'bulk_create_group_members',
+            group_id: groupId,
+            members,
+          },
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -988,15 +1000,16 @@ export function useTravelCoordination() {
 
   const autoCoordinateGroup = useCallback(async (groupId: string) => {
     try {
-      const response = await fetch('/api/admin/travel-coordination', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          action: 'auto_coordinate_group',
-          group_id: groupId
+      const response = await fetch(
+        '/api/admin/travel-coordination',
+        buildMutationRequestInit({
+          method: 'POST',
+          body: {
+            action: 'auto_coordinate_group',
+            group_id: groupId,
+          },
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

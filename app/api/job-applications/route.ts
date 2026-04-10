@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase/client'
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
 import { cookies } from 'next/headers'
+import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
 
 /** List current user's staffing job applications (public board / job_posting_templates flow). */
 export async function GET(request: NextRequest) {
@@ -152,6 +153,19 @@ export async function POST(request: NextRequest) {
 
     // Increment application count on job posting using RPC-safe approach
     await supabase.rpc('increment_applications_count', { p_job_id: job_posting_id })
+
+    await recordAchievementMetricEvent({
+      supabase: supabaseAuth,
+      userId: user.id,
+      metricKey: 'jobs_applied_total',
+      eventType: 'job_application_submitted',
+      delta: 1,
+      eventData: {
+        job_posting_id,
+        venue_id: jobPosting.venue_id,
+      },
+      relatedProjectId: job_posting_id,
+    })
 
     return NextResponse.json({
       success: true,

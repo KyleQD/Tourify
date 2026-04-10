@@ -13,6 +13,19 @@ export default function CreateTablesPage() {
   const [logs, setLogs] = useState<string[]>([])
   const [sql, setSql] = useState("")
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   const addLog = (msg: string) => {
     setLogs(prev => [...prev, msg])
   }
@@ -26,12 +39,9 @@ export default function CreateTablesPage() {
     try {
       addLog("Checking if artist_profiles table exists...")
       
-      const response = await fetch('/api/migrations/create-tables', {
+      const response = await fetch('/api/migrations/create-tables', buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      }))
       
       const data = await response.json()
       

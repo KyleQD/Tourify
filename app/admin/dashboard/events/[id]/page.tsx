@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { 
   Calendar, 
@@ -217,6 +217,19 @@ function normalizeEventDetails(input: any, eventId: string): Event {
   }
 }
 
+function buildNoStoreInit(input?: RequestInit): RequestInit {
+  return {
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...(input?.headers || {}),
+    },
+  }
+}
+
 function EventIncidentsTab({ eventId }: { eventId: string }) {
   const [incidents, setIncidents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -224,14 +237,10 @@ function EventIncidentsTab({ eventId }: { eventId: string }) {
   const [creating, setCreating] = useState(false)
   const [newIncident, setNewIncident] = useState({ title: '', notes: '', severity: 'info' })
 
-  useEffect(() => {
-    fetchIncidents()
-  }, [eventId])
-
-  async function fetchIncidents() {
+  const fetchIncidents = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(`/api/events/${eventId}/incidents`)
+      const res = await fetch(`/api/events/${eventId}/incidents`, buildNoStoreInit())
       if (res.ok) {
         const data = await res.json()
         setIncidents(data.incidents || [])
@@ -239,7 +248,11 @@ function EventIncidentsTab({ eventId }: { eventId: string }) {
     } catch { /* */ } finally {
       setLoading(false)
     }
-  }
+  }, [eventId])
+
+  useEffect(() => {
+    void fetchIncidents()
+  }, [fetchIncidents])
 
   async function handleCreate() {
     if (!newIncident.title.trim()) {
@@ -248,16 +261,19 @@ function EventIncidentsTab({ eventId }: { eventId: string }) {
     }
     setCreating(true)
     try {
-      const res = await fetch(`/api/events/${eventId}/incidents`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newIncident),
-      })
+      const res = await fetch(
+        `/api/events/${eventId}/incidents`,
+        buildNoStoreInit({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newIncident),
+        })
+      )
       if (!res.ok) throw new Error()
       toast.success('Incident logged')
       setShowCreate(false)
       setNewIncident({ title: '', notes: '', severity: 'info' })
-      fetchIncidents()
+      await fetchIncidents()
     } catch {
       toast.error('Failed to log incident')
     } finally {
@@ -400,9 +416,7 @@ export default function EventManagementPage() {
         setIsLoading(true)
         
         // Fetch event details
-        const response = await fetch(`/api/events/${eventId}`, {
-          credentials: 'include',
-        })
+        const response = await fetch(`/api/events/${eventId}`, buildNoStoreInit())
         if (!response.ok) {
           throw new Error('Failed to fetch event data')
         }
@@ -413,10 +427,10 @@ export default function EventManagementPage() {
         setEditForm(normalizedEvent)
 
         const [tasksRes, staffRes, vendorsRes, financesRes] = await Promise.allSettled([
-          fetch(`/api/events/${eventId}/tasks`, { credentials: 'include' }).then(r => r.json()),
-          fetch(`/api/events/${eventId}/staff`, { credentials: 'include' }).then(r => r.json()),
-          fetch(`/api/events/${eventId}/vendors`, { credentials: 'include' }).then(r => r.json()),
-          fetch(`/api/events/${eventId}/finances`, { credentials: 'include' }).then(r => r.json()),
+          fetch(`/api/events/${eventId}/tasks`, buildNoStoreInit()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/staff`, buildNoStoreInit()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/vendors`, buildNoStoreInit()).then(r => r.json()),
+          fetch(`/api/events/${eventId}/finances`, buildNoStoreInit()).then(r => r.json()),
         ])
 
         if (tasksRes.status === 'fulfilled' && tasksRes.value?.tasks) {
@@ -517,20 +531,22 @@ export default function EventManagementPage() {
       const startAt = new Date(`${date}T${time}:00`).toISOString()
       const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
 
-      const response = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          title: `${event.name} (Copy)`,
-          description: event.description || '',
-          start_at: startAt,
-          end_at: endAt,
-          venue_id: null,
-          capacity: event.capacity ?? null,
-          status: 'draft',
-        }),
-      })
+      const response = await fetch(
+        '/api/events',
+        buildNoStoreInit({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: `${event.name} (Copy)`,
+            description: event.description || '',
+            start_at: startAt,
+            end_at: endAt,
+            venue_id: null,
+            capacity: event.capacity ?? null,
+            status: 'draft',
+          }),
+        })
+      )
       
       if (!response.ok) throw new Error('Failed to duplicate event')
       
@@ -546,12 +562,14 @@ export default function EventManagementPage() {
     if (!event) return
     
     try {
-      const response = await fetch(`/api/events/${eventId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(editForm)
-      })
+      const response = await fetch(
+        `/api/events/${eventId}`,
+        buildNoStoreInit({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editForm),
+        })
+      )
       
       if (!response.ok) throw new Error('Failed to update event')
       
@@ -568,12 +586,14 @@ export default function EventManagementPage() {
     if (!event) return
     
     try {
-      const response = await fetch(`/api/events/${eventId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus })
-      })
+      const response = await fetch(
+        `/api/events/${eventId}`,
+        buildNoStoreInit({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+      )
       
       if (!response.ok) throw new Error('Failed to update status')
       
@@ -586,10 +606,7 @@ export default function EventManagementPage() {
 
   const handleDeleteEvent = async () => {
     try {
-      const response = await fetch(`/api/events/${eventId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      })
+      const response = await fetch(`/api/events/${eventId}`, buildNoStoreInit({ method: 'DELETE' }))
       
       if (!response.ok) throw new Error('Failed to delete event')
       
@@ -644,7 +661,7 @@ export default function EventManagementPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
         <div className="container mx-auto text-center">
           <h1 className="text-2xl font-bold text-white mb-4">Event Not Found</h1>
-          <p className="text-slate-400 mb-6">The event you're looking for doesn't exist or has been deleted.</p>
+          <p className="text-slate-400 mb-6">The event you&apos;re looking for doesn&apos;t exist or has been deleted.</p>
           <Button onClick={() => router.push('/admin/dashboard/events')}>
             <ChevronLeft className="mr-2 h-4 w-4" />
             Back to Events

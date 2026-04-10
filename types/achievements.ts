@@ -356,6 +356,30 @@ export interface EndorsementStats {
   category_breakdown: Record<EndorsementCategory, number>
 }
 
+export interface RewardWallet {
+  total_points: number
+  tier: 'bronze' | 'silver' | 'gold' | 'platinum'
+}
+
+export interface ResumeHighlight {
+  id: string
+  title: string
+  summary: string
+  impact_score: number
+  source_type: 'achievement' | 'badge' | 'endorsement' | 'manual'
+  is_featured: boolean
+  achievement_id?: string | null
+  badge_id?: string | null
+  endorsement_id?: string | null
+  created_at: string
+}
+
+export interface ResumeAchievementsPayload {
+  wallet: RewardWallet
+  highlights: ResumeHighlight[]
+  generated_bullets: string[]
+}
+
 // Component Props Types
 export interface AchievementCardProps {
   achievement: Achievement

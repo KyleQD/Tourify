@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
 import type { TeamCommunication } from '@/types/admin-onboarding'
+import { withAdminAuth } from '@/lib/auth/api-auth'
+
+function hasSyntheticRecords(records: Array<{ id?: string }>) {
+  return records.some((record) => {
+    const id = typeof record?.id === 'string' ? record.id : ''
+    return id.startsWith('mock-') || id.startsWith('fallback-')
+  })
+}
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
+  return withAdminAuth(async (req) => {
+    const { searchParams } = new URL(req.url)
     const venueId = searchParams.get('venue_id')
     const type = searchParams.get('type') // 'members' or 'communications'
 
@@ -21,23 +29,19 @@ export async function GET(request: NextRequest) {
     } else {
       data = await AdminOnboardingStaffService.getStaffMembers(venueId)
     }
+    if (Array.isArray(data) && hasSyntheticRecords(data as Array<{ id?: string }>)) {
+      return NextResponse.json(
+        { success: false, error: 'Live staff data unavailable' },
+        { status: 503 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
       data,
       type: type || 'members'
     })
-  } catch (error) {
-    console.error('❌ [Staff API] Error:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch staff data',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  })(request)
 }
 
 const MESSAGE_TYPES: TeamCommunication['message_type'][] = [
@@ -58,8 +62,8 @@ function normalizeTeamMessageType(value: unknown): TeamCommunication['message_ty
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
+  return withAdminAuth(async (req) => {
+    const body = await req.json()
     const { venue_id } = body
 
     if (!venue_id) {
@@ -114,15 +118,5 @@ export async function POST(request: NextRequest) {
       success: true,
       data: communication
     })
-  } catch (error) {
-    console.error('❌ [Staff API] Error sending communication:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to send team communication',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  })(request)
 } 

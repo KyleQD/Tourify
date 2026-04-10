@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CreateEventForm } from "@/components/admin/create-event-form"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -97,8 +97,19 @@ export default function EventsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    }
+  }
+
   // Fetch events from API
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true)
       setFetchError(null)
@@ -107,9 +118,7 @@ export default function EventsPage() {
         params.append('status', filterStatus)
       }
       
-      const response = await fetch(`/api/admin/events?${params}`, {
-        credentials: "include",
-      })
+      const response = await fetch(`/api/admin/events?${params}`, buildNoStoreInit())
       if (!response.ok) {
         throw new Error('Failed to fetch events')
       }
@@ -133,16 +142,16 @@ export default function EventsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  useEffect(() => {
-    fetchEvents()
   }, [filterStatus])
 
-  const handleEventCreated = () => {
+  useEffect(() => {
+    void fetchEvents()
+  }, [fetchEvents])
+
+  const handleEventCreated = useCallback(() => {
     setIsCreateEventOpen(false)
-    fetchEvents() // Refresh the events list
-  }
+    void fetchEvents() // Refresh the events list
+  }, [fetchEvents])
 
   const filteredEvents = events.filter((event: Event) => {
     const matchesStatus = filterStatus === 'all' || event.status === filterStatus

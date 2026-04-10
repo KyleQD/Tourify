@@ -201,6 +201,19 @@ function parseWorkflowActivityFilter(value: string | null): WorkflowActivityFilt
   return allowed.includes(value as WorkflowActivityFilter) ? (value as WorkflowActivityFilter) : null
 }
 
+function buildNoStoreInit(input?: RequestInit): RequestInit {
+  return {
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...(input?.headers || {}),
+    },
+  }
+}
+
 export default function TourManagementPage() {
   const params = useParams()
   const router = useRouter()
@@ -261,7 +274,7 @@ export default function TourManagementPage() {
       try {
         setIsLoading(true)
 
-        const tourResponse = await fetch(`/api/tours/${tourId}`)
+        const tourResponse = await fetch(`/api/tours/${tourId}`, buildNoStoreInit())
         if (tourResponse.ok) {
           const tourData = await tourResponse.json()
           setTour(tourData)
@@ -272,7 +285,7 @@ export default function TourManagementPage() {
           toast.error('Could not load tour')
         }
 
-        const eventsResponse = await fetch(`/api/tours/${tourId}/events`)
+        const eventsResponse = await fetch(`/api/tours/${tourId}/events`, buildNoStoreInit())
         if (eventsResponse.ok) {
           const eventsData = await eventsResponse.json()
           const normalizedEvents = (eventsData.events || []).map((event: any) => {
@@ -312,7 +325,7 @@ export default function TourManagementPage() {
           setEvents([])
         }
 
-        const teamResponse = await fetch(`/api/tours/${tourId}/team`)
+        const teamResponse = await fetch(`/api/tours/${tourId}/team`, buildNoStoreInit())
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()
           setMembers(teamData.team_members || [])
@@ -320,7 +333,7 @@ export default function TourManagementPage() {
           setMembers([])
         }
 
-        const vendorsResponse = await fetch(`/api/tours/${tourId}/vendors`)
+        const vendorsResponse = await fetch(`/api/tours/${tourId}/vendors`, buildNoStoreInit())
         if (vendorsResponse.ok) {
           const vendorsData = await vendorsResponse.json()
           setVendors(vendorsData.vendors || [])
@@ -329,7 +342,7 @@ export default function TourManagementPage() {
         }
 
         try {
-          const finRes = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}`)
+          const finRes = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}`, buildNoStoreInit())
           if (finRes.ok) {
             const finData = await finRes.json()
             setTourFinances(finData.recentTransactions || finData.transactions || [])
@@ -359,15 +372,18 @@ export default function TourManagementPage() {
       setIsWorkflowSummaryLoading(true)
 
       try {
-        const threadResponse = await fetch('/api/workflows/threads', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            scope_type: 'tour',
-            scope_id: tourId,
-            title: 'Tour workflow',
-          }),
-        })
+        const threadResponse = await fetch(
+          '/api/workflows/threads',
+          buildNoStoreInit({
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              scope_type: 'tour',
+              scope_id: tourId,
+              title: 'Tour workflow',
+            }),
+          })
+        )
 
         if (!threadResponse.ok) {
           setWorkflowSummary((prev) => ({ ...prev, connected: false }))
@@ -382,9 +398,9 @@ export default function TourManagementPage() {
         }
 
         const [tasksResponse, messagesResponse, eventsResponse] = await Promise.all([
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, { cache: 'no-store' }),
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, { cache: 'no-store' }),
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/events?limit=120`, { cache: 'no-store' }),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, buildNoStoreInit()),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, buildNoStoreInit()),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/events?limit=120`, buildNoStoreInit()),
         ])
 
         const tasksPayload = tasksResponse.ok ? await tasksResponse.json() : { tasks: [] }
@@ -437,11 +453,14 @@ export default function TourManagementPage() {
 
   const handleStatusChange = async (newStatus: Tour['status']) => {
     try {
-      const response = await fetch(`/api/tours/${tourId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      })
+      const response = await fetch(
+        `/api/tours/${tourId}`,
+        buildNoStoreInit({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+      )
 
       if (response.ok) {
         setTour(prev => prev ? { ...prev, status: newStatus } : null)
@@ -457,9 +476,7 @@ export default function TourManagementPage() {
 
   const handleDeleteTour = async () => {
     try {
-      const response = await fetch(`/api/tours/${tourId}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(`/api/tours/${tourId}`, buildNoStoreInit({ method: 'DELETE' }))
 
       if (response.ok) {
         toast.success('Tour deleted successfully')
@@ -475,11 +492,14 @@ export default function TourManagementPage() {
 
   const handleSaveTour = async () => {
     try {
-      const response = await fetch(`/api/tours/${tourId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
-      })
+      const response = await fetch(
+        `/api/tours/${tourId}`,
+        buildNoStoreInit({
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(editForm),
+        })
+      )
 
       if (response.ok) {
         const updatedTour = await response.json()
@@ -507,15 +527,18 @@ export default function TourManagementPage() {
 
   const handleDuplicateTour = async () => {
     try {
-      const response = await fetch('/api/tours', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...tour,
-          name: `${tour?.name} (Copy)`,
-          status: 'planning'
+      const response = await fetch(
+        '/api/tours',
+        buildNoStoreInit({
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...tour,
+            name: `${tour?.name} (Copy)`,
+            status: 'planning',
+          }),
         })
-      })
+      )
 
       if (response.ok) {
         const result = await response.json()

@@ -1,46 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user)
-      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
-
+  return withAdminAuth(async () => {
     const { id } = await context.params
     const summary = await AdminOnboardingStaffService.getCredentialRecordSummary(id)
 
     return NextResponse.json({ success: true, data: summary })
-  } catch (error) {
-    console.error('❌ [Onboarding Credentials API] Failed to fetch summary:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch credential summary' },
-      { status: 500 }
-    )
-  }
+  })(request)
 }
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user)
-      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
-
+  return withAdminAuth(async (_req, authContext) => {
     const { id } = await context.params
     const body = await request.json()
     const credentials = Array.isArray(body?.credentials) ? body.credentials : []
@@ -51,7 +29,7 @@ export async function POST(
     const result = await AdminOnboardingStaffService.upsertCredentialRecords({
       candidateId: id,
       credentials,
-      actorUserId: user.id,
+      actorUserId: authContext.user.id,
     })
     const summary = await AdminOnboardingStaffService.getCredentialRecordSummary(id)
 
@@ -63,11 +41,5 @@ export async function POST(
       },
       message: 'Credential records stored securely',
     })
-  } catch (error) {
-    console.error('❌ [Onboarding Credentials API] Failed to store records:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to store credential records securely' },
-      { status: 500 }
-    )
-  }
+  })(request)
 }

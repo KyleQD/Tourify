@@ -60,6 +60,20 @@ export default function BlogEditor({ postId, onBack }: BlogEditorProps) {
   const [imagePreview, setImagePreview] = useState<string>('')
   const [attachMusic, setAttachMusic] = useState<{ id: string; title: string } | null>(null)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     if (postId) {
       loadPost()
@@ -346,11 +360,10 @@ export default function BlogEditor({ postId, onBack }: BlogEditorProps) {
                       const id = prompt('Paste a track ID to attach')
                       if (!id) return
                       try {
-                        const res = await fetch('/api/music/share', {
+                        const res = await fetch('/api/music/share', buildNoStoreInit({
                           method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ musicId: id })
-                        })
+                        }))
                         if (res.ok) {
                           const { payload } = await res.json()
                           setAttachMusic({ id: payload.id, title: payload.title })

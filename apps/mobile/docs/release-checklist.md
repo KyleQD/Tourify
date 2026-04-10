@@ -23,3 +23,4 @@
   - `tourify://auth/callback`
   - `https://tourify.app/auth/mobile-callback`
 - Validate privacy labels and permission descriptions
+- Validate launch package docs and assets in `docs/launch/launch-runbook.md`

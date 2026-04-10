@@ -107,6 +107,20 @@ export function EnhancedPostCreator({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Update character count
   useEffect(() => {
     setCharCount(content.length)
@@ -128,13 +142,10 @@ export function EnhancedPostCreator({
         setIsGeneratingLinkPreview(true)
         try {
           // Call our link preview API
-          const response = await fetch('/api/link-preview', {
+          const response = await fetch('/api/link-preview', buildNoStoreInit({
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
             body: JSON.stringify({ url: matches[0] }),
-          })
+          }))
 
           if (!response.ok) {
             throw new Error('Failed to fetch link preview')

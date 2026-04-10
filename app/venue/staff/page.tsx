@@ -129,6 +129,20 @@ export default function FuturisticStaffManagement() {
   const [selectedStaffForRole, setSelectedStaffForRole] = useState<string[]>([])
   const [bulkAction, setBulkAction] = useState<string>("")
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     const venueId = venue?.id
     if (venueLoading || !venueId) return
@@ -138,7 +152,7 @@ export default function FuturisticStaffManagement() {
       try {
         const response = await fetch(
           `/api/staffing/permissions?venue_id=${encodeURIComponent(resolvedVenueId)}`,
-          { cache: 'no-store' }
+          buildNoStoreInit()
         )
         const payload = await response.json()
         if (!cancelled && payload?.success && payload?.data) setStaffingPermissions(payload.data)

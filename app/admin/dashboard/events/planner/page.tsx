@@ -118,6 +118,20 @@ const PLANNING_STEPS = [
   }
 ]
 
+function buildNoStoreInit(input?: RequestInit): RequestInit {
+  return {
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...(input?.headers || {}),
+    },
+  }
+}
+
 // Event Templates
 const EVENT_TEMPLATES = [
   {
@@ -384,11 +398,10 @@ export default function EventPlannerPage() {
     setIsLoading(true)
     try {
       // Save event data to API
-      const response = await fetch('/api/events/planner', {
+      const response = await fetch('/api/events/planner', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(eventData)
-      })
+        body: JSON.stringify(eventData),
+      }))
       
       if (!response.ok) throw new Error('Failed to save event')
       
@@ -423,11 +436,10 @@ export default function EventPlannerPage() {
     setIsLoading(true)
     try {
       // Publish event
-      const response = await fetch('/api/events/planner/publish', {
+      const response = await fetch('/api/events/planner/publish', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...eventData, publishStatus: "published" })
-      })
+        body: JSON.stringify({ ...eventData, publishStatus: "published" }),
+      }))
       
       if (!response.ok) throw new Error('Failed to publish event')
       
@@ -879,7 +891,7 @@ function VenueScheduleStep({ eventData, updateEventData }: {
       if (searchQuery) params.append('query', searchQuery)
       params.append('limit', '50')
       
-      const response = await fetch(`/api/venues?${params.toString()}`)
+      const response = await fetch(`/api/venues?${params.toString()}`, buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setVenues(data.venues || [])
@@ -1829,7 +1841,7 @@ function TeamPermissionsStep({ eventData, onUpdate }: {
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/search?type=all&q=${encodeURIComponent(query)}`)
+      const response = await fetch(`/api/search?type=all&q=${encodeURIComponent(query)}`, buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setSearchResults([
@@ -1871,9 +1883,8 @@ function TeamPermissionsStep({ eventData, onUpdate }: {
       const inviteToken = crypto.randomUUID()
       
       // Store invitation in database
-      await fetch("/api/invitations", {
+      await fetch("/api/invitations", buildNoStoreInit({
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: inviteEmail,
           positionDetails: {
@@ -1884,13 +1895,12 @@ function TeamPermissionsStep({ eventData, onUpdate }: {
           },
           token: inviteToken,
           status: "pending"
-        })
-      })
+        }),
+      }))
 
       // Send email invitation
-      await fetch("/api/notifications", {
+      await fetch("/api/notifications", buildNoStoreInit({
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "staff_signup_invite",
           data: {
@@ -1903,8 +1913,8 @@ function TeamPermissionsStep({ eventData, onUpdate }: {
             },
             signupLink: `${window.location.origin}/login?token=${inviteToken}`
           }
-        })
-      })
+        }),
+      }))
 
       const newMember = {
         id: `invite-${Date.now()}`,
@@ -1945,14 +1955,13 @@ function TeamPermissionsStep({ eventData, onUpdate }: {
 
     try {
       // Create or get conversation
-      const response = await fetch('/api/messages', {
+      const response = await fetch('/api/messages', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           recipientId: member.id,
           content: `Hi ${member.name}! You've been added to the event team for "${eventData.name}". Let's discuss your role and responsibilities.`
-        })
-      })
+        }),
+      }))
 
       if (response.ok) {
         // Open messages page or show success

@@ -143,9 +143,12 @@ export function useOptimizedData<T = any>({
 
       const response = await fetch(url.toString(), {
         signal: abortControllerRef.current.signal,
+        cache: 'no-store',
         credentials: 'include', // Include auth cookies
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
         }
       })
 

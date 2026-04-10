@@ -73,6 +73,20 @@ export function AddArtistDialog({
   })
   const { toast } = useToast()
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   const filteredArtists = React.useMemo(() => {
     return existingArtists.filter(artist => 
       artist.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -100,9 +114,8 @@ export function AddArtistDialog({
       setIsLoading(true)
       try {
         // Send booking request notification to the selected artist
-        await fetch("/api/notifications", {
+        await fetch("/api/notifications", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "booking_request",
             data: {
@@ -114,12 +127,11 @@ export function AddArtistDialog({
               requestType: "performance"
             }
           })
-        })
+        }))
 
         // Store the booking request
-        await fetch("/api/booking-requests", {
+        await fetch("/api/booking-requests", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             artistId: artist.id,
             eventId,
@@ -128,7 +140,7 @@ export function AddArtistDialog({
             status: "pending",
             requestType: "performance"
           })
-        })
+        }))
         
         onAdd({ 
           ...artist, 
@@ -161,9 +173,8 @@ export function AddArtistDialog({
         const inviteToken = crypto.randomUUID()
         
         // Store the booking invitation in the database
-        await fetch("/api/booking-requests", {
+        await fetch("/api/booking-requests", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: inviteEmail,
             phone: invitePhone,
@@ -174,12 +185,11 @@ export function AddArtistDialog({
             status: "pending",
             requestType: "performance"
           })
-        })
+        }))
 
         // Send email with signup link
-        await fetch("/api/notifications", {
+        await fetch("/api/notifications", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "artist_signup_invite",
             data: {
@@ -190,7 +200,7 @@ export function AddArtistDialog({
               signupLink: `${window.location.origin}/login?token=${inviteToken}&type=artist`
             }
           })
-        })
+        }))
 
         onAdd({ 
           email: inviteEmail, 

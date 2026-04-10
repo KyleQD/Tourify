@@ -26,6 +26,17 @@ export function EventSelector({ selectedEvent, onEventChange, showNewEventButton
   const [loading, setLoading] = useState(true)
   const [currentSelectedEvent, setCurrentSelectedEvent] = useState(selectedEvent || "all")
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   useEffect(() => {
     fetchEvents()
   }, [])
@@ -41,9 +52,7 @@ export function EventSelector({ selectedEvent, onEventChange, showNewEventButton
       setLoading(true)
       
       // Fetch events from the API
-      const response = await fetch('/api/events', {
-        credentials: 'include'
-      })
+      const response = await fetch('/api/events', buildNoStoreInit())
       
       if (response.ok) {
         const data = await response.json()

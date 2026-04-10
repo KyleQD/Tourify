@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ImageUpload } from "@/components/ui/image-upload"
-import { Images as Gallery, Image, Video, Music, FileText } from "lucide-react"
+import { Images as Gallery, ImageIcon, Video, Music, FileText } from "lucide-react"
 
 interface PortfolioItem {
   id: string
@@ -81,7 +81,7 @@ export function PortfolioBuilder() {
                   className="h-48 flex flex-col items-center justify-center"
                   onClick={() => document.getElementById("image-upload")?.click()}
                 >
-                  <Image className="w-8 h-8 mb-2" />
+                  <ImageIcon className="w-8 h-8 mb-2" />
                   Add Image
                 </Button>
               </div>

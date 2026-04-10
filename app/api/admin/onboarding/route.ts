@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
 import { EnhancedOnboardingTemplatesService } from '@/lib/services/enhanced-onboarding-templates.service'
+import { withAdminAuth } from '@/lib/auth/api-auth'
+
+function hasSyntheticRecords(records: Array<{ id?: string }>) {
+  return records.some((record) => {
+    const id = typeof record?.id === 'string' ? record.id : ''
+    return id.startsWith('mock-') || id.startsWith('fallback-')
+  })
+}
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url)
+  return withAdminAuth(async (req) => {
+    const { searchParams } = new URL(req.url)
     const venueId = searchParams.get('venue_id')
     const type = searchParams.get('type') // 'workflows' or 'candidates'
 
@@ -23,28 +31,24 @@ export async function GET(request: NextRequest) {
     } else {
       data = await AdminOnboardingStaffService.getOnboardingCandidates(venueId)
     }
+    if (Array.isArray(data) && hasSyntheticRecords(data as Array<{ id?: string }>)) {
+      return NextResponse.json(
+        { success: false, error: 'Live onboarding data unavailable' },
+        { status: 503 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
       data,
       type: type || 'candidates'
     })
-  } catch (error) {
-    console.error('❌ [Onboarding API] Error:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to fetch onboarding data',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  })(request)
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
+  return withAdminAuth(async (req) => {
+    const body = await req.json()
     const { venue_id, action, ...workflowData } = body
 
     if (!venue_id) {
@@ -69,15 +73,5 @@ export async function POST(request: NextRequest) {
       success: true,
       data: workflow
     })
-  } catch (error) {
-    console.error('❌ [Onboarding API] Error creating workflow:', error)
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: 'Failed to create onboarding workflow',
-        details: error instanceof Error ? error.message : 'Unknown error'
-      },
-      { status: 500 }
-    )
-  }
+  })(request)
 } 

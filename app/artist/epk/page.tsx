@@ -642,6 +642,20 @@ export default function EPKPage() {
   const [previewMode, setPreviewMode] = useState(false)
   const [uploadingMedia, setUploadingMedia] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     if (!epkData?.artistName) return
     const nextSlug = epkData.artistName
@@ -665,11 +679,10 @@ export default function EPKPage() {
     
     const url = `${window.location.origin}/epk/${epkData.epkSlug}`
     navigator.clipboard.writeText(url)
-    fetch('/api/epk/telemetry', {
+    fetch('/api/epk/telemetry', buildNoStoreInit({
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ epkSlug: epkData.epkSlug, eventType: 'share_copy' })
-    }).catch(() => null)
+    })).catch(() => null)
     toast({
       title: "EPK URL copied!",
       description: "Share this link to showcase your EPK.",
@@ -725,11 +738,10 @@ export default function EPKPage() {
       anchor.download = `${epkData.epkSlug || "artist"}-epk.pdf`
       anchor.click()
       URL.revokeObjectURL(downloadUrl)
-      fetch('/api/epk/telemetry', {
+      fetch('/api/epk/telemetry', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ epkSlug: epkData.epkSlug, eventType: 'pdf_download' })
-      }).catch(() => null)
+      })).catch(() => null)
       toast({
         title: "PDF downloaded",
         description: "Your EPK PDF was generated successfully."

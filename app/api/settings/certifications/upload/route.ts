@@ -2,6 +2,7 @@ export const runtime = 'nodejs'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
 
 const ACCEPTED_FILE_TYPES = [
   'application/pdf',
@@ -80,6 +81,18 @@ export async function POST(request: NextRequest) {
     })
     if (registryErr)
       console.warn('[certifications upload] staff_documents registry skipped:', registryErr.message)
+
+    await recordAchievementMetricEvent({
+      supabase,
+      userId: user.id,
+      metricKey: 'uploaded_documents_total',
+      eventType: 'credential_uploaded',
+      delta: 1,
+      eventData: {
+        document_type: `certification:${safeCertKey || 'credential'}`,
+        storage_path: filePath,
+      },
+    })
 
     return NextResponse.json({
       success: true,

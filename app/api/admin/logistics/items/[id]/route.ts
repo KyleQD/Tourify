@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export async function PUT(request: NextRequest, { params }: any) {
-  try {
-    const supabase = createServerClient()
-    const body = await request.json()
-    const id = params.id
+export async function PUT(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params
+  return withAdminAuth(async (req) => {
+    const supabase = await createClient()
+    const body = await req.json()
 
     const updates: Record<string, any> = {}
     if (body.type) updates.type = body.type
@@ -30,16 +34,16 @@ export async function PUT(request: NextRequest, { params }: any) {
     if (error) throw error
 
     return NextResponse.json({ item: data })
-  } catch (error) {
-    console.error('[Logistics Item] PUT error:', error)
-    return NextResponse.json({ error: 'Failed to update logistics item' }, { status: 500 })
-  }
+  })(request)
 }
 
-export async function DELETE(request: NextRequest, { params }: any) {
-  try {
-    const supabase = createServerClient()
-    const id = params.id
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params
+  return withAdminAuth(async () => {
+    const supabase = await createClient()
 
     const { error } = await supabase
       .from('logistics_tasks')
@@ -49,10 +53,7 @@ export async function DELETE(request: NextRequest, { params }: any) {
     if (error) throw error
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[Logistics Item] DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to delete logistics item' }, { status: 500 })
-  }
+  })(request)
 }
 
 

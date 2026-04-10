@@ -24,6 +24,20 @@ interface NotificationDemoProps {
 export function NotificationDemo({ className = "" }: NotificationDemoProps) {
   const [isLoading, setIsLoading] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   const notificationTypes = [
     {
       type: 'like',
@@ -78,14 +92,10 @@ export function NotificationDemo({ className = "" }: NotificationDemoProps) {
   const createTestNotification = async (type: string) => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/notifications/test', {
+      const response = await fetch('/api/notifications/test', buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ type })
-      })
+      }))
       
       if (response.ok) {
         toast.success(`Created ${type} notification!`)
@@ -103,14 +113,10 @@ export function NotificationDemo({ className = "" }: NotificationDemoProps) {
   const createAllNotifications = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/notifications/test', {
+      const response = await fetch('/api/notifications/test', buildNoStoreInit({
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify({ type: 'all' })
-      })
+      }))
       
       if (response.ok) {
         toast.success('Created all test notifications!')

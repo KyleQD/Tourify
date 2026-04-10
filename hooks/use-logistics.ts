@@ -79,6 +79,30 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     refreshInterval = 30000
   } = options
 
+  const readRequestInit: RequestInit = {
+    cache: 'no-store',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+    },
+  }
+
+  function buildWriteRequestInit(method: 'POST' | 'PUT', body: unknown): RequestInit {
+    return {
+      method,
+      cache: 'no-store',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+      body: JSON.stringify(body),
+    }
+  }
+
   const fetchLogisticsData = useCallback(async () => {
     if (!user) {
       setData(null)
@@ -108,12 +132,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'transportation')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -138,12 +157,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'equipment')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -169,12 +183,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'assignments')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -200,12 +209,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         params.set('type', 'analytics')
         appendCommonQuery(params)
 
-        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
+        const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, readRequestInit)
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`)
@@ -232,18 +236,10 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
         const baseQuery = baseParams.toString()
 
         const [transportationRes, equipmentRes, assignmentsRes, analyticsRes] = await Promise.all([
-          fetch(`/api/admin/logistics/items?type=transportation&${baseQuery}`, {
-            credentials: 'include'
-          }),
-          fetch(`/api/admin/logistics/items?type=equipment&${baseQuery}`, {
-            credentials: 'include'
-          }),
-          fetch(`/api/admin/logistics/items?type=assignments&${baseQuery}`, {
-            credentials: 'include'
-          }),
-          fetch(`/api/admin/logistics/metrics?${baseQuery}`, {
-            credentials: 'include'
-          })
+          fetch(`/api/admin/logistics/items?type=transportation&${baseQuery}`, readRequestInit),
+          fetch(`/api/admin/logistics/items?type=equipment&${baseQuery}`, readRequestInit),
+          fetch(`/api/admin/logistics/items?type=assignments&${baseQuery}`, readRequestInit),
+          fetch(`/api/admin/logistics/metrics?${baseQuery}`, readRequestInit)
         ])
 
         const [transportationData, equipmentData, assignmentsData, analyticsData] = await Promise.all([
@@ -282,17 +278,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/logistics/items', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await fetch(
+        '/api/admin/logistics/items',
+        buildWriteRequestInit('POST', {
           type: 'transportation',
-          ...transportationData
+          ...transportationData,
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -310,17 +302,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(`/api/admin/logistics/items/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await fetch(
+        `/api/admin/logistics/items/${encodeURIComponent(id)}`,
+        buildWriteRequestInit('PUT', {
           type: 'transportation',
-          ...updateData
+          ...updateData,
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -338,17 +326,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch('/api/admin/logistics/items', {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await fetch(
+        '/api/admin/logistics/items',
+        buildWriteRequestInit('POST', {
           type: 'equipment',
-          ...equipmentData
+          ...equipmentData,
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -366,17 +350,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(`/api/admin/logistics/items/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await fetch(
+        `/api/admin/logistics/items/${encodeURIComponent(id)}`,
+        buildWriteRequestInit('PUT', {
           type: 'equipment',
-          ...updateData
+          ...updateData,
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -394,14 +374,10 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(`/api/admin/logistics/items/${assignmentData.id}/equipment`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(assignmentData)
-      })
+      const response = await fetch(
+        `/api/admin/logistics/items/${assignmentData.id}/equipment`,
+        buildWriteRequestInit('POST', assignmentData)
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -419,17 +395,13 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     if (!user) throw new Error('User not authenticated')
 
     try {
-      const response = await fetch(`/api/admin/logistics/items/${encodeURIComponent(id)}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
+      const response = await fetch(
+        `/api/admin/logistics/items/${encodeURIComponent(id)}`,
+        buildWriteRequestInit('PUT', {
           type: 'assignment',
-          ...updateData
+          ...updateData,
         })
-      })
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

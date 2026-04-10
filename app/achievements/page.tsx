@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,7 +33,8 @@ import {
   UserSkill,
   AchievementStats,
   BadgeStats,
-  EndorsementStats
+  EndorsementStats,
+  ResumeAchievementsPayload
 } from "@/types/achievements"
 
 export default function AchievementsPage() {
@@ -56,20 +57,12 @@ export default function AchievementsPage() {
   const [achievementStats, setAchievementStats] = useState<AchievementStats | null>(null)
   const [badgeStats, setBadgeStats] = useState<BadgeStats | null>(null)
   const [endorsementStats, setEndorsementStats] = useState<EndorsementStats | null>(null)
+  const [resumePayload, setResumePayload] = useState<ResumeAchievementsPayload | null>(null)
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
 
   const supabase = createClientComponentClient()
 
-  useEffect(() => {
-    loadCurrentUser()
-  }, [])
-
-  useEffect(() => {
-    if (currentUser) {
-      loadAchievementData()
-    }
-  }, [currentUser])
-
-  const loadCurrentUser = async () => {
+  const loadCurrentUser = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -97,16 +90,16 @@ export default function AchievementsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase])
 
-  const loadAchievementData = async () => {
+  const loadAchievementData = useCallback(async (userId: string) => {
     try {
       setLoading(true)
       
       const [achievementsResponse, badgesResponse, endorsementsResponse] = await Promise.all([
-        achievementService.getUserAchievements(currentUser.id),
-        achievementService.getUserBadges(currentUser.id),
-        achievementService.getUserEndorsements(currentUser.id)
+        achievementService.getUserAchievements(userId),
+        achievementService.getUserBadges(userId),
+        achievementService.getUserEndorsements(userId)
       ])
 
       setAchievements(achievementsResponse.achievements)
@@ -118,21 +111,36 @@ export default function AchievementsPage() {
 
       // Load stats
       const [achievementStatsData, badgeStatsData, endorsementStatsData] = await Promise.all([
-        achievementService.getAchievementStats(currentUser.id),
-        achievementService.getBadgeStats(currentUser.id),
-        achievementService.getEndorsementStats(currentUser.id)
+        achievementService.getAchievementStats(userId),
+        achievementService.getBadgeStats(userId),
+        achievementService.getEndorsementStats(userId)
       ])
 
       setAchievementStats(achievementStatsData)
       setBadgeStats(badgeStatsData)
       setEndorsementStats(endorsementStatsData)
 
+      const resumeResponse = await fetch('/api/achievements/resume')
+      if (resumeResponse.ok) {
+        const payload = await resumeResponse.json()
+        setResumePayload(payload as ResumeAchievementsPayload)
+      }
+
     } catch (error) {
       console.error('Error loading achievement data:', error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void loadCurrentUser()
+  }, [loadCurrentUser])
+
+  useEffect(() => {
+    if (currentUser?.id)
+      void loadAchievementData(currentUser.id)
+  }, [currentUser?.id, loadAchievementData])
 
   // Filter functions
   const filteredAchievements = achievements.filter(achievement => {
@@ -167,6 +175,33 @@ export default function AchievementsPage() {
 
   const getUserBadge = (badgeId: string) => {
     return userBadges.find(ub => ub.badge_id === badgeId)
+  }
+
+  async function copyResumeBullets() {
+    try {
+      if (!resumePayload?.generated_bullets?.length) return
+      const content = resumePayload.generated_bullets.map((bullet) => `• ${bullet}`).join('\n')
+      await navigator.clipboard.writeText(content)
+      setCopyState('copied')
+      setTimeout(() => setCopyState('idle'), 1500)
+    } catch {
+      setCopyState('error')
+      setTimeout(() => setCopyState('idle'), 2000)
+    }
+  }
+
+  async function copyResumeMarkdown() {
+    try {
+      const response = await fetch('/api/achievements/resume/export?format=markdown')
+      if (!response.ok) throw new Error('Export failed')
+      const markdown = await response.text()
+      await navigator.clipboard.writeText(markdown)
+      setCopyState('copied')
+      setTimeout(() => setCopyState('idle'), 1500)
+    } catch {
+      setCopyState('error')
+      setTimeout(() => setCopyState('idle'), 2000)
+    }
   }
 
   const userAchievementById = new Map(userAchievements.map(ua => [ua.achievement_id, ua]))
@@ -341,6 +376,13 @@ export default function AchievementsPage() {
               <Target className="h-4 w-4 mr-2" />
               Skills
             </TabsTrigger>
+            <TabsTrigger
+              value="resume"
+              className="data-[state=active]:bg-white data-[state=active]:text-black text-white"
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              Resume Builder
+            </TabsTrigger>
           </TabsList>
 
           {/* Achievements Tab */}
@@ -511,6 +553,108 @@ export default function AchievementsPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="resume" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white">Reward Wallet</CardTitle>
+                  <CardDescription className="text-white/60">
+                    Points and tier earned from verified work activity.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Tier</span>
+                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                      {(resumePayload?.wallet.tier || 'bronze').toUpperCase()}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-white/60">Total Reward Points</span>
+                    <span className="text-2xl font-bold text-white">{resumePayload?.wallet.total_points || 0}</span>
+                  </div>
+                  <p className="text-xs text-white/60">
+                    Points increase as you apply, get approved, complete tasks, and maintain credential proof.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white">Resume Highlights</CardTitle>
+                  <CardDescription className="text-white/60">
+                    Featured accomplishments auto-generated from your work history.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(resumePayload?.highlights || []).slice(0, 4).map((highlight) => (
+                    <div key={highlight.id} className="rounded-lg border border-white/20 bg-white/5 p-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold text-white">{highlight.title}</p>
+                        <Badge variant="outline" className="border-white/25 text-white/80">
+                          +{highlight.impact_score}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-white/70">{highlight.summary}</p>
+                    </div>
+                  ))}
+                  {(resumePayload?.highlights?.length || 0) === 0 && (
+                    <p className="text-sm text-white/60">
+                      Keep working jobs and workflow tasks to unlock resume highlights.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+              <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-white">Generated Resume Bullets</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyResumeBullets}
+                      className="border-white/30 bg-white/5 text-white hover:bg-white/10"
+                    >
+                      Copy Bullets
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copyResumeMarkdown}
+                      className="border-white/30 bg-white/5 text-white hover:bg-white/10"
+                    >
+                      Copy Markdown
+                    </Button>
+                  </div>
+                </div>
+                <CardDescription className="text-white/60">
+                  Copy-ready statements based on your platform activity.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {(resumePayload?.generated_bullets || []).map((bullet, index) => (
+                  <p key={`${index}-${bullet}`} className="text-sm text-white/85">
+                    • {bullet}
+                  </p>
+                ))}
+                {(resumePayload?.generated_bullets?.length || 0) === 0 && (
+                  <p className="text-sm text-white/60">
+                    Resume bullets will appear automatically once rewards and milestones are recorded.
+                  </p>
+                )}
+                {copyState === 'copied' && (
+                  <p className="text-xs text-emerald-300">Copied to clipboard.</p>
+                )}
+                {copyState === 'error' && (
+                  <p className="text-xs text-rose-300">Unable to copy. Please try again.</p>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

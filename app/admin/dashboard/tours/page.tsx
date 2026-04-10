@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -84,6 +84,16 @@ export default function ToursPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   // Check for success message from tour planner
   useEffect(() => {
     const published = searchParams.get('published')
@@ -97,7 +107,7 @@ export default function ToursPage() {
     }
   }, [searchParams, router])
 
-  const fetchTours = async () => {
+  const fetchTours = useCallback(async () => {
     try {
       setIsLoading(true)
       setFetchError(null)
@@ -106,7 +116,7 @@ export default function ToursPage() {
         params.append('status', filterStatus)
       }
 
-      const response = await fetch(`/api/tours?${params}`)
+      const response = await fetch(`/api/tours?${params}`, buildNoStoreInit())
       if (!response.ok) {
         throw new Error('Failed to fetch tours')
       }
@@ -121,11 +131,11 @@ export default function ToursPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [filterStatus])
 
   useEffect(() => {
-    fetchTours()
-  }, [filterStatus])
+    void fetchTours()
+  }, [fetchTours])
 
   const getStatusColor = (status: string) => statusBadgeClass(status)
 

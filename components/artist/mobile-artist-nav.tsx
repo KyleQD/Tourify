@@ -31,6 +31,7 @@ export function MobileArtistNav() {
 
   const overflowItems: MobileNavItem[] = [
     { label: "Content", href: "/artist/content", icon: Video },
+    { label: "Store", href: "/artist/store", icon: ShoppingBag },
     { label: "Community", href: "/artist/community", icon: Users },
     { label: "Business", href: "/artist/business", icon: ShoppingBag },
     { label: "Features", href: "/artist/features", icon: TrendingUp },

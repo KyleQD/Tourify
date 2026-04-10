@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import type { PublicArtistPageDTO } from "@/lib/public-artist/public-artist-types"
 import { PublicProfileLayout } from "@/components/layouts/public-profile-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,16 +14,85 @@ import { PublicArtistHero } from "@/components/public-artist/hero/public-artist-
 import { BookThisArtistModal } from "@/components/public-artist/events/book-this-artist-modal"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { paCard, paInset, paShell } from "@/components/public-artist/public-artist-ui"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+
+interface MarketplaceListing {
+  id: string
+  title: string
+  description: string | null
+  category: string
+  product_type: string
+  currency: string
+  base_price: number | null
+  cover_image_url: string | null
+  marketplace_listing_variants?: Array<{ id: string; title: string; price: number }>
+}
 
 export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; username: string }) {
   const { hero, tracks, events, about, media, products, posts, stats, epk, creator } = dto
   const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([])
+  const [isCheckoutLoadingId, setIsCheckoutLoadingId] = useState<string | null>(null)
+  const [marketplaceMessage, setMarketplaceMessage] = useState<string | null>(null)
 
   const openBooking = () => setIsBookingOpen(true)
   const scrollToMusic = () =>
     document.getElementById("public-artist-music")?.scrollIntoView({ behavior: "smooth", block: "start" })
   const scrollToEvents = () =>
     document.getElementById("public-artist-events")?.scrollIntoView({ behavior: "smooth", block: "start" })
+
+  useEffect(() => {
+    void loadMarketplaceListings()
+  }, [hero.userId])
+
+  async function loadMarketplaceListings() {
+    try {
+      const response = await fetch(`/api/marketplace/discover?sellerUserId=${encodeURIComponent(hero.userId)}&limit=18`)
+      if (!response.ok) return
+      const body = await response.json()
+      setMarketplaceListings(Array.isArray(body.data) ? body.data : [])
+    } catch (error) {
+      console.error("Failed to load marketplace listings", error)
+    }
+  }
+
+  async function checkoutListing(listing: MarketplaceListing) {
+    try {
+      setMarketplaceMessage(null)
+      setIsCheckoutLoadingId(listing.id)
+      const defaultVariant = listing.marketplace_listing_variants?.[0]
+      const response = await fetch("/api/marketplace/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lines: [
+            {
+              listingId: listing.id,
+              variantId: defaultVariant?.id,
+              quantity: 1,
+            },
+          ],
+        }),
+      })
+      const body = await response.json()
+      if (!response.ok) {
+        if (response.status === 401) {
+          const redirectTo = `${window.location.pathname}${window.location.search}`
+          window.location.href = `/login?tab=signin&redirect=${encodeURIComponent(redirectTo)}`
+          return
+        }
+        setMarketplaceMessage(body.error || "Checkout failed")
+        return
+      }
+      if (body.data?.checkoutUrl) window.location.href = body.data.checkoutUrl
+    } catch (error) {
+      console.error("Checkout failed", error)
+      setMarketplaceMessage("Unable to start checkout right now")
+    } finally {
+      setIsCheckoutLoadingId(null)
+    }
+  }
 
   return (
     <PublicProfileLayout profileName={hero.artistName} profileType="artist">
@@ -168,41 +237,53 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {products.products.length === 0 ? (
-                  <div className={`${paInset} p-5 text-sm text-white/65`}>No products listed yet.</div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {products.products.slice(0, 6).map(product => (
-                      <div key={product.id} className={`${paInset} overflow-hidden`}>
-                        <div className="aspect-square bg-black/20">
-                          {product.imageUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={product.imageUrl}
-                              alt={product.name}
-                              className="h-full w-full object-cover"
-                              loading="lazy"
-                            />
-                          ) : (
-                            <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
-                          )}
-                        </div>
-                        <div className="p-3.5">
-                          <div className="truncate text-sm font-medium text-white">{product.name}</div>
-                          <div className="mt-1 text-xs text-white/60">{product.type || "Product"}</div>
-                          <div className="mt-2 text-sm font-semibold text-purple-100">
-                            {product.price !== null ? `${product.currency || "USD"} ${product.price.toFixed(2)}` : "Price on request"}
-                          </div>
-                          {product.inventoryCount !== null ? (
-                            <div className="mt-1 text-xs text-white/50">
-                              {product.inventoryCount > 0 ? `${product.inventoryCount} in stock` : "Out of stock"}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <Tabs defaultValue="featured" className="w-full">
+                  <TabsList className="mb-3">
+                    <TabsTrigger value="featured">Featured</TabsTrigger>
+                    <TabsTrigger value="music">Music</TabsTrigger>
+                    <TabsTrigger value="photos-and-prints">Photos & Prints</TabsTrigger>
+                    <TabsTrigger value="merch">Merch</TabsTrigger>
+                    <TabsTrigger value="services">Services</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="featured">
+                    <StorefrontGrid
+                      products={products.products}
+                      listings={marketplaceListings}
+                      onCheckout={checkoutListing}
+                      isCheckoutLoadingId={isCheckoutLoadingId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="music">
+                    <MarketplaceOnlyGrid
+                      listings={marketplaceListings.filter(listing => listing.category === "music")}
+                      onCheckout={checkoutListing}
+                      isCheckoutLoadingId={isCheckoutLoadingId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="photos-and-prints">
+                    <MarketplaceOnlyGrid
+                      listings={marketplaceListings.filter(listing => listing.category === "photos-and-prints")}
+                      onCheckout={checkoutListing}
+                      isCheckoutLoadingId={isCheckoutLoadingId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="merch">
+                    <MarketplaceOnlyGrid
+                      listings={marketplaceListings.filter(listing => listing.category === "merch")}
+                      onCheckout={checkoutListing}
+                      isCheckoutLoadingId={isCheckoutLoadingId}
+                    />
+                  </TabsContent>
+                  <TabsContent value="services">
+                    <MarketplaceOnlyGrid
+                      listings={marketplaceListings.filter(listing => listing.category === "services")}
+                      onCheckout={checkoutListing}
+                      isCheckoutLoadingId={isCheckoutLoadingId}
+                    />
+                  </TabsContent>
+                </Tabs>
+                {marketplaceMessage ? <div className="mt-3 text-xs text-rose-200">{marketplaceMessage}</div> : null}
               </CardContent>
             </Card>
           </section>
@@ -304,6 +385,109 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
         serviceOfferings={creator.serviceOfferings}
       />
     </PublicProfileLayout>
+  )
+}
+
+function StorefrontGrid({
+  products,
+  listings,
+  onCheckout,
+  isCheckoutLoadingId,
+}: {
+  products: PublicArtistPageDTO["products"]["products"]
+  listings: MarketplaceListing[]
+  onCheckout: (listing: MarketplaceListing) => Promise<void>
+  isCheckoutLoadingId: string | null
+}) {
+  if (!products.length && !listings.length) return <div className={`${paInset} p-5 text-sm text-white/65`}>No products listed yet.</div>
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {products.slice(0, 3).map(product => (
+        <div key={product.id} className={`${paInset} overflow-hidden`}>
+          <div className="aspect-square bg-black/20">
+            {product.imageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
+            )}
+          </div>
+          <div className="p-3.5">
+            <div className="truncate text-sm font-medium text-white">{product.name}</div>
+            <div className="mt-1 text-xs text-white/60">{product.type || "Product"}</div>
+            <div className="mt-2 text-sm font-semibold text-purple-100">
+              {product.price !== null ? `${product.currency || "USD"} ${product.price.toFixed(2)}` : "Price on request"}
+            </div>
+          </div>
+        </div>
+      ))}
+      {listings.slice(0, 6).map(listing => (
+        <div key={listing.id} className={`${paInset} overflow-hidden`}>
+          <div className="aspect-square bg-black/20">
+            {listing.cover_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
+            )}
+          </div>
+          <div className="p-3.5">
+            <div className="truncate text-sm font-medium text-white">{listing.title}</div>
+            <div className="mt-1 text-xs text-white/60">{listing.product_type || "Product"}</div>
+            <div className="mt-2 text-sm font-semibold text-purple-100">
+              {listing.base_price !== null ? `${listing.currency || "USD"} ${Number(listing.base_price).toFixed(2)}` : "Price on request"}
+            </div>
+            <Button
+              size="sm"
+              className="mt-3 w-full"
+              disabled={isCheckoutLoadingId === listing.id}
+              onClick={() => void onCheckout(listing)}
+            >
+              {isCheckoutLoadingId === listing.id ? "Starting checkout..." : "Support this creator"}
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function MarketplaceOnlyGrid({
+  listings,
+  onCheckout,
+  isCheckoutLoadingId,
+}: {
+  listings: MarketplaceListing[]
+  onCheckout: (listing: MarketplaceListing) => Promise<void>
+  isCheckoutLoadingId: string | null
+}) {
+  if (!listings.length) return <div className={`${paInset} p-5 text-sm text-white/65`}>No listings in this category yet.</div>
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {listings.map(listing => (
+        <div key={listing.id} className={`${paInset} overflow-hidden`}>
+          <div className="aspect-square bg-black/20">
+            {listing.cover_image_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
+            ) : (
+              <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
+            )}
+          </div>
+          <div className="p-3.5">
+            <div className="truncate text-sm font-medium text-white">{listing.title}</div>
+            <div className="mt-1 text-xs text-white/60">{listing.product_type || "Product"}</div>
+            <div className="mt-2 text-sm font-semibold text-purple-100">
+              {listing.base_price !== null ? `${listing.currency || "USD"} ${Number(listing.base_price).toFixed(2)}` : "Price on request"}
+            </div>
+            <Button size="sm" className="mt-3 w-full" disabled={isCheckoutLoadingId === listing.id} onClick={() => void onCheckout(listing)}>
+              {isCheckoutLoadingId === listing.id ? "Starting checkout..." : "Support this creator"}
+            </Button>
+          </div>
+        </div>
+      ))}
+    </div>
   )
 }
 

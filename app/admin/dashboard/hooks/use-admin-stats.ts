@@ -32,6 +32,18 @@ export function useAdminStats(venueId?: string) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    function buildNoStoreInit(): RequestInit {
+      return {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      }
+    }
+
     async function fetchStats() {
       try {
         setIsLoading(true)
@@ -39,10 +51,7 @@ export function useAdminStats(venueId?: string) {
         
         const params = venueId ? `?venue_id=${venueId}` : ''
         
-        const response = await fetch(`/api/admin/dashboard/stats${params}`, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const response = await fetch(`/api/admin/dashboard/stats${params}`, buildNoStoreInit())
 
         if (!response.ok) throw new Error(`Failed to fetch stats: ${response.status}`)
 

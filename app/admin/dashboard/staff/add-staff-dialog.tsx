@@ -56,6 +56,20 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
   })
   const { toast } = useToast()
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Fetch onboarding templates when dialog opens
   React.useEffect(() => {
     if (open) {
@@ -65,7 +79,7 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
 
   async function fetchOnboardingTemplates() {
     try {
-      const response = await fetch("/api/onboarding-templates")
+      const response = await fetch("/api/onboarding-templates", buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setOnboardingTemplates(data.templates || [])
@@ -93,9 +107,8 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
       setIsLoading(true)
       try {
         // Send notification to the selected user
-        await fetch("/api/notifications", {
+        await fetch("/api/notifications", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "staff_invite",
             data: {
@@ -105,7 +118,7 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
               onboardingTemplateId: selectedTemplate
             }
           })
-        })
+        }))
         
         onAdd({ 
           ...profile, 
@@ -138,9 +151,8 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
         const inviteToken = crypto.randomUUID()
         
         // Store the invitation in the database with onboarding template
-        await fetch("/api/invitations", {
+        await fetch("/api/invitations", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: inviteEmail,
             phone: invitePhone,
@@ -149,12 +161,11 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
             status: "pending",
             onboardingTemplateId: selectedTemplate
           })
-        })
+        }))
 
         // Send email with signup link
-        await fetch("/api/notifications", {
+        await fetch("/api/notifications", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "staff_signup_invite",
             data: {
@@ -164,7 +175,7 @@ export function AddStaffDialog({ open, onOpenChange, onAdd, existingProfiles }: 
               signupLink: `${window.location.origin}/login?token=${inviteToken}`
             }
           })
-        })
+        }))
 
         onAdd({ 
           email: inviteEmail, 

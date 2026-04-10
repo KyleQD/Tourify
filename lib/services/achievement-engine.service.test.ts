@@ -8,6 +8,7 @@ function makeAchievement(overrides: Partial<AchievementRow> = {}): AchievementRo
     metric_key: 'metric',
     target_value: 10,
     evaluation_mode: 'increment',
+    points: 100,
     ...overrides
   }
 }

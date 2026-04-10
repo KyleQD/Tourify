@@ -39,6 +39,10 @@ export async function GET(
         cover_image,
         location,
         website,
+        profile_data,
+        social_links,
+        instagram,
+        twitter,
         is_verified,
         followers_count,
         following_count,
@@ -65,6 +69,10 @@ export async function GET(
           cover_image,
           location,
           website,
+          profile_data,
+          social_links,
+          instagram,
+          twitter,
           is_verified,
           followers_count,
           following_count,
@@ -132,18 +140,23 @@ export async function GET(
       stats.views = Math.floor(Math.random() * 10000) + 1000
     }
 
+    const baseProfileData = ((profile as any).profile_data || {}) as Record<string, any>
+    const baseSocialLinks = ((profile as any).social_links || {}) as Record<string, any>
+
     // Base profile shape that we will enrich per account type
     let accountType: 'general' | 'artist' | 'venue' | 'organization' = 'general'
     let profileData: any = {
+      ...baseProfileData,
       name: profile.full_name,
       bio: profile.bio,
       location: profile.location,
       website: profile.website
     }
     let socialLinks: Record<string, any> = {
-      website: profile.website,
-      instagram: null,
-      twitter: null
+      ...baseSocialLinks,
+      website: profile.website || baseSocialLinks.website || null,
+      instagram: (profile as any).instagram || baseSocialLinks.instagram || null,
+      twitter: (profile as any).twitter || baseSocialLinks.twitter || null
     }
 
     // Attempt to detect specialized profiles
@@ -263,6 +276,16 @@ export async function GET(
           // ignore
         }
       }
+    }
+
+    profileData = {
+      ...baseProfileData,
+      ...profileData,
+      profile_experience: baseProfileData.profile_experience || profileData.profile_experience
+    }
+    socialLinks = {
+      ...baseSocialLinks,
+      ...socialLinks
     }
 
     // Fetch public content tied to this profile

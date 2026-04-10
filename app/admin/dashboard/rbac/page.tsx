@@ -98,6 +98,20 @@ export default function RBACManagementPage() {
   const [editingPermissions, setEditingPermissions] = useState(false)
   const [tempPermissions, setTempPermissions] = useState<string[]>([])
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Group permissions by category
   const permissionsByCategory = permissions.reduce((acc, permission) => {
     if (!acc[permission.category]) {
@@ -114,9 +128,8 @@ export default function RBACManagementPage() {
     }
 
     try {
-      const res = await fetch('/api/admin/rbac/roles', {
+      const res = await fetch('/api/admin/rbac/roles', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newRole.name.toLowerCase().replace(/\s+/g, '_'),
           display_name: newRole.display_name,
@@ -124,7 +137,7 @@ export default function RBACManagementPage() {
           scope_type: 'entity',
           permission_ids: newRole.permissions,
         }),
-      })
+      }))
 
       if (!res.ok) {
         const err = await res.json()

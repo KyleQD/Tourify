@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
 import type { JobApplication } from '@/types/admin-onboarding'
 import { createClient } from '@/lib/supabase/server'
+import { createServerClient as createServiceRoleClient } from '@/lib/supabase/client'
 import { CONTRACT_PROVIDERS, sendHireContractWithProvider } from '@/lib/contracts/provider-adapter'
 import { isJobApplicationStatus } from '@/lib/hiring/states'
+import { canTransitionApplicationStatus } from '@/lib/hiring/application-transitions'
 import { canReviewStaffingApplications } from '@/lib/auth/hiring-permissions'
+import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
+import {
+  evaluateHiringEligibility,
+  isHiringEligibilityGateError,
+  recordHiringEligibilitySnapshot,
+} from '@/lib/services/hiring-eligibility.service'
 
 function isApplicationStatus(value: string): value is JobApplication['status'] {
   return isJobApplicationStatus(value)
@@ -12,20 +20,6 @@ function isApplicationStatus(value: string): value is JobApplication['status'] {
 
 function buildInvitationToken(candidateId: string) {
   return `invite_${candidateId}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-}
-
-const allowedApplicationTransitions: Record<string, string[]> = {
-  pending: ['reviewed', 'shortlisted', 'approved', 'rejected', 'withdrawn'],
-  reviewed: ['shortlisted', 'approved', 'rejected', 'withdrawn'],
-  shortlisted: ['approved', 'rejected', 'withdrawn'],
-  approved: ['withdrawn'],
-  rejected: [],
-  withdrawn: [],
-}
-
-function canTransitionApplicationStatus(currentStatus: string, nextStatus: string) {
-  if (currentStatus === nextStatus) return true
-  return (allowedApplicationTransitions[currentStatus] || []).includes(nextStatus)
 }
 
 async function hasVenueReviewAccess(input: {
@@ -87,6 +81,87 @@ async function writeHiringAuditEvent(input: {
     })
   } catch (error) {
     console.warn('⚠️ [Applications API] Failed to write hiring audit event:', error)
+  }
+}
+
+async function recordApprovedApplicationMetric(input: {
+  applicantId?: string | null
+  applicationId: string
+  jobPostingId?: string | null
+  venueId?: string | null
+  source?: 'approve' | 'bulk_patch'
+}) {
+  if (!input.applicantId) return
+
+  try {
+    const serviceRoleSupabase = createServiceRoleClient()
+    await recordAchievementMetricEvent({
+      supabase: serviceRoleSupabase,
+      userId: input.applicantId,
+      metricKey: 'accepted_applications_total',
+      eventType: 'job_application_approved',
+      delta: 1,
+      eventData: {
+        application_id: input.applicationId,
+        job_posting_id: input.jobPostingId,
+        venue_id: input.venueId,
+        source: input.source || 'approve',
+      },
+      relatedProjectId: input.jobPostingId || undefined,
+    })
+  } catch (error) {
+    console.warn('⚠️ [Applications API] Failed to record approved-application metric:', error)
+  }
+}
+
+async function notifyApplicantStatusChange(input: {
+  supabase: any
+  applicantUserId?: string | null
+  applicationId: string
+  venueId?: string | null
+  status: string
+  feedback?: string | null
+}) {
+  const { supabase, applicantUserId, applicationId, venueId, status, feedback } = input
+  if (!applicantUserId) return
+
+  const title = status === 'approved' ? 'Application Approved' : 'Application Update'
+  const content =
+    status === 'approved'
+      ? 'Your application was approved. Check your onboarding updates for next steps.'
+      : status === 'rejected'
+        ? 'Your application was not selected this time.'
+        : `Your application status is now ${status}.`
+
+  try {
+    await supabase.from('notifications').insert({
+      user_id: applicantUserId,
+      type: 'hiring_application_status_updated',
+      title,
+      content,
+      metadata: {
+        application_id: applicationId,
+        venue_id: venueId || null,
+        status,
+        feedback: feedback || null,
+      },
+    })
+  } catch (error) {
+    console.warn('⚠️ [Applications API] Failed to notify applicant status change:', error)
+  }
+}
+
+function buildEligibilityConflictPayload(assessment: any) {
+  return {
+    success: false,
+    error: 'Application cannot be approved until required verified evidence is complete',
+    code: 'HIRING_ELIGIBILITY_BLOCKED',
+    eligibility: {
+      mode: assessment.mode,
+      blocking_reasons: assessment.blocking_reasons,
+      checklist: assessment.checklist,
+      summary: assessment.summary,
+    },
   }
 }
 
@@ -173,9 +248,36 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    const { data: evidenceRequestRows } = await supabase
+      .from('hiring_audit_events')
+      .select('application_id, actor_user_id, content, metadata, created_at')
+      .in('application_id', applicationIds.length > 0 ? applicationIds : ['00000000-0000-0000-0000-000000000000'])
+      .eq('action', 'request_evidence')
+      .order('created_at', { ascending: false })
+
+    const latestEvidenceRequestByApplication = new Map<string, any>()
+    ;(evidenceRequestRows || []).forEach((row: any) => {
+      if (latestEvidenceRequestByApplication.has(row.application_id)) return
+      latestEvidenceRequestByApplication.set(row.application_id, row)
+    })
+
+    const applicationsWithEvidenceState = enrichedApplications.map((application) => {
+      const evidenceRequest = latestEvidenceRequestByApplication.get(application.id)
+      return {
+        ...application,
+        evidence_request_status: evidenceRequest
+          ? {
+              requested_at: evidenceRequest.created_at,
+              requested_by: evidenceRequest.actor_user_id,
+              message: evidenceRequest.metadata?.message || evidenceRequest.content || '',
+            }
+          : null,
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      data: enrichedApplications,
+      data: applicationsWithEvidenceState,
     })
   } catch (error) {
     console.error('❌ [Applications API] Error:', error)
@@ -210,7 +312,7 @@ export async function POST(request: NextRequest) {
     if (action === 'approve') {
       const { data: currentApplication, error: currentError } = await supabase
         .from('job_applications')
-        .select('id, status, job_posting_id, venue_id')
+        .select('id, status, job_posting_id, venue_id, applicant_id')
         .eq('id', applicationId)
         .single()
 
@@ -234,8 +336,67 @@ export async function POST(request: NextRequest) {
         )
       }
 
+      const eligibility = await evaluateHiringEligibility({
+        supabase,
+        applicationId,
+      })
+      try {
+        await recordHiringEligibilitySnapshot({
+          supabase,
+          assessment: eligibility,
+          actorUserId: user.id,
+        })
+      } catch (snapshotError) {
+        console.warn('⚠️ [Applications API] Failed to write eligibility snapshot:', snapshotError)
+      }
+      if (eligibility.mode === 'enforce' && !eligibility.is_eligible) {
+        await writeHiringAuditEvent({
+          supabase,
+          actorUserId: user.id,
+          applicationId,
+          jobId: currentApplication.job_posting_id,
+          venueId: currentApplication.venue_id,
+          action: 'approve_blocked',
+          fromStatus: currentApplication.status,
+          toStatus: 'approved',
+          metadata: {
+            eligibility_mode: eligibility.mode,
+            blocking_reasons: eligibility.blocking_reasons,
+            checklist: eligibility.checklist,
+          },
+        })
+        return NextResponse.json(buildEligibilityConflictPayload(eligibility), { status: 409 })
+      }
+
+      if (eligibility.mode === 'shadow' && !eligibility.is_eligible) {
+        await writeHiringAuditEvent({
+          supabase,
+          actorUserId: user.id,
+          applicationId,
+          jobId: currentApplication.job_posting_id,
+          venueId: currentApplication.venue_id,
+          action: 'approve_shadow_failed',
+          fromStatus: currentApplication.status,
+          toStatus: 'approved',
+          metadata: {
+            eligibility_mode: eligibility.mode,
+            blocking_reasons: eligibility.blocking_reasons,
+          },
+        })
+      }
+
       // Mark application approved then create/link candidate
-      await AdminOnboardingStaffService.updateApplicationStatus(applicationId, { status: 'approved' })
+      await AdminOnboardingStaffService.updateApplicationStatus(applicationId, {
+        status: 'approved',
+        feedback: body?.feedback,
+      })
+      await recordApprovedApplicationMetric({
+        applicantId: currentApplication.applicant_id,
+        applicationId,
+        jobPostingId: currentApplication.job_posting_id,
+        venueId: currentApplication.venue_id,
+        source: 'approve',
+      })
       const candidate = await AdminOnboardingStaffService.createOrLinkCandidateFromApplication(applicationId)
       const invitationToken = buildInvitationToken(candidate.id)
       let onboardingUrl: string | null = null
@@ -342,6 +503,14 @@ export async function POST(request: NextRequest) {
           })
         } catch {}
       }
+      await notifyApplicantStatusChange({
+        supabase,
+        applicantUserId: candidate?.user_id || currentApplication.applicant_id,
+        applicationId,
+        venueId: currentApplication.venue_id,
+        status: 'approved',
+        feedback: body?.feedback || null,
+      })
 
       await writeHiringAuditEvent({
         supabase,
@@ -357,6 +526,8 @@ export async function POST(request: NextRequest) {
           onboarding_url: onboardingUrl,
           contract_id: contract?.contractId || contract?.id || null,
           contract_provider: contract?.provider || null,
+          eligibility_mode: eligibility.mode,
+          eligibility_blocking_reasons: eligibility.blocking_reasons,
         },
       })
 
@@ -374,7 +545,7 @@ export async function POST(request: NextRequest) {
     if (action === 'reject') {
       const { data: currentApplication, error: currentError } = await supabase
         .from('job_applications')
-        .select('id, status, job_posting_id, venue_id')
+        .select('id, status, job_posting_id, venue_id, applicant_id')
         .eq('id', applicationId)
         .single()
 
@@ -399,6 +570,13 @@ export async function POST(request: NextRequest) {
       }
 
       const updated = await AdminOnboardingStaffService.updateApplicationStatus(applicationId, { status: 'rejected' })
+      await notifyApplicantStatusChange({
+        supabase,
+        applicantUserId: currentApplication.applicant_id,
+        applicationId,
+        venueId: currentApplication.venue_id,
+        status: 'rejected',
+      })
       await writeHiringAuditEvent({
         supabase,
         actorUserId: user.id,
@@ -412,8 +590,75 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: updated, message: 'Application rejected' })
     }
 
+    if (action === 'request_evidence') {
+      const { data: currentApplication, error: currentError } = await supabase
+        .from('job_applications')
+        .select('id, status, job_posting_id, venue_id, applicant_id, applicant_name')
+        .eq('id', applicationId)
+        .single()
+
+      if (currentError || !currentApplication)
+        return NextResponse.json({ success: false, error: 'Application not found' }, { status: 404 })
+
+      const canReview = await hasVenueReviewAccess({
+        userId: user.id,
+        venueId: currentApplication.venue_id,
+      })
+      if (!canReview)
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+
+      const requestedMessage =
+        typeof body?.message === 'string' && body.message.trim().length > 0
+          ? body.message.trim()
+          : `Please provide missing verified evidence so we can continue your review.`
+
+      await writeHiringAuditEvent({
+        supabase,
+        actorUserId: user.id,
+        applicationId,
+        jobId: currentApplication.job_posting_id,
+        venueId: currentApplication.venue_id,
+        action: 'request_evidence',
+        fromStatus: currentApplication.status,
+        toStatus: currentApplication.status,
+        metadata: {
+          request_type: 'missing_evidence',
+          message: requestedMessage,
+        },
+      })
+
+      if (currentApplication.applicant_id) {
+        try {
+          await supabase.from('notifications').insert({
+            user_id: currentApplication.applicant_id,
+            type: 'hiring_evidence_requested',
+            title: 'Additional verification requested',
+            content: requestedMessage,
+            metadata: {
+              application_id: applicationId,
+              venue_id: currentApplication.venue_id,
+              requested_by: user.id,
+            },
+          })
+        } catch (notificationError) {
+          console.warn('⚠️ [Applications API] Failed to send evidence request notification:', notificationError)
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          application_id: applicationId,
+          requested_at: new Date().toISOString(),
+        },
+        message: 'Evidence request sent',
+      })
+    }
+
     return NextResponse.json({ success: false, error: 'Unsupported action' }, { status: 400 })
   } catch (error) {
+    if (isHiringEligibilityGateError(error))
+      return NextResponse.json(buildEligibilityConflictPayload(error.assessment), { status: 409 })
     console.error('❌ [Applications API] Error:', error)
     return NextResponse.json({ success: false, error: 'Failed to process request' }, { status: 500 })
   }
@@ -452,22 +697,104 @@ export async function PATCH(request: NextRequest) {
       )
     }
 
+    if (status === 'approved') {
+      const blocked: Array<{ application_id: string; eligibility: any }> = []
+      for (const id of applicationIds) {
+        if (typeof id !== 'string' || !id) continue
+        const { data: currentApplication } = await supabase
+          .from('job_applications')
+          .select('id, venue_id')
+          .eq('id', id)
+          .single()
+
+        if (!currentApplication) continue
+        const canReview = await hasVenueReviewAccess({
+          userId: user.id,
+          venueId: currentApplication.venue_id,
+        })
+        if (!canReview) continue
+
+        const eligibility = await evaluateHiringEligibility({
+          supabase,
+          applicationId: id,
+        })
+        try {
+          await recordHiringEligibilitySnapshot({
+            supabase,
+            assessment: eligibility,
+            actorUserId: user.id,
+          })
+        } catch (snapshotError) {
+          console.warn('⚠️ [Applications API] Failed to write eligibility snapshot:', snapshotError)
+        }
+        if (eligibility.mode === 'enforce' && !eligibility.is_eligible) {
+          blocked.push({ application_id: id, eligibility })
+        }
+      }
+
+      if (blocked.length > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'One or more applications are blocked by hiring eligibility gates',
+            code: 'HIRING_ELIGIBILITY_BLOCKED',
+            blocked,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
+    const updatedIds: string[] = []
+    const skipped: Array<{ application_id: string; reason: string }> = []
     for (const id of applicationIds) {
-      if (typeof id !== 'string' || !id) continue
+      if (typeof id !== 'string' || !id) {
+        skipped.push({ application_id: String(id || ''), reason: 'invalid_application_id' })
+        continue
+      }
       const { data: currentApplication } = await supabase
         .from('job_applications')
-        .select('id, status, job_posting_id, venue_id')
+        .select('id, status, job_posting_id, venue_id, applicant_id')
         .eq('id', id)
         .single()
 
-      if (!currentApplication) continue
+      if (!currentApplication) {
+        skipped.push({ application_id: id, reason: 'application_not_found' })
+        continue
+      }
       const canReview = await hasVenueReviewAccess({
         userId: user.id,
         venueId: currentApplication.venue_id,
       })
-      if (!canReview) continue
-      if (!canTransitionApplicationStatus(currentApplication.status, status)) continue
-      await AdminOnboardingStaffService.updateApplicationStatus(id, { status, feedback })
+      if (!canReview) {
+        skipped.push({ application_id: id, reason: 'forbidden' })
+        continue
+      }
+      if (!canTransitionApplicationStatus(currentApplication.status, status)) {
+        skipped.push({
+          application_id: id,
+          reason: `invalid_transition:${currentApplication.status}->${status}`,
+        })
+        continue
+      }
+      try {
+        await AdminOnboardingStaffService.updateApplicationStatus(id, { status, feedback })
+      } catch (error) {
+        if (isHiringEligibilityGateError(error)) {
+          return NextResponse.json(buildEligibilityConflictPayload(error.assessment), { status: 409 })
+        }
+        throw error
+      }
+      updatedIds.push(id)
+      if (status === 'approved' && currentApplication.applicant_id) {
+        await recordApprovedApplicationMetric({
+          applicantId: currentApplication.applicant_id,
+          applicationId: id,
+          jobPostingId: currentApplication.job_posting_id,
+          venueId: currentApplication.venue_id,
+          source: 'bulk_patch',
+        })
+      }
       await writeHiringAuditEvent({
         supabase,
         actorUserId: user.id,
@@ -481,9 +808,27 @@ export async function PATCH(request: NextRequest) {
       })
     }
 
+    if (updatedIds.length === 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No applications were updated',
+          data: {
+            updated_ids: updatedIds,
+            skipped,
+          },
+        },
+        { status: 409 }
+      )
+    }
+
     return NextResponse.json({
       success: true,
-      message: `${applicationIds.length} application(s) updated`,
+      message: `${updatedIds.length} application(s) updated`,
+      data: {
+        updated_ids: updatedIds,
+        skipped,
+      },
     })
   } catch (error) {
     console.error('❌ [Applications API] Bulk PATCH error:', error)

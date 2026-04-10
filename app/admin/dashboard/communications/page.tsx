@@ -98,10 +98,23 @@ export default function CommunicationsPage() {
     requires_acknowledgment: false,
   })
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+      ...input,
+    }
+  }
+
   const fetchMessages = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/communications?limit=100')
+      const res = await fetch('/api/admin/communications?limit=100', buildNoStoreInit())
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setMessages(data.messages || [])
@@ -123,11 +136,10 @@ export default function CommunicationsPage() {
 
     setSending(true)
     try {
-      const res = await fetch('/api/admin/communications', {
+      const res = await fetch('/api/admin/communications', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newMsg),
-      })
+      }))
       if (!res.ok) throw new Error('Failed to send')
       toast.success('Message sent')
       setShowCompose(false)
@@ -142,21 +154,19 @@ export default function CommunicationsPage() {
 
   async function handleMarkRead(id: string) {
     try {
-      await fetch('/api/admin/communications', {
+      await fetch('/api/admin/communications', buildNoStoreInit({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action: 'mark_read' }),
-      })
+      }))
     } catch { /* silent */ }
   }
 
   async function handleAcknowledge(id: string) {
     try {
-      const res = await fetch('/api/admin/communications', {
+      const res = await fetch('/api/admin/communications', buildNoStoreInit({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, action: 'acknowledge' }),
-      })
+      }))
       if (res.ok) {
         toast.success('Acknowledged')
         fetchMessages()

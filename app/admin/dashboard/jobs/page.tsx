@@ -23,13 +23,24 @@ export default function JobsPage() {
   const [didFail, setDidFail] = useState(false)
   const [titleQuery, setTitleQuery] = useState("")
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    }
+  }
+
   useEffect(() => {
     let alive = true
     ;(async () => {
       setIsLoading(true)
       setDidFail(false)
       try {
-        const res = await fetch("/api/job-board", { credentials: "include" })
+        const res = await fetch("/api/job-board", buildNoStoreInit())
         const json = await res.json()
         if (!alive) return
         if (json.success && Array.isArray(json.data)) setJobs(json.data)

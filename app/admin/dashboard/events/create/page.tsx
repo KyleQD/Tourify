@@ -62,6 +62,20 @@ export default function CreateEventPage() {
   const [isLoading, setIsLoading] = React.useState(false)
   const { toast } = useToast()
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Mock existing artists data - in real app this would come from API
   const existingArtists: Artist[] = [
     {
@@ -110,10 +124,8 @@ export default function CreateEventPage() {
       const capacityPayload =
         capacity !== null && !Number.isNaN(capacity) ? capacity : null
 
-      const response = await fetch("/api/events", {
+      const response = await fetch("/api/events", buildNoStoreInit({
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
           title: eventData.title.trim(),
           description: eventData.description || "",
@@ -123,7 +135,7 @@ export default function CreateEventPage() {
           capacity: capacityPayload,
           status: "draft",
         }),
-      })
+      }))
 
       const data = await response.json().catch(() => ({}))
 

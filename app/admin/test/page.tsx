@@ -8,6 +8,18 @@ export default function AdminTestPage() {
   const [testResults, setTestResults] = useState<any>({})
   const [isLoading, setIsLoading] = useState(false)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   const testEndpoints = async () => {
     setIsLoading(true)
     const results: any = {}
@@ -24,10 +36,7 @@ export default function AdminTestPage() {
 
     for (const endpoint of endpoints) {
       try {
-        const response = await fetch(endpoint, {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const response = await fetch(endpoint, buildNoStoreInit())
         
         results[endpoint] = {
           status: response.status,

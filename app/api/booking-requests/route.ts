@@ -35,7 +35,7 @@ const createBookingRequestSchema = z.object({
   budgetRange: z.string().optional(),
   bookingDetails: bookingDetailsSchema,
   token: z.string().optional(),
-  status: z.enum(["pending", "accepted", "declined"]).default("pending"),
+  status: z.enum(["pending", "accepted", "declined", "approved", "rejected"]).default("pending"),
   requestType: z.enum(["performance", "collaboration"]).default("performance")
 })
 
@@ -43,10 +43,22 @@ const updateBookingRequestSchema = z.object({
   token: z.string().optional(),
   requestId: z.string().uuid().optional(),
   venueRequestId: z.string().uuid().optional(),
-  status: z.enum(["pending", "accepted", "declined"]),
+  status: z.enum(["pending", "accepted", "declined", "approved", "rejected"]),
   userId: z.string().uuid().optional(),
   responseMessage: z.string().optional()
 })
+
+function toUnifiedBookingStatus(status: string): "pending" | "accepted" | "declined" {
+  if (status === "approved" || status === "accepted") return "accepted"
+  if (status === "rejected" || status === "declined") return "declined"
+  return "pending"
+}
+
+function toVenueBookingStatus(status: string): "pending" | "approved" | "rejected" {
+  if (status === "accepted" || status === "approved") return "approved"
+  if (status === "declined" || status === "rejected") return "rejected"
+  return "pending"
+}
 
 function parseEventDurationMinutes(durationText?: string) {
   if (!durationText?.trim()) return 120
@@ -104,7 +116,13 @@ export async function GET(req: NextRequest) {
         .order("requested_at", { ascending: false })
 
       if (venueError) throw venueError
-      return NextResponse.json({ success: true, data: venueRequests || [] })
+      return NextResponse.json({
+        success: true,
+        data: (venueRequests || []).map((request: any) => ({
+          ...request,
+          normalized_status: toUnifiedBookingStatus(request.status),
+        })),
+      })
     }
 
     let query = supabase
@@ -139,10 +157,22 @@ export async function GET(req: NextRequest) {
           { status: 404 }
         )
       }
-      return NextResponse.json({ success: true, data: booking })
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...booking,
+          status: toUnifiedBookingStatus(booking.status),
+        },
+      })
     }
 
-    return NextResponse.json({ success: true, data: bookingRequests })
+    return NextResponse.json({
+      success: true,
+      data: (bookingRequests || []).map((request: any) => ({
+        ...request,
+        status: toUnifiedBookingStatus(request.status),
+      })),
+    })
   } catch (error) {
     console.error("Error fetching booking requests:", error)
     return NextResponse.json(
@@ -170,6 +200,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const normalizedCreateStatus = toUnifiedBookingStatus(validatedData.status)
+
     let bookingRequest: any = null
     if (hasLegacyTarget || validatedData.artistId) {
       const { data, error } = await supabase
@@ -182,7 +214,7 @@ export async function POST(req: NextRequest) {
           tour_id: validatedData.tourId,
           booking_details: validatedData.bookingDetails,
           token: validatedData.token,
-          status: validatedData.status,
+          status: normalizedCreateStatus,
           request_type: validatedData.requestType,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -320,12 +352,7 @@ export async function PATCH(req: NextRequest) {
         )
       }
 
-      const venueStatus =
-        validatedData.status === "accepted"
-          ? "approved"
-          : validatedData.status === "declined"
-            ? "rejected"
-            : "pending"
+      const venueStatus = toVenueBookingStatus(validatedData.status)
 
       const { error: rpcError } = await supabase.rpc("respond_to_booking_request", {
         p_request_id: targetRequestId,
@@ -349,8 +376,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: true, data: venueBookingRequest })
     }
 
+    const normalizedUpdateStatus = toUnifiedBookingStatus(validatedData.status)
     const updateData = {
-      status: validatedData.status,
+      status: normalizedUpdateStatus,
       artist_id: validatedData.userId,
       response_message: validatedData.responseMessage,
       updated_at: new Date().toISOString()
@@ -382,7 +410,7 @@ export async function PATCH(req: NextRequest) {
       throw error
     }
 
-    if (bookingRequest.artist_id && validatedData.status === "accepted") {
+    if (bookingRequest.artist_id && normalizedUpdateStatus === "accepted") {
       await achievementEngine.recordMetricEvent({
         supabase: supabase as any,
         userId: bookingRequest.artist_id,
@@ -395,18 +423,18 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Create notification for admin when booking is accepted/declined
-    if (validatedData.status === "accepted" || validatedData.status === "declined") {
+    if (normalizedUpdateStatus === "accepted" || normalizedUpdateStatus === "declined") {
       await supabase
         .from("notifications")
         .insert({
           type: "booking_response",
-          content: `An artist has ${validatedData.status} your booking request`,
+          content: `An artist has ${normalizedUpdateStatus} your booking request`,
           metadata: {
             bookingRequestId: bookingRequest.id,
             artistId: bookingRequest.artist_id,
             eventId: bookingRequest.event_id,
             tourId: bookingRequest.tour_id,
-            status: validatedData.status,
+            status: normalizedUpdateStatus,
             responseMessage: validatedData.responseMessage
           },
           created_at: new Date().toISOString()

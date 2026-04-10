@@ -12,6 +12,8 @@ Apply these in order:
 4. `20260409140000_staffing_api_telemetry.sql`
 5. `20260409142000_staffing_alert_events.sql`
 6. `20260409150000_unified_workflow_threads.sql`
+7. `20260409170000_work_achievements_rewards_resume.sql`
+8. `20260409183000_hiring_eligibility_gate.sql`
 
 ## Cron jobs
 
@@ -33,6 +35,7 @@ Apply these in order:
 - `/api/staffing/employee-overview`
 - `/api/staffing/health`
 - `/api/staffing/ops-actions` (authenticated manual ops actions)
+- `/api/employer/vetting/[applicationId]` (verified-only hiring vetting snapshot)
 
 These now emit:
 
@@ -108,6 +111,15 @@ And overview additionally emits:
 - `WORKFLOW_ALERTS_WEBHOOK_URL`
   - if set, cron workflow automations post critical SLA payloads
 
+- `FEATURE_HIRING_ELIGIBILITY_GATE`
+  - `off`/`0`: disable gate checks
+  - `shadow`: run evaluator and record snapshots/audit signals without blocking approvals
+  - `enforce`/`1`: block `approved` transitions when required verified evidence is missing
+
+- `FEATURE_HIRING_GATE_REQUIRE_ENDORSEMENT`
+  - `1`: make verified endorsement count a required gate item
+  - unset/`0`: endorsements remain informational (non-blocking)
+
 ## Incident playbook
 
 ### 1) Elevated 5xx or unstable cache behavior
@@ -154,6 +166,23 @@ And overview additionally emits:
    - `FEATURE_WORKFLOW_TASK_BRIDGE=1` for selected venues/events
 5. Verify workflow telemetry in health endpoint:
    - `/api/staffing/health?venue_id=<uuid>` (`data.workflow`)
+
+### 6) Hiring eligibility gate rollout
+
+1. Deploy migration `20260409183000_hiring_eligibility_gate.sql`
+2. Start in shadow mode:
+   - `FEATURE_HIRING_ELIGIBILITY_GATE=shadow`
+3. Review blocked reason patterns from:
+   - `hiring_audit_events` (`approve_shadow_failed`)
+   - `hiring_eligibility_snapshots`
+4. Backfill missing evidence process for reviewers:
+   - verified `staff_documents`
+   - signed `agreement_acceptances`
+5. Switch to enforce mode:
+   - `FEATURE_HIRING_ELIGIBILITY_GATE=enforce`
+6. Validate:
+   - Approving incomplete applications returns `409` with reason codes
+   - `/api/employer/vetting/[applicationId]` surfaces checklist + verified evidence only
 
 ## Verification checklist
 

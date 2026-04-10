@@ -27,7 +27,7 @@ interface VenueJobCard {
   }
   postedDate: string
   applicants?: number
-  status?: string
+  status: string
   postedBy?: string
 }
 
@@ -54,6 +54,20 @@ export default function JobsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [didFail, setDidFail] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     async function loadVenueJobs() {
       if (!venue?.id) return
@@ -61,9 +75,9 @@ export default function JobsPage() {
         setIsLoading(true)
         setDidFail(false)
         const [myJobsRes, boardRes, applicationsRes] = await Promise.all([
-          fetch(`/api/admin/job-postings?venue_id=${venue.id}`, { credentials: "include", cache: "no-store" }),
-          fetch("/api/job-board?limit=20", { credentials: "include", cache: "no-store" }),
-          fetch("/api/job-applications?limit=20", { credentials: "include", cache: "no-store" }),
+          fetch(`/api/admin/job-postings?venue_id=${venue.id}`, buildNoStoreInit()),
+          fetch("/api/job-board?limit=20", buildNoStoreInit()),
+          fetch("/api/job-applications?limit=20", buildNoStoreInit()),
         ])
 
         const [myJobsPayload, boardPayload, applicationsPayload] = await Promise.all([
@@ -109,6 +123,7 @@ export default function JobsPage() {
                   : undefined,
               },
               postedDate: job.created_at || new Date().toISOString(),
+              status: job.status || "active",
               postedBy: job.organization_name || "Tourify venue",
             }))
           : []

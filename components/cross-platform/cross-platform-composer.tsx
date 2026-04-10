@@ -53,7 +53,7 @@ export function CrossPlatformComposer({
     schedulePost, 
     templates, 
     hashtagGroups, 
-    useTemplate,
+    useTemplate: applyTemplate,
     createTemplate,
     loading 
   } = useCrossPlatformPosting()
@@ -121,7 +121,7 @@ export function CrossPlatformComposer({
   // Handle template selection
   const handleTemplateSelect = async (templateId: string) => {
     try {
-      const { processedContent, template } = await useTemplate(templateId, templateVariables)
+      const { processedContent, template } = await applyTemplate(templateId, templateVariables)
       setContent(processedContent)
       setSelectedTemplate(templateId)
       

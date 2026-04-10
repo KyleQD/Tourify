@@ -80,11 +80,11 @@ export async function POST(request: NextRequest) {
     if (!followRequestResult.success)
       return NextResponse.json<ApiErrorShape>({
         error: {
-          code: followRequestResult.code,
-          message: followRequestResult.message,
-          retryable: followRequestResult.retryable,
+          code: followRequestResult.code ?? 'follow_request_failed',
+          message: followRequestResult.message ?? 'Failed to send follow request',
+          retryable: followRequestResult.retryable ?? true,
         },
-      }, { status: followRequestResult.statusCode })
+      }, { status: followRequestResult.statusCode ?? 500 })
 
     await supabase
       .from('connect_sessions')

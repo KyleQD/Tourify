@@ -13,10 +13,21 @@ import { Badge } from "@/components/ui/badge"
 export default function InventoryPage() {
   const [items, setItems] = useState<any[]>([])
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   useEffect(() => {
     async function fetchItems() {
       try {
-        const res = await fetch('/api/admin/logistics/items', { credentials: 'include' })
+        const res = await fetch('/api/admin/logistics/items', buildNoStoreInit())
         if (res.ok) {
           const data = await res.json()
           setItems(data.items || data.data || [])

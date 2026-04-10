@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { z } from 'zod'
 
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 const updateProfileSchema = z.object({
   full_name: z.string().min(1, 'Full name is required').max(100, 'Full name must be less than 100 characters').optional(),
   username: z.string().min(2, 'Username must be at least 2 characters').max(30, 'Username must be less than 30 characters').regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores').optional(),
@@ -16,6 +20,28 @@ const updateProfileSchema = z.object({
   show_email: z.boolean().optional(),
   show_phone: z.boolean().optional(),
   show_location: z.boolean().optional(),
+  profile_experience: z.object({
+    public_visibility: z.object({
+      show_feed: z.boolean().optional(),
+      show_marketplace: z.boolean().optional(),
+      show_portfolio: z.boolean().optional(),
+      show_achievements: z.boolean().optional(),
+    }).optional(),
+    support: z.object({
+      support_title: z.string().max(80, 'Support title must be less than 80 characters').optional(),
+      support_message: z.string().max(240, 'Support message must be less than 240 characters').optional(),
+      tip_jar_url: z.string().url('Tip jar URL must be a valid URL').optional().or(z.literal('')),
+      commission_url: z.string().url('Commission URL must be a valid URL').optional().or(z.literal('')),
+      booking_url: z.string().url('Booking URL must be a valid URL').optional().or(z.literal('')),
+      marketplace_url: z.string().url('Marketplace URL must be a valid URL').optional().or(z.literal('')),
+    }).optional(),
+    dashboard: z.object({
+      show_quick_stats: z.boolean().optional(),
+      show_tasks: z.boolean().optional(),
+      show_recommendations: z.boolean().optional(),
+      widget_order: z.array(z.string().min(1)).max(20).optional(),
+    }).optional(),
+  }).optional(),
 })
 
 interface ProfileUpdateData {
@@ -32,6 +58,28 @@ interface ProfileUpdateData {
   show_email?: boolean
   show_phone?: boolean
   show_location?: boolean
+  profile_experience?: {
+    public_visibility?: {
+      show_feed?: boolean
+      show_marketplace?: boolean
+      show_portfolio?: boolean
+      show_achievements?: boolean
+    }
+    support?: {
+      support_title?: string
+      support_message?: string
+      tip_jar_url?: string
+      commission_url?: string
+      booking_url?: string
+      marketplace_url?: string
+    }
+    dashboard?: {
+      show_quick_stats?: boolean
+      show_tasks?: boolean
+      show_recommendations?: boolean
+      widget_order?: string[]
+    }
+  }
 }
 
 export async function PUT(request: NextRequest) {
@@ -136,6 +184,19 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    const { data: existingProfileRow, error: existingProfileError } = await supabase
+      .from('profiles')
+      .select('profile_data')
+      .eq('id', user.id)
+      .single()
+
+    if (existingProfileError) {
+      console.error('❌ Error loading existing profile data:', existingProfileError)
+      return NextResponse.json({
+        error: 'Error loading current profile settings'
+      }, { status: 500 })
+    }
+
     // Prepare update data with only defined fields for optimal performance
     const profileUpdate: any = {
       updated_at: new Date().toISOString()
@@ -147,6 +208,39 @@ export async function PUT(request: NextRequest) {
         profileUpdate[key] = updateData[key as keyof ProfileUpdateData]
       }
     })
+
+    if (updateData.profile_experience) {
+      const existingProfileData = isRecord(existingProfileRow?.profile_data) ? existingProfileRow.profile_data : {}
+      const existingProfileExperience = isRecord(existingProfileData.profile_experience) ? existingProfileData.profile_experience : {}
+      const incomingProfileExperience = updateData.profile_experience
+
+      profileUpdate.profile_data = {
+        ...existingProfileData,
+        profile_experience: {
+          ...existingProfileExperience,
+          ...(isRecord(incomingProfileExperience.public_visibility) && {
+            public_visibility: {
+              ...(isRecord(existingProfileExperience.public_visibility) ? existingProfileExperience.public_visibility : {}),
+              ...incomingProfileExperience.public_visibility,
+            }
+          }),
+          ...(isRecord(incomingProfileExperience.support) && {
+            support: {
+              ...(isRecord(existingProfileExperience.support) ? existingProfileExperience.support : {}),
+              ...incomingProfileExperience.support,
+            }
+          }),
+          ...(isRecord(incomingProfileExperience.dashboard) && {
+            dashboard: {
+              ...(isRecord(existingProfileExperience.dashboard) ? existingProfileExperience.dashboard : {}),
+              ...incomingProfileExperience.dashboard,
+            }
+          }),
+        },
+      }
+
+      delete profileUpdate.profile_experience
+    }
 
     console.log('🔄 Updating profile with data:', profileUpdate)
 
@@ -165,6 +259,7 @@ export async function PUT(request: NextRequest) {
         phone,
         location,
         website,
+        profile_data,
         instagram,
         twitter,
         spotify,
@@ -246,6 +341,7 @@ export async function PUT(request: NextRequest) {
           posts: updatedProfile.posts_count || 0
         },
         profile_data: {
+          ...(isRecord(updatedProfile.profile_data) ? updatedProfile.profile_data : {}),
           name: updatedProfile.full_name,
           bio: updatedProfile.bio,
           location: updatedProfile.location,

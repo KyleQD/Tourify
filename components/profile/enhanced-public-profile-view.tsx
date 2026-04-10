@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -50,7 +51,8 @@ import {
   Volume2,
   Plus,
   Edit,
-  Settings
+  Settings,
+  ShoppingBag
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
@@ -89,6 +91,16 @@ interface EnhancedPublicProfileProps {
   portfolio?: any[]
   experiences?: any[]
   certifications?: any[]
+}
+
+interface MarketplacePreviewItem {
+  id: string
+  title: string
+  description: string | null
+  category: string
+  currency: string
+  base_price: number | null
+  cover_image_url: string | null
 }
 
 interface Skill {
@@ -181,6 +193,8 @@ export function EnhancedPublicProfileView({
   const [shows, setShows] = useState<Show[]>([])
   const [isFollowing, setIsFollowing] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [isMarketplaceLoading, setIsMarketplaceLoading] = useState(false)
+  const [marketplaceItems, setMarketplaceItems] = useState<MarketplacePreviewItem[]>([])
   const [relationship, setRelationship] = useState<'none' | 'pending' | 'following' | 'friends'>('none')
   const [isChecking, setIsChecking] = useState(false)
 
@@ -503,6 +517,53 @@ export function EnhancedPublicProfileView({
     productsForSale.length > 0 ||
     credentials.length > 0 ||
     workHighlights.length > 0
+  const profileExperience = profile.profile_data?.profile_experience || {}
+  const publicVisibility = profileExperience.public_visibility || {}
+  const supportSettings = profileExperience.support || {}
+  const isFeedVisible = publicVisibility.show_feed !== false
+  const isPortfolioVisible = publicVisibility.show_portfolio !== false
+  const isAchievementsVisible = publicVisibility.show_achievements !== false
+  const isMarketplaceVisible = publicVisibility.show_marketplace !== false
+  const supportLinks = [
+    { label: "Tip Jar", url: supportSettings.tip_jar_url },
+    { label: "Commissions", url: supportSettings.commission_url },
+    { label: "Bookings", url: supportSettings.booking_url },
+    { label: "Marketplace", url: supportSettings.marketplace_url },
+  ].filter((item) => typeof item.url === "string" && item.url.trim().length > 0)
+  const hasSupportSection = Boolean(supportSettings.support_message) || supportLinks.length > 0
+
+  useEffect(() => {
+    if (!isMarketplaceVisible) {
+      setMarketplaceItems([])
+      return
+    }
+
+    let isMounted = true
+    async function loadMarketplaceItems() {
+      try {
+        setIsMarketplaceLoading(true)
+        const params = new URLSearchParams({
+          sellerUserId: profile.id,
+          limit: "4",
+        })
+        const response = await fetch(`/api/marketplace/discover?${params.toString()}`)
+        if (!response.ok) return
+
+        const data = await response.json()
+        if (!isMounted) return
+        setMarketplaceItems(Array.isArray(data.data) ? data.data : [])
+      } catch (error) {
+        console.error("Error loading marketplace preview:", error)
+      } finally {
+        if (isMounted) setIsMarketplaceLoading(false)
+      }
+    }
+
+    loadMarketplaceItems()
+    return () => {
+      isMounted = false
+    }
+  }, [isMarketplaceVisible, profile.id])
 
   return (
     <div className={`min-h-screen ${getBackgroundGradient()}`}>
@@ -763,7 +824,7 @@ export function EnhancedPublicProfileView({
             )}
 
             {/* Portfolio/Projects Section */}
-            {projects.length > 0 && (
+            {isPortfolioVisible && projects.length > 0 && (
               <Card className="bg-white/10 backdrop-blur border-0 rounded-3xl">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
@@ -960,22 +1021,24 @@ export function EnhancedPublicProfileView({
             )}
 
             {/* Posts Section */}
-            <Card className="bg-white/10 backdrop-blur border-0 rounded-3xl">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <MessageCircle className="h-5 w-5 text-emerald-400" />
-                  Posts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ProfilePosts 
-                  profileId={profile.id}
-                  profileUsername={profile.username}
-                  isOwnProfile={isOwnProfile}
-                  compact={true}
-                />
-              </CardContent>
-            </Card>
+            {isFeedVisible && (
+              <Card className="bg-white/10 backdrop-blur border-0 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-emerald-400" />
+                    Posts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ProfilePosts 
+                    profileId={profile.id}
+                    profileUsername={profile.username}
+                    isOwnProfile={isOwnProfile}
+                    compact={true}
+                  />
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Right Column - Sidebar */}
@@ -1007,11 +1070,107 @@ export function EnhancedPublicProfileView({
             )}
 
             {/* Achievements Section */}
-            <ProfileAchievementsSection 
-              userId={profile.id}
-              isOwnProfile={isOwnProfile}
-              className="bg-white/10 backdrop-blur border-0 rounded-3xl"
-            />
+            {isAchievementsVisible && (
+              <ProfileAchievementsSection 
+                userId={profile.id}
+                isOwnProfile={isOwnProfile}
+                className="bg-white/10 backdrop-blur border-0 rounded-3xl"
+              />
+            )}
+
+            {hasSupportSection && (
+              <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Heart className="h-5 w-5 text-emerald-400" />
+                    {supportSettings.support_title || "Support my work"}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {supportSettings.support_message ? (
+                    <p className="text-sm text-white/80">{supportSettings.support_message}</p>
+                  ) : null}
+                  <div className="flex flex-wrap gap-2">
+                    {supportLinks.map((link) => (
+                      <Button
+                        key={link.label}
+                        size="sm"
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10"
+                        asChild
+                      >
+                        <a href={link.url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="mr-2 h-3 w-3" />
+                          {link.label}
+                        </a>
+                      </Button>
+                    ))}
+                    {isMarketplaceVisible && !supportLinks.find((item) => item.label === "Marketplace") ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-white/30 text-white hover:bg-white/10"
+                        asChild
+                      >
+                        <a href="/marketplace">
+                          <ExternalLink className="mr-2 h-3 w-3" />
+                          Marketplace
+                        </a>
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {isMarketplaceVisible && (
+              <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <ShoppingBag className="h-5 w-5 text-emerald-400" />
+                    Marketplace
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {isMarketplaceLoading ? (
+                    <p className="text-sm text-white/70">Loading marketplace listings...</p>
+                  ) : marketplaceItems.length === 0 ? (
+                    <p className="text-sm text-white/70">No public listings yet.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {marketplaceItems.map((item) => (
+                        <div key={item.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="h-14 w-14 overflow-hidden rounded-lg bg-black/30">
+                              {item.cover_image_url ? (
+                                <img
+                                  src={item.cover_image_url}
+                                  alt={item.title}
+                                  className="h-full w-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-[10px] text-white/50">No image</div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-medium text-white">{item.title}</p>
+                              <p className="line-clamp-1 text-xs text-white/60">{item.description || "Creator listing"}</p>
+                              <p className="mt-1 text-xs text-emerald-200">
+                                {item.base_price !== null ? `${item.currency || "USD"} ${Number(item.base_price).toFixed(2)}` : "Custom pricing"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <Button asChild variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">
+                    <Link href={`/marketplace?seller=${encodeURIComponent(profile.username)}`}>View Storefront</Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Certifications Section */}
             {certifications.length > 0 && (

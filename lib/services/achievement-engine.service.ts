@@ -7,6 +7,7 @@ export interface AchievementRow {
   metric_key: string | null
   target_value: number | null
   evaluation_mode: 'increment' | 'absolute' | null
+  points: number | null
 }
 
 interface UserAchievementRow {
@@ -88,7 +89,7 @@ export const achievementEngine = {
 
     const { data: achievementRows, error: achievementsError } = await args.supabase
       .from('achievements')
-      .select('id, name, requirements, metric_key, target_value, evaluation_mode')
+      .select('id, name, requirements, metric_key, target_value, evaluation_mode, points')
       .eq('is_active', true)
 
     if (achievementsError || !achievementRows?.length) {
@@ -152,6 +153,92 @@ export const achievementEngine = {
       }
     }
 
+    if (unlockedAchievementIds.length > 0) {
+      await awardUnlockedAchievementRewards({
+        supabase: args.supabase,
+        userId: args.userId,
+        unlockedAchievements: matchingAchievements.filter((achievement) =>
+          unlockedAchievementIds.includes(achievement.id)
+        ),
+      })
+    }
+
     return { unlockedAchievementIds }
   }
+}
+
+async function awardUnlockedAchievementRewards(args: {
+  supabase: SupabaseClient
+  userId: string
+  unlockedAchievements: AchievementRow[]
+}) {
+  try {
+    const nowIso = new Date().toISOString()
+    const transactions = args.unlockedAchievements.map((achievement) => ({
+      user_id: args.userId,
+      points_delta: Number(achievement.points || 0),
+      source_type: 'achievement_unlock',
+      source_id: achievement.id,
+      metadata: {
+        achievement_name: achievement.name,
+      },
+      created_at: nowIso,
+    }))
+
+    if (transactions.length > 0) {
+      await args.supabase.from('reward_transactions').upsert(transactions, {
+        onConflict: 'user_id,source_type,source_id',
+      })
+    }
+
+    const { data: pointRows } = await args.supabase
+      .from('reward_transactions')
+      .select('points_delta')
+      .eq('user_id', args.userId)
+
+    const totalPoints = (pointRows || []).reduce((sum, row) => sum + Number(row.points_delta || 0), 0)
+    const tier = resolveRewardTier(totalPoints)
+
+    await args.supabase.from('user_reward_wallets').upsert(
+      {
+        user_id: args.userId,
+        total_points: totalPoints,
+        tier,
+        updated_at: nowIso,
+      },
+      { onConflict: 'user_id' }
+    )
+
+    await args.supabase.from('resume_achievement_highlights').upsert(
+      args.unlockedAchievements.map((achievement) => ({
+        user_id: args.userId,
+        achievement_id: achievement.id,
+        title: achievement.name,
+        summary: buildAchievementResumeSummary(achievement),
+        impact_score: Number(achievement.points || 0),
+        is_featured: true,
+        source_type: 'achievement',
+      })),
+      { onConflict: 'user_id,achievement_id' }
+    )
+  } catch (error) {
+    console.warn('[achievement-engine] reward wallet/highlight sync skipped:', error)
+  }
+}
+
+function resolveRewardTier(totalPoints: number): 'bronze' | 'silver' | 'gold' | 'platinum' {
+  if (totalPoints >= 6000) return 'platinum'
+  if (totalPoints >= 2500) return 'gold'
+  if (totalPoints >= 800) return 'silver'
+  return 'bronze'
+}
+
+function buildAchievementResumeSummary(achievement: AchievementRow) {
+  const requirementTarget = Number(
+    achievement.requirements?.target ??
+      achievement.requirements?.threshold ??
+      achievement.target_value ??
+      1
+  )
+  return `Unlocked "${achievement.name}" by meeting a work milestone target of ${requirementTarget}.`
 }

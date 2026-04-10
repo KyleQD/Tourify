@@ -37,11 +37,25 @@ export default function ApplyToJobPage() {
   const [milestones, setMilestones] = useState<Array<{ key: string; label: string; completed: boolean }>>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Fetch job details
   useEffect(() => {
     const fetchJob = async () => {
       try {
-        const response = await fetch(`/api/artist-jobs/${params.id}`)
+        const response = await fetch(`/api/artist-jobs/${params.id}`, buildNoStoreInit())
         if (!response.ok) throw new Error("Failed to fetch job")
         const data = await response.json()
         if (data.success) setJob(data.data)
@@ -61,7 +75,7 @@ export default function ApplyToJobPage() {
     const fetchMyApplication = async () => {
       if (!params.id || !user) return
       try {
-        const response = await fetch("/api/artist-jobs/applications")
+        const response = await fetch("/api/artist-jobs/applications", buildNoStoreInit())
         const payload = await response.json()
         if (!payload.success) return
 
@@ -117,11 +131,8 @@ export default function ApplyToJobPage() {
     setIsSubmitting(true)
 
     try {
-      const response = await fetch(`/api/artist-jobs/${job.id}/applications`, {
+      const response = await fetch(`/api/artist-jobs/${job.id}/applications`, buildNoStoreInit({
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           job_id: job.id,
           cover_letter: coverLetter,
@@ -130,7 +141,7 @@ export default function ApplyToJobPage() {
           contact_phone: contactPhone || undefined,
           preferred_contact_method: "email",
         }),
-      })
+      }))
 
       const payload = await response.json()
       if (!response.ok || !payload.success) throw new Error(payload.error || "Failed to submit application")

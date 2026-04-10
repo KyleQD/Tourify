@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from 'react'
+import { useCallback, useState, useEffect, useMemo } from 'react'
 import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings } from "lucide-react"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AdminPageHeader } from "../components/admin-page-header"
@@ -57,19 +57,23 @@ export default function TicketingPage() {
   const [activeTab, setActiveTab] = useState('overview')
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchEvents()
-  }, [])
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+      ...input,
+    }
+  }
 
-  useEffect(() => {
-    fetchTicketingData()
-  }, [selectedEvent])
-
-  const fetchEvents = async () => {
+  const fetchEvents = useCallback(async () => {
     try {
-      const response = await fetch('/api/admin/events', {
-        credentials: 'include'
-      })
+      const response = await fetch('/api/admin/events', buildNoStoreInit())
       
       if (response.ok) {
         const data = await response.json()
@@ -92,9 +96,9 @@ export default function TicketingPage() {
       console.error('Error fetching events:', error)
       setEvents([])
     }
-  }
+  }, [])
 
-  const fetchTicketingData = async () => {
+  const fetchTicketingData = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -102,7 +106,7 @@ export default function TicketingPage() {
       const eventFilter = selectedEvent !== 'all' ? `&event_id=${selectedEvent}` : ''
       
       // Fetch comprehensive overview
-      const overviewResponse = await fetch(`/api/admin/ticketing/enhanced?type=overview${eventFilter}`)
+      const overviewResponse = await fetch(`/api/admin/ticketing/enhanced?type=overview${eventFilter}`, buildNoStoreInit())
       const overviewData = await overviewResponse.json()
       
       if (overviewResponse.ok) {
@@ -131,7 +135,7 @@ export default function TicketingPage() {
       }
 
       // Fetch ticket types
-      const ticketTypesResponse = await fetch(`/api/admin/ticketing/enhanced?type=ticket_types${eventFilter}`)
+      const ticketTypesResponse = await fetch(`/api/admin/ticketing/enhanced?type=ticket_types${eventFilter}`, buildNoStoreInit())
       const ticketTypesData = await ticketTypesResponse.json()
       
       if (ticketTypesResponse.ok) {
@@ -141,7 +145,7 @@ export default function TicketingPage() {
       }
 
       // Fetch sales
-      const salesResponse = await fetch(`/api/admin/ticketing/enhanced?type=sales${eventFilter}`)
+      const salesResponse = await fetch(`/api/admin/ticketing/enhanced?type=sales${eventFilter}`, buildNoStoreInit())
       const salesData = await salesResponse.json()
       
       if (salesResponse.ok) {
@@ -151,7 +155,7 @@ export default function TicketingPage() {
       }
 
       // Fetch campaigns
-      const campaignsResponse = await fetch(`/api/admin/ticketing/enhanced?type=campaigns${eventFilter}`)
+      const campaignsResponse = await fetch(`/api/admin/ticketing/enhanced?type=campaigns${eventFilter}`, buildNoStoreInit())
       const campaignsData = await campaignsResponse.json()
       
       if (campaignsResponse.ok) {
@@ -161,7 +165,7 @@ export default function TicketingPage() {
       }
 
       // Fetch promo codes
-      const promoCodesResponse = await fetch(`/api/admin/ticketing/enhanced?type=promo_codes${eventFilter}`)
+      const promoCodesResponse = await fetch(`/api/admin/ticketing/enhanced?type=promo_codes${eventFilter}`, buildNoStoreInit())
       const promoCodesData = await promoCodesResponse.json()
       
       if (promoCodesResponse.ok) {
@@ -171,7 +175,7 @@ export default function TicketingPage() {
       }
 
       // Fetch social performance
-      const socialResponse = await fetch(`/api/admin/ticketing/enhanced?type=social_performance${eventFilter}`)
+      const socialResponse = await fetch(`/api/admin/ticketing/enhanced?type=social_performance${eventFilter}`, buildNoStoreInit())
       const socialData = await socialResponse.json()
       
       if (socialResponse.ok) {
@@ -207,7 +211,15 @@ export default function TicketingPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedEvent, toast])
+
+  useEffect(() => {
+    void fetchEvents()
+  }, [fetchEvents])
+
+  useEffect(() => {
+    void fetchTicketingData()
+  }, [fetchTicketingData])
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', {

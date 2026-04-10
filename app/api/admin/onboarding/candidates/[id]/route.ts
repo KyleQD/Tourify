@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  try {
+  return withAdminAuth(async (req) => {
     const { id } = await context.params
-    const body = await request.json()
+    const body = await req.json()
     const { progress, stage, status, notes } = body
 
     if (progress === undefined) {
@@ -27,22 +28,16 @@ export async function PATCH(
       success: true,
       message: 'Onboarding progress updated successfully'
     })
-  } catch (error) {
-    console.error('❌ [Admin Onboarding Candidate API] Error updating candidate:', error)
-    return NextResponse.json(
-      { error: 'Failed to update onboarding candidate' },
-      { status: 500 }
-    )
-  }
+  })(request)
 }
 
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  try {
+  return withAdminAuth(async (req) => {
     const { id } = await context.params
-    const body = await request.json()
+    const body = await req.json()
     const { action } = body
 
     if (action === 'complete') {
@@ -65,11 +60,5 @@ export async function POST(
       { error: 'Invalid action' },
       { status: 400 }
     )
-  } catch (error) {
-    console.error('❌ [Admin Onboarding Candidate API] Error processing candidate action:', error)
-    return NextResponse.json(
-      { error: 'Failed to process candidate action' },
-      { status: 500 }
-    )
-  }
+  })(request)
 } 

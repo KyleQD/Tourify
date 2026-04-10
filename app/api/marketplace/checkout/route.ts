@@ -1,0 +1,251 @@
+import { NextRequest, NextResponse } from "next/server"
+import Stripe from "stripe"
+import { z } from "zod"
+import { createClient } from "@/lib/supabase/server"
+import { calculateMarketplaceFeeBreakdown } from "@/lib/marketplace/fees"
+import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
+
+const checkoutSchema = z.object({
+  lines: z
+    .array(
+      z.object({
+        listingId: z.string().uuid(),
+        variantId: z.string().uuid().optional(),
+        quantity: z.number().int().min(1).max(20),
+      })
+    )
+    .min(1)
+    .max(50),
+  shippingAddress: z.record(z.string(), z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
+const getStripe = () => {
+  if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not set")
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2024-12-18.acacia" as any,
+  })
+}
+
+export const dynamic = "force-dynamic"
+
+export async function POST(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    const payload = checkoutSchema.parse(await request.json())
+    const listingIds = payload.lines.map(line => line.listingId)
+
+    const { data: listings, error: listingsError } = await supabase
+      .from("marketplace_listings")
+      .select("id, seller_user_id, title, status, product_type, currency, base_price, cover_image_url, metadata, music_track_id")
+      .in("id", listingIds)
+
+    if (listingsError || !listings?.length) {
+      console.error("Failed to fetch checkout listings", listingsError)
+      return NextResponse.json({ error: "Unable to load items for checkout" }, { status: 400 })
+    }
+
+    const listingMap = new Map(listings.map(listing => [listing.id, listing]))
+    const missingListing = payload.lines.find(line => !listingMap.has(line.listingId))
+    if (missingListing) return NextResponse.json({ error: "One or more listings no longer exist" }, { status: 400 })
+
+    const sellerScopedLines = payload.lines.map(line => ({
+      ...line,
+      sellerUserId: listingMap.get(line.listingId)?.seller_user_id as string,
+    }))
+
+    if (!hasSingleSellerCart(sellerScopedLines)) {
+      return NextResponse.json(
+        {
+          error: "MVP checkout supports one seller per order",
+          groups: groupCartLinesBySeller(sellerScopedLines),
+        },
+        { status: 400 }
+      )
+    }
+
+    const sellerUserId = sellerScopedLines[0].sellerUserId
+    if (!sellerUserId) return NextResponse.json({ error: "Unable to determine seller" }, { status: 400 })
+    if (sellerUserId === user.id) return NextResponse.json({ error: "You cannot purchase your own listing" }, { status: 400 })
+
+    const variantIds = payload.lines.map(line => line.variantId).filter(Boolean) as string[]
+    let variantMap = new Map<string, any>()
+    if (variantIds.length > 0) {
+      const { data: variants } = await supabase
+        .from("marketplace_listing_variants")
+        .select("id, listing_id, title, price")
+        .in("id", variantIds)
+      variantMap = new Map((variants || []).map(variant => [variant.id, variant]))
+    }
+
+    const currency = listings[0].currency || "USD"
+    const hasMixedCurrencies = listings.some(listing => (listing.currency || "USD") !== currency)
+    if (hasMixedCurrencies) return NextResponse.json({ error: "All checkout items must share one currency" }, { status: 400 })
+
+    const lineItems = payload.lines.map(line => {
+      const listing = listingMap.get(line.listingId)
+      if (!listing) throw new Error("Missing listing")
+      if (listing.status !== "published") throw new Error("Listing is not available for purchase")
+
+      const variant = line.variantId ? variantMap.get(line.variantId) : null
+      if (line.variantId && (!variant || variant.listing_id !== listing.id)) throw new Error("Invalid variant selected")
+      const resolvedPrice = Number(variant?.price ?? listing.base_price ?? 0)
+      if (resolvedPrice <= 0) throw new Error("Invalid listing price")
+
+      const titleSuffix = variant?.title ? ` (${variant.title})` : ""
+      return {
+        listingId: line.listingId,
+        variantId: line.variantId || null,
+        productType: listing.product_type || "digital_asset",
+        title: `${listing.title}${titleSuffix}`,
+        quantity: line.quantity,
+        unitPrice: resolvedPrice,
+        lineTotal: Math.round(resolvedPrice * line.quantity * 100) / 100,
+        coverImageUrl: listing.cover_image_url || null,
+        listingMetadata: listing.metadata || {},
+        musicTrackId: listing.music_track_id || null,
+      }
+    })
+
+    const subtotal = lineItems.reduce((sum, line) => sum + line.lineTotal, 0)
+    const feeBreakdown = calculateMarketplaceFeeBreakdown({ subtotal })
+
+    const { data: order, error: orderError } = await supabase
+      .from("marketplace_orders")
+      .insert({
+        buyer_user_id: user.id,
+        seller_user_id: sellerUserId,
+        status: "pending",
+        payment_status: "processing",
+        payment_provider: "stripe",
+        currency,
+        subtotal_amount: feeBreakdown.subtotal,
+        platform_fee_amount: feeBreakdown.platformFee,
+        tax_amount: feeBreakdown.taxAmount,
+        total_amount: feeBreakdown.total,
+        shipping_address: payload.shippingAddress || null,
+        metadata: payload.metadata || {},
+      })
+      .select("*")
+      .single()
+
+    if (orderError || !order) {
+      console.error("Failed to create marketplace order", orderError)
+      return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+    }
+
+    const orderItemsPayload = lineItems.map(item => ({
+      order_id: order.id,
+      listing_id: item.listingId,
+      variant_id: item.variantId,
+      product_type: item.productType,
+      title: item.title,
+      quantity: item.quantity,
+      unit_price: item.unitPrice,
+      line_total: item.lineTotal,
+      fulfillment_status: item.productType === "digital_asset" ? "digital_ready" : "pending",
+      service_status: item.productType === "service" ? "pending" : null,
+      metadata: item.listingMetadata,
+      music_track_id: item.musicTrackId,
+    }))
+    const { error: orderItemsError } = await supabase.from("marketplace_order_items").insert(orderItemsPayload)
+    if (orderItemsError) {
+      await supabase.from("marketplace_orders").delete().eq("id", order.id)
+      console.error("Failed to create order items", orderItemsError)
+      return NextResponse.json({ error: "Failed to create order items" }, { status: 500 })
+    }
+
+    const { error: payoutError } = await supabase.from("marketplace_payout_ledger").insert({
+      order_id: order.id,
+      seller_user_id: sellerUserId,
+      gross_amount: feeBreakdown.subtotal,
+      platform_fee_amount: feeBreakdown.platformFee,
+      net_amount: feeBreakdown.sellerPayout,
+      payout_status: "pending",
+      payout_provider: "manual",
+      available_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      metadata: {
+        taxAmount: feeBreakdown.taxAmount,
+      },
+    })
+    if (payoutError) {
+      console.error("Failed to create payout ledger entry", payoutError)
+      await supabase.from("marketplace_order_items").delete().eq("order_id", order.id)
+      await supabase.from("marketplace_orders").delete().eq("id", order.id)
+      return NextResponse.json({ error: "Failed to initialize payout ledger" }, { status: 500 })
+    }
+
+    let session: Stripe.Checkout.Session
+    try {
+      const stripe = getStripe()
+      session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card", "us_bank_account"],
+        payment_method_options: {
+          us_bank_account: {
+            financial_connections: {
+              permissions: ["payment_method"],
+            },
+          },
+        },
+        mode: "payment",
+        line_items: lineItems.map(item => ({
+          quantity: item.quantity,
+          price_data: {
+            currency: currency.toLowerCase(),
+            unit_amount: Math.round(item.unitPrice * 100),
+            product_data: {
+              name: item.title,
+              images: item.coverImageUrl ? [item.coverImageUrl] : undefined,
+            },
+          },
+        })),
+        success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/artist/store?checkout=success&order_id=${order.id}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/artist/store?checkout=cancelled&order_id=${order.id}`,
+        metadata: {
+          source: "marketplace_checkout",
+          order_id: order.id,
+          seller_user_id: sellerUserId,
+          buyer_user_id: user.id,
+        },
+        customer_email: user.email || undefined,
+      })
+    } catch (sessionError) {
+      console.error("Failed to create Stripe checkout session", sessionError)
+      await supabase.from("marketplace_payout_ledger").delete().eq("order_id", order.id)
+      await supabase.from("marketplace_order_items").delete().eq("order_id", order.id)
+      await supabase.from("marketplace_orders").delete().eq("id", order.id)
+      return NextResponse.json({ error: "Unable to initialize checkout session" }, { status: 500 })
+    }
+
+    await supabase
+      .from("marketplace_orders")
+      .update({
+        stripe_checkout_session_id: session.id,
+        payment_reference: session.id,
+        metadata: {
+          ...(order.metadata || {}),
+          checkout_session_id: session.id,
+        },
+      })
+      .eq("id", order.id)
+
+    return NextResponse.json({
+      data: {
+        orderId: order.id,
+        checkoutUrl: session.url,
+      },
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid checkout payload", issues: error.issues }, { status: 400 })
+    }
+    console.error("Unexpected marketplace checkout error", error)
+    return NextResponse.json({ error: "Unexpected checkout error" }, { status: 500 })
+  }
+}

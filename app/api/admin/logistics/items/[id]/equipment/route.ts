@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export async function POST(request: NextRequest, { params }: any) {
-  try {
-    const supabase = createServerClient()
-    const body = await request.json()
-    const taskId = params.id
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id: taskId } = await context.params
+  return withAdminAuth(async (req) => {
+    const supabase = await createClient()
+    const body = await req.json()
     const equipmentAssetId: string = body.equipmentAssetId
     const startTime: string | null = body.startTime || null
     const endTime: string | null = body.endTime || null
@@ -54,39 +58,37 @@ export async function POST(request: NextRequest, { params }: any) {
     })
 
     return NextResponse.json({ link: data }, { status: 201 })
-  } catch (error) {
-    console.error('[Task Equipment] POST error:', error)
-    return NextResponse.json({ error: 'Failed to attach equipment' }, { status: 500 })
-  }
+  })(request)
 }
 
-export async function DELETE(request: NextRequest, { params }: any) {
-  try {
-    const supabase = createServerClient()
-    const { searchParams } = new URL(request.url)
+export async function DELETE(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id: taskId } = await context.params
+  return withAdminAuth(async (req) => {
+    const supabase = await createClient()
+    const { searchParams } = new URL(req.url)
     const equipmentAssetId = searchParams.get('equipmentAssetId')
     if (!equipmentAssetId) return NextResponse.json({ error: 'equipmentAssetId required' }, { status: 400 })
 
     const { error } = await supabase
       .from('logistics_task_equipment')
       .delete()
-      .eq('task_id', params.id)
+      .eq('task_id', taskId)
       .eq('equipment_asset_id', equipmentAssetId)
 
     if (error) throw error
 
     // Log activity
     await supabase.from('logistics_activity').insert({
-      task_id: params.id,
+      task_id: taskId,
       action: 'equipment_detached',
       metadata: { equipment_asset_id: equipmentAssetId }
     })
 
     return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[Task Equipment] DELETE error:', error)
-    return NextResponse.json({ error: 'Failed to detach equipment' }, { status: 500 })
-  }
+  })(request)
 }
 
 

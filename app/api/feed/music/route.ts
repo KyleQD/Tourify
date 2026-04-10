@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { createClient } from '@/lib/supabase/server'
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
     const genre = searchParams.get('genre')
@@ -18,12 +14,12 @@ export async function GET(request: NextRequest) {
       .from('music_tracks')
       .select(`
         *,
-        profiles:user_id (
+        profiles:profiles!left(
           id,
           username,
           full_name,
           avatar_url,
-          verified
+          is_verified
         )
       `)
       .eq('is_public', true)
@@ -71,7 +67,7 @@ export async function GET(request: NextRequest) {
         name: track.profiles.full_name || track.profiles.username,
         username: track.profiles.username,
         avatar_url: track.profiles.avatar_url,
-        is_verified: track.profiles.verified || false
+        is_verified: track.profiles.is_verified || false
       } : undefined,
       cover_image: track.cover_art_url,
       created_at: track.created_at,
@@ -86,18 +82,18 @@ export async function GET(request: NextRequest) {
         duration: track.duration,
         tags: track.tags || [],
         url: track.file_url,
-        album: track.album,
-        artist: track.artist
+        artist: track.artist_name
       },
       relevance_score: 0.9
     }))
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       content: musicContent,
       total: musicContent.length,
       lastUpdated: new Date().toISOString()
     })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
 
   } catch (error) {
     console.error('Error in music feed API:', error)

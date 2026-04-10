@@ -3,7 +3,7 @@
 import React from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Image, Video, Users, Loader2 } from "lucide-react"
+import { ImageIcon, Video, Users, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase"
@@ -128,7 +128,7 @@ export function PostForm({ user, onPostCreated }: PostFormProps) {
                 <div key={index} className="relative flex-shrink-0">
                   <div className="h-24 w-24 bg-gray-800 rounded-lg flex items-center justify-center">
                     {file.type.startsWith("image/") ? (
-                      <Image className="h-8 w-8 text-gray-400" />
+                      <ImageIcon className="h-8 w-8 text-gray-400" />
                     ) : (
                       <Video className="h-8 w-8 text-gray-400" />
                     )}
@@ -160,7 +160,7 @@ export function PostForm({ user, onPostCreated }: PostFormProps) {
                 onClick={() => handleFileSelect("image")}
                 className="bg-[#1a1d26] border-gray-800 hover:bg-gray-800 hover:text-purple-500 transition-colors"
               >
-                <Image className="h-5 w-5" />
+                <ImageIcon className="h-5 w-5" />
               </Button>
               <Button
                 type="button"

@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -11,6 +12,44 @@ import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 export default function VenueDashboardPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const [dashboardPreferences, setDashboardPreferences] = useState({
+    showQuickStats: true,
+    showTasks: true,
+    showRecommendations: true,
+  })
+
+  useEffect(() => {
+    let isMounted = true
+    async function loadDashboardPreferences() {
+      try {
+        const response = await fetch('/api/profile/current', {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+        })
+        if (!response.ok) return
+        const data = await response.json()
+        const dashboardSettings = data?.profile?.profile_data?.profile_experience?.dashboard || {}
+        if (!isMounted) return
+        setDashboardPreferences({
+          showQuickStats: dashboardSettings.show_quick_stats !== false,
+          showTasks: dashboardSettings.show_tasks !== false,
+          showRecommendations: dashboardSettings.show_recommendations !== false,
+        })
+      } catch (error) {
+        console.error('Error loading dashboard preferences:', error)
+      }
+    }
+
+    loadDashboardPreferences()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const handleNavigation = (path: string) => {
     toast({
@@ -30,58 +69,60 @@ export default function VenueDashboardPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card
-          className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-          onClick={() => handleNavigation("/venue/dashboard/events")}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <Calendar className="mr-2 h-5 w-5 text-purple-400" />
-              Upcoming Events
-            </CardTitle>
-            <CardDescription>Next 7 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">8</div>
-            <p className="text-sm text-gray-400">2 events today</p>
-          </CardContent>
-        </Card>
+      {dashboardPreferences.showRecommendations && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card
+            className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
+            onClick={() => handleNavigation("/venue/dashboard/events")}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center">
+                <Calendar className="mr-2 h-5 w-5 text-purple-400" />
+                Upcoming Events
+              </CardTitle>
+              <CardDescription>Next 7 days</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">8</div>
+              <p className="text-sm text-gray-400">2 events today</p>
+            </CardContent>
+          </Card>
 
-        <Card
-          className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-          onClick={() => handleNavigation("/venue/bookings")}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <Clock className="mr-2 h-5 w-5 text-blue-400" />
-              Pending Bookings
-            </CardTitle>
-            <CardDescription>Requires approval</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">12</div>
-            <p className="text-sm text-gray-400">5 new since yesterday</p>
-          </CardContent>
-        </Card>
+          <Card
+            className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
+            onClick={() => handleNavigation("/venue/bookings")}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center">
+                <Clock className="mr-2 h-5 w-5 text-blue-400" />
+                Pending Bookings
+              </CardTitle>
+              <CardDescription>Requires approval</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">12</div>
+              <p className="text-sm text-gray-400">5 new since yesterday</p>
+            </CardContent>
+          </Card>
 
-        <Card
-          className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
-          onClick={() => handleNavigation("/venue/staff")}
-        >
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium flex items-center">
-              <Users className="mr-2 h-5 w-5 text-green-400" />
-              Team Members
-            </CardTitle>
-            <CardDescription>Active staff</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">15</div>
-            <p className="text-sm text-gray-400">3 working today</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card
+            className="bg-gray-800 border-gray-700 cursor-pointer hover:bg-gray-750 transition-colors"
+            onClick={() => handleNavigation("/venue/staff")}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-medium flex items-center">
+                <Users className="mr-2 h-5 w-5 text-green-400" />
+                Team Members
+              </CardTitle>
+              <CardDescription>Active staff</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">15</div>
+              <p className="text-sm text-gray-400">3 working today</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="bg-gray-800">
@@ -93,85 +134,89 @@ export default function VenueDashboardPage() {
 
         <TabsContent value="overview" className="mt-4">
           <div className="grid gap-4 md:grid-cols-2">
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex items-start gap-4 pb-4 border-b border-gray-700">
-                      <div className="rounded-full bg-gray-700 p-2">
-                        {i === 1 ? (
-                          <Calendar className="h-4 w-4" />
-                        ) : i === 2 ? (
-                          <Users className="h-4 w-4" />
-                        ) : (
-                          <DollarSign className="h-4 w-4" />
-                        )}
+            {dashboardPreferences.showTasks && (
+              <Card className="bg-gray-800 border-gray-700">
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="flex items-start gap-4 pb-4 border-b border-gray-700">
+                        <div className="rounded-full bg-gray-700 p-2">
+                          {i === 1 ? (
+                            <Calendar className="h-4 w-4" />
+                          ) : i === 2 ? (
+                            <Users className="h-4 w-4" />
+                          ) : (
+                            <DollarSign className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">
+                            {i === 1
+                              ? "New booking request received"
+                              : i === 2
+                                ? "Team member schedule updated"
+                                : "Payment processed successfully"}
+                          </p>
+                          <p className="text-xs text-gray-400">{i * 20} minutes ago</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-medium">
-                          {i === 1
-                            ? "New booking request received"
-                            : i === 2
-                              ? "Team member schedule updated"
-                              : "Payment processed successfully"}
-                        </p>
-                        <p className="text-xs text-gray-400">{i * 20} minutes ago</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button variant="outline" className="w-full mt-4" onClick={() => handleNavigation("/venue")}>
-                  View All Activity
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gray-800 border-gray-700">
-              <CardHeader>
-                <CardTitle>Quick Stats</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <DollarSign className="mr-2 h-5 w-5 text-green-400" />
-                      <span>Monthly Revenue</span>
-                    </div>
-                    <Button variant="link" onClick={() => handleNavigation("/venue/finances")}>
-                      <span className="font-medium">$24,500</span>
-                    </Button>
+                    ))}
                   </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Music className="mr-2 h-5 w-5 text-purple-400" />
-                      <span>Performances</span>
-                    </div>
-                    <Button variant="link" onClick={() => handleNavigation("/venue/dashboard/events")}>
-                      <span className="font-medium">32 this month</span>
-                    </Button>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <Ticket className="mr-2 h-5 w-5 text-blue-400" />
-                      <span>Tickets Sold</span>
-                    </div>
-                    <Button variant="link" onClick={() => handleNavigation("/venue/dashboard/tickets")}>
-                      <span className="font-medium">1,245</span>
-                    </Button>
-                  </div>
-
-                  <Button variant="outline" className="w-full mt-2" onClick={() => handleNavigation("/venue/analytics")}>
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    View Analytics Dashboard
+                  <Button variant="outline" className="w-full mt-4" onClick={() => handleNavigation("/venue")}>
+                    View All Activity
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {dashboardPreferences.showQuickStats && (
+              <Card className="bg-gray-800 border-gray-700">
+                <CardHeader>
+                  <CardTitle>Quick Stats</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <DollarSign className="mr-2 h-5 w-5 text-green-400" />
+                        <span>Monthly Revenue</span>
+                      </div>
+                      <Button variant="link" onClick={() => handleNavigation("/venue/finances")}>
+                        <span className="font-medium">$24,500</span>
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Music className="mr-2 h-5 w-5 text-purple-400" />
+                        <span>Performances</span>
+                      </div>
+                      <Button variant="link" onClick={() => handleNavigation("/venue/dashboard/events")}>
+                        <span className="font-medium">32 this month</span>
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Ticket className="mr-2 h-5 w-5 text-blue-400" />
+                        <span>Tickets Sold</span>
+                      </div>
+                      <Button variant="link" onClick={() => handleNavigation("/venue/dashboard/tickets")}>
+                        <span className="font-medium">1,245</span>
+                      </Button>
+                    </div>
+
+                    <Button variant="outline" className="w-full mt-2" onClick={() => handleNavigation("/venue/analytics")}>
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      View Analytics Dashboard
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
 

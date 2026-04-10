@@ -117,29 +117,6 @@ export function SiteMapManager({
   const [createStep, setCreateStep] = useState(1)
   const [availableEvents, setAvailableEvents] = useState<Array<{id: string, name: string}>>([])
 
-  // Show loading state while auth is loading
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Show error if not authenticated
-  if (!user) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-center">
-          <p className="text-red-600">Please log in to access site maps</p>
-        </div>
-      </div>
-    )
-  }
-
   // Load site maps on mount (only when authenticated)
   useEffect(() => {
     if (!authLoading && user) {
@@ -908,6 +885,29 @@ export function SiteMapManager({
       case 'archived': return 'bg-gray-100 text-gray-800'
       default: return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  // Show loading state while auth is loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error if not authenticated
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <p className="text-red-600">Please log in to access site maps</p>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading) {

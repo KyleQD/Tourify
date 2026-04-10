@@ -43,6 +43,25 @@ export default function HomePage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("feed")
   const photoViewer = usePhotoViewer()
+  const [dashboardPreferences, setDashboardPreferences] = useState({
+    showQuickStats: true,
+    showTasks: true,
+    showRecommendations: true,
+  })
+
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
 
   // Mock posts data for fallback
   const mockPosts = [
@@ -99,7 +118,7 @@ export default function HomePage() {
     const fetchPosts = async () => {
       try {
         setPostsLoading(true)
-        const response = await fetch('/api/feed/posts?type=all&limit=20')
+        const response = await fetch('/api/feed/posts?type=all&limit=20', buildNoStoreInit())
         
         if (!response.ok) {
           throw new Error('Failed to fetch posts')
@@ -152,6 +171,27 @@ export default function HomePage() {
     }
 
     fetchPosts()
+  }, [])
+
+  useEffect(() => {
+    async function loadDashboardPreferences() {
+      try {
+        const response = await fetch('/api/profile/current', buildNoStoreInit())
+        if (!response.ok) return
+
+        const data = await response.json()
+        const dashboardSettings = data?.profile?.profile_data?.profile_experience?.dashboard || {}
+        setDashboardPreferences({
+          showQuickStats: dashboardSettings.show_quick_stats !== false,
+          showTasks: dashboardSettings.show_tasks !== false,
+          showRecommendations: dashboardSettings.show_recommendations !== false,
+        })
+      } catch (error) {
+        console.error('Error loading dashboard preferences:', error)
+      }
+    }
+
+    loadDashboardPreferences()
   }, [])
   const [postType, setPostType] = useState("text")
   const [postContent, setPostContent] = useState("")
@@ -513,45 +553,46 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Notifications */}
-        <Card className="bg-gray-800 border-gray-700">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-md flex items-center">
-              <Bell className="h-4 w-4 mr-2 text-purple-400" />
-              Notifications
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-gray-700">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-3 ${notification.read ? "" : "bg-purple-900/10"}`}
-                  onClick={() => handleMarkNotificationAsRead(notification.id)}
-                >
-                  <div className="flex justify-between">
-                    <p className="text-sm">{notification.content}</p>
-                    {!notification.read && (
-                      <Badge variant="outline" className="bg-purple-500 text-white border-0 h-5 px-1.5">
-                        New
-                      </Badge>
-                    )}
+        {dashboardPreferences.showTasks && (
+          <Card className="bg-gray-800 border-gray-700">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-md flex items-center">
+                <Bell className="h-4 w-4 mr-2 text-purple-400" />
+                Notifications
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y divide-gray-700">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-3 ${notification.read ? "" : "bg-purple-900/10"}`}
+                    onClick={() => handleMarkNotificationAsRead(notification.id)}
+                  >
+                    <div className="flex justify-between">
+                      <p className="text-sm">{notification.content}</p>
+                      {!notification.read && (
+                        <Badge variant="outline" className="bg-purple-500 text-white border-0 h-5 px-1.5">
+                          New
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{notification.timestamp}</p>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">{notification.timestamp}</p>
-                </div>
-              ))}
-            </div>
-            <div className="p-3">
-              <Button
-                variant="link"
-                className="text-purple-400 p-0 h-auto w-full text-center"
-                onClick={handleMarkAllNotificationsAsRead}
-              >
-                Mark all as read
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+              <div className="p-3">
+                <Button
+                  variant="link"
+                  className="text-purple-400 p-0 h-auto w-full text-center"
+                  onClick={handleMarkAllNotificationsAsRead}
+                >
+                  Mark all as read
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Main Feed */}
@@ -851,8 +892,8 @@ export default function HomePage() {
 
       {/* Right Sidebar */}
       <div className="md:col-span-3 space-y-6">
-        {/* Trending Topics */}
-        <Card className="bg-gray-800 border-gray-700">
+        {dashboardPreferences.showQuickStats && (
+          <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="pb-2">
             <CardTitle className="text-md flex items-center">
               <TrendingUp className="h-4 w-4 mr-2 text-purple-400" />
@@ -874,10 +915,11 @@ export default function HomePage() {
               ))}
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
 
-        {/* Upcoming Events */}
-        <Card className="bg-gray-800 border-gray-700">
+        {dashboardPreferences.showRecommendations && (
+          <Card className="bg-gray-800 border-gray-700">
           <CardHeader className="pb-2">
             <CardTitle className="text-md flex items-center">
               <Calendar className="h-4 w-4 mr-2 text-purple-400" />
@@ -904,7 +946,8 @@ export default function HomePage() {
               </Button>
             </div>
           </CardContent>
-        </Card>
+          </Card>
+        )}
       </div>
 
       {/* Photo Viewer Modal */}

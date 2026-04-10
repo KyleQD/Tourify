@@ -27,6 +27,13 @@ export async function GET(request: NextRequest) {
         cover_image,
         location,
         website,
+        profile_data,
+        social_links,
+        instagram,
+        twitter,
+        show_email,
+        show_phone,
+        show_location,
         is_verified,
         followers_count,
         following_count,
@@ -97,6 +104,7 @@ export async function GET(request: NextRequest) {
       custom_url: (profile as any).custom_url,
       account_type: 'general' as const,
       profile_data: {
+        ...((profile as any).profile_data || {}),
         name: profile.full_name,
         bio: profile.bio,
         location: profile.location,
@@ -108,10 +116,14 @@ export async function GET(request: NextRequest) {
       bio: profile.bio,
       location: profile.location,
       social_links: {
-        website: profile.website,
-        instagram: null,
-        twitter: null
+        ...((profile as any).social_links || {}),
+        website: profile.website || (profile as any).social_links?.website || null,
+        instagram: (profile as any).instagram || (profile as any).social_links?.instagram || null,
+        twitter: (profile as any).twitter || (profile as any).social_links?.twitter || null
       },
+      show_email: (profile as any).show_email ?? true,
+      show_phone: (profile as any).show_phone ?? false,
+      show_location: (profile as any).show_location ?? true,
       stats,
       created_at: profile.created_at,
       updated_at: profile.updated_at

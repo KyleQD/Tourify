@@ -244,7 +244,7 @@ export function OnboardingDashboard({ className = "" }: OnboardingDashboardProps
           >
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white mb-2">Dashboard Preview</h2>
-              <p className="text-slate-400">Here's what your dashboard will look like with active tours and events</p>
+              <p className="text-slate-400">Here&apos;s what your dashboard will look like with active tours and events</p>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

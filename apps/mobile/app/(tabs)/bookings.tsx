@@ -9,11 +9,17 @@ interface VenueBookingRequest {
   event_date: string
   expected_attendance: number | null
   contact_email: string
-  status: "pending" | "approved" | "rejected" | "cancelled"
+  status: "pending" | "approved" | "rejected" | "accepted" | "declined" | "cancelled"
   requested_at: string
 }
 
 export default function BookingsScreen() {
+  function getStatusLabel(status: VenueBookingRequest["status"]) {
+    if (status === "approved" || status === "accepted") return "accepted"
+    if (status === "rejected" || status === "declined") return "declined"
+    return status
+  }
+
   const { isLoading: isAccountLoading, isVenueMode, venueProfile } = useAccountMode()
   const [requests, setRequests] = useState<VenueBookingRequest[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -115,7 +121,7 @@ export default function BookingsScreen() {
               {new Date(request.event_date).toLocaleDateString()} • {request.expected_attendance || 0} attendees
             </Text>
             <Text style={{ color: "#94a3b8" }}>Contact: {request.contact_email}</Text>
-            <Text style={{ color: "#cbd5e1", textTransform: "capitalize" }}>Status: {request.status}</Text>
+            <Text style={{ color: "#cbd5e1", textTransform: "capitalize" }}>Status: {getStatusLabel(request.status)}</Text>
 
             {request.status === "pending" ? (
               <View style={{ flexDirection: "row", gap: 8 }}>

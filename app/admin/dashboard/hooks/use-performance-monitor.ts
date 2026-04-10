@@ -35,6 +35,18 @@ interface PerformanceState {
   errors: Error[]
 }
 
+function buildNoStoreInit(input?: RequestInit): RequestInit {
+  return {
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...(input?.headers || {}),
+    },
+  }
+}
+
 export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}) {
   const {
     thresholds = {
@@ -156,10 +168,7 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}) {
     const startTime = performance.now()
     
     try {
-      await fetch('/api/health', { 
-        method: 'HEAD',
-        cache: 'no-cache'
-      })
+      await fetch('/api/health', buildNoStoreInit({ method: 'HEAD' }))
       const latency = performance.now() - startTime
       
       setState(prev => ({

@@ -167,10 +167,21 @@ export default function ArtistsPage() {
   const [artists, setArtists] = useState<Artist[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   useEffect(() => {
     async function fetchArtists() {
       try {
-        const res = await fetch('/api/search?q=&type=artists&limit=50', { credentials: 'include' })
+        const res = await fetch('/api/search?q=&type=artists&limit=50', buildNoStoreInit())
         if (res.ok) {
           const data = await res.json()
           const list = data.results?.artists ?? []

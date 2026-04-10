@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
 const VALID_STATUS = new Set(['pending','confirmed','in_progress','completed','cancelled','needs_attention'])
 
-export async function POST(request: NextRequest, { params }: any) {
-  try {
-    const supabase = createServerClient()
-    const { status } = await request.json()
-    const id = params.id
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params
+  return withAdminAuth(async (req) => {
+    const supabase = await createClient()
+    const { status } = await req.json()
 
     if (!VALID_STATUS.has(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
@@ -38,10 +42,7 @@ export async function POST(request: NextRequest, { params }: any) {
     })
 
     return NextResponse.json({ item: data })
-  } catch (error) {
-    console.error('[Logistics Status] POST error:', error)
-    return NextResponse.json({ error: 'Failed to update status' }, { status: 500 })
-  }
+  })(request)
 }
 
 

@@ -123,6 +123,20 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
   const [showAdvancedOptions, setShowAdvancedOptions] = React.useState(false)
   const { toast } = useToast()
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   // Invite methods configuration
   const inviteMethods: InviteMethod[] = [
     {
@@ -176,15 +190,12 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
   ]
 
   // Fetch onboarding templates when dialog opens
-  React.useEffect(() => {
-    if (open) {
-      fetchOnboardingTemplates()
-    }
-  }, [open])
-
-  async function fetchOnboardingTemplates() {
+  const fetchOnboardingTemplates = React.useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/onboarding/templates" + (venueId ? `?venue_id=${venueId}` : ''))
+      const response = await fetch(
+        "/api/admin/onboarding/templates" + (venueId ? `?venue_id=${venueId}` : ''),
+        buildNoStoreInit()
+      )
       if (response.ok) {
         const data = await response.json()
         setOnboardingTemplates(data.templates || [])
@@ -197,7 +208,12 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
     } catch (error) {
       console.error("Error fetching onboarding templates:", error)
     }
-  }
+  }, [venueId])
+
+  React.useEffect(() => {
+    if (open)
+      void fetchOnboardingTemplates()
+  }, [open, fetchOnboardingTemplates])
 
   const filteredProfiles = React.useMemo(() => {
     return existingProfiles.filter(p => 
@@ -215,9 +231,8 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
       setIsLoading(true)
       try {
         // Send notification to the selected user
-        await fetch("/api/notifications", {
+        await fetch("/api/notifications", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "staff_invite",
             data: {
@@ -228,7 +243,7 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
               inviteMessage
             }
           })
-        })
+        }))
         
         onAdd({ 
           ...profile, 
@@ -261,9 +276,8 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
         const inviteToken = crypto.randomUUID()
         
         // Store the invitation in the database with onboarding template
-        await fetch("/api/invitations", {
+        await fetch("/api/invitations", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             email: inviteEmail,
             phone: invitePhone,
@@ -273,12 +287,11 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
             onboardingTemplateId: selectedTemplate,
             inviteMessage
           })
-        })
+        }))
 
         // Send email with signup link
-        await fetch("/api/notifications", {
+        await fetch("/api/notifications", buildNoStoreInit({
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "staff_signup_invite",
             data: {
@@ -289,7 +302,7 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
               inviteMessage
             }
           })
-        })
+        }))
 
         onAdd({ 
           email: inviteEmail, 
@@ -324,9 +337,8 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
               const link = `${window.location.origin}/login?token=${inviteToken}&position=${encodeURIComponent(positionDetails.title)}&department=${encodeURIComponent(positionDetails.department)}`
       
       // Store the invitation
-      await fetch("/api/invitations", {
+      await fetch("/api/invitations", buildNoStoreInit({
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           positionDetails,
           token: inviteToken,
@@ -334,7 +346,7 @@ export function EnhancedAddStaffDialog({ open, onOpenChange, onAdd, existingProf
           onboardingTemplateId: selectedTemplate,
           inviteMessage
         })
-      })
+      }))
 
       setInviteLink(link)
       toast({ 

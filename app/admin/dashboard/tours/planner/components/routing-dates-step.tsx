@@ -45,6 +45,17 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
   const [venueSearchQuery, setVenueSearchQuery] = useState("")
   const [showVenueBrowser, setShowVenueBrowser] = useState(false)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   // Fetch real venues from database
   const fetchVenues = async (searchQuery?: string) => {
     setIsLoadingVenues(true)
@@ -53,7 +64,7 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
       if (searchQuery) params.append('query', searchQuery)
       params.append('limit', '50')
       
-      const response = await fetch(`/api/venues?${params.toString()}`)
+      const response = await fetch(`/api/venues?${params.toString()}`, buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setVenues(data.venues || [])

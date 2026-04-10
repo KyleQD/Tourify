@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
+import { withAdminAuth } from '@/lib/auth/api-auth'
+
+function hasSyntheticRecord(record?: { id?: string } | null) {
+  const id = typeof record?.id === 'string' ? record.id : ''
+  return id.startsWith('mock-') || id.startsWith('fallback-')
+}
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  try {
+  return withAdminAuth(async (req) => {
     const { id } = await context.params
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(req.url)
     const venueId = searchParams.get('venue_id')
 
     if (!venueId) {
@@ -20,6 +26,12 @@ export async function GET(
     // Get specific job posting
     const jobPostings = await AdminOnboardingStaffService.getJobPostings(venueId)
     const jobPosting = jobPostings.find(job => job.id === id)
+    if (hasSyntheticRecord(jobPosting as { id?: string } | null)) {
+      return NextResponse.json(
+        { success: false, error: 'Live job posting unavailable' },
+        { status: 503 }
+      )
+    }
 
     if (!jobPosting) {
       return NextResponse.json(
@@ -32,22 +44,16 @@ export async function GET(
       data: jobPosting,
       success: true
     })
-  } catch (error) {
-    console.error('❌ [Admin Job Posting API] Error fetching job posting:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch job posting' },
-      { status: 500 }
-    )
-  }
+  })(request)
 }
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  try {
+  return withAdminAuth(async (req) => {
     const { id } = await context.params
-    const body = await request.json()
+    const body = await req.json()
     const { status } = body
 
     if (status) {
@@ -67,11 +73,5 @@ export async function PATCH(
       { error: 'No valid updates provided' },
       { status: 400 }
     )
-  } catch (error) {
-    console.error('❌ [Admin Job Posting API] Error updating job posting:', error)
-    return NextResponse.json(
-      { error: 'Failed to update job posting' },
-      { status: 500 }
-    )
-  }
+  })(request)
 } 

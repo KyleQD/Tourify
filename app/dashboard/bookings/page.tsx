@@ -26,7 +26,7 @@ interface BookingRequest {
     requirements?: string
     additionalNotes?: string
   }
-  status: "pending" | "accepted" | "declined"
+  status: "pending" | "accepted" | "declined" | "approved" | "rejected"
   request_type: string
   token?: string
   response_message?: string
@@ -46,6 +46,12 @@ export default function BookingsPage() {
   React.useEffect(() => {
     fetchBookingRequests()
   }, [])
+
+  function getUnifiedStatus(status: BookingRequest["status"]): "pending" | "accepted" | "declined" {
+    if (status === "approved" || status === "accepted") return "accepted"
+    if (status === "rejected" || status === "declined") return "declined"
+    return "pending"
+  }
 
   async function fetchBookingRequests() {
     try {
@@ -112,7 +118,8 @@ export default function BookingsPage() {
   }
 
   function getStatusBadge(status: string) {
-    switch (status) {
+    const unifiedStatus = getUnifiedStatus(status as BookingRequest["status"])
+    switch (unifiedStatus) {
       case "pending":
         return <Badge variant="outline">Pending</Badge>
       case "accepted":
@@ -284,7 +291,7 @@ export default function BookingsPage() {
                               </div>
                             )}
 
-                            {selectedBooking.status === "pending" && (
+                            {getUnifiedStatus(selectedBooking.status) === "pending" && (
                               <div className="space-y-4">
                                 <div>
                                   <Label htmlFor="responseMessage">Response Message (Optional)</Label>
@@ -331,7 +338,7 @@ export default function BookingsPage() {
                     </DialogContent>
                   </Dialog>
 
-                  {booking.status === "pending" && (
+                  {getUnifiedStatus(booking.status) === "pending" && (
                     <>
                       <Button
                         size="sm"

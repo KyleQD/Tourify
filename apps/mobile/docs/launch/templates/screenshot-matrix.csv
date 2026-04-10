@@ -1,0 +1,11 @@
+platform,device_class,locale,screen_key,filename,status,owner,last_updated
+ios,6.9-inch,en-US,discover,ios-6_9-en-US-discover-v1.png,pending,design,
+ios,6.9-inch,en-US,bookings,ios-6_9-en-US-bookings-v1.png,pending,design,
+ios,6.9-inch,en-US,notifications,ios-6_9-en-US-notifications-v1.png,pending,design,
+ios,6.9-inch,en-US,profile,ios-6_9-en-US-profile-v1.png,pending,design,
+ios,6.9-inch,en-US,auth,ios-6_9-en-US-auth-v1.png,pending,design,
+android,phone,en-US,discover,android-phone-en-US-discover-v1.png,pending,design,
+android,phone,en-US,bookings,android-phone-en-US-bookings-v1.png,pending,design,
+android,phone,en-US,notifications,android-phone-en-US-notifications-v1.png,pending,design,
+android,phone,en-US,profile,android-phone-en-US-profile-v1.png,pending,design,
+android,phone,en-US,auth,android-phone-en-US-auth-v1.png,pending,design,

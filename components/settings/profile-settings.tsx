@@ -78,25 +78,68 @@ const profileFormSchema = z.object({
   showEmail: z.boolean().default(true),
   showPhone: z.boolean().default(false),
   showLocation: z.boolean().default(true),
+  showFeed: z.boolean().default(true),
+  showMarketplace: z.boolean().default(true),
+  showPortfolio: z.boolean().default(true),
+  showAchievements: z.boolean().default(true),
+  supportTitle: z
+    .string()
+    .max(80, {
+      message: "Support title must not be longer than 80 characters.",
+    })
+    .optional(),
+  supportMessage: z
+    .string()
+    .max(240, {
+      message: "Support message must not be longer than 240 characters.",
+    })
+    .optional(),
+  tipJarUrl: z
+    .string()
+    .url({
+      message: "Please enter a valid URL.",
+    })
+    .optional()
+    .or(z.literal("")),
+  commissionUrl: z
+    .string()
+    .url({
+      message: "Please enter a valid URL.",
+    })
+    .optional()
+    .or(z.literal("")),
+  bookingUrl: z
+    .string()
+    .url({
+      message: "Please enter a valid URL.",
+    })
+    .optional()
+    .or(z.literal("")),
+  marketplaceUrl: z
+    .string()
+    .url({
+      message: "Please enter a valid URL.",
+    })
+    .optional()
+    .or(z.literal("")),
+  dashboardShowQuickStats: z.boolean().default(true),
+  dashboardShowTasks: z.boolean().default(true),
+  dashboardShowRecommendations: z.boolean().default(true),
 })
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 interface UserProfile {
   id: string
-  metadata: {
-    full_name?: string
-    username?: string
-    bio?: string
-    phone?: string
-    location?: string
-    website?: string
-    instagram?: string
-    twitter?: string
-    show_email?: boolean
-    show_phone?: boolean
-    show_location?: boolean
-  }
+  metadata?: Record<string, any>
+  profile_data?: Record<string, any>
+  social_links?: Record<string, any>
+  full_name?: string
+  username?: string
+  bio?: string
+  show_email?: boolean
+  show_phone?: boolean
+  show_location?: boolean
   avatar_url?: string
   created_at: string
   updated_at: string
@@ -128,6 +171,19 @@ export function ProfileSettings() {
       showEmail: true,
       showPhone: false,
       showLocation: true,
+      showFeed: true,
+      showMarketplace: true,
+      showPortfolio: true,
+      showAchievements: true,
+      supportTitle: "Support my art",
+      supportMessage: "",
+      tipJarUrl: "",
+      commissionUrl: "",
+      bookingUrl: "",
+      marketplaceUrl: "",
+      dashboardShowQuickStats: true,
+      dashboardShowTasks: true,
+      dashboardShowRecommendations: true,
     },
   })
 
@@ -146,6 +202,10 @@ export function ProfileSettings() {
         const { profile } = await response.json()
         if (profile) {
           setUserProfile(profile)
+          const profileExperience = profile.profile_data?.profile_experience || {}
+          const publicVisibility = profileExperience.public_visibility || {}
+          const supportSettings = profileExperience.support || {}
+          const dashboardSettings = profileExperience.dashboard || {}
           
           // Update form with fetched data
           form.reset({
@@ -157,9 +217,22 @@ export function ProfileSettings() {
             website: profile.social_links?.website || "",
             instagram: profile.social_links?.instagram || "",
             twitter: profile.social_links?.twitter || "",
-            showEmail: profile.metadata?.show_email ?? true,
-            showPhone: profile.metadata?.show_phone ?? false,
-            showLocation: profile.metadata?.show_location ?? true,
+            showEmail: profile.show_email ?? profile.metadata?.show_email ?? true,
+            showPhone: profile.show_phone ?? profile.metadata?.show_phone ?? false,
+            showLocation: profile.show_location ?? profile.metadata?.show_location ?? true,
+            showFeed: publicVisibility.show_feed ?? true,
+            showMarketplace: publicVisibility.show_marketplace ?? true,
+            showPortfolio: publicVisibility.show_portfolio ?? true,
+            showAchievements: publicVisibility.show_achievements ?? true,
+            supportTitle: supportSettings.support_title ?? "Support my art",
+            supportMessage: supportSettings.support_message ?? "",
+            tipJarUrl: supportSettings.tip_jar_url ?? "",
+            commissionUrl: supportSettings.commission_url ?? "",
+            bookingUrl: supportSettings.booking_url ?? "",
+            marketplaceUrl: supportSettings.marketplace_url ?? "",
+            dashboardShowQuickStats: dashboardSettings.show_quick_stats ?? true,
+            dashboardShowTasks: dashboardSettings.show_tasks ?? true,
+            dashboardShowRecommendations: dashboardSettings.show_recommendations ?? true,
           })
         }
       } catch (err) {
@@ -189,12 +262,47 @@ export function ProfileSettings() {
     profileNotifications.saveInProgress()
 
     try {
+      const payload = {
+        full_name: data.full_name,
+        username: data.username,
+        bio: data.bio,
+        phone: data.phone,
+        location: data.location,
+        website: data.website || '',
+        instagram: data.instagram,
+        twitter: data.twitter,
+        show_email: data.showEmail,
+        show_phone: data.showPhone,
+        show_location: data.showLocation,
+        profile_experience: {
+          public_visibility: {
+            show_feed: data.showFeed,
+            show_marketplace: data.showMarketplace,
+            show_portfolio: data.showPortfolio,
+            show_achievements: data.showAchievements,
+          },
+          support: {
+            support_title: data.supportTitle,
+            support_message: data.supportMessage,
+            tip_jar_url: data.tipJarUrl || '',
+            commission_url: data.commissionUrl || '',
+            booking_url: data.bookingUrl || '',
+            marketplace_url: data.marketplaceUrl || '',
+          },
+          dashboard: {
+            show_quick_stats: data.dashboardShowQuickStats,
+            show_tasks: data.dashboardShowTasks,
+            show_recommendations: data.dashboardShowRecommendations,
+          },
+        },
+      }
+
       const response = await fetch('/api/profile/update-optimized', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       })
 
       const result = await response.json()
@@ -344,8 +452,8 @@ export function ProfileSettings() {
             <Avatar className="h-24 w-24">
               <AvatarImage src={userProfile?.avatar_url} alt="Profile" />
               <AvatarFallback className="text-lg">
-                {userProfile?.metadata?.full_name?.charAt(0)?.toUpperCase() || 
-                 userProfile?.metadata?.username?.charAt(0)?.toUpperCase() || 
+                {userProfile?.full_name?.charAt(0)?.toUpperCase() || 
+                 userProfile?.username?.charAt(0)?.toUpperCase() || 
                  user?.email?.charAt(0)?.toUpperCase() || "?"}
               </AvatarFallback>
             </Avatar>
@@ -556,6 +664,206 @@ export function ProfileSettings() {
                       <div className="space-y-0.5">
                         <FormLabel className="text-base">Show Location</FormLabel>
                         <FormDescription>Allow others to see your location on your profile.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Public Page Visibility</h3>
+                <FormField
+                  control={form.control}
+                  name="showFeed"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Feed Posts</FormLabel>
+                        <FormDescription>Display your posts feed on your public profile page.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="showPortfolio"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Portfolio</FormLabel>
+                        <FormDescription>Display portfolio and project highlights publicly.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="showMarketplace"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Marketplace Access</FormLabel>
+                        <FormDescription>Show a marketplace call-to-action on your public page.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="showAchievements"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Achievements</FormLabel>
+                        <FormDescription>Display badges and milestones to visitors.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Support & Calls To Action</h3>
+                <FormField
+                  control={form.control}
+                  name="supportTitle"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Support Block Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Support my art" {...field} />
+                      </FormControl>
+                      <FormDescription>This appears in your public support section.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="supportMessage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Support Message</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Tell fans how they can support you." className="min-h-[90px]" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="tipJarUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Tip Jar URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="commissionUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Commissions URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="bookingUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Booking URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="marketplaceUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Marketplace URL</FormLabel>
+                        <FormControl>
+                          <Input placeholder="https://..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Dashboard Preferences</h3>
+                <FormField
+                  control={form.control}
+                  name="dashboardShowQuickStats"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Quick Stats Widget</FormLabel>
+                        <FormDescription>Display quick performance stats on your dashboard.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dashboardShowTasks"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Tasks Widget</FormLabel>
+                        <FormDescription>Display current tasks and to-dos on your dashboard.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dashboardShowRecommendations"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Recommendations Widget</FormLabel>
+                        <FormDescription>Display discovery recommendations on your dashboard.</FormDescription>
                       </div>
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} />

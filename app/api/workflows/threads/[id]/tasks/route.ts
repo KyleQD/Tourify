@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
+import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
 
 const createTaskSchema = z.object({
   title: z.string().min(1).max(240),
@@ -159,6 +160,12 @@ export async function PATCH(
     try {
       const body = await req.json()
       const validated = updateTaskSchema.parse(body)
+      const { data: existingTask } = await supabase
+        .from('workflow_tasks')
+        .select('id, status')
+        .eq('id', validated.task_id)
+        .eq('thread_id', id)
+        .maybeSingle()
 
       const updatePayload: Record<string, any> = { updated_at: new Date().toISOString() }
       if (validated.status !== undefined) updatePayload.status = validated.status
@@ -192,6 +199,24 @@ export async function PATCH(
         entity_id: validated.task_id,
         metadata: updatePayload,
       })
+
+      const becameDone =
+        existingTask?.status !== 'done' &&
+        (validated.status === 'done' || data.status === 'done')
+      if (becameDone) {
+        await recordAchievementMetricEvent({
+          supabase,
+          userId: user.id,
+          metricKey: 'tasks_completed_total',
+          eventType: 'workflow_task_completed',
+          delta: 1,
+          eventData: {
+            thread_id: id,
+            task_id: validated.task_id,
+          },
+          relatedCollaborationId: id,
+        })
+      }
 
       return NextResponse.json({ success: true, task: data })
     } catch (error) {

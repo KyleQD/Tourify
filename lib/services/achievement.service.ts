@@ -450,6 +450,32 @@ export class AchievementService {
     }
   }
 
+  async getVerifiedEndorsementsForVetting(userId: string): Promise<Endorsement[]> {
+    const { data: rows, error } = await this.supabase
+      .from('endorsements')
+      .select('*')
+      .eq('endorsee_id', userId)
+      .eq('is_active', true)
+      .eq('is_verified', true)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+
+    const ids = new Set<string>()
+    ;(rows || []).forEach((endorsement: any) => {
+      if (endorsement.endorser_id) ids.add(endorsement.endorser_id)
+      if (endorsement.endorsee_id) ids.add(endorsement.endorsee_id)
+    })
+
+    const profileById = await this.fetchProfilesMap([...ids])
+
+    return (rows || []).map((endorsement: Endorsement) => ({
+      ...endorsement,
+      endorser: endorsement.endorser_id ? profileById[endorsement.endorser_id] : undefined,
+      endorsee: endorsement.endorsee_id ? profileById[endorsement.endorsee_id] : undefined,
+    }))
+  }
+
   async getEndorsementStats(userId: string): Promise<EndorsementStats> {
     try {
       const { data: endorsements, error: endorsementsError } = await this.supabase

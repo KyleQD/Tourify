@@ -23,10 +23,24 @@ export default function JobsPage() {
   const [jobs, setJobs] = useState<ArtistJobRow[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      ...input,
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     const fetchJobs = async () => {
       try {
-        const response = await fetch("/api/artist-jobs?per_page=24")
+        const response = await fetch("/api/artist-jobs?per_page=24", buildNoStoreInit())
         const payload = await response.json()
         if (payload.success) setJobs(payload.data?.jobs || [])
       } catch (error) {

@@ -129,14 +129,26 @@ export default function AnalyticsPage() {
   const [transactions, setTransactions] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+    }
+  }
+
   const fetchStats = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
       const [statsRes, finRes, eventsRes] = await Promise.allSettled([
-        fetch("/api/admin/dashboard/stats", { credentials: "include" }).then(r => r.json()),
-        fetch("/api/admin/finances?type=overview", { credentials: "include" }).then(r => r.json()),
-        fetch("/api/admin/events", { credentials: "include" }).then(r => r.json()),
+        fetch("/api/admin/dashboard/stats", buildNoStoreInit()).then(r => r.json()),
+        fetch("/api/admin/finances?type=overview", buildNoStoreInit()).then(r => r.json()),
+        fetch("/api/admin/events", buildNoStoreInit()).then(r => r.json()),
       ])
 
       if (statsRes.status === 'fulfilled' && statsRes.value.success) {

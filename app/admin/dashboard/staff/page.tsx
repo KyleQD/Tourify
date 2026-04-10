@@ -3,7 +3,7 @@
 // Prevent prerendering since this page requires MultiAccountProvider context
 export const dynamic = 'force-dynamic'
 
-import { useState, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -155,6 +155,13 @@ interface DashboardStats {
   }
 }
 
+interface VettingSummary {
+  totalReviewed: number
+  eligible: number
+  blocked: number
+  topBlockingReasons: Array<{ reason: string; count: number }>
+}
+
 export default function StaffPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -166,6 +173,7 @@ export default function StaffPage() {
   const [onboardingWorkflows, setOnboardingWorkflows] = useState<any[]>([])
   const [staffMembers, setStaffMembers] = useState<any[]>([])
   const [communications, setCommunications] = useState<any[]>([])
+  const [vettingSummary, setVettingSummary] = useState<VettingSummary | null>(null)
   const [showAddStaffDialog, setShowAddStaffDialog] = useState(false)
   const [showJobPostingDialog, setShowJobPostingDialog] = useState(false)
   const [staffingPermissions, setStaffingPermissions] = useState({
@@ -176,10 +184,28 @@ export default function StaffPage() {
   const { venue, loading: venueLoading } = useCurrentVenue()
   const venueId = venue?.id ?? ''
 
-  useEffect(() => {
-    if (venueLoading) return
-    loadDashboardData()
-  }, [venueId, venueLoading])
+  function isSyntheticRecord(record: any) {
+    const id = typeof record?.id === 'string' ? record.id : ''
+    return id.startsWith('mock-') || id.startsWith('fallback-')
+  }
+
+  function hasSyntheticRecords(records: any[]) {
+    return records.some((record) => isSyntheticRecord(record))
+  }
+
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
 
   useEffect(() => {
     if (!venueId) return
@@ -188,7 +214,7 @@ export default function StaffPage() {
       try {
         const response = await fetch(
           `/api/staffing/permissions?venue_id=${encodeURIComponent(venueId)}`,
-          { cache: 'no-store' }
+          buildNoStoreInit()
         )
         const payload = await response.json()
         if (!cancelled && payload?.success && payload?.data) setStaffingPermissions(payload.data)
@@ -200,482 +226,140 @@ export default function StaffPage() {
     }
   }, [venueId])
 
-  async function loadDashboardData() {
+  useEffect(() => {
+    if (!staffingPermissions.can_review_staffing) {
+      setVettingSummary(null)
+      return
+    }
+    if (!applications.length) {
+      setVettingSummary({
+        totalReviewed: 0,
+        eligible: 0,
+        blocked: 0,
+        topBlockingReasons: [],
+      })
+      return
+    }
+
+    let cancelled = false
+    async function loadVettingSummary() {
+      const reasonCounts: Record<string, number> = {}
+      let eligible = 0
+      let blocked = 0
+      let totalReviewed = 0
+
+      const vettingResponses = await Promise.allSettled(
+        applications.slice(0, 50).map(async (application) => {
+          const response = await fetch(`/api/employer/vetting/${application.id}`, buildNoStoreInit())
+          if (!response.ok) return null
+          const payload = await response.json()
+          return payload?.data?.gate || null
+        })
+      )
+
+      vettingResponses.forEach((result) => {
+        if (result.status !== 'fulfilled' || !result.value) return
+        totalReviewed += 1
+        if (result.value.is_eligible) {
+          eligible += 1
+          return
+        }
+        blocked += 1
+        const reasons = result.value.blocking_reasons || []
+        reasons.forEach((reason: string) => {
+          reasonCounts[reason] = (reasonCounts[reason] || 0) + 1
+        })
+      })
+
+      if (cancelled) return
+      const topBlockingReasons = Object.entries(reasonCounts)
+        .map(([reason, count]) => ({ reason, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+
+      setVettingSummary({
+        totalReviewed,
+        eligible,
+        blocked,
+        topBlockingReasons,
+      })
+    }
+
+    loadVettingSummary()
+    return () => {
+      cancelled = true
+    }
+  }, [applications, staffingPermissions.can_review_staffing])
+
+  const loadDashboardData = useCallback(async () => {
     try {
       setIsLoading(true)
       setError(null)
 
-      // Try to load real data from service, fallback to mock data
+      const results = await Promise.allSettled([
+        AdminOnboardingStaffService.getDashboardStats(venueId),
+        AdminOnboardingStaffService.getJobPostings(venueId),
+        AdminOnboardingStaffService.getJobApplications(venueId),
+        AdminOnboardingStaffService.getOnboardingCandidates(venueId),
+        AdminOnboardingStaffService.getStaffMembers(venueId),
+        AdminOnboardingStaffService.getOnboardingWorkflows(venueId),
+      ])
+
+      const [statsResult, jobPostingsResult, applicationsResult, candidatesResult, staffResult, workflowsResult] = results
+      const failedSlices: string[] = []
+
+      if (statsResult.status === 'fulfilled') setStats(statsResult.value)
+      else {
+        setStats(null)
+        failedSlices.push('dashboard_stats')
+      }
+
+      const resolvedJobPostings = jobPostingsResult.status === 'fulfilled' ? jobPostingsResult.value : []
+      if (jobPostingsResult.status !== 'fulfilled') failedSlices.push('job_postings')
+      setJobPostings(resolvedJobPostings)
+
+      const resolvedApplications = applicationsResult.status === 'fulfilled' ? applicationsResult.value : []
+      if (applicationsResult.status !== 'fulfilled') failedSlices.push('applications')
+      setApplications(resolvedApplications)
+
+      const resolvedCandidates = candidatesResult.status === 'fulfilled' ? candidatesResult.value : []
+      if (candidatesResult.status !== 'fulfilled') failedSlices.push('onboarding_candidates')
+      setOnboardingCandidates(resolvedCandidates)
+
+      const resolvedStaff = staffResult.status === 'fulfilled' ? staffResult.value : []
+      if (staffResult.status !== 'fulfilled') failedSlices.push('staff_members')
+      setStaffMembers(resolvedStaff)
+
+      const resolvedWorkflows = workflowsResult.status === 'fulfilled' ? workflowsResult.value : []
+      if (workflowsResult.status !== 'fulfilled') failedSlices.push('onboarding_workflows')
+      setOnboardingWorkflows(resolvedWorkflows)
+
+      const hasSyntheticData =
+        hasSyntheticRecords(resolvedJobPostings) ||
+        hasSyntheticRecords(resolvedApplications) ||
+        hasSyntheticRecords(resolvedCandidates) ||
+        hasSyntheticRecords(resolvedStaff) ||
+        hasSyntheticRecords(resolvedWorkflows)
+      if (hasSyntheticData) failedSlices.push('synthetic_data_detected')
+
       try {
-        // Load all data in parallel with better error handling
-        const results = await Promise.allSettled([
-          AdminOnboardingStaffService.getDashboardStats(venueId),
-          AdminOnboardingStaffService.getJobPostings(venueId),
-          AdminOnboardingStaffService.getJobApplications(venueId),
-          AdminOnboardingStaffService.getOnboardingCandidates(venueId),
-          AdminOnboardingStaffService.getStaffMembers(venueId),
-          AdminOnboardingStaffService.getOnboardingWorkflows(venueId),
-        ])
-
-        const [statsResult, jobPostingsResult, applicationsResult, candidatesResult, staffResult, workflowsResult] = results
-
-        // Set stats (with fallback if failed)
-        if (statsResult.status === 'fulfilled') {
-          setStats(statsResult.value)
+        const commsRes = await fetch('/api/admin/communications?limit=20', buildNoStoreInit())
+        if (commsRes.ok) {
+          const commsData = await commsRes.json()
+          setCommunications(commsData.messages || [])
         } else {
-          console.warn('⚠️ [Staff Page] Failed to load dashboard stats, using fallback')
-          setStats({
-            onboarding: {
-              total_candidates: 12,
-              pending: 3,
-              in_progress: 5,
-              completed: 4,
-              rejected: 0,
-              approved: 4,
-              avg_progress: 65
-            },
-            job_postings: {
-              total_postings: 8,
-              published: 5,
-              draft: 2,
-              paused: 1,
-              closed: 0,
-              total_applications: 23,
-              pending_reviews: 7
-            },
-            staff_management: {
-              total_staff: 45,
-              active_staff: 38,
-              on_leave: 5,
-              terminated: 2,
-              departments: 6,
-              avg_rating: 4.2,
-              recent_hires: 3
-            }
-          })
+          setCommunications([])
         }
+      } catch {
+        setCommunications([])
+      }
 
-        // Set job postings (with fallback if failed)
-        if (jobPostingsResult.status === 'fulfilled') {
-          setJobPostings(jobPostingsResult.value)
-        } else {
-          console.warn('⚠️ [Staff Page] Failed to load job postings, using fallback')
-          setJobPostings([
-            {
-              id: 'job-1',
-              title: 'Security Staff',
-              department: 'Security',
-              position: 'Security Guard',
-              status: 'published',
-              applications_count: 5,
-              views_count: 23
-            },
-            {
-              id: 'job-2',
-              title: 'Bartender',
-              department: 'Food & Beverage',
-              position: 'Bartender',
-              status: 'published',
-              applications_count: 3,
-              views_count: 18
-            }
-          ])
-        }
-
-        // Set applications (with fallback if failed)
-        if (applicationsResult.status === 'fulfilled') {
-          setApplications(applicationsResult.value)
-        } else {
-          console.warn('⚠️ [Staff Page] Failed to load applications, using fallback')
-          setApplications([
-            {
-              id: 'app-1',
-              job_posting_id: 'job-1',
-              applicant_id: 'user-1',
-              applicant_name: 'John Smith',
-              applicant_email: 'john.smith@email.com',
-              applicant_phone: '+1-555-0123',
-              status: 'pending',
-              form_responses: { experience: '5 years', skills: 'Security, Crowd Control' },
-              applied_at: '2024-01-15T10:00:00Z',
-              rating: 4.5
-            },
-            {
-              id: 'app-2',
-              job_posting_id: 'job-1',
-              applicant_id: 'user-2',
-              applicant_name: 'Sarah Johnson',
-              applicant_email: 'sarah.johnson@email.com',
-              applicant_phone: '+1-555-0124',
-              status: 'reviewed',
-              form_responses: { experience: '3 years', skills: 'Bartending, Customer Service' },
-              applied_at: '2024-01-14T14:30:00Z',
-              rating: 4.2
-            }
-          ])
-        }
-
-        // Set candidates (with fallback if failed)
-        if (candidatesResult.status === 'fulfilled') {
-          setOnboardingCandidates(candidatesResult.value)
-        } else {
-          console.warn('⚠️ [Staff Page] Failed to load candidates, using fallback')
-          setOnboardingCandidates([
-            {
-              id: 'candidate-1',
-              venue_id: venueId,
-              name: 'John Smith',
-              email: 'john.smith@email.com',
-              phone: '+1-555-0123',
-              position: 'Security Guard',
-              department: 'Security',
-              status: 'in_progress',
-              stage: 'onboarding',
-              onboarding_progress: 65,
-              experience_years: 5,
-              skills: ['Security', 'Crowd Control', 'First Aid'],
-              application_date: '2024-01-15T10:00:00Z'
-            },
-            {
-              id: 'candidate-2',
-              venue_id: venueId,
-              name: 'Sarah Johnson',
-              email: 'sarah.johnson@email.com',
-              phone: '+1-555-0124',
-              position: 'Bartender',
-              department: 'Food & Beverage',
-              status: 'pending',
-              stage: 'invitation',
-              onboarding_progress: 25,
-              experience_years: 3,
-              skills: ['Bartending', 'Customer Service', 'POS Systems'],
-              application_date: '2024-01-14T14:30:00Z'
-            }
-          ])
-        }
-
-        // Set staff members (with fallback if failed)
-        if (staffResult.status === 'fulfilled') {
-          setStaffMembers(staffResult.value)
-        } else {
-          console.warn('⚠️ [Staff Page] Failed to load staff members, using fallback')
-          setStaffMembers([
-            {
-              id: 'staff-1',
-              venue_id: venueId,
-              name: 'Mike Johnson',
-              email: 'mike.johnson@venue.com',
-              phone: '+1-555-0125',
-              role: 'Security Guard',
-              department: 'Security',
-              status: 'active',
-              employment_type: 'full_time',
-              hire_date: '2023-06-15T00:00:00Z',
-              hourly_rate: 18.50,
-              performance_rating: 4.5,
-              attendance_rate: 95,
-              incidents_count: 0,
-              commendations_count: 3,
-              training_completed_count: 5,
-              certifications_valid_count: 3,
-              avatar_url: '/avatars/mike.jpg'
-            },
-            {
-              id: 'staff-2',
-              venue_id: venueId,
-              name: 'Lisa Chen',
-              email: 'lisa.chen@venue.com',
-              phone: '+1-555-0126',
-              role: 'Bartender',
-              department: 'Food & Beverage',
-              status: 'active',
-              employment_type: 'part_time',
-              hire_date: '2023-08-20T00:00:00Z',
-              hourly_rate: 16.75,
-              performance_rating: 4.2,
-              attendance_rate: 92,
-              incidents_count: 1,
-              commendations_count: 2,
-              training_completed_count: 4,
-              certifications_valid_count: 2,
-              avatar_url: '/avatars/lisa.jpg'
-            }
-          ])
-        }
-
-        if (workflowsResult.status === 'fulfilled') {
-          setOnboardingWorkflows(workflowsResult.value)
-        }
-
-        try {
-          const commsRes = await fetch('/api/admin/communications?limit=20')
-          if (commsRes.ok) {
-            const commsData = await commsRes.json()
-            setCommunications(commsData.messages || [])
-          }
-        } catch {
-          // best-effort
-        }
-
-        // Check if all requests failed
-        const failedCount = results.filter(result => result.status === 'rejected').length
-        if (failedCount === results.length) {
-          console.warn('⚠️ [Staff Page] All service requests failed, using mock data')
-          toast({
-            title: 'Using Demo Data',
-            description: 'Connected to demo mode. Real data will be available when database is configured.',
-            variant: 'default'
-          })
-        } else if (failedCount > 0) {
-          // Some requests failed but others succeeded
-          toast({
-            title: 'Partial Data Loaded',
-            description: `Some data loaded from database (${results.length - failedCount} of ${results.length} successful).`,
-            variant: 'default'
-          })
-        } else {
-          // All requests succeeded
-          toast({
-            title: 'Data Loaded',
-            description: 'All data loaded successfully from database.',
-            variant: 'default'
-          })
-        }
-
-      } catch (serviceError) {
-        console.warn('⚠️ [Staff Page] Service layer failed, using mock data:', serviceError)
-        
-        // Fallback to mock data
-        setStats({
-          onboarding: {
-            total_candidates: 12,
-            pending: 3,
-            in_progress: 5,
-            completed: 4,
-            rejected: 0,
-            approved: 4,
-            avg_progress: 65
-          },
-          job_postings: {
-            total_postings: 8,
-            published: 5,
-            draft: 2,
-            paused: 1,
-            closed: 0,
-            total_applications: 23,
-            pending_reviews: 7
-          },
-          staff_management: {
-            total_staff: 45,
-            active_staff: 38,
-            on_leave: 5,
-            terminated: 2,
-            departments: 6,
-            avg_rating: 4.2,
-            recent_hires: 3
-          }
-        })
-
-        setApplications([
-          {
-            id: 'app-1',
-            job_posting_id: 'job-1',
-            applicant_id: 'user-1',
-            applicant_name: 'John Smith',
-            applicant_email: 'john.smith@email.com',
-            applicant_phone: '+1-555-0123',
-            status: 'pending',
-            form_responses: { experience: '5 years', skills: 'Security, Crowd Control' },
-            applied_at: '2024-01-15T10:00:00Z',
-            rating: 4.5
-          },
-          {
-            id: 'app-2',
-            job_posting_id: 'job-1',
-            applicant_id: 'user-2',
-            applicant_name: 'Sarah Johnson',
-            applicant_email: 'sarah.johnson@email.com',
-            applicant_phone: '+1-555-0124',
-            status: 'reviewed',
-            form_responses: { experience: '3 years', skills: 'Bartending, Customer Service' },
-            applied_at: '2024-01-14T14:30:00Z',
-            rating: 4.2
-          }
-        ])
-
-        setJobPostings([
-          {
-            id: 'job-1',
-            title: 'Security Staff',
-            department: 'Security',
-            position: 'Security Guard',
-            status: 'published',
-            applications_count: 5,
-            views_count: 23
-          },
-          {
-            id: 'job-2',
-            title: 'Bartender',
-            department: 'Food & Beverage',
-            position: 'Bartender',
-            status: 'published',
-            applications_count: 3,
-            views_count: 18
-          }
-        ])
-
-        setOnboardingCandidates([
-          {
-            id: 'candidate-1',
-            venue_id: venueId,
-            name: 'John Smith',
-            email: 'john.smith@email.com',
-            phone: '+1-555-0123',
-            position: 'Security Guard',
-            department: 'Security',
-            status: 'in_progress',
-            stage: 'onboarding',
-            onboarding_progress: 65,
-            experience_years: 5,
-            skills: ['Security', 'Crowd Control', 'First Aid'],
-            application_date: '2024-01-15T10:00:00Z'
-          },
-          {
-            id: 'candidate-2',
-            venue_id: venueId,
-            name: 'Sarah Johnson',
-            email: 'sarah.johnson@email.com',
-            phone: '+1-555-0124',
-            position: 'Bartender',
-            department: 'Food & Beverage',
-            status: 'pending',
-            stage: 'invitation',
-            onboarding_progress: 25,
-            experience_years: 3,
-            skills: ['Bartending', 'Customer Service', 'POS Systems'],
-            application_date: '2024-01-14T14:30:00Z'
-          }
-        ])
-
-        setOnboardingWorkflows([
-          {
-            id: 'workflow-1',
-            venue_id: venueId,
-            name: 'Security Staff Onboarding',
-            description: 'Complete onboarding process for security staff',
-            department: 'Security',
-            position: 'Security Guard',
-            estimated_days: 7,
-            required_documents: ['ID', 'Background Check', 'First Aid Certification'],
-            steps: [
-              {
-                id: 'step-1',
-                title: 'Document Verification',
-                description: 'Verify all required documents',
-                step_type: 'document',
-                category: 'admin',
-                required: true,
-                estimated_hours: 2,
-                order: 1
-              },
-              {
-                id: 'step-2',
-                title: 'Background Check',
-                description: 'Complete background check process',
-                step_type: 'review',
-                category: 'admin',
-                required: true,
-                estimated_hours: 24,
-                order: 2
-              },
-              {
-                id: 'step-3',
-                title: 'Training Session',
-                description: 'Complete required training modules',
-                step_type: 'training',
-                category: 'training',
-                required: true,
-                estimated_hours: 4,
-                order: 3
-              }
-            ]
-          }
-        ])
-
-        setStaffMembers([
-          {
-            id: 'staff-1',
-            venue_id: venueId,
-            name: 'Mike Johnson',
-            email: 'mike.johnson@venue.com',
-            phone: '+1-555-0125',
-            role: 'Security Guard',
-            department: 'Security',
-            status: 'active',
-            employment_type: 'full_time',
-            hire_date: '2023-06-15T00:00:00Z',
-            hourly_rate: 18.50,
-            performance_rating: 4.5,
-            attendance_rate: 95,
-            incidents_count: 0,
-            commendations_count: 3,
-            training_completed_count: 5,
-            certifications_valid_count: 3,
-            avatar_url: '/avatars/mike.jpg'
-          },
-          {
-            id: 'staff-2',
-            venue_id: venueId,
-            name: 'Lisa Chen',
-            email: 'lisa.chen@venue.com',
-            phone: '+1-555-0126',
-            role: 'Bartender',
-            department: 'Food & Beverage',
-            status: 'active',
-            employment_type: 'part_time',
-            hire_date: '2023-08-20T00:00:00Z',
-            hourly_rate: 16.75,
-            performance_rating: 4.2,
-            attendance_rate: 92,
-            incidents_count: 1,
-            commendations_count: 2,
-            training_completed_count: 4,
-            certifications_valid_count: 2,
-            avatar_url: '/avatars/lisa.jpg'
-          }
-        ])
-
-        setCommunications([
-          {
-            id: 'comm-1',
-            venue_id: venueId,
-            sender_id: 'admin-1',
-            recipients: ['staff-1', 'staff-2'],
-            subject: 'Weekly Schedule Update',
-            content: 'Please review the updated schedule for next week.',
-            message_type: 'schedule',
-            priority: 'normal',
-            read_by: ['staff-1'],
-            sent_at: '2024-01-15T09:00:00Z'
-          },
-          {
-            id: 'comm-2',
-            venue_id: venueId,
-            sender_id: 'admin-1',
-            recipients: ['staff-1'],
-            subject: 'Training Session Reminder',
-            content: 'Don\'t forget about the safety training session tomorrow.',
-            message_type: 'training',
-            priority: 'high',
-            read_by: [],
-            sent_at: '2024-01-14T16:30:00Z'
-          }
-        ])
-
+      if (failedSlices.length > 0) {
+        setError('Some staffing data could not be loaded. Please retry and verify backend configuration.')
         toast({
-          title: 'Demo Mode Active',
-          description: 'Using demo data. Configure database for real data.',
-          variant: 'default'
+          title: 'Staff Data Incomplete',
+          description: `Unavailable slices: ${failedSlices.join(', ')}`,
+          variant: 'destructive'
         })
       }
 
@@ -685,7 +369,12 @@ export default function StaffPage() {
       setError('Failed to load dashboard data')
       setIsLoading(false)
     }
-  }
+  }, [venueId, toast])
+
+  useEffect(() => {
+    if (venueLoading) return
+    void loadDashboardData()
+  }, [venueLoading, loadDashboardData])
 
   async function handleCreateJobPosting(data: any) {
     function getReadableError(err: any): string {
@@ -775,12 +464,10 @@ export default function StaffPage() {
 
   async function handleUpdateApplicationStatus(applicationId: string, status: string, feedback?: string) {
     try {
-      const res = await fetch(`/api/admin/applications/${applicationId}`, {
+      const res = await fetch(`/api/admin/applications/${applicationId}`, buildNoStoreInit({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ status, feedback }),
-      })
+      }))
       if (!res.ok) {
         const msg = await parseApiErrorMessage(res)
         throw new Error(msg)
@@ -802,12 +489,10 @@ export default function StaffPage() {
 
   async function handleBulkUpdateApplications(applicationIds: string[], status: string, feedback?: string) {
     try {
-      const res = await fetch('/api/admin/applications', {
+      const res = await fetch('/api/admin/applications', buildNoStoreInit({
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ applicationIds, status, feedback }),
-      })
+      }))
       if (!res.ok) {
         const msg = await parseApiErrorMessage(res)
         throw new Error(msg)
@@ -829,15 +514,29 @@ export default function StaffPage() {
 
   async function handleSendMessage(applicationId: string, message: string) {
     try {
+      const response = await fetch('/api/admin/applications', buildNoStoreInit({
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'request_evidence',
+          application_id: applicationId,
+          message,
+        }),
+      }))
+      if (!response.ok) {
+        const errorMessage = await parseApiErrorMessage(response)
+        throw new Error(errorMessage)
+      }
+
       toast({
         title: 'Success',
-        description: 'Message sent successfully',
+        description: 'Evidence request sent successfully',
       })
+      await loadDashboardData()
     } catch (error) {
       console.error('❌ [Staff Page] Error sending message:', error)
       toast({
         title: 'Error',
-        description: 'Failed to send message. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to send message. Please try again.',
         variant: 'destructive'
       })
     }
@@ -940,17 +639,15 @@ export default function StaffPage() {
         })
         return
       }
-      const res = await fetch('/api/admin/staff', {
+      const res = await fetch('/api/admin/staff', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           venue_id: venueId,
           action: 'update_status',
           staff_id: staffId,
           status,
         }),
-      })
+      }))
       if (!res.ok) {
         const msg = await parseApiErrorMessage(res)
         throw new Error(msg)
@@ -1014,10 +711,8 @@ export default function StaffPage() {
         })
         return
       }
-      const res = await fetch('/api/admin/staff', {
+      const res = await fetch('/api/admin/staff', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({
           venue_id: venueId,
           type: 'communication',
@@ -1025,7 +720,7 @@ export default function StaffPage() {
           recipients,
           message_type: messageType,
         }),
-      })
+      }))
       if (!res.ok) {
         const msg = await parseApiErrorMessage(res)
         throw new Error(msg)
@@ -1179,6 +874,52 @@ export default function StaffPage() {
 
           {/* Enhanced Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {staffingPermissions.can_review_staffing && vettingSummary && (
+              <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <div className="p-1 bg-gradient-to-r from-cyan-500/20 to-blue-500/20 rounded shadow-lg">
+                      <Shield className="h-4 w-4 text-cyan-300" />
+                    </div>
+                    Hiring Vetting Snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="p-3 rounded bg-slate-800/60 border border-slate-700">
+                      <p className="text-xs text-slate-400">Reviewed</p>
+                      <p className="text-lg font-semibold text-white">{vettingSummary.totalReviewed}</p>
+                    </div>
+                    <div className="p-3 rounded bg-emerald-950/30 border border-emerald-700/30">
+                      <p className="text-xs text-emerald-300">Eligible</p>
+                      <p className="text-lg font-semibold text-emerald-200">{vettingSummary.eligible}</p>
+                    </div>
+                    <div className="p-3 rounded bg-rose-950/30 border border-rose-700/30">
+                      <p className="text-xs text-rose-300">Blocked</p>
+                      <p className="text-lg font-semibold text-rose-200">{vettingSummary.blocked}</p>
+                    </div>
+                  </div>
+
+                  {vettingSummary.topBlockingReasons.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-400">Top blocking reasons</p>
+                      <div className="flex flex-wrap gap-2">
+                        {vettingSummary.topBlockingReasons.map((reason) => (
+                          <Badge
+                            key={reason.reason}
+                            variant="outline"
+                            className="border-rose-500/30 text-rose-200"
+                          >
+                            {reason.reason} ({reason.count})
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
             {stats && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Onboarding Stats */}

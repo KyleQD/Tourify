@@ -53,6 +53,18 @@ export function LogisticsIntegration({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  function buildNoStoreInit(): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+      },
+    }
+  }
+
   const fetchLogisticsMetrics = useCallback(async () => {
     try {
       setLoading(true)
@@ -62,10 +74,7 @@ export function LogisticsIntegration({
       if (eventId) params.append('eventId', eventId)
       if (tourId) params.append('tourId', tourId)
 
-      const response = await fetch(`/api/admin/logistics/metrics?${params.toString()}`, {
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' }
-      })
+      const response = await fetch(`/api/admin/logistics/metrics?${params.toString()}`, buildNoStoreInit())
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)

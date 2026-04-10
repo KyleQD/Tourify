@@ -35,13 +35,27 @@ export default function VenueAssetsPage() {
   const [description, setDescription] = useState<string>('')
   const [serialNumber, setSerialNumber] = useState<string>('')
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      ...input,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+    }
+  }
+
   useEffect(() => {
     if (!venue?.id) return
     let active = true
     async function load() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/assets?ownerType=Venue&ownerId=${venue.id}`, { cache: 'no-store' })
+        const res = await fetch(`/api/assets?ownerType=Venue&ownerId=${venue.id}`, buildNoStoreInit())
         const data = await res.json()
         if (active) setAssets(Array.isArray(data?.assets) ? data.assets : [])
       } finally {
@@ -56,11 +70,10 @@ export default function VenueAssetsPage() {
     if (!venue?.id || !name) return
     setLoading(true)
     try {
-      const res = await fetch('/api/assets', {
+      const res = await fetch('/api/assets', buildNoStoreInit({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ownerType: 'Venue', ownerId: venue.id, name, category: category || null, description: description || null, serialNumber: serialNumber || null })
-      })
+      }))
       const data = await res.json()
       if (!res.ok) throw new Error(data?.error || 'Failed to create asset')
       setAssets(prev => [data.asset, ...prev])

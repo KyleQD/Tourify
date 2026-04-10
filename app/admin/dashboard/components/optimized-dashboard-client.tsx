@@ -81,6 +81,20 @@ export default function OptimizedDashboardClient() {
   const [activeTab, setActiveTab] = useState('overview')
   const [showDataStatus, setShowDataStatus] = useState(false)
 
+  function buildNoStoreInit(input?: RequestInit): RequestInit {
+    return {
+      credentials: 'include',
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        Pragma: 'no-cache',
+        ...(input?.headers || {}),
+      },
+      ...input,
+    }
+  }
+
   function handleTabChange(nextTab: string) {
     setActiveTab(nextTab)
     void trackDashboardUxEvent({
@@ -114,7 +128,7 @@ export default function OptimizedDashboardClient() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch('/api/profile/current', { credentials: 'include' })
+        const res = await fetch('/api/profile/current', buildNoStoreInit())
         if (!res.ok || cancelled) return
         const data = await res.json()
         const customUrl = data?.profile?.custom_url as string | undefined
@@ -161,10 +175,7 @@ export default function OptimizedDashboardClient() {
     const fetchData = async () => {
       try {
         // Fetch stats
-        const statsResponse = await fetch('/api/admin/dashboard/stats', {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const statsResponse = await fetch('/api/admin/dashboard/stats', buildNoStoreInit())
         
         if (statsResponse.ok) {
           const statsData = await statsResponse.json()
@@ -181,10 +192,7 @@ export default function OptimizedDashboardClient() {
 
       try {
         // Fetch tours
-        const toursResponse = await fetch('/api/admin/tours', {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const toursResponse = await fetch('/api/admin/tours', buildNoStoreInit())
         
         if (toursResponse.ok) {
           const toursData = await toursResponse.json()
@@ -201,10 +209,7 @@ export default function OptimizedDashboardClient() {
 
       try {
         // Fetch events
-        const eventsResponse = await fetch('/api/admin/events', {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const eventsResponse = await fetch('/api/admin/events', buildNoStoreInit())
         
         if (eventsResponse.ok) {
           const eventsData = await eventsResponse.json()
@@ -221,10 +226,7 @@ export default function OptimizedDashboardClient() {
 
       try {
         // Fetch notifications
-        const notificationsResponse = await fetch('/api/admin/notifications', {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const notificationsResponse = await fetch('/api/admin/notifications', buildNoStoreInit())
         
         if (notificationsResponse.ok) {
           const notificationsData = await notificationsResponse.json()
@@ -257,10 +259,7 @@ export default function OptimizedDashboardClient() {
           .on('postgres_changes', 
             { event: '*', schema: 'public', table: 'tours' },
             (payload) => {
-              fetch('/api/admin/tours', {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-              })
+              fetch('/api/admin/tours', buildNoStoreInit())
               .then(response => response.json())
               .then(data => setTours(data.tours || []))
               .catch(error => console.error('Error refreshing tours:', error))
@@ -274,10 +273,7 @@ export default function OptimizedDashboardClient() {
           .on('postgres_changes', 
             { event: '*', schema: 'public', table: 'events' },
             (payload) => {
-              fetch('/api/admin/events', {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-              })
+              fetch('/api/admin/events', buildNoStoreInit())
               .then(response => response.json())
               .then(data => setEvents(data.events || []))
               .catch(error => console.error('Error refreshing events:', error))
@@ -291,10 +287,7 @@ export default function OptimizedDashboardClient() {
           .on('postgres_changes', 
             { event: '*', schema: 'public', table: 'ticket_sales' },
             (payload) => {
-              fetch('/api/admin/dashboard/stats', {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-              })
+              fetch('/api/admin/dashboard/stats', buildNoStoreInit())
               .then(response => response.json())
               .then(data => setStats(data.stats))
               .catch(error => console.error('Error refreshing stats:', error))
@@ -308,10 +301,7 @@ export default function OptimizedDashboardClient() {
           .on('postgres_changes', 
             { event: '*', schema: 'public', table: 'staff_profiles' },
             (payload) => {
-              fetch('/api/admin/dashboard/stats', {
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' }
-              })
+              fetch('/api/admin/dashboard/stats', buildNoStoreInit())
               .then(response => response.json())
               .then(data => setStats(data.stats))
               .catch(error => console.error('Error refreshing stats:', error))
@@ -439,10 +429,7 @@ export default function OptimizedDashboardClient() {
     }
     async function fetchTasks() {
       try {
-        const res = await fetch('/api/admin/tasks?range=week', {
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' }
-        })
+        const res = await fetch('/api/admin/tasks?range=week', buildNoStoreInit())
         if (res.ok) {
           const data = await res.json()
           setTasks(data.tasks || [])
