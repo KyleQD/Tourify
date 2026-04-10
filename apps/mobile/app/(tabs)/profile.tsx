@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Share, Switch, Text, TextInput, View } from "react-native"
+import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
 import { useAuth } from "@/lib/auth/auth-provider"
 import { useSession } from "@/hooks/use-session"
@@ -7,7 +7,6 @@ import { useAccountMode } from "@/hooks/use-account-mode"
 import { supabase } from "@/lib/supabase/client"
 import { getCreatorCapabilities, updateCreatorCapabilities } from "@/lib/api/creator-capabilities"
 import { isQueuedOfflineError } from "@/lib/api/client"
-import { createConnectSession } from "@/lib/api/connect"
 import {
   clearMeshRelayPackets,
   getMeshSyncStats,
@@ -69,11 +68,6 @@ export default function ProfileScreen() {
     relayablePackets: 0,
     seenPackets: 0
   })
-  const [activeConnectLink, setActiveConnectLink] = useState<string | null>(null)
-  const [activeConnectToken, setActiveConnectToken] = useState<string | null>(null)
-  const [activeConnectDeepLink, setActiveConnectDeepLink] = useState<string | null>(null)
-  const [isCreatingConnectSession, setIsCreatingConnectSession] = useState(false)
-  const [manualConnectToken, setManualConnectToken] = useState("")
 
   useEffect(() => {
     async function loadVenueStats() {
@@ -215,65 +209,6 @@ export default function ProfileScreen() {
     }
   }
 
-  async function handleStartInPersonConnect() {
-    try {
-      setIsCreatingConnectSession(true)
-      const session = await createConnectSession({
-        handshakeMethod: "nfc_ble",
-        oneTimeClaim: true,
-        expiresInSeconds: 120,
-      })
-
-      setActiveConnectLink(session.webClaimUrl || session.claimUrl)
-      setActiveConnectToken(session.ephemeralToken)
-      setActiveConnectDeepLink(session.deepLinkUrl || null)
-
-      Alert.alert(
-        "Connect session ready",
-        "Share the connect link nearby so the other user can claim and preview your profile."
-      )
-    } catch (error) {
-      Alert.alert("Connect setup failed", error instanceof Error ? error.message : "Please try again")
-    } finally {
-      setIsCreatingConnectSession(false)
-    }
-  }
-
-  async function handleShareConnectLink() {
-    if (!activeConnectLink) {
-      Alert.alert("No active session", "Start an in-person connect session first.")
-      return
-    }
-
-    try {
-      await Share.share({
-        message: [
-          "Connect with me on Tourify:",
-          activeConnectLink,
-          "",
-          "Mobile deep link:",
-          activeConnectDeepLink || `tourify://connect/claim?token=${activeConnectToken || ""}`,
-        ].join("\n"),
-        url: activeConnectLink,
-      })
-    } catch (error) {
-      Alert.alert("Share failed", error instanceof Error ? error.message : "Please try again")
-    }
-  }
-
-  function handleOpenManualClaim() {
-    const token = manualConnectToken.trim()
-    if (token.length <= 20) {
-      Alert.alert("Missing token", "Paste a valid connect token.")
-      return
-    }
-
-    router.push({
-      pathname: "/connect/claim",
-      params: { token },
-    })
-  }
-
   function updateCapabilitiesField<K extends keyof CreatorCapabilityForm>(field: K, value: CreatorCapabilityForm[K]) {
     setCapabilitiesForm((previous) => ({ ...previous, [field]: value }))
   }
@@ -405,54 +340,10 @@ export default function ProfileScreen() {
         <View style={{ borderWidth: 1, borderColor: "#334155", borderRadius: 12, padding: 12, gap: 10 }}>
           <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>In-person connect (beta)</Text>
           <Text style={{ color: "#94a3b8", fontSize: 13 }}>
-            Start a short-lived connect session, then share the link with someone nearby so they can claim and confirm.
+            Open the connect hub to start, share, and claim nearby account connections.
           </Text>
-          <Pressable
-            onPress={handleStartInPersonConnect}
-            disabled={isCreatingConnectSession}
-            style={secondaryActionButton}
-          >
-            <Text style={secondaryActionButtonText}>
-              {isCreatingConnectSession ? "Starting connect..." : "Start in-person connect"}
-            </Text>
-          </Pressable>
-          <Pressable onPress={handleShareConnectLink} style={secondaryActionButton}>
-            <Text style={secondaryActionButtonText}>Share connect link</Text>
-          </Pressable>
-          {activeConnectLink ? (
-            <Text style={{ color: "#94a3b8", fontSize: 12 }} numberOfLines={2}>
-              Active link: {activeConnectLink}
-            </Text>
-          ) : null}
-          {activeConnectToken ? (
-            <Text style={{ color: "#64748b", fontSize: 11 }} numberOfLines={1}>
-              Active token: {activeConnectToken}
-            </Text>
-          ) : null}
-          {activeConnectDeepLink ? (
-            <Text style={{ color: "#64748b", fontSize: 11 }} numberOfLines={1}>
-              Deep link: {activeConnectDeepLink}
-            </Text>
-          ) : null}
-          <TextInput
-            value={manualConnectToken}
-            onChangeText={setManualConnectToken}
-            placeholder="Paste received token to claim"
-            placeholderTextColor="#64748b"
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={{
-              borderWidth: 1,
-              borderColor: "#334155",
-              borderRadius: 10,
-              color: "#fff",
-              paddingHorizontal: 10,
-              paddingVertical: 10,
-              backgroundColor: "#0f172a"
-            }}
-          />
-          <Pressable onPress={handleOpenManualClaim} style={secondaryActionButton}>
-            <Text style={secondaryActionButtonText}>Open claim screen</Text>
+          <Pressable onPress={() => router.push("/connect")} style={secondaryActionButton}>
+            <Text style={secondaryActionButtonText}>Open connect hub</Text>
           </Pressable>
         </View>
 

@@ -3,16 +3,18 @@ import { SafeAreaView, ScrollView, Text, TextInput, View, Pressable, Alert } fro
 import { useLocalSearchParams } from "expo-router"
 import { claimConnectSession, confirmConnectSession, type ClaimConnectSessionResponse } from "@/lib/api/connect"
 import { ApiError } from "@/lib/api/client"
+import { extractConnectToken } from "@/lib/connect/connect-token"
 
 export default function MobileConnectClaimScreen() {
   const params = useLocalSearchParams<{ token?: string }>()
-  const seededToken = typeof params.token === "string" ? params.token : ""
+  const seededToken = extractConnectToken(typeof params.token === "string" ? params.token : "")
   const [tokenInput, setTokenInput] = useState(seededToken)
   const [claimResult, setClaimResult] = useState<ClaimConnectSessionResponse | null>(null)
   const [isClaimPending, setIsClaimPending] = useState(false)
   const [isConfirmPending, setIsConfirmPending] = useState(false)
 
-  const hasToken = useMemo(() => tokenInput.trim().length > 20, [tokenInput])
+  const normalizedToken = useMemo(() => extractConnectToken(tokenInput), [tokenInput])
+  const hasToken = useMemo(() => normalizedToken.length > 20, [normalizedToken])
 
   function handleClaimSession() {
     if (!hasToken) {
@@ -22,7 +24,7 @@ export default function MobileConnectClaimScreen() {
 
     setIsClaimPending(true)
     void claimConnectSession({
-      ephemeralToken: tokenInput.trim(),
+      ephemeralToken: normalizedToken,
       deviceContext: {
         platform: "mobile",
         source: "connect-claim-screen",
@@ -66,7 +68,7 @@ export default function MobileConnectClaimScreen() {
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 56 }}>
         <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>Claim Connect Session</Text>
         <Text style={{ color: "#94a3b8", fontSize: 13 }}>
-          Paste or open a connect token link to preview profile details and confirm a new connection request.
+          Paste a connect token or full claim URL to preview profile details and confirm a new connection request.
         </Text>
 
         <View style={{ gap: 6 }}>
