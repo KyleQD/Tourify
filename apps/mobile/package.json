@@ -9,7 +9,13 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "launch:assets": "python3 scripts/generate-launch-placeholders.py",
+    "launch:screenshots": "python3 scripts/prepare-screenshot-placeholders.py",
+    "launch:validate": "python3 scripts/validate-launch-package.py",
+    "launch:check-images": "python3 scripts/check-launch-image-dimensions.py",
+    "launch:bundle": "python3 scripts/build-store-upload-bundle.py",
+    "launch:ready": "npm run launch:validate && npm run launch:check-images && npm run launch:bundle"
   },
   "dependencies": {
     "@expo/vector-icons": "~14.0.4",
@@ -36,6 +42,8 @@
   },
   "devDependencies": {
     "@types/react": "~18.3.12",
+    "eslint": "^8.57.1",
+    "eslint-config-expo": "~8.0.1",
     "typescript": "^5.6.3"
   }
 }
