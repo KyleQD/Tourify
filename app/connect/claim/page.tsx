@@ -94,6 +94,12 @@ export default function ConnectClaimPage() {
           <CardTitle>Connect with User</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex justify-end">
+            <Link href="/connect">
+              <Button variant="outline">Back to Connect Hub</Button>
+            </Link>
+          </div>
+
           {!hasToken && (
             <p className="text-sm text-red-500">
               Missing connect token. Ask the other user to share their connect link again.
