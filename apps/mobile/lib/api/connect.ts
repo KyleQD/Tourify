@@ -11,6 +11,8 @@ export interface CreateConnectSessionResponse {
   ephemeralToken: string
   expiresAt: string
   claimUrl: string
+  webClaimUrl: string
+  deepLinkUrl: string
 }
 
 interface ClaimConnectSessionRequest {

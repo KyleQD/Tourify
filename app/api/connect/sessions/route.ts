@@ -113,11 +113,17 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
+    const claimPath = `/connect/claim?token=${encodeURIComponent(tokenResult.token)}`
+    const webClaimUrl = buildAbsoluteWebClaimUrl(request, claimPath)
+    const deepLinkUrl = `tourify://connect/claim?token=${encodeURIComponent(tokenResult.token)}`
+
     return NextResponse.json({
       connectSessionId: insertResult.data.id,
       ephemeralToken: tokenResult.token,
       expiresAt: insertResult.data.expires_at,
-      claimUrl: `/connect/claim?token=${encodeURIComponent(tokenResult.token)}`,
+      claimUrl: claimPath,
+      webClaimUrl,
+      deepLinkUrl,
     }, { status: 201 })
   } catch (error) {
     console.error('[Connect Sessions API] POST error:', error)
@@ -129,6 +135,21 @@ export async function POST(request: NextRequest) {
       },
     }, { status: 500 })
   }
+}
+
+function buildAbsoluteWebClaimUrl(request: NextRequest, claimPath: string) {
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL
+  if (configuredSiteUrl) {
+    try {
+      const baseUrl = new URL(configuredSiteUrl)
+      return new URL(claimPath, `${baseUrl.origin}/`).toString()
+    } catch {
+      // fall through to request-derived origin
+    }
+  }
+
+  const requestUrl = new URL(request.url)
+  return new URL(claimPath, `${requestUrl.origin}/`).toString()
 }
 
 function buildProfilePreview({

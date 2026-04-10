@@ -37,6 +37,11 @@ const appConfig: ExpoConfig = {
             scheme: "https",
             host: "tourify.app",
             pathPrefix: "/auth/mobile-callback"
+          },
+          {
+            scheme: "https",
+            host: "tourify.app",
+            pathPrefix: "/connect"
           }
         ],
         category: ["BROWSABLE", "DEFAULT"]

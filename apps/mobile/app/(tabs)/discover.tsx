@@ -653,7 +653,7 @@ export default function DiscoverScreen() {
           ))}
         </View>
         {isLoading ? (
-          <Text accessibilityLiveRegion="polite" accessibilityRole="status" style={{ color: "#94a3b8", fontSize: 12 }}>
+          <Text accessibilityLiveRegion="polite" style={{ color: "#94a3b8", fontSize: 12 }}>
             Refreshing discover results...
           </Text>
         ) : null}

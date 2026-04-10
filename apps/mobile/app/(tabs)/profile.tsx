@@ -8,7 +8,6 @@ import { supabase } from "@/lib/supabase/client"
 import { getCreatorCapabilities, updateCreatorCapabilities } from "@/lib/api/creator-capabilities"
 import { isQueuedOfflineError } from "@/lib/api/client"
 import { createConnectSession } from "@/lib/api/connect"
-import { env } from "@/lib/config/env"
 import {
   clearMeshRelayPackets,
   getMeshSyncStats,
@@ -72,6 +71,7 @@ export default function ProfileScreen() {
   })
   const [activeConnectLink, setActiveConnectLink] = useState<string | null>(null)
   const [activeConnectToken, setActiveConnectToken] = useState<string | null>(null)
+  const [activeConnectDeepLink, setActiveConnectDeepLink] = useState<string | null>(null)
   const [isCreatingConnectSession, setIsCreatingConnectSession] = useState(false)
   const [manualConnectToken, setManualConnectToken] = useState("")
 
@@ -224,9 +224,9 @@ export default function ProfileScreen() {
         expiresInSeconds: 120,
       })
 
-      const absoluteClaimLink = `${env.apiBaseUrl}${session.claimUrl}`
-      setActiveConnectLink(absoluteClaimLink)
+      setActiveConnectLink(session.webClaimUrl || session.claimUrl)
       setActiveConnectToken(session.ephemeralToken)
+      setActiveConnectDeepLink(session.deepLinkUrl || null)
 
       Alert.alert(
         "Connect session ready",
@@ -247,7 +247,13 @@ export default function ProfileScreen() {
 
     try {
       await Share.share({
-        message: `Connect with me on Tourify: ${activeConnectLink}`,
+        message: [
+          "Connect with me on Tourify:",
+          activeConnectLink,
+          "",
+          "Mobile deep link:",
+          activeConnectDeepLink || `tourify://connect/claim?token=${activeConnectToken || ""}`,
+        ].join("\n"),
         url: activeConnectLink,
       })
     } catch (error) {
@@ -421,6 +427,11 @@ export default function ProfileScreen() {
           {activeConnectToken ? (
             <Text style={{ color: "#64748b", fontSize: 11 }} numberOfLines={1}>
               Active token: {activeConnectToken}
+            </Text>
+          ) : null}
+          {activeConnectDeepLink ? (
+            <Text style={{ color: "#64748b", fontSize: 11 }} numberOfLines={1}>
+              Deep link: {activeConnectDeepLink}
             </Text>
           ) : null}
           <TextInput
