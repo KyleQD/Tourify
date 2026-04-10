@@ -51,6 +51,10 @@ export default function ConnectHubPage() {
 
       setActiveSession(json)
       setInfoMessage("Connect session created. Share the web link or deep link with someone nearby.")
+      void sendConnectTelemetry({
+        eventName: "connect_flow_session_created_web",
+        connectSessionId: json.connectSessionId,
+      })
     })
   }
 
@@ -80,6 +84,10 @@ export default function ConnectHubPage() {
             url: activeSession.webClaimUrl,
           })
           setInfoMessage("Session link shared.")
+          void sendConnectTelemetry({
+            eventName: "connect_flow_session_shared_web",
+            connectSessionId: activeSession.connectSessionId,
+          })
           return
         } catch {
           // fall through to clipboard path
@@ -89,6 +97,10 @@ export default function ConnectHubPage() {
       if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(message)
         setInfoMessage("Session link copied to clipboard.")
+        void sendConnectTelemetry({
+          eventName: "connect_flow_session_copied_web",
+          connectSessionId: activeSession.connectSessionId,
+        })
         return
       }
 
@@ -103,6 +115,9 @@ export default function ConnectHubPage() {
     }
 
     router.push(`/connect/claim?token=${encodeURIComponent(normalizedToken)}`)
+    void sendConnectTelemetry({
+      eventName: "connect_flow_claim_opened_web",
+    })
   }
 
   return (
@@ -186,4 +201,25 @@ function parseTokenFromLooseQuery(value: string) {
   if (queryStartIndex < 0) return ""
   const params = new URLSearchParams(value.slice(queryStartIndex + 1))
   return params.get("token")?.trim() || ""
+}
+
+async function sendConnectTelemetry(payload: {
+  eventName: string
+  connectSessionId?: string
+  metadata?: Record<string, unknown>
+}) {
+  try {
+    await fetch("/api/connect/telemetry", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventName: payload.eventName,
+        connectSessionId: payload.connectSessionId,
+        platform: "web",
+        metadata: payload.metadata || {},
+      }),
+    })
+  } catch {
+    // Telemetry should never block UX
+  }
 }

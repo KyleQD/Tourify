@@ -60,6 +60,11 @@ export default function ConnectClaimPage() {
       }
 
       setClaimResult(json)
+      void sendConnectTelemetry({
+        eventName: 'connect_flow_claimed_web',
+        connectSessionId: json.connectSessionId,
+        metadata: { relationshipStatus: json.relationshipStatus },
+      })
     })
   }
 
@@ -84,6 +89,10 @@ export default function ConnectClaimPage() {
       }
 
       setConfirmStatus('success')
+      void sendConnectTelemetry({
+        eventName: 'connect_flow_confirmed_web',
+        connectSessionId: claimResult.connectSessionId,
+      })
     })
   }
 
@@ -151,4 +160,25 @@ export default function ConnectClaimPage() {
       </Card>
     </div>
   )
+}
+
+async function sendConnectTelemetry(payload: {
+  eventName: string
+  connectSessionId?: string
+  metadata?: Record<string, unknown>
+}) {
+  try {
+    await fetch('/api/connect/telemetry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        eventName: payload.eventName,
+        connectSessionId: payload.connectSessionId,
+        platform: 'web',
+        metadata: payload.metadata || {},
+      }),
+    })
+  } catch {
+    // Telemetry should never block UX
+  }
 }

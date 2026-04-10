@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { Alert, Pressable, SafeAreaView, ScrollView, Share, Text, TextInput, View } from "react-native"
 import { useRouter } from "expo-router"
 import { createConnectSession } from "@/lib/api/connect"
+import { sendConnectTelemetry } from "@/lib/api/connect-telemetry"
 import { extractConnectToken } from "@/lib/connect/connect-token"
 
 export default function ConnectHubScreen() {
@@ -29,6 +30,10 @@ export default function ConnectHubScreen() {
       setActiveWebLink(session.webClaimUrl || session.claimUrl)
       setActiveDeepLink(session.deepLinkUrl)
       setActiveToken(session.ephemeralToken)
+      void sendConnectTelemetry({
+        eventName: "connect_flow_session_created_mobile",
+        connectSessionId: session.connectSessionId,
+      })
       Alert.alert("Connect session ready", "Share the link with the other user to claim and confirm.")
     } catch (error) {
       Alert.alert("Start failed", error instanceof Error ? error.message : "Could not start connect session.")
@@ -54,6 +59,9 @@ export default function ConnectHubScreen() {
         ].join("\n"),
         url: activeWebLink,
       })
+      void sendConnectTelemetry({
+        eventName: "connect_flow_session_shared_mobile",
+      })
     } catch (error) {
       Alert.alert("Share failed", error instanceof Error ? error.message : "Please try again.")
     }
@@ -68,6 +76,9 @@ export default function ConnectHubScreen() {
     router.push({
       pathname: "/connect/claim",
       params: { token: normalizedManualToken },
+    })
+    void sendConnectTelemetry({
+      eventName: "connect_flow_claim_opened_mobile",
     })
   }
 

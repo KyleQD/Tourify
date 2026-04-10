@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { createConnectSessionToken } from '@/lib/connect/connect-session-token'
+import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
 
 const createSessionSchema = z.object({
   handshakeMethod: z.literal('nfc_ble').default('nfc_ble'),
@@ -112,6 +113,17 @@ export async function POST(request: NextRequest) {
         },
       }, { status: 500 })
     }
+
+    await logConnectTelemetryEvent({
+      eventName: 'connect_session_created',
+      connectSessionId: insertResult.data.id,
+      platform: 'server',
+      userId: user.id,
+      metadata: {
+        handshakeMethod: parsedBody.data.handshakeMethod,
+        oneTimeClaim: parsedBody.data.oneTimeClaim,
+      },
+    })
 
     const claimPath = `/connect/claim?token=${encodeURIComponent(tokenResult.token)}`
     const webClaimUrl = buildAbsoluteWebClaimUrl(request, claimPath)

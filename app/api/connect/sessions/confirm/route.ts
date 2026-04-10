@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
 
 const confirmSessionSchema = z.object({
   connectSessionId: z.string().uuid(),
@@ -94,6 +95,17 @@ export async function POST(request: NextRequest) {
         updated_at: new Date().toISOString(),
       })
       .eq('id', session.id)
+
+    await logConnectTelemetryEvent({
+      eventName: 'connect_session_confirmed',
+      connectSessionId: session.id,
+      platform: 'unknown',
+      userId: user.id,
+      metadata: {
+        relationshipStatus: followRequestResult.relationshipStatus,
+        hasFollowRequestId: Boolean(followRequestResult.followRequestId),
+      },
+    })
 
     return NextResponse.json({
       success: true,

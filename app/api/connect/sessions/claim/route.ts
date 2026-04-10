@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { hashConnectSessionToken, verifyConnectSessionToken } from '@/lib/connect/connect-session-token'
+import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
 
 const claimSessionSchema = z.object({
   ephemeralToken: z.string().min(20),
@@ -41,7 +42,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
 
     const verification = verifyConnectSessionToken(parsedBody.data.ephemeralToken)
-    if (verification.errorCode || !verification.payload)
+    if (verification.errorCode || !verification.payload) {
+      await logConnectTelemetryEvent({
+        eventName: 'connect_session_claim_rejected',
+        platform: String(parsedBody.data.deviceContext?.platform || 'unknown'),
+        userId: user.id,
+        metadata: {
+          reason: verification.errorCode ?? 'invalid_token',
+        },
+      })
+
       return NextResponse.json<ApiErrorShape>({
         error: {
           code: verification.errorCode ?? 'invalid_token',
@@ -49,6 +59,7 @@ export async function POST(request: NextRequest) {
           retryable: false,
         },
       }, { status: 400 })
+    }
 
     if (verification.payload.sharerUserId === user.id)
       return NextResponse.json<ApiErrorShape>({
@@ -133,6 +144,16 @@ export async function POST(request: NextRequest) {
       supabase,
       currentUserId: user.id,
       targetUserId: session.sharer_user_id,
+    })
+
+    await logConnectTelemetryEvent({
+      eventName: 'connect_session_claimed',
+      connectSessionId: session.id,
+      platform: String(parsedBody.data.deviceContext?.platform || 'unknown'),
+      userId: user.id,
+      metadata: {
+        relationshipStatus,
+      },
     })
 
     return NextResponse.json({

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react"
 import { SafeAreaView, ScrollView, Text, TextInput, View, Pressable, Alert } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { claimConnectSession, confirmConnectSession, type ClaimConnectSessionResponse } from "@/lib/api/connect"
+import { sendConnectTelemetry } from "@/lib/api/connect-telemetry"
 import { ApiError } from "@/lib/api/client"
 import { extractConnectToken } from "@/lib/connect/connect-token"
 
@@ -32,6 +33,11 @@ export default function MobileConnectClaimScreen() {
     })
       .then((claimed) => {
         setClaimResult(claimed)
+        void sendConnectTelemetry({
+          eventName: "connect_flow_claimed_mobile",
+          connectSessionId: claimed.connectSessionId,
+          metadata: { relationshipStatus: claimed.relationshipStatus },
+        })
       })
       .catch((error: unknown) => {
         setClaimResult(null)
@@ -52,6 +58,10 @@ export default function MobileConnectClaimScreen() {
       intent: "send_follow_request",
     })
       .then(() => {
+        void sendConnectTelemetry({
+          eventName: "connect_flow_confirmed_mobile",
+          connectSessionId: claimResult.connectSessionId,
+        })
         Alert.alert("Connected", "Follow request sent successfully.")
       })
       .catch((error: unknown) => {
