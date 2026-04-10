@@ -1,0 +1,9 @@
+node_modules/
+.expo/
+.next/
+dist/
+docs/
+scripts/
+assets/launch/screenshots/
+assets/launch/screenshot-android-1080x2400-v1.png
+assets/launch/screenshot-ios-1290x2796-v1.png

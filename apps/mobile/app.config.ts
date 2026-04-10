@@ -4,9 +4,15 @@ const appConfig: ExpoConfig = {
   name: "Tourify",
   slug: "tourify-mobile",
   version: "1.0.0",
+  icon: "./assets/launch/app-icon-1024-v1.png",
   scheme: "tourify",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
+  splash: {
+    image: "./assets/launch/splash-image-1242x2436-v1.png",
+    resizeMode: "contain",
+    backgroundColor: "#0f172a"
+  },
   ios: {
     supportsTablet: false,
     bundleIdentifier: "com.tourify.mobile",
@@ -18,6 +24,8 @@ const appConfig: ExpoConfig = {
   android: {
     package: "com.tourify.mobile",
     adaptiveIcon: {
+      foregroundImage: "./assets/launch/adaptive-foreground-1024-v1.png",
+      monochromeImage: "./assets/launch/adaptive-foreground-1024-v1.png",
       backgroundColor: "#0f172a"
     },
     intentFilters: [
@@ -37,6 +45,7 @@ const appConfig: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "expo-asset",
     [
       "expo-location",
       {
