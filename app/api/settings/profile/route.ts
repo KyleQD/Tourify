@@ -67,6 +67,13 @@ export async function PUT(request: NextRequest) {
 
     console.log('[Settings Profile API] Updating profile for user:', user.id)
 
+    const inPersonConnectSettings = {
+      ...(body.profile_data?.in_person_connect || {}),
+      allowInPersonConnect: body.allow_in_person_connect ?? body.profile_data?.in_person_connect?.allowInPersonConnect ?? true,
+      shareEmailOnConnect: body.share_email_on_connect ?? body.profile_data?.in_person_connect?.shareEmailOnConnect ?? false,
+      sharePhoneOnConnect: body.share_phone_on_connect ?? body.profile_data?.in_person_connect?.sharePhoneOnConnect ?? false,
+    }
+
     // Update the user's profile
     const updatePayload: any = {
       username: body.username,
@@ -93,7 +100,8 @@ export async function PUT(request: NextRequest) {
         ...(body.profile_data || {}),
         name: body.full_name,
         phone: body.phone,
-        website: body.website
+        website: body.website,
+        in_person_connect: inPersonConnectSettings,
       },
       social_links: {
         ...(body.social_links || {}),
