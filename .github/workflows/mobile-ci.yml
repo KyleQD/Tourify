@@ -23,7 +23,11 @@ jobs:
 
       - name: Install mobile dependencies
         working-directory: apps/mobile
-        run: npm install
+        run: npm ci
+
+      - name: Lint mobile app
+        working-directory: apps/mobile
+        run: npm run lint
 
       - name: Typecheck mobile app
         working-directory: apps/mobile
