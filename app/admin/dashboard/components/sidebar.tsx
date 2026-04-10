@@ -143,6 +143,13 @@ const navItems: NavItem[] = [
     href: "/admin/dashboard/analytics", 
     icon: BarChart3,
   },
+  {
+    label: "Connect Telemetry",
+    href: "/admin/dashboard/connect",
+    icon: Radio,
+    badge: "New",
+    badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  },
   { 
     label: "Communications", 
     href: "/admin/dashboard/communications", 

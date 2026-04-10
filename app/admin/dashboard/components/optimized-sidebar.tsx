@@ -182,6 +182,14 @@ export function OptimizedSidebar() {
       description: "Data insights and reports",
       shortcut: "⌘0"
     },
+    {
+      label: "Connect Telemetry",
+      href: "/admin/dashboard/connect",
+      icon: Radio,
+      badge: "New",
+      badgeColor: "bg-emerald-500/20 text-emerald-300",
+      description: "In-person connect funnel monitoring",
+    },
     { 
       label: "Settings", 
       href: "/admin/dashboard/settings", 
