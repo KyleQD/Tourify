@@ -57,43 +57,11 @@ export async function GET(request: NextRequest) {
         .limit(1)
 
       if (tableError) {
-        console.log('[Feed Posts API] Posts table not available, returning mock data')
-        
-        // Return mock data for testing
-        const mockPosts = [
-          {
-            id: '1',
-            content: 'Welcome to Tourify! This is a sample post.',
-            media_urls: [],
-            likes_count: 5,
-            comments_count: 2,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            user: {
-              id: 'user-1',
-              username: 'tourify',
-              avatar_url: '',
-              verified: true
-            }
-          },
-          {
-            id: '2',
-            content: 'Another sample post for testing the feed.',
-            media_urls: [],
-            likes_count: 3,
-            comments_count: 1,
-            created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-            updated_at: new Date(Date.now() - 86400000).toISOString(),
-            user: {
-              id: 'user-2',
-              username: 'demo_user',
-              avatar_url: '',
-              verified: false
-            }
-          }
-        ]
-
-        return NextResponse.json({ success: true, data: mockPosts })
+        console.error('[Feed Posts API] Posts table not available', tableError)
+        return NextResponse.json(
+          { success: false, error: { code: 'feed_unavailable', message: 'Feed is temporarily unavailable' }, data: [] },
+          { status: 503 }
+        )
       }
 
       // Build a SAFE base query that does not rely on implicit FK joins or optional columns
@@ -234,43 +202,11 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ success: true, data: normalized })
     } catch (error) {
-      console.log('[Feed Posts API] Posts table error, returning mock data:', error)
-      
-      // Return mock data when there are table issues
-      const mockPosts = [
-        {
-          id: '1',
-          content: 'Welcome to Tourify! This is a sample post.',
-          media_urls: [],
-          likes_count: 5,
-          comments_count: 2,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          user: {
-            id: 'user-1',
-            username: 'tourify',
-            avatar_url: '',
-            verified: true
-          }
-        },
-        {
-          id: '2',
-          content: 'Another sample post for testing the feed.',
-          media_urls: [],
-          likes_count: 3,
-          comments_count: 1,
-          created_at: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
-          updated_at: new Date(Date.now() - 86400000).toISOString(),
-          user: {
-            id: 'user-2',
-            username: 'demo_user',
-            avatar_url: '',
-            verified: false
-          }
-        }
-      ]
-
-      return NextResponse.json({ success: true, data: mockPosts })
+      console.error('[Feed Posts API] Posts table error:', error)
+      return NextResponse.json(
+        { success: false, error: { code: 'feed_query_failed', message: 'Failed to fetch feed posts' }, data: [] },
+        { status: 500 }
+      )
     }
   } catch (error) {
     console.error('[Feed Posts API] Error:', error)

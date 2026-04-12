@@ -245,87 +245,91 @@ export default function OptimizedDashboardClient() {
     fetchData()
   }, [currentAccount?.account_type])
 
-  // Real-time subscriptions for live updates
+  // Real-time subscriptions for live updates (admin accounts only)
   useEffect(() => {
-    // Import Supabase client dynamically to avoid SSR issues
+    if (currentAccount?.account_type !== 'admin') return
+
+    let cancelled = false
+    const subscriptions: Array<{ unsubscribe: () => void }> = []
+
     const setupRealTimeSubscriptions = async () => {
       try {
-        const { createClient } = await import('./lib/supabase-browser')
-        const supabase = createClient()
+        const { supabase } = await import('@/lib/supabase/client')
 
-        // Subscribe to tours changes
-        const toursSubscription = supabase
-          .channel('tours-changes')
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'tours' },
-            (payload) => {
-              fetch('/api/admin/tours', buildNoStoreInit())
-              .then(response => response.json())
-              .then(data => setTours(data.tours || []))
-              .catch(error => console.error('Error refreshing tours:', error))
-            }
-          )
-          .subscribe()
+        subscriptions.push(
+          supabase
+            .channel('tours-changes')
+            .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'tours' },
+              () => {
+                if (cancelled) return
+                fetch('/api/admin/tours', buildNoStoreInit())
+                  .then(response => response.json())
+                  .then(data => { if (!cancelled) setTours(data.tours || []) })
+                  .catch(error => console.error('Error refreshing tours:', error))
+              }
+            )
+            .subscribe()
+        )
 
-        // Subscribe to events changes
-        const eventsSubscription = supabase
-          .channel('events-changes')
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'events' },
-            (payload) => {
-              fetch('/api/admin/events', buildNoStoreInit())
-              .then(response => response.json())
-              .then(data => setEvents(data.events || []))
-              .catch(error => console.error('Error refreshing events:', error))
-            }
-          )
-          .subscribe()
+        subscriptions.push(
+          supabase
+            .channel('events-changes')
+            .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'events' },
+              () => {
+                if (cancelled) return
+                fetch('/api/admin/events', buildNoStoreInit())
+                  .then(response => response.json())
+                  .then(data => { if (!cancelled) setEvents(data.events || []) })
+                  .catch(error => console.error('Error refreshing events:', error))
+              }
+            )
+            .subscribe()
+        )
 
-        // Subscribe to ticket sales changes
-        const ticketSalesSubscription = supabase
-          .channel('ticket-sales-changes')
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'ticket_sales' },
-            (payload) => {
-              fetch('/api/admin/dashboard/stats', buildNoStoreInit())
-              .then(response => response.json())
-              .then(data => setStats(data.stats))
-              .catch(error => console.error('Error refreshing stats:', error))
-            }
-          )
-          .subscribe()
+        subscriptions.push(
+          supabase
+            .channel('ticket-sales-changes')
+            .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'ticket_sales' },
+              () => {
+                if (cancelled) return
+                fetch('/api/admin/dashboard/stats', buildNoStoreInit())
+                  .then(response => response.json())
+                  .then(data => { if (!cancelled) setStats(data.stats) })
+                  .catch(error => console.error('Error refreshing stats:', error))
+              }
+            )
+            .subscribe()
+        )
 
-        // Subscribe to staff changes
-        const staffSubscription = supabase
-          .channel('staff-changes')
-          .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'staff_profiles' },
-            (payload) => {
-              fetch('/api/admin/dashboard/stats', buildNoStoreInit())
-              .then(response => response.json())
-              .then(data => setStats(data.stats))
-              .catch(error => console.error('Error refreshing stats:', error))
-            }
-          )
-          .subscribe()
-
-        // Cleanup function
-        return () => {
-          toursSubscription.unsubscribe()
-          eventsSubscription.unsubscribe()
-          ticketSalesSubscription.unsubscribe()
-          staffSubscription.unsubscribe()
-        }
+        subscriptions.push(
+          supabase
+            .channel('staff-changes')
+            .on('postgres_changes',
+              { event: '*', schema: 'public', table: 'staff_profiles' },
+              () => {
+                if (cancelled) return
+                fetch('/api/admin/dashboard/stats', buildNoStoreInit())
+                  .then(response => response.json())
+                  .then(data => { if (!cancelled) setStats(data.stats) })
+                  .catch(error => console.error('Error refreshing stats:', error))
+              }
+            )
+            .subscribe()
+        )
       } catch (error) {
-        console.error('Error setting up real-time subscriptions:', error)
+        console.warn('Real-time subscriptions unavailable:', error)
       }
     }
 
-    const cleanup = setupRealTimeSubscriptions()
+    setupRealTimeSubscriptions()
     return () => {
-      cleanup.then(cleanupFn => cleanupFn?.())
+      cancelled = true
+      subscriptions.forEach(sub => { try { sub.unsubscribe() } catch {} })
     }
-  }, [])
+  }, [currentAccount?.account_type])
 
   const recentTours = useMemo(() => {
     if (!tours || tours.length === 0) return []

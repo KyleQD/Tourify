@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { discoverResponseSchema } from '@tourify/api-contracts'
 
 interface DiscoverProfile {
   id: string
@@ -527,6 +528,8 @@ export async function GET(request: NextRequest) {
   const cacheHeader = authResult
     ? 'private, no-store'
     : 'public, s-maxage=60, stale-while-revalidate=300'
+
+  discoverResponseSchema.parse(payload)
 
   return NextResponse.json(payload, {
     headers: {

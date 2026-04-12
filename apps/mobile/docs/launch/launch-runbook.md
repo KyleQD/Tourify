@@ -50,6 +50,12 @@ npx eas build --platform android --profile production
 npx eas submit --platform android --profile production
 ```
 
+Android OTA automation:
+
+- Automatic OTA publish on `main` for OTA-safe changes: `.github/workflows/android-ota-production.yml`
+- Native Android release workflow: `.github/workflows/android-native-release.yml`
+- Release policy: `../android-release-policy.md`
+
 ## App Store Connect Upload Checklist
 
 - [ ] Upload localized app name/subtitle/promotional text for all launch locales

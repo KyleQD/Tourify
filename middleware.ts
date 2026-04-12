@@ -33,6 +33,8 @@ export async function middleware(request: NextRequest) {
     '/messages',
     '/analytics',
     '/feed',
+    '/music',
+    '/connect',
     '/create',
     '/bookings',
     '/documents',
@@ -42,12 +44,26 @@ export async function middleware(request: NextRequest) {
     '/artist',
     '/business',
     '/venue',
+    '/debug',
+    '/migrations',
+    '/auth-test',
   ]
+
+  const productionBlockedPrefixes = ['/debug', '/migrations/sql']
 
   const isPublicRoute = publicRoutes.includes(pathname)
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isRootRoute = pathname === '/'
+
+  const isProduction = process.env.NODE_ENV === 'production'
+  const isProductionBlockedRoute = productionBlockedPrefixes.some(prefix =>
+    pathname.startsWith(prefix)
+  )
+
+  if (isProduction && isProductionBlockedRoute) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
 
   // Root route should route users to their primary experience:
   // authenticated users -> dashboard, anonymous users -> login.

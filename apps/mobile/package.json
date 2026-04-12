@@ -10,6 +10,14 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "ota:preview": "eas update --branch preview --non-interactive",
+    "ota:production": "eas update --branch production --non-interactive",
+    "ota:production:android": "eas update --platform android --branch production --non-interactive",
+    "ios:preflight": "node scripts/release-preflight-ios.mjs",
+    "ios:build:production": "eas build --platform ios --profile production --non-interactive",
+    "ios:submit:production": "eas submit --platform ios --profile production --latest --non-interactive",
+    "android:build:production": "eas build --platform android --profile production --non-interactive",
+    "android:submit:production": "eas submit --platform android --profile production --latest --non-interactive",
     "launch:assets": "python3 scripts/generate-launch-placeholders.py",
     "launch:screenshots": "python3 scripts/prepare-screenshot-placeholders.py",
     "launch:validate": "python3 scripts/validate-launch-package.py",
@@ -26,7 +34,7 @@
     "expo-asset": "~11.0.5",
     "expo-auth-session": "~6.0.3",
     "expo-constants": "~17.0.8",
-    "expo-dev-client": "~5.0.20",
+    "expo-dev-client": "5.0.20",
     "expo-document-picker": "~13.0.3",
     "expo-file-system": "~18.0.12",
     "expo-font": "~13.0.4",
@@ -36,6 +44,7 @@
     "expo-router": "^4.0.18",
     "expo-secure-store": "~14.0.1",
     "expo-sharing": "~13.0.1",
+    "expo-updates": "~0.27.5",
     "expo-web-browser": "~14.0.2",
     "react": "18.3.1",
     "react-native": "0.76.9",
@@ -47,5 +56,9 @@
     "eslint": "^8.57.1",
     "eslint-config-expo": "~8.0.1",
     "typescript": "^5.6.3"
+  },
+  "overrides": {
+    "expo-dev-launcher": "5.0.20",
+    "expo-dev-menu": "5.0.20"
   }
 }

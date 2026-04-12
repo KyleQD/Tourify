@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
 import { resolveEventReference } from "../events/_lib/event-reference"
 import { authenticateRequestWithBearerFallback } from "@/lib/auth/mobile-request-auth"
+import { paymentCheckoutRequestSchema } from "@tourify/api-contracts"
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-04-30.basil",
@@ -30,7 +31,15 @@ export async function POST(req: NextRequest) {
       )
     }
     const { supabase: userSupabase, user } = authResult
-    const { bookingId, eventId, ticketQuantity, mobileRedirectUri } = await req.json()
+    const payload = paymentCheckoutRequestSchema.safeParse(await req.json())
+    if (!payload.success) {
+      return NextResponse.json(
+        { error: "Invalid booking, event, or ticket quantity" },
+        { status: 400 }
+      )
+    }
+
+    const { bookingId, eventId, ticketQuantity, mobileRedirectUri } = payload.data
     const normalizedTicketQuantity = Number(ticketQuantity || 1)
     if (!bookingId || !eventId || normalizedTicketQuantity <= 0) {
       return NextResponse.json(

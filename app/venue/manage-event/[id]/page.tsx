@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
+import { FeatureUnavailable } from "@/components/ui/feature-unavailable"
 import { useToast } from "@/hooks/use-toast"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
@@ -149,6 +150,18 @@ export default function EventManagementDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState<any>(null)
+  const isEventManagerEnabled = process.env.NEXT_PUBLIC_ENABLE_VENUE_EVENT_MANAGER === "true"
+
+  if (!isEventManagerEnabled) {
+    return (
+      <FeatureUnavailable
+        title="Venue event manager is temporarily unavailable"
+        description="This screen still depends on mock workflows and has been disabled in production until end-to-end event operations are complete."
+        fallbackHref="/venue/dashboard/events"
+        fallbackLabel="Back to venue events"
+      />
+    )
+  }
 
   useEffect(() => {
     const loadEvent = async () => {

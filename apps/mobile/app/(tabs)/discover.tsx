@@ -163,7 +163,7 @@ export default function DiscoverScreen() {
       service,
       availableForHire: availableForHireOnly
     })
-  }, [intent, loadDiscover])
+  }, [intent, location, creatorType, service, availableForHireOnly, loadDiscover])
 
   useEffect(() => {
     let isMounted = true
@@ -342,32 +342,49 @@ export default function DiscoverScreen() {
     })
   }
 
-  const filteredPeople = (payload?.sections.people || []).filter(
-    (item) => peopleFilter === "all" || item.account_type === peopleFilter
+  const peopleItems = useMemo(() => payload?.sections.people || [], [payload?.sections.people])
+  const trendingItems = useMemo(() => payload?.sections.trending || [], [payload?.sections.trending])
+  const upcomingItems = useMemo(() => payload?.sections.upcoming || [], [payload?.sections.upcoming])
+  const hireMatches = useMemo(() => payload?.sections.hire_matches || [], [payload?.sections.hire_matches])
+  const hubJobs = useMemo(() => hubPayload?.sections?.jobs || [], [hubPayload?.sections?.jobs])
+  const hubUpdates = useMemo(() => hubPayload?.sections?.pulse || [], [hubPayload?.sections?.pulse])
+  const hubEvents = useMemo(() => hubPayload?.sections?.discover || [], [hubPayload?.sections?.discover])
+  const filteredPeople = useMemo(
+    () => peopleItems.filter((item) => peopleFilter === "all" || item.account_type === peopleFilter),
+    [peopleItems, peopleFilter]
   )
-  const trendingItems = payload?.sections.trending || []
-  const upcomingItems = payload?.sections.upcoming || []
-  const hireMatches = payload?.sections.hire_matches || []
-  const hubJobs = hubPayload?.sections?.jobs || []
-  const hubUpdates = hubPayload?.sections?.pulse || []
-  const hubEvents = hubPayload?.sections?.discover || []
-  const allEvents = dedupeById([...upcomingItems, ...hubEvents])
-  const musicItems = trendingItems.filter((item) => detectPostTopics(item.content).includes("music"))
-  const merchItems = trendingItems.filter((item) => detectPostTopics(item.content).includes("merch"))
-  const updatesFromTrending = trendingItems.filter((item) => detectPostTopics(item.content).includes("updates"))
-  const updatesItems = [...hubUpdates.map((item) => ({
-    id: item.id,
-    title: item.title,
-    summary: item.summary,
-    sourceName: item.sourceName,
-    publishedAt: item.publishedAt
-  })), ...updatesFromTrending.map((item) => ({
-    id: `post-update-${item.id}`,
-    title: "Scene update",
-    summary: item.content,
-    sourceName: "Tourify Feed",
-    publishedAt: item.created_at
-  }))]
+  const allEvents = useMemo(() => dedupeById([...upcomingItems, ...hubEvents]), [upcomingItems, hubEvents])
+  const musicItems = useMemo(
+    () => trendingItems.filter((item) => detectPostTopics(item.content).includes("music")),
+    [trendingItems]
+  )
+  const merchItems = useMemo(
+    () => trendingItems.filter((item) => detectPostTopics(item.content).includes("merch")),
+    [trendingItems]
+  )
+  const updatesFromTrending = useMemo(
+    () => trendingItems.filter((item) => detectPostTopics(item.content).includes("updates")),
+    [trendingItems]
+  )
+  const updatesItems = useMemo(
+    () => [
+      ...hubUpdates.map((item) => ({
+        id: item.id,
+        title: item.title,
+        summary: item.summary,
+        sourceName: item.sourceName,
+        publishedAt: item.publishedAt
+      })),
+      ...updatesFromTrending.map((item) => ({
+        id: `post-update-${item.id}`,
+        title: "Scene update",
+        summary: item.content,
+        sourceName: "Tourify Feed",
+        publishedAt: item.created_at
+      }))
+    ],
+    [hubUpdates, updatesFromTrending]
+  )
   const personalizedFeed = useMemo(() => {
     return buildPersonalizedFeed({
       topicPreferences,
@@ -1216,7 +1233,7 @@ function buildPersonalizedFeed({
   location: string
   service: string
   availableForHireOnly: boolean
-  people: Array<{
+  people: {
     id: string
     username: string
     display_name?: string | null
@@ -1224,8 +1241,8 @@ function buildPersonalizedFeed({
     creator_type?: string | null
     available_for_hire?: boolean | null
     location?: string | null
-  }>
-  hireMatches: Array<{
+  }[]
+  hireMatches: {
     id: string
     username: string
     display_name?: string | null
@@ -1233,32 +1250,32 @@ function buildPersonalizedFeed({
     creator_type?: string | null
     available_for_hire?: boolean | null
     location?: string | null
-  }>
-  events: Array<{
+  }[]
+  events: {
     id: string
     title: string
     event_date?: string | null
     venue_name?: string | null
     venue_city?: string | null
     venue_state?: string | null
-  }>
-  jobs: Array<{
+  }[]
+  jobs: {
     id: string
     title: string
     city?: string | null
     state?: string | null
     payment_type?: string | null
     payment_amount?: number | null
-  }>
-  updates: Array<{
+  }[]
+  updates: {
     id: string
     title: string
     summary: string
     sourceName: string
     publishedAt: string
-  }>
-  musicItems: Array<{ id: string; content: string; created_at: string }>
-  merchItems: Array<{ id: string; content: string; created_at: string }>
+  }[]
+  musicItems: { id: string; content: string; created_at: string }[]
+  merchItems: { id: string; content: string; created_at: string }[]
 }) {
   const mergedPeople = dedupeById([...hireMatches, ...people])
   const feed: PersonalizedItem[] = []

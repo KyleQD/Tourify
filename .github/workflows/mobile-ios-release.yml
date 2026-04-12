@@ -1,0 +1,140 @@
+name: Mobile iOS Native Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      submit_to_app_store:
+        description: "Submit latest production build to App Store Connect after TestFlight upload"
+        type: boolean
+        required: true
+        default: false
+      release_notes:
+        description: "Release note suffix for build metadata"
+        type: string
+        required: false
+        default: ""
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  build-testflight:
+    name: Build and upload to TestFlight
+    runs-on: ubuntu-latest
+    environment: ios-release
+    permissions:
+      contents: read
+    concurrency:
+      group: mobile-ios-native-release
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            apps/mobile/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Pre-submit mobile gates
+        run: |
+          npm run mobile:ios:preflight
+          npm run mobile:typecheck
+          npm run mobile:lint
+          npm run test:mobile-redirect
+          npm run test:auth-redirects
+
+      - name: Verify App Store Connect automation variables
+        env:
+          APPLE_ASC_KEY_ID: ${{ secrets.APPLE_ASC_KEY_ID }}
+          APPLE_ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_ISSUER_ID }}
+          APPLE_ASC_KEY_BASE64: ${{ secrets.APPLE_ASC_KEY_BASE64 }}
+        run: |
+          if [ -z "$APPLE_ASC_KEY_ID" ] || [ -z "$APPLE_ASC_ISSUER_ID" ] || [ -z "$APPLE_ASC_KEY_BASE64" ]; then
+            echo "::error::Missing one or more App Store Connect secrets: APPLE_ASC_KEY_ID, APPLE_ASC_ISSUER_ID, APPLE_ASC_KEY_BASE64"
+            exit 1
+          fi
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build iOS production binary
+        id: eas_build
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          RELEASE_NOTE="${{ inputs.release_notes }}"
+          if [ -z "$RELEASE_NOTE" ]; then RELEASE_NOTE="$(git log -1 --pretty=%s)"; fi
+          npx eas build \
+            --platform ios \
+            --profile production \
+            --non-interactive \
+            --message "ios-native:${GITHUB_SHA::7} ${RELEASE_NOTE}" \
+            --json | tee eas-build-result.json
+
+      - name: Upload build metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-metadata
+          path: apps/mobile/eas-build-result.json
+
+      - name: Optional release webhook notification
+        if: secrets.MOBILE_RELEASE_WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.MOBILE_RELEASE_WEBHOOK_URL }}
+        run: |
+          curl -sS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"platform\":\"ios\",\"lane\":\"native-testflight\",\"sha\":\"${GITHUB_SHA}\",\"workflow\":\"mobile-ios-release\"}"
+
+  submit-app-store:
+    name: Submit to App Store Connect
+    if: inputs.submit_to_app_store == true
+    needs: build-testflight
+    runs-on: ubuntu-latest
+    environment: ios-production-submit
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "apps/mobile/package-lock.json"
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Submit latest iOS production build
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.EXPO_APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          npx eas submit --platform ios --profile production --latest --non-interactive

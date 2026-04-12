@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native"
+import * as WebBrowser from "expo-web-browser"
 import { supabase } from "@/lib/supabase/client"
 import { useAccountMode } from "@/hooks/use-account-mode"
+import { env } from "@/lib/config/env"
 
 interface VenueBookingRequest {
   id: string
@@ -95,6 +97,15 @@ export default function BookingsScreen() {
           <Text style={{ color: "#cbd5e1" }}>
             Venue booking operations are available when you are signed in to a venue account.
           </Text>
+          <Text style={{ color: "#94a3b8", marginTop: 8 }}>
+            Ticket checkout currently runs on web while native booking checkout is finalized.
+          </Text>
+          <Pressable
+            onPress={() => void WebBrowser.openBrowserAsync(`${env.apiBaseUrl}/marketplace`)}
+            style={{ marginTop: 12, borderRadius: 10, backgroundColor: "#1e293b", paddingVertical: 10 }}
+          >
+            <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>Open marketplace on web</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     )

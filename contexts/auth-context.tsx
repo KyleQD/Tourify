@@ -75,8 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (event === 'SIGNED_OUT') {
         console.log('[Auth] User signed out, clearing local data')
-        // Clear any local storage
-        localStorage.removeItem('onboardingData')
+        // Safari strict privacy modes can block storage APIs.
+        try {
+          localStorage.removeItem('onboardingData')
+        } catch (storageError) {
+          console.warn('[Auth] Could not clear onboardingData from localStorage:', storageError)
+        }
         router.push('/login')
       }
 

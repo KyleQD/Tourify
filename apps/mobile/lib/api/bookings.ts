@@ -1,4 +1,9 @@
 import { apiRequest } from "@/lib/api/client"
+import {
+  paymentCheckoutResponseSchema,
+  paymentVerifyResponseSchema,
+} from "@tourify/api-contracts"
+import type { PaymentCheckoutResponse, PaymentVerifyResponse } from "@tourify/api-contracts"
 
 export interface Booking {
   id: string
@@ -16,25 +21,27 @@ export interface EventRow {
   price: number
 }
 
-export function createCheckoutSession(body: {
+export async function createCheckoutSession(body: {
   bookingId: string
   eventId: string
   ticketQuantity: number
   mobileRedirectUri?: string
 }) {
-  return apiRequest<{ url: string; sessionId?: string }>("/api/payment", {
+  const response = await apiRequest<PaymentCheckoutResponse>("/api/payment", {
     method: "POST",
     body: JSON.stringify({
       ...body,
       mobileRedirectUri: body.mobileRedirectUri
     })
   })
+  return paymentCheckoutResponseSchema.parse(response)
 }
 
-export function verifyCheckoutSession(params: { bookingId: string; sessionId: string }) {
+export async function verifyCheckoutSession(params: { bookingId: string; sessionId: string }) {
   const search = new URLSearchParams({
     booking_id: params.bookingId,
     session_id: params.sessionId
   })
-  return apiRequest<{ success: boolean }>(`/api/payment?${search.toString()}`)
+  const response = await apiRequest<PaymentVerifyResponse>(`/api/payment?${search.toString()}`)
+  return paymentVerifyResponseSchema.parse(response)
 }

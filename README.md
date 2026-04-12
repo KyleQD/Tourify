@@ -2,59 +2,45 @@
 
 The ultimate platform for artists, venues, and music industry professionals to connect, create, and tour.
 
-## 🚀 Quick Setup for Seamless Login
+## Quick setup
 
-### 1. Environment Variables
+### 1) Environment variables
 
-Create a `.env.local` file in the root directory:
+Copy `.env.example` to `.env.local` and fill values:
 
 ```bash
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
-
-# Next.js Configuration
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your_nextauth_secret_here
-
-# Optional: Social Authentication
-GOOGLE_CLIENT_ID=your_google_client_id_here
-GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+cp .env.example .env.local
 ```
 
-### 2. Database Setup
+### 2) Database setup
 
-Run the complete database setup in your Supabase SQL Editor:
+Use Supabase migrations as the source of truth:
 
-```sql
--- Copy and run the contents of complete_database_setup.sql
+```bash
+npx supabase db push
 ```
 
-This will create:
-- User profiles table with onboarding tracking
-- Artist and venue profile tables
-- Authentication triggers
-- Row Level Security policies
+`complete_database_setup.sql` is legacy bootstrap material and should not be used for active environments.
 
-### 3. Install Dependencies
+### 3) Install dependencies
 
 ```bash
 npm install
 ```
 
-### 4. Start Development Server
+### 4) Start development server
 
 ```bash
 npm run dev
 ```
 
-## 🌐 Demo Live Deployment (GitHub + Vercel)
+## Deployments (GitHub + Vercel)
 
 This repository uses a fresh GitHub Actions setup with two workflows:
 
-- `CI` (`.github/workflows/ci.yml`) for lint + build checks
+- `CI` (`.github/workflows/ci.yml`) for lint + unit tests + build checks
 - `Deploy Demo` (`.github/workflows/deploy-demo.yml`) for live demo deployment
+- `Deploy Production` (`.github/workflows/deploy-production.yml`) for production deployment and post-deploy smoke checks
 
 ### Required GitHub Secrets
 
@@ -63,6 +49,9 @@ Set these repository secrets before triggering deployment:
 - `VERCEL_TOKEN`
 - `VERCEL_ORG_ID`
 - `VERCEL_PROJECT_ID`
+- `VERCEL_PROJECT_ID_PRODUCTION`
+- `SMOKE_TEST_AUTH_BEARER_TOKEN` (for authenticated post-deploy smoke tests)
+- `PRODUCTION_BASE_URL` (repository variable, e.g. `https://tourify.live`)
 
 ### Deployment Behavior
 
@@ -73,7 +62,7 @@ Set these repository secrets before triggering deployment:
 
 Point `demo.tourify.live` at the Vercel demo project in Vercel domain settings.
 
-## 🔐 Authentication Flow
+## Authentication flow
 
 ### Current Implementation
 

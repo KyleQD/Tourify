@@ -1,4 +1,8 @@
-name: 🚀 Production Deployment Pipeline
+# Legacy reference only. Active CI/CD workflows live in:
+# - .github/workflows/ci.yml
+# - .github/workflows/deploy-demo.yml
+# - .github/workflows/deploy-production.yml
+name: 🚀 Production Deployment Pipeline (Legacy Reference)
 
 on:
   push:

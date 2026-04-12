@@ -133,7 +133,11 @@ if (typeof window !== 'undefined') {
     // Handle different auth events
     if (event === 'SIGNED_OUT') {
       // Clear any local storage or session data
-      localStorage.removeItem('onboardingData')
+      try {
+        localStorage.removeItem('onboardingData')
+      } catch (e) {
+        console.warn('Could not remove onboardingData from localStorage:', e)
+      }
     }
     
     if (event === 'SIGNED_IN') {

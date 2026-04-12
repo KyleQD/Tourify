@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -172,7 +172,7 @@ export function ArtistNotifications({
     if (!userId || isControlled) return
     setIsLoading(true)
     try {
-      const supabase = createClientComponentClient() as any
+
       const { data, error } = await supabase
         .from('notifications')
         .select('id, type, title, content, metadata, is_read, priority, created_at')
@@ -210,7 +210,7 @@ export function ArtistNotifications({
     }
     if (!userId || isControlled) return
     try {
-      const supabase = createClientComponentClient() as any
+
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true, read_at: new Date().toISOString() })
@@ -230,7 +230,7 @@ export function ArtistNotifications({
     }
     if (!userId || isControlled) return
     try {
-      const supabase = createClientComponentClient() as any
+
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true, read_at: new Date().toISOString() })
@@ -250,7 +250,7 @@ export function ArtistNotifications({
     }
     if (!userId || isControlled) return
     try {
-      const supabase = createClientComponentClient() as any
+
       const { error } = await supabase.from('notifications').delete().eq('id', id).eq('user_id', userId)
       if (error) throw error
       setInternalList((prev) => prev.filter((n) => n.id !== id))

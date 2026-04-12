@@ -102,7 +102,10 @@ function tryParseCookieValue(cookieValue: string): any | null {
     try {
       const sessionData2: AuthSession = JSON.parse(cookieValue)
       if (sessionData2 && sessionData2.access_token && sessionData2.user) {
-        return sessionData2.user
+        const now = Math.floor(Date.now() / 1000)
+        if (sessionData2.expires_at && sessionData2.expires_at > now) {
+          return sessionData2.user
+        }
       }
     } catch (parseError2) {
       // ignore
@@ -184,7 +187,7 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
     const { data: adminProfile } = await supabase
       .from('profiles')
       .select('id, account_type, role, is_admin, account_settings')
-      .eq('user_id', user.id)
+      .eq('id', user.id)
       .limit(1)
       .maybeSingle()
 

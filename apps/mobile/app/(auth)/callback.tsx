@@ -15,10 +15,14 @@ export default function OAuthCallbackScreen() {
       }
 
       if (params.code) {
-        await supabase.auth.exchangeCodeForSession(params.code)
+        const { error } = await supabase.auth.exchangeCodeForSession(params.code)
+        if (error) {
+          router.replace("/(auth)/login")
+          return
+        }
       }
 
-      router.replace("/(tabs)/discover")
+      router.replace("/")
     }
 
     void completeAuth()

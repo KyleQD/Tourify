@@ -22,6 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { format } from "date-fns"
 import { Search, Mail, Phone, Ticket, DollarSign, Calendar } from "lucide-react"
+import { FeatureUnavailable } from "@/components/ui/feature-unavailable"
 
 interface Customer {
   id: string
@@ -59,8 +60,20 @@ const mockCustomers: Customer[] = [
 ]
 
 export default function BusinessCustomersPage() {
+  const isBusinessCustomersEnabled = process.env.NEXT_PUBLIC_ENABLE_BUSINESS_CUSTOMERS === "true"
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedCustomer, setSelectedCustomer] = React.useState<Customer | null>(null)
+
+  if (!isBusinessCustomersEnabled) {
+    return (
+      <FeatureUnavailable
+        title="Business customers is temporarily unavailable"
+        description="This screen currently uses placeholder data and is hidden until customer records and purchase history are fully connected."
+        fallbackHref="/business"
+        fallbackLabel="Back to business dashboard"
+      />
+    )
+  }
 
   const filteredCustomers = mockCustomers.filter(customer =>
     customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

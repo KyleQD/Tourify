@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export async function GET(request: NextRequest) {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
-    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const orgId = searchParams.get('org_id') || undefined
 
@@ -22,4 +21,4 @@ export async function GET(request: NextRequest) {
     console.error('[Admin Tours API] Error:', error)
     return NextResponse.json({ success: false, error: 'Failed to fetch tours', tours: [] }, { status: 500 })
   }
-}
+})

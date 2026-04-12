@@ -258,9 +258,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
     try {
       setLoading(true)
       
-      // Import supabase client to fetch real posts from the database
-      const { createClientComponentClient } = await import('@supabase/auth-helpers-nextjs')
-      const supabase = createClientComponentClient()
+      const { supabase } = await import('@/lib/supabase/client')
       
       console.log('🔍 Fetching real posts for profile:', profile.id)
       
@@ -562,8 +560,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
 
   const handleLikePost = async (postId: string) => {
     try {
-      const { createClientComponentClient } = await import('@supabase/auth-helpers-nextjs')
-      const supabase = createClientComponentClient()
+      const { supabase } = await import('@/lib/supabase/client')
       
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {

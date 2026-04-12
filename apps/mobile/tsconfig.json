@@ -6,6 +6,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@tourify/api-contracts": [
+        "../../packages/api-contracts/src/index.ts"
       ]
     }
   },

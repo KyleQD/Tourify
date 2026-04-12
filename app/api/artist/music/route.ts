@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const limit = Math.min(Math.max(Number(request.nextUrl.searchParams.get("limit") || "100"), 1), 300)
     const { data, error } = await supabase
@@ -22,12 +19,22 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Failed to fetch artist tracks", error)
-      return NextResponse.json({ error: "Failed to fetch artist tracks" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "artist_tracks_query_failed",
+        message: "Failed to fetch artist tracks",
+        retryable: true,
+      })
     }
 
     return NextResponse.json({ data: data || [] })
   } catch (error) {
     console.error("Unexpected artist tracks GET error", error)
-    return NextResponse.json({ error: "Unexpected artist tracks error" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "artist_tracks_internal_error",
+      message: "Unexpected artist tracks error",
+      retryable: true,
+    })
   }
 }

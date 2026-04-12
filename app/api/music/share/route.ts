@@ -47,19 +47,43 @@ export async function POST(request: NextRequest) {
       }
 
       if (createPost) {
-        const { data: createdPost } = await supabase.from('posts').insert({
-          user_id: user.id,
-          content: typeof content === 'string' && content.trim().length ? content.trim() : `Sharing playlist: "${playlist.title}"`,
-          type: 'music',
-          media_urls: playlist.cover_image_url ? [playlist.cover_image_url] : [],
-          hashtags: ['music', 'playlist'],
-        }).select('id').single()
+        const { data: createdPost, error: createPostError } = await supabase
+          .from('posts')
+          .insert({
+            user_id: user.id,
+            content: typeof content === 'string' && content.trim().length ? content.trim() : `Sharing playlist: "${playlist.title}"`,
+            type: 'music',
+            media_urls: playlist.cover_image_url ? [playlist.cover_image_url] : [],
+            hashtags: ['music', 'playlist'],
+          })
+          .select('id')
+          .single()
 
-        await supabase.from('music_playlist_shares').insert({
+        if (createPostError) {
+          console.error('Failed to create playlist share post', createPostError)
+          return jsonError({
+            status: 500,
+            code: 'create_playlist_share_post_failed',
+            message: 'Failed to create share post',
+            retryable: true,
+          })
+        }
+
+        const { error: shareInsertError } = await supabase.from('music_playlist_shares').insert({
           playlist_id: playlist.id,
           shared_by_user_id: user.id,
           feed_post_id: createdPost?.id || null,
         })
+
+        if (shareInsertError) {
+          console.error('Failed to create playlist share record', shareInsertError)
+          return jsonError({
+            status: 500,
+            code: 'create_playlist_share_record_failed',
+            message: 'Failed to record playlist share',
+            retryable: true,
+          })
+        }
       }
 
       await supabase.from('achievement_progress_events').insert({
@@ -116,13 +140,23 @@ export async function POST(request: NextRequest) {
     }
 
     if (createPost) {
-      await supabase.from('posts').insert({
+      const { error: createPostError } = await supabase.from('posts').insert({
         user_id: user.id,
         content: typeof content === 'string' && content.trim().length ? content.trim() : `Sharing track: "${track.title}"`,
         type: 'music',
         media_urls: track.cover_art_url ? [track.cover_art_url] : [],
         hashtags: ['music', 'track'],
       })
+
+      if (createPostError) {
+        console.error('Failed to create music share post', createPostError)
+        return jsonError({
+          status: 500,
+          code: 'create_music_share_post_failed',
+          message: 'Failed to create share post',
+          retryable: true,
+        })
+      }
     }
 
     await supabase.from('achievement_progress_events').insert({

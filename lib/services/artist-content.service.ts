@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase as supabaseClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 
 // Types for content
@@ -116,7 +116,7 @@ export interface MerchandiseContent {
 }
 
 class ArtistContentService {
-  private supabase = createClientComponentClient<Database>()
+  private supabase = supabaseClient
 
   // Music Content Management
   async createMusic(userId: string, artistProfileId: string, data: MusicContent) {

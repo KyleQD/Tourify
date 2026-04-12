@@ -1,0 +1,112 @@
+name: Mobile OTA Production
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/mobile/**"
+      - "packages/api-contracts/**"
+      - ".github/workflows/mobile-ota-production.yml"
+  workflow_dispatch:
+
+jobs:
+  ota-update:
+    name: Publish iOS-safe OTA update
+    runs-on: ubuntu-latest
+    concurrency:
+      group: mobile-ota-production
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect OTA-eligible changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            publishable:
+              - 'apps/mobile/**'
+              - '!apps/mobile/ios/**'
+              - '!apps/mobile/android/**'
+              - '!apps/mobile/app.config.ts'
+              - '!apps/mobile/eas.json'
+              - '!apps/mobile/package.json'
+              - '!apps/mobile/package-lock.json'
+              - 'packages/api-contracts/**'
+            native:
+              - 'apps/mobile/ios/**'
+              - 'apps/mobile/android/**'
+              - 'apps/mobile/app.config.ts'
+              - 'apps/mobile/eas.json'
+              - 'apps/mobile/package.json'
+              - 'apps/mobile/package-lock.json'
+
+      - name: Stop when native-impacting changes are present
+        if: steps.changes.outputs.native == 'true'
+        run: |
+          echo "::warning::Detected native-impacting mobile changes. Skip OTA and use the iOS native release workflow."
+
+      - name: Stop when no OTA publishable changes are present
+        if: steps.changes.outputs.publishable != 'true'
+        run: |
+          echo "No OTA-publishable changes detected."
+
+      - name: Setup Node
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "apps/mobile/package-lock.json"
+
+      - name: Install mobile dependencies
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build release note
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        id: release_note
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%s | tr '\n' ' ' | cut -c1-140)
+          echo "message=ota:${GITHUB_SHA::7} ${COMMIT_MSG}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish OTA to production channel
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas update \
+            --platform ios \
+            --branch production \
+            --message "${{ steps.release_note.outputs.message }}" \
+            --non-interactive \
+            --json | tee ota-update-result.json
+
+      - name: Upload OTA metadata
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ota-production-metadata
+          path: apps/mobile/ota-update-result.json
+
+      - name: Optional release webhook notification
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true' && secrets.MOBILE_RELEASE_WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.MOBILE_RELEASE_WEBHOOK_URL }}
+        run: |
+          curl -sS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"platform\":\"ios\",\"lane\":\"ota-production\",\"sha\":\"${GITHUB_SHA}\",\"message\":\"${{ steps.release_note.outputs.message }}\"}"

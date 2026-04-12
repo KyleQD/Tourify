@@ -8,6 +8,11 @@ export async function handleMarketplaceStripeEvent({
   event: Stripe.Event
   supabase: any
 }) {
+  console.info('Marketplace webhook received', {
+    eventId: event.id,
+    eventType: event.type,
+  })
+
   if (event.type === 'checkout.session.completed') {
     await handleCheckoutSessionCompleted({
       session: event.data.object as Stripe.Checkout.Session,
@@ -60,7 +65,14 @@ async function handleCheckoutSessionCompleted({
     .update(transition.orderPatch)
     .eq('id', orderId)
 
-  if (orderError) throw new Error('Order update failed')
+  if (orderError) {
+    console.error('Marketplace order update failed', {
+      orderId,
+      paymentReference,
+      error: orderError.message,
+    })
+    throw new Error('Order update failed')
+  }
 
   await ensureDigitalEntitlements({
     supabase,
@@ -70,10 +82,18 @@ async function handleCheckoutSessionCompleted({
     amountTotal: session.amount_total || null,
   })
 
-  await supabase
+  const { error: payoutError } = await supabase
     .from('marketplace_payout_ledger')
     .update(transition.payoutPatch)
     .eq('order_id', orderId)
+  if (payoutError) {
+    console.error('Marketplace payout ledger update failed', {
+      orderId,
+      paymentReference,
+      error: payoutError.message,
+    })
+    throw new Error('Payout ledger update failed')
+  }
 }
 
 async function ensureDigitalEntitlements({
@@ -98,6 +118,8 @@ async function ensureDigitalEntitlements({
   if (!digitalItems.length) return
 
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  let deliveredEntitlementsCount = 0
+
   for (const item of digitalItems) {
     const { data: existingEntitlement } = await supabase
       .from('marketplace_entitlements')
@@ -146,10 +168,20 @@ async function ensureDigitalEntitlements({
       .select('id')
       .single()
 
-    if (entitlementInsertError) continue
+    if (entitlementInsertError) {
+      console.error('Marketplace entitlement insert failed', {
+        orderId,
+        orderItemId: item.id,
+        buyerUserId,
+        error: entitlementInsertError.message,
+      })
+      throw new Error('Entitlement insert failed')
+    }
+
+    deliveredEntitlementsCount += 1
 
     if (buyerUserId && item.music_track_id) {
-      await supabase.from('user_music_library').upsert(
+      const { error: libraryUpsertError } = await supabase.from('user_music_library').upsert(
         {
           buyer_user_id: buyerUserId,
           order_item_id: item.id,
@@ -163,19 +195,36 @@ async function ensureDigitalEntitlements({
           onConflict: 'buyer_user_id,music_track_id',
         }
       )
+      if (libraryUpsertError) {
+        console.error('Marketplace library upsert failed', {
+          orderId,
+          orderItemId: item.id,
+          musicTrackId: item.music_track_id,
+          buyerUserId,
+          error: libraryUpsertError.message,
+        })
+        throw new Error('User music library upsert failed')
+      }
     }
   }
 
-  await supabase
+  const { error: fulfillmentError } = await supabase
     .from('marketplace_order_items')
     .update({ fulfillment_status: 'completed' })
     .in(
       'id',
       digitalItems.map((item: any) => item.id)
     )
+  if (fulfillmentError) {
+    console.error('Marketplace order item fulfillment update failed', {
+      orderId,
+      error: fulfillmentError.message,
+    })
+    throw new Error('Order item fulfillment update failed')
+  }
 
   if (sellerUserId) {
-    await supabase.from('achievement_progress_events').insert({
+    const { error: achievementInsertError } = await supabase.from('achievement_progress_events').insert({
       user_id: sellerUserId,
       metric_key: 'marketplace_sales_total',
       event_type: 'marketplace_order_paid',
@@ -186,7 +235,20 @@ async function ensureDigitalEntitlements({
         amount_total: amountTotal,
       },
     })
+    if (achievementInsertError) {
+      console.error('Marketplace achievement event insert failed', {
+        orderId,
+        sellerUserId,
+        error: achievementInsertError.message,
+      })
+    }
   }
+
+  console.info('Marketplace entitlements delivered', {
+    orderId,
+    digitalItemCount: digitalItems.length,
+    deliveredEntitlementsCount,
+  })
 }
 
 async function handlePaymentIntentFailed({

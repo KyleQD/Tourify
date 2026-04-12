@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Camera, Upload, X, Image as ImageIcon } from 'lucide-react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/auth-context'
 
 interface ImageUploadProps {
@@ -20,7 +20,7 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
+  
 
   const isAvatar = type === 'avatar'
   const aspectRatio = isAvatar ? 'aspect-square' : 'aspect-[3/1]'

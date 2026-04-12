@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { fromZodError, jsonError, requireApiUser } from "@/lib/api/route-helpers"
+import { authenticateApiRequest } from "@/lib/auth/api-auth"
 
 const createPlaylistSchema = z.object({
   title: z.string().min(1).max(160),
@@ -14,10 +15,9 @@ export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const authResult = await authenticateApiRequest(request)
+    const supabase = authResult?.supabase || (await createClient())
+    const user = authResult?.user || null
 
     const searchParams = request.nextUrl.searchParams
     const ownerUserId = searchParams.get("ownerUserId")
@@ -39,13 +39,23 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
     if (error) {
       console.error("Failed to fetch playlists", error)
-      return NextResponse.json({ error: "Failed to fetch playlists" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "playlists_query_failed",
+        message: "Failed to fetch playlists",
+        retryable: true,
+      })
     }
 
     return NextResponse.json({ data: data || [] })
   } catch (error) {
     console.error("Unexpected playlists GET error", error)
-    return NextResponse.json({ error: "Unexpected playlists error" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "playlists_internal_error",
+      message: "Unexpected playlists error",
+      retryable: true,
+    })
   }
 }
 
@@ -72,7 +82,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error("Failed to create playlist", error)
-      return NextResponse.json({ error: "Failed to create playlist" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "playlist_create_failed",
+        message: "Failed to create playlist",
+        retryable: true,
+      })
     }
 
     await supabase.from("achievement_progress_events").insert({

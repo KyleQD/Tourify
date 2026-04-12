@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { withAdminAuth } from '@/lib/auth/api-auth'
 import { mapV2StatusToUi, mapIncomingStatusToV2 } from '@/app/api/events/_lib/events-v2-admin'
 
-export async function GET(req: NextRequest) {
+export const GET = withAdminAuth(async (req: NextRequest, { supabase }) => {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ events: [] }, { status: 401 })
-
     const { searchParams } = new URL(req.url)
     const statusFilter = searchParams.get('status')
 
@@ -106,4 +102,4 @@ export async function GET(req: NextRequest) {
   } catch (e: any) {
     return NextResponse.json({ events: [], error: e?.message || 'Unexpected error' }, { status: 500 })
   }
-}
+})

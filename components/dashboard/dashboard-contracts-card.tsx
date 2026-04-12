@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileText, ArrowRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase/client"
 
 interface DashboardContractsCardProps {
   userId: string
@@ -35,7 +35,6 @@ function needsMySignature(userId: string, row: DashboardContractRow): boolean {
 }
 
 export function DashboardContractsCard({ userId }: DashboardContractsCardProps) {
-  const supabase = createClientComponentClient()
   const [loading, setLoading] = useState(true)
   const [items, setItems] = useState<DashboardContractRow[]>([])
 
@@ -58,7 +57,7 @@ export function DashboardContractsCard({ userId }: DashboardContractsCardProps) 
     return () => {
       cancelled = true
     }
-  }, [supabase, userId])
+  }, [userId])
 
   const actionNeeded = items.filter((i) => needsMySignature(userId, i)).length
 

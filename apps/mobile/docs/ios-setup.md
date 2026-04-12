@@ -23,7 +23,7 @@
 2. Configure Apple credentials:
    - `npx eas credentials`
 3. Build iOS app:
-   - `npx eas build --platform ios --profile preview`
+   - `npx eas build --platform ios --profile production`
 4. Submit to TestFlight:
    - `npx eas submit --platform ios --profile production`
 

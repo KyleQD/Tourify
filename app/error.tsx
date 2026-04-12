@@ -1,9 +1,20 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, ShieldAlert } from "lucide-react"
+
+function isStorageSecurityError(error: Error): boolean {
+  const msg = (error.message || "").toLowerCase()
+  return (
+    error.name === "SecurityError" ||
+    msg.includes("operation is insecure") ||
+    msg.includes("access is denied") ||
+    msg.includes("the operation is not allowed")
+  )
+}
 
 export default function Error({
   error,
@@ -12,8 +23,10 @@ export default function Error({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const router = useRouter()
+  const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
+
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error(error)
   }, [error])
 
@@ -28,27 +41,54 @@ export default function Error({
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
         <CardHeader className="relative">
           <div className="flex items-center space-x-2">
-            <AlertCircle className="h-5 w-5 text-rose-300" />
-            <CardTitle className="text-slate-100">Something went wrong!</CardTitle>
+            {isPrivacyError ? (
+              <ShieldAlert className="h-5 w-5 text-amber-300" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-rose-300" />
+            )}
+            <CardTitle className="text-slate-100">
+              {isPrivacyError ? "Browser privacy conflict" : "Something went wrong!"}
+            </CardTitle>
           </div>
           <CardDescription className="text-slate-300">
-            We apologize for the inconvenience. Please try again.
+            {isPrivacyError
+              ? "Your browser's privacy settings are blocking features this page needs to load."
+              : "We apologize for the inconvenience. Please try again."}
           </CardDescription>
         </CardHeader>
         <CardContent className="relative">
-          <p className="rounded-xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-200">
-            {error.message || "An unexpected error occurred"}
-          </p>
+          {isPrivacyError ? (
+            <div className="space-y-2 text-sm text-slate-200">
+              <p>Try one of the following:</p>
+              <ul className="list-disc space-y-1 pl-5 text-slate-300">
+                <li>Disable strict tracking protection for this site</li>
+                <li>Allow cookies for <span className="font-medium text-white">tourify.live</span></li>
+                <li>Exit private/incognito browsing mode</li>
+                <li>Use a different browser (Chrome, Firefox, Edge)</li>
+              </ul>
+            </div>
+          ) : (
+            <p className="rounded-xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-200">
+              {error.message || "An unexpected error occurred"}
+            </p>
+          )}
         </CardContent>
-        <CardFooter className="relative">
+        <CardFooter className="relative flex gap-2">
           <Button
             onClick={reset}
-            className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500"
+            className="flex-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500"
           >
             Try again
+          </Button>
+          <Button
+            variant="outline"
+            className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/15"
+            onClick={() => router.push("/")}
+          >
+            Go home
           </Button>
         </CardFooter>
       </Card>
     </div>
   )
-} 
+}

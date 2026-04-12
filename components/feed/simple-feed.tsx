@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { RefreshCw, Heart, MessageCircle, Share2, Clock, MapPin, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 import Link from 'next/link'
 
@@ -47,7 +47,7 @@ export function SimpleFeed() {
   const [refreshing, setRefreshing] = useState(false)
   const [user, setUser] = useState<any>(null)
   
-  const supabase = createClientComponentClient<Database>()
+  
 
   const loadPosts = async () => {
     try {

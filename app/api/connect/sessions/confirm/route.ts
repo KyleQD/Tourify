@@ -1,13 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { jsonError, readJson, requireApiUser } from '@/lib/api/route-helpers'
 import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
-
-const confirmSessionSchema = z.object({
-  connectSessionId: z.string().uuid(),
-  intent: z.literal('send_follow_request'),
-  deviceContext: z.record(z.string(), z.unknown()).optional(),
-})
+import { confirmConnectSessionRequestSchema } from '@tourify/api-contracts'
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,7 +9,7 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) return authResult.response
 
     const { user, supabase } = authResult.auth
-    const parsedBody = await readJson(request, confirmSessionSchema, 'invalid_request', 'Invalid connect confirm payload')
+    const parsedBody = await readJson(request, confirmConnectSessionRequestSchema, 'invalid_request', 'Invalid connect confirm payload')
     if (!parsedBody.success) return parsedBody.response
 
     const { data: session, error: sessionError } = await supabase

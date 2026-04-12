@@ -1,28 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
-import { z } from "zod"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { calculateMarketplaceFeeBreakdown } from "@/lib/marketplace/fees"
 import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
 import { getMarketplaceStripe } from "@/lib/marketplace/stripe-server"
-
-const checkoutSchema = z.object({
-  lines: z
-    .array(
-      z.object({
-        listingId: z.string().uuid(),
-        variantId: z.string().uuid().optional(),
-        quantity: z.number().int().min(1).max(20),
-      })
-    )
-    .min(1)
-    .max(50),
-  shippingAddress: z.record(z.string(), z.unknown()).optional(),
-  metadata: z.record(z.string(), z.unknown()).optional(),
-})
+import { marketplaceCheckoutRequestSchema } from "@tourify/api-contracts"
 
 export const dynamic = "force-dynamic"
+
+function parseCheckoutErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message
+  return "Invalid checkout payload"
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,7 +20,7 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) return authResult.response
     const { user, supabase } = authResult.auth
 
-    const payload = checkoutSchema.parse(await request.json())
+    const payload = marketplaceCheckoutRequestSchema.parse(await request.json())
     const listingIds = payload.lines.map(line => line.listingId)
 
     const { data: listings, error: listingsError } = await supabase
@@ -40,15 +30,31 @@ export async function POST(request: NextRequest) {
 
     if (listingsError || !listings?.length) {
       if (isSchemaCacheMissingError(listingsError)) {
-        return NextResponse.json({ error: getSchemaNotReadyMessage({ feature: "Marketplace checkout" }) }, { status: 503 })
+        return jsonError({
+          status: 503,
+          code: "schema_not_ready",
+          message: getSchemaNotReadyMessage({ feature: "Marketplace checkout" }),
+          retryable: true,
+        })
       }
       console.error("Failed to fetch checkout listings", listingsError)
-      return NextResponse.json({ error: "Unable to load items for checkout" }, { status: 400 })
+      return jsonError({
+        status: 400,
+        code: "checkout_listings_unavailable",
+        message: "Unable to load items for checkout",
+        retryable: false,
+      })
     }
 
-    const listingMap = new Map(listings.map(listing => [listing.id, listing]))
+    const listingMap = new Map<string, any>(listings.map((listing: any) => [listing.id, listing]))
     const missingListing = payload.lines.find(line => !listingMap.has(line.listingId))
-    if (missingListing) return NextResponse.json({ error: "One or more listings no longer exist" }, { status: 400 })
+    if (missingListing)
+      return jsonError({
+        status: 400,
+        code: "listing_missing",
+        message: "One or more listings no longer exist",
+        retryable: false,
+      })
 
     const sellerScopedLines = payload.lines.map(line => ({
       ...line,
@@ -56,18 +62,30 @@ export async function POST(request: NextRequest) {
     }))
 
     if (!hasSingleSellerCart(sellerScopedLines)) {
-      return NextResponse.json(
-        {
-          error: "MVP checkout supports one seller per order",
-          groups: groupCartLinesBySeller(sellerScopedLines),
-        },
-        { status: 400 }
-      )
+      return jsonError({
+        status: 400,
+        code: "single_seller_required",
+        message: "MVP checkout supports one seller per order",
+        retryable: false,
+        issues: groupCartLinesBySeller(sellerScopedLines),
+      })
     }
 
     const sellerUserId = sellerScopedLines[0].sellerUserId
-    if (!sellerUserId) return NextResponse.json({ error: "Unable to determine seller" }, { status: 400 })
-    if (sellerUserId === user.id) return NextResponse.json({ error: "You cannot purchase your own listing" }, { status: 400 })
+    if (!sellerUserId)
+      return jsonError({
+        status: 400,
+        code: "seller_missing",
+        message: "Unable to determine seller",
+        retryable: false,
+      })
+    if (sellerUserId === user.id)
+      return jsonError({
+        status: 400,
+        code: "self_purchase_not_allowed",
+        message: "You cannot purchase your own listing",
+        retryable: false,
+      })
 
     const variantIds = payload.lines.map(line => line.variantId).filter(Boolean) as string[]
     let variantMap = new Map<string, any>()
@@ -76,12 +94,18 @@ export async function POST(request: NextRequest) {
         .from("marketplace_listing_variants")
         .select("id, listing_id, title, price")
         .in("id", variantIds)
-      variantMap = new Map((variants || []).map(variant => [variant.id, variant]))
+      variantMap = new Map<string, any>((variants || []).map((variant: any) => [variant.id, variant]))
     }
 
     const currency = listings[0].currency || "USD"
-    const hasMixedCurrencies = listings.some(listing => (listing.currency || "USD") !== currency)
-    if (hasMixedCurrencies) return NextResponse.json({ error: "All checkout items must share one currency" }, { status: 400 })
+    const hasMixedCurrencies = listings.some((listing: any) => (listing.currency || "USD") !== currency)
+    if (hasMixedCurrencies)
+      return jsonError({
+        status: 400,
+        code: "mixed_currency_not_supported",
+        message: "All checkout items must share one currency",
+        retryable: false,
+      })
 
     const lineItems = payload.lines.map(line => {
       const listing = listingMap.get(line.listingId)
@@ -132,7 +156,12 @@ export async function POST(request: NextRequest) {
 
     if (orderError || !order) {
       console.error("Failed to create marketplace order", orderError)
-      return NextResponse.json({ error: "Failed to create order" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "order_create_failed",
+        message: "Failed to create order",
+        retryable: true,
+      })
     }
 
     const orderItemsPayload = lineItems.map(item => ({
@@ -153,7 +182,12 @@ export async function POST(request: NextRequest) {
     if (orderItemsError) {
       await supabase.from("marketplace_orders").delete().eq("id", order.id)
       console.error("Failed to create order items", orderItemsError)
-      return NextResponse.json({ error: "Failed to create order items" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "order_items_create_failed",
+        message: "Failed to create order items",
+        retryable: true,
+      })
     }
 
     const { error: payoutError } = await supabase.from("marketplace_payout_ledger").insert({
@@ -173,7 +207,12 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create payout ledger entry", payoutError)
       await supabase.from("marketplace_order_items").delete().eq("order_id", order.id)
       await supabase.from("marketplace_orders").delete().eq("id", order.id)
-      return NextResponse.json({ error: "Failed to initialize payout ledger" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "payout_ledger_init_failed",
+        message: "Failed to initialize payout ledger",
+        retryable: true,
+      })
     }
 
     let session: Stripe.Checkout.Session
@@ -215,7 +254,12 @@ export async function POST(request: NextRequest) {
       await supabase.from("marketplace_payout_ledger").delete().eq("order_id", order.id)
       await supabase.from("marketplace_order_items").delete().eq("order_id", order.id)
       await supabase.from("marketplace_orders").delete().eq("id", order.id)
-      return NextResponse.json({ error: "Unable to initialize checkout session" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "stripe_checkout_init_failed",
+        message: "Unable to initialize checkout session",
+        retryable: true,
+      })
     }
 
     await supabase
@@ -237,7 +281,7 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    const zodError = fromZodError(error, "Invalid checkout payload")
+    const zodError = fromZodError(error, parseCheckoutErrorMessage(error))
     if (zodError) return zodError
     console.error("Unexpected marketplace checkout error", error)
     return jsonError({

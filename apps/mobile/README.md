@@ -34,6 +34,8 @@ npm run dev:mobile
 - Payment bridge support for mobile deep links
 - Release checklist in `docs/release-checklist.md`
 - iOS build/setup guide in `docs/ios-setup.md`
+- Android build/setup guide in `docs/android-setup.md`
+- Android OTA/native policy in `docs/android-release-policy.md`
 - Launch runbook and store assets in `docs/launch/launch-runbook.md`
 
 ## Launch package commands

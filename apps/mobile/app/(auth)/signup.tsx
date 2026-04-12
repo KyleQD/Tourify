@@ -11,7 +11,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (isAuthenticated) return <Redirect href="/(tabs)/discover" />
+  if (isAuthenticated) return <Redirect href="/" />
 
   async function handleSignup() {
     setIsSubmitting(true)

@@ -1,4 +1,14 @@
-import { computeEPKQuality, createEpkSlug } from './epk.service'
+let computeEPKQuality: typeof import('./epk.service').computeEPKQuality
+let createEpkSlug: typeof import('./epk.service').createEpkSlug
+
+beforeAll(async () => {
+  process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://example.supabase.co'
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon-key'
+
+  const epkModule = await import('./epk.service')
+  computeEPKQuality = epkModule.computeEPKQuality
+  createEpkSlug = epkModule.createEpkSlug
+})
 
 describe('epk service helpers', () => {
   it('builds deterministic URL-safe slugs', () => {

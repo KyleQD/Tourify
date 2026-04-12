@@ -1,0 +1,130 @@
+name: Android OTA Production
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  ota-update:
+    name: Publish Android OTA update
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main')
+    concurrency:
+      group: android-ota-production
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Require EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Missing repository secret EXPO_TOKEN"
+            exit 1
+          fi
+
+      - name: Detect OTA-eligible Android changes
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            publishable:
+              - 'apps/mobile/**'
+              - '!apps/mobile/ios/**'
+              - '!apps/mobile/android/**'
+              - '!apps/mobile/app.config.ts'
+              - '!apps/mobile/eas.json'
+              - '!apps/mobile/package.json'
+              - '!apps/mobile/package-lock.json'
+              - 'packages/api-contracts/**'
+              - 'app/api/**'
+              - 'lib/api/**'
+              - 'lib/auth/**'
+              - 'lib/connect/**'
+            native:
+              - 'apps/mobile/ios/**'
+              - 'apps/mobile/android/**'
+              - 'apps/mobile/app.config.ts'
+              - 'apps/mobile/eas.json'
+              - 'apps/mobile/package.json'
+              - 'apps/mobile/package-lock.json'
+
+      - name: Stop when native-impacting changes are present
+        if: steps.changes.outputs.native == 'true'
+        run: |
+          echo "::warning::Detected native-impacting changes. Skip OTA and run Android native release workflow."
+
+      - name: Stop when no OTA publishable changes are present
+        if: steps.changes.outputs.publishable != 'true'
+        run: |
+          echo "No OTA-publishable Android changes detected."
+
+      - name: Setup Node
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "apps/mobile/package-lock.json"
+
+      - name: Install mobile dependencies
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Setup Expo and EAS
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build release note
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        id: release_note
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%s | tr '\n' ' ' | cut -c1-140)
+          echo "message=android-ota:${GITHUB_SHA::7} ${COMMIT_MSG}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Android OTA to production
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas update \
+            --platform android \
+            --branch production \
+            --message "${{ steps.release_note.outputs.message }}" \
+            --non-interactive \
+            --json | tee android-ota-update-result.json
+
+      - name: Upload OTA metadata
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ota-production-metadata
+          path: apps/mobile/android-ota-update-result.json
+
+      - name: Optional release webhook notification
+        if: steps.changes.outputs.native != 'true' && steps.changes.outputs.publishable == 'true' && secrets.MOBILE_RELEASE_WEBHOOK_URL != ''
+        env:
+          WEBHOOK_URL: ${{ secrets.MOBILE_RELEASE_WEBHOOK_URL }}
+        run: |
+          curl -sS -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{\"platform\":\"android\",\"lane\":\"ota-production\",\"sha\":\"${GITHUB_SHA}\",\"message\":\"${{ steps.release_note.outputs.message }}\"}"

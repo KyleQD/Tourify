@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { jsonError, requireApiUser } from "@/lib/api/route-helpers"
 
 export const dynamic = "force-dynamic"
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const searchParams = request.nextUrl.searchParams
     const limit = Math.min(Math.max(Number(searchParams.get("limit") || "50"), 1), 200)
@@ -48,7 +45,12 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("Failed to load music library", error)
-      return NextResponse.json({ error: "Failed to load music library" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "music_library_query_failed",
+        message: "Failed to load music library",
+        retryable: true,
+      })
     }
 
     await supabase.from("achievement_progress_events").insert({
@@ -67,6 +69,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ data: data || [] })
   } catch (error) {
     console.error("Unexpected music library GET error", error)
-    return NextResponse.json({ error: "Unexpected music library error" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "music_library_internal_error",
+      message: "Unexpected music library error",
+      retryable: true,
+    })
   }
 }

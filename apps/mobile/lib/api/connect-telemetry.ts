@@ -16,6 +16,14 @@ interface ConnectTelemetryPayload {
 export async function sendConnectTelemetry(payload: ConnectTelemetryPayload) {
   try {
     const appVersion = payload.appVersion || Constants.expoConfig?.version || null
+    const deviceConstants = (Platform.constants || {}) as Record<string, unknown>
+    const inferredDeviceModel =
+      typeof deviceConstants.Brand === "string"
+        ? deviceConstants.Brand
+        : typeof deviceConstants.Model === "string"
+          ? deviceConstants.Model
+          : null
+
     await apiRequest<{ success: boolean }>("/api/connect/telemetry", {
       method: "POST",
       body: JSON.stringify({
@@ -23,7 +31,7 @@ export async function sendConnectTelemetry(payload: ConnectTelemetryPayload) {
         platform: payload.platform || "mobile",
         appVersion,
         osVersion: payload.osVersion || `${Platform.OS}-${Platform.Version}`,
-        deviceModel: payload.deviceModel || Platform.constants?.Brand || null,
+        deviceModel: payload.deviceModel || inferredDeviceModel,
       }),
       queueOnOffline: false,
       preferCachedOnOffline: false,

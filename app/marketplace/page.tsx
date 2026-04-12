@@ -20,6 +20,12 @@ interface MarketplaceDiscoverItem {
 
 const categories = ["all", "music", "photos-and-prints", "merch", "services", "support"]
 
+function getApiErrorMessage(payload: any, fallback: string) {
+  if (typeof payload?.error === "string") return payload.error
+  if (typeof payload?.error?.message === "string") return payload.error.message
+  return fallback
+}
+
 export default function MarketplacePage() {
   const searchParams = useSearchParams()
   const sellerUsername = searchParams.get("seller")?.trim() || ""
@@ -54,7 +60,7 @@ export default function MarketplacePage() {
       const response = await fetch(`/api/marketplace/discover?${searchParams.toString()}`)
       const body = await response.json()
       if (!response.ok) {
-        setErrorMessage(body.error || "Failed to load listings")
+        setErrorMessage(getApiErrorMessage(body, "Failed to load listings"))
         setItems([])
         return
       }
@@ -78,10 +84,10 @@ export default function MarketplacePage() {
     if (!response.ok) {
       if (response.status === 401) {
         const redirectTo = `${window.location.pathname}${window.location.search}`
-        window.location.href = `/login?tab=signin&redirect=${encodeURIComponent(redirectTo)}`
+        window.location.href = `/login?tab=signin&redirectTo=${encodeURIComponent(redirectTo)}`
         return
       }
-      setErrorMessage(body.error || "Checkout failed")
+      setErrorMessage(getApiErrorMessage(body, "Checkout failed"))
       return
     }
     if (body.data?.checkoutUrl) window.location.href = body.data.checkoutUrl

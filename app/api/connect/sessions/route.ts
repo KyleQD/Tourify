@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { jsonError, readJson, requireApiUser } from '@/lib/api/route-helpers'
 import { createConnectSessionToken } from '@/lib/connect/connect-session-token'
 import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
-
-const createSessionSchema = z.object({
-  handshakeMethod: z.literal('nfc_ble').default('nfc_ble'),
-  oneTimeClaim: z.boolean().default(true),
-  expiresInSeconds: z.number().int().min(30).max(300).default(120),
-})
+import { createConnectSessionRequestSchema } from '@tourify/api-contracts'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +10,7 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) return authResult.response
 
     const { user, supabase } = authResult.auth
-    const parsedBody = await readJson(request, createSessionSchema, 'invalid_request', 'Invalid connect session payload')
+    const parsedBody = await readJson(request, createConnectSessionRequestSchema, 'invalid_request', 'Invalid connect session payload')
     if (!parsedBody.success) return parsedBody.response
 
     const { data: profile, error: profileError } = await supabase

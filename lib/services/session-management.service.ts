@@ -239,7 +239,8 @@ export class SessionManagementService {
       
       if (!session) return false
 
-      // Check if session exists in our records and is active
+      // Check if session exists in our records and is active.
+      // Use array mode to avoid object-mode 406 responses.
       const { data, error } = await supabase
         .from('user_sessions')
         .select('expires_at, is_active')
@@ -247,13 +248,14 @@ export class SessionManagementService {
         .eq('access_token_hash', this.hashToken(session.access_token))
         .eq('is_active', true)
         .limit(1)
-        .maybeSingle()
+        .order('updated_at', { ascending: false })
 
-      if (error || !data) return false
+      const activeSession = data?.[0]
+      if (error || !activeSession) return false
 
       // Check if session has expired
       const now = new Date()
-      const expiresAt = new Date(data.expires_at)
+      const expiresAt = new Date(activeSession.expires_at)
       
       if (now > expiresAt) {
         // Revoke expired session

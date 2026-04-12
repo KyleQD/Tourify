@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 import { getMarketplaceStripe } from "@/lib/marketplace/stripe-server"
 import { handleMarketplaceStripeEvent } from "@/lib/marketplace/webhook-handler"
 
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    const supabase = createServiceRoleClient()
     await handleMarketplaceStripeEvent({ event, supabase })
 
     return NextResponse.json({ received: true })

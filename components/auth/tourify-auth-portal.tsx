@@ -77,7 +77,7 @@ export function TourifyAuthPortal({
   })
 
   const redirectTo = normalizePostLoginRedirect(
-    searchParams.get("redirectTo") || searchParams.get("next") || "/dashboard"
+    searchParams.get("redirectTo") || searchParams.get("redirect") || searchParams.get("next") || "/dashboard"
   )
   const emailConfirmed = searchParams.get("message") === "email_confirmed"
   const accountCreated = searchParams.get("message") === "account_created"

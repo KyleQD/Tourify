@@ -387,14 +387,13 @@ export class AccountManagementService {
       // Use authenticated Supabase client if provided (for API routes), otherwise use default client
       const clientToUse = authenticatedSupabase || supabase
       
-      // Use limit(1) + maybeSingle: duplicate user_sessions rows (or schema without UNIQUE(user_id))
-      // cause PostgREST 406 with .single() ("JSON object requested, multiple (or no) rows returned").
+      // Use array mode with limit(1) to avoid PostgREST object-mode 406 responses.
       const { data, error } = await clientToUse
         .from('user_sessions')
         .select('*')
         .eq('user_id', userId)
         .limit(1)
-        .maybeSingle()
+        .order('updated_at', { ascending: false })
 
       if (error && error.code !== 'PGRST116') {
         // If table doesn't exist, return null (no session management available)
@@ -404,7 +403,7 @@ export class AccountManagementService {
         }
         throw error
       }
-      return data
+      return data?.[0] || null
     } catch (error) {
       console.error('Error getting active session:', error)
       return null
@@ -953,7 +952,7 @@ const { data: venueProfile, error: venueError } = await supabase
       return data || []
     } catch (error) {
       console.error('Error getting posts by account context:', error)
-      throw error
+      return []
     }
   }
 } 

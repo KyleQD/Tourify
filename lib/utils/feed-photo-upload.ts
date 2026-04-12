@@ -1,8 +1,6 @@
 "use client"
 
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
-const supabase = createClientComponentClient()
+import { supabase } from '@/lib/supabase/client'
 
 export interface FeedPhotoUploadResult {
   success: boolean

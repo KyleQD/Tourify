@@ -160,6 +160,17 @@ async function sendRequest(path: string, options?: ApiRequestOptions) {
   })
 }
 
+async function sendRequestWithSessionRefresh(path: string, options?: ApiRequestOptions) {
+  const initialResponse = await sendRequest(path, options)
+  const authRequired = options?.authRequired ?? true
+  if (!authRequired || initialResponse.status !== 401) return initialResponse
+
+  const { data, error } = await supabase.auth.refreshSession()
+  if (error || !data.session) return initialResponse
+
+  return sendRequest(path, options)
+}
+
 async function getOfflineFallback<T>(path: string, options?: ApiRequestOptions) {
   const method = (options?.method || "GET").toUpperCase()
   if (method === "GET" && (options?.preferCachedOnOffline ?? true)) {
@@ -182,7 +193,7 @@ export async function apiRequest<T>(path: string, options?: ApiRequestOptions): 
 
   let response: Response
   try {
-    response = await sendRequest(path, options)
+    response = await sendRequestWithSessionRefresh(path, options)
   } catch {
     return getOfflineFallback<T>(path, options)
   }
@@ -247,7 +258,7 @@ export async function flushQueuedApiRequests() {
 
   for (const item of queue) {
     try {
-      const response = await sendRequest(item.path, {
+      const response = await sendRequestWithSessionRefresh(item.path, {
         method: item.method,
         body: item.body,
         authRequired: item.authRequired,

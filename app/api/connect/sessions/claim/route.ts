@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
 import { jsonError, readJson, requireApiUser } from '@/lib/api/route-helpers'
 import { hashConnectSessionToken, verifyConnectSessionToken } from '@/lib/connect/connect-session-token'
 import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
-
-const claimSessionSchema = z.object({
-  ephemeralToken: z.string().min(20),
-  transportProof: z.record(z.string(), z.unknown()).optional(),
-  deviceContext: z.record(z.string(), z.unknown()).optional(),
-})
+import { claimConnectSessionRequestSchema } from '@tourify/api-contracts'
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +10,7 @@ export async function POST(request: NextRequest) {
     if (!authResult.success) return authResult.response
 
     const { user, supabase } = authResult.auth
-    const parsedBody = await readJson(request, claimSessionSchema, 'invalid_request', 'Invalid connect claim payload')
+    const parsedBody = await readJson(request, claimConnectSessionRequestSchema, 'invalid_request', 'Invalid connect claim payload')
     if (!parsedBody.success) return parsedBody.response
 
     const verification = verifyConnectSessionToken(parsedBody.data.ephemeralToken)

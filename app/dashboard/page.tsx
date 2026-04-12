@@ -431,7 +431,11 @@ export default function DashboardPage() {
       if (e.key === 'profile-updated' && dashboardUser) {
         fetchUserProfile()
         // Clear the storage item after handling
-        localStorage.removeItem('profile-updated')
+        try {
+          localStorage.removeItem('profile-updated')
+        } catch (storageError) {
+          console.warn('[Dashboard] Could not clear profile-updated from localStorage:', storageError)
+        }
       }
     }
 

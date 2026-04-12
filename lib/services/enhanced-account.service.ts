@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase as supabaseClient } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
 export interface Account {
@@ -40,7 +40,7 @@ export interface PostWithAccount {
 }
 
 export class EnhancedAccountService {
-  private supabase = createClientComponentClient<Database>()
+  private supabase = supabaseClient
 
   /**
    * Get all accounts owned by the current user

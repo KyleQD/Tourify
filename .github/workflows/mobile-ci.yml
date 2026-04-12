@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - "apps/mobile/**"
+      - "app/api/**"
+      - "lib/api/**"
+      - "lib/auth/**"
+      - "lib/connect/**"
+      - "packages/api-contracts/**"
       - ".github/workflows/mobile-ci.yml"
   workflow_dispatch:
 
@@ -24,6 +29,12 @@ jobs:
       - name: Install mobile dependencies
         working-directory: apps/mobile
         run: npm ci
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Contract tests
+        run: npm test -- lib/api/__tests__/contracts.test.ts
 
       - name: Lint mobile app
         working-directory: apps/mobile

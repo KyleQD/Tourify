@@ -43,7 +43,7 @@ import { motion } from "framer-motion"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useEffect, useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { supabase } from "@/lib/supabase/client"
 
 // View Profile Button Component
 function ViewProfileButton() {
@@ -82,7 +82,7 @@ function ProfileCard() {
   const { currentAccount } = useMultiAccount()
   const [notifications, setNotifications] = useState(0)
   const [followers, setFollowers] = useState(0)
-  const supabase = createClientComponentClient()
+  
 
   useEffect(() => {
     async function loadProfileData() {
@@ -127,7 +127,7 @@ function ProfileCard() {
     }
     
     loadProfileData()
-  }, [user?.id, currentAccount, supabase])
+  }, [user?.id, currentAccount])
 
   if (!currentAccount) {
     return (

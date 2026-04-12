@@ -8,6 +8,13 @@ const appConfig: ExpoConfig = {
   scheme: "tourify",
   orientation: "portrait",
   userInterfaceStyle: "automatic",
+  runtimeVersion: {
+    policy: "appVersion"
+  },
+  updates: {
+    checkAutomatically: "ON_LOAD",
+    fallbackToCacheTimeout: 0
+  },
   splash: {
     image: "./assets/launch/splash-image-1242x2436-v1.png",
     resizeMode: "contain",
@@ -36,7 +43,7 @@ const appConfig: ExpoConfig = {
           {
             scheme: "https",
             host: "tourify.app",
-            pathPrefix: "/auth/mobile-callback"
+            pathPrefix: "/callback"
           },
           {
             scheme: "https",

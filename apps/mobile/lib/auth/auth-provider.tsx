@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signUp(email: string, password: string) {
-    const redirectTo = Linking.createURL("/auth/callback")
+    const redirectTo = Linking.createURL("/callback")
     const emailPrefix = email.split("@")[0]?.trim() || "creator"
     const normalizedUsername = emailPrefix
       .toLowerCase()
@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: emailPrefix,
           username: normalizedUsername
         },
-        emailRedirectTo: `${redirectTo}?type=signup&mobile_redirect_uri=${encodeURIComponent("tourify://(tabs)/discover")}`
+        emailRedirectTo: `${redirectTo}?type=signup&mobile_redirect_uri=${encodeURIComponent("tourify://discover")}`
       }
     })
     if (error) throw error
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signInWithOAuth(provider: "google" | "apple" | "facebook") {
-    const redirectTo = Linking.createURL("/auth/callback")
+    const redirectTo = Linking.createURL("/callback")
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {

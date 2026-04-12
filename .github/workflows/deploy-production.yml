@@ -75,3 +75,29 @@ jobs:
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
+
+      - name: Validate smoke test configuration
+        env:
+          PRODUCTION_BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          SMOKE_TEST_AUTH_BEARER_TOKEN: ${{ secrets.SMOKE_TEST_AUTH_BEARER_TOKEN }}
+        run: |
+          if [ -z "$PRODUCTION_BASE_URL" ]; then
+            echo "::error::Missing repository variable PRODUCTION_BASE_URL"
+            exit 1
+          fi
+          if [ -z "$SMOKE_TEST_AUTH_BEARER_TOKEN" ]; then
+            echo "::error::Missing repository secret SMOKE_TEST_AUTH_BEARER_TOKEN"
+            exit 1
+          fi
+
+      - name: Post-deploy marketplace smoke
+        run: npm run test:marketplace-smoke
+        env:
+          BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          AUTH_BEARER_TOKEN: ${{ secrets.SMOKE_TEST_AUTH_BEARER_TOKEN }}
+
+      - name: Post-deploy music commerce smoke
+        run: npm run test:music-commerce-smoke
+        env:
+          BASE_URL: ${{ vars.PRODUCTION_BASE_URL }}
+          AUTH_BEARER_TOKEN: ${{ secrets.SMOKE_TEST_AUTH_BEARER_TOKEN }}

@@ -1,6 +1,8 @@
 import { apiRequest } from "@/lib/api/client"
+import { discoverResponseSchema } from "@tourify/api-contracts"
+import type { DiscoverResponse as ContractDiscoverResponse } from "@tourify/api-contracts"
 
-export interface DiscoverProfile {
+interface DiscoverProfile {
   id: string
   username: string
   account_type: "artist" | "venue" | "general"
@@ -11,22 +13,21 @@ export interface DiscoverProfile {
   available_for_hire?: boolean
 }
 
-export interface DiscoverEvent {
+interface DiscoverEvent {
   id: string
   title: string
   event_date?: string | null
   venue_name?: string | null
 }
 
-export interface DiscoverPost {
+interface DiscoverPost {
   id: string
   content: string
   created_at: string
 }
 
-export interface DiscoverResponse {
-  success: boolean
-  sections: {
+type MobileDiscoverResponse = ContractDiscoverResponse & {
+  sections: ContractDiscoverResponse["sections"] & {
     trending: DiscoverPost[]
     upcoming: DiscoverEvent[]
     people: DiscoverProfile[]
@@ -34,7 +35,9 @@ export interface DiscoverResponse {
   }
 }
 
-export function getDiscoverFeed(params: {
+export type DiscoverResponse = MobileDiscoverResponse
+
+export async function getDiscoverFeed(params: {
   intent: "grow" | "network" | "book" | "learn"
   location?: string
   creatorType?: string
@@ -46,5 +49,8 @@ export function getDiscoverFeed(params: {
   if (params.creatorType?.trim()) searchParams.set("creatorType", params.creatorType.trim())
   if (params.service?.trim()) searchParams.set("service", params.service.trim())
   if (params.availableForHire) searchParams.set("availableForHire", "true")
-  return apiRequest<DiscoverResponse>(`/api/discover?${searchParams.toString()}`, { authRequired: false })
+  const response = await apiRequest<MobileDiscoverResponse>(`/api/discover?${searchParams.toString()}`, {
+    authRequired: false
+  })
+  return discoverResponseSchema.parse(response) as MobileDiscoverResponse
 }

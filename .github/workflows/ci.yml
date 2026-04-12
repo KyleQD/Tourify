@@ -19,6 +19,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect parity-sensitive changes
+        id: changes
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            mobile_or_core:
+              - 'apps/mobile/**'
+              - 'app/api/**'
+              - 'lib/api/**'
+              - 'lib/auth/**'
+              - 'lib/connect/**'
+              - 'packages/api-contracts/**'
+              - 'scripts/test-mobile-redirect.ts'
+              - 'scripts/test-auth-callback-redirects.ts'
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -30,6 +46,25 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Contract tests
+        run: npm test -- lib/api/__tests__/contracts.test.ts
+
+      - name: Install mobile dependencies
+        if: github.event_name != 'pull_request' || steps.changes.outputs.mobile_or_core == 'true'
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Mobile typecheck
+        if: github.event_name != 'pull_request' || steps.changes.outputs.mobile_or_core == 'true'
+        run: npm run mobile:typecheck
+
+      - name: Mobile lint
+        if: github.event_name != 'pull_request' || steps.changes.outputs.mobile_or_core == 'true'
+        run: npm run mobile:lint
+
+      - name: Unit tests
+        run: npm test
 
       - name: Mobile redirect safety test
         run: npm run test:mobile-redirect

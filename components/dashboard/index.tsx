@@ -50,19 +50,21 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.warn("Error loading data from localStorage:", error)
-      // Clear potentially corrupted data
-      localStorage.removeItem("events")
-      localStorage.removeItem("bookings")
-      localStorage.removeItem("teamMembers")
-      localStorage.removeItem("tasks")
+      try {
+        localStorage.removeItem("events")
+        localStorage.removeItem("bookings")
+        localStorage.removeItem("teamMembers")
+        localStorage.removeItem("tasks")
+      } catch (clearError) {
+        console.warn("Could not clear corrupted localStorage:", clearError)
+      }
     }
   }, [])
 
-  // Save to localStorage on change
-  useEffect(() => { localStorage.setItem("events", JSON.stringify(events)) }, [events])
-  useEffect(() => { localStorage.setItem("bookings", JSON.stringify(bookings)) }, [bookings])
-  useEffect(() => { localStorage.setItem("teamMembers", JSON.stringify(teamMembers)) }, [teamMembers])
-  useEffect(() => { localStorage.setItem("tasks", JSON.stringify(tasks)) }, [tasks])
+  useEffect(() => { try { localStorage.setItem("events", JSON.stringify(events)) } catch {} }, [events])
+  useEffect(() => { try { localStorage.setItem("bookings", JSON.stringify(bookings)) } catch {} }, [bookings])
+  useEffect(() => { try { localStorage.setItem("teamMembers", JSON.stringify(teamMembers)) } catch {} }, [teamMembers])
+  useEffect(() => { try { localStorage.setItem("tasks", JSON.stringify(tasks)) } catch {} }, [tasks])
 
   function handleAddEvent(event: Event) {
     setEvents(prev => [...prev, event])

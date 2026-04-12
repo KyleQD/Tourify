@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase as supabaseClient } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 
 type Tables = Database['public']['Tables']
@@ -41,7 +41,7 @@ export interface ExtendedComment extends Comment {
 }
 
 export class FeedService {
-  private supabase = createClientComponentClient<Database>()
+  private supabase = supabaseClient
 
   // Posts Management
   async createPost(data: {

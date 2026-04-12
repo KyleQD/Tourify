@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { EnhancedPostCreator } from './enhanced-post-creator'
 import { formatDistanceToNow } from 'date-fns'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'
@@ -95,7 +95,7 @@ export function SocialFeed() {
   const [followingUsers, setFollowingUsers] = useState(new Set<string>())
   
   const { user } = useAuth()
-  const supabase = createClientComponentClient<Database>()
+  
 
   const loadPosts = async (feedType = activeTab) => {
     try {

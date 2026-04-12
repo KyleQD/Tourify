@@ -24,12 +24,11 @@ import {
   ArrowRight
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { usePhotoViewer } from '@/hooks/use-photo-viewer'
+import { supabase } from '@/lib/supabase/client'
 
 interface PostData {
   id: string
@@ -101,7 +100,6 @@ export function DashboardFeed() {
   
   const { user } = useAuth()
   const router = useRouter()
-  const supabase = createClientComponentClient<Database>()
   const photoViewer = usePhotoViewer()
 
   const loadPosts = async ({

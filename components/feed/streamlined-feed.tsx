@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, Heart, MessageCircle, Share2, Clock, MapPin, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 import { useArtist } from '@/contexts/artist-context'
 import { normalizeMediaData, renderMediaContent } from '@/utils/media-utils'
@@ -80,7 +80,7 @@ export function StreamlinedFeed() {
   
   // Use artist context instead of basic auth
   const { user, profile, isLoading: artistLoading, displayName, avatarInitial } = useArtist()
-  const supabase = createClientComponentClient<Database>()
+  
 
   const loadPosts = async () => {
     try {
