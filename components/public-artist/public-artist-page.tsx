@@ -13,6 +13,7 @@ import { PublicArtistEPKSection } from "@/components/public-artist/epk/public-ar
 import { PublicArtistHero } from "@/components/public-artist/hero/public-artist-hero"
 import { BookThisArtistModal } from "@/components/public-artist/events/book-this-artist-modal"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
+import { extractApiError } from "@/lib/api/extract-error"
 import { paCard, paInset, paShell } from "@/components/public-artist/public-artist-ui"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -82,7 +83,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           window.location.href = `/login?tab=signin&redirect=${encodeURIComponent(redirectTo)}`
           return
         }
-        setMarketplaceMessage(body.error || "Checkout failed")
+        setMarketplaceMessage(extractApiError(body, "Checkout failed"))
         return
       }
       if (body.data?.checkoutUrl) window.location.href = body.data.checkoutUrl

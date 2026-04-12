@@ -13,7 +13,15 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('music_tracks')
-      .select('*')
+      .select(`
+        *,
+        profiles:user_id (
+          id,
+          username,
+          full_name,
+          avatar_url
+        )
+      `)
       .eq('is_public', true)
     if (userId) {
       query = query.eq('user_id', userId)
@@ -106,33 +114,37 @@ export async function GET(request: NextRequest) {
     }
 
     // Transform tracks to match feed format
-    const musicContent = (tracks || []).map(track => ({
-      id: track.id,
-      type: 'music' as const,
-      title: track.title,
-      description: track.description,
-      author: {
-        id: track.user_id,
-        name: track.artist_name || track.artist_username || 'Unknown artist',
-        username: track.artist_username,
-      },
-      cover_image: track.cover_art_url,
-      created_at: track.created_at,
-      engagement: {
-        likes: track.likes_count || 0,
-        views: track.play_count || 0,
-        shares: track.shares_count || 0,
-        comments: track.comments_count || 0
-      },
-      metadata: {
-        genre: track.genre,
-        duration: track.duration,
-        tags: track.tags || [],
-        url: track.file_url,
-        artist: track.artist_name
-      },
-      relevance_score: 0.9
-    }))
+    const musicContent = (tracks || []).map(track => {
+      const profile = track.profiles as { id: string; username: string | null; full_name: string | null; avatar_url: string | null } | null
+      const displayName = profile?.full_name || profile?.username || 'Unknown artist'
+      return {
+        id: track.id,
+        type: 'music' as const,
+        title: track.title,
+        description: track.description,
+        author: {
+          id: track.user_id,
+          name: displayName,
+          username: profile?.username || null,
+        },
+        cover_image: track.cover_art_url,
+        created_at: track.created_at,
+        engagement: {
+          likes: track.likes_count || 0,
+          views: track.play_count || 0,
+          shares: track.shares_count || 0,
+          comments: track.comments_count || 0
+        },
+        metadata: {
+          genre: track.genre,
+          duration: track.duration,
+          tags: track.tags || [],
+          url: track.file_url,
+          artist: displayName
+        },
+        relevance_score: 0.9
+      }
+    })
     const response = NextResponse.json({
       success: true,
       content: musicContent,

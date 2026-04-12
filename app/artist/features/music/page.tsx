@@ -37,6 +37,7 @@ import {
 } from "lucide-react"
 import { EnhancedMusicUploader } from "@/components/music/enhanced-music-uploader"
 import Image from "next/image"
+import { extractApiError } from "@/lib/api/extract-error"
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -510,7 +511,7 @@ export default function MusicPage() {
 
       if (!response.ok) {
         const body = await response.json()
-        throw new Error(body.error || 'Failed to create listing')
+        throw new Error(extractApiError(body, 'Failed to create listing'))
       }
 
       toast.success('Track added to marketplace drafts')

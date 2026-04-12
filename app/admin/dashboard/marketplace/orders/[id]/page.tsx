@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { toast } from "sonner"
+import { extractApiError } from "@/lib/api/extract-error"
 
 interface MarketplaceOrderDetails {
   id: string
@@ -64,7 +65,7 @@ export default function AdminMarketplaceOrderDetailsPage() {
       })
       const body = await response.json()
       if (!response.ok) {
-        setErrorMessage(body.error || "Failed to load order details")
+        setErrorMessage(extractApiError(body, "Failed to load order details"))
         return
       }
       setOrder(body.data || null)
@@ -82,7 +83,7 @@ export default function AdminMarketplaceOrderDetailsPage() {
       })
       const body = await response.json()
       if (!response.ok) {
-        toast.error(body.error || "Failed to retry payout")
+        toast.error(extractApiError(body, "Failed to retry payout"))
         return
       }
       toast.success("Payout scheduled for retry")

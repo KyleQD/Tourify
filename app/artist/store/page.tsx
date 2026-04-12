@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Store } from "lucide-react"
+import { extractApiError } from "@/lib/api/extract-error"
 
 interface MarketplaceListing {
   id: string
@@ -196,7 +197,7 @@ export default function ArtistStorePage() {
 
       if (!response.ok) {
         const errorBody = await response.json()
-        setSyncMessage(errorBody.error || "Failed to create listing")
+        setSyncMessage(extractApiError(errorBody, "Failed to create listing"))
         return
       }
 
@@ -235,7 +236,7 @@ export default function ArtistStorePage() {
       }))
       if (!response.ok) {
         const errorBody = await response.json()
-        setSyncMessage(errorBody.error || "Failed to save storefront")
+        setSyncMessage(extractApiError(errorBody, "Failed to save storefront"))
         return
       }
       await loadData()
@@ -255,7 +256,7 @@ export default function ArtistStorePage() {
     }))
     const body = await response.json()
     if (!response.ok) {
-      setSyncMessage(body.error || "Failed to connect Printful")
+      setSyncMessage(extractApiError(body, "Failed to connect Printful"))
       return
     }
     setIntegrations(body.data || null)
@@ -275,7 +276,7 @@ export default function ArtistStorePage() {
       }))
       const body = await response.json()
       if (!response.ok) {
-        setSyncMessage(body.error || "Failed to import legacy merchandise")
+        setSyncMessage(extractApiError(body, "Failed to import legacy merchandise"))
         return
       }
 
@@ -299,7 +300,7 @@ export default function ArtistStorePage() {
       }))
       const body = await response.json()
       if (!response.ok) {
-        setSyncMessage(body.error || "Failed to import artist tracks")
+        setSyncMessage(extractApiError(body, "Failed to import artist tracks"))
         return
       }
 

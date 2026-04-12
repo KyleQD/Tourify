@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
+import { extractApiError } from "@/lib/api/extract-error"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { 
   Calendar, 
@@ -300,7 +301,7 @@ export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated
       })
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
-        throw new Error(body.error || 'Failed to update attendance')
+        throw new Error(extractApiError(body, 'Failed to update attendance'))
       }
 
       await loadAttendanceData()

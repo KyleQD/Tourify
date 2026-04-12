@@ -1,8 +1,10 @@
 "use client"
 
 import { Suspense } from "react"
-import Link from "next/link"
+import { ExternalLink } from "lucide-react"
 import { TourifyAuthPortal } from "@/components/auth/tourify-auth-portal"
+
+const DEMO_URL = "https://demo.tourify.live"
 
 function AuthPortalFallback() {
   return (
@@ -34,15 +36,21 @@ export function LandingHeroWithAuth() {
         <TourifyAuthPortal
           defaultTab="signup"
           showSecurityFooter={false}
-          cardTitle="Join Tourify free"
-          cardDescription="Create your account and start in minutes — same experience as our full login page."
+          cardTitle="Get started free"
+          cardDescription="Create your account and unlock the full Tourify experience."
         />
       </Suspense>
       <p className="mt-4 text-center text-sm text-slate-400">
-        <Link href="/login" className="text-purple-200 underline-offset-4 hover:text-white hover:underline">
-          Open full login page
-        </Link>{" "}
-        for invitations and deep links.
+        Want to look around first?{" "}
+        <a
+          href={DEMO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-medium text-purple-300 underline-offset-4 hover:text-white hover:underline"
+        >
+          Try the demo
+          <ExternalLink className="h-3 w-3" aria-hidden />
+        </a>
       </p>
     </div>
   )

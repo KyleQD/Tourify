@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
+import { extractApiError } from "@/lib/api/extract-error"
 import { 
   Plus, 
   ShoppingBag, 
@@ -171,7 +172,7 @@ export default function MerchandisePage() {
       })
       const body = await response.json()
       if (!response.ok) {
-        toast.error(body.error || 'Failed to import legacy merch')
+        toast.error(extractApiError(body, 'Failed to import legacy merch'))
         return
       }
 

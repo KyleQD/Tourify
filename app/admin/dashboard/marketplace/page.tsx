@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { ShieldCheck, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
+import { extractApiError } from "@/lib/api/extract-error"
 
 interface ModerationItem {
   id: string
@@ -57,7 +58,7 @@ export default function AdminMarketplaceModerationPage() {
         },
       })
       const body = await response.json()
-      if (!response.ok) throw new Error(body.error || "Failed to load moderation queue")
+      if (!response.ok) throw new Error(extractApiError(body, "Failed to load moderation queue"))
       setItems(Array.isArray(body.data) ? body.data : [])
       const pagination = body.pagination || {}
       setTotal(Number(pagination.total || 0))
@@ -89,7 +90,7 @@ export default function AdminMarketplaceModerationPage() {
         }),
       })
       const body = await response.json()
-      if (!response.ok) throw new Error(body.error || "Failed to update moderation item")
+      if (!response.ok) throw new Error(extractApiError(body, "Failed to update moderation item"))
       setItems(current =>
         current.map(existing => (existing.id === item.id ? { ...existing, ...body.data } : existing))
       )
