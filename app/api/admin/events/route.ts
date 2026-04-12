@@ -25,9 +25,9 @@ export const GET = withAdminAuth(async (req: NextRequest, { supabase }) => {
       return NextResponse.json({ error: error.message, events: [] }, { status: 400 })
     }
 
-    const rows = data || []
-    const venueIds = [...new Set(rows.map(e => e.venue_id).filter(Boolean))]
-    const eventIds = rows.map(e => e.id)
+    const rows: any[] = data || []
+    const venueIds = [...new Set(rows.map((e: any) => e.venue_id).filter(Boolean))]
+    const eventIds = rows.map((e: any) => e.id)
 
     const [venueResult, ticketResult, financeResult, tourLinkResult] = await Promise.allSettled([
       venueIds.length > 0
