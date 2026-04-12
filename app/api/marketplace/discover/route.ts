@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
 
 export const dynamic = "force-dynamic"
 
@@ -39,6 +40,12 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await query
     if (error) {
+      if (isSchemaCacheMissingError(error)) {
+        return NextResponse.json({
+          data: [],
+          warning: getSchemaNotReadyMessage({ feature: "Marketplace discover" }),
+        })
+      }
       console.error("Failed to discover marketplace listings", error)
       return NextResponse.json({ error: "Failed to discover listings" }, { status: 500 })
     }

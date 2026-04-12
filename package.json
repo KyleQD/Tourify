@@ -21,6 +21,7 @@
     "test:venue-ops": "npx tsx scripts/test-venue-ops.ts",
     "test:venue-routing": "npx tsx scripts/test-venue-routing.ts",
     "test:marketplace-smoke": "npx tsx scripts/marketplace-smoke-test.ts",
+    "test:music-commerce-smoke": "npx tsx scripts/music-commerce-smoke-test.ts",
     "test:e2e:social": "npx tsx scripts/e2e-social-harness.ts",
     "test:auth": "npx tsx scripts/test-auth-flows.ts",
     "setup:auth": "chmod +x scripts/setup-auth.sh && ./scripts/setup-auth.sh",

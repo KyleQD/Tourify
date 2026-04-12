@@ -5,56 +5,48 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-
-interface CreateSessionResponse {
-  connectSessionId: string
-  ephemeralToken: string
-  expiresAt: string
-  claimUrl: string
-  webClaimUrl: string
-  deepLinkUrl: string
-}
+import {
+  CONNECT_TOKEN_MIN_LENGTH,
+  createConnectSession,
+  sendConnectTelemetry,
+  type CreateConnectSessionResponse,
+} from "@/lib/connect/connect-client"
+import { extractConnectToken } from "@/lib/connect/connect-token"
 
 export default function ConnectHubPage() {
   const router = useRouter()
   const [manualInput, setManualInput] = useState("")
-  const [activeSession, setActiveSession] = useState<CreateSessionResponse | null>(null)
+  const [activeSession, setActiveSession] = useState<CreateConnectSessionResponse | null>(null)
   const [errorMessage, setErrorMessage] = useState("")
   const [infoMessage, setInfoMessage] = useState("")
   const [isStartPending, startStartTransition] = useTransition()
   const [isSharePending, startShareTransition] = useTransition()
 
   const normalizedToken = useMemo(() => extractConnectToken(manualInput), [manualInput])
-  const hasClaimableToken = normalizedToken.length > 20
+  const hasClaimableToken = normalizedToken.length >= CONNECT_TOKEN_MIN_LENGTH
 
   function startConnectSession() {
     startStartTransition(async () => {
       setErrorMessage("")
       setInfoMessage("")
 
-      const response = await fetch("/api/connect/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        const session = await createConnectSession({
           handshakeMethod: "nfc_ble",
           oneTimeClaim: true,
           expiresInSeconds: 120,
-        }),
-      })
-
-      const json = await response.json()
-      if (!response.ok) {
+        })
+        setActiveSession(session)
+        setInfoMessage("Connect session created. Share the web link or deep link with someone nearby.")
+        void sendConnectTelemetry({
+          eventName: "connect_flow_session_created_web",
+          connectSessionId: session.connectSessionId,
+        })
+      } catch (error) {
         setActiveSession(null)
-        setErrorMessage(json?.error?.message || "Failed to start connect session.")
+        setErrorMessage(error instanceof Error ? error.message : "Failed to start connect session.")
         return
       }
-
-      setActiveSession(json)
-      setInfoMessage("Connect session created. Share the web link or deep link with someone nearby.")
-      void sendConnectTelemetry({
-        eventName: "connect_flow_session_created_web",
-        connectSessionId: json.connectSessionId,
-      })
     })
   }
 
@@ -175,51 +167,4 @@ export default function ConnectHubPage() {
       </Card>
     </div>
   )
-}
-
-function extractConnectToken(rawValue: string) {
-  const trimmedValue = rawValue.trim()
-  if (!trimmedValue) return ""
-
-  if (!looksLikeUrl(trimmedValue))
-    return trimmedValue
-
-  try {
-    const parsedUrl = new URL(trimmedValue)
-    return parsedUrl.searchParams.get("token")?.trim() || ""
-  } catch {
-    return parseTokenFromLooseQuery(trimmedValue)
-  }
-}
-
-function looksLikeUrl(value: string) {
-  return value.includes("://") || value.startsWith("http://") || value.startsWith("https://")
-}
-
-function parseTokenFromLooseQuery(value: string) {
-  const queryStartIndex = value.indexOf("?")
-  if (queryStartIndex < 0) return ""
-  const params = new URLSearchParams(value.slice(queryStartIndex + 1))
-  return params.get("token")?.trim() || ""
-}
-
-async function sendConnectTelemetry(payload: {
-  eventName: string
-  connectSessionId?: string
-  metadata?: Record<string, unknown>
-}) {
-  try {
-    await fetch("/api/connect/telemetry", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventName: payload.eventName,
-        connectSessionId: payload.connectSessionId,
-        platform: "web",
-        metadata: payload.metadata || {},
-      }),
-    })
-  } catch {
-    // Telemetry should never block UX
-  }
 }

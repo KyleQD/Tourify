@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
           }
         ]
 
-        return NextResponse.json({ posts: mockPosts })
+        return NextResponse.json({ success: true, data: mockPosts })
       }
 
       // Build a SAFE base query that does not rely on implicit FK joins or optional columns
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         if (followingError) {
           console.error('[Feed Posts API] Error fetching following relationships:', followingError)
           return NextResponse.json(
-            { error: 'Failed to fetch following relationships' },
+            { success: false, error: { code: 'following_lookup_failed', message: 'Failed to fetch following relationships' }, data: [] },
             { status: 500 }
           )
         }
@@ -162,9 +162,10 @@ export async function GET(request: NextRequest) {
           baseQuery = baseQuery.in('user_id', userAccountIds)
         } else {
           console.log('[Feed Posts API] User follows no one and has no other accounts, returning empty feed with message')
-          return NextResponse.json({ 
+          return NextResponse.json({
+            success: true,
             data: [],
-            message: "You're not following anyone yet. Start following other users to see their posts in your feed!"
+            message: "You're not following anyone yet. Start following other users to see their posts in your feed!",
           })
         }
       }
@@ -176,7 +177,7 @@ export async function GET(request: NextRequest) {
       if (baseError) {
         console.error('[Feed Posts API] Error fetching base posts:', baseError)
         return NextResponse.json(
-          { error: 'Failed to fetch posts' },
+          { success: false, error: { code: 'fetch_posts_failed', message: 'Failed to fetch posts' }, data: [] },
           { status: 500 }
         )
       }
@@ -231,7 +232,7 @@ export async function GET(request: NextRequest) {
         like_count: p.likes_count || 0
       }))
 
-      return NextResponse.json({ data: normalized })
+      return NextResponse.json({ success: true, data: normalized })
     } catch (error) {
       console.log('[Feed Posts API] Posts table error, returning mock data:', error)
       
@@ -269,12 +270,12 @@ export async function GET(request: NextRequest) {
         }
       ]
 
-      return NextResponse.json({ posts: mockPosts })
+      return NextResponse.json({ success: true, data: mockPosts })
     }
   } catch (error) {
     console.error('[Feed Posts API] Error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'internal_error', message: 'Internal server error' }, data: [] },
       { status: 500 }
     )
   }
@@ -286,7 +287,7 @@ export async function POST(request: NextRequest) {
     
     if (!authResult) {
       return NextResponse.json(
-        { data: null, error: 'Unauthorized' },
+        { success: false, data: null, error: { code: 'unauthorized', message: 'Unauthorized' } },
         { status: 401 }
       )
     }
@@ -344,13 +345,13 @@ export async function POST(request: NextRequest) {
       if (postsError) {
         console.error('[Feed Posts API] Error fetching network posts:', postsError)
         return NextResponse.json(
-          { data: [], error: 'Failed to fetch network posts' },
+          { success: false, data: [], error: { code: 'network_posts_failed', message: 'Failed to fetch network posts' } },
           { status: 500 }
         )
       }
 
       console.log('[Feed Posts API] Found network posts:', posts?.length || 0)
-      return NextResponse.json({ data: posts || [], error: null })
+      return NextResponse.json({ success: true, data: posts || [], error: null })
     }
 
     // Handle post creation
@@ -369,7 +370,7 @@ export async function POST(request: NextRequest) {
       if (String(accountId) !== user.id) {
         console.warn('[Feed Posts API] accountId mismatch:', { accountId, userId: user.id })
         return NextResponse.json(
-          { data: null, error: 'accountId does not match authenticated user' },
+          { success: false, data: null, error: { code: 'account_mismatch', message: 'accountId does not match authenticated user' } },
           { status: 403 }
         )
       }
@@ -378,7 +379,7 @@ export async function POST(request: NextRequest) {
     // Allow posts with either content or media
     if (!content?.trim() && (!media_urls || media_urls.length === 0)) {
       return NextResponse.json(
-        { data: null, error: 'Content or media is required' },
+        { success: false, data: null, error: { code: 'content_required', message: 'Content or media is required' } },
         { status: 400 }
       )
     }
@@ -387,7 +388,7 @@ export async function POST(request: NextRequest) {
     const postData = {
       user_id: user.id,
       content: content?.trim() || (media_urls && media_urls.length > 0 ? 'Shared a photo' : null),
-      type: media_urls && media_urls.length > 0 ? 'media' : type,
+      type: type || (media_urls && media_urls.length > 0 ? 'image' : 'text'),
       visibility,
       location,
       hashtags,
@@ -403,7 +404,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating post:', error)
       return NextResponse.json(
-        { data: null, error: 'Failed to create post' },
+        { success: false, data: null, error: { code: 'create_post_failed', message: 'Failed to create post' } },
         { status: 500 }
       )
     }
@@ -440,11 +441,11 @@ export async function POST(request: NextRequest) {
       like_count: (post as { likes_count?: number }).likes_count ?? 0
     }
 
-    return NextResponse.json({ data: normalized, error: null })
+    return NextResponse.json({ success: true, data: normalized, error: null })
   } catch (error) {
     console.error('API Error:', error)
     return NextResponse.json(
-      { data: null, error: 'Internal server error' },
+      { success: false, data: null, error: { code: 'internal_error', message: 'Internal server error' } },
       { status: 500 }
     )
   }

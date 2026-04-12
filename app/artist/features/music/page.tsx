@@ -482,6 +482,44 @@ export default function MusicPage() {
     }
   }
 
+  const handleListTrackForSale = async (track: MusicTrack) => {
+    if (!track.id) return
+    try {
+      const response = await fetch('/api/marketplace/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: track.title,
+          description: track.description || `Purchase access to ${track.title}`,
+          category: 'music',
+          productType: 'digital_asset',
+          status: 'draft',
+          basePrice: 1.99,
+          trackId: track.id,
+          rightsConfirmed: true,
+          licenseType: 'personal_use',
+          metadata: {
+            genre: track.genre,
+            duration: track.duration,
+            artistName: track.artist,
+          },
+          variants: [{ title: 'Default', price: 1.99, isDefault: true }],
+        }),
+      })
+
+      if (!response.ok) {
+        const body = await response.json()
+        throw new Error(body.error || 'Failed to create listing')
+      }
+
+      toast.success('Track added to marketplace drafts')
+    } catch (error) {
+      console.error('Error listing track for sale:', error)
+      toast.error('Failed to list track for sale')
+    }
+  }
+
   const handlePlayPause = (track: MusicTrack) => {
     if (currentPlaying === track.id) {
       // Pause current track
@@ -804,6 +842,13 @@ export default function MusicPage() {
                             <DropdownMenuItem className="text-gray-300 hover:text-white">
                               <Share2 className="h-4 w-4 mr-2" />
                               Share
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleListTrackForSale(track)}
+                              className="text-gray-300 hover:text-white"
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              List for Sale
                             </DropdownMenuItem>
                             <DropdownMenuSeparator className="bg-slate-700" />
                             <DropdownMenuItem 

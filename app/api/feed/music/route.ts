@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isSchemaCacheMissingError } from '@/lib/marketplace/schema-readiness'
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,17 +13,12 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('music_tracks')
-      .select(`
-        *,
-        profiles:profiles!left(
-          id,
-          username,
-          full_name,
-          avatar_url,
-          is_verified
-        )
-      `)
+      .select('*')
       .eq('is_public', true)
+    if (userId) {
+      query = query.eq('user_id', userId)
+    }
+
 
     // Filter by genre if specified
     if (genre && genre !== 'all') {
@@ -49,9 +45,62 @@ export async function GET(request: NextRequest) {
     const { data: tracks, error } = await query
 
     if (error) {
+      if (isSchemaCacheMissingError(error)) {
+        const fallback = await supabase
+          .from('artist_music')
+          .select('id,user_id,title,description,genre,duration,file_url,cover_art_url,tags,created_at,stats,is_public')
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+
+        if (fallback.error) {
+          console.error('Error fetching fallback music tracks:', fallback.error)
+          return NextResponse.json(
+            { success: false, error: { code: 'fetch_music_tracks_failed', message: 'Failed to fetch music tracks' }, content: [] },
+            { status: 500 }
+          )
+        }
+
+        const fallbackContent = (fallback.data || []).map(track => ({
+          id: track.id,
+          type: 'music' as const,
+          title: track.title,
+          description: track.description,
+          author: {
+            id: track.user_id,
+            name: 'Artist',
+            username: null,
+          },
+          cover_image: track.cover_art_url,
+          created_at: track.created_at,
+          engagement: {
+            likes: Number((track.stats as any)?.likes || 0),
+            views: Number((track.stats as any)?.plays || 0),
+            shares: Number((track.stats as any)?.shares || 0),
+            comments: Number((track.stats as any)?.comments || 0),
+          },
+          metadata: {
+            genre: track.genre,
+            duration: track.duration,
+            tags: track.tags || [],
+            url: track.file_url,
+            artist: 'Artist',
+          },
+          relevance_score: 0.8,
+        }))
+
+        return NextResponse.json({
+          success: true,
+          content: fallbackContent,
+          total: fallbackContent.length,
+          lastUpdated: new Date().toISOString(),
+          fallbackSource: 'artist_music',
+        })
+      }
+
       console.error('Error fetching music tracks:', error)
       return NextResponse.json(
-        { error: 'Failed to fetch music tracks' },
+        { success: false, error: { code: 'fetch_music_tracks_failed', message: 'Failed to fetch music tracks' }, content: [] },
         { status: 500 }
       )
     }
@@ -62,13 +111,11 @@ export async function GET(request: NextRequest) {
       type: 'music' as const,
       title: track.title,
       description: track.description,
-      author: track.profiles ? {
-        id: track.profiles.id,
-        name: track.profiles.full_name || track.profiles.username,
-        username: track.profiles.username,
-        avatar_url: track.profiles.avatar_url,
-        is_verified: track.profiles.is_verified || false
-      } : undefined,
+      author: {
+        id: track.user_id,
+        name: track.artist_name || track.artist_username || 'Unknown artist',
+        username: track.artist_username,
+      },
       cover_image: track.cover_art_url,
       created_at: track.created_at,
       engagement: {
@@ -98,7 +145,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in music feed API:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: { code: 'internal_error', message: 'Internal server error' }, content: [] },
       { status: 500 }
     )
   }

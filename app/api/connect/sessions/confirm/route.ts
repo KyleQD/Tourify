@@ -1,76 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { jsonError, readJson, requireApiUser } from '@/lib/api/route-helpers'
 import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
 
 const confirmSessionSchema = z.object({
   connectSessionId: z.string().uuid(),
   intent: z.literal('send_follow_request'),
+  deviceContext: z.record(z.string(), z.unknown()).optional(),
 })
-
-interface ApiErrorShape {
-  error: {
-    code: string
-    message: string
-    retryable: boolean
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'unauthorized',
-          message: 'Authentication required',
-          retryable: false,
-        },
-      }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
 
-    const { user, supabase } = authResult
-    const parsedBody = confirmSessionSchema.safeParse(await request.json())
-    if (!parsedBody.success)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'invalid_request',
-          message: 'Invalid connect confirm payload',
-          retryable: false,
-        },
-      }, { status: 400 })
+    const { user, supabase } = authResult.auth
+    const parsedBody = await readJson(request, confirmSessionSchema, 'invalid_request', 'Invalid connect confirm payload')
+    if (!parsedBody.success) return parsedBody.response
 
     const { data: session, error: sessionError } = await supabase
       .from('connect_sessions')
-      .select('id, sharer_user_id, claimed_by_user_id, expires_at, status')
+      .select('id, sharer_user_id, claimed_by_user_id, expires_at, status, last_device_context')
       .eq('id', parsedBody.data.connectSessionId)
       .single()
 
     if (sessionError || !session)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'session_not_found',
-          message: 'Connect session not found',
-          retryable: false,
-        },
-      }, { status: 404 })
+      return jsonError({
+        status: 404,
+        code: 'session_not_found',
+        message: 'Connect session not found',
+        retryable: false,
+      })
 
     if (session.claimed_by_user_id !== user.id)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'session_not_claimed_by_user',
-          message: 'You must claim this connect session before confirming',
-          retryable: false,
-        },
-      }, { status: 403 })
+      return jsonError({
+        status: 403,
+        code: 'session_not_claimed_by_user',
+        message: 'You must claim this connect session before confirming',
+        retryable: false,
+      })
 
     if (new Date(session.expires_at).getTime() <= Date.now())
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'session_expired',
-          message: 'Connect session has expired',
-          retryable: false,
-        },
-      }, { status: 410 })
+      return jsonError({
+        status: 410,
+        code: 'session_expired',
+        message: 'Connect session has expired',
+        retryable: false,
+      })
 
     const followRequestResult = await sendFollowRequestIfNeeded({
       supabase,
@@ -79,13 +55,20 @@ export async function POST(request: NextRequest) {
     })
 
     if (!followRequestResult.success)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: followRequestResult.code ?? 'follow_request_failed',
-          message: followRequestResult.message ?? 'Failed to send follow request',
-          retryable: followRequestResult.retryable ?? true,
-        },
-      }, { status: followRequestResult.statusCode ?? 500 })
+      return jsonError({
+        status: followRequestResult.statusCode ?? 500,
+        code: followRequestResult.code ?? 'follow_request_failed',
+        message: followRequestResult.message ?? 'Failed to send follow request',
+        retryable: followRequestResult.retryable ?? true,
+      })
+
+    const sessionDeviceContext =
+      session.last_device_context && typeof session.last_device_context === 'object'
+        ? (session.last_device_context as { platform?: unknown })
+        : null
+    const telemetryPlatform =
+      String(parsedBody.data.deviceContext?.platform || '') ||
+      String(sessionDeviceContext?.platform || 'unknown')
 
     await supabase
       .from('connect_sessions')
@@ -99,7 +82,7 @@ export async function POST(request: NextRequest) {
     await logConnectTelemetryEvent({
       eventName: 'connect_session_confirmed',
       connectSessionId: session.id,
-      platform: 'unknown',
+      platform: telemetryPlatform,
       userId: user.id,
       metadata: {
         relationshipStatus: followRequestResult.relationshipStatus,
@@ -114,13 +97,12 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Connect Sessions Confirm API] POST error:', error)
-    return NextResponse.json<ApiErrorShape>({
-      error: {
-        code: 'internal_error',
-        message: 'Internal server error',
-        retryable: true,
-      },
-    }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: 'internal_error',
+      message: 'Internal server error',
+      retryable: true,
+    })
   }
 }
 

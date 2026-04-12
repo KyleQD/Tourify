@@ -3,12 +3,13 @@ import { Alert, Pressable, SafeAreaView, ScrollView, Share, Text, TextInput, Vie
 import { useRouter } from "expo-router"
 import { createConnectSession } from "@/lib/api/connect"
 import { sendConnectTelemetry } from "@/lib/api/connect-telemetry"
-import { extractConnectToken } from "@/lib/connect/connect-token"
+import { CONNECT_TOKEN_MIN_LENGTH, extractConnectToken } from "@/lib/connect/connect-token"
 
 export default function ConnectHubScreen() {
   const router = useRouter()
   const [manualTokenInput, setManualTokenInput] = useState("")
   const [isCreatingSession, setIsCreatingSession] = useState(false)
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [activeWebLink, setActiveWebLink] = useState<string | null>(null)
   const [activeDeepLink, setActiveDeepLink] = useState<string | null>(null)
   const [activeToken, setActiveToken] = useState<string | null>(null)
@@ -30,6 +31,7 @@ export default function ConnectHubScreen() {
       setActiveWebLink(session.webClaimUrl || session.claimUrl)
       setActiveDeepLink(session.deepLinkUrl)
       setActiveToken(session.ephemeralToken)
+      setActiveSessionId(session.connectSessionId)
       void sendConnectTelemetry({
         eventName: "connect_flow_session_created_mobile",
         connectSessionId: session.connectSessionId,
@@ -61,6 +63,7 @@ export default function ConnectHubScreen() {
       })
       void sendConnectTelemetry({
         eventName: "connect_flow_session_shared_mobile",
+        connectSessionId: activeSessionId || undefined,
       })
     } catch (error) {
       Alert.alert("Share failed", error instanceof Error ? error.message : "Please try again.")
@@ -68,7 +71,7 @@ export default function ConnectHubScreen() {
   }
 
   function handleOpenClaimScreen() {
-    if (!normalizedManualToken || normalizedManualToken.length <= 20) {
+    if (!normalizedManualToken || normalizedManualToken.length < CONNECT_TOKEN_MIN_LENGTH) {
       Alert.alert("Invalid token", "Paste a valid token or claim URL.")
       return
     }

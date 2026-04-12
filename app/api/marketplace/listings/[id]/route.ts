@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
+import { getStoragePathFromUrl } from "@/lib/marketplace/storage-path"
 
 const updateVariantSchema = z.object({
   id: z.string().uuid().optional(),
@@ -58,13 +60,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const { id } = await params
     const payload = updateListingSchema.parse(await request.json())
@@ -75,8 +73,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       .eq("id", id)
       .single()
 
-    if (existingError || !existing) return NextResponse.json({ error: "Listing not found" }, { status: 404 })
-    if (existing.seller_user_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (existingError || !existing)
+      return jsonError({
+        status: 404,
+        code: "listing_not_found",
+        message: "Listing not found",
+      })
+    if (existing.seller_user_id !== user.id)
+      return jsonError({
+        status: 403,
+        code: "forbidden",
+        message: "Forbidden",
+      })
+    const nextCategory = payload.category || existing.category
+    const nextProductType = payload.productType || existing.product_type
+    const shouldPublish = payload.status === "published"
+    if (shouldPublish && nextCategory === "music" && nextProductType === "digital_asset" && payload.rightsConfirmed === false) {
+      return jsonError({
+        status: 400,
+        code: "rights_confirmation_required",
+        message: "Rights confirmation is required before publishing music listings",
+      })
+    }
 
     const trackIdProvided = payload.trackId !== undefined
     const nextTrackId = trackIdProvided ? payload.trackId : null
@@ -89,8 +107,19 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         .eq("id", nextTrackId)
         .single()
 
-      if (trackError || !track) return NextResponse.json({ error: "Track not found" }, { status: 404 })
-      if (track.user_id !== user.id) return NextResponse.json({ error: "You can only attach your own tracks" }, { status: 403 })
+      if (trackError || !track)
+        return jsonError({
+          status: 404,
+          code: "track_not_found",
+          message: "Track not found",
+        })
+      if (track.user_id !== user.id)
+        return jsonError({
+          status: 403,
+          code: "forbidden_track_owner",
+          message: "You can only attach your own tracks",
+        })
+      const storagePath = getStoragePathFromUrl(track.file_url)
 
       trackPatch = {
         music_track_id: nextTrackId,
@@ -101,6 +130,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           musicTrackId: nextTrackId,
           assetUrl: track.file_url,
           previewUrl: track.file_url,
+          assetBucket: storagePath?.bucket || null,
+          assetPath: storagePath?.path || null,
+          previewBucket: storagePath?.bucket || null,
+          previewPath: storagePath?.path || null,
           coverArtUrl: track.cover_art_url,
           artistAttestedOwnership: payload.rightsConfirmed ?? false,
           licenseType: payload.licenseType || "personal_use",
@@ -136,7 +169,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const { error: updateError } = await supabase.from("marketplace_listings").update(cleaned).eq("id", id)
       if (updateError) {
         console.error("Failed to update listing", updateError)
-        return NextResponse.json({ error: "Failed to update listing" }, { status: 500 })
+        return jsonError({
+          status: 500,
+          code: "update_listing_failed",
+          message: "Failed to update listing",
+          retryable: true,
+        })
       }
     }
 
@@ -168,24 +206,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({ data: hydrated })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid listing update payload", issues: error.issues }, { status: 400 })
-    }
+    const zodError = fromZodError(error, "Invalid listing update payload")
+    if (zodError) return zodError
 
     console.error("Unexpected listing PATCH error", error)
-    return NextResponse.json({ error: "Unexpected error updating listing" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "internal_error",
+      message: "Unexpected error updating listing",
+      retryable: true,
+    })
   }
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const { id } = await params
     const { data: existing } = await supabase
@@ -194,18 +232,38 @@ export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id:
       .eq("id", id)
       .maybeSingle()
 
-    if (!existing) return NextResponse.json({ error: "Listing not found" }, { status: 404 })
-    if (existing.seller_user_id !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    if (!existing)
+      return jsonError({
+        status: 404,
+        code: "listing_not_found",
+        message: "Listing not found",
+      })
+    if (existing.seller_user_id !== user.id)
+      return jsonError({
+        status: 403,
+        code: "forbidden",
+        message: "Forbidden",
+      })
 
     const { error } = await supabase.from("marketplace_listings").delete().eq("id", id)
     if (error) {
       console.error("Failed to delete listing", error)
-      return NextResponse.json({ error: "Failed to delete listing" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "delete_listing_failed",
+        message: "Failed to delete listing",
+        retryable: true,
+      })
     }
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Unexpected listing DELETE error", error)
-    return NextResponse.json({ error: "Unexpected error deleting listing" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "internal_error",
+      message: "Unexpected error deleting listing",
+      retryable: true,
+    })
   }
 }

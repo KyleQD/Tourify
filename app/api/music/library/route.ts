@@ -39,13 +39,7 @@ export async function GET(request: NextRequest) {
           duration,
           cover_art_url,
           file_url,
-          user_id,
-          profiles:user_id (
-            id,
-            username,
-            full_name,
-            avatar_url
-          )
+          user_id
         )
       `)
       .eq("buyer_user_id", user.id)
@@ -56,6 +50,19 @@ export async function GET(request: NextRequest) {
       console.error("Failed to load music library", error)
       return NextResponse.json({ error: "Failed to load music library" }, { status: 500 })
     }
+
+    await supabase.from("achievement_progress_events").insert({
+      user_id: user.id,
+      metric_key: "music_library_views_total",
+      event_type: "music_library_viewed",
+      event_value: 1,
+      event_source: "api_music_library_get",
+      event_data: {
+        returned_count: data?.length || 0,
+        limit,
+        offset,
+      },
+    })
 
     return NextResponse.json({ data: data || [] })
   } catch (error) {

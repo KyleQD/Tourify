@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { jsonError, readJson, requireApiUser } from '@/lib/api/route-helpers'
 import { createConnectSessionToken } from '@/lib/connect/connect-session-token'
 import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
 
@@ -10,36 +10,14 @@ const createSessionSchema = z.object({
   expiresInSeconds: z.number().int().min(30).max(300).default(120),
 })
 
-interface ApiErrorShape {
-  error: {
-    code: string
-    message: string
-    retryable: boolean
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'unauthorized',
-          message: 'Authentication required',
-          retryable: false,
-        },
-      }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
 
-    const { user, supabase } = authResult
-    const parsedBody = createSessionSchema.safeParse(await request.json())
-    if (!parsedBody.success)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'invalid_request',
-          message: 'Invalid connect session payload',
-          retryable: false,
-        },
-      }, { status: 400 })
+    const { user, supabase } = authResult.auth
+    const parsedBody = await readJson(request, createSessionSchema, 'invalid_request', 'Invalid connect session payload')
+    if (!parsedBody.success) return parsedBody.response
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -48,23 +26,21 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (profileError || !profile)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'profile_not_found',
-          message: 'Could not load profile for connect session',
-          retryable: true,
-        },
-      }, { status: 404 })
+      return jsonError({
+        status: 404,
+        code: 'profile_not_found',
+        message: 'Could not load profile for connect session',
+        retryable: true,
+      })
 
     const inPersonSettings = profile.profile_data?.in_person_connect ?? {}
     if (inPersonSettings?.allowInPersonConnect === false)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'connect_sharing_disabled',
-          message: 'In-person connect is disabled in your privacy settings',
-          retryable: false,
-        },
-      }, { status: 403 })
+      return jsonError({
+        status: 403,
+        code: 'connect_sharing_disabled',
+        message: 'In-person connect is disabled in your privacy settings',
+        retryable: false,
+      })
 
     const tokenResult = createConnectSessionToken({
       sharerUserId: user.id,
@@ -97,21 +73,19 @@ export async function POST(request: NextRequest) {
     if (insertResult.error) {
       const isMissingTable = insertResult.error.code === '42P01'
       if (isMissingTable)
-        return NextResponse.json<ApiErrorShape>({
-          error: {
-            code: 'connect_sessions_table_missing',
-            message: 'Connect sessions storage is not initialized',
-            retryable: false,
-          },
-        }, { status: 500 })
+        return jsonError({
+          status: 500,
+          code: 'connect_sessions_table_missing',
+          message: 'Connect sessions storage is not initialized',
+          retryable: false,
+        })
 
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'create_session_failed',
-          message: 'Failed to create connect session',
-          retryable: true,
-        },
-      }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: 'create_session_failed',
+        message: 'Failed to create connect session',
+        retryable: true,
+      })
     }
 
     await logConnectTelemetryEvent({
@@ -119,6 +93,7 @@ export async function POST(request: NextRequest) {
       connectSessionId: insertResult.data.id,
       platform: 'server',
       userId: user.id,
+      sessionId: tokenResult.payload.sessionId,
       metadata: {
         handshakeMethod: parsedBody.data.handshakeMethod,
         oneTimeClaim: parsedBody.data.oneTimeClaim,
@@ -139,13 +114,12 @@ export async function POST(request: NextRequest) {
     }, { status: 201 })
   } catch (error) {
     console.error('[Connect Sessions API] POST error:', error)
-    return NextResponse.json<ApiErrorShape>({
-      error: {
-        code: 'internal_error',
-        message: 'Internal server error',
-        retryable: true,
-      },
-    }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: 'internal_error',
+      message: 'Internal server error',
+      retryable: true,
+    })
   }
 }
 

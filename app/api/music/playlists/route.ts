@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { fromZodError, jsonError, requireApiUser } from "@/lib/api/route-helpers"
 
 const createPlaylistSchema = z.object({
   title: z.string().min(1).max(160),
@@ -50,12 +51,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const payload = createPlaylistSchema.parse(await request.json())
     const shareSlug = `${payload.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}-${Date.now().toString(36)}`
@@ -77,13 +75,29 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create playlist" }, { status: 500 })
     }
 
+    await supabase.from("achievement_progress_events").insert({
+      user_id: user.id,
+      metric_key: "music_playlists_created_total",
+      event_type: "music_playlist_created",
+      event_value: 1,
+      event_source: "api_music_playlists_post",
+      event_data: {
+        playlist_id: data.id,
+        visibility: data.visibility,
+      },
+    })
+
     return NextResponse.json({ data })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid playlist payload", issues: error.issues }, { status: 400 })
-    }
+    const zodError = fromZodError(error, "Invalid playlist payload")
+    if (zodError) return zodError
 
     console.error("Unexpected playlists POST error", error)
-    return NextResponse.json({ error: "Unexpected playlist create error" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "internal_error",
+      message: "Unexpected playlist create error",
+      retryable: true,
+    })
   }
 }

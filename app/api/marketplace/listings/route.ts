@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { isValidMarketplaceProductType } from "@/lib/marketplace/catalog"
+import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
+import { getStoragePathFromUrl } from "@/lib/marketplace/storage-path"
 
 const listingVariantSchema = z.object({
   id: z.string().uuid().optional(),
@@ -63,6 +66,12 @@ export async function GET(request: NextRequest) {
     const { data, error } = await query
 
     if (error) {
+      if (isSchemaCacheMissingError(error)) {
+        return NextResponse.json({
+          data: [],
+          warning: getSchemaNotReadyMessage({ feature: "Marketplace listings" }),
+        })
+      }
       console.error("Failed to fetch marketplace listings", error)
       return NextResponse.json({ error: "Failed to fetch listings" }, { status: 500 })
     }
@@ -76,17 +85,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const payload = listingSchema.parse(await request.json())
     if (!isValidMarketplaceProductType(payload.productType)) {
-      return NextResponse.json({ error: "Unsupported product type" }, { status: 400 })
+      return jsonError({
+        status: 400,
+        code: "invalid_product_type",
+        message: "Unsupported product type",
+      })
     }
 
     const { data: storefront } = await supabase
@@ -97,7 +106,18 @@ export async function POST(request: NextRequest) {
 
     const trackId = payload.trackId || null
     if (payload.productType === "digital_asset" && payload.category === "music" && !trackId) {
-      return NextResponse.json({ error: "Music listings require a trackId" }, { status: 400 })
+      return jsonError({
+        status: 400,
+        code: "track_id_required",
+        message: "Music listings require a trackId",
+      })
+    }
+    if (payload.status === "published" && payload.productType === "digital_asset" && payload.category === "music" && !payload.rightsConfirmed) {
+      return jsonError({
+        status: 400,
+        code: "rights_confirmation_required",
+        message: "Rights confirmation is required before publishing music listings",
+      })
     }
 
     let track: { id: string; user_id: string; title: string; file_url: string | null; cover_art_url: string | null } | null = null
@@ -109,14 +129,23 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (trackError || !foundTrack) {
-        return NextResponse.json({ error: "Track not found" }, { status: 404 })
+        return jsonError({
+          status: 404,
+          code: "track_not_found",
+          message: "Track not found",
+        })
       }
       if (foundTrack.user_id !== user.id) {
-        return NextResponse.json({ error: "You can only list your own tracks" }, { status: 403 })
+        return jsonError({
+          status: 403,
+          code: "forbidden_track_owner",
+          message: "You can only list your own tracks",
+        })
       }
       track = foundTrack
     }
 
+    const storagePath = track?.file_url ? getStoragePathFromUrl(track.file_url) : null
     const mergedMetadata = {
       ...(payload.metadata || {}),
       ...(track
@@ -124,6 +153,10 @@ export async function POST(request: NextRequest) {
             musicTrackId: track.id,
             assetUrl: track.file_url,
             previewUrl: track.file_url,
+            assetBucket: storagePath?.bucket || null,
+            assetPath: storagePath?.path || null,
+            previewBucket: storagePath?.bucket || null,
+            previewPath: storagePath?.path || null,
             coverArtUrl: track.cover_art_url,
             artistAttestedOwnership: payload.rightsConfirmed ?? false,
             licenseType: payload.licenseType || "personal_use",
@@ -162,8 +195,21 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (listingError || !listing) {
+      if (isSchemaCacheMissingError(listingError)) {
+        return jsonError({
+          status: 503,
+          code: "schema_not_ready",
+          message: getSchemaNotReadyMessage({ feature: "Marketplace create listing" }),
+          retryable: true,
+        })
+      }
       console.error("Failed to create listing", listingError)
-      return NextResponse.json({ error: "Failed to create listing" }, { status: 500 })
+      return jsonError({
+        status: 500,
+        code: "create_listing_failed",
+        message: "Failed to create listing",
+        retryable: true,
+      })
     }
 
     if (payload.variants?.length) {
@@ -190,11 +236,15 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ data: hydrated || listing })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid listing payload", issues: error.issues }, { status: 400 })
-    }
+    const zodError = fromZodError(error, "Invalid listing payload")
+    if (zodError) return zodError
 
     console.error("Unexpected listings POST error", error)
-    return NextResponse.json({ error: "Unexpected error creating listing" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "internal_error",
+      message: "Unexpected error creating listing",
+      retryable: true,
+    })
   }
 }

@@ -115,3 +115,5 @@ run().catch(error => {
   console.error("Marketplace smoke test failed:", error)
   process.exit(1)
 })
+
+export {}

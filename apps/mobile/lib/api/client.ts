@@ -201,8 +201,17 @@ export async function apiRequest<T>(path: string, options?: ApiRequestOptions): 
 
 function tryExtractErrorMessage(payload: string) {
   try {
-    const parsed = JSON.parse(payload) as { error?: string; details?: string; message?: string }
-    return parsed.error || parsed.details || parsed.message || null
+    const parsed = JSON.parse(payload) as {
+      error?: string | { message?: string }
+      details?: string
+      message?: string
+    }
+
+    if (parsed.error && typeof parsed.error === "object" && parsed.error.message)
+      return parsed.error.message
+
+    if (typeof parsed.error === "string") return parsed.error
+    return parsed.details || parsed.message || null
   } catch {
     return null
   }

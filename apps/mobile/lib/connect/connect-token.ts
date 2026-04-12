@@ -1,3 +1,5 @@
+export const CONNECT_TOKEN_MIN_LENGTH = 20
+
 export function extractConnectToken(rawValue: string) {
   const trimmedValue = rawValue.trim()
   if (!trimmedValue) return ""

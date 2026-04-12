@@ -33,10 +33,7 @@ async function parseAuthFromApiCookies() {
          !cookie.name.includes('code-verifier') &&
          !cookie.name.includes('refresh') &&
          cookie.value.length > 100) ||
-        (cookie.name.startsWith('sb-') && 
-         cookie.name.includes('auqddrodjezjlypkzfpi') &&
-         !cookie.name.includes('code-verifier') &&
-         cookie.value.length > 100)
+        isSupabaseProjectCookie(cookie.name, cookie.value)
       )
       
       if (fallbackCookie) {
@@ -48,6 +45,31 @@ async function parseAuthFromApiCookies() {
     
     return tryParseCookieValue(authCookie.value)
   } catch (error) {
+    return null
+  }
+}
+
+function isSupabaseProjectCookie(cookieName: string, cookieValue: string) {
+  if (!cookieName.startsWith('sb-')) return false
+  if (cookieName.includes('code-verifier')) return false
+  if (cookieValue.length <= 100) return false
+
+  const projectRef = resolveSupabaseProjectRef()
+  if (!projectRef) return false
+  return cookieName.includes(projectRef)
+}
+
+function resolveSupabaseProjectRef() {
+  const fromEnv = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF
+  if (fromEnv) return fromEnv
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!supabaseUrl) return null
+
+  try {
+    const host = new URL(supabaseUrl).host
+    return host.split('.')[0] || null
+  } catch {
     return null
   }
 }

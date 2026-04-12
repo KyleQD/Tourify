@@ -158,6 +158,24 @@ class ArtistContentService {
     return data
   }
 
+  async getPublicMusicFeed(options?: { limit?: number; genre?: string; sortBy?: 'recent' | 'popular' | 'trending' }) {
+    let query = this.supabase
+      .from('music_tracks')
+      .select('*')
+      .eq('is_public', true)
+
+    if (options?.genre && options.genre !== 'all') query = query.eq('genre', options.genre)
+
+    if (options?.sortBy === 'popular') query = query.order('play_count', { ascending: false })
+    if (options?.sortBy === 'trending') query = query.order('likes_count', { ascending: false })
+    if (!options?.sortBy || options.sortBy === 'recent') query = query.order('created_at', { ascending: false })
+
+    query = query.limit(options?.limit || 20)
+    const { data, error } = await query
+    if (error) throw error
+    return data
+  }
+
   async updateMusic(id: string, userId: string, data: Partial<MusicContent>) {
     const { data: result, error } = await this.supabase
       .from('artist_music')

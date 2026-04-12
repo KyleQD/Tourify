@@ -5,33 +5,24 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-interface ClaimResponse {
-  connectSessionId: string
-  profilePreview: {
-    userId: string
-    username: string | null
-    fullName: string | null
-    avatarUrl: string | null
-    bio: string | null
-    location: string | null
-    email: string | null
-    phone: string | null
-  }
-  relationshipStatus: string
-  requiresConfirm: boolean
-}
+import {
+  CONNECT_TOKEN_MIN_LENGTH,
+  claimConnectSession,
+  confirmConnectSession,
+  sendConnectTelemetry,
+  type ClaimConnectSessionResponse,
+} from '@/lib/connect/connect-client'
 
 export default function ConnectClaimPage() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token') ?? ''
-  const [claimResult, setClaimResult] = useState<ClaimResponse | null>(null)
+  const [claimResult, setClaimResult] = useState<ClaimConnectSessionResponse | null>(null)
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [isClaimPending, startClaimTransition] = useTransition()
   const [isConfirmPending, startConfirmTransition] = useTransition()
   const [confirmStatus, setConfirmStatus] = useState<'idle' | 'success'>('idle')
 
-  const hasToken = useMemo(() => token.length > 10, [token])
+  const hasToken = useMemo(() => token.length >= CONNECT_TOKEN_MIN_LENGTH, [token])
 
   function claimSession() {
     if (!hasToken) {
@@ -43,28 +34,21 @@ export default function ConnectClaimPage() {
       setErrorMessage('')
       setConfirmStatus('idle')
 
-      const response = await fetch('/api/connect/sessions/claim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      try {
+        const claimed = await claimConnectSession({
           ephemeralToken: token,
-          deviceContext: { platform: 'web' },
-        }),
-      })
-
-      const json = await response.json()
-      if (!response.ok) {
+          deviceContext: { platform: 'web', source: 'connect-claim-web' },
+        })
+        setClaimResult(claimed)
+        void sendConnectTelemetry({
+          eventName: 'connect_flow_claimed_web',
+          connectSessionId: claimed.connectSessionId,
+          metadata: { relationshipStatus: claimed.relationshipStatus },
+        })
+      } catch (error) {
         setClaimResult(null)
-        setErrorMessage(json?.error?.message || 'Failed to claim connect session.')
-        return
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to claim connect session.')
       }
-
-      setClaimResult(json)
-      void sendConnectTelemetry({
-        eventName: 'connect_flow_claimed_web',
-        connectSessionId: json.connectSessionId,
-        metadata: { relationshipStatus: json.relationshipStatus },
-      })
     })
   }
 
@@ -73,26 +57,20 @@ export default function ConnectClaimPage() {
 
     startConfirmTransition(async () => {
       setErrorMessage('')
-      const response = await fetch('/api/connect/sessions/confirm', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      try {
+        await confirmConnectSession({
           connectSessionId: claimResult.connectSessionId,
           intent: 'send_follow_request',
-        }),
-      })
-      const json = await response.json()
-
-      if (!response.ok) {
-        setErrorMessage(json?.error?.message || 'Failed to confirm connection.')
-        return
+          deviceContext: { platform: 'web', source: 'connect-claim-web' },
+        })
+        setConfirmStatus('success')
+        void sendConnectTelemetry({
+          eventName: 'connect_flow_confirmed_web',
+          connectSessionId: claimResult.connectSessionId,
+        })
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Failed to confirm connection.')
       }
-
-      setConfirmStatus('success')
-      void sendConnectTelemetry({
-        eventName: 'connect_flow_confirmed_web',
-        connectSessionId: claimResult.connectSessionId,
-      })
     })
   }
 
@@ -160,25 +138,4 @@ export default function ConnectClaimPage() {
       </Card>
     </div>
   )
-}
-
-async function sendConnectTelemetry(payload: {
-  eventName: string
-  connectSessionId?: string
-  metadata?: Record<string, unknown>
-}) {
-  try {
-    await fetch('/api/connect/telemetry', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        eventName: payload.eventName,
-        connectSessionId: payload.connectSessionId,
-        platform: 'web',
-        metadata: payload.metadata || {},
-      }),
-    })
-  } catch {
-    // Telemetry should never block UX
-  }
 }

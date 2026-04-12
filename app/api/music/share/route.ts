@@ -1,17 +1,20 @@
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { requireApiUser, jsonError } from '@/lib/api/route-helpers'
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+
+    const { user, supabase } = authResult.auth
     const { musicId, playlistId, createPost, content } = await request.json()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
     if (!musicId && !playlistId) {
-      return NextResponse.json({ error: 'musicId or playlistId is required' }, { status: 400 })
+      return jsonError({
+        status: 400,
+        code: 'invalid_request',
+        message: 'musicId or playlistId is required',
+      })
     }
 
     if (playlistId) {
@@ -21,9 +24,18 @@ export async function POST(request: NextRequest) {
         .eq('id', playlistId)
         .single()
 
-      if (playlistError || !playlist) return NextResponse.json({ error: 'Playlist not found' }, { status: 404 })
+      if (playlistError || !playlist)
+        return jsonError({
+          status: 404,
+          code: 'playlist_not_found',
+          message: 'Playlist not found',
+        })
       if (playlist.owner_user_id !== user.id && playlist.visibility !== 'public') {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        return jsonError({
+          status: 403,
+          code: 'forbidden',
+          message: 'Forbidden',
+        })
       }
 
       const payload = {
@@ -35,14 +47,29 @@ export async function POST(request: NextRequest) {
       }
 
       if (createPost) {
-        await supabase.from('posts').insert({
+        const { data: createdPost } = await supabase.from('posts').insert({
           user_id: user.id,
           content: typeof content === 'string' && content.trim().length ? content.trim() : `Sharing playlist: "${playlist.title}"`,
           type: 'music',
           media_urls: playlist.cover_image_url ? [playlist.cover_image_url] : [],
           hashtags: ['music', 'playlist'],
+        }).select('id').single()
+
+        await supabase.from('music_playlist_shares').insert({
+          playlist_id: playlist.id,
+          shared_by_user_id: user.id,
+          feed_post_id: createdPost?.id || null,
         })
       }
+
+      await supabase.from('achievement_progress_events').insert({
+        user_id: user.id,
+        metric_key: 'music_playlist_shares_total',
+        event_type: 'music_playlist_shared',
+        event_value: 1,
+        event_source: 'api_music_share_playlist',
+        event_data: { playlist_id: playlist.id, created_post: Boolean(createPost) },
+      })
 
       return NextResponse.json({ payload })
     }
@@ -53,7 +80,12 @@ export async function POST(request: NextRequest) {
       .eq('id', musicId)
       .single()
 
-    if (error || !track) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    if (error || !track)
+      return jsonError({
+        status: 404,
+        code: 'track_not_found',
+        message: 'Not found',
+      })
 
     if (track.user_id !== user.id) {
       const { data: ownedLibraryTrack } = await supabase
@@ -63,7 +95,12 @@ export async function POST(request: NextRequest) {
         .eq('music_track_id', track.id)
         .maybeSingle()
 
-      if (!ownedLibraryTrack) return NextResponse.json({ error: 'Track is not in your purchased library' }, { status: 403 })
+      if (!ownedLibraryTrack)
+        return jsonError({
+          status: 403,
+          code: 'forbidden_track_access',
+          message: 'Track is not in your purchased library',
+        })
     }
 
     const payload = {
@@ -88,9 +125,24 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    await supabase.from('achievement_progress_events').insert({
+      user_id: user.id,
+      metric_key: 'music_track_shares_total',
+      event_type: 'music_track_shared',
+      event_value: 1,
+      event_source: 'api_music_share_track',
+      event_data: { music_id: track.id, created_post: Boolean(createPost) },
+    })
+
     return NextResponse.json({ payload })
-  } catch (e) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  } catch (error) {
+    console.error('API music share error:', error)
+    return jsonError({
+      status: 500,
+      code: 'internal_error',
+      message: 'Internal server error',
+      retryable: true,
+    })
   }
 }
 

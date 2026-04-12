@@ -40,6 +40,7 @@ export interface ClaimConnectSessionResponse {
 interface ConfirmConnectSessionRequest {
   connectSessionId: string
   intent: "send_follow_request"
+  deviceContext?: Record<string, unknown>
 }
 
 export interface ConfirmConnectSessionResponse {
@@ -52,6 +53,8 @@ export async function createConnectSession(payload: CreateConnectSessionRequest)
   return apiRequest<CreateConnectSessionResponse>("/api/connect/sessions", {
     method: "POST",
     body: JSON.stringify(payload),
+    queueOnOffline: false,
+    preferCachedOnOffline: false,
   })
 }
 
@@ -59,6 +62,8 @@ export async function claimConnectSession(payload: ClaimConnectSessionRequest) {
   return apiRequest<ClaimConnectSessionResponse>("/api/connect/sessions/claim", {
     method: "POST",
     body: JSON.stringify(payload),
+    queueOnOffline: false,
+    preferCachedOnOffline: false,
   })
 }
 
@@ -66,5 +71,7 @@ export async function confirmConnectSession(payload: ConfirmConnectSessionReques
   return apiRequest<ConfirmConnectSessionResponse>("/api/connect/sessions/confirm", {
     method: "POST",
     body: JSON.stringify(payload),
+    queueOnOffline: false,
+    preferCachedOnOffline: false,
   })
 }

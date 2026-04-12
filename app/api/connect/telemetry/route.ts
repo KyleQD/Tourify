@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { authenticateApiRequest } from "@/lib/auth/api-auth"
+import { jsonError, readJson, requireApiUser } from "@/lib/api/route-helpers"
 import { logConnectTelemetryEvent } from "@/lib/connect/telemetry"
 
 const telemetrySchema = z.object({
@@ -16,20 +16,17 @@ const telemetrySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult)
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
 
-    const body = await request.json()
-    const parsed = telemetrySchema.safeParse(body)
-    if (!parsed.success)
-      return NextResponse.json({ error: "Invalid telemetry payload" }, { status: 400 })
+    const parsed = await readJson(request, telemetrySchema, "invalid_request", "Invalid telemetry payload")
+    if (!parsed.success) return parsed.response
 
     await logConnectTelemetryEvent({
       eventName: parsed.data.eventName,
       connectSessionId: parsed.data.connectSessionId || null,
       platform: parsed.data.platform || "unknown",
-      userId: authResult.user.id,
+      userId: authResult.auth.user.id,
       sessionId: parsed.data.sessionId || null,
       appVersion: parsed.data.appVersion || null,
       osVersion: parsed.data.osVersion || null,
@@ -40,6 +37,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("[Connect Telemetry API] POST error:", error)
-    return NextResponse.json({ error: "Invalid request payload" }, { status: 400 })
+    return jsonError({
+      status: 400,
+      code: "invalid_request",
+      message: "Invalid request payload",
+      retryable: false,
+    })
   }
 }

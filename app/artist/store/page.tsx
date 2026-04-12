@@ -18,6 +18,7 @@ interface MarketplaceListing {
   currency: string
   base_price: number | null
   inventory_count: number | null
+  music_track_id?: string | null
   created_at: string
 }
 
@@ -42,6 +43,13 @@ interface MarketplaceStorefront {
   sections: unknown[]
 }
 
+interface ArtistTrack {
+  id: string
+  title: string
+  genre: string | null
+  cover_art_url: string | null
+}
+
 function currency(amount: number, code: string) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -54,6 +62,7 @@ export default function ArtistStorePage() {
   const [orders, setOrders] = useState<MarketplaceOrder[]>([])
   const [payouts, setPayouts] = useState<MarketplacePayoutLedger[]>([])
   const [storefront, setStorefront] = useState<MarketplaceStorefront | null>(null)
+  const [tracks, setTracks] = useState<ArtistTrack[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSavingListing, setIsSavingListing] = useState(false)
   const [isSavingStorefront, setIsSavingStorefront] = useState(false)
@@ -63,7 +72,13 @@ export default function ArtistStorePage() {
     alreadyMigrated: number
     pendingItems: number
   } | null>(null)
+  const [musicBackfillPreview, setMusicBackfillPreview] = useState<{
+    totalTracks: number
+    alreadyListed: number
+    pendingTracks: number
+  } | null>(null)
   const [isImportingLegacy, setIsImportingLegacy] = useState(false)
+  const [isImportingTracks, setIsImportingTracks] = useState(false)
   const [listingForm, setListingForm] = useState({
     title: "",
     description: "",
@@ -71,6 +86,8 @@ export default function ArtistStorePage() {
     productType: "digital_asset",
     status: "draft",
     basePrice: "9.99",
+    trackId: "",
+    rightsConfirmed: false,
   })
   const [storefrontForm, setStorefrontForm] = useState({
     displayName: "Artist Store",
@@ -97,21 +114,27 @@ export default function ArtistStorePage() {
   async function loadData() {
     setIsLoading(true)
     try {
-      const [listingsRes, sellerOrdersRes, storefrontRes, integrationRes, payoutsRes] = await Promise.all([
+      const [listingsRes, sellerOrdersRes, storefrontRes, integrationRes, payoutsRes, tracksRes] = await Promise.all([
         fetch("/api/marketplace/listings?includeDrafts=true", buildNoStoreInit()),
         fetch("/api/marketplace/orders?role=seller", buildNoStoreInit()),
         fetch("/api/marketplace/storefront", buildNoStoreInit()),
         fetch("/api/marketplace/integrations/printful", buildNoStoreInit()),
         fetch("/api/marketplace/payouts", buildNoStoreInit()),
+        fetch("/api/artist/music?limit=200", buildNoStoreInit()),
       ])
-      const previewRes = await fetch("/api/marketplace/migrations/backfill-artist-merch", buildNoStoreInit())
+      const [previewRes, musicPreviewRes] = await Promise.all([
+        fetch("/api/marketplace/migrations/backfill-artist-merch", buildNoStoreInit()),
+        fetch("/api/marketplace/migrations/backfill-artist-music", buildNoStoreInit()),
+      ])
 
       const listingsJson = await listingsRes.json()
       const sellerOrdersJson = await sellerOrdersRes.json()
       const storefrontJson = await storefrontRes.json()
       const integrationJson = await integrationRes.json()
       const payoutsJson = await payoutsRes.json()
+      const tracksJson = await tracksRes.json()
       const previewJson = await previewRes.json()
+      const musicPreviewJson = await musicPreviewRes.json()
 
       setListings(Array.isArray(listingsJson.data) ? listingsJson.data : [])
       setOrders(Array.isArray(sellerOrdersJson.data) ? sellerOrdersJson.data : [])
@@ -119,6 +142,8 @@ export default function ArtistStorePage() {
       setStorefront(storefrontJson.data || null)
       setIntegrations(integrationJson.data || null)
       setBackfillPreview(previewJson.data || null)
+      setMusicBackfillPreview(musicPreviewJson.data || null)
+      setTracks(Array.isArray(tracksJson.data) ? tracksJson.data : [])
 
       if (storefrontJson.data) {
         setStorefrontForm({
@@ -163,6 +188,8 @@ export default function ArtistStorePage() {
           productType: listingForm.productType,
           status: listingForm.status,
           basePrice: Number(listingForm.basePrice || 0),
+          trackId: listingForm.trackId || undefined,
+          rightsConfirmed: listingForm.rightsConfirmed,
           variants: [{ title: "Default", price: Number(listingForm.basePrice || 0), isDefault: true }],
         }),
       }))
@@ -180,6 +207,8 @@ export default function ArtistStorePage() {
         productType: "digital_asset",
         status: "draft",
         basePrice: "9.99",
+        trackId: "",
+        rightsConfirmed: false,
       })
       await loadData()
     } finally {
@@ -254,6 +283,30 @@ export default function ArtistStorePage() {
       await loadData()
     } finally {
       setIsImportingLegacy(false)
+    }
+  }
+
+  async function importArtistTracks() {
+    setIsImportingTracks(true)
+    try {
+      const response = await fetch("/api/marketplace/migrations/backfill-artist-music", buildNoStoreInit({
+        method: "POST",
+        body: JSON.stringify({
+          dryRun: false,
+          publishTracks: true,
+          defaultPrice: Number(listingForm.basePrice || 1.99),
+        }),
+      }))
+      const body = await response.json()
+      if (!response.ok) {
+        setSyncMessage(body.error || "Failed to import artist tracks")
+        return
+      }
+
+      setSyncMessage(`Imported ${body.data?.inserted || 0} artist tracks as listings`)
+      await loadData()
+    } finally {
+      setIsImportingTracks(false)
     }
   }
 
@@ -335,6 +388,22 @@ export default function ArtistStorePage() {
                     </div>
                   </div>
                 ) : null}
+                {musicBackfillPreview ? (
+                  <div className="rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-xs text-purple-100">
+                    Artist tracks: {musicBackfillPreview.totalTracks} total • {musicBackfillPreview.pendingTracks} pending listing
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isImportingTracks || musicBackfillPreview.pendingTracks === 0}
+                        onClick={importArtistTracks}
+                      >
+                        {isImportingTracks ? "Importing..." : "Import tracks to listings"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 <Input
                   value={listingForm.title}
                   onChange={event => setListingForm(current => ({ ...current, title: event.target.value }))}
@@ -370,7 +439,35 @@ export default function ArtistStorePage() {
                     placeholder="Price"
                   />
                 </div>
-                <Button onClick={createListing} disabled={isSavingListing || !listingForm.title.trim()} className="w-full">
+                <select
+                  className="h-10 rounded-md border border-slate-700 bg-slate-900 px-3 text-sm"
+                  value={listingForm.trackId}
+                  onChange={event => setListingForm(current => ({ ...current, trackId: event.target.value }))}
+                >
+                  <option value="">Select track</option>
+                  {tracks.map(track => (
+                    <option key={track.id} value={track.id}>
+                      {track.title}{track.genre ? ` (${track.genre})` : ""}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-2 text-xs text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={listingForm.rightsConfirmed}
+                    onChange={event => setListingForm(current => ({ ...current, rightsConfirmed: event.target.checked }))}
+                  />
+                  I confirm I own all rights to this track
+                </label>
+                <Button
+                  onClick={createListing}
+                  disabled={
+                    isSavingListing
+                    || !listingForm.title.trim()
+                    || (listingForm.category === "music" && (!listingForm.trackId || !listingForm.rightsConfirmed))
+                  }
+                  className="w-full"
+                >
                   <Plus className="mr-2 h-4 w-4" />
                   {isSavingListing ? "Saving..." : "Create listing"}
                 </Button>

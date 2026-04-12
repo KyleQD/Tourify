@@ -1,34 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { requireApiUser } from "@/lib/api/route-helpers"
+import {
+  hasReachedDownloadLimit,
+  resolveStorageTarget,
+  shouldRefreshSignedUrl,
+} from "@/lib/marketplace/entitlement-delivery"
 
 export const dynamic = "force-dynamic"
 
-function getStoragePathFromUrl(input: string | null): { bucket: string; path: string } | null {
-  if (!input) return null
+export async function GET(request: NextRequest, { params }: { params: Promise<{ orderItemId: string }> }) {
   try {
-    const url = new URL(input)
-    const pathParts = url.pathname.split("/").filter(Boolean)
-    const objectIndex = pathParts.findIndex(part => part === "object")
-    if (objectIndex === -1) return null
-    const maybeVisibility = pathParts[objectIndex + 1]
-    const bucketIndex = maybeVisibility === "public" || maybeVisibility === "sign" ? objectIndex + 2 : objectIndex + 1
-    const bucket = pathParts[bucketIndex]
-    const objectPath = pathParts.slice(bucketIndex + 1).join("/")
-    if (!bucket || !objectPath) return null
-    return { bucket, path: objectPath }
-  } catch {
-    return null
-  }
-}
-
-export async function GET(_: NextRequest, { params }: { params: Promise<{ orderItemId: string }> }) {
-  try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const { orderItemId } = await params
     const { data: item, error: itemError } = await supabase
@@ -57,20 +42,32 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ orderI
     if (!entitlement) return NextResponse.json({ error: "No entitlement available" }, { status: 404 })
 
     const now = Date.now()
-    const expiresAt = entitlement.signed_url_expires_at ? new Date(entitlement.signed_url_expires_at).getTime() : 0
-    const shouldRefreshSignedUrl = !entitlement.signed_url || !expiresAt || expiresAt <= now
-    const hasReachedDownloadLimit = entitlement.max_downloads > 0 && entitlement.download_count >= entitlement.max_downloads
-    if (hasReachedDownloadLimit) {
+    const shouldRefresh = shouldRefreshSignedUrl({
+      signedUrl: entitlement.signed_url,
+      signedUrlExpiresAt: entitlement.signed_url_expires_at,
+      nowMs: now,
+    })
+    const isAtDownloadLimit = hasReachedDownloadLimit({
+      maxDownloads: entitlement.max_downloads,
+      downloadCount: entitlement.download_count,
+    })
+    if (isAtDownloadLimit) {
       return NextResponse.json({ error: "Download limit reached for this entitlement" }, { status: 403 })
     }
 
     let refreshedSignedUrl = entitlement.signed_url || entitlement.asset_url || entitlement.watermarked_asset_url || ""
     let refreshedExpires = entitlement.signed_url_expires_at || null
-    if (shouldRefreshSignedUrl) {
-      const storageTarget =
-        entitlement.asset_bucket && entitlement.asset_path
-          ? { bucket: entitlement.asset_bucket, path: entitlement.asset_path }
-          : getStoragePathFromUrl(entitlement.asset_url || entitlement.watermarked_asset_url || null)
+    if (shouldRefresh) {
+      const storageTarget = resolveStorageTarget({
+        signedUrl: entitlement.signed_url,
+        signedUrlExpiresAt: entitlement.signed_url_expires_at,
+        maxDownloads: entitlement.max_downloads,
+        downloadCount: entitlement.download_count,
+        assetBucket: entitlement.asset_bucket,
+        assetPath: entitlement.asset_path,
+        assetUrl: entitlement.asset_url,
+        watermarkedAssetUrl: entitlement.watermarked_asset_url,
+      })
 
       if (storageTarget) {
         const { data: signedData, error: signedError } = await supabase.storage

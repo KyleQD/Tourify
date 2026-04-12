@@ -4,7 +4,7 @@ import { useLocalSearchParams } from "expo-router"
 import { claimConnectSession, confirmConnectSession, type ClaimConnectSessionResponse } from "@/lib/api/connect"
 import { sendConnectTelemetry } from "@/lib/api/connect-telemetry"
 import { ApiError } from "@/lib/api/client"
-import { extractConnectToken } from "@/lib/connect/connect-token"
+import { CONNECT_TOKEN_MIN_LENGTH, extractConnectToken } from "@/lib/connect/connect-token"
 
 export default function MobileConnectClaimScreen() {
   const params = useLocalSearchParams<{ token?: string }>()
@@ -15,7 +15,7 @@ export default function MobileConnectClaimScreen() {
   const [isConfirmPending, setIsConfirmPending] = useState(false)
 
   const normalizedToken = useMemo(() => extractConnectToken(tokenInput), [tokenInput])
-  const hasToken = useMemo(() => normalizedToken.length > 20, [normalizedToken])
+  const hasToken = useMemo(() => normalizedToken.length >= CONNECT_TOKEN_MIN_LENGTH, [normalizedToken])
 
   function handleClaimSession() {
     if (!hasToken) {
@@ -56,6 +56,10 @@ export default function MobileConnectClaimScreen() {
     void confirmConnectSession({
       connectSessionId: claimResult.connectSessionId,
       intent: "send_follow_request",
+      deviceContext: {
+        platform: "mobile",
+        source: "connect-claim-screen",
+      },
     })
       .then(() => {
         void sendConnectTelemetry({

@@ -1,0 +1,227 @@
+import Stripe from 'stripe'
+import { getFailedPaymentPatch, getPaidLifecycleTransition, getRefundPatch } from '@/lib/marketplace/order-lifecycle'
+
+export async function handleMarketplaceStripeEvent({
+  event,
+  supabase,
+}: {
+  event: Stripe.Event
+  supabase: any
+}) {
+  if (event.type === 'checkout.session.completed') {
+    await handleCheckoutSessionCompleted({
+      session: event.data.object as Stripe.Checkout.Session,
+      supabase,
+    })
+    return
+  }
+
+  if (event.type === 'payment_intent.payment_failed') {
+    await handlePaymentIntentFailed({
+      paymentIntent: event.data.object as Stripe.PaymentIntent,
+      supabase,
+    })
+    return
+  }
+
+  if (event.type === 'charge.refunded') {
+    await handleChargeRefunded({
+      charge: event.data.object as Stripe.Charge,
+      supabase,
+    })
+  }
+}
+
+async function handleCheckoutSessionCompleted({
+  session,
+  supabase,
+}: {
+  session: Stripe.Checkout.Session
+  supabase: any
+}) {
+  const orderId = session.metadata?.order_id
+  if (!orderId || session.payment_status !== 'paid') return
+
+  const paymentReference = (session.payment_intent as string) || session.id
+  const { data: existingOrder } = await supabase
+    .from('marketplace_orders')
+    .select('id, payment_status')
+    .eq('id', orderId)
+    .maybeSingle()
+
+  const transition = getPaidLifecycleTransition({
+    currentPaymentStatus: existingOrder?.payment_status,
+    paymentReference,
+  })
+  if (!transition.shouldApplyPaidTransition || !transition.orderPatch || !transition.payoutPatch) return
+
+  const { error: orderError } = await supabase
+    .from('marketplace_orders')
+    .update(transition.orderPatch)
+    .eq('id', orderId)
+
+  if (orderError) throw new Error('Order update failed')
+
+  await ensureDigitalEntitlements({
+    supabase,
+    orderId,
+    buyerUserId: session.metadata?.buyer_user_id || null,
+    sellerUserId: session.metadata?.seller_user_id || null,
+    amountTotal: session.amount_total || null,
+  })
+
+  await supabase
+    .from('marketplace_payout_ledger')
+    .update(transition.payoutPatch)
+    .eq('order_id', orderId)
+}
+
+async function ensureDigitalEntitlements({
+  supabase,
+  orderId,
+  buyerUserId,
+  sellerUserId,
+  amountTotal,
+}: {
+  supabase: any
+  orderId: string
+  buyerUserId: string | null
+  sellerUserId: string | null
+  amountTotal: number | null
+}) {
+  const { data: items } = await supabase
+    .from('marketplace_order_items')
+    .select('id, product_type, listing_id, music_track_id')
+    .eq('order_id', orderId)
+
+  const digitalItems = (items || []).filter((item: any) => item.product_type === 'digital_asset')
+  if (!digitalItems.length) return
+
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  for (const item of digitalItems) {
+    const { data: existingEntitlement } = await supabase
+      .from('marketplace_entitlements')
+      .select('id')
+      .eq('order_item_id', item.id)
+      .maybeSingle()
+
+    if (existingEntitlement) continue
+
+    const { data: itemWithMetadata } = await supabase
+      .from('marketplace_order_items')
+      .select('metadata')
+      .eq('id', item.id)
+      .maybeSingle()
+
+    const metadata =
+      itemWithMetadata?.metadata && typeof itemWithMetadata.metadata === 'object'
+        ? (itemWithMetadata.metadata as Record<string, unknown>)
+        : {}
+
+    const assetUrl = typeof metadata.assetUrl === 'string' ? metadata.assetUrl : ''
+    const watermarkedAssetUrl = typeof metadata.watermarkedAssetUrl === 'string' ? metadata.watermarkedAssetUrl : null
+    const assetBucket = typeof metadata.assetBucket === 'string' ? metadata.assetBucket : null
+    const assetPath = typeof metadata.assetPath === 'string' ? metadata.assetPath : null
+    const previewBucket = typeof metadata.previewBucket === 'string' ? metadata.previewBucket : null
+    const previewPath = typeof metadata.previewPath === 'string' ? metadata.previewPath : null
+
+    const { data: createdEntitlement, error: entitlementInsertError } = await supabase
+      .from('marketplace_entitlements')
+      .insert({
+        order_item_id: item.id,
+        buyer_user_id: buyerUserId,
+        listing_id: item.listing_id,
+        music_track_id: item.music_track_id,
+        asset_url: assetUrl,
+        watermarked_asset_url: watermarkedAssetUrl,
+        asset_bucket: assetBucket,
+        asset_path: assetPath,
+        preview_bucket: previewBucket,
+        preview_path: previewPath,
+        signed_url: assetUrl || null,
+        signed_url_expires_at: expiresAt,
+        max_downloads: 5,
+        status: 'active',
+      })
+      .select('id')
+      .single()
+
+    if (entitlementInsertError) continue
+
+    if (buyerUserId && item.music_track_id) {
+      await supabase.from('user_music_library').upsert(
+        {
+          buyer_user_id: buyerUserId,
+          order_item_id: item.id,
+          entitlement_id: createdEntitlement?.id || null,
+          listing_id: item.listing_id,
+          music_track_id: item.music_track_id,
+          seller_user_id: sellerUserId,
+          source: 'marketplace_purchase',
+        },
+        {
+          onConflict: 'buyer_user_id,music_track_id',
+        }
+      )
+    }
+  }
+
+  await supabase
+    .from('marketplace_order_items')
+    .update({ fulfillment_status: 'completed' })
+    .in(
+      'id',
+      digitalItems.map((item: any) => item.id)
+    )
+
+  if (sellerUserId) {
+    await supabase.from('achievement_progress_events').insert({
+      user_id: sellerUserId,
+      metric_key: 'marketplace_sales_total',
+      event_type: 'marketplace_order_paid',
+      event_value: 1,
+      event_source: 'api_marketplace_webhook',
+      event_data: {
+        order_id: orderId,
+        amount_total: amountTotal,
+      },
+    })
+  }
+}
+
+async function handlePaymentIntentFailed({
+  paymentIntent,
+  supabase,
+}: {
+  paymentIntent: Stripe.PaymentIntent
+  supabase: any
+}) {
+  const patch = getFailedPaymentPatch({ paymentReference: paymentIntent.id })
+  await supabase
+    .from('marketplace_orders')
+    .update(patch.orderPatch)
+    .eq('payment_reference', patch.orderPatch.payment_reference)
+  await supabase
+    .from('marketplace_payout_ledger')
+    .update(patch.payoutPatch)
+    .eq('payout_reference', patch.payoutPatch.payout_reference)
+}
+
+async function handleChargeRefunded({
+  charge,
+  supabase,
+}: {
+  charge: Stripe.Charge
+  supabase: any
+}) {
+  const paymentReference = charge.payment_intent as string
+  const patch = getRefundPatch({ paymentReference })
+  await supabase
+    .from('marketplace_orders')
+    .update(patch.orderPatch)
+    .eq('payment_reference', patch.orderPatch.payment_reference)
+  await supabase
+    .from('marketplace_payout_ledger')
+    .update(patch.payoutPatch)
+    .eq('payout_reference', patch.payoutPatch.payout_reference)
+}

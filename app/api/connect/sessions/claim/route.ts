@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { jsonError, readJson, requireApiUser } from '@/lib/api/route-helpers'
 import { hashConnectSessionToken, verifyConnectSessionToken } from '@/lib/connect/connect-session-token'
 import { logConnectTelemetryEvent } from '@/lib/connect/telemetry'
 
@@ -10,36 +10,14 @@ const claimSessionSchema = z.object({
   deviceContext: z.record(z.string(), z.unknown()).optional(),
 })
 
-interface ApiErrorShape {
-  error: {
-    code: string
-    message: string
-    retryable: boolean
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'unauthorized',
-          message: 'Authentication required',
-          retryable: false,
-        },
-      }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
 
-    const { user, supabase } = authResult
-    const parsedBody = claimSessionSchema.safeParse(await request.json())
-    if (!parsedBody.success)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'invalid_request',
-          message: 'Invalid connect claim payload',
-          retryable: false,
-        },
-      }, { status: 400 })
+    const { user, supabase } = authResult.auth
+    const parsedBody = await readJson(request, claimSessionSchema, 'invalid_request', 'Invalid connect claim payload')
+    if (!parsedBody.success) return parsedBody.response
 
     const verification = verifyConnectSessionToken(parsedBody.data.ephemeralToken)
     if (verification.errorCode || !verification.payload) {
@@ -52,23 +30,21 @@ export async function POST(request: NextRequest) {
         },
       })
 
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: verification.errorCode ?? 'invalid_token',
-          message: 'Invalid or expired connect token',
-          retryable: false,
-        },
-      }, { status: 400 })
+      return jsonError({
+        status: 400,
+        code: verification.errorCode ?? 'invalid_token',
+        message: 'Invalid or expired connect token',
+        retryable: false,
+      })
     }
 
     if (verification.payload.sharerUserId === user.id)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'cannot_claim_own_session',
-          message: 'Cannot claim your own connect session',
-          retryable: false,
-        },
-      }, { status: 400 })
+      return jsonError({
+        status: 400,
+        code: 'cannot_claim_own_session',
+        message: 'Cannot claim your own connect session',
+        retryable: false,
+      })
 
     const tokenHash = hashConnectSessionToken(parsedBody.data.ephemeralToken)
     const { data: session, error: sessionError } = await supabase
@@ -79,42 +55,38 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (sessionError || !session)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'session_not_found',
-          message: 'Connect session not found',
-          retryable: false,
-        },
-      }, { status: 404 })
+      return jsonError({
+        status: 404,
+        code: 'session_not_found',
+        message: 'Connect session not found',
+        retryable: false,
+      })
 
     if (new Date(session.expires_at).getTime() <= Date.now())
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'session_expired',
-          message: 'Connect session has expired',
-          retryable: false,
-        },
-      }, { status: 410 })
+      return jsonError({
+        status: 410,
+        code: 'session_expired',
+        message: 'Connect session has expired',
+        retryable: false,
+      })
 
     if (session.status === 'revoked')
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'session_revoked',
-          message: 'Connect session is no longer valid',
-          retryable: false,
-        },
-      }, { status: 410 })
+      return jsonError({
+        status: 410,
+        code: 'session_revoked',
+        message: 'Connect session is no longer valid',
+        retryable: false,
+      })
 
     const hasExistingClaim = Boolean(session.claimed_at && session.claimed_by_user_id)
     const isDifferentClaimer = session.claimed_by_user_id && session.claimed_by_user_id !== user.id
     if (session.one_time_claim && hasExistingClaim && isDifferentClaimer)
-      return NextResponse.json<ApiErrorShape>({
-        error: {
-          code: 'already_claimed',
-          message: 'Connect session was already claimed',
-          retryable: false,
-        },
-      }, { status: 409 })
+      return jsonError({
+        status: 409,
+        code: 'already_claimed',
+        message: 'Connect session was already claimed',
+        retryable: false,
+      })
 
     if (!session.claimed_by_user_id) {
       const { error: claimUpdateError } = await supabase
@@ -131,13 +103,12 @@ export async function POST(request: NextRequest) {
         .is('claimed_by_user_id', null)
 
       if (claimUpdateError)
-        return NextResponse.json<ApiErrorShape>({
-          error: {
-            code: 'claim_update_failed',
-            message: 'Failed to claim connect session',
-            retryable: true,
-          },
-        }, { status: 500 })
+        return jsonError({
+          status: 500,
+          code: 'claim_update_failed',
+          message: 'Failed to claim connect session',
+          retryable: true,
+        })
     }
 
     const relationshipStatus = await getRelationshipStatus({
@@ -164,13 +135,12 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('[Connect Sessions Claim API] POST error:', error)
-    return NextResponse.json<ApiErrorShape>({
-      error: {
-        code: 'internal_error',
-        message: 'Internal server error',
-        retryable: true,
-      },
-    }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: 'internal_error',
+      message: 'Internal server error',
+      retryable: true,
+    })
   }
 }
 

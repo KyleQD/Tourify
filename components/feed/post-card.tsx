@@ -157,6 +157,11 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
                 className="w-full h-auto max-h-96 object-cover"
                 controls
               />
+            ) : mediaItems[0].type === 'audio' || post.type === 'music' ? (
+              <div className="rounded-lg border border-slate-700/50 bg-slate-900/70 p-4">
+                <div className="mb-2 text-sm text-slate-300">Music preview</div>
+                <audio src={mediaItems[0].url} className="w-full" controls />
+              </div>
             ) : null}
           </div>
         ) : mediaItems.length === 2 ? (

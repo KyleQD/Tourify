@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { z } from "zod"
-import { createClient } from "@/lib/supabase/server"
+import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { calculateMarketplaceFeeBreakdown } from "@/lib/marketplace/fees"
 import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
+import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
+import { getMarketplaceStripe } from "@/lib/marketplace/stripe-server"
 
 const checkoutSchema = z.object({
   lines: z
@@ -20,23 +22,13 @@ const checkoutSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
-const getStripe = () => {
-  if (!process.env.STRIPE_SECRET_KEY) throw new Error("STRIPE_SECRET_KEY is not set")
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2024-12-18.acacia" as any,
-  })
-}
-
 export const dynamic = "force-dynamic"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
-    if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const authResult = await requireApiUser(request)
+    if (!authResult.success) return authResult.response
+    const { user, supabase } = authResult.auth
 
     const payload = checkoutSchema.parse(await request.json())
     const listingIds = payload.lines.map(line => line.listingId)
@@ -47,6 +39,9 @@ export async function POST(request: NextRequest) {
       .in("id", listingIds)
 
     if (listingsError || !listings?.length) {
+      if (isSchemaCacheMissingError(listingsError)) {
+        return NextResponse.json({ error: getSchemaNotReadyMessage({ feature: "Marketplace checkout" }) }, { status: 503 })
+      }
       console.error("Failed to fetch checkout listings", listingsError)
       return NextResponse.json({ error: "Unable to load items for checkout" }, { status: 400 })
     }
@@ -183,7 +178,7 @@ export async function POST(request: NextRequest) {
 
     let session: Stripe.Checkout.Session
     try {
-      const stripe = getStripe()
+      const stripe = getMarketplaceStripe()
       session = await stripe.checkout.sessions.create({
         payment_method_types: ["card", "us_bank_account"],
         payment_method_options: {
@@ -242,10 +237,14 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid checkout payload", issues: error.issues }, { status: 400 })
-    }
+    const zodError = fromZodError(error, "Invalid checkout payload")
+    if (zodError) return zodError
     console.error("Unexpected marketplace checkout error", error)
-    return NextResponse.json({ error: "Unexpected checkout error" }, { status: 500 })
+    return jsonError({
+      status: 500,
+      code: "internal_error",
+      message: "Unexpected checkout error",
+      retryable: true,
+    })
   }
 }

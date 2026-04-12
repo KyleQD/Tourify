@@ -27,16 +27,13 @@ function parseAuthFromRequestCookies(request: NextRequest): any | null {
     
     if (!authCookie) {
       // Fallback to old patterns for existing users
-      const fallbackCookie = cookieArray.find(cookie => 
+      const fallbackCookie = cookieArray.find(cookie =>
         (cookie.includes('sb-') && 
          cookie.includes('auth-token') && 
          !cookie.includes('code-verifier') &&
          !cookie.includes('refresh') &&
          cookie.split('=')[1]?.length > 100) ||
-        (cookie.startsWith('sb-') && 
-         cookie.includes('auqddrodjezjlypkzfpi') &&
-         !cookie.includes('code-verifier') &&
-         cookie.split('=')[1]?.length > 100)
+        isSupabaseProjectCookie(cookie)
       )
       
       if (fallbackCookie) {
@@ -51,6 +48,31 @@ function parseAuthFromRequestCookies(request: NextRequest): any | null {
     
     return tryParseCookieValue(cookieValue)
   } catch (error) {
+    return null
+  }
+}
+
+function isSupabaseProjectCookie(cookie: string) {
+  if (!cookie.startsWith('sb-')) return false
+  if (cookie.includes('code-verifier')) return false
+  if (cookie.split('=')[1]?.length <= 100) return false
+
+  const projectRef = resolveSupabaseProjectRef()
+  if (!projectRef) return false
+  return cookie.includes(projectRef)
+}
+
+function resolveSupabaseProjectRef() {
+  const fromEnv = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF
+  if (fromEnv) return fromEnv
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  if (!supabaseUrl) return null
+
+  try {
+    const host = new URL(supabaseUrl).host
+    return host.split('.')[0] || null
+  } catch {
     return null
   }
 }
