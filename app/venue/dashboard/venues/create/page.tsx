@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingSpinner } from "../../../components/loading-spinner"
 import { ArrowLeft, Save, Upload, Plus, Music, Wifi, ParkingMeter, Accessibility, Coffee } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function CreateVenuePage() {
   const router = useRouter()
@@ -178,7 +179,7 @@ export default function CreateVenuePage() {
 
         <CardContent>
           <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-gray-800 mb-6">
+            <TabsList className={`mb-6 ${venueDashboardTabListClass}`}>
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="specs">Venue Specs</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>

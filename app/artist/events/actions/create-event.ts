@@ -1,10 +1,10 @@
 "use server"
 
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function createEvent(userId: string, data: any) {
-  const supabase = createClient()
+  const supabase = await createClient()
   // Generate unique slug from title
   const base = (data.title || data.name || 'event')
     .toString()

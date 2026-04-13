@@ -51,20 +51,20 @@ export default function EventHeader({ event }: EventHeaderProps) {
 
   return (
     <>
-      <div className="flex flex-col md:flex-row justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{event.title}</h1>
-          <div className="flex items-center gap-2 text-muted-foreground mt-1">
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold break-words">{event.title}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
             <CalendarIcon className="h-4 w-4" />
             <span>{format(new Date(event.date), "EEEE, MMMM d, yyyy")}</span>
-            <Clock className="h-4 w-4 ml-2" />
+            <Clock className="h-4 w-4 shrink-0" />
             <span>
               {event.startTime} - {event.endTime}
             </span>
           </div>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
           <Button variant="outline" onClick={() => setShowEditModal(true)}>
             <Edit2Icon className="h-4 w-4 mr-2" />
             Edit

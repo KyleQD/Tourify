@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { OptimizedNotificationService, OptimizedNotification, NotificationPreferences, NotificationMetrics } from '@/lib/services/optimized-notification-service'
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { useToast } from '@/hooks/use-toast'
 import type { RealtimeChannel } from '@supabase/supabase-js'
-
-const supabase = createClient()
 
 interface UseOptimizedNotificationsOptions {
   userId?: string

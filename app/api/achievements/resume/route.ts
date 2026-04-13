@@ -1,6 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { getResumeAchievements, upsertResumeHighlight } from '@/lib/services/resume-achievement.service'
 
@@ -17,7 +16,7 @@ const createHighlightSchema = z.object({
 
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,
@@ -41,7 +40,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const {
       data: { user },
       error: authError,

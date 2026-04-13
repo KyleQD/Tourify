@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { ChevronRight, Home } from "lucide-react"
-import { Button } from "@/components/ui/button"
 
 interface BreadcrumbItem {
   label: string
@@ -17,26 +16,28 @@ export function Breadcrumbs() {
   const generateBreadcrumbs = (): BreadcrumbItem[] => {
     const segments = pathname.split('/').filter(Boolean)
     const breadcrumbs: BreadcrumbItem[] = [
-      { label: 'Home', href: '/admin/dashboard' }
+      { label: 'Home', href: '/admin/dashboard' },
     ]
+
+    if (segments[0] !== 'admin') return breadcrumbs
 
     let currentPath = ''
     segments.forEach((segment, index) => {
       currentPath += `/${segment}`
-      
-      // Skip the first segment (admin) and second segment (dashboard)
-      if (index >= 2) {
-        const label = segment
-          .split('-')
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-          .join(' ')
-        
-        breadcrumbs.push({
-          label,
-          href: currentPath,
-          isCurrent: index === segments.length - 1
-        })
-      }
+      if (index === 0) return
+      // Hide a redundant "Dashboard" crumb; keep real sections (e.g. Applications, Settings)
+      if (index === 1 && segment === 'dashboard') return
+
+      const label = segment
+        .split('-')
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ')
+
+      breadcrumbs.push({
+        label,
+        href: currentPath,
+        isCurrent: index === segments.length - 1,
+      })
     })
 
     return breadcrumbs

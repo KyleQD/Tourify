@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { 
   Building, 
   MapPin, 
@@ -210,7 +209,6 @@ type PaymentSettingsFormData = z.infer<typeof paymentSettingsSchema>
 
 export function VenueAccountSettings({ activeTab }: VenueAccountSettingsProps) {
   const { currentAccount } = useMultiAccount()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [venueProfile, setVenueProfile] = useState<any>(null)
 

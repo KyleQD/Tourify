@@ -1,5 +1,6 @@
 'use client'
 
+import { supabase } from '@/lib/supabase/client'
 import React, { useState, useEffect } from 'react'
 import { useEnhancedAccounts } from '@/hooks/use-enhanced-accounts'
 import { useCrossPlatformPosting, useContentSuggestions } from '@/hooks/use-cross-platform-posting'
@@ -32,7 +33,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import type { Database } from '@/types/supabase'
 
 interface CrossPlatformComposerProps {
@@ -73,7 +73,6 @@ export function CrossPlatformComposer({
   const [newHashtag, setNewHashtag] = useState('')
   const [activeTab, setActiveTab] = useState('compose')
   const [isUploading, setIsUploading] = useState(false)
-  const supabase = createClientComponentClient<Database>()
   const [platformOverrides, setPlatformOverrides] = useState<Record<string, string>>({})
   const [targetPlatforms, setTargetPlatforms] = useState<string[]>(['instagram','facebook','youtube','tiktok'])
   const platformLimits: Record<string, number> = { twitter: 280, instagram: 2200, facebook: 63206, youtube: 5000, tiktok: 2200 }

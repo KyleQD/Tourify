@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 type EventTableName = 'artist_events' | 'events' | 'events_v2'
 
 export class EventPageService {
   private static instance: EventPageService
-  private supabase = createClient()
+  private supabase = createServiceRoleClient()
 
   static getInstance(): EventPageService {
     if (!EventPageService.instance) {

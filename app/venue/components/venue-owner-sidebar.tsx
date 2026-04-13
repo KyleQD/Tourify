@@ -55,6 +55,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 interface VenueOwnerSidebarProps {
   venue: any
+  /** Dashboard stats from `get_venue_dashboard_stats`; avoids placeholder trend copy when present */
+  dashboardStats?: {
+    totalBookings?: number
+    pendingRequests?: number
+    thisMonthRevenue?: number
+    averageRating?: number
+    totalReviews?: number
+    teamMembers?: number
+    upcomingEvents?: number
+  } | null
   isOpen: boolean
   onClose: () => void
   onTabChange: (tab: string) => void
@@ -64,7 +74,25 @@ interface VenueOwnerSidebarProps {
   onStatsClick?: (statType: 'events' | 'rating' | 'capacity') => void
 }
 
-export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeTab, onEditProfile, onViewPublicProfile, onStatsClick }: VenueOwnerSidebarProps) {
+function formatMembershipYear(venueLike: { created_at?: string; createdAt?: string }): string | null {
+  const raw = venueLike.created_at ?? venueLike.createdAt
+  if (!raw) return null
+  const y = new Date(raw).getFullYear()
+  if (!Number.isFinite(y)) return null
+  return String(y)
+}
+
+export function VenueOwnerSidebar({
+  venue,
+  dashboardStats,
+  isOpen,
+  onClose,
+  onTabChange,
+  activeTab,
+  onEditProfile,
+  onViewPublicProfile,
+  onStatsClick,
+}: VenueOwnerSidebarProps) {
   const [notifications, setNotifications] = useState(3)
   const [expandedSections, setExpandedSections] = useState<string[]>(["main"])
 
@@ -111,6 +139,14 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
   ]
 
   const isItemActive = (itemId: string) => activeTab === itemId
+
+  const membershipYear = formatMembershipYear(venue)
+  const eventsCount = dashboardStats?.totalBookings ?? venue.stats?.events ?? 0
+  const ratingValue = dashboardStats?.averageRating ?? venue.stats?.rating ?? 0
+  const ratingDisplay = typeof ratingValue === "number" && Number.isFinite(ratingValue) ? ratingValue.toFixed(1) : "0.0"
+  const reviewsCount = dashboardStats?.totalReviews ?? 0
+  const upcomingEvents = dashboardStats?.upcomingEvents ?? 0
+  const capacityMax = venue.capacity ?? venue.stats?.capacity ?? null
 
   const renderMenuSection = (
     title: string,
@@ -211,13 +247,15 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
   return (
     <>
       {/* Mobile overlay */}
-      {isOpen && <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onClose} />}
+      {isOpen && (
+        <div className="fixed inset-x-0 bottom-0 top-16 bg-black/50 z-40 md:hidden" onClick={onClose} />
+      )}
 
-      {/* Sidebar */}
+      {/* Sidebar — mobile sheet clears global Nav; desktop stays sticky under Nav */}
       <div
-        className={`fixed top-0 left-0 h-full bg-gray-900 border-r border-gray-800 w-72 z-50 transition-transform duration-300 ease-in-out overflow-y-auto ${
+        className={`fixed left-0 top-16 z-50 h-[calc(100vh-4rem)] w-72 overflow-y-auto border-r border-gray-800 bg-gray-900 transition-transform duration-300 ease-in-out ${
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
-        } md:sticky md:top-16 md:h-[calc(100vh-4rem)] md:z-10 md:overflow-visible md:self-start`}
+        } md:sticky md:top-16 md:z-10 md:h-[calc(100vh-4rem)] md:overflow-visible md:self-start`}
       >
         {/* Close button (mobile only) */}
         <button className="absolute top-4 right-4 md:hidden text-gray-400 hover:text-white z-10" onClick={onClose}>
@@ -256,11 +294,13 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
                 <span className="truncate">{venue.location}</span>
               </div>
               {/* Additional venue info */}
-              <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                <span>@{venue.username}</span>
-                <span>•</span>
-                <span>Since {new Date(venue.createdAt).getFullYear()}</span>
-              </div>
+              {(venue.username || membershipYear) && (
+                <div className="flex items-center gap-2 mt-1 text-xs text-gray-500 min-w-0">
+                  {venue.username ? <span className="truncate">@{venue.username}</span> : null}
+                  {venue.username && membershipYear ? <span className="shrink-0">•</span> : null}
+                  {membershipYear ? <span className="shrink-0">Since {membershipYear}</span> : null}
+                </div>
+              )}
             </div>
           </div>
           
@@ -275,12 +315,11 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
                title="Click to view detailed event analytics"
              >
                <div className="text-xs font-semibold text-white group-hover/stat:text-purple-300 transition-colors">
-                 {venue.stats?.events?.toLocaleString() || 0}
+                 {eventsCount.toLocaleString()}
                </div>
                <div className="text-xs text-gray-400">Events</div>
-               {/* Growth indicator for events */}
-               <div className="text-xs text-green-400 mt-0.5">
-                 +12% this month
+               <div className="text-xs text-gray-500 mt-0.5 leading-tight">
+                 {upcomingEvents > 0 ? `${upcomingEvents} upcoming` : "No upcoming"}
                </div>
              </div>
              <div 
@@ -293,14 +332,13 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
              >
                <div className="flex items-center justify-center gap-1">
                  <span className="text-xs font-semibold text-white group-hover/stat:text-purple-300 transition-colors">
-                   {venue.stats?.rating || 0}
+                   {ratingDisplay}
                  </span>
-                 <Star className="h-3 w-3 text-yellow-400 fill-current" />
+                 <Star className="h-3 w-3 text-yellow-400 fill-current shrink-0" />
                </div>
                <div className="text-xs text-gray-400">Rating</div>
-               {/* Rating change indicator */}
-               <div className="text-xs text-green-400 mt-0.5">
-                 +0.2 this month
+               <div className="text-xs text-gray-500 mt-0.5 leading-tight">
+                 {reviewsCount > 0 ? `${reviewsCount} review${reviewsCount === 1 ? "" : "s"}` : "No reviews yet"}
                </div>
              </div>
              <div 
@@ -312,18 +350,17 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
                title="Click to view capacity utilization details"
              >
                <div className="text-xs font-semibold text-white group-hover/stat:text-purple-300 transition-colors">
-                 {venue.stats?.capacity?.toLocaleString() || 0}
+                 {capacityMax != null ? Number(capacityMax).toLocaleString() : "—"}
                </div>
                <div className="text-xs text-gray-400">Capacity</div>
-               {/* Utilization indicator */}
-               <div className="text-xs text-blue-400 mt-0.5">
-                 85% utilized
+               <div className="text-xs text-gray-500 mt-0.5 leading-tight">
+                 {capacityMax != null ? "Max guests" : "Not set"}
                </div>
              </div>
            </div>
 
-          {/* Quick action buttons */}
-          <div className="flex gap-2 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Quick action buttons — always visible on touch; hover-reveal on desktop only */}
+          <div className="flex gap-2 mt-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             <Button 
               size="sm" 
               variant="outline" 
@@ -348,15 +385,21 @@ export function VenueOwnerSidebar({ venue, isOpen, onClose, onTabChange, activeT
             </Button>
           </div>
 
-          {/* Performance indicators */}
-          <div className="mt-3 pt-3 border-t border-gray-700 opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-400">This Month</span>
-              <span className="text-green-400 font-medium">↗ +18 bookings</span>
+          {/* Performance indicators — factual only */}
+          <div className="mt-3 pt-3 border-t border-gray-700 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            <div className="flex justify-between text-xs gap-2 min-w-0">
+              <span className="text-gray-400 shrink-0">Pending requests</span>
+              <span className="text-amber-400 font-medium tabular-nums truncate">
+                {dashboardStats?.pendingRequests ?? "—"}
+              </span>
             </div>
-            <div className="flex justify-between text-xs mt-1">
-              <span className="text-gray-400">Revenue</span>
-              <span className="text-green-400 font-medium">+$12.5k</span>
+            <div className="flex justify-between text-xs mt-1 gap-2 min-w-0">
+              <span className="text-gray-400 shrink-0">Revenue (month)</span>
+              <span className="text-green-400 font-medium tabular-nums truncate">
+                {dashboardStats?.thisMonthRevenue != null
+                  ? `$${Number(dashboardStats.thisMonthRevenue).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
+                  : "—"}
+              </span>
             </div>
           </div>
         </div>

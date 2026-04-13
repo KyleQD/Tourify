@@ -354,14 +354,14 @@ export default function VenueOverviewPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Venue Overview</h1>
-          <p className="text-muted-foreground">
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-3xl font-bold tracking-tight break-words">Venue Overview</h1>
+          <p className="text-muted-foreground break-words">
             Complete management dashboard for {venue.venue_name || venue.name}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>

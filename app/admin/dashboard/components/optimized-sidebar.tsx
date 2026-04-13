@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -48,6 +48,23 @@ import {
   Settings as SettingsIcon,
 } from "lucide-react"
 
+function doesNavHrefMatchLocation(
+  pathname: string,
+  searchParams: URLSearchParams,
+  href: string,
+) {
+  const q = href.indexOf('?')
+  const path = q === -1 ? href : href.slice(0, q)
+  const query = q === -1 ? '' : href.slice(q + 1)
+  if (pathname !== path) return false
+  if (!query) return true
+  const expected = new URLSearchParams(query)
+  for (const [key, value] of expected.entries()) {
+    if (searchParams.get(key) !== value) return false
+  }
+  return true
+}
+
 interface NavItem {
   label: string
   href: string
@@ -65,6 +82,7 @@ interface NavItem {
 
 export function OptimizedSidebar() {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { currentAccount } = useMultiAccount()
   const [expandedItems, setExpandedItems] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState("")
@@ -293,7 +311,9 @@ export function OptimizedSidebar() {
       <div className="flex-1 overflow-y-auto px-3 pb-3">
         <nav className="space-y-1">
           {filteredNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+            const isActive =
+              doesNavHrefMatchLocation(pathname, searchParams, item.href) ||
+              pathname.startsWith(item.href.split('?')[0] + '/')
             const isExpanded = expandedItems.includes(item.href)
             const hasChildren = item.children && item.children.length > 0
 
@@ -373,7 +393,11 @@ export function OptimizedSidebar() {
                       className="ml-3 mt-1 space-y-0.5"
                     >
                       {item.children?.map((child) => {
-                        const isChildActive = pathname === child.href
+                        const isChildActive = doesNavHrefMatchLocation(
+                          pathname,
+                          searchParams,
+                          child.href,
+                        )
                         return (
                           <Link
                             key={child.href}

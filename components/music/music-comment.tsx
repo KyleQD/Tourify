@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
 import { toast } from 'sonner'
 import { 
@@ -49,8 +48,6 @@ interface MusicCommentProps {
 
 export function MusicComment({ musicId, parentCommentId, showReplies = true }: MusicCommentProps) {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
-  
   const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
   const [replyText, setReplyText] = useState('')

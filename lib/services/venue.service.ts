@@ -35,6 +35,25 @@ class VenueService {
     this.cache.set(this.getCacheKey(key), { data, timestamp: Date.now() })
   }
 
+  /** Legacy `events` row shapes differ by migration (`date`, `event_date`, `start_date`). */
+  private async countLegacyUpcomingVenueEvents(venueId: string, nowIso: string): Promise<number> {
+    const today = nowIso.slice(0, 10)
+    const attempts: { column: string; value: string }[] = [
+      { column: "date", value: nowIso },
+      { column: "event_date", value: today },
+      { column: "start_date", value: nowIso },
+    ]
+    for (const { column, value } of attempts) {
+      const { count, error } = await this.supabase
+        .from("events")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", venueId)
+        .gte(column, value)
+      if (!error) return count ?? 0
+    }
+    return 0
+  }
+
   // =============================================================================
   // VENUE PROFILE METHODS
   // =============================================================================
@@ -235,38 +254,34 @@ class VenueService {
 
       // Fallback stats from direct tables when RPC is unavailable
       const nowIso = new Date().toISOString()
-      const [approvedBookings, pendingRequests, reviewStats, teamMembers, eventsV2Count, legacyEventsCount] =
-        await Promise.all([
-          this.supabase
-            .from('venue_booking_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('venue_id', venueId)
-            .eq('status', 'approved'),
-          this.supabase
-            .from('venue_booking_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('venue_id', venueId)
-            .eq('status', 'pending'),
-          this.supabase
-            .from('venue_reviews')
-            .select('rating')
-            .eq('venue_id', venueId),
-          this.supabase
-            .from('venue_team_members')
-            .select('id', { count: 'exact', head: true })
-            .eq('venue_id', venueId)
-            .eq('status', 'active'),
-          this.supabase
-            .from('events_v2')
-            .select('id', { count: 'exact', head: true })
-            .eq('venue_id', venueId)
-            .gte('start_at', nowIso),
-          this.supabase
-            .from('events')
-            .select('id', { count: 'exact', head: true })
-            .eq('venue_id', venueId)
-            .gte('start_date', nowIso),
-        ])
+      const [approvedBookings, pendingRequests, reviewStats, teamMembers, eventsV2Count] = await Promise.all([
+        this.supabase
+          .from('venue_booking_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('venue_id', venueId)
+          .eq('status', 'approved'),
+        this.supabase
+          .from('venue_booking_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('venue_id', venueId)
+          .eq('status', 'pending'),
+        this.supabase
+          .from('venue_reviews')
+          .select('rating')
+          .eq('venue_id', venueId),
+        this.supabase
+          .from('venue_team_members')
+          .select('id', { count: 'exact', head: true })
+          .eq('venue_id', venueId)
+          .eq('status', 'active'),
+        this.supabase
+          .from('events_v2')
+          .select('id', { count: 'exact', head: true })
+          .eq('venue_id', venueId)
+          .gte('start_at', nowIso),
+      ])
+
+      const legacyEventsCount = await this.countLegacyUpcomingVenueEvents(venueId, nowIso)
 
       const ratings = reviewStats.data || []
       const averageRating =
@@ -281,7 +296,7 @@ class VenueService {
         averageRating,
         totalReviews: ratings.length,
         teamMembers: teamMembers.count || 0,
-        upcomingEvents: (eventsV2Count.count || 0) + (legacyEventsCount.count || 0),
+        upcomingEvents: (eventsV2Count.error ? 0 : eventsV2Count.count || 0) + legacyEventsCount,
       }
 
       this.setCache(`stats_${venueId}`, fallbackStats)

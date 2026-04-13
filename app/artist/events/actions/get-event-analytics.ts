@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 
 interface EventAnalytics {
   event: {
@@ -27,7 +27,7 @@ interface EventAnalytics {
 }
 
 export async function getEventAnalytics(userId: string, eventId: string): Promise<EventAnalytics> {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Fetch event details
   const { data: event, error: eventError } = await supabase

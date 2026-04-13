@@ -1,6 +1,4 @@
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
 export interface ProfileColors {
   primary_color: string
   secondary_color: string
@@ -29,8 +27,6 @@ export function useProfileColors(profileId: string) {
   const [colors, setColors] = useState<ProfileColors>(defaultColors)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const supabase = createClientComponentClient()
-
   // Load colors from database
   const loadColors = async () => {
     try {

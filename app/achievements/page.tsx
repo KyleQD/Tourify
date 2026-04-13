@@ -1,7 +1,7 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useCallback, useEffect, useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -59,9 +59,6 @@ export default function AchievementsPage() {
   const [endorsementStats, setEndorsementStats] = useState<EndorsementStats | null>(null)
   const [resumePayload, setResumePayload] = useState<ResumeAchievementsPayload | null>(null)
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
-
-  const supabase = createClientComponentClient()
-
   const loadCurrentUser = useCallback(async () => {
     try {
       setLoading(true)

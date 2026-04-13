@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { 
   Achievement, 
   UserAchievement, 
@@ -30,7 +30,7 @@ type ProfileStub = {
 }
 
 export class AchievementService {
-  private supabase = createClientComponentClient()
+  private readonly supabase = supabase
 
   /** Batch-fetch profiles without PostgREST embeds (avoids PGRST200 when FK names differ). */
   private async fetchProfilesMap(ids: string[]): Promise<Record<string, ProfileStub>> {

@@ -13,7 +13,8 @@ export function AppShell({ children }: AppShellProps) {
       {/* Global navigation is now a separate component */}
       <GlobalNavigation />
 
-      <main className="flex-1 pt-16 pb-16 md:pb-0 md:pl-64">{children}</main>
+      {/* pt-16: clear root layout Nav (h-16). No md:pl-64: MainSidebar is hidden for /venue/* in GlobalNavigation, so extra inset was empty gutter. */}
+      <main className="flex-1 pt-16 pb-16 md:pb-0">{children}</main>
     </div>
   )
 }

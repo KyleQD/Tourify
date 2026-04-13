@@ -1,8 +1,8 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { achievementService } from './achievement.service'
 
 export class AchievementTriggerService {
-  private supabase = createClientComponentClient()
+  private readonly supabase = supabase
 
   private async recordMetric(args: {
     metricKey: string

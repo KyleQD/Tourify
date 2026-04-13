@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
+import { parseUserFromCookieNameValueList } from '@/lib/supabase/tourify-session-cookie'
 
 export interface AuthResult {
   user: any
@@ -14,93 +15,11 @@ export interface AuthError {
   status: number
 }
 
-// Helper function to manually parse auth session from cookies (API route version)
 async function parseAuthFromApiCookies() {
   try {
     const cookieStore = await cookies()
-    const allCookies = cookieStore.getAll()
-    
-    // Look for the main auth cookie
-    const authCookie = allCookies.find(cookie => 
-      cookie.name === 'sb-tourify-auth-token'
-    )
-    
-    if (!authCookie) {
-      // Fallback to old patterns for existing users
-      const fallbackCookie = allCookies.find(cookie => 
-        (cookie.name.includes('sb-') && 
-         cookie.name.includes('auth-token') && 
-         !cookie.name.includes('code-verifier') &&
-         !cookie.name.includes('refresh') &&
-         cookie.value.length > 100) ||
-        isSupabaseProjectCookie(cookie.name, cookie.value)
-      )
-      
-      if (fallbackCookie) {
-        return tryParseCookieValue(fallbackCookie.value)
-      }
-      
-      return null
-    }
-    
-    return tryParseCookieValue(authCookie.value)
-  } catch (error) {
-    return null
-  }
-}
-
-function isSupabaseProjectCookie(cookieName: string, cookieValue: string) {
-  if (!cookieName.startsWith('sb-')) return false
-  if (cookieName.includes('code-verifier')) return false
-  if (cookieValue.length <= 100) return false
-
-  const projectRef = resolveSupabaseProjectRef()
-  if (!projectRef) return false
-  return cookieName.includes(projectRef)
-}
-
-function resolveSupabaseProjectRef() {
-  const fromEnv = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF
-  if (fromEnv) return fromEnv
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) return null
-
-  try {
-    const host = new URL(supabaseUrl).host
-    return host.split('.')[0] || null
+    return parseUserFromCookieNameValueList(cookieStore.getAll())
   } catch {
-    return null
-  }
-}
-
-function tryParseCookieValue(cookieValue: string) {
-  try {
-    // Try to parse the session data
-    const sessionData = JSON.parse(decodeURIComponent(cookieValue))
-    
-    if (sessionData && sessionData.access_token && sessionData.user) {
-      // Check if token is expired
-      const now = Math.floor(Date.now() / 1000)
-      if (sessionData.expires_at && sessionData.expires_at > now) {
-        return sessionData.user
-      } else {
-        return null
-      }
-    } else {
-      return null
-    }
-  } catch (parseError) {
-    // Try parsing without URL decoding
-    try {
-      const sessionData2 = JSON.parse(cookieValue)
-      if (sessionData2 && sessionData2.access_token && sessionData2.user) {
-        return sessionData2.user
-      }
-    } catch (parseError2) {
-      // ignore
-    }
-    
     return null
   }
 }

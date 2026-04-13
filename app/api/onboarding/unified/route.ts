@@ -1,11 +1,9 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
 import { UnifiedOnboardingService } from "@/lib/services/unified-onboarding.service"
 import { z } from "zod"
 
-const supabase = createRouteHandlerClient({ cookies })
-
+const supabase = await createClient()
 // Validation schemas
 const getFlowSchema = z.object({
   flow_type: z.enum(['artist', 'venue', 'staff', 'invitation'])

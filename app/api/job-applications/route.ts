@@ -1,16 +1,14 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/client'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
 
 /** List current user's staffing job applications (public board / job_posting_templates flow). */
 export async function GET(request: NextRequest) {
   try {
-    const supabaseAuth = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const {
       data: { user },
-    } = await supabaseAuth.auth.getUser()
+    } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
@@ -19,7 +17,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(Number(searchParams.get('limit')) || 50, 100)
 
-    const { data, error } = await supabaseAuth
+    const { data, error } = await supabase
       .from('job_applications')
       .select(
         `
@@ -51,8 +49,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabaseAuth = createRouteHandlerClient({ cookies })
-    const { data: { user } } = await supabaseAuth.auth.getUser()
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json(
@@ -155,7 +153,7 @@ export async function POST(request: NextRequest) {
     await supabase.rpc('increment_applications_count', { p_job_id: job_posting_id })
 
     await recordAchievementMetricEvent({
-      supabase: supabaseAuth,
+      supabase,
       userId: user.id,
       metricKey: 'jobs_applied_total',
       eventType: 'job_application_submitted',

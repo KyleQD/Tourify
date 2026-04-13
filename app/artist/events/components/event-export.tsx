@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -53,8 +52,6 @@ interface ExportOptions {
 
 export default function EventExport() {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [isOpen, setIsOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [options, setOptions] = useState<ExportOptions>({

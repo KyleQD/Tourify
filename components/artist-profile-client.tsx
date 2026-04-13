@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-
 interface ArtistProfile {
   id: string
   user_id: string
@@ -23,7 +21,6 @@ interface ArtistProfile {
 
 export default function ArtistProfileClient() {
   const params = useParams()
-  const supabase = createClientComponentClient()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<ArtistProfile | null>(null)

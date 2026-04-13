@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 
 export type MediaType = 'image' | 'video' | 'audio' | 'document' | 'embedded'
@@ -197,8 +197,6 @@ export async function createThumbnail(file: File, type: MediaType): Promise<stri
 
 export async function uploadMediaFiles(options: UploadOptions): Promise<UploadResult> {
   const { userId, mediaFiles, onProgress, onFileProgress } = options
-  const supabase = createClientComponentClient<Database>()
-
   try {
     const results = []
     let totalProgress = 0

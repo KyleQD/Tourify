@@ -10,6 +10,7 @@ import { MusicLibrary } from "../../components/music/music-library"
 import { MusicAnalytics } from "../../components/music/music-analytics"
 import { MusicPromotionTools } from "../../components/music/music-promotion-tools"
 import { Plus, Music, BarChart3, Share2 } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function MusicPage() {
   const [activeTab, setActiveTab] = useState("library")
@@ -41,7 +42,7 @@ export default function MusicPage() {
       </div>
 
       <Tabs defaultValue={activeTab} value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="library" className="flex items-center">
             <Music className="h-4 w-4 mr-2" />
             My Music

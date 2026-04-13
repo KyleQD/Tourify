@@ -164,23 +164,6 @@ export const supabase: SupabaseClient<Database> = new Proxy({} as SupabaseClient
   },
 })
 
-// Server-side client for API routes
-export function createServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase server environment variables')
-  }
-
-  return _createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  })
-}
-
 export async function checkSession() {
   const { data: { session }, error } = await supabase.auth.getSession()
   if (error) throw new Error(`Session check failed: ${error.message}`)

@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
@@ -73,7 +73,7 @@ export interface HashtagGroup {
 }
 
 export class CrossPlatformPostingService {
-  private supabase = createClientComponentClient<Database>()
+  private readonly supabase = supabase
 
   /**
    * Create a cross-platform post to multiple accounts

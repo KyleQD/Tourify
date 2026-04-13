@@ -256,25 +256,25 @@ export default function EventManagementDashboard() {
   return (
     <div className="min-h-screen bg-gray-950">
       {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-800 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => router.push("/venue")}>
+      <div className="border-b border-gray-800 bg-gray-900 px-4 py-4 sm:px-6">
+        <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+            <Button variant="ghost" size="sm" className="shrink-0 self-start" onClick={() => router.push("/venue")}>
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Dashboard
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                {event.title}
-                <Badge variant={event.status === "confirmed" ? "default" : event.status === "pending" ? "secondary" : "destructive"}>
+            <div className="min-w-0">
+              <h1 className="flex flex-wrap items-center gap-3 text-2xl font-bold text-white">
+                <span className="break-words">{event.title}</span>
+                <Badge className="shrink-0" variant={event.status === "confirmed" ? "default" : event.status === "pending" ? "secondary" : "destructive"}>
                   {event.status}
                 </Badge>
               </h1>
-              <p className="text-gray-400 text-sm">{event.type} • {event.venue} • {formatSafeDate(event.date.toISOString())}</p>
+              <p className="text-sm text-gray-400 break-words">{event.type} • {event.venue} • {formatSafeDate(event.date.toISOString())}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
             {isEditing ? (
               <>
                 <Button variant="outline" onClick={handleCancelEdit}>

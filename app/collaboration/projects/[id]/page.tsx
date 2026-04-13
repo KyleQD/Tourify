@@ -1,6 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
-import { cookies } from 'next/headers'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import ProjectWorkspaceDashboard from '@/components/collaboration/project-workspace-dashboard'
 
 export default async function ProjectWorkspacePage({
@@ -9,8 +8,7 @@ export default async function ProjectWorkspacePage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = createServerComponentClient({ cookies })
-  
+  const supabase = await createClient()
   // Get current user
   const {
     data: { user },

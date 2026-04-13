@@ -236,14 +236,14 @@ export default function AnalyticsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold tracking-tight">Analytics Dashboard</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground break-words">
             Comprehensive insights for {venue.venue_name || venue.name}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={fetchAnalyticsData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -343,7 +343,7 @@ export default function AnalyticsPage() {
       </div>
 
       <Tabs defaultValue="performance" className="space-y-4">
-        <TabsList>
+        <TabsList className="h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto p-1 [&>*]:shrink-0">
           <TabsTrigger value="performance">Performance</TabsTrigger>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>

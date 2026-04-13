@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 interface Equipment {
@@ -14,7 +14,7 @@ interface Equipment {
 }
 
 export async function addEquipment(equipment: Equipment) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('event_equipment')
@@ -32,7 +32,7 @@ export async function addEquipment(equipment: Equipment) {
 }
 
 export async function updateEquipment(id: string, updates: Partial<Equipment>) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('event_equipment')
@@ -51,7 +51,7 @@ export async function updateEquipment(id: string, updates: Partial<Equipment>) {
 }
 
 export async function deleteEquipment(id: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data: equipment, error: fetchError } = await supabase
     .from('event_equipment')
@@ -79,7 +79,7 @@ export async function deleteEquipment(id: string) {
 }
 
 export async function getEventEquipment(eventId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('event_equipment')

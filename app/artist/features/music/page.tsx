@@ -1,8 +1,8 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -80,8 +80,6 @@ interface MusicTrack {
 
 export default function MusicPage() {
   const { user, profile } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [tracks, setTracks] = useState<MusicTrack[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showUploader, setShowUploader] = useState(false)

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,8 +16,6 @@ import { Badge } from '@/components/ui/badge'
 export default function ManageArtistEventPage() {
   const router = useRouter()
   const params = useParams()
-  const supabase = createClientComponentClient()
-
   const eventId = useMemo(() => {
     const p = params as { id?: string }
     return p?.id || ''

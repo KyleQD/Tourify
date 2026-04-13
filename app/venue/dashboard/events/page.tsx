@@ -15,6 +15,7 @@ import { useCurrentVenue } from "../../hooks/useCurrentVenue"
 import { filterVenueEventsByType, type VenueEventsTab } from "../../lib/events-filtering"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { getEventTypeBadgeColor, getEventTypeLabel } from "../../lib/event-presentation"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function EventsPage() {
   const router = useRouter()
@@ -168,7 +169,7 @@ export default function EventsPage() {
       </div>
 
       <Tabs value={activeTab} className="space-y-4" onValueChange={(value) => setActiveTab(value as VenueEventsTab)}>
-        <TabsList>
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
           <TabsTrigger value="past">Past</TabsTrigger>
           <TabsTrigger value="draft">Drafts</TabsTrigger>

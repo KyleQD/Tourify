@@ -1,16 +1,11 @@
-import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { Database } from '@/lib/database.types'
 import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 export async function POST(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient<Database>({ 
-      cookies: () => cookieStore 
-    })
+    const supabase = await createClient()
 
     // Check if tables exist
     const { error: profilesError } = await supabase.from('profiles').select('id').limit(1)

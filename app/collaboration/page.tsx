@@ -1,6 +1,5 @@
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,8 +18,7 @@ import {
 import Link from 'next/link'
 
 export default async function CollaborationOverviewPage() {
-  const supabase = createServerComponentClient({ cookies })
-  
+  const supabase = await createClient()
   // Get current user
   const {
     data: { user },

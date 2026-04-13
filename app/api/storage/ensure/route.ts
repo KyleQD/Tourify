@@ -1,11 +1,8 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-
 export async function POST(_req: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
-
+    const supabase = await createClient()
     // Check if buckets exist by trying to list them
     const { data: musicBucket } = await supabase.storage.getBucket('artist-music')
     const { data: photosBucket } = await supabase.storage.getBucket('artist-photos')

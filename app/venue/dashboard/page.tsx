@@ -37,6 +37,7 @@ import {
   Home,
   FileText,
 } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function HomePage() {
   const { profile } = useProfile()
@@ -603,7 +604,7 @@ export default function HomePage() {
             <Card className="bg-gray-800 border-gray-700">
               <CardHeader className="pb-2">
                 <Tabs defaultValue="text" onValueChange={(value) => setPostType(value as any)}>
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className={venueDashboardTabListClass}>
                     <TabsTrigger value="text">Post</TabsTrigger>
                     <TabsTrigger value="media">Media</TabsTrigger>
                     <TabsTrigger value="event">Event</TabsTrigger>

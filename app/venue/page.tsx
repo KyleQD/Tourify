@@ -451,8 +451,8 @@ export default function VenueDashboard() {
 
   return (
     <div className="flex min-h-screen bg-gray-950 dark:bg-gray-950">
-      {/* Mobile sidebar toggle */}
-      <div className="md:hidden fixed top-4 left-4 z-50">
+      {/* Mobile sidebar toggle — below global Nav (h-16) */}
+      <div className="md:hidden fixed top-20 left-4 z-[60]">
         <Button variant="outline" size="icon" onClick={() => setSidebarOpen(!sidebarOpen)}>
           <Menu className="h-5 w-5" />
         </Button>
@@ -461,6 +461,7 @@ export default function VenueDashboard() {
       {/* Sidebar */}
       <VenueOwnerSidebar
         venue={venue}
+        dashboardStats={stats}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onTabChange={setActiveTab}
@@ -474,13 +475,13 @@ export default function VenueDashboard() {
       <div className="flex-1 p-4 md:p-8">
         <div className="max-w-6xl mx-auto">
           {/* Header with venue info and actions */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-4">
-              <img src="/images/tourify-logo-white.png" alt="Tourify" className="h-8 hidden md:block" />
-              <div>
-                <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                  {venue.venue_name}
-                  <Badge variant="outline" className="ml-2 bg-purple-900/20 text-purple-400 border-purple-800">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 min-w-0">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <img src="/images/tourify-logo-white.png" alt="Tourify" className="h-8 hidden md:block shrink-0" />
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-white flex flex-wrap items-center gap-2">
+                  <span className="truncate min-w-0">{venue.venue_name}</span>
+                  <Badge variant="outline" className="shrink-0 bg-purple-900/20 text-purple-400 border-purple-800">
                     {venue.venue_types?.[0] || 'Venue'}
                   </Badge>
                 </h1>
@@ -488,7 +489,7 @@ export default function VenueDashboard() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               <div className="w-64 mr-2 hidden md:block">
                 <CommandSearch />
               </div>
@@ -513,7 +514,7 @@ export default function VenueDashboard() {
 
           {/* Main Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="bg-gray-800 w-full justify-start overflow-x-auto">
+            <TabsList className="bg-gray-800 w-full justify-start overflow-x-auto flex-nowrap gap-1 p-1 [&>*]:shrink-0">
               <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
               <TabsTrigger value="bookings">Bookings</TabsTrigger>
               <TabsTrigger value="events">Events</TabsTrigger>

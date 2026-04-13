@@ -1,8 +1,8 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
 import { toast } from 'sonner'
 import { 
@@ -112,7 +112,6 @@ interface ArtistProfile {
 
 export default function MusicPage() {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
   const router = useRouter()
   
   const [tracks, setTracks] = useState<MusicTrack[]>([])

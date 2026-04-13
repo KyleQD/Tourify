@@ -43,7 +43,6 @@ import {
   Palette
 } from "lucide-react"
 import { toast } from "sonner"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from "@/contexts/auth-context"
 
 const artistProfileSchema = z.object({
@@ -103,7 +102,6 @@ type MusicSettingsFormData = z.infer<typeof musicSettingsSchema>
 
 export function EnhancedArtistSettings() {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [artistProfile, setArtistProfile] = useState<any>(null)
   const [selectedGenres, setSelectedGenres] = useState<string[]>([])

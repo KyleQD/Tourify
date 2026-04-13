@@ -5,7 +5,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useAuth } from "@/contexts/auth-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useMediaUpload, extractFilePathFromUrl } from "@/lib/utils/media-upload"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -130,7 +129,6 @@ export function ProfileSettingsOptimized() {
   const [avatarUploading, setAvatarUploading] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
-  const supabase = createClientComponentClient()
   const { uploadFile, deleteFile } = useMediaUpload()
 
   const form = useForm<ProfileFormValues>({

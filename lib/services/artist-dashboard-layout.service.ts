@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 
 export type ArtistDashboardWidgetId = 'recommendations' | 'analytics' | 'notifications'
 
@@ -31,8 +31,8 @@ function parseLayout(raw: unknown): ArtistDashboardLayoutState {
 export const artistDashboardLayoutService = {
   async getLayout(userId: string): Promise<ArtistDashboardLayoutState> {
     // Table may be absent from generated Database types; use untyped client for this table only.
-    const supabase = createClientComponentClient() as any
-    const { data, error } = await supabase
+    const db = supabase as any
+    const { data, error } = await db
       .from('artist_dashboard_layouts')
       .select('layout')
       .eq('user_id', userId)
@@ -47,8 +47,8 @@ export const artistDashboardLayoutService = {
   },
 
   async saveLayout(userId: string, layout: ArtistDashboardLayoutState): Promise<void> {
-    const supabase = createClientComponentClient() as any
-    const { error } = await supabase.from('artist_dashboard_layouts').upsert(
+    const db = supabase as any
+    const { error } = await db.from('artist_dashboard_layouts').upsert(
       {
         user_id: userId,
         layout,

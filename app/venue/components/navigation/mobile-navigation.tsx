@@ -44,43 +44,43 @@ export function MobileNavigation() {
   return (
     <>
       {/* Fixed bottom navigation for quick access */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden">
-        <div className="grid grid-cols-5 h-16">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background safe-area-bottom md:hidden">
+        <div className="grid h-16 grid-cols-5">
           <Button
             variant="ghost"
-            className={`flex flex-col h-full rounded-none ${isActive("/") ? "text-primary" : ""}`}
+            className={`flex min-w-0 flex-col h-full rounded-none px-1 ${isActive("/") ? "text-primary" : ""}`}
             onClick={() => handleNavigation("/")}
           >
-            <Home className="h-5 w-5" />
-            <span className="text-xs mt-1">Home</span>
+            <Home className="h-5 w-5 shrink-0" />
+            <span className="text-xs mt-1 truncate w-full text-center leading-tight">Home</span>
           </Button>
           <Button
             variant="ghost"
-            className={`flex flex-col h-full rounded-none ${isActive("/venue/dashboard/events") ? "text-primary" : ""}`}
+            className={`flex min-w-0 flex-col h-full rounded-none px-1 ${isActive("/venue/dashboard/events") ? "text-primary" : ""}`}
             onClick={() => handleNavigation("/venue/dashboard/events")}
           >
-            <Calendar className="h-5 w-5" />
-            <span className="text-xs mt-1">Events</span>
+            <Calendar className="h-5 w-5 shrink-0" />
+            <span className="text-xs mt-1 truncate w-full text-center leading-tight">Events</span>
           </Button>
           <Button
             variant="ghost"
-            className={`flex flex-col h-full rounded-none ${isActive("/venue/staff") ? "text-primary" : ""}`}
+            className={`flex min-w-0 flex-col h-full rounded-none px-1 ${isActive("/venue/staff") ? "text-primary" : ""}`}
             onClick={() => handleNavigation("/venue/staff")}
           >
-            <Users className="h-5 w-5" />
-            <span className="text-xs mt-1">Team</span>
+            <Users className="h-5 w-5 shrink-0" />
+            <span className="text-xs mt-1 truncate w-full text-center leading-tight">Team</span>
           </Button>
           <Button
             variant="ghost"
-            className={`flex flex-col h-full rounded-none ${isActive("/messages") ? "text-primary" : ""}`}
+            className={`flex min-w-0 flex-col h-full rounded-none px-1 ${isActive("/messages") ? "text-primary" : ""}`}
             onClick={() => handleNavigation("/messages")}
           >
-            <MessageSquare className="h-5 w-5" />
-            <span className="text-xs mt-1">Messages</span>
+            <MessageSquare className="h-5 w-5 shrink-0" />
+            <span className="text-xs mt-1 truncate w-full text-center leading-tight">Messages</span>
           </Button>
-          <Button variant="ghost" className="flex flex-col h-full rounded-none" onClick={() => setOpen(true)}>
-            <Menu className="h-5 w-5" />
-            <span className="text-xs mt-1">More</span>
+          <Button variant="ghost" className="flex min-w-0 flex-col h-full rounded-none px-1" onClick={() => setOpen(true)}>
+            <Menu className="h-5 w-5 shrink-0" />
+            <span className="text-xs mt-1 truncate w-full text-center leading-tight">More</span>
           </Button>
         </div>
       </div>

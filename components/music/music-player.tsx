@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
 import { toast } from 'sonner'
 import { 
@@ -89,8 +88,6 @@ export function MusicPlayer({
   className = ""
 }: MusicPlayerProps) {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
-  
   const audioRef = useRef<HTMLAudioElement>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)

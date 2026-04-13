@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Calendar, Clock, Users, DollarSign, Music, Ticket, BarChart3, Building, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function VenueDashboardPage() {
   const router = useRouter()
@@ -61,9 +62,9 @@ export default function VenueDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Venue Dashboard</h1>
-        <Button onClick={() => handleNavigation("/venue/dashboard/calendar")}>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-bold break-words">Venue Dashboard</h1>
+        <Button className="shrink-0" onClick={() => handleNavigation("/venue/dashboard/calendar")}>
           <Plus className="mr-2 h-4 w-4" />
           Create New Event
         </Button>
@@ -125,7 +126,7 @@ export default function VenueDashboardPage() {
       )}
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="bookings">Bookings</TabsTrigger>

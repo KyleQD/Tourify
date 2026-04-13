@@ -1,16 +1,11 @@
-import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { Database } from '@/lib/database.types'
 import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 export async function POST(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient<Database>({ 
-      cookies: () => cookieStore 
-    })
+    const supabase = await createClient()
 
     // Execute SQL to create the profiles table
     // We use the Supabase Database API directly since it's an admin operation

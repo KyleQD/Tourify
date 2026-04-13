@@ -1,5 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
+import { supabase } from '@/lib/supabase/client'
 export type MediaType = 'avatar' | 'post' | 'venue' | 'event' | 'document'
 
 export interface UploadOptions {
@@ -99,8 +98,6 @@ export function generateFileName(userId: string, file: File, mediaType: MediaTyp
 
 export async function uploadMedia(options: UploadOptions): Promise<UploadResult> {
   const { userId, file, mediaType, maxSizeMB, onProgress } = options
-  const supabase = createClientComponentClient()
-
   try {
     // Validate file
     validateFile(file, mediaType, maxSizeMB)
@@ -157,7 +154,6 @@ export async function uploadMedia(options: UploadOptions): Promise<UploadResult>
 }
 
 export async function deleteMedia(path: string, mediaType: MediaType): Promise<boolean> {
-  const supabase = createClientComponentClient()
   const bucketName = BUCKET_MAPPING[mediaType]
 
   try {

@@ -28,7 +28,7 @@ import {
   Zap
 } from "lucide-react"
 import { toast } from "sonner"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from "@/lib/supabase/client"
 import { useAuth } from "@/contexts/auth-context"
 import { useAppearanceSettings } from "@/hooks/use-appearance-settings"
 import { EnhancedArtistSettings } from "./enhanced-artist-settings"
@@ -54,7 +54,6 @@ interface AccountInfo {
 export function EnhancedSettingsRouter() {
   const { user } = useAuth()
   const router = useRouter()
-  const supabase = createClientComponentClient()
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("profile")

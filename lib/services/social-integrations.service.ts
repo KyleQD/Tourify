@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 import type { ArtistSocialIntegration, ConnectRequest } from '@/types/social-integrations.type'
 
@@ -9,7 +9,7 @@ export interface ProviderAuthUrlOptions {
 }
 
 export class SocialIntegrationsService {
-  private supabase = createClientComponentClient<Database>()
+  private readonly supabase = supabase
 
   async list(): Promise<ArtistSocialIntegration[]> {
     const { data: { user } } = await this.supabase.auth.getUser()

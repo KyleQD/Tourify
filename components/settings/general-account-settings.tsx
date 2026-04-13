@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { 
   User, 
   Globe, 
@@ -94,7 +93,6 @@ type AppearanceFormData = z.infer<typeof appearanceSchema>
 
 export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProps) {
   const { currentAccount } = useMultiAccount()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [profile, setProfile] = useState<any>(null)
 

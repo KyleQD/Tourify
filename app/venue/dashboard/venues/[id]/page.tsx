@@ -39,6 +39,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 // Mock venue data - in a real app, this would come from an API
 const mockVenue = {
@@ -408,7 +409,7 @@ export default function VenuePage() {
       {/* Venue Content */}
       <div className="mt-6">
         <Tabs defaultValue="about" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-gray-800 w-full justify-start overflow-x-auto">
+          <TabsList className={venueDashboardTabListClass}>
             <TabsTrigger value="about" className="flex items-center gap-1">
               <Users className="h-4 w-4" /> About
             </TabsTrigger>

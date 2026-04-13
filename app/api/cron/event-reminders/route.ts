@@ -1,11 +1,11 @@
-import { createServerClient } from '@/lib/supabase/client'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { NextRequest, NextResponse } from 'next/server'
 import { isAuthorizedCronRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 async function runEventReminders() {
   try {
     // Create server client
-    const supabase = createServerClient()
+    const supabase = createServiceRoleClient()
     const now = new Date()
     const next24Hours = new Date(Date.now() + 24 * 60 * 60 * 1000)
     

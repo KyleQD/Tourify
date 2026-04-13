@@ -18,7 +18,6 @@ import {
   Loader2,
   Music
 } from 'lucide-react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Database } from '@/lib/database.types'
 import { toast } from 'sonner'
 import { useRouteAccountContext } from '@/hooks/use-route-account-context'
@@ -46,8 +45,6 @@ export function CompactPostCreator({
   const [showOptions, setShowOptions] = useState(false)
   
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const supabase = createClientComponentClient<Database>()
-  
   // Use route-based account context detection
   const { accountType, routeContext, displayContext } = useRouteAccountContext()
 

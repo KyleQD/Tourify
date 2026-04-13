@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useAuth } from "@/contexts/auth-context"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,7 +23,6 @@ interface Row {
 export default function ContractsListPage() {
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
-  const supabase = createClientComponentClient()
   const [rows, setRows] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
 

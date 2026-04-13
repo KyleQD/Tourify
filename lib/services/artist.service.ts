@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import { Database } from '@/lib/database.types'
 
 export interface EventData {
@@ -43,7 +43,7 @@ export interface BusinessData {
 }
 
 class ArtistService {
-  private supabase = createClientComponentClient<Database>()
+  private readonly supabase = supabase
 
   // Events Management
   async createEvent(eventData: EventData): Promise<{ success: boolean; data?: any; error?: string }> {

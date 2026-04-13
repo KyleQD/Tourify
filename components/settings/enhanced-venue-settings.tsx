@@ -44,7 +44,6 @@ import {
   Coffee
 } from "lucide-react"
 import { toast } from "sonner"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from "@/contexts/auth-context"
 
 const venueProfileSchema = z.object({
@@ -120,7 +119,6 @@ type VenueProfileFormData = z.infer<typeof venueProfileSchema>
 
 export function EnhancedVenueSettings() {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [venueProfile, setVenueProfile] = useState<any>(null)
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -57,8 +56,6 @@ interface MerchandiseItem {
 
 export default function MerchandisePage() {
   const { user, profile, isLoading: isUserLoading } = useArtist()
-  const supabase = createClientComponentClient()
-  
   // Helper function to check if user is ready for content creation
   const isUserReady = () => {
     return !isUserLoading && user && profile

@@ -21,7 +21,6 @@ import {
   Sparkles
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 import { dashboardCreatePattern, getStepPillClasses } from "@/components/dashboard/dashboard-create-pattern"
 
@@ -60,7 +59,6 @@ export function EnhancedEventCreator({
 }: EnhancedEventCreatorProps) {
   const router = useRouter()
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newTag, setNewTag] = useState("")

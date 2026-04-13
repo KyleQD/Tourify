@@ -2,115 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
+import { agentSessionLogServer } from '@/lib/debug/agent-session-log'
+import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
-interface AuthSession {
-  access_token: string
-  user: {
-    id: string
-    email: string
-    [key: string]: any
-  }
-  expires_at: number
-  [key: string]: any
-}
-
-// Helper function to manually parse the auth session from request cookies (same logic as middleware)
-function parseAuthFromRequestCookies(request: NextRequest): any | null {
+function parseAuthFromRequestCookies(request: NextRequest) {
   try {
-    const cookies = request.headers.get('cookie') || ''
-    const cookieArray = cookies.split(';').map(c => c.trim())
-    
-    // Look for the auth cookie that matches our client configuration
-    const authCookie = cookieArray.find(cookie => 
-      cookie.startsWith('sb-tourify-auth-token=')
-    )
-    
-    if (!authCookie) {
-      // Fallback to old patterns for existing users
-      const fallbackCookie = cookieArray.find(cookie =>
-        (cookie.includes('sb-') && 
-         cookie.includes('auth-token') && 
-         !cookie.includes('code-verifier') &&
-         !cookie.includes('refresh') &&
-         cookie.split('=')[1]?.length > 100) ||
-        isSupabaseProjectCookie(cookie)
-      )
-      
-      if (fallbackCookie) {
-        const cookieValue = fallbackCookie.split('=')[1]
-        return tryParseCookieValue(cookieValue)
-      }
-      
-      return null
-    }
-    
-    const cookieValue = authCookie.split('=')[1]
-    
-    return tryParseCookieValue(cookieValue)
-  } catch (error) {
-    return null
-  }
-}
-
-function isSupabaseProjectCookie(cookie: string) {
-  if (!cookie.startsWith('sb-')) return false
-  if (cookie.includes('code-verifier')) return false
-  if (cookie.split('=')[1]?.length <= 100) return false
-
-  const projectRef = resolveSupabaseProjectRef()
-  if (!projectRef) return false
-  return cookie.includes(projectRef)
-}
-
-function resolveSupabaseProjectRef() {
-  const fromEnv = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_REF
-  if (fromEnv) return fromEnv
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  if (!supabaseUrl) return null
-
-  try {
-    const host = new URL(supabaseUrl).host
-    return host.split('.')[0] || null
+    return parseUserFromRequestCookieHeader(request.headers.get('cookie'))
   } catch {
-    return null
-  }
-}
-
-function tryParseCookieValue(cookieValue: string): any | null {
-  if (!cookieValue) {
-    return null
-  }
-  
-  try {
-    // Try to parse the session data
-    const sessionData: AuthSession = JSON.parse(decodeURIComponent(cookieValue))
-    
-    if (sessionData && sessionData.access_token && sessionData.user) {
-      // Check if token is expired
-      const now = Math.floor(Date.now() / 1000)
-      if (sessionData.expires_at && sessionData.expires_at > now) {
-        return sessionData.user
-      } else {
-        return null
-      }
-    } else {
-      return null
-    }
-  } catch (parseError) {
-    // Try parsing without URL decoding
-    try {
-      const sessionData2: AuthSession = JSON.parse(cookieValue)
-      if (sessionData2 && sessionData2.access_token && sessionData2.user) {
-        const now = Math.floor(Date.now() / 1000)
-        if (sessionData2.expires_at && sessionData2.expires_at > now) {
-          return sessionData2.user
-        }
-      }
-    } catch (parseError2) {
-      // ignore
-    }
-    
     return null
   }
 }
@@ -173,6 +71,18 @@ export async function authenticateApiRequest(request?: NextRequest): Promise<{ u
  */
 export async function checkAdminPermissions(user: any, opts?: { tourId?: string }): Promise<boolean> {
   if (!user?.id) return false
+  // #region agent log
+  const svc = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const hasServiceRoleConfigured = Boolean(
+    svc && svc.length > 30 && !svc.includes('your_service_role') && !svc.includes('your_'),
+  )
+  agentSessionLogServer({
+    hypothesisId: 'H2',
+    location: 'lib/auth/api-auth.ts:checkAdminPermissions:entry',
+    message: 'checkAdminPermissions entry',
+    data: { hasServiceRoleConfigured, hasUserId: true },
+  })
+  // #endregion
   try {
     const supabase = createServiceClient()
 
@@ -197,10 +107,25 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
     )
     const hasAdminProfile =
       adminProfile?.account_type === 'admin' ||
+      adminProfile?.account_type === 'organizer' ||
+      adminProfile?.account_type === 'organization' ||
       adminProfile?.role === 'admin' ||
       adminProfile?.is_admin === true
 
     const hasOrganizerAccess = Boolean(organizerAccount || hasLegacyOrganizerData || hasAdminProfile)
+    // #region agent log
+    agentSessionLogServer({
+      hypothesisId: 'H3',
+      location: 'lib/auth/api-auth.ts:checkAdminPermissions:flags',
+      message: 'organizer permission flags',
+      data: {
+        hasOrganizerRow: Boolean(organizerAccount),
+        hasLegacyOrganizerData,
+        hasAdminProfile,
+        accountType: adminProfile?.account_type ?? null,
+      },
+    })
+    // #endregion
     if (!hasOrganizerAccess) return false
 
     if (!opts?.tourId) return true
@@ -227,6 +152,17 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
     return !!team
   } catch (err) {
     console.error('[API Auth] checkAdminPermissions error:', err)
+    // #region agent log
+    agentSessionLogServer({
+      hypothesisId: 'H2',
+      location: 'lib/auth/api-auth.ts:checkAdminPermissions:catch',
+      message: 'checkAdminPermissions threw or DB error',
+      data: {
+        errName: err instanceof Error ? err.name : 'unknown',
+        errMessage: err instanceof Error ? err.message.slice(0, 120) : 'non-error',
+      },
+    })
+    // #endregion
     return false
   }
 }
@@ -270,6 +206,18 @@ export function withAdminAuth(
   return withAuth(async (request, auth) => {
     const tourId = opts?.tourIdFromRequest?.(request)
     const hasAdminAccess = await checkAdminPermissions(auth.user, { tourId })
+    // #region agent log
+    agentSessionLogServer({
+      hypothesisId: 'H3',
+      location: 'lib/auth/api-auth.ts:withAdminAuth',
+      message: 'withAdminAuth permission result',
+      data: {
+        path: request.nextUrl?.pathname ?? '',
+        hasAdminAccess,
+        hasTourIdFilter: Boolean(tourId),
+      },
+    })
+    // #endregion
     if (!hasAdminAccess) {
       return NextResponse.json({
         error: 'Forbidden',

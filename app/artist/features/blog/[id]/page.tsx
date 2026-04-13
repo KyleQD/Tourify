@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft } from 'lucide-react'
@@ -12,7 +11,6 @@ export default function BlogReaderPage() {
   const params = useParams()
   const router = useRouter()
   const id = params?.id as string
-  const supabase = createClientComponentClient()
   const [post, setPost] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 

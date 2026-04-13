@@ -1,6 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 
 // Comprehensive venue validation schema
@@ -109,8 +108,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100)
     const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0)
 
-    const supabase = createRouteHandlerClient({ cookies })
-
+    const supabase = await createClient()
     // Basic venue search - using only columns that exist
     let venueQuery = supabase
       .from('venue_profiles')
@@ -192,7 +190,7 @@ export async function GET(request: NextRequest) {
 // POST - Create a new venue profile
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -339,7 +337,7 @@ export async function POST(request: NextRequest) {
 // PUT - Update venue profile
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

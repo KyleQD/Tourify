@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
 export interface VerificationRequest {
@@ -67,7 +67,7 @@ export interface VerificationStatus {
 }
 
 export class VerificationService {
-  private supabase = createClientComponentClient<Database>()
+  private readonly supabase = supabase
 
   /**
    * Submit a verification request for an account

@@ -1036,8 +1036,7 @@ export default function EPKPage() {
                 variant="outline"
                 className="rounded-xl border-gray-700/80 text-white hover:bg-white/5"
                 onClick={async () => {
-                  const token = (await (await import('@supabase/auth-helpers-nextjs')).createClientComponentClient()).auth
-                  const session = await token.getSession()
+                  const session = await supabase.auth.getSession()
                   await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/social-analytics`, {
                     method: 'POST',
                     headers: { authorization: `Bearer ${session.data.session?.access_token}` }

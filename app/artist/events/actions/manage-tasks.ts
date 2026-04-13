@@ -1,6 +1,6 @@
 "use server"
 
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 interface Task {
@@ -15,7 +15,7 @@ interface Task {
 }
 
 export async function addTask(task: Task) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('event_tasks')
@@ -33,7 +33,7 @@ export async function addTask(task: Task) {
 }
 
 export async function updateTask(id: string, updates: Partial<Task>) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('event_tasks')
@@ -52,7 +52,7 @@ export async function updateTask(id: string, updates: Partial<Task>) {
 }
 
 export async function deleteTask(id: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data: task, error: fetchError } = await supabase
     .from('event_tasks')
@@ -80,7 +80,7 @@ export async function deleteTask(id: string) {
 }
 
 export async function getEventTasks(eventId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { data, error } = await supabase
     .from('event_tasks')

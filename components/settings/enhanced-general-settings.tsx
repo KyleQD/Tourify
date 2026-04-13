@@ -42,7 +42,6 @@ import {
   GraduationCap
 } from "lucide-react"
 import { toast } from "sonner"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from "@/contexts/auth-context"
 
 const profileSchema = z.object({
@@ -132,7 +131,6 @@ type ProfileFormData = z.infer<typeof profileSchema>
 
 export function EnhancedGeneralSettings() {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [profile, setProfile] = useState<any>(null)
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])

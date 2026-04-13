@@ -10,6 +10,7 @@ import { CreatePromotionModal } from "../../components/promotions/create-promoti
 import { BarChart3, Calendar, Clock, DollarSign, Eye, MousePointer, Plus, Search, ShoppingCart } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeNumber } from "@/lib/format/number-format"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function PromotionsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -232,7 +233,7 @@ export default function PromotionsPage() {
       </div>
 
       <Tabs defaultValue="active" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>

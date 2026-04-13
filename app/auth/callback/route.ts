@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import type { User } from "@supabase/supabase-js"
@@ -27,9 +26,7 @@ export async function GET(request: NextRequest) {
   if (code) {
     try {
       console.log(`[Auth Callback] Exchanging code for session`)
-      const cookieStore = cookies()
-      const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
-      
+      const supabase = await createClient()
       // Exchange the auth code for a session
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
       
@@ -97,8 +94,7 @@ export async function GET(request: NextRequest) {
 
   // Check if we have a session now
   try {
-    const cookieStore = cookies()
-    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const supabase = await createClient()
     const { data: { session } } = await supabase.auth.getSession()
     
     console.log(`[Auth Callback] Final session check - Session exists: ${!!session}, User ID: ${session?.user?.id || 'none'}`)

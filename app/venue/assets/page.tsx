@@ -92,9 +92,9 @@ export default function VenueAssetsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
       <div className="container mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold text-white">Assets</h1>
-          <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push('/venue')}>
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="text-3xl font-bold text-white break-words">Assets</h1>
+          <Button variant="outline" className="shrink-0 border-slate-700 text-slate-300" onClick={() => router.push('/venue')}>
             Back to Venue
           </Button>
         </div>

@@ -1,11 +1,11 @@
 "use server"
 
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 import { EventWizardMainData } from "../event-wizard/event-wizard-main"
 
 export async function updateEvent(userId: string, eventId: string, data: any) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { error } = await supabase
     .from('events')
@@ -24,7 +24,7 @@ export async function updateEvent(userId: string, eventId: string, data: any) {
 }
 
 export async function updateEventWithWizardData(userId: string, eventId: string, eventData: EventWizardMainData) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   // Get current event to check if we need to update the cover image
   const { data: currentEvent, error: fetchError } = await supabase

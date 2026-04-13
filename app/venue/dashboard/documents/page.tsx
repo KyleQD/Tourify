@@ -35,9 +35,11 @@ export default function DocumentsPage() {
         }
       />
 
-      <div className="flex items-center justify-between">
-        <FeatureTabs />
-        <div className="relative w-64">
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1 overflow-x-auto">
+          <FeatureTabs />
+        </div>
+        <div className="relative w-full shrink-0 md:w-64">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input type="search" placeholder="Search documents..." className="pl-8 bg-muted/50 border-muted" />
         </div>

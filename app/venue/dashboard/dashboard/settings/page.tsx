@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Users, Calendar, CreditCard, Bell, User } from "lucide-react"
 import { motion } from "framer-motion"
+import { venueDashboardTabListLightClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function VenueSettingsPage() {
   // Temporarily disable profile hook to avoid provider issues
@@ -183,12 +184,12 @@ export default function VenueSettingsPage() {
   return (
     <div className="container py-6">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Venue Settings</h1>
-            <p className="text-gray-500 mt-1">Manage your venue profile and preferences</p>
+        <div className="mb-6 flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-3xl font-bold break-words">Venue Settings</h1>
+            <p className="mt-1 break-words text-gray-500">Manage your venue profile and preferences</p>
           </div>
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button className="shrink-0" onClick={handleSave} disabled={isSaving}>
             {isSaving ? (
               <>
                 <span className="animate-spin mr-2">⏳</span>
@@ -203,7 +204,7 @@ export default function VenueSettingsPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList>
+          <TabsList className={`mb-6 ${venueDashboardTabListLightClass}`}>
             <TabsTrigger value="profile">Profile</TabsTrigger>
             <TabsTrigger value="booking">Booking Settings</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>

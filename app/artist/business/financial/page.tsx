@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -80,8 +79,6 @@ const INCOME_SOURCES = [
 
 export default function FinancialDashboard() {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [financialData, setFinancialData] = useState<FinancialData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showAddTransaction, setShowAddTransaction] = useState(false)

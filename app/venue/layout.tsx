@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
 import { VenueProviders } from "./providers"
+import { VenueRootChromeOffset } from "./components/venue-root-chrome-offset"
 import { Toaster } from "@/components/ui/toaster"
 import { createClient } from "@/lib/supabase/server"
 
@@ -50,7 +51,7 @@ export default async function VenueLayout({
 
   return (
     <VenueProviders>
-      {children}
+      <VenueRootChromeOffset>{children}</VenueRootChromeOffset>
       <Toaster />
     </VenueProviders>
   )

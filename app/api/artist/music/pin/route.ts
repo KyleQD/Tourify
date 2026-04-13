@@ -1,5 +1,4 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from "next/server"
 
 interface TogglePinBody {
@@ -8,8 +7,7 @@ interface TogglePinBody {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = createRouteHandlerClient({ cookies })
-
+  const supabase = await createClient()
   const { data: auth } = await supabase.auth.getUser()
   const userId = auth?.user?.id
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })

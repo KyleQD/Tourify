@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,7 +18,6 @@ import {
   ExternalLink
 } from "lucide-react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from "sonner"
 
 interface DatabaseCheck {
@@ -31,8 +31,6 @@ export default function ArtistDebugPage() {
   const { user, profile, isLoading } = useArtist()
   const [checks, setChecks] = useState<DatabaseCheck[]>([])
   const [isChecking, setIsChecking] = useState(false)
-  const supabase = createClientComponentClient()
-
   const runDatabaseChecks = async () => {
     if (!user) {
       setChecks([{

@@ -13,6 +13,7 @@ import { LoadingSpinner } from "../../../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { motion } from "framer-motion"
 import { Search, MapPin, Users, Star, Plus, Filter, Calendar } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 // Mock venues data - in a real app, this would come from an API
 const mockVenues = [
@@ -309,7 +310,7 @@ export default function VenuesPage() {
       )}
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="all">All Venues</TabsTrigger>
           <TabsTrigger value="featured">Featured</TabsTrigger>
           <TabsTrigger value="nearby">Nearby</TabsTrigger>

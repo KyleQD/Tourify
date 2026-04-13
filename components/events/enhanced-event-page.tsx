@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import React, { useState, useEffect, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -60,7 +61,6 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { useAuth } from "@/contexts/auth-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
@@ -145,8 +145,6 @@ interface EnhancedEventPageProps {
 export function EnhancedEventPage({ eventId, event: initialEvent, onEventUpdated }: EnhancedEventPageProps) {
   const router = useRouter()
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
-  
   const [event, setEvent] = useState<EventData | null>(initialEvent || null)
   const [attendance, setAttendance] = useState<AttendanceData | null>(null)
   const [posts, setPosts] = useState<EventPost[]>([])

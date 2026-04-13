@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,8 +24,6 @@ import {
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
 import { formatDistanceToNow } from 'date-fns'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
-
 interface Message {
   id: string
   content: string
@@ -96,9 +95,6 @@ export default function MessagesPage() {
   // Real-time messaging setup
   useEffect(() => {
     if (!user || !isAuthenticated) return
-
-    const supabase = createClientComponentClient()
-
     // Subscribe to new messages
     const messagesChannel = supabase
       .channel('messages')

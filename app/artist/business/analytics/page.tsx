@@ -1,8 +1,8 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -103,8 +103,6 @@ const COLORS = ['#8B5CF6', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#6B7280'
 
 export default function BusinessAnalytics() {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [analytics, setAnalytics] = useState<BusinessAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState("12m")

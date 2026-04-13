@@ -1,20 +1,11 @@
-import { cookies } from 'next/headers'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { Database } from '@/lib/database.types'
 import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 export async function GET(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
-    // Get cookie store first - Next.js 14+ requires this to be awaited
-    // The `cookies()` function returns the cookie store directly in newer Next.js versions
-    const cookieStore = cookies()
-    
-    // Create a Supabase client using the route handler
-    const supabase = createRouteHandlerClient<Database>({ 
-      cookies: () => cookieStore 
-    })
+    const supabase = await createClient()
     
     // Get the session from the server side
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()

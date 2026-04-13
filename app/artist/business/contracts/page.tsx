@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -143,8 +142,6 @@ const emptyForm = (): Contract => ({
 
 export default function ContractsPage() {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-
   const [contracts, setContracts] = useState<Contract[]>([])
   const [loadError, setLoadError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)

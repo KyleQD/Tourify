@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { supabase } from '@/lib/supabase/client'
 import type { Database } from '@/types/supabase'
 
 export interface AnalyticsSnapshot {
@@ -161,7 +161,7 @@ export interface AudienceAnalytics {
 }
 
 export class AdvancedAnalyticsService {
-  private supabase = createClientComponentClient<Database>()
+  private readonly supabase = supabase
 
   /**
    * Get analytics snapshots for an account

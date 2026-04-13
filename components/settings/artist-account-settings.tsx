@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { artistNotifications, profileNotifications } from '@/lib/utils/notifications'
 import { 
   Music, 
@@ -92,7 +91,6 @@ type BookingSettingsFormData = z.infer<typeof bookingSettingsSchema>
 
 export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps) {
   const { currentAccount } = useMultiAccount()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [artistProfile, setArtistProfile] = useState<any>(null)
 

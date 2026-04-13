@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -118,8 +117,6 @@ const PLATFORMS = [
 
 export default function MarketingHub() {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [socialPosts, setSocialPosts] = useState<SocialPost[]>([])
   const [isLoading, setIsLoading] = useState(true)

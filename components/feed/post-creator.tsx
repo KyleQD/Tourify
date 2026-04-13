@@ -31,7 +31,6 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { useFeed } from '@/hooks/use-feed'
 import { useAuth } from '@/hooks/use-auth'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useEffect, useState as useReactState } from 'react'
 
 interface PostCreatorProps {

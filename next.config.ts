@@ -20,6 +20,8 @@ const csp = [
     "'self'",
     'https:',
     supabaseHost ? `https://${supabaseHost}` : undefined,
+    // Realtime uses wss:; `https:` alone does not permit WebSockets in strict browsers (e.g. Safari).
+    supabaseHost ? `wss://${supabaseHost}` : undefined,
     '*.upstash.io'
   ].filter(Boolean).join(' ')
 ].join('; ')

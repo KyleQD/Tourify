@@ -112,8 +112,8 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
             className="relative h-10 px-3 bg-slate-800/50 border border-slate-700/50 hover:bg-slate-700/50 transition-all duration-300 rounded-full"
             disabled={isLoading || isSwitching}
           >
-            <div className="flex items-center space-x-2">
-              <div className="relative">
+            <div className="flex items-center space-x-2 min-w-0 max-w-full">
+              <div className="relative shrink-0">
                 <Avatar className="h-6 w-6 border border-slate-600">
                   <AvatarImage src={currentAccount.profile_data?.avatar_url} />
                   <AvatarFallback className={`${accountColor} text-white text-xs`}>
@@ -129,7 +129,10 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                 )}
               </div>
               
-              <span className="text-sm font-medium text-white truncate max-w-20">
+              <span
+                className="text-sm font-medium text-white truncate min-w-0 max-w-[7rem] sm:max-w-[11rem] md:max-w-[14rem]"
+                title={getDisplayName()}
+              >
                 {getDisplayName()}
               </span>
               

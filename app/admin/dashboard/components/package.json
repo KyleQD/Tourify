@@ -60,7 +60,6 @@
     "zod": "^3.24.1",
     "@supabase/supabase-js": "latest",
     "jspdf": "latest",
-    "@supabase/auth-helpers-nextjs": "latest",
     "jspdf-autotable": "latest"
   },
   "devDependencies": {

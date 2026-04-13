@@ -13,6 +13,7 @@ import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normali
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 interface TicketTypeItem {
   id: string
@@ -197,7 +198,7 @@ export default function TicketsPage() {
       </div>
 
       <Tabs defaultValue="selling" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="selling">Tickets I'm Selling</TabsTrigger>
           <TabsTrigger value="purchased">Tickets I've Purchased</TabsTrigger>
         </TabsList>

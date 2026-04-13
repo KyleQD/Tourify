@@ -1,8 +1,8 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -40,8 +40,6 @@ interface BlogEditorProps {
 export default function BlogEditor({ postId, onBack }: BlogEditorProps) {
   const { user, profile } = useArtist()
   const router = useRouter()
-  const supabase = createClientComponentClient()
-  
   const [post, setPost] = useState<BlogPost>({
     title: '',
     slug: '',

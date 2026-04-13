@@ -1,7 +1,14 @@
-import { createClient } from '@/lib/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { supabase as browserSupabase } from '@/lib/supabase/client'
 import { z } from 'zod'
 
-const supabase = createClient()
+/** Route handlers need service role; browser hooks use the session-scoped client. */
+function getNotificationsDb(): SupabaseClient<Database> {
+  if (typeof window === 'undefined') return createServiceRoleClient()
+  return browserSupabase
+}
 
 // =============================================================================
 // TYPES AND INTERFACES
@@ -108,7 +115,7 @@ export class OptimizedNotificationService {
         throw new Error('Notification blocked by user preferences')
       }
 
-      const { data: notification, error } = await supabase
+      const { data: notification, error } = await getNotificationsDb()
         .from('notifications')
         .insert({
           user_id: validatedData.userId,
@@ -179,7 +186,7 @@ export class OptimizedNotificationService {
         return []
       }
 
-      const { data: createdNotifications, error } = await supabase
+      const { data: createdNotifications, error } = await getNotificationsDb()
         .from('notifications')
         .insert(filteredNotifications)
         .select()
@@ -226,7 +233,7 @@ export class OptimizedNotificationService {
         includeExpired = false
       } = options
 
-      let query = supabase
+      let query = getNotificationsDb()
         .from('notifications')
         .select(`
           *,
@@ -262,7 +269,7 @@ export class OptimizedNotificationService {
       if (error) throw error
 
       // Get unread count separately for better performance
-      const { count: unreadCount } = await supabase
+      const { count: unreadCount } = await getNotificationsDb()
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
@@ -284,7 +291,7 @@ export class OptimizedNotificationService {
    */
   static async markAsRead(notificationId: string, userId: string): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await getNotificationsDb()
         .from('notifications')
         .update({ 
           is_read: true,
@@ -308,7 +315,7 @@ export class OptimizedNotificationService {
    */
   static async markAllAsRead(userId: string): Promise<number> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getNotificationsDb()
         .from('notifications')
         .update({ 
           is_read: true,
@@ -337,7 +344,7 @@ export class OptimizedNotificationService {
    */
   static async getPreferences(userId: string): Promise<NotificationPreferences | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getNotificationsDb()
         .from('notification_preferences')
         .select('*')
         .eq('user_id', userId)
@@ -360,7 +367,7 @@ export class OptimizedNotificationService {
     preferences: Partial<NotificationPreferences>
   ): Promise<NotificationPreferences> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getNotificationsDb()
         .from('notification_preferences')
         .upsert({
           user_id: userId,
@@ -398,19 +405,19 @@ export class OptimizedNotificationService {
   static async getMetrics(userId: string): Promise<NotificationMetrics> {
     try {
       // Get total and unread counts
-      const { count: totalCount } = await supabase
+      const { count: totalCount } = await getNotificationsDb()
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
 
-      const { count: unreadCount } = await supabase
+      const { count: unreadCount } = await getNotificationsDb()
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('is_read', false)
 
       // Get top notification types
-      const { data: typeStats } = await supabase
+      const { data: typeStats } = await getNotificationsDb()
         .from('notifications')
         .select('type')
         .eq('user_id', userId)
@@ -431,7 +438,7 @@ export class OptimizedNotificationService {
         .slice(0, 5)
 
       // Get recent activity (last 7 days)
-      const { data: recentActivity } = await supabase
+      const { data: recentActivity } = await getNotificationsDb()
         .from('notifications')
         .select('type, created_at')
         .eq('user_id', userId)
@@ -475,7 +482,7 @@ export class OptimizedNotificationService {
     onNotification: (notification: OptimizedNotification) => void,
     onError?: (error: any) => void
   ) {
-    const channel = supabase
+    const channel = getNotificationsDb()
       .channel(`notifications-${userId}`)
       .on(
         'postgres_changes',
@@ -517,7 +524,7 @@ export class OptimizedNotificationService {
    */
   static async cleanupOldNotifications(): Promise<number> {
     try {
-      const { data, error } = await supabase.rpc('cleanup_old_notifications')
+      const { data, error } = await getNotificationsDb().rpc('cleanup_old_notifications')
       
       if (error) throw error
       
@@ -538,7 +545,7 @@ export class OptimizedNotificationService {
     priority: string
   ): Promise<boolean> {
     try {
-      const { data, error } = await supabase.rpc('should_send_notification', {
+      const { data, error } = await getNotificationsDb().rpc('should_send_notification', {
         p_user_id: userId,
         p_notification_type: notificationType,
         p_priority: priority

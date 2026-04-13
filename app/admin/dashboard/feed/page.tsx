@@ -1,5 +1,4 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
@@ -18,7 +17,7 @@ interface Post {
 }
 
 export default async function FeedPage() {
-  const supabase = createServerComponentClient({ cookies })
+  const supabase = await createClient()
   const { data: posts, error } = await supabase
     .from('posts')
     .select('id, user_id, content, created_at, user:user_id(name, avatar_url)')

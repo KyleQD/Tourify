@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import type { 
   FriendSuggestion, 
   FriendSuggestionParams, 
@@ -7,7 +7,7 @@ import type {
 } from '@/lib/types/social'
 
 export class FriendSuggestionService {
-  private supabase = createClient()
+  private supabase = createServiceRoleClient()
 
   /**
    * Get friend suggestions using multiple algorithms

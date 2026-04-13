@@ -7,6 +7,7 @@ import { useState } from "react"
 import { EPKCreator } from "../../components/epk/epk-creator"
 import { EPKPreview } from "../../components/epk/epk-preview"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 // import { useProfile } from "../../context/profile-context"
 
 export default function EPKPage() {
@@ -78,7 +79,7 @@ export default function EPKPage() {
   return (
     <div className="space-y-6">
       <Tabs defaultValue="create" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="create">Create EPK</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="premium">Premium Features</TabsTrigger>

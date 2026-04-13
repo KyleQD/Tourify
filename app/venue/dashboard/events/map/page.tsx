@@ -15,6 +15,7 @@ import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normali
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 interface EventMapItem {
   id: string
@@ -298,7 +299,7 @@ export default function EventMapPage() {
 
         <div className="lg:col-span-3">
           <Tabs defaultValue="map" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-gray-800 w-full">
+            <TabsList className={venueDashboardTabListClass}>
               <TabsTrigger value="map">Map View</TabsTrigger>
               <TabsTrigger value="list">List View</TabsTrigger>
             </TabsList>

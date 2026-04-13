@@ -12,6 +12,7 @@ import { UserRecommendation } from "../../components/user-discovery/user-recomme
 import { LoadingSpinner } from "../../components/loading-spinner"
 import { useRouter } from "next/navigation"
 import { Compass, Users, TrendingUp, Music, Calendar } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function ExplorePage() {
   const { isAuthenticated } = useAuth()
@@ -38,7 +39,7 @@ export default function ExplorePage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-gray-800 w-full justify-start overflow-x-auto">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="discover" className="flex items-center gap-1">
             <Compass className="h-4 w-4" /> Discover
           </TabsTrigger>

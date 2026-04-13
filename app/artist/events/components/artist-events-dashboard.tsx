@@ -6,7 +6,7 @@ import { Plus, Trash2, Pencil, Users, Calendar, DollarSign, Clock, MapPin, Music
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/components/ui/use-toast"
 import { EventWizardDialog } from "../event-wizard"
-import { createClient } from "@/lib/supabase"
+import { supabase } from "@/lib/supabase/client"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
@@ -39,7 +39,6 @@ interface ArtistEventsDashboardProps {
 }
 
 async function fetchEvents(userId: string): Promise<Event[]> {
-  const supabase = createClient()
   const { data, error } = await supabase
     .from('events')
     .select('*')

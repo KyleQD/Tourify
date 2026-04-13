@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -34,8 +33,6 @@ interface EventsCalendarProps {
 
 export default function EventsCalendar({ onCreateEvent }: EventsCalendarProps) {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [events, setEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [currentDate, setCurrentDate] = useState(new Date())

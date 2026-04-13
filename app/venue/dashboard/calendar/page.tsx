@@ -150,13 +150,13 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Calendar</h1>
-          <p className="text-gray-400">Manage your schedule and events</p>
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold break-words">Calendar</h1>
+          <p className="break-words text-gray-400">Manage your schedule and events</p>
         </div>
 
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button className="shrink-0" onClick={() => setShowCreateModal(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Event
         </Button>
@@ -166,9 +166,9 @@ export default function CalendarPage() {
         <div className="lg:col-span-3">
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle>{formatMonthYear(currentMonth)}</CardTitle>
-                  <div className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <CardTitle className="min-w-0 truncate">{formatMonthYear(currentMonth)}</CardTitle>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => void refreshCalendarData()} className="border-gray-700">
                     Refresh
                   </Button>
@@ -280,8 +280,8 @@ export default function CalendarPage() {
                       className="p-3 bg-gray-800/50 rounded-lg cursor-pointer hover:bg-gray-800"
                       onClick={() => router.push(`/venue/events/${event.id}`)}
                     >
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-medium">{event.title}</h3>
+                      <div className="flex min-w-0 items-center justify-between gap-2">
+                        <h3 className="min-w-0 flex-1 truncate font-medium">{event.title}</h3>
                         <Badge className={getEventTypeBadgeColor(event.type)}>
                           {getEventTypeLabel(event.type)}
                         </Badge>

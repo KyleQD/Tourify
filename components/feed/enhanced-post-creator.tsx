@@ -28,7 +28,6 @@ import {
 } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'
 import { toast } from 'sonner'
@@ -47,8 +46,6 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { user, loading } = useAuth()
-  const supabase = createClientComponentClient<Database>()
-
   const createPost = async (postData: {
     content: string
     visibility: string

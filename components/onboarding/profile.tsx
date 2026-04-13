@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState } from "react"
 import { Loader2, User, MapPin, Briefcase, Globe, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useRouter } from "next/navigation"
 
 interface ProfileFormData {
@@ -34,7 +34,6 @@ interface ProfileProps {
 
 export function Profile({ userId, onComplete }: ProfileProps) {
   const router = useRouter()
-  const supabase = createClientComponentClient()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<ProfileFormData>({
     displayName: "",

@@ -12,6 +12,7 @@ import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { HiringStateCard } from "@/components/hiring/hiring-state-card"
 import { ApplicationStatusBadge } from "@/components/hiring/application-status-badge"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 interface VenueJobCard {
   id: string
@@ -220,7 +221,7 @@ export default function JobsPage() {
       </div>
 
       <Tabs defaultValue="my-jobs" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="my-jobs">My Job Postings</TabsTrigger>
           <TabsTrigger value="available">Available Jobs</TabsTrigger>
           <TabsTrigger value="applications">My Applications</TabsTrigger>

@@ -46,6 +46,7 @@ import {
   Image as ImageIcon,
 } from "lucide-react"
 import { motion } from "framer-motion"
+import { venueDashboardTabListLightClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function VenueSettingsPage() {
   const { profile } = useProfile()
@@ -214,7 +215,7 @@ export default function VenueSettingsPage() {
         </div>
 
         <Tabs defaultValue="profile" value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-2 md:grid-cols-6 mb-6">
+          <TabsList className={`mb-6 ${venueDashboardTabListLightClass}`}>
             <TabsTrigger value="profile" className="flex items-center">
               <User className="mr-2 h-4 w-4" />
               <span className="hidden md:inline">Profile</span>

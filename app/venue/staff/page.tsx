@@ -431,8 +431,8 @@ export default function FuturisticStaffManagement() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 p-6">
       {/* Futuristic Header */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
+        <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 items-center space-x-4">
             <div className="relative">
               <div className="w-12 h-12 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-xl flex items-center justify-center">
                 <BrainCircuit className="h-6 w-6 text-white" />
@@ -447,7 +447,7 @@ export default function FuturisticStaffManagement() {
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
             <Button 
               variant="outline" 
               disabled={!staffingPermissions.can_manage_staffing}

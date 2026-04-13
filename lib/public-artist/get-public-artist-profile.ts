@@ -1,5 +1,4 @@
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { epkService } from '@/lib/services/epk.service'
 import type { PublicArtistPageDTO, PublicArtistStatsDTO, PublicArtistTrackDTO } from './public-artist-types'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
@@ -58,8 +57,7 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
   const { username } = params
   if (!username) return null
 
-  const cookieStore = cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+  const supabase = await createClient()
 
   const { data: authData } = await supabase.auth.getUser()
   const userId = authData?.user?.id ?? null

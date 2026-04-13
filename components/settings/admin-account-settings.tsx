@@ -15,7 +15,6 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { 
   Shield, 
   Settings, 
@@ -93,7 +92,6 @@ type NotificationSettingsFormData = z.infer<typeof notificationSettingsSchema>
 
 export function AdminAccountSettings({ activeTab }: AdminAccountSettingsProps) {
   const { currentAccount } = useMultiAccount()
-  const supabase = createClientComponentClient()
   const [isLoading, setIsLoading] = useState(false)
   const [adminProfile, setAdminProfile] = useState<any>(null)
 

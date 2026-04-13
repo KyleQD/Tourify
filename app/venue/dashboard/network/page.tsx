@@ -9,6 +9,7 @@ import { LoadingSpinner } from "../../components/loading-spinner"
 import { useRouter } from "next/navigation"
 import { UserCard } from "../../components/user-card"
 import { AdvancedSearch } from "../../components/advanced-search"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 // Prevent pre-rendering since this page requires authentication
 export const dynamic = 'force-dynamic'
@@ -38,7 +39,7 @@ export default function NetworkPage() {
       <h1 className="text-2xl font-bold">Your Network</h1>
 
       <Tabs defaultValue="discover">
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="discover" className="flex items-center">
             <Users className="h-4 w-4 mr-2" /> Discover
           </TabsTrigger>

@@ -17,6 +17,17 @@ export function GlobalNavigation() {
     setSidebarOpen(false)
   }, [pathname])
 
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return
+      e.preventDefault()
+      setCommandOpen(true)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
+
   const isVenueRoute = pathname.startsWith("/venue")
 
   return (
@@ -24,10 +35,10 @@ export function GlobalNavigation() {
       {/* Desktop sidebar - stays visible and switches to venue mode on /venue routes */}
       <MainSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} mode={isVenueRoute ? "venue" : "default"} />
 
-      {/* Top navigation - always present */}
-      <TopNavigation onSidebarOpen={() => setSidebarOpen(true)} onCommandOpen={() => setCommandOpen(true)} />
+      {!isVenueRoute ? (
+        <TopNavigation onSidebarOpen={() => setSidebarOpen(true)} onCommandOpen={() => setCommandOpen(true)} />
+      ) : null}
 
-      {/* Mobile navigation - always present */}
       <MobileNavigation />
 
       {/* Command menu - always present */}

@@ -47,7 +47,6 @@ import {
 import { format } from 'date-fns'
 import { useAuth } from '@/contexts/auth-context'
 import { formatSafeNumber } from "@/lib/format/number-format"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -89,9 +88,6 @@ export default function EventsPage() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
   const [selectedTab, setSelectedTab] = useState("overview")
-  
-  const supabase = createClientComponentClient()
-
   // Stats calculation
   const stats = {
     totalEvents: events.length,

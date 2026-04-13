@@ -1,10 +1,10 @@
 "use server"
 
-import { createClient } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
 
 export async function deleteEvent(userId: string, eventId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const { error } = await supabase
     .from('events')

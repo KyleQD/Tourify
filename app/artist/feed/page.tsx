@@ -33,7 +33,6 @@ import {
 } from 'lucide-react'
 import { CleanPostCreator } from '@/components/feed/clean-post-creator'
 import { MediaDisplay } from '@/components/feed/media-display'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 // Database type not used; removed invalid import
 import { useAuth } from '@/contexts/auth-context'
 import { useArtist } from '@/contexts/artist-context'
@@ -70,8 +69,6 @@ export default function ArtistFeedPage() {
   const [isLoadingNetwork, setIsLoadingNetwork] = useState(true)
   const [activeTab, setActiveTab] = useState('live')
   const [feedFilter, setFeedFilter] = useState<'all' | 'following' | 'trending'>('all')
-  const supabase = createClientComponentClient()
-
   function buildNoStoreInit(input?: RequestInit): RequestInit {
     return {
       credentials: 'include',

@@ -37,6 +37,7 @@ import {
   User as UserIcon,
   Mail,
 } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 type User = {
   id: string
@@ -345,7 +346,7 @@ export default function UserProfilePage() {
       {/* Profile Content */}
       <div className="mt-6">
         <Tabs defaultValue="about" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-gray-800 w-full justify-start overflow-x-auto">
+          <TabsList className={venueDashboardTabListClass}>
             <TabsTrigger value="about" className="flex items-center gap-1">
               <Users className="h-4 w-4" /> About
             </TabsTrigger>

@@ -1,11 +1,11 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { useAuth } from "@/contexts/auth-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -44,8 +44,6 @@ export function AccountSettings() {
   const [isFetching, setIsFetching] = useState(true)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isEmailUpdateLoading, setIsEmailUpdateLoading] = useState(false)
-  const supabase = createClientComponentClient()
-
   const form = useForm<AccountFormValues>({
     resolver: zodResolver(accountFormSchema),
     defaultValues: {

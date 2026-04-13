@@ -136,13 +136,13 @@ export default function IntegrationsPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Integrations</h1>
-          <p className="text-gray-400">Connect your accounts to enhance your Tourify experience</p>
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-bold break-words">Integrations</h1>
+          <p className="break-words text-gray-400">Connect your accounts to enhance your Tourify experience</p>
         </div>
 
-        <Button>
+        <Button className="shrink-0">
           <Plus className="h-4 w-4 mr-2" />
           Add Custom Integration
         </Button>
@@ -178,8 +178,8 @@ export default function IntegrationsPage() {
                     className="w-10 h-10 rounded mr-3"
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-medium">{integration.name}</h3>
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <h3 className="min-w-0 flex-1 truncate font-medium">{integration.name}</h3>
                       <Switch
                         checked={integration.connected}
                         onCheckedChange={() => toggleConnection(integration.id)}

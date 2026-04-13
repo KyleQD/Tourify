@@ -1,7 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
-
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const code = url.searchParams.get('code')
@@ -10,7 +8,7 @@ export async function GET(req: Request) {
 
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 })
 
-  const supabase = createRouteHandlerClient({ cookies })
+  const supabase = await createClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return NextResponse.redirect(url.origin + '/login')
 

@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Calendar, ImageIcon, Loader2, MessageSquare, ThumbsUp, TrendingUp, Users, Video } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { normalizeMediaData, renderMediaContent } from '@/utils/media-utils'
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function FeedPage() {
   const [postType, setPostType] = useState("text")
@@ -185,7 +186,7 @@ export default function FeedPage() {
       <Card className="bg-gray-800 border-gray-700">
         <CardHeader className="pb-2">
           <Tabs defaultValue="text" onValueChange={(value) => setPostType(value as any)}>
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className={venueDashboardTabListClass}>
               <TabsTrigger value="text">Post</TabsTrigger>
               <TabsTrigger value="media">Media</TabsTrigger>
               <TabsTrigger value="event">Event</TabsTrigger>

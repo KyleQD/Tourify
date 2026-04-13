@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 export interface Event {
@@ -28,7 +28,7 @@ export interface EventWizardMainData {
 }
 
 export async function fetchEvents(userId: string): Promise<Event[]> {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { data, error } = await supabase
     .from('events')
     .select('*')
@@ -43,7 +43,7 @@ export async function fetchEvents(userId: string): Promise<Event[]> {
 }
 
 export async function createEvent(userId: string, data: EventWizardMainData) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { error } = await supabase
     .from('events')
     .insert([{ ...data, created_by: userId, status: 'draft' }])
@@ -54,7 +54,7 @@ export async function createEvent(userId: string, data: EventWizardMainData) {
 }
 
 export async function updateEvent(userId: string, eventId: string, data: EventWizardMainData) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { error } = await supabase
     .from('events')
     .update(data)
@@ -67,7 +67,7 @@ export async function updateEvent(userId: string, eventId: string, data: EventWi
 }
 
 export async function deleteEvent(userId: string, eventId: string) {
-  const supabase = createClient()
+  const supabase = await createClient()
   const { error } = await supabase
     .from('events')
     .delete()

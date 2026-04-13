@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useSearchParams, useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
+import { venueDashboardTabListUnderlineClass } from "@/app/venue/lib/dashboard-ui"
 
 // Mock data for teams
 const mockTeams = [
@@ -112,8 +113,8 @@ export default function TeamsPage() {
         {/* Teams Sidebar */}
         <Card className="md:col-span-1">
           <CardHeader className="px-4 py-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg">My Teams</CardTitle>
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <CardTitle className="min-w-0 truncate text-lg">My Teams</CardTitle>
               <Button
                 size="sm"
                 variant="ghost"
@@ -203,7 +204,7 @@ export default function TeamsPage() {
           <Separator />
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="w-full justify-start rounded-none border-b bg-transparent p-0">
+              <TabsList className={venueDashboardTabListUnderlineClass}>
                 <TabsTrigger
                   value="members"
                   className="rounded-none border-b-2 border-transparent px-4 py-3 data-[state=active]:border-primary data-[state=active]:bg-transparent"

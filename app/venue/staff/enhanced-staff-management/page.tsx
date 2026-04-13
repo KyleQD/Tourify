@@ -271,19 +271,19 @@ export default function EnhancedStaffManagement() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white flex items-center space-x-3">
-            <Sparkles className="h-8 w-8 text-blue-400" />
-            <span>Enhanced Staff Management</span>
+      <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="flex flex-wrap items-center gap-3 text-3xl font-bold text-white">
+            <Sparkles className="h-8 w-8 shrink-0 text-blue-400" />
+            <span className="break-words">Enhanced Staff Management</span>
           </h1>
-          <p className="text-gray-400 mt-2">
+          <p className="mt-2 break-words text-gray-400">
             Comprehensive staff profile management with advanced features
           </p>
         </div>
         <Button 
           onClick={() => setIsCreateDialogOpen(true)}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
         >
           <UserPlus className="h-4 w-4 mr-2" />
           Add Staff Member

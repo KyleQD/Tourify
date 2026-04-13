@@ -17,16 +17,30 @@ export function GlobalNavigation() {
     setSidebarOpen(false)
   }, [pathname])
 
+  // ⌘/Ctrl+K opens command palette (TopNavigation hides on /venue/* so this keeps the shortcut)
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.defaultPrevented) return
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return
+      e.preventDefault()
+      setCommandOpen(true)
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [])
+
   // Check if we're in a venue route
   const isVenueRoute = pathname.startsWith("/(venue)") || pathname.startsWith("/venue")
 
   return (
     <>
-      {/* Desktop sidebar - always present but hidden on venue routes */}
+      {/* Desktop sidebar - hidden on venue routes (root layout Nav is primary chrome) */}
       <MainSidebar open={sidebarOpen} onOpenChange={setSidebarOpen} className={isVenueRoute ? "hidden" : ""} />
 
-      {/* Top navigation - always present */}
-      <TopNavigation onSidebarOpen={() => setSidebarOpen(true)} onCommandOpen={() => setCommandOpen(true)} />
+      {/* Top bar: skip on /venue/* — root `Nav` is already fixed/sticky; a second header stacked at top-0 was redundant and sat under it (z-30 vs z-50). */}
+      {!isVenueRoute ? (
+        <TopNavigation onSidebarOpen={() => setSidebarOpen(true)} onCommandOpen={() => setCommandOpen(true)} />
+      ) : null}
 
       {/* Mobile navigation - always present */}
       <MobileNavigation />

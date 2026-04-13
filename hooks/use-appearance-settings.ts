@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
 
 export interface AppearanceSettings {
@@ -38,7 +37,6 @@ const defaultSettings: AppearanceSettings = {
 
 export function useAppearanceSettings() {
   const { user } = useAuth()
-  const supabase = createClientComponentClient()
   const [settings, setSettings] = useState<AppearanceSettings>(defaultSettings)
   const [loading, setLoading] = useState(true)
 

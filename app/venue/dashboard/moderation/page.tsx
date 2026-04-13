@@ -23,6 +23,7 @@ import {
   moderateContent,
   ModeratedContent,
 } from "../../lib/moderation-service"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 export default function ModerationPage() {
   const { isAuthenticated, user } = useAuth()
@@ -103,7 +104,7 @@ export default function ModerationPage() {
       </div>
 
       <Tabs defaultValue="check">
-        <TabsList className="bg-gray-800">
+        <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="check">Check Content</TabsTrigger>
           <TabsTrigger value="history">Moderation History</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>

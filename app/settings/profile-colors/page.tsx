@@ -1,7 +1,7 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { ProfileColorCustomizer } from "@/components/profile/profile-color-customizer"
 import { useProfileColors } from "@/hooks/use-profile-colors"
 import { Button } from "@/components/ui/button"
@@ -14,8 +14,6 @@ export default function ProfileColorsPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClientComponentClient()
-
   const {
     colors,
     loading: colorsLoading,

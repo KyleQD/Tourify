@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -57,8 +56,6 @@ interface EventAnalyticsProps {
 
 export default function EventAnalytics({ timeRange = "12m" }: EventAnalyticsProps) {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [events, setEvents] = useState<Event[]>([])
   const [analytics, setAnalytics] = useState<EventAnalytics | null>(null)
   const [isLoading, setIsLoading] = useState(true)

@@ -22,7 +22,6 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useAuth } from "@/contexts/auth-context"
 
@@ -77,7 +76,6 @@ export function ProfilePosts({
   className 
 }: ProfilePostsProps) {
   const { user: currentUser } = useAuth()
-  const supabase = createClientComponentClient()
   const [posts, setPosts] = useState<Post[]>([])
   const [loading, setLoading] = useState(true)
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set())

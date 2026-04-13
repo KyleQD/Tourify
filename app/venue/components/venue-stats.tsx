@@ -1,92 +1,89 @@
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Calendar, Star, Ticket, Users } from "lucide-react"
 
 interface VenueStatsProps {
   venue: any
-  stats?: any // Optional separate stats object
+  stats?: any
 }
 
 export function VenueStats({ venue, stats }: VenueStatsProps) {
-  // Use separate stats if provided, otherwise fall back to venue.stats for compatibility
   const actualStats = stats || venue?.stats || {}
-  
-  // Safely extract stats with defaults
-  const events = actualStats.totalBookings || actualStats.events || 0
-  const rating = actualStats.averageRating || actualStats.rating || 0
-  const bookingRequests = actualStats.pendingRequests || actualStats.bookingRequests || 0
-  const teamMembers = actualStats.teamMembers || actualStats.teamMembers || 0
+
+  const events = actualStats.totalBookings ?? actualStats.events ?? 0
+  const rating = actualStats.averageRating ?? actualStats.rating ?? 0
+  const bookingRequests = actualStats.pendingRequests ?? actualStats.bookingRequests ?? 0
+  const teamMembers = actualStats.teamMembers ?? 0
+  const upcomingEvents = actualStats.upcomingEvents ?? 0
+  const totalReviews = actualStats.totalReviews ?? 0
+
+  const ratingLabel = typeof rating === "number" && Number.isFinite(rating) ? rating.toFixed(1) : "0.0"
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Total Events</p>
-              <p className="text-2xl font-bold text-white">{events.toLocaleString()}</p>
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="min-w-0">
+              <p className="text-sm text-gray-400">Total events</p>
+              <p className="text-2xl font-bold text-white tabular-nums">{Number(events).toLocaleString()}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                {upcomingEvents > 0 ? `${upcomingEvents} upcoming` : "No upcoming events"}
+              </p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center shrink-0">
               <Calendar className="h-5 w-5 text-purple-400" />
             </div>
           </div>
-          <Badge variant="outline" className="mt-2 bg-green-900/20 text-green-400 border-green-800">
-            +12% this month
-          </Badge>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Venue Rating</p>
-              <div className="flex items-center">
-                <p className="text-2xl font-bold text-white">{rating.toFixed(1)}</p>
-                <Star className="h-5 w-5 text-yellow-500 ml-1 fill-current" />
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="min-w-0">
+              <p className="text-sm text-gray-400">Venue rating</p>
+              <div className="flex items-center gap-1 min-w-0">
+                <p className="text-2xl font-bold text-white tabular-nums">{ratingLabel}</p>
+                <Star className="h-5 w-5 text-yellow-500 fill-current shrink-0" />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {totalReviews > 0 ? `${totalReviews} review${totalReviews === 1 ? "" : "s"}` : "No reviews yet"}
+              </p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center shrink-0">
               <Star className="h-5 w-5 text-purple-400" />
             </div>
           </div>
-          <Badge variant="outline" className="mt-2 bg-green-900/20 text-green-400 border-green-800">
-            +0.2 this month
-          </Badge>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Booking Requests</p>
-              <p className="text-2xl font-bold text-white">{bookingRequests}</p>
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="min-w-0">
+              <p className="text-sm text-gray-400">Booking requests</p>
+              <p className="text-2xl font-bold text-white tabular-nums">{bookingRequests}</p>
+              <p className="text-xs text-gray-500 mt-1">Awaiting your response</p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center shrink-0">
               <Ticket className="h-5 w-5 text-purple-400" />
             </div>
           </div>
-          <Badge variant="outline" className="mt-2 bg-green-900/20 text-green-400 border-green-800">
-            +3 new requests
-          </Badge>
         </CardContent>
       </Card>
 
       <Card className="bg-gray-900 border-gray-800">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-400">Team Members</p>
-              <p className="text-2xl font-bold text-white">{teamMembers}</p>
+          <div className="flex items-center justify-between gap-2 min-w-0">
+            <div className="min-w-0">
+              <p className="text-sm text-gray-400">Team members</p>
+              <p className="text-2xl font-bold text-white tabular-nums">{teamMembers}</p>
+              <p className="text-xs text-gray-500 mt-1">Active on this venue</p>
             </div>
-            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-purple-900/20 flex items-center justify-center shrink-0">
               <Users className="h-5 w-5 text-purple-400" />
             </div>
           </div>
-          <Badge variant="outline" className="mt-2 bg-blue-900/20 text-blue-400 border-blue-800">
-            2 pending invites
-          </Badge>
         </CardContent>
       </Card>
     </div>

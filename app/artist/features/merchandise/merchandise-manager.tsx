@@ -1,8 +1,8 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -63,8 +63,6 @@ interface MerchandiseEditorProps {
 
 function MerchandiseEditor({ item, onSave, onCancel }: MerchandiseEditorProps) {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [formData, setFormData] = useState<MerchandiseItem>({
     name: '',
     description: '',
@@ -452,8 +450,6 @@ function MerchandiseEditor({ item, onSave, onCancel }: MerchandiseEditorProps) {
 
 export default function MerchandiseManager() {
   const { user, profile } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [items, setItems] = useState<MerchandiseItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showEditor, setShowEditor] = useState(false)

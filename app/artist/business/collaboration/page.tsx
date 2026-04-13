@@ -1,9 +1,9 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import { useState, useEffect, useCallback, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,7 +43,6 @@ function statusBadge(status: string) {
 
 function CollaborationPageInner() {
   const { user } = useArtist()
-  const supabase = createClientComponentClient()
   const searchParams = useSearchParams()
   const focus = searchParams.get("focus")
 

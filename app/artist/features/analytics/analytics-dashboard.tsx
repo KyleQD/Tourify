@@ -1,8 +1,8 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import React, { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -70,7 +70,6 @@ interface AnalyticsData {
 
 export function AnalyticsDashboard() {
   const { user, stats } = useArtist()
-  const supabase = createClientComponentClient()
   const [activeTab, setActiveTab] = useState("overview")
   const [timeRange, setTimeRange] = useState("30d")
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null)

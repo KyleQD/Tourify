@@ -1,11 +1,11 @@
 "use client"
 
+import { supabase } from '@/lib/supabase/client'
 import React from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ImageIcon, Video, Users, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase"
 import type { PostFormData } from "@/types/post"
 
@@ -25,8 +25,6 @@ export function PostForm({ user, onPostCreated }: PostFormProps) {
   const [isPosting, setIsPosting] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const { toast } = useToast()
-  const supabase = createClientComponentClient<Database>()
-
   const handleFileSelect = (type: "image" | "video") => {
     if (fileInputRef.current) {
       fileInputRef.current.accept = type === "image" ? "image/*" : "video/*"

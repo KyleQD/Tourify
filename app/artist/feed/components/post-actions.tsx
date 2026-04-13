@@ -3,7 +3,6 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Heart, Share2, Bookmark } from "lucide-react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import type { Database } from "@/types/supabase"
 import { useToast } from "@/hooks/use-toast"
 import type { Post } from "@/types/post"
@@ -15,7 +14,6 @@ interface PostActionsProps {
 
 export function PostActions({ post, onLikeToggle }: PostActionsProps) {
   const [isLiking, setIsLiking] = React.useState(false)
-  const supabase = createClientComponentClient<Database>()
   const { toast } = useToast()
 
   const handleLikeToggle = async () => {

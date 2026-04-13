@@ -30,6 +30,7 @@ import {
   Accessibility,
   Coffee,
 } from "lucide-react"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 // Mock venue data - in a real app, this would come from an API
 const mockVenue = {
@@ -263,7 +264,7 @@ export default function EditVenuePage() {
 
         <CardContent>
           <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-gray-800 mb-6">
+            <TabsList className={`mb-6 ${venueDashboardTabListClass}`}>
               <TabsTrigger value="basic">Basic Info</TabsTrigger>
               <TabsTrigger value="specs">Venue Specs</TabsTrigger>
               <TabsTrigger value="booking">Booking Settings</TabsTrigger>

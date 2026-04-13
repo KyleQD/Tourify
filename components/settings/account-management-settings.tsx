@@ -33,7 +33,6 @@ import {
 } from 'lucide-react'
 import { AccountManagementService, UserAccount } from '@/lib/services/account-management.service'
 import { useRouter } from 'next/navigation'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 
@@ -73,8 +72,6 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClientComponentClient()
-
   // Direct client-side database query to avoid API authentication issues
   const fetchRealAccountsOnly = async () => {
     if (!user?.id) {

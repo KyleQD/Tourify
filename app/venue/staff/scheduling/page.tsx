@@ -49,14 +49,14 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Staff Scheduling</h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground break-words">
             Manage shifts, assignments, and scheduling for your venue
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button variant="outline" size="sm">
             <Upload className="h-4 w-4 mr-2" />
             Import

@@ -1,6 +1,5 @@
+import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { normalizeVenueSlug } from '@/lib/venue/routing'
 
@@ -10,7 +9,7 @@ export async function GET(
   { params }: any
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const track_view = searchParams.get('track_view') === 'true'
     
@@ -244,7 +243,7 @@ export async function PUT(
   { params }: any
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
@@ -324,7 +323,7 @@ export async function DELETE(
   { params }: any
 ) {
   try {
-    const supabase = createRouteHandlerClient({ cookies })
+    const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {

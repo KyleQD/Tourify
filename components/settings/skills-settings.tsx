@@ -8,13 +8,11 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Separator } from '@/components/ui/separator'
 import { Loader2, Target, Users } from 'lucide-react'
 import { toast } from 'sonner'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { useAuth } from '@/contexts/auth-context'
 
 interface EndorsementCountMap { [skill: string]: number }
 
 export function SkillsSettings() {
-  const supabase = createClientComponentClient()
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

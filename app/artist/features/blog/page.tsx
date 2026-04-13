@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -60,8 +59,6 @@ interface BlogPost {
 
 export default function BlogPage() {
   const { user, profile } = useArtist()
-  const supabase = createClientComponentClient()
-  
   const [posts, setPosts] = useState<BlogPost[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showEditor, setShowEditor] = useState(false)
