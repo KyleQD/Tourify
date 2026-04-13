@@ -6,13 +6,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, ShieldAlert } from "lucide-react"
 
-function isStorageSecurityError(error: Error): boolean {
-  const msg = (error.message || "").toLowerCase()
+function isStorageSecurityError(error: Error & { cause?: unknown }): boolean {
+  const raw = `${error?.name ?? ""} ${error?.message ?? ""} ${String((error as any)?.cause ?? "")} ${String(error)}`
+  const msg = raw.toLowerCase()
   return (
-    error.name === "SecurityError" ||
+    error?.name === "SecurityError" ||
     msg.includes("operation is insecure") ||
+    msg.includes("securityerror") ||
     msg.includes("access is denied") ||
-    msg.includes("the operation is not allowed")
+    msg.includes("the operation is not allowed") ||
+    msg.includes("failed to read the \"cookie\"") ||
+    msg.includes("failed to read the \"localstorage\"")
   )
 }
 

@@ -410,20 +410,15 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
         comments_count,
         created_at,
         user_id,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url,
-          verified
-        )
+        artist_username,
+        artist_name,
+        artist_avatar_url
       `)
       .eq('is_public', true)
       .order('created_at', { ascending: false })
       .limit(params.limit)
 
     return (data || []).map(track => {
-      const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles
       return ({
       id: `music_${track.id}`,
       originType: 'internal_post',
@@ -436,10 +431,10 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
       topics: normalizeTopics([track.genre, ...(Array.isArray(track.tags) ? track.tags : []), 'Music Release']),
       author: {
         id: String(track.user_id),
-        name: profile?.full_name || profile?.username || 'Artist',
-        username: profile?.username || undefined,
-        avatarUrl: profile?.avatar_url || undefined,
-        isVerified: profile?.verified || false
+        name: track.artist_name || track.artist_username || 'Artist',
+        username: track.artist_username || undefined,
+        avatarUrl: track.artist_avatar_url || undefined,
+        isVerified: false,
       },
       metrics: {
         likes: track.likes_count || 0,

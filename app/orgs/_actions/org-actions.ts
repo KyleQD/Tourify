@@ -5,6 +5,7 @@ import { createSafeActionClient } from 'next-safe-action'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { createRateLimiter } from '@/lib/utils/rate-limit'
+import { escapeHtml, emailLayout, emailButton, emailFallbackUrl } from '@/lib/email/email-layout'
 
 const action = createSafeActionClient()
 
@@ -68,6 +69,20 @@ export const createInviteAction = action.schema(inviteSchema).action(async ({ pa
   const sendgridKey = process.env.SENDGRID_API_KEY || process.env.EMAIL_PROVIDER_API_KEY
   if (!from || !sendgridKey) return { ok: true } // silently succeed without email in dev
 
+  const role = escapeHtml(parsedInput.role)
+  const inviteHtml = emailLayout({
+    title: 'Organization Invitation',
+    preheader: `You have been invited to join an organization on Tourify as ${parsedInput.role}.`,
+    subtitle: 'Organizations',
+    bodyHtml: `
+      <p style="margin:0 0 16px 0;color:#f8fafc;font-size:20px;font-weight:600;">You are invited</p>
+      <p style="margin:0 0 16px 0;color:#cbd5e1;">You have been invited to join an organization on Tourify as <strong style="color:#f8fafc;">${role}</strong>.</p>
+      <p style="margin:0 0 24px 0;color:#cbd5e1;">Accept the invitation below to get started.</p>
+      ${emailButton({ href: acceptUrl, label: 'Accept invitation' })}
+      ${emailFallbackUrl(acceptUrl)}
+    `,
+  })
+
   const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
     headers: {
@@ -77,7 +92,7 @@ export const createInviteAction = action.schema(inviteSchema).action(async ({ pa
     body: JSON.stringify({
       personalizations: [{ to: [{ email: parsedInput.email }], subject: 'You have been invited to an organization on Tourify' }],
       from: { email: from, name: 'Tourify' },
-      content: [{ type: 'text/html', value: `<p>You have been invited as <b>${parsedInput.role}</b>.</p><p>Accept here: <a href="${acceptUrl}">${acceptUrl}</a></p>` }]
+      content: [{ type: 'text/html', value: inviteHtml }]
     })
   })
   if (!res.ok) return { ok: false, error: 'email_failed' }

@@ -384,28 +384,24 @@ export class AccountManagementService {
   // Get active session
   static async getActiveSession(userId: string, authenticatedSupabase?: any): Promise<ActiveSession | null> {
     try {
-      // Use authenticated Supabase client if provided (for API routes), otherwise use default client
       const clientToUse = authenticatedSupabase || supabase
-      
-      // Use array mode with limit(1) to avoid PostgREST object-mode 406 responses.
+
+      // user_sessions is optional; schema variants differ (no updated_at in core migration).
+      // user_id is UNIQUE — one row max, so ordering is unnecessary and avoids PostgREST 406/400
+      // when ordering by a column that does not exist on the deployed database.
       const { data, error } = await clientToUse
         .from('user_sessions')
         .select('*')
         .eq('user_id', userId)
         .limit(1)
-        .order('updated_at', { ascending: false })
 
-      if (error && error.code !== 'PGRST116') {
-        // If table doesn't exist, return null (no session management available)
-        if (error.code === '42P01') {
-          console.log('User sessions table does not exist yet. Migration needs to be applied.')
-          return null
-        }
-        throw error
+      if (error) {
+        console.warn('[Account Management] user_sessions unavailable (non-fatal):', error.code, error.message)
+        return null
       }
-      return data?.[0] || null
+      return data?.[0] ?? null
     } catch (error) {
-      console.error('Error getting active session:', error)
+      console.warn('[Account Management] getActiveSession failed (non-fatal):', error)
       return null
     }
   }

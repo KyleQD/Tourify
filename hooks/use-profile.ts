@@ -75,36 +75,35 @@ export function useProfile(): UseProfileReturn {
       
       if (profileError) throw profileError
 
-      // Fetch artist profile
       const { data: artistProfile } = await supabase
         .from('artist_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
-      // Fetch venue profile
       const { data: venueProfile } = await supabase
         .from('venue_profiles')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
-      // Fetch onboarding state
+      // Optional row — .single() caused PostgREST 406 when no onboarding record existed yet
       const { data: onboarding, error: onboardingError } = await supabase
         .from('onboarding')
         .select('*')
         .eq('user_id', userId)
-        .single()
+        .maybeSingle()
 
-      if (onboardingError) throw onboardingError
+      if (onboardingError)
+        console.warn('[useProfile] onboarding row unavailable:', onboardingError.message)
 
       setProfileData({
         profile,
         artistProfile,
         venueProfile
       })
-      setOnboardingState(onboarding)
-      setActiveProfileType(onboarding.active_profile_type)
+      setOnboardingState(onboarding ?? null)
+      setActiveProfileType((onboarding?.active_profile_type as ProfileType) ?? 'general')
 
     } catch (e) {
       setError(e instanceof Error ? e : new Error('Failed to load profile data'))

@@ -17,7 +17,16 @@ import {
   normalizePostLoginRedirect,
   normalizeUsername,
 } from "@/lib/auth/tourify-auth-helpers"
-import { ArrowRight, CheckCircle, Eye, EyeOff, Loader2, Shield, Sparkles } from "lucide-react"
+import { ArrowRight, Building2, CheckCircle, Eye, EyeOff, Loader2, MapPin, Music, Shield, Sparkles, User } from "lucide-react"
+
+type AccountType = "general" | "artist" | "venue" | "organization"
+
+const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string; description: string; icon: typeof User }[] = [
+  { value: "general", label: "General", description: "Fan & enthusiast", icon: User },
+  { value: "artist", label: "Artist", description: "Performer & musician", icon: Music },
+  { value: "venue", label: "Venue", description: "Venue owner or manager", icon: MapPin },
+  { value: "organization", label: "Organization", description: "Label, agency, or promoter", icon: Building2 },
+]
 
 export interface TourifyAuthPortalProps {
   /** When true, read/write `?tab=` to match the selected tab (full login page). */
@@ -74,6 +83,7 @@ export function TourifyAuthPortal({
     confirmPassword: "",
     name: "",
     username: "",
+    accountType: "general" as AccountType,
   })
 
   const redirectTo = normalizePostLoginRedirect(
@@ -304,6 +314,7 @@ export function TourifyAuthPortal({
       const result = await signUp(signUpData.email, signUpData.password, {
         full_name: signUpData.name,
         username: normalizedUsernameToUse,
+        account_type: signUpData.accountType,
       })
 
       if (result.error) setError(mapAuthError(result.error))
@@ -553,6 +564,35 @@ export function TourifyAuthPortal({
                 </div>
               </div>
               <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-white font-medium">I am a...</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ACCOUNT_TYPE_OPTIONS.map((opt) => {
+                      const Icon = opt.icon
+                      const isSelected = signUpData.accountType === opt.value
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          disabled={isSubmitting}
+                          onClick={() => setSignUpData({ ...signUpData, accountType: opt.value })}
+                          className={`flex items-center gap-2 rounded-lg border p-2.5 text-left transition-all duration-200 ${
+                            isSelected
+                              ? "border-purple-500 bg-purple-500/20 text-white"
+                              : "border-white/15 bg-white/5 text-slate-300 hover:border-white/30 hover:bg-white/10"
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 flex-shrink-0 ${isSelected ? "text-purple-400" : "text-slate-400"}`} />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium leading-tight">{opt.label}</p>
+                            <p className="text-[10px] leading-tight text-slate-400">{opt.description}</p>
+                          </div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="portal-signup-name" className="text-white font-medium">

@@ -1,158 +1,168 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient as _createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../database.types'
 
-// Validate environment variables with better error handling
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// ---------------------------------------------------------------------------
+// Environment
+// ---------------------------------------------------------------------------
 
-// Check for placeholder values that indicate missing configuration
-const hasPlaceholderValues = !supabaseUrl || 
-  !supabaseAnonKey || 
-  supabaseAnonKey.includes('your_anon_key') || 
-  supabaseAnonKey.includes('your_supabase_anon_key') ||
-  supabaseAnonKey.length < 50
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? ''
 
-if (hasPlaceholderValues) {
-  console.error('❌ Supabase Configuration Error:')
-  console.error('Missing or invalid Supabase environment variables.')
-  console.error('Please ensure your .env.local file contains:')
-  console.error('NEXT_PUBLIC_SUPABASE_URL=your_actual_supabase_url')
-  console.error('NEXT_PUBLIC_SUPABASE_ANON_KEY=your_actual_anon_key')
-  console.error('')
-  console.error('You can find these values in your Supabase project dashboard:')
-  console.error('Settings > API > Project URL and anon/public key')
-  
-  // Don't throw error in development, just warn
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      'Missing Supabase environment variables. Please check your .env.local file.'
-    )
+const hasValidConfig =
+  supabaseUrl.length > 0 &&
+  supabaseAnonKey.length > 50 &&
+  !supabaseAnonKey.includes('your_anon_key') &&
+  !supabaseAnonKey.includes('your_supabase_anon_key')
+
+if (!hasValidConfig && process.env.NODE_ENV === 'production') {
+  console.error(
+    '[Supabase] Missing or invalid environment variables – check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY',
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Storage – cookie + localStorage hybrid, fully fault-tolerant.
+// Every path is wrapped so that a SecurityError (Safari ITP, incognito,
+// sandboxed iframe, etc.) never propagates to the caller.
+// ---------------------------------------------------------------------------
+
+function canAccessStorage(): boolean {
+  if (typeof window === 'undefined') return false
+  try {
+    // Probe both storage mechanisms; either may throw SecurityError
+    const probe = '__tourify_probe__'
+    localStorage.setItem(probe, '1')
+    localStorage.removeItem(probe)
+    return true
+  } catch {
+    return false
   }
 }
 
-// Debug logging for environment variables
-console.log('🔧 Supabase Configuration:')
-console.log('URL:', supabaseUrl ? '✅ Set' : '❌ Missing')
-console.log('Anon Key:', supabaseAnonKey ? (hasPlaceholderValues ? '❌ Placeholder' : '✅ Valid') : '❌ Missing')
+let _storageAvailable: boolean | null = null
+function isStorageAvailable(): boolean {
+  if (_storageAvailable === null) _storageAvailable = canAccessStorage()
+  return _storageAvailable
+}
 
-// Custom cookie storage for Supabase to ensure server-side compatibility
-const cookieStorage = {
-  getItem: (key: string) => {
+const inMemoryFallback = new Map<string, string>()
+
+const safeStorage: {
+  getItem: (key: string) => string | null
+  setItem: (key: string, value: string) => void
+  removeItem: (key: string) => void
+} = {
+  getItem(key) {
     if (typeof window === 'undefined') return null
 
+    // 1. Try cookies
     try {
       const cookies = document.cookie.split(';')
       for (const part of cookies) {
         const trimmed = part.trim()
         const eq = trimmed.indexOf('=')
         if (eq === -1) continue
-        const name = trimmed.slice(0, eq)
-        if (name !== key) continue
-        const raw = trimmed.slice(eq + 1)
-        return decodeURIComponent(raw)
+        if (trimmed.slice(0, eq) === key) return decodeURIComponent(trimmed.slice(eq + 1))
       }
-    } catch (e) {
-      console.warn('[Supabase auth storage] Cookie read failed:', e)
+    } catch { /* SecurityError – continue */ }
+
+    // 2. Try localStorage
+    if (isStorageAvailable()) {
+      try { return localStorage.getItem(key) } catch { /* noop */ }
     }
 
-    try {
-      return localStorage.getItem(key)
-    } catch {
-      return null
-    }
+    // 3. In-memory fallback (session-only, survives within page lifetime)
+    return inMemoryFallback.get(key) ?? null
   },
-  setItem: (key: string, value: string) => {
+
+  setItem(key, value) {
     if (typeof window === 'undefined') return
 
+    // Always write to in-memory so the session is never lost within the page
+    inMemoryFallback.set(key, value)
+
+    // Cookie
     try {
       const expires = new Date()
       expires.setFullYear(expires.getFullYear() + 1)
-      const secureAttribute = window.location.protocol === 'https:' ? '; Secure' : ''
-      document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secureAttribute}`
-    } catch (e) {
-      // Safari / strict privacy modes can throw SecurityError: The operation is insecure.
-      console.warn('[Supabase auth storage] Cookie write skipped; using localStorage only:', e)
-    }
+      const secure = window.location.protocol === 'https:' ? '; Secure' : ''
+      document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secure}`
+    } catch { /* Safari ITP / sandboxed iframe */ }
 
-    try {
-      localStorage.setItem(key, value)
-    } catch (e) {
-      console.warn('Could not set localStorage:', e)
+    // localStorage
+    if (isStorageAvailable()) {
+      try { localStorage.setItem(key, value) } catch { /* noop */ }
     }
   },
-  removeItem: (key: string) => {
+
+  removeItem(key) {
     if (typeof window === 'undefined') return
 
-    try {
-      document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
-    } catch (e) {
-      console.warn('[Supabase auth storage] Cookie remove failed:', e)
-    }
+    inMemoryFallback.delete(key)
 
-    try {
-      localStorage.removeItem(key)
-    } catch (e) {
-      console.warn('Could not remove from localStorage:', e)
+    try { document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/` } catch { /* noop */ }
+
+    if (isStorageAvailable()) {
+      try { localStorage.removeItem(key) } catch { /* noop */ }
     }
-  }
+  },
 }
 
-// Create a single, consistent Supabase client with cookie storage
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    storageKey: 'sb-tourify-auth-token',
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-    storage: cookieStorage,
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'tourify-web',
+// ---------------------------------------------------------------------------
+// Singleton client – created lazily on first access so module evaluation
+// never throws even when storage is blocked.
+// ---------------------------------------------------------------------------
+
+let _instance: SupabaseClient<Database> | null = null
+
+function getClient(): SupabaseClient<Database> {
+  if (_instance) return _instance
+
+  _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      storageKey: 'sb-tourify-auth-token',
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      storage: safeStorage,
     },
+    global: { headers: { 'X-Client-Info': 'tourify-web' } },
+  })
+
+  // Async side-effects: failures are logged, never thrown
+  if (typeof window !== 'undefined') {
+    _instance.auth.getSession().catch((err) => {
+      console.warn('[Supabase] getSession failed (non-fatal):', err)
+    })
+
+    _instance.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        try { localStorage.removeItem('onboardingData') } catch { /* noop */ }
+      }
+      if (event === 'SIGNED_IN') {
+        try {
+          const hash = window.location.hash
+          if (hash.includes('type=recovery')) {
+            window.location.href = '/auth/verification?type=recovery&success=true'
+          } else if (hash.includes('type=signup')) {
+            window.location.href = '/auth/verification?type=signup&success=true'
+          }
+        } catch { /* noop */ }
+      }
+    })
+  }
+
+  return _instance
+}
+
+// Proxy that lazily initialises on first property access.
+// This lets every module `import { supabase }` without risk of a top-level throw.
+export const supabase: SupabaseClient<Database> = new Proxy({} as SupabaseClient<Database>, {
+  get(_target, prop, receiver) {
+    return Reflect.get(getClient(), prop, receiver)
   },
 })
-
-// Test the connection on initialization
-if (typeof window !== 'undefined') {
-  supabase.auth.getSession().then(({ data, error }) => {
-    if (error) {
-      console.error('Supabase connection error:', error)
-    } else {
-      console.log('Supabase connected successfully')
-      console.log('Current session:', data.session ? 'Exists' : 'None')
-      console.log('Storage method: Cookies + localStorage hybrid')
-    }
-  })
-}
-
-// Browser-only auth state change handling
-if (typeof window !== 'undefined') {
-  supabase.auth.onAuthStateChange((event, session) => {
-    // Handle different auth events
-    if (event === 'SIGNED_OUT') {
-      // Clear any local storage or session data
-      try {
-        localStorage.removeItem('onboardingData')
-      } catch (e) {
-        console.warn('Could not remove onboardingData from localStorage:', e)
-      }
-    }
-    
-    if (event === 'SIGNED_IN') {
-      const url = new URL(window.location.href)
-      const hash = url.hash
-      
-      // Handle email verification redirects
-      if (hash.includes('type=recovery')) {
-        window.location.href = '/auth/verification?type=recovery&success=true'
-      } else if (hash.includes('type=signup')) {
-        window.location.href = '/auth/verification?type=signup&success=true'
-      }
-    }
-  })
-}
 
 // Server-side client for API routes
 export function createServerClient() {
@@ -163,7 +173,7 @@ export function createServerClient() {
     throw new Error('Missing Supabase server environment variables')
   }
 
-  return createClient<Database>(supabaseUrl, supabaseKey, {
+  return _createSupabaseClient<Database>(supabaseUrl, supabaseKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

@@ -12,7 +12,7 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
-  signUp: (email: string, password: string, metadata?: { full_name?: string; username?: string }) => Promise<{ error?: AuthError }>
+  signUp: (email: string, password: string, metadata?: { full_name?: string; username?: string; account_type?: string }) => Promise<{ error?: AuthError }>
   signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
   signOut: () => Promise<{ error?: AuthError }>
   resetPassword: (email: string) => Promise<{ error?: AuthError }>
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (
     email: string, 
     password: string, 
-    metadata?: { full_name?: string; username?: string }
+    metadata?: { full_name?: string; username?: string; account_type?: string }
   ) => {
     try {
       setLoading(true)
@@ -190,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: metadata?.full_name,
             username: normalizedUsername || metadata?.username,
+            account_type: metadata?.account_type || 'general',
           },
         },
       })

@@ -78,12 +78,6 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(`${requestUrl.origin}/login?message=email_confirmed&email=${encodeURIComponent(data?.session?.user?.email || '')}`)
           }
         }
-        
-        // If this is from signup flow, redirect to login page
-        if (type === "signup") {
-          console.log(`[Auth Callback] Signup flow completed, redirecting to login page`)
-          return NextResponse.redirect(`${requestUrl.origin}/login?message=account_created&email=${encodeURIComponent(data?.session?.user?.email || '')}`)
-        }
       }
     } catch (err) {
       console.error(`[Auth Callback] Exception during code exchange:`, err)

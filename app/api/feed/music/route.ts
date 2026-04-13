@@ -13,15 +13,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('music_tracks')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('is_public', true)
     if (userId) {
       query = query.eq('user_id', userId)
@@ -113,10 +105,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Transform tracks to match feed format
     const musicContent = (tracks || []).map(track => {
-      const profile = track.profiles as { id: string; username: string | null; full_name: string | null; avatar_url: string | null } | null
-      const displayName = profile?.full_name || profile?.username || 'Unknown artist'
+      const displayName = track.artist_name || track.artist_username || 'Unknown artist'
       return {
         id: track.id,
         type: 'music' as const,
@@ -125,7 +115,8 @@ export async function GET(request: NextRequest) {
         author: {
           id: track.user_id,
           name: displayName,
-          username: profile?.username || null,
+          username: track.artist_username || null,
+          avatar_url: track.artist_avatar_url || null,
         },
         cover_image: track.cover_art_url,
         created_at: track.created_at,

@@ -415,36 +415,32 @@ export default function DashboardPage() {
     }
   }
 
-    // Load data when user is available
-    fetchUserProfile()
-    loadDashboardData()
+    fetchUserProfile().catch(() => {})
+    loadDashboardData().catch(() => {})
 
-    // Add focus event listener to refresh profile when user returns to dashboard
     const handleFocus = () => {
-      if (dashboardUser) {
-        fetchUserProfile()
-      }
+      if (dashboardUser) fetchUserProfile().catch(() => {})
     }
 
-    // Add storage event listener to refresh when profile is updated in settings
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'profile-updated' && dashboardUser) {
-        fetchUserProfile()
-        // Clear the storage item after handling
-        try {
-          localStorage.removeItem('profile-updated')
-        } catch (storageError) {
-          console.warn('[Dashboard] Could not clear profile-updated from localStorage:', storageError)
+      try {
+        if (e.key === 'profile-updated' && dashboardUser) {
+          fetchUserProfile().catch(() => {})
+          try { localStorage.removeItem('profile-updated') } catch { /* noop */ }
         }
-      }
+      } catch { /* noop */ }
     }
 
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('storage', handleStorageChange)
-    
+    try {
+      window.addEventListener('focus', handleFocus)
+      window.addEventListener('storage', handleStorageChange)
+    } catch { /* noop */ }
+
     return () => {
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('storage', handleStorageChange)
+      try {
+        window.removeEventListener('focus', handleFocus)
+        window.removeEventListener('storage', handleStorageChange)
+      } catch { /* noop */ }
     }
   }, [user, loading, router, dashboardUserId, forceLoad])
 
