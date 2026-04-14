@@ -354,6 +354,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
 
   const sendMessage = useCallback(async (conversationId: string, content: string, options: {
     messageType?: string
+    priority?: string
   } = {}) => {
     try {
       const { data: { user } } = await supabase.auth.getUser()

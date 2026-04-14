@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/auth-context'
 
 export interface AppearanceSettings {

@@ -222,7 +222,32 @@ export default function WorkingSignupForm() {
         console.log('Active profile created successfully')
       }
 
-      // Step 4: Handle success
+      // Step 4: Record TOS acceptance
+      if (formData.acceptTerms) {
+        const now = new Date().toISOString()
+        await supabase
+          .from('profiles')
+          .update({ tos_accepted_at: now, tos_version: 1, privacy_accepted_at: now })
+          .eq('id', data.user.id)
+
+        try {
+          await fetch('/api/agreements/accept', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              template_id: 'a0000000-0000-0000-0000-000000000001',
+              template_version: 1,
+              context: 'signup',
+              signature_method: 'clickwrap',
+              metadata: { account_type: formData.accountType, email: formData.email }
+            })
+          })
+        } catch {
+          // Non-blocking: acceptance was persisted on profile
+        }
+      }
+
+      // Step 5: Handle success
       if ((data as any).needsEmailConfirmation) {
         setSuccess('Account created successfully! Please check your email to confirm your account.')
         // Store signup data for onboarding

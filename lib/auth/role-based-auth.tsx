@@ -10,13 +10,17 @@ import { useAuth as useCoreAuth } from '@/contexts/auth-context'
 
 export type UserRole = 
   | 'admin'
+  | 'super_admin'
   | 'manager' 
   | 'tour_manager'
   | 'event_coordinator'
   | 'artist'
+  | 'crew_chief'
   | 'crew_member'
   | 'vendor'
   | 'venue_owner'
+  | 'venue_coordinator'
+  | 'financial_manager'
   | 'viewer'
 
 export type Permission = 
@@ -71,6 +75,16 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'settings.view', 'settings.manage'
   ],
   
+  super_admin: [
+    'admin.all',
+    'tours.view', 'tours.create', 'tours.edit', 'tours.delete',
+    'events.view', 'events.create', 'events.edit', 'events.delete',
+    'staff.view', 'staff.manage',
+    'communications.view', 'communications.send', 'communications.moderate', 'communications.broadcast',
+    'analytics.view',
+    'settings.view', 'settings.manage'
+  ],
+  
   manager: [
     'tours.view', 'tours.create', 'tours.edit',
     'events.view', 'events.create', 'events.edit',
@@ -81,11 +95,12 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   
   tour_manager: [
-    'tours.view', 'tours.edit',
-    'events.view', 'events.create', 'events.edit',
+    'tours.view', 'tours.create', 'tours.edit', 'tours.delete',
+    'events.view', 'events.create', 'events.edit', 'events.delete',
     'staff.view', 'staff.manage',
     'communications.view', 'communications.send', 'communications.broadcast',
-    'analytics.view'
+    'analytics.view',
+    'settings.view'
   ],
   
   event_coordinator: [
@@ -102,6 +117,14 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'communications.view', 'communications.send'
   ],
   
+  crew_chief: [
+    'tours.view',
+    'events.view',
+    'staff.view', 'staff.manage',
+    'communications.view', 'communications.send',
+    'analytics.view'
+  ],
+  
   crew_member: [
     'tours.view',
     'events.view',
@@ -115,9 +138,24 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   
   venue_owner: [
-    'events.view',
+    'events.view', 'events.create', 'events.edit',
     'staff.view', 'staff.manage',
     'communications.view', 'communications.send',
+    'analytics.view',
+    'settings.view', 'settings.manage'
+  ],
+  
+  venue_coordinator: [
+    'tours.view',
+    'events.view', 'events.create', 'events.edit',
+    'staff.view',
+    'communications.view', 'communications.send',
+    'analytics.view'
+  ],
+  
+  financial_manager: [
+    'tours.view',
+    'events.view',
     'analytics.view',
     'settings.view'
   ],
@@ -189,7 +227,7 @@ export function useAuth() {
 
   const hasPermission = useCallback(
     (permission: Permission): boolean => {
-      if (roleProfile?.role === 'admin') return true
+      if (roleProfile?.role === 'admin' || roleProfile?.role === 'super_admin') return true
       return permissions.includes(permission)
     },
     [roleProfile, permissions]
@@ -414,16 +452,20 @@ export function getUserDisplayName(user: UserProfile | null): string {
 export function getRoleDisplayName(role: UserRole): string {
   const roleNames: Record<UserRole, string> = {
     admin: 'Administrator',
+    super_admin: 'Super Admin',
     manager: 'Manager',
     tour_manager: 'Tour Manager',
     event_coordinator: 'Event Coordinator',
     artist: 'Artist',
+    crew_chief: 'Crew Chief',
     crew_member: 'Crew Member',
     vendor: 'Vendor',
     venue_owner: 'Venue Owner',
+    venue_coordinator: 'Venue Coordinator',
+    financial_manager: 'Financial Manager',
     viewer: 'Viewer'
   }
-  
+
   return roleNames[role] || role
 }
 

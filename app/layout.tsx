@@ -4,11 +4,13 @@ import "./globals.css"
 import { ThemeProvider } from "@/hooks/use-theme"
 import { AuthProvider } from "@/contexts/auth-context"
 import { MultiAccountProvider } from "@/hooks/use-multi-account"
+import { JukeboxProvider } from "@/contexts/jukebox-context"
 import { Nav } from "@/components/nav"
+import { PersistentPlayerBar } from "@/components/jukebox/persistent-player-bar"
+import { FullPlayerView } from "@/components/jukebox/full-player-view"
 import { EducationRoot } from "@/components/product-education/education-root"
 import { Toaster } from "sonner"
 import { warnMissingEnv } from "@/lib/utils/env-check"
-// Demo mode removed for production
 
 const inter = Inter({ subsets: ["latin"] })
 const metadataBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live"
@@ -63,15 +65,19 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="dark">
           <AuthProvider>
             <MultiAccountProvider>
-              <EducationRoot>
-                <div className="flex flex-col min-h-screen">
-                  <Nav />
-                  <main className="flex-1">
-                    {children}
-                  </main>
-                  <Toaster richColors position="top-right" />
-                </div>
-              </EducationRoot>
+              <JukeboxProvider>
+                <EducationRoot>
+                  <div className="flex flex-col min-h-screen">
+                    <Nav />
+                    <main className="flex-1 pb-[var(--player-height,0px)]">
+                      {children}
+                    </main>
+                    <PersistentPlayerBar />
+                    <FullPlayerView />
+                    <Toaster richColors position="top-right" />
+                  </div>
+                </EducationRoot>
+              </JukeboxProvider>
             </MultiAccountProvider>
           </AuthProvider>
         </ThemeProvider>

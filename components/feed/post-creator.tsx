@@ -113,7 +113,7 @@ export function PostCreator({ onPostCreated }: PostCreatorProps) {
             <Avatar className="flex-shrink-0">
               <AvatarImage src={undefined} />
               <AvatarFallback>
-                {user?.name?.[0] || user?.email?.[0] || 'U'}
+                {user?.user_metadata?.full_name?.[0] || user?.email?.[0] || 'U'}
               </AvatarFallback>
             </Avatar>
             

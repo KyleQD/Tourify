@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import { Bell, Box, Building, Calendar, Clock, FileText, MapPin, MessageSquare, Plane, Truck, Users, Utensils, Plus, Edit, Trash2, AlertCircle, Loader2, Zap, Guitar, Mic, Piano, Drum, CheckCircle, Target } from "lucide-react"
 import { Header } from "@/components/header"
 import { AdminPageHeader } from "../components/admin-page-header"
@@ -25,11 +26,56 @@ import { useAuth } from "@/contexts/auth-context"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 
+interface TeamMember {
+  id: string
+  user_id?: string
+  role?: string
+  status?: string
+  profiles?: {
+    id: string
+    full_name?: string
+    email?: string
+    avatar_url?: string
+  }
+  full_name?: string
+  email?: string
+  avatar_url?: string
+  account_type?: string
+}
+
 export default function LogisticsPage() {
   const { toast } = useToast()
   const { user, loading: authLoading } = useAuth()
+  const searchParams = useSearchParams()
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null)
   const [selectedTour, setSelectedTour] = useState<string | null>(null)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [teamLoading, setTeamLoading] = useState(false)
+
+  useEffect(() => {
+    const eventIdParam = searchParams.get('eventId')
+    const tourIdParam = searchParams.get('tourId')
+    if (eventIdParam) setSelectedEvent(eventIdParam)
+    if (tourIdParam) setSelectedTour(tourIdParam)
+  }, [searchParams])
+
+  useEffect(() => {
+    async function fetchTeam() {
+      setTeamLoading(true)
+      try {
+        const res = await fetch('/api/admin/team-members', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          setTeamMembers(data.members || [])
+        }
+      } catch {
+        // Team data is non-critical
+      } finally {
+        setTeamLoading(false)
+      }
+    }
+    if (user) fetchTeam()
+  }, [user])
 
   // Fetch logistics data
   const { data: logisticsData, loading: logisticsLoading, error: logisticsError, refetch: refetchLogistics } = useLogistics({
@@ -385,6 +431,18 @@ export default function LogisticsPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Category Status Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <LogisticsStatusCard title="Transportation" icon={Truck} status={metrics.transportation.status} percentage={metrics.transportation.percentage} items={metrics.transportation.items} completed={metrics.transportation.completed} />
+                <LogisticsStatusCard title="Equipment" icon={Box} status={metrics.equipment.status} percentage={metrics.equipment.percentage} items={metrics.equipment.items} completed={metrics.equipment.completed} />
+                <LogisticsStatusCard title="Backline" icon={Zap} status={metrics.backline.status} percentage={metrics.backline.percentage} items={metrics.backline.items} completed={metrics.backline.completed} />
+                <LogisticsStatusCard title="Accommodations" icon={Building} status={metrics.accommodations.status} percentage={metrics.accommodations.percentage} items={metrics.accommodations.items} completed={metrics.accommodations.completed} />
+                <LogisticsStatusCard title="Catering" icon={Utensils} status={metrics.catering.status} percentage={metrics.catering.percentage} items={metrics.catering.items} completed={metrics.catering.completed} />
+                <LogisticsStatusCard title="Rentals" icon={Box} status={metrics.rentals.status} percentage={metrics.rentals.percentage} items={metrics.rentals.items} completed={metrics.rentals.completed} />
+                <LogisticsStatusCard title="Travel" icon={Plane} status={metrics.travelCoordination.status} percentage={metrics.travelCoordination.percentage} items={metrics.travelCoordination.items} completed={metrics.travelCoordination.completed} />
+                <LogisticsStatusCard title="Communication" icon={MessageSquare} status={metrics.communication.status} percentage={metrics.communication.percentage} items={metrics.communication.items} completed={metrics.communication.completed} />
+              </div>
             </>
           )}
 
@@ -433,147 +491,49 @@ export default function LogisticsPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <TeamMemberCard
-                  name="Jessica Lee"
-                  role="Transportation Manager"
-                  email="jessica@tourify.com"
-                  phone="(555) 123-4567"
-                />
-
-                <TeamMemberCard
-                  name="David Wilson"
-                  role="Equipment Coordinator"
-                  email="david@tourify.com"
-                  phone="(555) 234-5678"
-                />
-
-                <TeamMemberCard
-                  name="Amanda Garcia"
-                  role="Catering Manager"
-                  email="amanda@tourify.com"
-                  phone="(555) 345-6789"
-                />
-
-                <TeamMemberCard
-                  name="Robert Taylor"
-                  role="Security Coordinator"
-                  email="robert@tourify.com"
-                  phone="(555) 456-7890"
-                />
-
-                <TeamMemberCard
-                  name="Michael Chen"
-                  role="Venue Liaison"
-                  email="michael@tourify.com"
-                  phone="(555) 567-8901"
-                />
-              </div>
+              {teamLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                  <span className="ml-2 text-slate-400 text-sm">Loading team...</span>
+                </div>
+              ) : teamMembers.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {teamMembers.slice(0, 9).map((member) => {
+                    const name = member.profiles?.full_name || member.full_name || 'Team Member'
+                    const email = member.profiles?.email || member.email || ''
+                    const role = member.role || member.account_type || 'Team Member'
+                    return (
+                      <TeamMemberCard
+                        key={member.id}
+                        name={name}
+                        role={role}
+                        email={email}
+                        phone=""
+                      />
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-6">
+                  <Users className="h-10 w-10 text-slate-500 mx-auto mb-2" />
+                  <p className="text-sm text-slate-400">No team members found. Add team members to see them here.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="transportation" className="mt-0">
-          {transportationLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-              <span className="ml-2 text-slate-400">Loading transportation data...</span>
-            </div>
-          ) : (
-            <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-slate-100 flex items-center justify-between text-base">
-                  <div className="flex items-center">
-                    <Truck className="mr-2 h-5 w-5 text-purple-500" />
-                    Transportation Schedule
-                  </div>
-                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Transportation
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {transportationData?.transportation && transportationData.transportation.length > 0 ? (
-                  <div className="rounded-md border border-slate-700">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead className="bg-slate-800/50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Date & Time
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Description
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Provider
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              From
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              To
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
-                          {transportationData.transportation.map((transport) => (
-                            <TransportationRow
-                              key={transport.id}
-                              dateTime={new Intl.DateTimeFormat("en-US", {
-                                year: "numeric",
-                                month: "numeric",
-                                day: "numeric",
-                                hour: "numeric",
-                                minute: "2-digit",
-                              }).format(new Date(transport.departure_time))}
-                              description={`${transport.type} - ${transport.vehicle_details?.description || 'Transport'}`}
-                              provider={transport.provider || 'TBD'}
-                              from={transport.departure_location}
-                              to={transport.arrival_location}
-                              status={transport.status}
-                            />
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Truck className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-300 mb-2">No Transportation Scheduled</h3>
-                    <p className="text-slate-400 mb-4">Get started by adding transportation arrangements for your event.</p>
-                    <Button className="bg-purple-600 hover:bg-purple-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add First Transportation
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-slate-100 flex items-center text-base">
-                <FileText className="mr-2 h-5 w-5 text-purple-500" />
-                Transportation Providers
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-6">
-                <Truck className="h-10 w-10 text-slate-500 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">Vendor data will populate from event vendor requests.</p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <LogisticsDynamicManager
+              eventId={selectedEvent || undefined}
+              tourId={selectedTour || undefined}
+              type="transportation"
+              enableEditing={true}
+              autoSave={true}
+              showFilters={true}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="accommodations" className="mt-0">
@@ -593,275 +553,137 @@ export default function LogisticsPage() {
         </TabsContent>
 
         <TabsContent value="backline" className="mt-0">
-          {(equipmentLoading || utilizationLoading) ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
-              <span className="ml-2 text-slate-400">Loading backline data...</span>
-            </div>
-          ) : (
-            <>
-              {/* Backline Inventory */}
-              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-slate-100 flex items-center justify-between text-base">
-                    <div className="flex items-center">
-                      <Zap className="mr-2 h-5 w-5 text-purple-500" />
-                      Backline Inventory
-                    </div>
-                    <Button size="sm" className="bg-purple-600 hover:bg-purple-700">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Backline
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {equipmentUtilization && equipmentUtilization.length > 0 ? (
-                    <div className="rounded-md border border-slate-700">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead className="bg-slate-800/50">
-                            <tr>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                Instrument
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                Category
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                Condition
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                Rental Rate
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                Status
-                              </th>
-                              <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
-                            {equipmentUtilization.slice(0, 10).map((item) => (
-                              <BacklineRow
-                                key={item.id}
-                                instrument={item.name}
-                                category={item.category}
-                                condition="Good"
-                                rentalRate={item.rental_rate}
-                                status={item.current_status.toLowerCase()}
-                              />
-                            ))}
-                          </tbody>
-                        </table>
+          <div className="space-y-6">
+            <LogisticsDynamicManager
+              eventId={selectedEvent || undefined}
+              tourId={selectedTour || undefined}
+              type="backline"
+              enableEditing={true}
+              autoSave={true}
+              showFilters={true}
+            />
+
+            {/* Active Rentals */}
+            <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-slate-100 flex items-center text-base">
+                  <Calendar className="mr-2 h-5 w-5 text-purple-500" />
+                  Active Rentals
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {rentalsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+                    <span className="ml-2 text-slate-400">Loading rental data...</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {rentalAgreements?.map((agreement) => (
+                      <RentalCard
+                        key={agreement.id}
+                        instrument={agreement.rental_agreement_items?.[0]?.equipment?.name || 'Equipment'}
+                        client={agreement.rental_clients?.name || 'Unknown Client'}
+                        startDate={agreement.start_date}
+                        endDate={agreement.end_date}
+                        dailyRate={agreement.rental_agreement_items?.[0]?.daily_rate || 0}
+                        totalAmount={agreement.total_amount}
+                        status={agreement.status === 'active' ? 'active' : agreement.status === 'confirmed' ? 'upcoming' : 'completed'}
+                      />
+                    ))}
+                    {(!rentalAgreements || rentalAgreements.length === 0) && (
+                      <div className="text-center py-8 text-slate-500">
+                        No active rentals found
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <Zap className="h-12 w-12 text-slate-500 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-slate-300 mb-2">No Backline Available</h3>
-                      <p className="text-slate-400 mb-4">Get started by adding backline equipment to your inventory.</p>
-                      <Button className="bg-purple-600 hover:bg-purple-700">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add First Backline
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-              {/* Active Rentals */}
-              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
+            {/* Rental Analytics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-slate-100 flex items-center text-base">
-                    <Calendar className="mr-2 h-5 w-5 text-purple-500" />
-                    Active Rentals
-                  </CardTitle>
+                  <CardTitle className="text-slate-100 text-sm">Revenue This Month</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {rentalsLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
-                      <span className="ml-2 text-slate-400">Loading rental data...</span>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {rentalAgreements?.map((agreement) => (
-                        <RentalCard
-                          key={agreement.id}
-                          instrument={agreement.rental_agreement_items?.[0]?.equipment?.name || 'Equipment'}
-                          client={agreement.rental_clients?.name || 'Unknown Client'}
-                          startDate={agreement.start_date}
-                          endDate={agreement.end_date}
-                          dailyRate={agreement.rental_agreement_items?.[0]?.daily_rate || 0}
-                          totalAmount={agreement.total_amount}
-                          status={agreement.status === 'active' ? 'active' : agreement.status === 'confirmed' ? 'upcoming' : 'completed'}
-                        />
-                      ))}
-                      {(!rentalAgreements || rentalAgreements.length === 0) && (
-                        <div className="text-center py-8 text-slate-500">
-                          No active rentals found
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <div className="text-2xl font-bold text-green-400">
+                    {formatSafeCurrency(rentalAnalytics?.[0]?.total_revenue || 0)}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {rentalAnalytics?.[0]?.total_rentals || 0} total rentals
+                  </p>
                 </CardContent>
               </Card>
-
-              {/* Rental Analytics */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-slate-100 text-sm">Revenue This Month</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-green-400">
-                      {formatSafeCurrency(rentalAnalytics?.[0]?.total_revenue || 0)}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {rentalAnalytics?.[0]?.total_rentals || 0} total rentals
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-slate-100 text-sm">Active Rentals</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-blue-400">
-                      {rentalAnalytics?.[0]?.active_rentals || 0}
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {rentalAnalytics?.[0]?.overdue_rentals || 0} overdue
-                    </p>
-                  </CardContent>
-                </Card>
-                <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-slate-100 text-sm">Utilization Rate</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-purple-400">
-                      {equipmentUtilization?.length ? Math.round((equipmentUtilization.filter(e => e.current_status === 'Currently Rented').length / equipmentUtilization.length) * 100) : 0}%
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {equipmentUtilization?.filter(e => e.current_status === 'Available').length || 0} items available
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-            </>
-          )}
+              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-slate-100 text-sm">Active Rentals</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-blue-400">
+                    {rentalAnalytics?.[0]?.active_rentals || 0}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {rentalAnalytics?.[0]?.overdue_rentals || 0} overdue
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-slate-100 text-sm">Utilization Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-purple-400">
+                    {equipmentUtilization?.length ? Math.round((equipmentUtilization.filter(e => e.current_status === 'Currently Rented').length / equipmentUtilization.length) * 100) : 0}%
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {equipmentUtilization?.filter(e => e.current_status === 'Available').length || 0} items available
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="catering" className="mt-0">
-          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50 mb-6">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-slate-100 flex items-center text-base">
-                <Utensils className="mr-2 h-5 w-5 text-purple-500" />
-                Catering Plan
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <CateringCard
-                  title="Artist & Crew Meals"
-                  provider="Gourmet Caterers"
-                  servingTime="Aug 15, 12:00 PM - 10:00 PM"
-                  location="Backstage Area"
-                  meals={75}
-                  specialRequests={8}
-                />
-
-                <CateringCard
-                  title="VIP Reception"
-                  provider="Elite Event Catering"
-                  servingTime="Aug 15, 06:00 PM - 08:00 PM"
-                  location="VIP Lounge"
-                  meals={150}
-                  specialRequests={15}
-                />
-
-                <CateringCard
-                  title="Staff Meals"
-                  provider="Gourmet Caterers"
-                  servingTime="Aug 15, 11:00 AM - 11:00 PM"
-                  location="Staff Area"
-                  meals={50}
-                  specialRequests={3}
-                />
-
-                <CateringCard
-                  title="After Party"
-                  provider="Nightlife Catering Co."
-                  servingTime="Aug 15, 11:00 PM - 02:00 AM"
-                  location="Luxury Hotel Rooftop"
-                  meals={100}
-                  specialRequests={10}
-                />
-              </div>
-
-              <div className="bg-slate-800/50 rounded-lg p-4 border border-slate-700/50">
-                <h3 className="text-sm font-medium text-slate-200 mb-3">Special Dietary Requirements</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Vegetarian</span>
-                    <span className="text-purple-400">24 meals</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Vegan</span>
-                    <span className="text-purple-400">12 meals</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Gluten-Free</span>
-                    <span className="text-purple-400">8 meals</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Nut Allergies</span>
-                    <span className="text-purple-400">6 meals</span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-400">Dairy-Free</span>
-                    <span className="text-purple-400">10 meals</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-slate-100 flex items-center text-base">
-                <FileText className="mr-2 h-5 w-5 text-purple-500" />
-                Catering Providers
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="col-span-full text-center py-6">
-                  <FileText className="h-10 w-10 text-slate-500 mx-auto mb-2" />
-                  <p className="text-sm text-slate-400">Catering vendors will populate from event vendor requests.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="space-y-6">
+            <LogisticsDynamicManager
+              eventId={selectedEvent || undefined}
+              tourId={selectedTour || undefined}
+              type="catering"
+              enableEditing={true}
+              autoSave={true}
+              showFilters={true}
+            />
+          </div>
         </TabsContent>
 
         <TabsContent value="communication" className="mt-0">
           <div className="space-y-6">
-            {/* Team Collaboration */}
             <LogisticsCollaboration 
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
-              teamMembers={[]}
+              teamMembers={teamMembers.map(m => m.profiles?.full_name || m.full_name || 'Team Member')}
+            />
+
+            <LogisticsDynamicManager
+              eventId={selectedEvent || undefined}
+              tourId={selectedTour || undefined}
+              type="communication"
+              enableEditing={true}
+              autoSave={true}
+              showFilters={true}
             />
           </div>
         </TabsContent>
 
         <TabsContent value="site-maps" className="mt-0">
           <div className="space-y-6">
-            {/* Interactive Site Maps - Enhanced with Fallback */}
-            <SiteMapManagerEnhanced />
+            <SiteMapManagerEnhanced
+              eventId={selectedEvent || undefined}
+              tourId={selectedTour || undefined}
+            />
           </div>
         </TabsContent>
       </Tabs>

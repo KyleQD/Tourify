@@ -42,6 +42,7 @@ import {
   Video,
   Camera,
   Mic,
+  MessageSquare,
   Lightbulb,
   Speaker,
   Monitor,
@@ -76,6 +77,9 @@ import { EventVendorManager } from "@/components/admin/event-vendor-manager"
 import { EventVendorRequests } from "@/components/admin/event-vendor-requests"
 import { EventJobPosting } from "@/components/admin/event-job-posting"
 import { EventJobsList } from "@/components/admin/event-jobs-list"
+import { EventSiteMapTab } from "./components/event-site-map-tab"
+import { EventCommunicationHub } from "@/components/admin/event-communication-hub"
+import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
 import { 
   DropdownMenu,
   DropdownMenuContent,
@@ -711,6 +715,10 @@ export default function EventManagementPage() {
           </div>
           
           <div className="flex items-center space-x-2">
+            <Button className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => router.push(`/admin/dashboard/events/${eventId}/hq`)}>
+              <Zap className="mr-2 h-4 w-4" />
+              Event HQ
+            </Button>
             <Button variant="outline" className="border-slate-700 text-slate-300" onClick={handleShare}>
               <Share2 className="mr-2 h-4 w-4" />
               Share
@@ -812,6 +820,8 @@ export default function EventManagementPage() {
             <TabsTrigger value="tickets" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tickets</TabsTrigger>
             <TabsTrigger value="finances" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Finances</TabsTrigger>
             <TabsTrigger value="logistics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Logistics</TabsTrigger>
+            <TabsTrigger value="site-map" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Site Map</TabsTrigger>
+            <TabsTrigger value="communications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Communications</TabsTrigger>
             <TabsTrigger value="incidents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Incidents</TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Analytics</TabsTrigger>
             <TabsTrigger value="locations" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Locations</TabsTrigger>
@@ -902,6 +912,10 @@ export default function EventManagementPage() {
                     <Button className="w-full justify-start" variant="outline" onClick={handleViewTickets}>
                       <Ticket className="mr-2 h-4 w-4" />
                       View Tickets
+                    </Button>
+                    <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('communications')}>
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Communications Hub
                     </Button>
                     <Separator className="bg-slate-700" />
                     <EventJobPosting
@@ -1078,6 +1092,23 @@ export default function EventManagementPage() {
                 </div>
               </CardContent>
             </Card>
+
+            <LogisticsDynamicManager
+              eventId={eventId}
+              enableEditing={true}
+              autoSave={true}
+              showFilters={true}
+            />
+          </TabsContent>
+
+          {/* Site Map Tab */}
+          <TabsContent value="site-map" className="space-y-6">
+            <EventSiteMapTab eventId={eventId} eventName={event.name} />
+          </TabsContent>
+
+          {/* Communications Tab */}
+          <TabsContent value="communications" className="space-y-6">
+            <EventCommunicationHub eventId={eventId} eventName={event.name} />
           </TabsContent>
 
           {/* Analytics Tab */}

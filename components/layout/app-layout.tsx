@@ -19,7 +19,15 @@ import { ErrorBoundary } from '../ui/error-boundary'
 // LAYOUT CONFIGURATION BY ROLE
 // =============================================================================
 
-const roleLayouts = {
+const roleLayouts: Record<string, { sidebar: boolean; topbar: boolean; quickActions: boolean; notifications: boolean; connectionStatus: boolean; theme: string }> = {
+  super_admin: {
+    sidebar: true,
+    topbar: true,
+    quickActions: true,
+    notifications: true,
+    connectionStatus: true,
+    theme: 'admin'
+  },
   admin: {
     sidebar: true,
     topbar: true,

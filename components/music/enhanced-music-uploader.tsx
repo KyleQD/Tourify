@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Progress } from '@/components/ui/progress'
 import { toast } from 'sonner'
+import { Checkbox } from '@/components/ui/checkbox'
 import { 
   Upload,
   Music2,
@@ -22,7 +23,8 @@ import {
   AlertCircle,
   Clock,
   Volume2,
-  Settings
+  Settings,
+  ShieldCheck
 } from 'lucide-react'
 import Image from 'next/image'
 
@@ -64,7 +66,8 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
     buy_url: '',
     price: '',
     currency: 'USD',
-    allow_download: false
+    allow_download: false,
+    rights_confirmed: false
   })
   const [newTag, setNewTag] = useState('')
   const [shareAsPost, setShareAsPost] = useState(false)
@@ -129,6 +132,8 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         coverFile: coverFile?.file,
         shareAsPost,
         postContent,
+        rights_confirmed: initial.rights_confirmed,
+        rights_confirmed_at: initial.rights_confirmed ? new Date().toISOString() : null,
         metadata: {
           preview_type: initial.upload_variant === 'snippet' ? 'file' : 'full',
           full_track_url: initial.full_track_url || undefined,
@@ -220,14 +225,20 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
       return
     }
 
+    if (!formData.rights_confirmed) {
+      toast.error('You must confirm that you own the rights to this content before uploading')
+      return
+    }
+
     try {
-      // Prepare track data
       const trackData = {
         ...formData,
         musicFile: musicFile.file,
         coverFile: coverFile?.file,
         shareAsPost,
         postContent,
+        rights_confirmed: true,
+        rights_confirmed_at: new Date().toISOString(),
         metadata: {
           preview_type: formData.upload_variant === 'snippet' ? 'file' : 'full',
           full_track_url: formData.full_track_url || undefined,
@@ -656,6 +667,35 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         </CardContent>
       </Card>
 
+      {/* Rights Confirmation */}
+      <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl backdrop-blur-xl">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <Checkbox
+              id="rights_confirmed"
+              checked={formData.rights_confirmed}
+              onCheckedChange={(checked) =>
+                setFormData(prev => ({ ...prev, rights_confirmed: checked === true }))
+              }
+              className="mt-0.5 border-slate-500 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+            />
+            <label htmlFor="rights_confirmed" className="text-xs leading-relaxed text-slate-300 cursor-pointer">
+              <span className="flex items-center gap-1.5 text-sm font-medium text-white mb-1">
+                <ShieldCheck className="h-4 w-4 text-purple-400" />
+                Rights Confirmation
+              </span>
+              I confirm that I am the original creator of this content, or I have obtained all necessary
+              rights and licenses to upload and distribute it on Tourify. I understand that uploading
+              copyrighted material without authorization violates{' '}
+              <a href="/terms" className="text-purple-400 hover:underline" target="_blank">
+                Tourify&apos;s Terms of Service
+              </a>{' '}
+              and may result in account suspension.
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Action Buttons */}
       <div className="flex justify-end gap-3">
         <Button variant="outline" onClick={onCancel} disabled={isUploading}>
@@ -663,7 +703,7 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         </Button>
         <Button 
           onClick={handleSubmit} 
-          disabled={isUploading || !musicFile?.file || !formData.title.trim()}
+          disabled={isUploading || !musicFile?.file || !formData.title.trim() || !formData.rights_confirmed}
           className="bg-purple-600 hover:bg-purple-700"
         >
           {isUploading ? 'Uploading...' : 'Upload Track'}

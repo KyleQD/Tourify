@@ -16,6 +16,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  authError: string | null
   signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
   signUp: (email: string, password: string, metadata?: { full_name?: string; username?: string; account_type?: string }) => Promise<{ error?: AuthError }>
   signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
@@ -38,7 +39,8 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true) // Start with true to wait for initial auth check
+  const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -51,7 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('[Auth] Session check error:', error)
+          setAuthError(error.message)
         } else {
+          setAuthError(null)
           authDevLog('[Auth] Initial session check:', session ? `User ${session.user?.id} authenticated` : 'No session')
         }
         
@@ -368,6 +372,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     session,
     loading,
+    authError,
     signIn,
     signUp,
     signInWithSocial,

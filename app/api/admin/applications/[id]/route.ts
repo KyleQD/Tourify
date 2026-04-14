@@ -179,6 +179,85 @@ export async function PATCH(
       id,
       { status, feedback, rating }
     )
+
+    if (status === 'approved') {
+      try {
+        const candidate = await AdminOnboardingStaffService.createOrLinkCandidateFromApplication(id)
+        const invToken = `invite_${candidate.id}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+
+        const { data: existingInvite } = await supabase
+          .from('staff_invitations')
+          .select('id, token')
+          .eq('user_id', candidate.user_id)
+          .eq('status', 'accepted')
+          .maybeSingle()
+
+        if (!existingInvite && candidate.email) {
+          await supabase.from('staff_invitations').insert({
+            email: candidate.email,
+            phone: candidate.phone || null,
+            position_details: {
+              position: candidate.position,
+              department: candidate.department,
+              candidate_id: candidate.id,
+              application_id: id,
+            },
+            token: invToken,
+            status: 'accepted',
+            user_id: candidate.user_id,
+            created_by: user.id,
+          })
+        }
+
+        const { data: existingWorkflow } = await supabase
+          .from('onboarding_workflows')
+          .select('id')
+          .eq('candidate_id', candidate.id)
+          .maybeSingle()
+
+        if (!existingWorkflow) {
+          await supabase.from('onboarding_workflows').insert({
+            venue_id: candidate.venue_id,
+            candidate_id: candidate.id,
+            job_posting_id: currentApplication.job_posting_id,
+            current_stage: 'onboarding_started',
+            status: 'active',
+            steps: [],
+            created_by: user.id,
+          })
+        }
+
+        if (candidate.venue_id) {
+          const { data: existingMember } = await supabase
+            .from('venue_team_members')
+            .select('id')
+            .eq('venue_id', candidate.venue_id)
+            .eq('email', candidate.email)
+            .maybeSingle()
+
+          if (!existingMember) {
+            await supabase.from('venue_team_members').insert({
+              venue_id: candidate.venue_id,
+              user_id: candidate.user_id || null,
+              name: candidate.name || candidate.email,
+              email: candidate.email,
+              role: candidate.position || candidate.department || 'member',
+              status: 'active',
+              permissions: {
+                manage_bookings: false,
+                manage_events: false,
+                view_analytics: false,
+                manage_team: false,
+                manage_documents: false,
+              },
+            })
+          }
+        }
+      } catch (onboardingError) {
+        console.warn('⚠️ [Admin Application API] Onboarding bridge failed (non-blocking):', onboardingError)
+      }
+    }
+
     if (status === 'approved' || status === 'rejected') {
       await notifyApplicantStatusChange({
         supabase,

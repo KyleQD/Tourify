@@ -1,391 +1,379 @@
-export interface Song {
+import type { JukeboxTrack } from "@/contexts/jukebox-context"
+
+interface FeedTrack {
   id: string
   title: string
-  artist: string
-  duration: number
-  albumArt?: string
-  genre: string
-  isLiked: boolean
-  audioUrl?: string
-  releaseDate?: string
-  bpm?: number
-  key?: string
-  tags?: string[]
+  author?: { id: string; name: string; avatar_url?: string | null }
+  metadata?: {
+    genre?: string
+    duration?: number
+    tags?: string[]
+    url?: string
+    artist?: string
+  }
+  cover_image?: string | null
+  engagement?: { likes?: number; views?: number }
 }
 
-export interface Playlist {
+function feedTrackToJukeboxTrack(item: FeedTrack): JukeboxTrack {
+  return {
+    id: item.id,
+    title: item.title,
+    artist_name: item.author?.name || item.metadata?.artist || "Unknown Artist",
+    artist_id: item.author?.id,
+    artist_avatar_url: item.author?.avatar_url || undefined,
+    duration: item.metadata?.duration ?? undefined,
+    file_url: item.metadata?.url || "",
+    cover_art_url: item.cover_image || undefined,
+    genre: item.metadata?.genre || undefined,
+    tags: item.metadata?.tags || [],
+  }
+}
+
+export async function fetchDiscoverTracks({
+  genre,
+  sortBy = "recent",
+  limit = 30,
+}: {
+  genre?: string
+  sortBy?: "recent" | "popular" | "trending"
+  limit?: number
+} = {}): Promise<JukeboxTrack[]> {
+  const params = new URLSearchParams({ limit: String(limit), sortBy })
+  if (genre && genre !== "all") params.set("genre", genre)
+
+  const res = await fetch(`/api/feed/music?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return []
+  const json = await res.json()
+  const items: FeedTrack[] = json.content || []
+  return items.filter((t) => t.metadata?.url).map(feedTrackToJukeboxTrack)
+}
+
+export async function fetchFollowingTracks({
+  sortBy = "recent",
+  limit = 30,
+  offset = 0,
+}: {
+  sortBy?: "recent" | "popular"
+  limit?: number
+  offset?: number
+} = {}): Promise<{ data: JukeboxTrack[]; total: number }> {
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+    sortBy,
+  })
+
+  const res = await fetch(`/api/jukebox/following-tracks?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return { data: [], total: 0 }
+  return res.json()
+}
+
+export interface JukeboxPlaylist {
   id: string
-  name: string
-  description?: string
-  songs: Song[]
-  createdAt: string
-  updatedAt: string
-  isPublic: boolean
-  createdBy: string
+  title: string
+  description: string | null
+  visibility: "private" | "public" | "unlisted"
+  owner_user_id?: string
+  created_at?: string
+  items?: JukeboxPlaylistItem[]
 }
 
-export interface JukeboxState {
-  currentSong: Song | null
-  isPlaying: boolean
-  currentTime: number
-  duration: number
-  volume: number
-  isMuted: boolean
-  isShuffled: boolean
-  repeatMode: 'none' | 'one' | 'all'
-  playlist: Song[]
-  queue: Song[]
-  history: Song[]
+export interface JukeboxPlaylistItem {
+  id: string
+  music_track_id: string
+  artist_music?: {
+    id: string
+    title: string
+    genre?: string | null
+    duration?: number | null
+    cover_art_url?: string | null
+    file_url?: string | null
+    user_id?: string
+  } | null
 }
 
-export class JukeboxService {
-  private static instance: JukeboxService
-  private state: JukeboxState
+export async function fetchUserPlaylists({
+  includeItems = true,
+}: { includeItems?: boolean } = {}): Promise<JukeboxPlaylist[]> {
+  const params = new URLSearchParams()
+  if (includeItems) params.set("includeItems", "true")
 
-  private constructor() {
-    this.state = {
-      currentSong: null,
-      isPlaying: false,
-      currentTime: 0,
-      duration: 0,
-      volume: 0.7,
-      isMuted: false,
-      isShuffled: false,
-      repeatMode: 'none',
-      playlist: [],
-      queue: [],
-      history: []
-    }
-  }
-
-  static getInstance(): JukeboxService {
-    if (!JukeboxService.instance) {
-      JukeboxService.instance = new JukeboxService()
-    }
-    return JukeboxService.instance
-  }
-
-  // Get sample songs for demo
-  getSampleSongs(): Song[] {
-    return [
-      {
-        id: "ayce-intro",
-        title: "AYCE Swandive",
-        artist: "AYCE",
-        duration: 5290, // 88:10
-        genre: "Electronic",
-        isLiked: true,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-01-01",
-        bpm: 128,
-        key: "D Minor",
-        tags: ["ayce", "electronic", "swandive", "intro", "ambient"]
-      },
-      {
-        id: "1",
-        title: "Midnight Groove",
-        artist: "The Night Owls",
-        duration: 237, // 3:57
-        genre: "Jazz",
-        isLiked: true,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-01-15",
-        bpm: 120,
-        key: "C Major",
-        tags: ["jazz", "smooth", "night", "groove"]
-      },
-      {
-        id: "2", 
-        title: "Electric Dreams",
-        artist: "Neon Pulse",
-        duration: 184, // 3:04
-        genre: "Electronic",
-        isLiked: false,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-02-20",
-        bpm: 128,
-        key: "D Minor",
-        tags: ["electronic", "synth", "dreamy", "pulse"]
-      },
-      {
-        id: "3",
-        title: "Acoustic Sunset",
-        artist: "Sarah Rivers",
-        duration: 312, // 5:12
-        genre: "Folk",
-        isLiked: true,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-03-10",
-        bpm: 85,
-        key: "G Major",
-        tags: ["folk", "acoustic", "sunset", "peaceful"]
-      },
-      {
-        id: "4",
-        title: "Rock Anthem",
-        artist: "Thunder Road",
-        duration: 268, // 4:28
-        genre: "Rock",
-        isLiked: false,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-01-30",
-        bpm: 140,
-        key: "E Major",
-        tags: ["rock", "anthem", "powerful", "guitar"]
-      },
-      {
-        id: "5",
-        title: "Smooth Operator",
-        artist: "The Groove Collective",
-        duration: 195, // 3:15
-        genre: "R&B",
-        isLiked: true,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-02-15",
-        bpm: 95,
-        key: "F Minor",
-        tags: ["r&b", "smooth", "groove", "soul"]
-      },
-      {
-        id: "6",
-        title: "Digital Rain",
-        artist: "Cyber Beats",
-        duration: 223, // 3:43
-        genre: "Electronic",
-        isLiked: false,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-03-05",
-        bpm: 135,
-        key: "A Minor",
-        tags: ["electronic", "cyber", "digital", "beats"]
-      },
-      {
-        id: "7",
-        title: "Country Roads",
-        artist: "Mountain Folk",
-        duration: 245, // 4:05
-        genre: "Country",
-        isLiked: true,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-01-25",
-        bpm: 90,
-        key: "D Major",
-        tags: ["country", "roads", "mountain", "folk"]
-      },
-      {
-        id: "8",
-        title: "Blues Night",
-        artist: "Delta Soul",
-        duration: 289, // 4:49
-        genre: "Blues",
-        isLiked: false,
-        albumArt: "/images/album-placeholder.svg",
-        releaseDate: "2024-02-28",
-        bpm: 75,
-        key: "A Major",
-        tags: ["blues", "night", "soul", "delta"]
-      }
-    ]
-  }
-
-  // Get current state
-  getState(): JukeboxState {
-    return { ...this.state }
-  }
-
-  // Set current song
-  setCurrentSong(song: Song | null): void {
-    this.state.currentSong = song
-    if (song) {
-      this.addToHistory(song)
-    }
-  }
-
-  // Toggle play/pause
-  togglePlay(): boolean {
-    this.state.isPlaying = !this.state.isPlaying
-    return this.state.isPlaying
-  }
-
-  // Set playing state
-  setPlaying(isPlaying: boolean): void {
-    this.state.isPlaying = isPlaying
-  }
-
-  // Update current time
-  updateCurrentTime(time: number): void {
-    this.state.currentTime = time
-  }
-
-  // Update duration
-  updateDuration(duration: number): void {
-    this.state.duration = duration
-  }
-
-  // Set volume
-  setVolume(volume: number): void {
-    this.state.volume = Math.max(0, Math.min(1, volume))
-  }
-
-  // Toggle mute
-  toggleMute(): boolean {
-    this.state.isMuted = !this.state.isMuted
-    return this.state.isMuted
-  }
-
-  // Toggle shuffle
-  toggleShuffle(): boolean {
-    this.state.isShuffled = !this.state.isShuffled
-    if (this.state.isShuffled) {
-      this.shufflePlaylist()
-    } else {
-      this.restorePlaylistOrder()
-    }
-    return this.state.isShuffled
-  }
-
-  // Set repeat mode
-  setRepeatMode(mode: 'none' | 'one' | 'all'): void {
-    this.state.repeatMode = mode
-  }
-
-  // Get next song
-  getNextSong(): Song | null {
-    if (this.state.playlist.length === 0) return null
-    
-    const currentIndex = this.state.currentSong 
-      ? this.state.playlist.findIndex(song => song.id === this.state.currentSong!.id)
-      : -1
-    
-    if (currentIndex === -1 || currentIndex === this.state.playlist.length - 1) {
-      return this.state.repeatMode === 'all' ? this.state.playlist[0] : null
-    }
-    
-    return this.state.playlist[currentIndex + 1]
-  }
-
-  // Get previous song
-  getPreviousSong(): Song | null {
-    if (this.state.playlist.length === 0) return null
-    
-    const currentIndex = this.state.currentSong 
-      ? this.state.playlist.findIndex(song => song.id === this.state.currentSong!.id)
-      : -1
-    
-    if (currentIndex <= 0) {
-      return this.state.repeatMode === 'all' ? this.state.playlist[this.state.playlist.length - 1] : null
-    }
-    
-    return this.state.playlist[currentIndex - 1]
-  }
-
-  // Set playlist
-  setPlaylist(songs: Song[]): void {
-    this.state.playlist = [...songs]
-  }
-
-  // Add song to playlist
-  addToPlaylist(song: Song): void {
-    if (!this.state.playlist.find(s => s.id === song.id)) {
-      this.state.playlist.push(song)
-    }
-  }
-
-  // Remove song from playlist
-  removeFromPlaylist(songId: string): void {
-    this.state.playlist = this.state.playlist.filter(song => song.id !== songId)
-  }
-
-  // Shuffle playlist
-  private shufflePlaylist(): void {
-    const shuffled = [...this.state.playlist].sort(() => Math.random() - 0.5)
-    this.state.playlist = shuffled
-  }
-
-  // Restore playlist order
-  private restorePlaylistOrder(): void {
-    // In a real implementation, you'd store the original order
-    // For now, we'll just reload from the service
-    this.state.playlist = this.getSampleSongs()
-  }
-
-  // Add to history
-  private addToHistory(song: Song): void {
-    // Remove if already exists
-    this.state.history = this.state.history.filter(s => s.id !== song.id)
-    // Add to beginning
-    this.state.history.unshift(song)
-    // Keep only last 50 songs
-    if (this.state.history.length > 50) {
-      this.state.history = this.state.history.slice(0, 50)
-    }
-  }
-
-  // Toggle like for a song
-  toggleLike(songId: string): void {
-    const song = this.state.playlist.find(s => s.id === songId)
-    if (song) {
-      song.isLiked = !song.isLiked
-    }
-    
-    if (this.state.currentSong?.id === songId) {
-      this.state.currentSong.isLiked = !this.state.currentSong.isLiked
-    }
-  }
-
-  // Search songs
-  searchSongs(query: string): Song[] {
-    const lowercaseQuery = query.toLowerCase()
-    return this.state.playlist.filter(song => 
-      song.title.toLowerCase().includes(lowercaseQuery) ||
-      song.artist.toLowerCase().includes(lowercaseQuery) ||
-      song.genre.toLowerCase().includes(lowercaseQuery) ||
-      song.tags?.some(tag => tag.toLowerCase().includes(lowercaseQuery))
-    )
-  }
-
-  // Get songs by genre
-  getSongsByGenre(genre: string): Song[] {
-    return this.state.playlist.filter(song => 
-      song.genre.toLowerCase() === genre.toLowerCase()
-    )
-  }
-
-  // Get liked songs
-  getLikedSongs(): Song[] {
-    return this.state.playlist.filter(song => song.isLiked)
-  }
-
-  // Get recent songs (from history)
-  getRecentSongs(limit: number = 10): Song[] {
-    return this.state.history.slice(0, limit)
-  }
-
-  // Format time helper
-  formatTime(seconds: number): string {
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  // Get audio file URL
-  getAudioUrl(songId: string): string {
-    // Handle special cases for different file formats
-    if (songId === "ayce-intro") {
-      return `/audio/ayce-intro.wav`
-    }
-    // Default to MP3 for other songs
-    return `/audio/${songId}.mp3`
-  }
-
-  // Initialize with sample data
-  initialize(): void {
-    this.state.playlist = this.getSampleSongs()
-    if (this.state.playlist.length > 0) {
-      this.state.currentSong = this.state.playlist[0]
-    }
-  }
+  const res = await fetch(`/api/music/playlists?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return []
+  const json = await res.json()
+  return Array.isArray(json.data) ? json.data : []
 }
 
-// Export singleton instance
-export const jukeboxService = JukeboxService.getInstance()
+export function playlistItemsToTracks(
+  items: JukeboxPlaylistItem[]
+): JukeboxTrack[] {
+  return items
+    .filter((item) => item.artist_music?.file_url)
+    .map((item) => ({
+      id: item.artist_music!.id,
+      title: item.artist_music!.title,
+      artist_name: "Artist",
+      artist_id: item.artist_music!.user_id,
+      duration: item.artist_music!.duration ?? undefined,
+      file_url: item.artist_music!.file_url!,
+      cover_art_url: item.artist_music!.cover_art_url ?? undefined,
+      genre: item.artist_music!.genre ?? undefined,
+    }))
+}
+
+export async function createPlaylist(
+  title: string,
+  description?: string,
+  visibility: "private" | "public" | "unlisted" = "private"
+): Promise<JukeboxPlaylist | null> {
+  const res = await fetch("/api/music/playlists", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title, description: description || null, visibility }),
+  })
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.data || null
+}
+
+export async function deletePlaylist(playlistId: string): Promise<boolean> {
+  const res = await fetch(`/api/music/playlists/${playlistId}`, {
+    method: "DELETE",
+    credentials: "include",
+  })
+  return res.ok
+}
+
+export async function addTrackToPlaylist(
+  playlistId: string,
+  musicTrackId: string
+): Promise<boolean> {
+  const res = await fetch(`/api/music/playlists/${playlistId}/items`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ musicTrackId }),
+  })
+  return res.ok
+}
+
+export interface LibraryItem {
+  id: string
+  music_track_id: string
+  listing_id: string | null
+  seller_user_id: string | null
+  artist_music: {
+    id: string
+    title: string
+    genre: string | null
+    duration: number | null
+    cover_art_url: string | null
+    file_url: string | null
+  } | null
+}
+
+export async function fetchLibraryTracks(): Promise<JukeboxTrack[]> {
+  const res = await fetch("/api/music/library", {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return []
+  const json = await res.json()
+  const items: LibraryItem[] = Array.isArray(json.data) ? json.data : []
+  return items
+    .filter((item) => item.artist_music?.file_url)
+    .map((item) => ({
+      id: item.artist_music!.id,
+      title: item.artist_music!.title,
+      artist_name: "Artist",
+      duration: item.artist_music!.duration ?? undefined,
+      file_url: item.artist_music!.file_url!,
+      cover_art_url: item.artist_music!.cover_art_url ?? undefined,
+      genre: item.artist_music!.genre ?? undefined,
+      in_library: true,
+    }))
+}
+
+export async function toggleLike(
+  musicId: string
+): Promise<{ liked: boolean } | null> {
+  const res = await fetch("/api/music/like", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ musicId }),
+  })
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function checkLikeStatus(
+  musicId: string
+): Promise<boolean> {
+  const res = await fetch(`/api/music/like?musicId=${musicId}`, {
+    credentials: "include",
+  })
+  if (!res.ok) return false
+  const json = await res.json()
+  return json.liked === true
+}
+
+export async function shareTrack(
+  musicId: string,
+  createPost = true
+): Promise<boolean> {
+  const res = await fetch("/api/music/share", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ musicId, createPost }),
+  })
+  return res.ok
+}
+
+export async function removeTrackFromPlaylist(
+  playlistId: string,
+  itemId: string
+): Promise<boolean> {
+  const res = await fetch(
+    `/api/music/playlists/${playlistId}/items?itemId=${itemId}`,
+    { method: "DELETE", credentials: "include" }
+  )
+  return res.ok
+}
+
+export async function updatePlaylist(
+  playlistId: string,
+  updates: { title?: string; description?: string | null; visibility?: "private" | "public" | "unlisted" }
+): Promise<boolean> {
+  const res = await fetch(`/api/music/playlists/${playlistId}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
+  })
+  return res.ok
+}
+
+export async function reorderPlaylistItem(
+  playlistId: string,
+  itemId: string,
+  position: number
+): Promise<boolean> {
+  const res = await fetch(`/api/music/playlists/${playlistId}/items`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ itemId, position }),
+  })
+  return res.ok
+}
+
+export async function updateTrack(
+  id: string,
+  updates: Record<string, unknown>
+): Promise<{ data: any } | null> {
+  const res = await fetch("/api/artist/music", {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id, ...updates }),
+  })
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function deleteTrack(id: string): Promise<boolean> {
+  const res = await fetch("/api/artist/music", {
+    method: "DELETE",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+  })
+  return res.ok
+}
+
+export async function fetchArtistTracks({
+  limit = 100,
+  offset = 0,
+  genre,
+  isPublic,
+}: {
+  limit?: number
+  offset?: number
+  genre?: string
+  isPublic?: boolean
+} = {}): Promise<{ data: JukeboxTrack[]; total: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (genre) params.set("genre", genre)
+  if (isPublic !== undefined) params.set("is_public", String(isPublic))
+
+  const res = await fetch(`/api/artist/music?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return { data: [], total: 0 }
+  const json = await res.json()
+  const tracks = (json.data || []).map((t: any) => ({
+    id: t.id,
+    title: t.title,
+    artist_name: "You",
+    duration: t.duration ?? undefined,
+    file_url: t.file_url || "",
+    cover_art_url: t.cover_art_url ?? undefined,
+    genre: t.genre ?? undefined,
+    tags: t.tags ?? [],
+    is_public: t.is_public,
+    allow_downloads: t.allow_downloads,
+  }))
+  return { data: tracks, total: json.total ?? tracks.length }
+}
+
+export async function getStreamUrl(trackId: string): Promise<string | null> {
+  const res = await fetch(`/api/music/stream?trackId=${trackId}`, {
+    credentials: "include",
+  })
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.url || null
+}
+
+export async function fetchFavoriteTracks({
+  userId,
+  limit = 50,
+  offset = 0,
+}: {
+  userId?: string
+  limit?: number
+  offset?: number
+} = {}): Promise<{ data: JukeboxTrack[]; total: number }> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  if (userId) params.set("userId", userId)
+
+  const res = await fetch(`/api/music/favorites?${params}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return { data: [], total: 0 }
+  return res.json()
+}
+
+export async function fetchUserFavoritesForProfile(
+  userId: string,
+  limit = 10
+): Promise<JukeboxTrack[]> {
+  const result = await fetchFavoriteTracks({ userId, limit })
+  return result.data
+}
+

@@ -84,7 +84,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function LicensingPage() {
-  const { artistProfile } = useArtist()
+  const { profile: artistProfile } = useArtist()
   const [deals, setDeals] = useState<LicensingDeal[]>([])
   const [templates, setTemplates] = useState<LicenseTemplate[]>([])
   const [isLoading, setIsLoading] = useState(true)

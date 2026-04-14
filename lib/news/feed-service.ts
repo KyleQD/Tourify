@@ -32,15 +32,17 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
     userId: params.userId
   })
 
-  const externalCandidates = await fetchExternalCandidates({
-    requestOrigin: params.requestOrigin,
-    limit: 240,
-    subscribedTopics: userSignals.subscribedTopics,
-    preferredLocations: userSignals.preferredLocations
-  })
+  const [externalCandidates, blogCandidates] = await Promise.all([
+    fetchExternalCandidates({
+      requestOrigin: params.requestOrigin,
+      limit: 240,
+      subscribedTopics: userSignals.subscribedTopics,
+      preferredLocations: userSignals.preferredLocations
+    }),
+    fetchBlogCandidates({ supabase: params.supabase, limit: 30 })
+  ])
 
-  // Pulse policy: RSS-only candidate stream.
-  const mergedCandidates = externalCandidates
+  const mergedCandidates = [...externalCandidates, ...blogCandidates]
   const filteredByFacet = filterByFacet({
     items: mergedCandidates,
     facet: params.facet,

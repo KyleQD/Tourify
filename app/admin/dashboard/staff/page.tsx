@@ -26,6 +26,7 @@ import { EmployeeManagementOverview } from "@/components/staff/employee-manageme
 import { EmployeeRosterPanel } from "@/components/staff/employee-roster-panel"
 import { StaffingHealthPanel } from "@/components/staff/staffing-health-panel"
 import { AddStaffDialog } from "./add-staff-dialog"
+import { TeamPermissionsEditor } from "@/components/admin/team-permissions-editor"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminStatCard } from "../components/admin-stat-card"
 import { AdminPageSkeleton } from "../components/admin-page-skeleton"
@@ -595,13 +596,25 @@ export default function StaffPage() {
 
   async function handleUploadOnboardingDocument(candidateId: string, documentType: string, file: File) {
     try {
-      // Mock file upload - in real app, this would upload to Supabase Storage
-      const mockFileUrl = `https://mock-storage.com/documents/${candidateId}/${documentType}/${file.name}`
+      let fileUrl = ''
+      try {
+        const filePath = `onboarding/${candidateId}/${documentType}/${Date.now()}_${file.name}`
+        const { supabase } = await import('@/lib/supabase')
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(filePath, file, { cacheControl: '3600', upsert: true })
+        if (uploadError) throw uploadError
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(filePath)
+        fileUrl = urlData?.publicUrl || filePath
+      } catch (uploadErr) {
+        console.error('Upload failed, using path reference:', uploadErr)
+        fileUrl = `documents/onboarding/${candidateId}/${documentType}/${file.name}`
+      }
       toast({
         title: 'Success',
         description: 'Document uploaded successfully',
       })
-      return mockFileUrl
+      return fileUrl
     } catch (error) {
       console.error('❌ [Staff Page] Error uploading onboarding document:', error)
       toast({
@@ -870,6 +883,12 @@ export default function StaffPage() {
                 <span>Analytics</span>
               </div>
             </TabsTrigger>
+            <TabsTrigger value="permissions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+              <div className="flex items-center space-x-2">
+                <Shield className="h-4 w-4" />
+                <span>Permissions</span>
+              </div>
+            </TabsTrigger>
           </TabsList>
 
           {/* Enhanced Overview Tab */}
@@ -1073,7 +1092,7 @@ export default function StaffPage() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-semibold text-white">Neural Command Center</h3>
-                    <p className="text-slate-400">AI-powered staff management coming soon</p>
+                    <p className="text-slate-400">Automated scheduling, shift optimization, and AI-assisted crew recommendations are in development. Use the Permissions tab to manage team access in the meantime.</p>
                   </div>
                   <div className="flex justify-center space-x-4 pt-4">
                     <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">AI Assistant</Badge>
@@ -1290,7 +1309,7 @@ export default function StaffPage() {
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-xl font-semibold text-white">Team Communications</h3>
-                    <p className="text-slate-400">Enhanced communication features coming soon</p>
+                    <p className="text-slate-400">Direct messaging, group channels, and announcement broadcasts for your team are in development. Use the Messages section for current team communication.</p>
                   </div>
                   <div className="flex justify-center space-x-4 pt-4">
                     <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Real-time Chat</Badge>
@@ -1319,6 +1338,11 @@ export default function StaffPage() {
                 <EnhancedAnalyticsDashboard venueId={venueId} />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Permissions Tab */}
+          <TabsContent value="permissions" className="space-y-6">
+            <TeamPermissionsEditor venueId={venueId} />
           </TabsContent>
         </Tabs>
       </div>

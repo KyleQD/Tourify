@@ -11,6 +11,7 @@ export const JOB_APPLICATION_STATUSES = [
   'reviewed',
   'shortlisted',
   'approved',
+  'accepted',
   'rejected',
   'withdrawn',
 ] as const
@@ -73,9 +74,9 @@ export function buildHiringMilestones(input: {
     contractUpdatedAt = null,
   } = input
 
-  const isReviewed = ['reviewed', 'shortlisted', 'approved', 'rejected'].includes(applicationStatus)
-  const isOfferSent = ['shortlisted', 'approved'].includes(applicationStatus)
-  const isAccepted = applicationStatus === 'approved'
+  const isReviewed = ['reviewed', 'shortlisted', 'approved', 'accepted', 'rejected'].includes(applicationStatus)
+  const isOfferSent = ['shortlisted', 'approved', 'accepted'].includes(applicationStatus)
+  const isAccepted = applicationStatus === 'approved' || applicationStatus === 'accepted'
   const isRejected = applicationStatus === 'rejected'
   const isOnboarding = ['in_progress', 'pending', 'approved'].includes(onboardingStatus || '')
   const isContractSent = contractStatus === 'sent' || contractStatus === 'signed'

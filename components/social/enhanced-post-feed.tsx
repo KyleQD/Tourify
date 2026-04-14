@@ -43,9 +43,9 @@ export function EnhancedPostFeed({ userId, filter = "all", showPostCreator = tru
       // Apply feed filter
       switch (activeFilter) {
         case "following":
-          if (currentUser?.connections) {
+          if ((currentUser as any)?.connections) {
             filtered = filtered.filter((post) => 
-              currentUser.connections?.includes(post.userId)
+              (currentUser as any).connections?.includes(post.userId)
             )
           }
           break

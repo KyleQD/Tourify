@@ -15,17 +15,9 @@ export async function GET(request: NextRequest) {
       .from('music_tracks')
       .select('*')
       .eq('is_public', true)
-    if (userId) {
-      query = query.eq('user_id', userId)
-    }
+    if (userId) query = query.eq('user_id', userId)
+    if (genre && genre !== 'all') query = query.eq('genre', genre)
 
-
-    // Filter by genre if specified
-    if (genre && genre !== 'all') {
-      query = query.eq('genre', genre)
-    }
-
-    // Apply sorting
     switch (sortBy) {
       case 'popular':
         query = query.order('play_count', { ascending: false })
@@ -39,63 +31,13 @@ export async function GET(request: NextRequest) {
         break
     }
 
-    // Apply limit
     query = query.limit(limit)
 
     const { data: tracks, error } = await query
 
     if (error) {
       if (isSchemaCacheMissingError(error)) {
-        const fallback = await supabase
-          .from('artist_music')
-          .select('id,user_id,title,description,genre,duration,file_url,cover_art_url,tags,created_at,stats,is_public')
-          .eq('is_public', true)
-          .order('created_at', { ascending: false })
-          .limit(limit)
-
-        if (fallback.error) {
-          console.error('Error fetching fallback music tracks:', fallback.error)
-          return NextResponse.json(
-            { success: false, error: { code: 'fetch_music_tracks_failed', message: 'Failed to fetch music tracks' }, content: [] },
-            { status: 500 }
-          )
-        }
-
-        const fallbackContent = (fallback.data || []).map(track => ({
-          id: track.id,
-          type: 'music' as const,
-          title: track.title,
-          description: track.description,
-          author: {
-            id: track.user_id,
-            name: 'Artist',
-            username: null,
-          },
-          cover_image: track.cover_art_url,
-          created_at: track.created_at,
-          engagement: {
-            likes: Number((track.stats as any)?.likes || 0),
-            views: Number((track.stats as any)?.plays || 0),
-            shares: Number((track.stats as any)?.shares || 0),
-            comments: Number((track.stats as any)?.comments || 0),
-          },
-          metadata: {
-            genre: track.genre,
-            duration: track.duration,
-            tags: track.tags || [],
-            url: track.file_url,
-            artist: 'Artist',
-          },
-          relevance_score: 0.8,
-        }))
-
-        return NextResponse.json({
-          success: true,
-          content: fallbackContent,
-          total: fallbackContent.length,
-          lastUpdated: new Date().toISOString(),
-          fallbackSource: 'artist_music',
-        })
+        return await fallbackFromArtistMusic(supabase, { limit, genre, sortBy, userId })
       }
 
       console.error('Error fetching music tracks:', error)
@@ -124,27 +66,27 @@ export async function GET(request: NextRequest) {
           likes: track.likes_count || 0,
           views: track.play_count || 0,
           shares: track.shares_count || 0,
-          comments: track.comments_count || 0
+          comments: track.comments_count || 0,
         },
         metadata: {
           genre: track.genre,
           duration: track.duration,
           tags: track.tags || [],
-          url: track.file_url,
-          artist: displayName
+          url: `/api/music/stream?trackId=${track.id}`,
+          artist: displayName,
         },
-        relevance_score: 0.9
+        relevance_score: 0.9,
       }
     })
+
     const response = NextResponse.json({
       success: true,
       content: musicContent,
       total: musicContent.length,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     })
     response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
     return response
-
   } catch (error) {
     console.error('Error in music feed API:', error)
     return NextResponse.json(
@@ -152,4 +94,101 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+}
+
+async function fallbackFromArtistMusic(
+  supabase: any,
+  opts: { limit: number; genre: string | null; sortBy: string; userId: string | null }
+) {
+  let query = supabase
+    .from('artist_music')
+    .select('id, user_id, title, description, genre, duration, file_url, cover_art_url, tags, created_at, stats, is_public')
+    .eq('is_public', true)
+
+  if (opts.userId) query = query.eq('user_id', opts.userId)
+  if (opts.genre && opts.genre !== 'all') query = query.eq('genre', opts.genre)
+
+  query = query.order('created_at', { ascending: false }).limit(Math.min(opts.limit * 2, 100))
+
+  const { data: rawTracks, error: fallbackError } = await query
+  if (fallbackError) {
+    console.error('Error fetching fallback music tracks:', fallbackError)
+    return NextResponse.json(
+      { success: false, error: { code: 'fetch_music_tracks_failed', message: 'Failed to fetch music tracks' }, content: [] },
+      { status: 500 }
+    )
+  }
+
+  const userIds = Array.from(new Set((rawTracks || []).map((t: any) => t.user_id)))
+  let profileMap: Record<string, { full_name: string | null; avatar_url: string | null }> = {}
+  if (userIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', userIds)
+    profileMap = (profiles || []).reduce(
+      (acc: any, p: any) => ({ ...acc, [p.id]: { full_name: p.full_name, avatar_url: p.avatar_url } }),
+      {}
+    )
+  }
+
+  let content = (rawTracks || []).map((track: any) => {
+    const profile = profileMap[track.user_id]
+    const artistName = profile?.full_name || 'Artist'
+    const stats = track.stats || {}
+    const likes = Number(stats.likes || 0)
+    const plays = Number(stats.plays || 0)
+    const shares = Number(stats.shares || 0)
+    const comments = Number(stats.comments || 0)
+
+    return {
+      id: track.id,
+      type: 'music' as const,
+      title: track.title,
+      description: track.description,
+      author: {
+        id: track.user_id,
+        name: artistName,
+        username: null,
+        avatar_url: profile?.avatar_url || null,
+      },
+      cover_image: track.cover_art_url,
+      created_at: track.created_at,
+      engagement: { likes, views: plays, shares, comments },
+      metadata: {
+        genre: track.genre,
+        duration: track.duration,
+        tags: track.tags || [],
+        url: `/api/music/stream?trackId=${track.id}`,
+        artist: artistName,
+      },
+      relevance_score: 0.8,
+      _engagement_total: likes + plays + shares + comments,
+      _created_ms: new Date(track.created_at).getTime(),
+    }
+  })
+
+  if (opts.sortBy === 'popular') {
+    content.sort((a: any, b: any) => b.engagement.views - a.engagement.views)
+  } else if (opts.sortBy === 'trending') {
+    const now = Date.now()
+    const dayMs = 86400000
+    content.sort((a: any, b: any) => {
+      const ageA = Math.max(1, (now - a._created_ms) / dayMs)
+      const ageB = Math.max(1, (now - b._created_ms) / dayMs)
+      const scoreA = a._engagement_total / Math.sqrt(ageA)
+      const scoreB = b._engagement_total / Math.sqrt(ageB)
+      return scoreB - scoreA
+    })
+  }
+
+  content = content.slice(0, opts.limit).map(({ _engagement_total, _created_ms, ...rest }: any) => rest)
+
+  return NextResponse.json({
+    success: true,
+    content,
+    total: content.length,
+    lastUpdated: new Date().toISOString(),
+    fallbackSource: 'artist_music',
+  })
 }

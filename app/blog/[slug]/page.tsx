@@ -56,7 +56,14 @@ async function getBlogPost(slug: string): Promise<BlogPost | null> {
       stats,
       tags,
       categories,
-      user_id
+      user_id,
+      profiles:user_id (
+        id,
+        username,
+        full_name,
+        avatar_url,
+        is_verified
+      )
     `)
     .eq('slug', slug)
     .eq('status', 'published')
@@ -66,11 +73,11 @@ async function getBlogPost(slug: string): Promise<BlogPost | null> {
     return null
   }
 
-  // For now, use default author info since we can't join with profiles
-  const authorName = 'Sarah Johnson' // We'll enhance this later
-  const authorUsername = 'sarahjohnson'
-  const authorAvatar = 'https://dummyimage.com/150x150/8b5cf6/ffffff?text=SJ'
-  const isVerified = false
+  const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
+  const authorName = profile?.full_name || profile?.username || 'Community Author'
+  const authorUsername = profile?.username || 'user'
+  const authorAvatar = profile?.avatar_url || undefined
+  const isVerified = profile?.is_verified || false
 
   return {
     id: data.id,
@@ -164,13 +171,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <Image
-                    src={blogPost.author.avatar_url || `https://dummyimage.com/40x40/8b5cf6/ffffff?text=${blogPost.author.name.charAt(0)}`}
-                    alt={blogPost.author.name}
-                    width={40}
-                    height={40}
-                    className="rounded-full"
-                  />
+                  {blogPost.author.avatar_url ? (
+                    <Image
+                      src={blogPost.author.avatar_url}
+                      alt={blogPost.author.name}
+                      width={40}
+                      height={40}
+                      className="rounded-full"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-sm font-bold text-white">
+                      {blogPost.author.name.charAt(0)}
+                    </div>
+                  )}
                   {blogPost.author.is_verified && (
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
                       <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -291,13 +304,19 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
         {/* Author Profile */}
         <div className="mt-8 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
           <div className="flex items-center gap-4">
-            <Image
-              src={blogPost.author.avatar_url || `https://dummyimage.com/80x80/8b5cf6/ffffff?text=${blogPost.author.name.charAt(0)}`}
-              alt={blogPost.author.name}
-              width={80}
-              height={80}
-              className="rounded-full"
-            />
+            {blogPost.author.avatar_url ? (
+              <Image
+                src={blogPost.author.avatar_url}
+                alt={blogPost.author.name}
+                width={80}
+                height={80}
+                className="rounded-full"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-purple-600 text-2xl font-bold text-white">
+                {blogPost.author.name.charAt(0)}
+              </div>
+            )}
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h3 className="text-white font-semibold text-lg">{blogPost.author.name}</h3>

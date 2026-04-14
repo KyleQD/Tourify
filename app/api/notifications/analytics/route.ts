@@ -100,12 +100,19 @@ export async function GET(request: NextRequest) {
               .sort((a, b) => b.count - a.count)
           }),
 
-        // Delivery metrics (placeholder - would need analytics table)
-        Promise.resolve({
-          deliveryRate: 99.5,
-          averageLatency: 150,
-          errorRate: 0.5
-        }),
+        // Delivery metrics derived from the notifications table
+        supabase
+          .from('notifications')
+          .select('id, read, created_at')
+          .gte('created_at', startDate)
+          .then(result => {
+            const rows = result.data || []
+            const total = rows.length
+            if (total === 0) return { deliveryRate: 0, averageLatency: 0, errorRate: 0 }
+            const readCount = rows.filter((n: any) => n.read || n.is_read).length
+            const deliveryRate = Math.round((readCount / total) * 10000) / 100
+            return { deliveryRate, averageLatency: 0, errorRate: 0 }
+          }),
 
         // Top users by notification count
         supabase
@@ -150,7 +157,7 @@ export async function GET(request: NextRequest) {
           notificationsByType,
           deliveryMetrics,
           topUsers,
-          recentActivity: recentActivity || []
+          recentActivity: recentActivity?.data || []
         }
       })
 
@@ -226,12 +233,19 @@ export async function POST(request: NextRequest) {
           .select('user_id, is_read')
           .gte('created_at', startDate),
 
-        // Delivery metrics (placeholder)
-        Promise.resolve({
-          deliveryRate: 99.5,
-          averageLatency: 150,
-          errorRate: 0.5
-        })
+        // Delivery metrics from notifications table
+        supabase
+          .from('notifications')
+          .select('id, read, created_at')
+          .gte('created_at', startDate)
+          .then(result => {
+            const rows = result.data || []
+            const total = rows.length
+            if (total === 0) return { deliveryRate: 0, averageLatency: 0, errorRate: 0 }
+            const readCount = rows.filter((n: any) => n.read || n.is_read).length
+            const deliveryRate = Math.round((readCount / total) * 10000) / 100
+            return { deliveryRate, averageLatency: 0, errorRate: 0 }
+          })
       ])
 
       // Process daily data

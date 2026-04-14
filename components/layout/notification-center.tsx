@@ -67,7 +67,6 @@ export function NotificationCenter({ user }: NotificationCenterProps) {
   // Real-time announcements
   const { 
     announcements, 
-    emergencyAnnouncements, 
     urgentAnnouncements,
     acknowledgeAnnouncement 
   } = useAnnouncements()
@@ -81,7 +80,7 @@ export function NotificationCenter({ user }: NotificationCenterProps) {
     const announcementNotifications: Notification[] = announcements.map(announcement => ({
       id: announcement.id,
       type: 'announcement',
-      title: announcement.title,
+      title: announcement.subject,
       content: announcement.content,
       priority: announcement.priority as any,
       isRead: false, // In real app, track read status

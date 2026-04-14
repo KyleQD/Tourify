@@ -36,6 +36,7 @@ import {
   Grid3X3,
   X,
   CheckSquare,
+  MapPin,
 } from "lucide-react"
 
 interface EnhancedSidebarProps {
@@ -98,6 +99,7 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
       items: [
         { title: "Calendar", href: "/calendar", icon: Calendar },
         { title: "Event Map", href: "/venue/dashboard/events/map", icon: Globe },
+        { title: "Site Maps", href: "/venue/dashboard/site-maps", icon: MapPin },
         { title: "Tickets", href: "/venue/dashboard/tickets", icon: Ticket },
         { title: "Venues", href: "/venues", icon: Star },
       ],

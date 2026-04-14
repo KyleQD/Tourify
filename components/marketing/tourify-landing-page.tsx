@@ -2,60 +2,97 @@ import Link from "next/link"
 import {
   ArrowRight,
   Building2,
+  Calendar,
+  CheckCircle2,
   ExternalLink,
+  MessageSquare,
   Mic2,
   Play,
-  Radio,
   Sparkles,
+  Ticket,
+  ClipboardList,
   Users,
-  Zap,
+  BarChart3,
 } from "lucide-react"
 import { TourifyLogo } from "@/components/tourify-logo"
 import { Button } from "@/components/ui/button"
 import { LandingHeroWithAuth } from "@/components/marketing/landing-hero-auth"
 
-const DEMO_URL = "https://demo.tourify.live"
+const BETA_URL = "https://demo.tourify.live"
 
 const features = [
   {
-    title: "AI-powered matching",
-    body: "Surface venues, artists, and collaborators that fit your sound, capacity, and goals — automatically.",
-    icon: Sparkles,
+    title: "Event creation & ticketing",
+    body: "Build events, sell tickets, and manage capacity from a single dashboard — no third-party tools required.",
+    icon: Ticket,
   },
   {
-    title: "Real-time signal",
-    body: "Track momentum across bookings, discovery, and your network in one live workspace.",
-    icon: Radio,
+    title: "Tour routing & calendar",
+    body: "Plan multi-city runs, visualize your route on a map, and keep every date organized in one calendar.",
+    icon: Calendar,
   },
   {
-    title: "Unified platform",
-    body: "Profiles, events, messaging, and booking stay in sync so nothing falls through the cracks.",
-    icon: Zap,
-  },
-] as const
-
-const audiences = [
-  {
-    title: "Artists & performers",
-    body: "Promote your work, plan routing, and book rooms that match your draw.",
-    icon: Mic2,
+    title: "Staff scheduling & onboarding",
+    body: "Invite team members, assign shifts, track availability, and onboard new hires with guided workflows.",
+    icon: ClipboardList,
   },
   {
-    title: "Venues & promoters",
-    body: "Fill the calendar, coordinate staff, and keep ticketing and comms aligned.",
-    icon: Building2,
+    title: "Built-in messaging",
+    body: "Direct messages, group threads, and booking conversations — all in one place so nothing gets lost.",
+    icon: MessageSquare,
   },
   {
-    title: "Industry & fans",
-    body: "Discover shows, grow reputations, and stay close to the scenes you care about.",
+    title: "Artist & venue profiles",
+    body: "Showcase your work with rich profiles, EPKs, photo galleries, and embedded music or video.",
     icon: Users,
   },
+  {
+    title: "Analytics & reporting",
+    body: "Track event performance, audience growth, revenue, and engagement with clear visual dashboards.",
+    icon: BarChart3,
+  },
 ] as const
 
-const trustStats = [
-  { label: "Cities activated", value: "120+" },
-  { label: "Bookings coordinated", value: "9.4k" },
-  { label: "Avg. response speed", value: "< 2 min" },
+const accountTypeFeatures = [
+  {
+    title: "For Artists",
+    icon: Mic2,
+    color: "purple",
+    items: [
+      "EPK builder & public profile",
+      "Tour routing & event calendar",
+      "AI-powered venue matching",
+      "Merch & music storefront",
+      "Fan engagement analytics",
+      "Contract & rider management",
+    ],
+  },
+  {
+    title: "For Venues",
+    icon: Building2,
+    color: "fuchsia",
+    items: [
+      "Staff scheduling & onboarding",
+      "Event creation & ticketing",
+      "Equipment & asset tracking",
+      "Real-time team messaging",
+      "Booking request management",
+      "Financial reporting dashboard",
+    ],
+  },
+  {
+    title: "For Fans & Industry",
+    icon: Users,
+    color: "cyan",
+    items: [
+      "Discover local shows & artists",
+      "Social feed & community posts",
+      "Follow artists & venues",
+      "Job board & opportunities",
+      "Networking & collaboration",
+      "Event recommendations",
+    ],
+  },
 ] as const
 
 export function TourifyLandingPage() {
@@ -87,9 +124,9 @@ export function TourifyLandingPage() {
               variant="ghost"
               className="gap-1.5 text-slate-300 hover:bg-white/10 hover:text-white"
             >
-              <a href={DEMO_URL} target="_blank" rel="noopener noreferrer">
+              <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
                 <Play className="h-3.5 w-3.5" aria-hidden />
-                Try Demo
+                Try the Beta
               </a>
             </Button>
             <Button asChild variant="ghost" className="text-slate-300 hover:bg-white/10 hover:text-white">
@@ -110,13 +147,12 @@ export function TourifyLandingPage() {
 
       <main id="main-content" className="relative z-10">
         {/* Hero Section */}
-        <section className="mx-auto max-w-7xl px-4 pb-16 pt-12 sm:px-6 sm:pt-16 lg:px-8 lg:pt-20">
+        <section className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
           <div id="get-started" className="grid scroll-mt-20 items-start gap-12 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] lg:gap-16">
             {/* Left — copy + demo CTA */}
-            <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:pt-6 lg:text-left">
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-purple-400/20 bg-purple-500/10 px-4 py-1.5 text-xs font-medium uppercase tracking-[0.18em] text-purple-200">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                Now in open beta
+            <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:pt-2 lg:text-left">
+              <div className="mb-4">
+                <TourifyLogo variant="white" size="xl" className="!h-auto w-full max-w-[32rem] drop-shadow-xl" />
               </div>
 
               <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
@@ -138,9 +174,9 @@ export function TourifyLandingPage() {
                   size="lg"
                   className="gap-2 bg-white text-slate-950 shadow-xl shadow-white/10 hover:bg-slate-100"
                 >
-                  <a href={DEMO_URL} target="_blank" rel="noopener noreferrer">
+                  <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
                     <Play className="h-4 w-4" aria-hidden />
-                    Explore the Demo
+                    Try the Beta Today
                     <ExternalLink className="h-3.5 w-3.5 opacity-50" aria-hidden />
                   </a>
                 </Button>
@@ -149,28 +185,30 @@ export function TourifyLandingPage() {
                 </Button>
               </div>
 
-              {/* Trust stats */}
-              <div className="mt-10 grid grid-cols-3 gap-3">
-                {trustStats.map(({ label, value }) => (
-                  <div key={label} className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-4 py-3 backdrop-blur-sm">
-                    <p className="text-xl font-bold text-white">{value}</p>
-                    <p className="text-[11px] uppercase tracking-[0.14em] text-slate-400">{label}</p>
+              {/* Account type features */}
+              <div className="mt-10 space-y-4">
+                {accountTypeFeatures.map(({ title, icon: Icon, color, items }) => (
+                  <div
+                    key={title}
+                    className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-sm"
+                  >
+                    <div className="mb-3 flex items-center gap-2">
+                      <Icon className={`h-4.5 w-4.5 ${
+                        color === "purple" ? "text-purple-300" : color === "fuchsia" ? "text-fuchsia-300" : "text-cyan-300"
+                      }`} aria-hidden />
+                      <h3 className="text-sm font-semibold text-white">{title}</h3>
+                    </div>
+                    <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
+                      {items.map((item) => (
+                        <li key={item} className="flex items-start gap-1.5 text-[13px] leading-snug text-slate-300">
+                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400/70" aria-hidden />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ))}
               </div>
-
-              <p className="mt-6 text-sm text-slate-400">
-                See exactly what you&apos;ll get — our{" "}
-                <a
-                  href={DEMO_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-purple-300 underline-offset-4 hover:text-white hover:underline"
-                >
-                  live demo
-                </a>{" "}
-                is the full product experience, no&nbsp;signup required.
-              </p>
             </div>
 
             {/* Right — auth portal */}
@@ -184,17 +222,16 @@ export function TourifyLandingPage() {
         <section id="features" className="scroll-mt-20 border-t border-white/[0.06] bg-slate-950/50 py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-2xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200/80">How it works</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200/80">What&apos;s included</p>
               <h2 className="mt-3 text-3xl font-bold text-white sm:text-4xl">
-                Everything live music needs, unified
+                Tools that actually make a difference
               </h2>
               <p className="mt-4 text-base text-slate-400">
-                One platform that replaces a dozen disconnected tools for discovery, booking,
-                and promotion.
+                Everything you need to discover, book, promote, and manage live events — all in one place.
               </p>
             </div>
 
-            <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
+            <div className="mx-auto mt-14 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {features.map(({ title, body, icon: Icon }) => (
                 <div
                   key={title}
@@ -211,28 +248,28 @@ export function TourifyLandingPage() {
           </div>
         </section>
 
-        {/* Demo banner */}
+        {/* Beta banner */}
         <section className="relative overflow-hidden border-y border-white/[0.06]">
           <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-fuchsia-600/10 to-blue-600/10" />
           <div className="relative mx-auto flex max-w-7xl flex-col items-center gap-6 px-4 py-16 text-center sm:px-6 lg:px-8">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300">
-              <Play className="h-3 w-3" aria-hidden />
-              Live demo available now
+              <Sparkles className="h-3 w-3" aria-hidden />
+              Now in open beta
             </div>
             <h2 className="max-w-2xl text-3xl font-bold sm:text-4xl">
-              See Tourify in action before you sign&nbsp;up
+              Your next show starts&nbsp;here
             </h2>
             <p className="max-w-xl text-slate-400">
-              Explore full artist profiles, venue discovery, AI matching, and booking tools.
-              No account needed — just jump in.
+              Create your free account in under a minute. Set up your profile, explore
+              venues and artists, and start booking&nbsp;today.
             </p>
             <Button
               asChild
               size="lg"
               className="mt-2 gap-2 bg-gradient-to-r from-purple-600 to-blue-600 shadow-lg shadow-purple-500/20 hover:from-purple-700 hover:to-blue-700"
             >
-              <a href={DEMO_URL} target="_blank" rel="noopener noreferrer">
-                Launch Demo
+              <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
+                Try the Beta
                 <ExternalLink className="h-4 w-4" aria-hidden />
               </a>
             </Button>
@@ -250,14 +287,23 @@ export function TourifyLandingPage() {
             </div>
 
             <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-3">
-              {audiences.map(({ title, body, icon: Icon }) => (
+              {accountTypeFeatures.map(({ title, icon: Icon, color, items }) => (
                 <div
                   key={title}
                   className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6"
                 >
-                  <Icon className="mb-3 h-6 w-6 text-fuchsia-300" aria-hidden />
+                  <Icon className={`mb-3 h-6 w-6 ${
+                    color === "purple" ? "text-purple-300" : color === "fuchsia" ? "text-fuchsia-300" : "text-cyan-300"
+                  }`} aria-hidden />
                   <h3 className="text-lg font-semibold text-white">{title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-400">{body}</p>
+                  <ul className="mt-3 space-y-2">
+                    {items.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm leading-snug text-slate-400">
+                        <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400/70" aria-hidden />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
@@ -304,9 +350,9 @@ export function TourifyLandingPage() {
                 variant="outline"
                 className="gap-2 border-white/20 bg-white/5 text-white hover:bg-white/10"
               >
-                <a href={DEMO_URL} target="_blank" rel="noopener noreferrer">
+                <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
                   <Play className="h-4 w-4" aria-hidden />
-                  Try the demo
+                  Try the Beta Today
                   <ExternalLink className="h-3.5 w-3.5 opacity-50" aria-hidden />
                 </a>
               </Button>
@@ -323,12 +369,12 @@ export function TourifyLandingPage() {
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4 sm:justify-end">
               <a
-                href={DEMO_URL}
+                href={BETA_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-slate-400 underline-offset-4 hover:text-white hover:underline"
               >
-                Demo
+                Beta
               </a>
               <Link href="/terms" className="text-slate-400 underline-offset-4 hover:text-white hover:underline">
                 Terms

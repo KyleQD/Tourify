@@ -284,6 +284,13 @@ export function EnhancedSettingsRouter() {
             <Palette className="h-4 w-4 mr-2" />
             Appearance
           </TabsTrigger>
+          <TabsTrigger 
+            value="legal" 
+            className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
+          >
+            <Shield className="h-4 w-4 mr-2" />
+            Legal
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="space-y-6">
@@ -656,6 +663,74 @@ export function EnhancedSettingsRouter() {
                     )}
                   </Button>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="legal" className="space-y-6">
+          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center gap-2">
+                <Shield className="h-5 w-5" />
+                Legal &amp; Policies
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-white/60 text-sm">
+                Review the legal agreements that govern your use of the Tourify platform.
+              </p>
+
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+              >
+                <div>
+                  <div className="text-white font-semibold group-hover:text-purple-300 transition-colors">Terms of Service</div>
+                  <div className="text-white/50 text-sm">Your agreement with Tourify App LLC</div>
+                </div>
+                <span className="text-white/40 group-hover:text-white transition-colors">&rarr;</span>
+              </a>
+
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+              >
+                <div>
+                  <div className="text-white font-semibold group-hover:text-purple-300 transition-colors">Privacy Policy</div>
+                  <div className="text-white/50 text-sm">How we collect, use, and protect your data</div>
+                </div>
+                <span className="text-white/40 group-hover:text-white transition-colors">&rarr;</span>
+              </a>
+
+              <a
+                href="/marketplace/seller-agreement"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+              >
+                <div>
+                  <div className="text-white font-semibold group-hover:text-purple-300 transition-colors">Marketplace Seller Agreement</div>
+                  <div className="text-white/50 text-sm">Additional terms for marketplace sellers</div>
+                </div>
+                <span className="text-white/40 group-hover:text-white transition-colors">&rarr;</span>
+              </a>
+
+              <Separator className="bg-white/10 my-4" />
+
+              <div className="rounded-2xl bg-white/5 border border-white/10 p-4">
+                <p className="text-white/50 text-xs leading-relaxed">
+                  Tourify App LLC is a limited liability company registered in Las Vegas, Nevada.
+                  By using the Service, you agree to be bound by our Terms of Service and Privacy Policy.
+                  For legal inquiries, contact{" "}
+                  <a href="mailto:legal@tourify.app" className="text-purple-400 hover:text-purple-300">
+                    legal@tourify.app
+                  </a>.
+                </p>
               </div>
             </CardContent>
           </Card>

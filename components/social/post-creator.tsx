@@ -88,8 +88,8 @@ export function PostCreator({
       <CardContent className="p-4">
         <div className="flex gap-4">
           <Avatar>
-            <AvatarImage src={user?.avatar} alt={user?.fullName} />
-            <AvatarFallback>{user?.fullName?.[0]}</AvatarFallback>
+            <AvatarImage src={user?.user_metadata?.avatar_url} alt={user?.user_metadata?.full_name} />
+            <AvatarFallback>{user?.user_metadata?.full_name?.[0] || user?.email?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
             <Textarea

@@ -49,15 +49,30 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (!ownership.ok) return NextResponse.json({ error: ownership.status === 404 ? "Playlist not found" : "Forbidden" }, { status: ownership.status })
 
     const payload = addPlaylistItemSchema.parse(await request.json())
-    const { data: libraryEntry, error: libraryError } = await supabase
-      .from("user_music_library")
-      .select("id")
-      .eq("buyer_user_id", user.id)
-      .eq("music_track_id", payload.musicTrackId)
-      .maybeSingle()
 
-    if (libraryError || !libraryEntry)
-      return NextResponse.json({ error: "Track must be in your purchased library before adding to playlist" }, { status: 403 })
+    const { data: track, error: trackError } = await supabase
+      .from("artist_music")
+      .select("id, is_public, user_id")
+      .eq("id", payload.musicTrackId)
+      .single()
+
+    if (trackError || !track)
+      return NextResponse.json({ error: "Track not found" }, { status: 404 })
+
+    const isOwner = track.user_id === user.id
+    const isPublic = track.is_public === true
+
+    if (!isOwner && !isPublic) {
+      const { data: libraryEntry } = await supabase
+        .from("user_music_library")
+        .select("id")
+        .eq("buyer_user_id", user.id)
+        .eq("music_track_id", payload.musicTrackId)
+        .maybeSingle()
+
+      if (!libraryEntry)
+        return NextResponse.json({ error: "Track is private and not in your library" }, { status: 403 })
+    }
 
     const { data, error } = await supabase
       .from("music_playlist_items")

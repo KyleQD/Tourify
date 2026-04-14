@@ -6,22 +6,9 @@ export async function middleware(request: NextRequest) {
   const { supabaseResponse, user } = await updateSession(request)
   const { pathname } = request.nextUrl
 
-  // Define route categories
-  const publicRoutes = [
-    '/login',
-    '/auth/callback',
-    '/auth/verification',
-    '/forgot-password',
-    '/reset-password',
-    '/terms',
-    '/privacy',
-    '/auth-demo', // Add the demo page
-    '/auth-test', // Add the test page
-  ]
-
   const authRoutes = [
     '/login',
-    '/auth/signin', // Keep for backward compatibility
+    '/auth/signin',
   ]
 
   const protectedRoutes = [
@@ -46,12 +33,10 @@ export async function middleware(request: NextRequest) {
     '/venue',
     '/debug',
     '/migrations',
-    '/auth-test',
   ]
 
   const productionBlockedPrefixes = ['/debug', '/migrations/sql']
 
-  const isPublicRoute = publicRoutes.includes(pathname)
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isRootRoute = pathname === '/'
@@ -103,12 +88,18 @@ export async function middleware(request: NextRequest) {
       const supabase = await createClient()
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, account_type')
+        .select('role, account_type, account_settings')
         .eq('id', user.id)
         .single()
 
-      const isAdmin = profile?.role === 'admin' || profile?.account_type === 'admin'
-      if (!isAdmin) {
+      const hasAdminRole = profile?.role === 'admin' || profile?.account_type === 'admin'
+      const hasOrganizerAccounts =
+        Array.isArray(profile?.account_settings?.organizer_accounts) &&
+        profile.account_settings.organizer_accounts.length > 0
+      const hasLegacyOrganizerData =
+        !!profile?.account_settings?.organizer_data?.organization_name
+
+      if (!hasAdminRole && !hasOrganizerAccounts && !hasLegacyOrganizerData) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch {

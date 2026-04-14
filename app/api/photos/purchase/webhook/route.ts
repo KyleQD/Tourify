@@ -1,15 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
-import Stripe from 'stripe'
-
-const getStripe = () => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY is not set')
-  }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia' as any
-  })
-}
+import { getStripe } from '@/lib/stripe'
 
 const getWebhookSecret = () => {
   if (!process.env.STRIPE_WEBHOOK_SECRET_PHOTOS) {

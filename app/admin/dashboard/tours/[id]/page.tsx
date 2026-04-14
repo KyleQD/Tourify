@@ -91,6 +91,7 @@ import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-no
 import { formatSafeCurrency } from "@/lib/format/number-format"
 import { SurfaceInput } from "@/components/surface/surface-primitives"
 import { AdminSurfaceCard } from "../../components/admin-surface-card"
+import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
 import { AdminSurfaceSelectTrigger, AdminSurfaceTabsList, AdminSurfaceTabsTrigger } from "../../components/admin-surface-controls"
 import { AdminPageActionsRow } from "../../components/admin-page-actions-row"
 
@@ -1321,6 +1322,13 @@ export default function TourManagementPage() {
                 </CardContent>
               </AdminSurfaceCard>
             </div>
+
+            <LogisticsDynamicManager
+              tourId={tourId}
+              enableEditing={true}
+              autoSave={true}
+              showFilters={true}
+            />
           </TabsContent>
         </Tabs>
 

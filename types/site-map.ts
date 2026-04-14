@@ -1209,3 +1209,60 @@ export interface UserPresence {
     avatar?: string
   }
 }
+
+// Pinned Notes / Comments
+export interface SiteMapNote {
+  id: string
+  site_map_id: string
+  user_id: string
+  x: number
+  y: number
+  content: string
+  element_id?: string
+  note_type: 'general' | 'warning' | 'question' | 'task' | 'resolved'
+  is_resolved: boolean
+  resolved_by?: string
+  resolved_at?: string
+  created_at: string
+  updated_at: string
+  user?: {
+    id: string
+    username: string
+    full_name: string
+    avatar_url?: string
+  }
+  replies?: SiteMapNoteReply[]
+}
+
+export interface SiteMapNoteReply {
+  id: string
+  note_id: string
+  user_id: string
+  content: string
+  created_at: string
+  user?: {
+    id: string
+    username: string
+    full_name: string
+    avatar_url?: string
+  }
+}
+
+// Element status tracking
+export type ElementStatus = 'not_started' | 'in_progress' | 'setup_complete' | 'needs_attention' | 'blocked' | 'verified'
+
+export interface SiteMapElementStatus {
+  id: string
+  site_map_id: string
+  element_id: string
+  status: ElementStatus
+  updated_by: string
+  notes?: string
+  updated_at: string
+  user?: {
+    id: string
+    username: string
+    full_name: string
+    avatar_url?: string
+  }
+}

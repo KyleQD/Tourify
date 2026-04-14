@@ -459,6 +459,37 @@ export async function POST(request: NextRequest) {
         console.warn('⚠️ [Applications API] Failed to bootstrap onboarding workflow:', workflowError)
       }
 
+      if (candidate.venue_id) {
+        try {
+          const { data: existingMember } = await supabase
+            .from('venue_team_members')
+            .select('id')
+            .eq('venue_id', candidate.venue_id)
+            .eq('email', candidate.email)
+            .maybeSingle()
+
+          if (!existingMember) {
+            await supabase.from('venue_team_members').insert({
+              venue_id: candidate.venue_id,
+              user_id: candidate.user_id || null,
+              name: candidate.name || candidate.email,
+              email: candidate.email,
+              role: candidate.position || candidate.department || 'member',
+              status: 'active',
+              permissions: {
+                manage_bookings: false,
+                manage_events: false,
+                view_analytics: false,
+                manage_team: false,
+                manage_documents: false,
+              },
+            })
+          }
+        } catch (teamError) {
+          console.warn('⚠️ [Applications API] Team member insert failed (non-blocking):', teamError)
+        }
+      }
+
       let contract: any = null
       const shouldSendContract = body?.send_contract !== false
       const provider = CONTRACT_PROVIDERS.includes(body?.contract_provider)

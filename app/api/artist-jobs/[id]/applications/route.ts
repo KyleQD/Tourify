@@ -36,13 +36,15 @@ function canTransition(
 async function writeArtistHiringAuditEvent(input: {
   supabase: any
   actorUserId: string
+  applicantUserId?: string | null
   applicationId: string
   jobId: string
+  jobTitle?: string
   applicationType: 'job' | 'collaboration'
   fromStatus: string
   toStatus: string
 }) {
-  const { supabase, actorUserId, applicationId, jobId, applicationType, fromStatus, toStatus } = input
+  const { supabase, actorUserId, applicantUserId, applicationId, jobId, jobTitle, applicationType, fromStatus, toStatus } = input
   const title = `Application status changed: ${fromStatus} -> ${toStatus}`
   const content = `${applicationType} application ${applicationId} for job ${jobId} moved from ${fromStatus} to ${toStatus}.`
   const metadata = {
@@ -80,7 +82,32 @@ async function writeArtistHiringAuditEvent(input: {
       metadata,
     })
   } catch (error) {
-    console.warn('⚠️ [Artist Jobs API] Failed to write status audit event:', error)
+    console.warn('⚠️ [Artist Jobs API] Failed to write actor audit event:', error)
+  }
+
+  if (applicantUserId && applicantUserId !== actorUserId) {
+    try {
+      const applicantTitle =
+        toStatus === 'accepted' ? 'Application Accepted!'
+        : toStatus === 'rejected' ? 'Application Update'
+        : toStatus === 'shortlisted' ? 'You\'ve been shortlisted!'
+        : 'Application Update'
+      const applicantContent =
+        toStatus === 'accepted' ? `Your application for "${jobTitle || 'a role'}" has been accepted. Check your dashboard for next steps.`
+        : toStatus === 'rejected' ? `Your application for "${jobTitle || 'a role'}" was not selected this time.`
+        : toStatus === 'shortlisted' ? `Your application for "${jobTitle || 'a role'}" has been shortlisted!`
+        : `Your application for "${jobTitle || 'a role'}" has been updated to ${toStatus}.`
+
+      await supabase.from('notifications').insert({
+        user_id: applicantUserId,
+        type: 'artist_application_status_updated',
+        title: applicantTitle,
+        content: applicantContent,
+        metadata: { ...metadata, job_title: jobTitle },
+      })
+    } catch (error) {
+      console.warn('⚠️ [Artist Jobs API] Failed to notify applicant:', error)
+    }
   }
 }
 
@@ -237,10 +264,9 @@ export async function PATCH(
       )
     }
 
-    // Verify job ownership before status mutation
     const { data: jobOwnerRow, error: ownerError } = await supabase
       .from('artist_jobs')
-      .select('id, posted_by, job_type')
+      .select('id, posted_by, job_type, title')
       .eq('id', params.id)
       .single()
 
@@ -289,8 +315,10 @@ export async function PATCH(
       await writeArtistHiringAuditEvent({
         supabase,
         actorUserId: user.id,
+        applicantUserId: updatedApplication.applicant_id,
         applicationId,
         jobId: params.id,
+        jobTitle: jobOwnerRow.title,
         applicationType: 'collaboration',
         fromStatus: currentApplication.status,
         toStatus: status,
@@ -320,7 +348,7 @@ export async function PATCH(
 
     const { data: currentApplication } = await supabase
       .from('artist_job_applications')
-      .select('id, status')
+      .select('id, status, applicant_id')
       .eq('id', applicationId)
       .single()
 
@@ -348,8 +376,10 @@ export async function PATCH(
     await writeArtistHiringAuditEvent({
       supabase,
       actorUserId: user.id,
+      applicantUserId: currentApplication.applicant_id,
       applicationId,
       jobId: params.id,
+      jobTitle: jobOwnerRow.title,
       applicationType: 'job',
       fromStatus: currentApplication.status,
       toStatus: status,

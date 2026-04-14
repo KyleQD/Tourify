@@ -1,0 +1,200 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { withAuth } from '@/lib/auth/api-auth'
+import { createClient } from '@supabase/supabase-js'
+
+function createServiceClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(url, key, { auth: { autoRefreshToken: false, persistSession: false } })
+}
+
+export interface EventHQPermissions {
+  can_post_bulletins: boolean
+  can_add_resources: boolean
+  can_edit_calendar: boolean
+  can_manage_tasks: boolean
+  can_manage_team: boolean
+}
+
+const ADMIN_PERMISSIONS: EventHQPermissions = {
+  can_post_bulletins: true,
+  can_add_resources: true,
+  can_edit_calendar: true,
+  can_manage_tasks: true,
+  can_manage_team: true,
+}
+
+const VIEWER_PERMISSIONS: EventHQPermissions = {
+  can_post_bulletins: false,
+  can_add_resources: false,
+  can_edit_calendar: false,
+  can_manage_tasks: false,
+  can_manage_team: false,
+}
+
+async function resolveUserRole(svc: any, eventId: string, userId: string) {
+  const { data: event } = await svc
+    .from('events_v2')
+    .select('id, title, start_at, end_at, venue_id, status, created_by, settings')
+    .eq('id', eventId)
+    .single()
+
+  if (!event) return { event: null, role: null, permissions: VIEWER_PERMISSIONS }
+
+  if (event.created_by === userId) {
+    return { event, role: 'admin' as const, permissions: ADMIN_PERMISSIONS }
+  }
+
+  const { data: participant } = await svc
+    .from('event_participants')
+    .select('id, role, status, metadata')
+    .eq('event_id', eventId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (participant) {
+    const role = participant.role || 'staff'
+    const isManager = role === 'admin' || role === 'manager'
+    const grantedPermissions = participant.metadata?.hq_permissions as Partial<EventHQPermissions> | undefined
+
+    const permissions: EventHQPermissions = isManager
+      ? ADMIN_PERMISSIONS
+      : {
+          can_post_bulletins: grantedPermissions?.can_post_bulletins ?? false,
+          can_add_resources: grantedPermissions?.can_add_resources ?? false,
+          can_edit_calendar: grantedPermissions?.can_edit_calendar ?? false,
+          can_manage_tasks: grantedPermissions?.can_manage_tasks ?? false,
+          can_manage_team: grantedPermissions?.can_manage_team ?? false,
+        }
+
+    return { event, role, permissions }
+  }
+
+  if (event.venue_id) {
+    const { data: venueStaff } = await svc
+      .from('venue_team_members')
+      .select('id, role, user_id')
+      .eq('venue_id', event.venue_id)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle()
+
+    if (venueStaff) {
+      const isVenueManager = venueStaff.role === 'admin' || venueStaff.role === 'manager'
+      return {
+        event,
+        role: isVenueManager ? 'manager' : 'staff',
+        permissions: isVenueManager ? ADMIN_PERMISSIONS : VIEWER_PERMISSIONS,
+      }
+    }
+  }
+
+  let staffShift: any = null
+  try {
+    const res = await svc
+      .from('event_staff')
+      .select('id, role, user_id')
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    staffShift = res.data
+  } catch {}
+
+  if (staffShift) {
+    return { event, role: staffShift.role || 'staff', permissions: VIEWER_PERMISSIONS }
+  }
+
+  return { event: null, role: null, permissions: VIEWER_PERMISSIONS }
+}
+
+export const GET = withAuth(async (request: NextRequest, { user }) => {
+  try {
+    const eventId = request.nextUrl.pathname.split('/').at(-2)!
+    const svc = createServiceClient()
+    const { event, role, permissions } = await resolveUserRole(svc, eventId, user.id)
+
+    if (!event || !role) {
+      return NextResponse.json({ error: 'Not a member of this event' }, { status: 403 })
+    }
+
+    const isAdmin = role === 'admin' || role === 'manager'
+
+    const safeQuery = async (query: PromiseLike<{ data: any[] | null }>) => {
+      try { return (await query).data || [] } catch { return [] }
+    }
+
+    const [bulletins, resources, calendar, team, tasks] = await Promise.all([
+      safeQuery(
+        svc.from('event_bulletins')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(30)
+      ),
+      safeQuery(
+        svc.from('event_resources')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('pinned', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(50)
+      ),
+      safeQuery(
+        svc.from('event_calendar_items')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('start_time', { ascending: true })
+          .limit(100)
+      ),
+      safeQuery(
+        svc.from('event_participants')
+          .select('id, user_id, role, status, metadata, profiles:user_id(id, full_name, email, avatar_url, username)')
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: true })
+          .limit(100)
+      ),
+      safeQuery(
+        svc.from('logistics_tasks')
+          .select('*')
+          .eq('event_id', eventId)
+          .order('due_date', { ascending: true })
+          .limit(50)
+      ),
+    ])
+
+    const visibleBulletins = bulletins.filter((b: any) => {
+      if (!b.visible_to || b.visible_to.includes('all')) return true
+      return b.visible_to.includes(role)
+    })
+
+    const visibleResources = resources.filter((r: any) => {
+      if (!r.visible_to || r.visible_to.includes('all')) return true
+      return r.visible_to.includes(role)
+    })
+
+    return NextResponse.json({
+      success: true,
+      event: {
+        id: event.id,
+        title: event.title,
+        start_at: event.start_at,
+        end_at: event.end_at,
+        venue_id: event.venue_id,
+        status: event.status,
+        settings: event.settings,
+      },
+      userRole: role,
+      isAdmin,
+      permissions,
+      bulletins: visibleBulletins,
+      resources: visibleResources,
+      calendar,
+      team,
+      tasks,
+    })
+  } catch (error) {
+    console.error('[Event HQ] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+})

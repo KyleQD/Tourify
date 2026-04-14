@@ -2,21 +2,22 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode, useCallback } from "react"
 import type { User, Conversation, Message, Notification, Post, Event, SocialContextType } from "@/lib/types"
+import type { User as SupabaseUser } from "@supabase/supabase-js"
 import { mockUsers, mockConversations, mockMessages, mockNotifications, mockPosts, mockEvents } from "@/lib/mock-users"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/app/venue/context/auth-context"
 import { v4 as uuidv4 } from "uuid"
 import { searchUsers as searchUsersService } from "@/lib/search-service"
 
-// Type adapter to convert venue auth user to social user
-function adaptVenueUserToSocialUser(venueUser: { id: string; name: string; email: string; role: string } | null): User | null {
+function adaptVenueUserToSocialUser(venueUser: SupabaseUser | null): User | null {
   if (!venueUser) return null
+  const name = venueUser.user_metadata?.full_name ?? venueUser.email ?? "User"
   
   return {
     id: venueUser.id,
-    username: venueUser.name.toLowerCase().replace(/\s+/g, ''),
-    fullName: venueUser.name,
-    avatar: undefined,
+    username: name.toLowerCase().replace(/\s+/g, ''),
+    fullName: name,
+    avatar: venueUser.user_metadata?.avatar_url,
     bio: undefined,
     location: undefined,
     isOnline: true,

@@ -165,26 +165,54 @@ export default function EventsPage() {
   const totalCapacitySum = events.reduce((sum, e) => sum + (e.capacity ?? 0), 0)
   const totalTicketsSold = events.reduce((sum, e) => sum + (e.tickets_sold ?? 0), 0)
 
-  const LogisticsStatus = ({ eventId }: { eventId: string }) => (
-    <div className="mt-3 space-y-2">
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-400">Logistics</span>
-        <span className="text-white font-medium">—</span>
+  const LogisticsStatus = ({ eventId }: { eventId: string }) => {
+    const [metrics, setMetrics] = useState<{ percentage: number; items: number; completed: number; status: string } | null>(null)
+
+    useEffect(() => {
+      let cancelled = false
+      async function load() {
+        try {
+          const res = await fetch(`/api/admin/logistics/metrics?eventId=${eventId}`, { credentials: 'include' })
+          if (res.ok && !cancelled) {
+            const data = await res.json()
+            const m = data.metrics || {}
+            const categories = Object.values(m) as Array<{ items?: number; completed?: number; percentage?: number }>
+            const totalItems = categories.reduce((s, c) => s + (c.items || 0), 0)
+            const totalCompleted = categories.reduce((s, c) => s + (c.completed || 0), 0)
+            const pct = totalItems > 0 ? Math.round((totalCompleted / totalItems) * 100) : 0
+            setMetrics({ percentage: pct, items: totalItems, completed: totalCompleted, status: pct === 100 ? 'Complete' : pct > 0 ? 'In Progress' : 'Not Started' })
+          }
+        } catch {}
+      }
+      load()
+      return () => { cancelled = true }
+    }, [eventId])
+
+    const pct = metrics?.percentage ?? 0
+    const label = metrics ? `${metrics.completed}/${metrics.items} tasks` : 'Loading...'
+    const barColor = pct === 100 ? 'bg-green-500' : pct > 0 ? 'bg-blue-500' : 'bg-slate-600'
+
+    return (
+      <div className="mt-3 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-slate-400">Logistics</span>
+          <span className="text-white font-medium">{pct}%</span>
+        </div>
+        <div className="w-full bg-slate-700 rounded-full h-1.5">
+          <div className={`${barColor} h-1.5 rounded-full transition-all duration-300`} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400">{label}</span>
+          <Link href={`/admin/dashboard/logistics?eventId=${eventId}`}>
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
+              <Target className="h-3 w-3 mr-1" />
+              Manage
+            </Button>
+          </Link>
+        </div>
       </div>
-      <div className="w-full bg-slate-700 rounded-full h-1.5">
-        <div className="bg-slate-600 h-1.5 rounded-full w-0" />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-slate-400">No logistics data linked</span>
-        <Link href={`/admin/dashboard/logistics?eventId=${eventId}`}>
-          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs">
-            <Target className="h-3 w-3 mr-1" />
-            Manage
-          </Button>
-        </Link>
-      </div>
-    </div>
-  )
+    )
+  }
 
   const EventCard = ({ event }: { event: Event }) => {
     const capacity = event.capacity != null && event.capacity > 0 ? event.capacity : 0
@@ -297,11 +325,8 @@ export default function EventsPage() {
               Manage Event
             </Button>
             <div className="flex items-center space-x-1">
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => router.push(`/admin/dashboard/events/${event.id}`)}>
                 <Edit className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
               </Button>
             </div>
           </div>
@@ -402,7 +427,23 @@ export default function EventsPage() {
             </Select>
           </div>
           <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 hover:bg-slate-800/80 backdrop-blur-sm transition-all duration-200">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-slate-700 text-slate-300 hover:bg-slate-800/80 backdrop-blur-sm transition-all duration-200"
+              onClick={() => {
+                const csv = ['Name,Date,Venue,Status,Capacity,Tickets Sold']
+                  .concat(filteredEvents.map(e => `"${e.name}","${e.event_date || ''}","${e.venue_name || ''}","${e.status}","${e.capacity || 0}","${e.tickets_sold || 0}"`))
+                  .join('\n')
+                const blob = new Blob([csv], { type: 'text/csv' })
+                const url = URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `events-export-${new Date().toISOString().split('T')[0]}.csv`
+                a.click()
+                URL.revokeObjectURL(url)
+              }}
+            >
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>

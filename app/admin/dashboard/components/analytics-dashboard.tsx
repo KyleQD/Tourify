@@ -192,11 +192,18 @@ export default function AnalyticsDashboard() {
       .slice(0, 5)
       .map((v: any) => ({ name: v.name, events: v.events_count || 0, revenue: v.revenue || 0 }))
 
-    // Generate mock history data
-    const history = Array.from({ length: 30 }, (_, i) => ({
-      date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      value: Math.floor(Math.random() * 10000) + 5000
-    }))
+    const dailyRevenue = monthlyRevenue / 30
+    const history = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const matchingEvents = events.filter((e: any) => {
+        const eventDate = e.date || e.start_date || e.created_at
+        return eventDate && eventDate.startsWith(date)
+      })
+      const dayRevenue = matchingEvents.length > 0
+        ? matchingEvents.reduce((sum: number, e: any) => sum + (e.revenue || e.ticket_revenue || 0), 0)
+        : dailyRevenue
+      return { date, value: Math.round(dayRevenue) }
+    })
 
     return {
       revenue: {
@@ -220,7 +227,18 @@ export default function AnalyticsDashboard() {
         active: activeTours,
         completed: completedTours,
         planning: planningTours,
-        averageDuration: 45, // Mock data
+        averageDuration: (() => {
+          const toursWithDates = tours.filter((t: any) => t.start_date && t.end_date)
+          if (toursWithDates.length > 0) {
+            const totalDays = toursWithDates.reduce((sum: number, t: any) => {
+              const start = new Date(t.start_date).getTime()
+              const end = new Date(t.end_date).getTime()
+              return sum + Math.max(0, (end - start) / (1000 * 60 * 60 * 24))
+            }, 0)
+            return Math.round(totalDays / toursWithDates.length)
+          }
+          return (stats as any)?.averageTourDuration || 0
+        })(),
         successRate
       },
       artists: {
@@ -235,10 +253,14 @@ export default function AnalyticsDashboard() {
         topVenues
       },
       performance: {
-        averageRating: 4.2, // Mock data
-        customerSatisfaction: 87, // Mock data
-        repeatBookings: 65, // Mock data
-        cancellations: 3.2 // Mock data
+        averageRating: (stats as any)?.averageRating || 0,
+        customerSatisfaction: totalEvents > 0
+          ? Math.round((completedEvents / totalEvents) * 100)
+          : 0,
+        repeatBookings: (stats as any)?.repeatBookingRate || 0,
+        cancellations: totalEvents > 0
+          ? Math.round((cancelledEvents / totalEvents) * 1000) / 10
+          : 0
       }
     }
   }, [stats, tours, events, artists, venues])

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 export interface ProfileColors {
   primary_color: string
   secondary_color: string

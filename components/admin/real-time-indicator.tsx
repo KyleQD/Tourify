@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase/client'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 
@@ -66,8 +67,6 @@ export function RealTimeStatusBar() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const { supabase } = await import('@/lib/supabase')
-        
         // Test connection
         const { data, error } = await supabase
           .from('tours')
@@ -92,8 +91,6 @@ export function RealTimeStatusBar() {
   useEffect(() => {
     const setupRealTimeListener = async () => {
       try {
-        const { supabase } = await import('@/lib/supabase')
-
         const subscription = supabase
           .channel('real-time-status')
           .on('postgres_changes', 

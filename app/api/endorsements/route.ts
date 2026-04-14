@@ -53,7 +53,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { endorsee_id, skill, level, comment, category, project_id, collaboration_id, event_id, job_id } = body
 
-    // Create endorsement
+    if (!endorsee_id || !skill) {
+      return NextResponse.json({ error: 'endorsee_id and skill are required' }, { status: 400 })
+    }
+
     const endorsement = await achievementService.createEndorsement({
       endorsee_id,
       skill,
@@ -65,6 +68,32 @@ export async function POST(request: NextRequest) {
       event_id,
       job_id
     })
+
+    if (endorsee_id !== user.id) {
+      try {
+        const { data: endorser } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+
+        await supabase.from('notifications').insert({
+          user_id: endorsee_id,
+          type: 'endorsement_received',
+          title: 'New Endorsement!',
+          content: `${endorser?.full_name || 'Someone'} endorsed you for "${skill}"${comment ? `: "${comment}"` : '.'}`,
+          metadata: {
+            endorsement_id: endorsement?.id,
+            endorser_id: user.id,
+            skill,
+            level,
+            category,
+          },
+        })
+      } catch (notifyError) {
+        console.warn('Failed to notify endorsement recipient:', notifyError)
+      }
+    }
 
     return NextResponse.json({ 
       message: 'Endorsement created successfully',

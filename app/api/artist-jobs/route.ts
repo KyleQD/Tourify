@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const featuredOnly = searchParams.get('featured_only') === 'true'
+    const postedByMe = searchParams.get('posted_by') === 'me'
+    const includeAllStatuses = searchParams.get('include_all_statuses') === 'true'
     const perPage = Math.max(1, Number(searchParams.get('per_page') || '20'))
     const page = Math.max(1, Number(searchParams.get('page') || '1'))
     const query = searchParams.get('query')
@@ -49,7 +51,12 @@ export async function GET(request: NextRequest) {
     let queryBuilder = supabase
       .from('artist_jobs')
       .select('*, category:artist_job_categories(*)', { count: 'exact' })
-      .eq('status', 'open')
+
+    if (postedByMe && user?.id) {
+      queryBuilder = queryBuilder.eq('posted_by', user.id)
+    } else if (!includeAllStatuses) {
+      queryBuilder = queryBuilder.eq('status', 'open')
+    }
 
     if (featuredOnly) queryBuilder = queryBuilder.eq('featured', true)
     if (query) queryBuilder = queryBuilder.or(`title.ilike.%${query}%,description.ilike.%${query}%`)

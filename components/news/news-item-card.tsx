@@ -4,8 +4,6 @@ import { ExternalLink, MessageCircle, Share2, ShieldCheck, ShieldAlert, ShieldQu
 import { formatDistanceToNow } from 'date-fns'
 
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { NewsFeedItem } from '@/lib/news/types'
 
 interface NewsItemCardProps {
@@ -15,29 +13,29 @@ interface NewsItemCardProps {
 function getTrustBadgeMeta(item: NewsFeedItem) {
   if (item.moderation.trustLabel === 'verified_source')
     return {
-      label: 'Verified Source',
+      label: 'Verified',
       icon: ShieldCheck,
-      className: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+      className: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
     }
 
   if (item.moderation.trustLabel === 'community_report')
     return {
-      label: 'Community Report',
+      label: 'Community',
       icon: ShieldAlert,
-      className: 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+      className: 'border-amber-500/30 bg-amber-500/10 text-amber-400'
     }
 
   if (item.moderation.trustLabel === 'developing_story')
     return {
-      label: 'Developing Story',
+      label: 'Developing',
       icon: Clock3,
-      className: 'border-blue-500/40 bg-blue-500/10 text-blue-300'
+      className: 'border-blue-500/30 bg-blue-500/10 text-blue-400'
     }
 
   return {
     label: 'Unverified',
     icon: ShieldQuestion,
-    className: 'border-slate-500/40 bg-slate-500/10 text-slate-300'
+    className: 'border-slate-500/30 bg-slate-500/10 text-slate-400'
   }
 }
 
@@ -46,58 +44,66 @@ export function NewsItemCard({ item }: NewsItemCardProps) {
   const TrustIcon = trustMeta.icon
 
   return (
-    <Card className="border-white/10 bg-white/5 backdrop-blur-sm transition-colors hover:border-purple-400/30">
-      <CardHeader className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <Badge className={trustMeta.className}>
-            <TrustIcon className="mr-1.5 h-3.5 w-3.5" />
-            {trustMeta.label}
-          </Badge>
-          <p className="text-xs text-slate-400">{formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}</p>
-        </div>
-        <CardTitle className="text-balance text-white">{item.title}</CardTitle>
-      </CardHeader>
+    <div className="group flex flex-col gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-4 transition-all duration-200 hover:border-white/20 hover:bg-white/[0.06]">
+      <div className="flex items-center justify-between gap-3">
+        <Badge variant="outline" className={`text-[10px] ${trustMeta.className}`}>
+          <TrustIcon className="mr-1 h-3 w-3" />
+          {trustMeta.label}
+        </Badge>
+        <span className="shrink-0 text-xs text-slate-500">
+          {formatDistanceToNow(new Date(item.publishedAt), { addSuffix: true })}
+        </span>
+      </div>
 
-      <CardContent className="space-y-3">
-        <p className="line-clamp-3 text-sm text-slate-300">{item.summary}</p>
-        <div className="flex flex-wrap gap-2">
-          {item.topics.slice(0, 4).map(topic => (
-            <Badge key={topic} variant="outline" className="border-purple-500/30 text-xs text-purple-200">
-              {topic}
-            </Badge>
-          ))}
-        </div>
-        <div className="flex items-center justify-between text-xs text-slate-400">
-          <p>{item.sourceName}</p>
-          <p>{Math.round(item.moderation.confidence * 100)}% confidence</p>
-        </div>
-      </CardContent>
+      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-white">{item.title}</h3>
 
-      <CardFooter className="flex items-center justify-between">
-        <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span className="inline-flex items-center gap-1">
-            <ThumbsUp className="h-3.5 w-3.5" />
-            {item.metrics.likes}
+      <p className="line-clamp-2 flex-1 text-sm text-slate-400">{item.summary}</p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {item.topics.slice(0, 3).map(topic => (
+          <span key={topic} className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-slate-500">
+            {topic}
           </span>
-          <span className="inline-flex items-center gap-1">
-            <MessageCircle className="h-3.5 w-3.5" />
-            {item.metrics.comments}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <Share2 className="h-3.5 w-3.5" />
-            {item.metrics.shares}
-          </span>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-white/5 pt-3">
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-slate-500">{item.sourceName}</span>
+          <div className="flex items-center gap-3 text-xs text-slate-600">
+            {item.metrics.likes > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <ThumbsUp className="h-3 w-3" />
+                {item.metrics.likes}
+              </span>
+            )}
+            {item.metrics.comments > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <MessageCircle className="h-3 w-3" />
+                {item.metrics.comments}
+              </span>
+            )}
+            {item.metrics.shares > 0 && (
+              <span className="inline-flex items-center gap-1">
+                <Share2 className="h-3 w-3" />
+                {item.metrics.shares}
+              </span>
+            )}
+          </div>
         </div>
 
         {item.url && (
-          <Button asChild variant="ghost" size="sm" className="text-purple-300 hover:text-white">
-            <a href={item.url} target="_blank" rel="noreferrer">
-              Open
-              <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
-            </a>
-          </Button>
+          <a
+            href={item.url}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/20 hover:text-white"
+          >
+            Open
+            <ExternalLink className="h-3 w-3" />
+          </a>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }

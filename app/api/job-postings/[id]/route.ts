@@ -1,14 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const supabase = await createClient()
     const { id: jobId } = await context.params
 
-    // Get the job posting with application form template
     const { data: jobPosting, error: jobError } = await supabase
       .from('job_posting_templates')
       .select(`

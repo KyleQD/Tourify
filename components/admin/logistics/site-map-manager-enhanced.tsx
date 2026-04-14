@@ -18,7 +18,11 @@ import {
   RefreshCw,
   Settings,
   Database,
-  User
+  User,
+  Copy,
+  Image,
+  LayoutTemplate,
+  Trash2
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { SimCitySiteMapViewer } from "./site-map-builder/simcity-site-map-viewer"
@@ -44,6 +48,23 @@ interface CreateForm {
   gridSize: number
   isPublic: boolean
   approximateSize: string
+  template: string
+  backgroundImage: File | null
+}
+
+const MAP_TEMPLATES = [
+  { id: 'blank', name: 'Blank Canvas', description: 'Start from scratch', icon: '🎨' },
+  { id: 'festival', name: 'Festival Layout', description: 'Stages, vendors, camping zones', icon: '🎪' },
+  { id: 'concert', name: 'Concert Venue', description: 'Stage, GA, VIP, barriers', icon: '🎸' },
+  { id: 'corporate', name: 'Corporate Event', description: 'Booths, reception, breakout rooms', icon: '🏢' },
+  { id: 'wedding', name: 'Wedding Venue', description: 'Ceremony, reception, dining', icon: '💒' },
+  { id: 'sports', name: 'Sports Event', description: 'Field, stands, concessions', icon: '🏟️' },
+] as const
+
+interface SiteMapManagerEnhancedProps {
+  eventId?: string
+  tourId?: string
+  compact?: boolean
 }
 
 interface AuthStatus {
@@ -53,7 +74,7 @@ interface AuthStatus {
   error?: string
 }
 
-export function SiteMapManagerEnhanced() {
+export function SiteMapManagerEnhanced({ eventId, tourId, compact }: SiteMapManagerEnhancedProps = {}) {
   const { toast } = useToast()
   const [siteMaps, setSiteMaps] = useState<SiteMap[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -70,7 +91,9 @@ export function SiteMapManagerEnhanced() {
     gridEnabled: true,
     gridSize: 20,
     isPublic: false,
-    approximateSize: 'medium'
+    approximateSize: 'medium',
+    template: 'blank',
+    backgroundImage: null
   })
 
   // Size presets
@@ -122,6 +145,8 @@ export function SiteMapManagerEnhanced() {
       const params = new URLSearchParams()
       if (!useFallbackAPI) {
         params.append('includeData', 'true')
+        if (eventId) params.append('eventId', eventId)
+        if (tourId) params.append('tourId', tourId)
       }
 
       const response = await fetch(`${apiEndpoint}?${params}`, {
@@ -205,6 +230,8 @@ export function SiteMapManagerEnhanced() {
       formData.append('gridSize', createForm.gridSize.toString())
       formData.append('isPublic', createForm.isPublic.toString())
       formData.append('approximateSize', createForm.approximateSize)
+      if (eventId) formData.append('eventId', eventId)
+      if (tourId) formData.append('tourId', tourId)
 
       const apiEndpoint = useFallbackAPI ? '/api/site-maps-simple' : '/api/admin/logistics/site-maps'
       
@@ -237,20 +264,9 @@ export function SiteMapManagerEnhanced() {
               description: "Site map created using simplified API"
             })
             
-            // Reset form and close dialog
-            setCreateForm({
-              name: '',
-              description: '',
-              environment: 'outdoor',
-              backgroundColor: '#f8f9fa',
-              gridEnabled: true,
-              gridSize: 20,
-              isPublic: false,
-              approximateSize: 'medium'
-            })
+            setCreateForm(defaultForm)
             setShowCreateDialog(false)
             
-            // Reload site maps
             await loadSiteMaps()
             return
           }
@@ -265,17 +281,7 @@ export function SiteMapManagerEnhanced() {
           description: "Site map created successfully!"
         })
         
-        // Reset form and close dialog
-        setCreateForm({
-          name: '',
-          description: '',
-          environment: 'outdoor',
-          backgroundColor: '#f8f9fa',
-          gridEnabled: true,
-          gridSize: 20,
-          isPublic: false,
-          approximateSize: 'medium'
-        })
+        setCreateForm(defaultForm)
         setShowCreateDialog(false)
         
         // Reload site maps
@@ -295,11 +301,72 @@ export function SiteMapManagerEnhanced() {
     }
   }
 
-  // Load site maps and check auth on mount
+  const defaultForm: CreateForm = {
+    name: '',
+    description: '',
+    environment: 'outdoor',
+    backgroundColor: '#f8f9fa',
+    gridEnabled: true,
+    gridSize: 20,
+    isPublic: false,
+    approximateSize: 'medium',
+    template: 'blank',
+    backgroundImage: null
+  }
+
+  const duplicateSiteMap = async (source: SiteMap) => {
+    setIsCreating(true)
+    try {
+      const formData = new FormData()
+      formData.append('name', `${source.name} (Copy)`)
+      formData.append('description', source.description || '')
+      formData.append('width', source.width.toString())
+      formData.append('height', source.height.toString())
+      formData.append('scale', '1')
+      formData.append('backgroundColor', '#f8f9fa')
+      formData.append('gridEnabled', 'true')
+      formData.append('gridSize', '20')
+      formData.append('isPublic', 'false')
+      if (eventId) formData.append('eventId', eventId)
+      if (tourId) formData.append('tourId', tourId)
+
+      const response = await fetch('/api/admin/logistics/site-maps', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData
+      })
+      const data = await response.json()
+      if (data.success) {
+        toast({ title: "Duplicated", description: `Created copy of "${source.name}"` })
+        await loadSiteMaps()
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const deleteSiteMap = async (id: string) => {
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      })
+      const data = await response.json()
+      if (data.success || response.ok) {
+        toast({ title: "Deleted", description: "Site map removed" })
+        setSiteMaps(prev => prev.filter(sm => sm.id !== id))
+      }
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" })
+    }
+  }
+
   useEffect(() => {
     checkAuthStatus()
     loadSiteMaps()
-  }, [])
+  }, [eventId, tourId])
 
   return (
     <div className="space-y-8">
@@ -320,7 +387,19 @@ export function SiteMapManagerEnhanced() {
                   <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-purple-100 to-blue-100 bg-clip-text text-transparent tracking-tight">
                     Enhanced Site Maps
                   </h1>
-                  <p className="text-slate-400 mt-2 text-lg">Smart site map creation with authentication fallback</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <p className="text-slate-400 text-lg">Interactive site map builder</p>
+                    {eventId && (
+                      <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+                        Event scoped
+                      </Badge>
+                    )}
+                    {tourId && (
+                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                        Tour scoped
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -346,35 +425,60 @@ export function SiteMapManagerEnhanced() {
                     <DialogTitle className="text-white">Create New Site Map</DialogTitle>
                   </DialogHeader>
               
-                  <div className="space-y-4">
+                  <div className="space-y-5 max-h-[70vh] overflow-y-auto pr-1">
+                {/* Template Selection */}
                 <div>
-                  <Label htmlFor="name">Name *</Label>
+                  <Label className="text-slate-300 mb-2 block">Start from a template</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {MAP_TEMPLATES.map(t => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setCreateForm(prev => ({ ...prev, template: t.id }))}
+                        className={cn(
+                          "flex flex-col items-center gap-1 p-3 rounded-xl border transition-all text-center",
+                          createForm.template === t.id
+                            ? "border-purple-500 bg-purple-500/20 text-white"
+                            : "border-slate-700/50 bg-slate-800/30 text-slate-400 hover:border-slate-600 hover:text-slate-300"
+                        )}
+                      >
+                        <span className="text-xl">{t.icon}</span>
+                        <span className="text-xs font-medium">{t.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="name" className="text-slate-300">Name *</Label>
                   <Input
                     id="name"
                     value={createForm.name}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Enter site map name"
+                    className="bg-slate-800/50 border-slate-700/50 text-white"
                   />
                 </div>
                 
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="text-slate-300">Description</Label>
                   <Textarea
                     id="description"
                     value={createForm.description}
                     onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Enter description"
+                    className="bg-slate-800/50 border-slate-700/50 text-white"
                   />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="environment">Environment</Label>
+                    <Label htmlFor="environment" className="text-slate-300">Environment</Label>
                     <Select
                       value={createForm.environment}
                       onValueChange={(value) => setCreateForm(prev => ({ ...prev, environment: value }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -386,12 +490,12 @@ export function SiteMapManagerEnhanced() {
                   </div>
                   
                   <div>
-                    <Label htmlFor="size">Size</Label>
+                    <Label htmlFor="size" className="text-slate-300">Size</Label>
                     <Select
                       value={createForm.approximateSize}
                       onValueChange={(value) => setCreateForm(prev => ({ ...prev, approximateSize: value }))}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -403,17 +507,41 @@ export function SiteMapManagerEnhanced() {
                     </Select>
                   </div>
                 </div>
+
+                {/* Background Image Upload */}
+                <div>
+                  <Label className="text-slate-300">Background Image (optional)</Label>
+                  <div className="mt-1">
+                    <label className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 border border-dashed border-slate-600 rounded-xl cursor-pointer hover:border-purple-500/50 transition-colors">
+                      <Image className="h-5 w-5 text-slate-400" />
+                      <span className="text-sm text-slate-400">
+                        {createForm.backgroundImage ? createForm.backgroundImage.name : 'Upload venue floor plan or aerial photo'}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null
+                          setCreateForm(prev => ({ ...prev, backgroundImage: file }))
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
                 
-                <div className="flex items-center justify-between pt-4">
+                <div className="flex items-center justify-between pt-4 border-t border-slate-700/30">
                   <Button
                     variant="outline"
                     onClick={() => setShowCreateDialog(false)}
+                    className="border-slate-600 text-slate-300 hover:bg-slate-700/50"
                   >
                     Cancel
                   </Button>
                   <Button
                     onClick={createSiteMap}
                     disabled={isCreating || !createForm.name.trim()}
+                    className="bg-gradient-to-r from-purple-500 to-blue-500 text-white"
                   >
                     {isCreating ? (
                       <>
@@ -652,8 +780,24 @@ export function SiteMapManagerEnhanced() {
                         Created {formatSafeDate(siteMap.created_at)}
                       </span>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-green-400/50"></div>
-                        <span className="text-xs text-green-400 font-semibold">Ready</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-slate-700/50"
+                          onClick={(e) => { e.stopPropagation(); duplicateSiteMap(siteMap) }}
+                          title="Duplicate"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 w-7 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                          onClick={(e) => { e.stopPropagation(); deleteSiteMap(siteMap.id) }}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
                   </div>

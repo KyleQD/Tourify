@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import type { PublicArtistPageDTO } from "@/lib/public-artist/public-artist-types"
 import { PublicProfileLayout } from "@/components/layouts/public-profile-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Briefcase, Handshake, Image as ImageIcon, ShoppingBag } from "lucide-react"
+import { Briefcase, ExternalLink, Handshake, Image as ImageIcon, ShoppingBag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { PublicArtistMusicSection } from "@/components/public-artist/music/public-artist-music-section"
 import { PublicArtistPostsSection } from "@/components/public-artist/posts/public-artist-posts-section"
@@ -17,6 +17,9 @@ import { extractApiError } from "@/lib/api/extract-error"
 import { paCard, paInset, paShell } from "@/components/public-artist/public-artist-ui"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { AnimatedProductCard } from "@/components/marketplace/animated-product-card"
+import { StorefrontBanner } from "@/components/marketplace/storefront-banner"
+import { getStorefrontTheme, DEFAULT_STOREFRONT_THEME, getLayoutClasses, type StorefrontThemeConfig } from "@/lib/marketplace/storefront-themes"
 
 interface MarketplaceListing {
   id: string
@@ -36,6 +39,10 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
   const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([])
   const [isCheckoutLoadingId, setIsCheckoutLoadingId] = useState<string | null>(null)
   const [marketplaceMessage, setMarketplaceMessage] = useState<string | null>(null)
+  const [storefrontExternalLinks, setStorefrontExternalLinks] = useState<Array<{ label: string; url: string }>>([])
+  const [storefrontTheme, setStorefrontTheme] = useState<StorefrontThemeConfig>(DEFAULT_STOREFRONT_THEME)
+  const [storefrontDisplayName, setStorefrontDisplayName] = useState<string | null>(null)
+  const [storefrontTagline, setStorefrontTagline] = useState<string | null>(null)
 
   const openBooking = () => setIsBookingOpen(true)
   const scrollToMusic = () =>
@@ -45,6 +52,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
 
   useEffect(() => {
     void loadMarketplaceListings()
+    void loadStorefrontLinks()
   }, [hero.userId])
 
   async function loadMarketplaceListings() {
@@ -56,6 +64,21 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
     } catch (error) {
       console.error("Failed to load marketplace listings", error)
     }
+  }
+
+  async function loadStorefrontLinks() {
+    try {
+      const response = await fetch(`/api/marketplace/storefront?sellerUserId=${encodeURIComponent(hero.userId)}`)
+      if (!response.ok) return
+      const body = await response.json()
+      if (Array.isArray(body.data?.external_links)) {
+        setStorefrontExternalLinks(body.data.external_links)
+      }
+      const rawTheme = body.data?.theme_config || body.data?.themeConfig || {}
+      setStorefrontTheme(getStorefrontTheme(rawTheme))
+      setStorefrontDisplayName(body.data?.display_name || body.data?.displayName || null)
+      setStorefrontTagline(body.data?.tagline || null)
+    } catch {}
   }
 
   async function checkoutListing(listing: MarketplaceListing) {
@@ -128,6 +151,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
               featuredTrack={tracks.featuredTrack}
               tracks={tracks.tracks}
               defaultTrackId={tracks.defaultTrackId}
+              artistName={hero.artistName}
             />
           </section>
 
@@ -231,63 +255,79 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           {/* Storefront */}
           <section>
             <Card className={paCard}>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
-                  <ShoppingBag className="h-4 w-4 opacity-90" />
-                  Storefront
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <Tabs defaultValue="featured" className="w-full">
-                  <TabsList className="mb-3">
-                    <TabsTrigger value="featured">Featured</TabsTrigger>
-                    <TabsTrigger value="music">Music</TabsTrigger>
-                    <TabsTrigger value="photos-and-prints">Photos & Prints</TabsTrigger>
-                    <TabsTrigger value="merch">Merch</TabsTrigger>
-                    <TabsTrigger value="services">Services</TabsTrigger>
-                  </TabsList>
+              <CardContent className="p-0">
+                <StorefrontBanner
+                  displayName={storefrontDisplayName || hero.artistName + "'s Store"}
+                  tagline={storefrontTagline}
+                  theme={storefrontTheme}
+                />
 
-                  <TabsContent value="featured">
-                    <StorefrontGrid
-                      products={products.products}
-                      listings={marketplaceListings}
-                      onCheckout={checkoutListing}
-                      isCheckoutLoadingId={isCheckoutLoadingId}
-                    />
-                  </TabsContent>
-                  <TabsContent value="music">
-                    <MarketplaceOnlyGrid
-                      listings={marketplaceListings.filter(listing => listing.category === "music")}
-                      onCheckout={checkoutListing}
-                      isCheckoutLoadingId={isCheckoutLoadingId}
-                    />
-                  </TabsContent>
-                  <TabsContent value="photos-and-prints">
-                    <MarketplaceOnlyGrid
-                      listings={marketplaceListings.filter(listing => listing.category === "photos-and-prints")}
-                      onCheckout={checkoutListing}
-                      isCheckoutLoadingId={isCheckoutLoadingId}
-                    />
-                  </TabsContent>
-                  <TabsContent value="merch">
-                    <MarketplaceOnlyGrid
-                      listings={marketplaceListings.filter(listing => listing.category === "merch")}
-                      onCheckout={checkoutListing}
-                      isCheckoutLoadingId={isCheckoutLoadingId}
-                    />
-                  </TabsContent>
-                  <TabsContent value="services">
-                    <MarketplaceOnlyGrid
-                      listings={marketplaceListings.filter(listing => listing.category === "services")}
-                      onCheckout={checkoutListing}
-                      isCheckoutLoadingId={isCheckoutLoadingId}
-                    />
-                  </TabsContent>
-                </Tabs>
-                {marketplaceMessage ? <div className="mt-3 text-xs text-rose-200">{marketplaceMessage}</div> : null}
+                <div className="p-5 pt-4">
+                  <Tabs defaultValue="featured" className="w-full">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="featured">Featured</TabsTrigger>
+                      <TabsTrigger value="music">Music</TabsTrigger>
+                      <TabsTrigger value="photos-and-prints">Photos & Prints</TabsTrigger>
+                      <TabsTrigger value="merch">Merch</TabsTrigger>
+                      <TabsTrigger value="fine-art">Fine Art</TabsTrigger>
+                      <TabsTrigger value="services">Services</TabsTrigger>
+                      <TabsTrigger value="tickets">Tickets</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="featured">
+                      <ThemedProductGrid
+                        listings={marketplaceListings.slice(0, 9)}
+                        theme={storefrontTheme}
+                        onCheckout={checkoutListing}
+                        isCheckoutLoadingId={isCheckoutLoadingId}
+                      />
+                    </TabsContent>
+                    {["music", "photos-and-prints", "merch", "fine-art", "services", "tickets"].map(cat => (
+                      <TabsContent key={cat} value={cat}>
+                        <ThemedProductGrid
+                          listings={marketplaceListings.filter(l => l.category === cat)}
+                          theme={storefrontTheme}
+                          onCheckout={checkoutListing}
+                          isCheckoutLoadingId={isCheckoutLoadingId}
+                        />
+                      </TabsContent>
+                    ))}
+                  </Tabs>
+                  {marketplaceMessage ? <div className="mt-3 text-xs text-rose-200">{marketplaceMessage}</div> : null}
+                </div>
               </CardContent>
             </Card>
           </section>
+
+          {/* External Links */}
+          {storefrontExternalLinks.length > 0 && (
+            <section>
+              <Card className={paCard}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-2 text-lg font-semibold tracking-tight text-white">
+                    <ExternalLink className="h-4 w-4 opacity-90" />
+                    Links
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex flex-wrap gap-2">
+                    {storefrontExternalLinks.map((link, idx) => (
+                      <a
+                        key={idx}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/85 transition hover:bg-white/10"
+                      >
+                        <ExternalLink className="h-3 w-3 opacity-60" />
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
 
           {/* About */}
           <section>
@@ -454,39 +494,40 @@ function StorefrontGrid({
   )
 }
 
-function MarketplaceOnlyGrid({
+function ThemedProductGrid({
   listings,
+  theme,
   onCheckout,
   isCheckoutLoadingId,
 }: {
   listings: MarketplaceListing[]
+  theme: StorefrontThemeConfig
   onCheckout: (listing: MarketplaceListing) => Promise<void>
   isCheckoutLoadingId: string | null
 }) {
   if (!listings.length) return <div className={`${paInset} p-5 text-sm text-white/65`}>No listings in this category yet.</div>
+
+  const layoutClasses = getLayoutClasses(theme.layout)
+
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {listings.map(listing => (
-        <div key={listing.id} className={`${paInset} overflow-hidden`}>
-          <div className="aspect-square bg-black/20">
-            {listing.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
-            )}
-          </div>
-          <div className="p-3.5">
-            <div className="truncate text-sm font-medium text-white">{listing.title}</div>
-            <div className="mt-1 text-xs text-white/60">{listing.product_type || "Product"}</div>
-            <div className="mt-2 text-sm font-semibold text-purple-100">
-              {listing.base_price !== null ? `${listing.currency || "USD"} ${Number(listing.base_price).toFixed(2)}` : "Price on request"}
-            </div>
-            <Button size="sm" className="mt-3 w-full" disabled={isCheckoutLoadingId === listing.id} onClick={() => void onCheckout(listing)}>
-              {isCheckoutLoadingId === listing.id ? "Starting checkout..." : "Support this creator"}
-            </Button>
-          </div>
-        </div>
+    <div className={layoutClasses}>
+      {listings.map((listing, index) => (
+        <AnimatedProductCard
+          key={listing.id}
+          id={listing.id}
+          title={listing.title}
+          description={listing.description}
+          imageUrl={listing.cover_image_url}
+          productType={listing.product_type}
+          category={listing.category}
+          price={listing.base_price}
+          currency={listing.currency}
+          index={index}
+          theme={theme}
+          layout={theme.layout}
+          isCheckoutLoading={isCheckoutLoadingId === listing.id}
+          onCheckout={() => void onCheckout(listing)}
+        />
       ))}
     </div>
   )

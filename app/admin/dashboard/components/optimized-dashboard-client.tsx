@@ -40,6 +40,7 @@ import {
   Target,
   Eye,
   MoreHorizontal,
+  Truck,
 } from "lucide-react"
 import Link from "next/link"
 import { useMultiAccount } from "@/hooks/use-multi-account"
@@ -371,7 +372,7 @@ export default function OptimizedDashboardClient() {
       return {
         id: tour.id,
         name: tour.name,
-        artist: 'TBD',
+        artist: tour.artist_name || tour.artists?.[0]?.name || tour.artist || '',
         status: tour.status,
         progress: totalShows > 0 ? (completedShows / totalShows) * 100 : 0,
         revenue: tour.revenue || 0,
@@ -415,6 +416,7 @@ export default function OptimizedDashboardClient() {
           name: event.name || event.title || 'Event',
           venue_name: event.venue_name || event.venueName || 'TBD',
           event_date: formatSafeDate(event.event_date),
+          event_date_iso: event.event_date || '',
           tickets_sold: event.tickets_sold ?? event.ticketsSold ?? 0,
           capacity: event.capacity || 0,
           expected_revenue: event.expected_revenue ?? event.expectedRevenue ?? 0,
@@ -631,6 +633,60 @@ export default function OptimizedDashboardClient() {
           <AdminStatCard title="Tickets Sold" value={stats?.ticketsSold || 0} icon={Users} color="cyan" size="lg" isLoading={statsLoading} />
         </div>
 
+        {/* Quick Integration Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Link href="/admin/dashboard/logistics" className="block">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-purple-500/30 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-purple-500/20 rounded-sm">
+                    <Truck className="h-4 w-4 text-purple-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">Logistics</p>
+                    <p className="text-xs text-slate-400">{stats?.completedTasks || 0} completed / {(stats?.completedTasks || 0) + (stats?.pendingTasks || 0)} total tasks</p>
+                  </div>
+                </div>
+                <Badge className={stats?.logisticsCompletionRate && stats.logisticsCompletionRate > 50 ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'}>
+                  {stats?.logisticsCompletionRate || 0}%
+                </Badge>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/admin/dashboard/finances" className="block">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-green-500/30 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-green-500/20 rounded-sm">
+                    <DollarSign className="h-4 w-4 text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">Finances</p>
+                    <p className="text-xs text-slate-400">Monthly: {formatSafeCurrency(stats?.monthlyRevenue || 0)}</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href="/admin/dashboard/staff" className="block">
+            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm hover:border-blue-500/30 transition-colors cursor-pointer">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-500/20 rounded-sm">
+                    <Users className="h-4 w-4 text-blue-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">Staff & Crew</p>
+                    <p className="text-xs text-slate-400">{stats?.staffMembers || 0} team members</p>
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-slate-400" />
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30 flex overflow-x-auto sm:grid sm:grid-cols-6 w-full gap-1">
@@ -758,8 +814,9 @@ export default function OptimizedDashboardClient() {
                         const date = new Date()
                         date.setDate(date.getDate() - date.getDay() + i)
                         const dayEvents = upcomingEvents.filter(event => {
-                          const eventDate = event.event_date ? new Date(event.event_date) : null
-                          return eventDate && eventDate.toDateString() === date.toDateString()
+                          const raw = (event as any).event_date_iso || event.event_date
+                          const eventDate = raw ? new Date(raw) : null
+                          return eventDate && !isNaN(eventDate.getTime()) && eventDate.toDateString() === date.toDateString()
                         })
                         const dayTasks = upcomingTasks.filter(task => {
                           return task.dueDate.toDateString() === date.toDateString()

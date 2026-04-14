@@ -14,6 +14,9 @@ export const GET = withAdminAuth(async (_request, { supabase }) => {
       artistsResult,
       venuesResult,
       monthFinanceResult,
+      travelGroupsResult,
+      lodgingBookingsResult,
+      rentalAgreementsResult,
     ] = await Promise.allSettled([
       supabase.from('tours').select('id, status, revenue'),
       supabase.from('events_v2').select('id, status, start_at, capacity'),
@@ -25,6 +28,9 @@ export const GET = withAdminAuth(async (_request, { supabase }) => {
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'artist'),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'venue'),
       supabase.from('financial_transactions').select('amount, type').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
+      supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members'),
+      supabase.from('lodging_bookings').select('id, status, total_amount'),
+      supabase.from('rental_agreements').select('id, status, total_amount'),
     ])
 
     const tours = toursResult.status === 'fulfilled' ? (toursResult.value.data || []) : []
@@ -63,6 +69,14 @@ export const GET = withAdminAuth(async (_request, { supabase }) => {
     const activeTransport = transportLogistics.filter((l: any) => l.status === 'in_progress' || l.status === 'In Progress').length
     const completedTransport = transportLogistics.filter((l: any) => l.status === 'completed' || l.status === 'Completed').length
 
+    const travelGroups = travelGroupsResult.status === 'fulfilled' ? (travelGroupsResult.value.data || []) : []
+    const lodgingBookings = lodgingBookingsResult.status === 'fulfilled' ? (lodgingBookingsResult.value.data || []) : []
+    const rentalAgreements = rentalAgreementsResult.status === 'fulfilled' ? (rentalAgreementsResult.value.data || []) : []
+
+    const totalTravelers = travelGroups.reduce((sum: number, g: any) => sum + (Number(g.total_members) || 0), 0)
+    const confirmedTravelers = travelGroups.reduce((sum: number, g: any) => sum + (Number(g.confirmed_members) || 0), 0)
+    const fullyCoordinated = travelGroups.filter((g: any) => g.coordination_status === 'complete').length
+
     const stats = {
       totalTours: tours.length,
       activeTours,
@@ -78,17 +92,21 @@ export const GET = withAdminAuth(async (_request, { supabase }) => {
       completedTasks: completedLogistics,
       pendingTasks: logistics.length - completedLogistics + pendingVenueBookings,
       averageRating: 0,
-      totalTravelGroups: 0,
-      totalTravelers: 0,
-      confirmedTravelers: 0,
-      coordinationCompletionRate: logistics.length > 0 ? Math.round((completedLogistics / logistics.length) * 100) : 0,
-      fullyCoordinatedGroups: 0,
+      totalTravelGroups: travelGroups.length,
+      totalTravelers,
+      confirmedTravelers,
+      coordinationCompletionRate: travelGroups.length > 0 ? Math.round((fullyCoordinated / travelGroups.length) * 100) : (logistics.length > 0 ? Math.round((completedLogistics / logistics.length) * 100) : 0),
+      fullyCoordinatedGroups: fullyCoordinated,
       ticketRevenue: tickets.reduce((sum: number, t: any) => sum + (Number(t.total_amount) || 0), 0),
       approvedVenueBookings,
       pendingVenueBookings,
       activeTransportation: activeTransport,
       completedTransportation: completedTransport,
       logisticsCompletionRate: logistics.length > 0 ? Math.round((completedLogistics / logistics.length) * 100) : 0,
+      totalLodgingBookings: lodgingBookings.length,
+      activeLodgingBookings: lodgingBookings.filter((b: any) => b.status === 'confirmed' || b.status === 'checked_in').length,
+      totalRentalAgreements: rentalAgreements.length,
+      activeRentalAgreements: rentalAgreements.filter((r: any) => r.status === 'active').length,
     }
 
     return NextResponse.json({ success: true, stats })

@@ -122,6 +122,35 @@ const config = {
             "box-shadow": "0 0 40px rgba(147, 51, 234, 0.6)",
           },
         },
+        "shimmer-border": {
+          "0%": { "background-position": "0% 50%" },
+          "50%": { "background-position": "100% 50%" },
+          "100%": { "background-position": "0% 50%" },
+        },
+        "card-entrance": {
+          "0%": { opacity: "0", transform: "translateY(16px) scale(0.97)" },
+          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
+        },
+        "glow-ring": {
+          "0%, 100%": { opacity: "0.4", transform: "scale(1)" },
+          "50%": { opacity: "0.8", transform: "scale(1.05)" },
+        },
+        "image-shimmer": {
+          "0%": { "background-position": "-200% 0" },
+          "100%": { "background-position": "200% 0" },
+        },
+        "float-slow": {
+          "0%, 100%": { transform: "translateY(0) translateX(0)" },
+          "25%": { transform: "translateY(-15px) translateX(8px)" },
+          "50%": { transform: "translateY(-5px) translateX(-6px)" },
+          "75%": { transform: "translateY(-20px) translateX(4px)" },
+        },
+        "orb-drift": {
+          "0%": { transform: "translate(0, 0) scale(1)" },
+          "33%": { transform: "translate(40px, -30px) scale(1.15)" },
+          "66%": { transform: "translate(-25px, 15px) scale(0.9)" },
+          "100%": { transform: "translate(0, 0) scale(1)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -132,6 +161,12 @@ const config = {
         "gradient-x": "gradient-x 15s ease infinite",
         "gradient-y": "gradient-y 15s ease infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "shimmer-border": "shimmer-border 3s ease infinite",
+        "card-entrance": "card-entrance 0.5s ease-out forwards",
+        "glow-ring": "glow-ring 2.5s ease-in-out infinite",
+        "image-shimmer": "image-shimmer 2s linear infinite",
+        "float-slow": "float-slow 8s ease-in-out infinite",
+        "orb-drift": "orb-drift 10s ease-in-out infinite",
       },
       boxShadow: {
         "glow-purple": "0 0 15px rgba(147, 51, 234, 0.5)",

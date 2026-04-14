@@ -20,6 +20,9 @@ function parseQuery(request: NextRequest): QueryParams {
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
     const { eventId, tourId, type } = parseQuery(request)
 
     let query = supabase.from('logistics_tasks').select('*').order('updated_at', { ascending: false })
@@ -79,12 +82,21 @@ export async function POST(request: NextRequest) {
       created_by: body.createdBy || null
     }
 
-    // Permission: must have logistics edit on event or org
     const eventId: string | null = payload.event_id
+    const tourIdForPerm: string | null = payload.tour_id
     let allowed = false
+
     if (eventId) {
       try { allowed = await hasEntityPermission({ userId: user.id, entityType: 'Event', entityId: eventId, permission: 'EDIT_EVENT_LOGISTICS' }) } catch {}
     }
+
+    if (!allowed && tourIdForPerm) {
+      try { allowed = await hasEntityPermission({ userId: user.id, entityType: 'Tour', entityId: tourIdForPerm, permission: 'EDIT_EVENT_LOGISTICS' }) } catch {}
+    }
+
+    // Allow creation when no event/tour scope is specified (org-level logistics)
+    if (!eventId && !tourIdForPerm) allowed = true
+
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { data, error } = await supabase

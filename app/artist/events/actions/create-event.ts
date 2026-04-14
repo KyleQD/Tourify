@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache"
 
 export async function createEvent(userId: string, data: any) {
   const supabase = await createClient()
-  // Generate unique slug from title
   const base = (data.title || data.name || 'event')
     .toString()
     .toLowerCase()
@@ -16,7 +15,7 @@ export async function createEvent(userId: string, data: any) {
   const suffix = Math.random().toString(36).slice(2, 8)
   const slug = `${base}-${suffix}`
 
-  const { error } = await supabase
+  const { data: event, error } = await supabase
     .from('events')
     .insert({
       ...data,
@@ -27,9 +26,39 @@ export async function createEvent(userId: string, data: any) {
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     })
+    .select('id, slug')
+    .single()
 
   if (error) {
     throw new Error(`Failed to create event: ${error.message}`)
+  }
+
+  if (data.status === 'published' && event?.id) {
+    const eventDate = data.event_date || data.start_date || ''
+    const location = data.location || data.venue || ''
+    const postContent = [
+      `New event: "${data.title || data.name}"`,
+      eventDate ? `📅 ${eventDate}` : '',
+      location ? `📍 ${location}` : '',
+      data.description ? `\n${String(data.description).slice(0, 200)}` : '',
+    ].filter(Boolean).join(' ')
+
+    await supabase.from('posts').insert({
+      user_id: userId,
+      content: postContent,
+      type: 'event',
+      visibility: 'public',
+      hashtags: ['event', 'livemusic'],
+      metadata: {
+        event_id: event.id,
+        event_slug: event.slug || slug,
+        event_title: data.title || data.name,
+        event_date: eventDate,
+        event_location: location,
+      },
+    }).then(({ error: postError }) => {
+      if (postError) console.error('Failed to create event feed post:', postError)
+    })
   }
 
   revalidatePath('/artist/events')

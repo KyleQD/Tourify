@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 export async function POST(request: NextRequest) {
@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
     const auth = await authenticateApiRequest(request)
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const supabase = await createClient()
     const { metrics } = await request.json()
     
     if (!Array.isArray(metrics) || metrics.length === 0) {
@@ -37,6 +38,7 @@ export async function GET(request: NextRequest) {
     const auth = await authenticateApiRequest(request)
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('sessionId')
     const timeRange = searchParams.get('timeRange') || '24h'

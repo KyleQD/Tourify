@@ -63,6 +63,9 @@ interface MusicTrack {
   release_date?: string
   is_featured: boolean
   is_public: boolean
+  available_for_purchase: boolean
+  sale_price?: number
+  allow_downloads: boolean
   play_count: number
   download_count: number
   likes_count: number
@@ -100,6 +103,9 @@ export default function MusicPage() {
     release_date: '',
     is_featured: false,
     is_public: true,
+    available_for_purchase: false,
+    sale_price: 1.99,
+    allow_downloads: false,
     play_count: 0,
     download_count: 0,
     likes_count: 0,
@@ -141,6 +147,9 @@ export default function MusicPage() {
         release_date: '',
         is_featured: false,
         is_public: true,
+        available_for_purchase: false,
+        sale_price: 1.99,
+        allow_downloads: false,
         play_count: 0,
         download_count: 0,
         likes_count: 0,
@@ -207,6 +216,8 @@ export default function MusicPage() {
           apple_music_url: undefined,
           soundcloud_url: undefined,
           youtube_url: undefined,
+          available_for_purchase: false,
+          allow_downloads: false,
           created_at: work.created_at,
           updated_at: work.updated_at
         }))
@@ -347,10 +358,12 @@ export default function MusicPage() {
           tags: trackData.tags,
           is_featured: trackData.is_featured,
           is_public: trackData.is_public,
+          allow_downloads: trackData.allow_downloads ?? false,
+          rights_confirmed: trackData.rights_confirmed ?? false,
+          rights_confirmed_at: trackData.rights_confirmed ? (trackData.rights_confirmed_at || new Date().toISOString()) : null,
           updated_at: new Date().toISOString()
         }
 
-        // Create new track
         const { data, error } = await supabase
           .from('artist_music')
           .insert(finalTrackData)
@@ -359,11 +372,21 @@ export default function MusicPage() {
 
         if (error) throw error
         
+        if (trackData.available_for_purchase && data?.id) {
+          await handleListTrackForSale({
+            ...trackData,
+            id: data.id,
+            sale_price: trackData.sale_price,
+            rights_confirmed: trackData.rights_confirmed ?? false,
+          })
+        }
+        
         toast.success('Track uploaded successfully!')
 
-        // Share as post if requested
-        if (trackData.shareAsPost) {
-          await createMusicPost(data.id, trackData.title, uploadResult.coverUrl)
+        if (trackData.is_public && data?.id) {
+          if (trackData.shareAsPost !== false) {
+            await createMusicPost(data.id, trackData.title, uploadResult.coverUrl)
+          }
         }
         
         setShowUploader(false)
@@ -421,6 +444,7 @@ export default function MusicPage() {
         tags: formData.tags,
         is_featured: formData.is_featured,
         is_public: formData.is_public,
+        allow_downloads: formData.allow_downloads,
         updated_at: new Date().toISOString()
       }
 
@@ -432,6 +456,10 @@ export default function MusicPage() {
         .eq('user_id', user.id)
 
       if (error) throw error
+      
+      if (formData.available_for_purchase && editingTrack?.id) {
+        await handleListTrackForSale({ ...formData, id: editingTrack.id })
+      }
       
       toast.success('Track updated successfully!')
       
@@ -483,6 +511,7 @@ export default function MusicPage() {
 
   const handleListTrackForSale = async (track: MusicTrack) => {
     if (!track.id) return
+    const price = track.sale_price ?? 1.99
     try {
       const response = await fetch('/api/marketplace/listings', {
         method: 'POST',
@@ -490,20 +519,20 @@ export default function MusicPage() {
         credentials: 'include',
         body: JSON.stringify({
           title: track.title,
-          description: track.description || `Purchase access to ${track.title}`,
+          description: track.description || `Purchase "${track.title}" — ${track.genre || 'music'}`,
           category: 'music',
           productType: 'digital_asset',
-          status: 'draft',
-          basePrice: 1.99,
+          status: 'published',
+          basePrice: price,
           trackId: track.id,
-          rightsConfirmed: true,
+          rightsConfirmed: (track as any).rights_confirmed ?? false,
           licenseType: 'personal_use',
           metadata: {
             genre: track.genre,
             duration: track.duration,
             artistName: track.artist,
           },
-          variants: [{ title: 'Default', price: 1.99, isDefault: true }],
+          variants: [{ title: 'Default', price, isDefault: true }],
         }),
       })
 
@@ -512,7 +541,7 @@ export default function MusicPage() {
         throw new Error(extractApiError(body, 'Failed to create listing'))
       }
 
-      toast.success('Track added to marketplace drafts')
+      toast.success(`Listed for $${price.toFixed(2)} (buyers pay +10% service fee)`)
     } catch (error) {
       console.error('Error listing track for sale:', error)
       toast.error('Failed to list track for sale')
@@ -963,7 +992,7 @@ export default function MusicPage() {
                     />
                   </div>
 
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center flex-wrap gap-4">
                     <div className="flex items-center space-x-2">
                       <Switch
                         id="featured"
@@ -983,7 +1012,43 @@ export default function MusicPage() {
                         {formData.is_public ? 'Public' : 'Private'}
                       </Label>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="allow-downloads"
+                        checked={formData.allow_downloads}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_downloads: checked }))}
+                      />
+                      <Label htmlFor="allow-downloads" className="text-gray-300 flex items-center gap-1">
+                        <Download className="h-4 w-4" />
+                        Allow downloads
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="for-sale"
+                        checked={formData.available_for_purchase}
+                        onCheckedChange={(checked) => setFormData(prev => ({ ...prev, available_for_purchase: checked }))}
+                      />
+                      <Label htmlFor="for-sale" className="text-gray-300 flex items-center gap-1">
+                        Available for purchase
+                      </Label>
+                    </div>
                   </div>
+
+                  {formData.available_for_purchase && (
+                    <div className="space-y-2">
+                      <Label htmlFor="sale-price" className="text-gray-300">Sale price ($)</Label>
+                      <Input
+                        id="sale-price"
+                        type="number"
+                        min="0.50"
+                        step="0.01"
+                        value={formData.sale_price || 1.99}
+                        onChange={(e) => setFormData(prev => ({ ...prev, sale_price: parseFloat(e.target.value) || 1.99 }))}
+                        className="bg-slate-800 border-slate-700 text-white w-32"
+                      />
+                    </div>
+                  )}
 
                   {/* Tags */}
                   <div className="space-y-2">

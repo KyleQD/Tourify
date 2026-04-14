@@ -117,16 +117,12 @@ export function MusicPlayer({
     if (!user) return
     
     try {
-      const { data } = await supabase
-        .from('music_likes')
-        .select('id')
-        .eq('music_id', track.id)
-        .eq('user_id', user.id)
-        .single()
-      
-      setIsLiked(!!data)
-    } catch (error) {
-      // User hasn't liked this track
+      const res = await fetch(`/api/music/like?musicId=${track.id}`, { credentials: 'include' })
+      if (res.ok) {
+        const data = await res.json()
+        setIsLiked(data.liked === true)
+      }
+    } catch {
       setIsLiked(false)
     }
   }
@@ -201,20 +197,16 @@ export function MusicPlayer({
   }
 
   const recordPlay = async () => {
-    if (!user) return
-    
     try {
-      await supabase
-        .from('music_plays')
-        .insert({
-          music_id: track.id,
-          user_id: user.id,
-          play_source: 'player'
-        })
-      
+      await fetch('/api/music/play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ musicId: track.id }),
+      })
       setPlayCount(prev => prev + 1)
-    } catch (error) {
-      console.error('Error recording play:', error)
+    } catch {
+      // non-blocking
     }
   }
 
@@ -225,32 +217,18 @@ export function MusicPlayer({
     }
 
     try {
-      if (isLiked) {
-        // Unlike
-        await supabase
-          .from('music_likes')
-          .delete()
-          .eq('music_id', track.id)
-          .eq('user_id', user.id)
-        
-        setIsLiked(false)
-        setLikeCount(prev => prev - 1)
-        toast.success('Removed from likes')
-      } else {
-        // Like
-        await supabase
-          .from('music_likes')
-          .insert({
-            music_id: track.id,
-            user_id: user.id
-          })
-        
-        setIsLiked(true)
-        setLikeCount(prev => prev + 1)
-        toast.success('Added to likes')
-      }
-    } catch (error) {
-      console.error('Error toggling like:', error)
+      const res = await fetch('/api/music/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ musicId: track.id }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      setIsLiked(data.liked)
+      setLikeCount(prev => data.liked ? prev + 1 : prev - 1)
+      toast.success(data.liked ? 'Added to likes' : 'Removed from likes')
+    } catch {
       toast.error('Failed to update like')
     }
   }
@@ -267,19 +245,17 @@ export function MusicPlayer({
     }
 
     try {
-      await supabase
-        .from('music_comments')
-        .insert({
-          music_id: track.id,
-          user_id: user.id,
-          content: commentText.trim()
-        })
-      
+      const res = await fetch('/api/music/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ musicId: track.id, content: commentText.trim() }),
+      })
+      if (!res.ok) throw new Error('Failed')
       setCommentText('')
       setCommentCount(prev => prev + 1)
       toast.success('Comment added')
-    } catch (error) {
-      console.error('Error adding comment:', error)
+    } catch {
       toast.error('Failed to add comment')
     }
   }
@@ -291,37 +267,23 @@ export function MusicPlayer({
     }
 
     try {
-      // Record the share
-      await supabase
-        .from('music_shares')
-        .insert({
-          music_id: track.id,
-          user_id: user.id,
-          share_type: shareType,
-          share_data: {
-            message: shareMessage,
-            platform: 'tourify'
-          }
-        })
-
-      // Create post if sharing as post
-      if (shareType === 'post') {
-        await supabase
-          .from('posts')
-          .insert({
-            user_id: user.id,
-            content: shareMessage || `Check out this track: ${track.title}`,
-            post_type: 'music',
-            music_id: track.id
-          })
-      }
+      const res = await fetch('/api/music/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          musicId: track.id,
+          createPost: shareType === 'post',
+          content: shareMessage || `Check out this track: ${track.title}`,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
 
       setShareCount(prev => prev + 1)
       setShowShareDialog(false)
       setShareMessage('')
       toast.success('Track shared successfully!')
-    } catch (error) {
-      console.error('Error sharing track:', error)
+    } catch {
       toast.error('Failed to share track')
     }
   }

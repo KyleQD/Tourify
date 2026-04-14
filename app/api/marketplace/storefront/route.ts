@@ -2,13 +2,41 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 
+const externalLinkSchema = z.object({
+  label: z.string().min(1).max(100),
+  url: z.string().url().max(2000),
+})
+
+const themeEffectsSchema = z.object({
+  animateCards: z.boolean().optional(),
+  glowBorder: z.boolean().optional(),
+  hoverLift: z.boolean().optional(),
+  shimmerImages: z.boolean().optional(),
+  floatingOrbs: z.boolean().optional(),
+  gradientText: z.boolean().optional(),
+  staggerEntrance: z.boolean().optional(),
+}).optional()
+
+const themeConfigSchema = z.object({
+  preset: z.string().max(40).optional(),
+  accentColor: z.string().max(20).optional(),
+  cardStyle: z.enum(["glass", "solid", "outline", "neon"]).optional(),
+  layout: z.enum(["grid", "masonry", "list", "carousel"]).optional(),
+  effects: themeEffectsSchema,
+  bannerGradient: z.string().max(200).optional(),
+  bannerStyle: z.enum(["gradient", "solid", "image", "none"]).optional(),
+  fontStyle: z.enum(["default", "elegant", "bold", "mono"]).optional(),
+}).passthrough().optional()
+
 const storefrontSchema = z.object({
   displayName: z.string().min(2).max(120),
   tagline: z.string().max(280).optional().nullable(),
   slug: z.string().min(2).max(120).regex(/^[a-z0-9-]+$/).optional().nullable(),
   isActive: z.boolean().optional(),
-  themeConfig: z.record(z.string(), z.unknown()).optional(),
+  themeConfig: themeConfigSchema,
   sections: z.array(z.unknown()).optional(),
+  externalLinks: z.array(externalLinkSchema).max(20).optional(),
+  sellerType: z.enum(["artist", "venue", "photographer", "painter", "individual", "company"]).optional().nullable(),
 })
 
 export const dynamic = "force-dynamic"
@@ -53,12 +81,16 @@ export async function GET(request: NextRequest) {
         {
           data: {
             sellerUserId: resolvedSellerId,
-            displayName: "Artist Store",
+            displayName: "My Store",
             tagline: null,
             slug: null,
             isActive: true,
             themeConfig: {},
             sections: [],
+            external_links: [],
+            seller_type: null,
+            accepted_seller_agreement_at: null,
+            seller_agreement_version: null,
           },
         },
         { status: 200 }
@@ -91,6 +123,8 @@ export async function PUT(request: NextRequest) {
       is_active: payload.isActive ?? true,
       theme_config: payload.themeConfig || {},
       sections: payload.sections || [],
+      external_links: payload.externalLinks || [],
+      ...(payload.sellerType !== undefined ? { seller_type: payload.sellerType } : {}),
     }
 
     const { data: storefront, error } = await supabase

@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { ProfilePosts } from "./profile-posts"
 import { MusicShowcase } from "./music-showcase"
+import { ProfileMusicShowcase } from "./profile-music-showcase"
+import { ProfileJukeboxWidget } from "./profile-jukebox-widget"
 import { useProfileColors } from "@/hooks/use-profile-colors"
 import { ProfileAchievementsSection } from "@/components/achievements/profile-achievements-section"
 import {
@@ -524,6 +526,8 @@ export function EnhancedPublicProfileView({
   const isPortfolioVisible = publicVisibility.show_portfolio !== false
   const isAchievementsVisible = publicVisibility.show_achievements !== false
   const isMarketplaceVisible = publicVisibility.show_marketplace !== false
+  const isMusicPlayerVisible = publicVisibility.show_music_player !== false
+  const isJukeboxVisible = publicVisibility.show_jukebox !== false
   const supportLinks = [
     { label: "Tip Jar", url: supportSettings.tip_jar_url },
     { label: "Commissions", url: supportSettings.commission_url },
@@ -767,60 +771,21 @@ export function EnhancedPublicProfileView({
               </CardContent>
             </Card>
 
-            {/* Artist Music Section */}
-            {profile.account_type === 'artist' && tracks.length > 0 && (
-              <Card className="bg-white/10 backdrop-blur border-0 rounded-3xl">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <Music className="h-5 w-5 text-emerald-400" />
-                    Latest Music
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {tracks.map((track) => (
-                      <div key={track.id} className="flex items-center gap-4 p-4 bg-white/5 rounded-xl">
-                        <div className="relative">
-                          <img 
-                            src={track.cover_art || '/placeholder-album.jpg'} 
-                            alt={track.title}
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                          <Button
-                            size="sm"
-                            className="absolute inset-0 bg-black/50 hover:bg-black/70 rounded-lg"
-                            onClick={() => handlePlayTrack(track.id)}
-                          >
-                            {currentlyPlaying === track.id ? (
-                              <Pause className="h-4 w-4 text-white" />
-                            ) : (
-                              <Play className="h-4 w-4 text-white" />
-                            )}
-                          </Button>
-                        </div>
-                        
-                        <div className="flex-1">
-                          <h4 className="text-white font-medium">{track.title}</h4>
-                          {track.album && <p className="text-white/70 text-sm">{track.album}</p>}
-                          <div className="flex items-center gap-4 text-xs text-white/60 mt-1">
-                            <span>{track.duration}</span>
-                            <span>{formatStreams(track.streams)} streams</span>
-                            <span>{formatSafeDate(track.release_date)}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-2">
-                          {track.spotify_url && (
-                            <Button size="sm" variant="outline" className="border-white/30 text-white hover:bg-white/10">
-                              <ExternalLink className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+            {/* Music Player Section */}
+            {isMusicPlayerVisible && (
+              <ProfileMusicShowcase
+                userId={profile.id}
+                displayName={getDisplayName()}
+                accountType={profile.account_type}
+              />
+            )}
+
+            {/* Jukebox Widget -- favorites + playlists */}
+            {isJukeboxVisible && (
+              <ProfileJukeboxWidget
+                userId={profile.id}
+                displayName={getDisplayName()}
+              />
             )}
 
             {/* Portfolio/Projects Section */}

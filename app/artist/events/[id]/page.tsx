@@ -783,6 +783,7 @@ export default function EventDetailPage() {
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="marketing">Marketing</TabsTrigger>
+          <TabsTrigger value="site-map">Site Map</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -1228,6 +1229,27 @@ export default function EventDetailPage() {
                   Create posters, social media posts, and promotional materials for your event.
                 </p>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="site-map">
+          <Card className="bg-slate-900/50 border-slate-700/50">
+            <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
+              <div className="p-4 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl border border-purple-500/30">
+                <MapPin className="h-10 w-10 text-purple-300" />
+              </div>
+              <h3 className="text-lg font-semibold text-white">Event Site Map</h3>
+              <p className="text-slate-400 text-sm text-center max-w-md">
+                View the event layout including stages, backstage areas, load-in paths, and zone assignments.
+              </p>
+              <Button
+                onClick={() => router.push(`/artist/events/${eventId}/site-map`)}
+                className="bg-gradient-to-r from-purple-500 to-blue-500 text-white"
+              >
+                <MapPin className="h-4 w-4 mr-2" />
+                Open Site Map
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>

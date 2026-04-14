@@ -26,6 +26,11 @@ import {
   TrendingUp,
   Users,
   Zap,
+  Disc3,
+  Music,
+  Play,
+  Heart,
+  Ticket,
 } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
@@ -89,6 +94,19 @@ interface ForYouItem {
   profile?: DiscoverProfile
 }
 
+interface DiscoverMusicTrack {
+  id: string
+  title: string
+  artist_name: string
+  artist_id?: string
+  cover_art_url?: string | null
+  file_url?: string
+  genre?: string | null
+  duration?: number | null
+  plays?: number
+  likes?: number
+}
+
 interface DiscoverPayload {
   success: boolean
   sections: {
@@ -100,6 +118,10 @@ interface DiscoverPayload {
     venues: DiscoverProfile[]
     suggestions: DiscoverProfile[]
     hire_matches: DiscoverProfile[]
+    new_music?: DiscoverMusicTrack[]
+    trending_music?: DiscoverMusicTrack[]
+    new_artists?: DiscoverProfile[]
+    nearby_events?: DiscoverEvent[]
   }
   stats: {
     trending_count: number
@@ -118,7 +140,7 @@ interface IntentOption {
 }
 
 type DiscoverIntent = "grow" | "network" | "book" | "learn"
-type DiscoverTab = "for-you" | "events" | "trending" | "people" | "hire"
+type DiscoverTab = "for-you" | "events" | "music" | "trending" | "people" | "hire"
 
 const intentOptions: IntentOption[] = [
   {
@@ -221,6 +243,10 @@ export default function DiscoverPage() {
     venues: [],
     suggestions: [],
     hire_matches: [],
+    new_music: [],
+    trending_music: [],
+    new_artists: [],
+    nearby_events: [],
   })
 
   useEffect(() => {
@@ -367,12 +393,13 @@ export default function DiscoverPage() {
   const tabAvailability = useMemo(
     () => ({
       "for-you": filtered.for_you.length > 0,
-      events: filtered.upcoming.length > 0,
+      events: filtered.upcoming.length > 0 || (sections.nearby_events?.length || 0) > 0,
+      music: (sections.new_music?.length || 0) > 0 || (sections.trending_music?.length || 0) > 0,
       trending: filtered.trending.length > 0,
-      people: filtered.people.length > 0,
+      people: filtered.people.length > 0 || (sections.new_artists?.length || 0) > 0,
       hire: filtered.hire_matches.length > 0,
     }),
-    [filtered]
+    [filtered, sections]
   )
   const visibleTabs = useMemo(
     () => (Object.entries(tabAvailability) as Array<[DiscoverTab, boolean]>)
@@ -606,6 +633,9 @@ export default function DiscoverPage() {
             {(isLoading || tabAvailability.hire) ? (
               <TabsTrigger value="hire"><Briefcase className="h-4 w-4 mr-2" />Hire Matches</TabsTrigger>
             ) : null}
+            {(isLoading || tabAvailability.music) ? (
+              <TabsTrigger value="music"><Disc3 className="h-4 w-4 mr-2" />Music</TabsTrigger>
+            ) : null}
             {(isLoading || tabAvailability.events) ? (
               <TabsTrigger value="events"><Calendar className="h-4 w-4 mr-2" />Events</TabsTrigger>
             ) : null}
@@ -655,6 +685,22 @@ export default function DiscoverPage() {
           </TabsContent>
 
           <TabsContent value="people" className="space-y-6">
+            {(sections.new_artists?.length || 0) > 0 && (
+              <>
+                <SectionHeader title="New Artists to Follow" href="/friends/search" />
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                  {sections.new_artists!.slice(0, 8).map((profile) => (
+                    <ProfileCard
+                      key={`new-${profile.id}`}
+                      profile={profile}
+                      isFollowing={followingIds.has(profile.id)}
+                      onFollow={handleFollow}
+                      onOpen={() => openProfile(router, profile)}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
             <SectionHeader title="People driving momentum right now" href="/friends/search" />
             {isLoading ? <LoadingGrid /> : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -669,13 +715,49 @@ export default function DiscoverPage() {
                 ))}
               </div>
             )}
-            {!isLoading && filtered.people.length === 0 ? (
-              <EmptyState message="People suggestions are disabled in RSS-only mode." />
+            {!isLoading && filtered.people.length === 0 && (sections.new_artists?.length || 0) === 0 ? (
+              <EmptyState message="No people suggestions available right now." />
+            ) : null}
+          </TabsContent>
+
+          <TabsContent value="music" className="space-y-6">
+            {(sections.new_music?.length || 0) > 0 && (
+              <>
+                <SectionHeader title="New Releases" />
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {sections.new_music!.map((track) => (
+                    <MusicTrackCard key={track.id} track={track} />
+                  ))}
+                </div>
+              </>
+            )}
+            {(sections.trending_music?.length || 0) > 0 && (
+              <>
+                <SectionHeader title="Trending Music" />
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {sections.trending_music!.map((track) => (
+                    <MusicTrackCard key={track.id} track={track} />
+                  ))}
+                </div>
+              </>
+            )}
+            {!isLoading && (sections.new_music?.length || 0) === 0 && (sections.trending_music?.length || 0) === 0 ? (
+              <EmptyState message="No music discovered yet. Check back soon as artists upload new tracks." />
             ) : null}
           </TabsContent>
 
           <TabsContent value="events" className="space-y-6">
-            <SectionHeader title="Where demand is building now" href="/events" />
+            {(sections.nearby_events?.length || 0) > 0 && appliedLocation && (
+              <>
+                <SectionHeader title={`Events near ${appliedLocation}`} href="/events" />
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {sections.nearby_events!.map((event) => (
+                    <EventCard key={event.id} event={event} onOpen={() => openEvent(router, event)} />
+                  ))}
+                </div>
+              </>
+            )}
+            <SectionHeader title="Upcoming Events" href="/events" />
             {isLoading ? <LoadingGrid /> : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {filtered.upcoming.map((event) => (
@@ -684,7 +766,7 @@ export default function DiscoverPage() {
               </div>
             )}
             {!isLoading && filtered.upcoming.length === 0 ? (
-              <EmptyState message="No event-like stories were detected from RSS right now." />
+              <EmptyState message="No upcoming events found. Try changing your location or check back later." />
             ) : null}
           </TabsContent>
 
@@ -757,16 +839,18 @@ function QuickPathCard({
   )
 }
 
-function SectionHeader({ title, href }: { title: string; href: string }) {
+function SectionHeader({ title, href }: { title: string; href?: string }) {
   return (
     <div className="flex items-center justify-between">
       <h2 className="text-2xl font-semibold">{title}</h2>
-      <Button asChild variant="outline" size="sm" className="border-white/20 text-slate-200 hover:bg-white/10">
-        <Link href={href}>
-          See more
-          <ArrowRight className="h-4 w-4 ml-2" />
-        </Link>
-      </Button>
+      {href && (
+        <Button asChild variant="outline" size="sm" className="border-white/20 text-slate-200 hover:bg-white/10">
+          <Link href={href}>
+            See more
+            <ArrowRight className="h-4 w-4 ml-2" />
+          </Link>
+        </Button>
+      )}
     </div>
   )
 }
@@ -982,4 +1066,57 @@ function openEvent(router: ReturnType<typeof useRouter>, event: DiscoverEvent) {
   }
 
   router.push(`/events/${event.id}`)
+}
+
+function MusicTrackCard({ track }: { track: DiscoverMusicTrack }) {
+  return (
+    <motion.div whileHover={{ y: -2 }}>
+      <SurfaceCard className="h-full">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            {track.cover_art_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={track.cover_art_url}
+                alt=""
+                className="h-14 w-14 rounded-xl object-cover flex-shrink-0"
+              />
+            ) : (
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-600">
+                <Music className="h-6 w-6 text-white/60" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-white truncate">{track.title}</p>
+              <p className="text-sm text-slate-400 truncate">{track.artist_name}</p>
+              {track.genre && (
+                <Badge variant="secondary" className="mt-1 text-[10px] bg-purple-500/15 text-purple-300 border-purple-500/20">
+                  {track.genre}
+                </Badge>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-slate-500">
+            {track.plays !== undefined && track.plays > 0 && (
+              <span className="flex items-center gap-1"><Play className="h-3 w-3" />{track.plays.toLocaleString()} plays</span>
+            )}
+            {track.likes !== undefined && track.likes > 0 && (
+              <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{track.likes.toLocaleString()}</span>
+            )}
+            {track.duration && (
+              <span>{Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, '0')}</span>
+            )}
+          </div>
+          {track.artist_id && (
+            <Link href={`/artist/${track.artist_id}`}>
+              <Button size="sm" variant="outline" className="w-full rounded-xl border-white/20 text-xs">
+                <Disc3 className="h-3.5 w-3.5 mr-2" />
+                View Artist
+              </Button>
+            </Link>
+          )}
+        </CardContent>
+      </SurfaceCard>
+    </motion.div>
+  )
 }

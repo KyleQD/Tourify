@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { supabase } from '@/lib/supabase/client'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -9,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Loader2 } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { ProfileAchievementsSection } from "@/components/achievements/profile-achievements-section"
 import {
   MessageCircle,
   UserPlus,
@@ -257,8 +259,6 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
   const fetchProfileData = async () => {
     try {
       setLoading(true)
-      
-      const { supabase } = await import('@/lib/supabase')
       
       console.log('🔍 Fetching real posts for profile:', profile.id)
       
@@ -560,8 +560,6 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
 
   const handleLikePost = async (postId: string) => {
     try {
-      const { supabase } = await import('@/lib/supabase')
-      
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         toast.error('Please sign in to like posts')
@@ -987,7 +985,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
           {/* Right Column - Content */}
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-5 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-1">
+              <TabsList className="grid w-full grid-cols-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-1">
                 <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                   Overview
                 </TabsTrigger>
@@ -1002,6 +1000,9 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                 </TabsTrigger>
                 <TabsTrigger value="jobs" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                   Jobs
+                </TabsTrigger>
+                <TabsTrigger value="achievements" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
+                  Badges
                 </TabsTrigger>
               </TabsList>
 
@@ -1385,6 +1386,14 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="achievements" className="mt-8">
+                <ProfileAchievementsSection
+                  userId={profile?.id}
+                  isOwnProfile={isOwnProfile}
+                  className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden"
+                />
               </TabsContent>
             </Tabs>
           </div>

@@ -623,6 +623,22 @@ export default function DashboardPage() {
               {/* Quick Post Creator */}
               <QuickPostCreator />
 
+              {/* Write Article CTA */}
+              <button
+                type="button"
+                onClick={() => router.push('/blog/new')}
+                className="group flex w-full items-center gap-3 rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-4 text-left backdrop-blur-sm transition-all hover:border-purple-500/40 hover:bg-white/10"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-fuchsia-500/20 transition-colors group-hover:from-purple-500/30 group-hover:to-fuchsia-500/30">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-white group-hover:text-purple-200">Write an Article</p>
+                  <p className="text-xs text-gray-400">Share news, reviews, or stories — published to your followers&apos; feeds</p>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-gray-500 group-hover:text-purple-400" />
+              </button>
+
               {/* Dashboard Feed */}
               <DashboardFeed />
 

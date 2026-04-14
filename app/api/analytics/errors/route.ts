@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { errors } = await request.json()
     
     if (!Array.isArray(errors) || errors.length === 0) {
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('sessionId')
     const severity = searchParams.get('severity')

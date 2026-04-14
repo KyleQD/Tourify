@@ -927,11 +927,92 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
               <CardTitle className="text-slate-100">Travel Timeline</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-slate-400">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Timeline view coming soon</p>
-                <p className="text-sm">View all travel events in chronological order</p>
-              </div>
+              {(() => {
+                const timelineEvents: Array<{ id: string; time: string; title: string; type: string; status: string }> = []
+
+                flights?.forEach(f => {
+                  timelineEvents.push({
+                    id: `flight-${f.id}`,
+                    time: f.departure_time,
+                    title: `${f.airline} ${f.flight_number}: ${f.departure_airport} → ${f.arrival_airport}`,
+                    type: 'flight',
+                    status: f.status
+                  })
+                })
+
+                transportation?.forEach(t => {
+                  timelineEvents.push({
+                    id: `transport-${t.id}`,
+                    time: t.pickup_time,
+                    title: `${t.transport_type}: ${t.pickup_location} → ${t.dropoff_location}`,
+                    type: 'transport',
+                    status: t.status
+                  })
+                })
+
+                groups?.forEach(g => {
+                  if (g.arrival_date) {
+                    timelineEvents.push({
+                      id: `arrival-${g.id}`,
+                      time: g.arrival_date,
+                      title: `${g.name} arrival (${g.total_members} members)`,
+                      type: 'arrival',
+                      status: g.status
+                    })
+                  }
+                  if (g.departure_date) {
+                    timelineEvents.push({
+                      id: `departure-${g.id}`,
+                      time: g.departure_date,
+                      title: `${g.name} departure`,
+                      type: 'departure',
+                      status: g.status
+                    })
+                  }
+                })
+
+                timelineEvents.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+
+                if (timelineEvents.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-slate-400">
+                      <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No timeline events yet</p>
+                      <p className="text-sm">Add travel groups, flights, or transport to see the timeline</p>
+                    </div>
+                  )
+                }
+
+                return (
+                  <div className="relative pl-8 space-y-4">
+                    <div className="absolute top-0 bottom-0 left-3.5 w-px bg-slate-700" />
+                    {timelineEvents.map(evt => {
+                      const typeColors: Record<string, string> = {
+                        flight: 'bg-blue-500',
+                        transport: 'bg-green-500',
+                        arrival: 'bg-purple-500',
+                        departure: 'bg-orange-500'
+                      }
+                      const dotColor = typeColors[evt.type] || 'bg-slate-500'
+
+                      return (
+                        <div key={evt.id} className="relative">
+                          <div className={`absolute -left-8 mt-1.5 h-4 w-4 rounded-full border-2 border-slate-900 ${dotColor}`} />
+                          <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                            <span className="text-xs text-slate-500 sm:w-32 shrink-0">
+                              {new Date(evt.time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                            <div>
+                              <p className="text-sm font-medium text-slate-200">{evt.title}</p>
+                              {getStatusBadge(evt.status)}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </CardContent>
           </Card>
         </TabsContent>

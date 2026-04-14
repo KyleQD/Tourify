@@ -1,17 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+
 import { createClient } from '@/lib/supabase/server'
-import Stripe from 'stripe'
-
-const getStripe = () => {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    throw new Error('STRIPE_SECRET_KEY is not set')
-  }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: '2024-12-18.acacia' as any
-  })
-}
-
-const PLATFORM_FEE_PERCENTAGE = 0.15 // 15% platform fee
+import { calculateMarketplaceFeeBreakdown } from '@/lib/marketplace/fees'
+import { getStripe } from '@/lib/stripe'
 
 export const dynamic = 'force-dynamic'
 
@@ -84,10 +75,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Calculate fees
-    const purchasePrice = photo.sale_price
-    const platformFee = Math.round(purchasePrice * PLATFORM_FEE_PERCENTAGE * 100) / 100
-    const sellerPayout = purchasePrice - platformFee
+    // Unified 10% buyer-paid fee matching main marketplace
+    const fees = calculateMarketplaceFeeBreakdown({ subtotal: photo.sale_price })
+
+    // Resolve seller Stripe Connect account for direct payouts
+    const { data: sellerProfile } = await supabase
+      .from('profiles')
+      .select('stripe_connect_account_id')
+      .eq('id', photo.user_id)
+      .single()
+
+    const sellerConnectId = sellerProfile?.stripe_connect_account_id || null
 
     // Create purchase record
     const { data: purchase, error: purchaseError } = await supabase
@@ -96,10 +94,10 @@ export async function POST(request: NextRequest) {
         photo_id: photoId,
         buyer_user_id: user.id,
         seller_user_id: photo.user_id,
-        purchase_price: purchasePrice,
+        purchase_price: fees.buyerTotal,
         license_type: licenseType || photo.license_type,
-        platform_fee: platformFee,
-        seller_payout: sellerPayout,
+        platform_fee: fees.platformFee,
+        seller_payout: fees.sellerPayout,
         payment_status: 'pending',
         payment_method: 'stripe',
         usage_rights: photo.usage_rights,
@@ -116,18 +114,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create Stripe checkout session with multiple payment methods
     const stripe = getStripe()
-    const session = await stripe.checkout.sessions.create({
-      // Enable all available payment methods (card, Apple Pay, Google Pay, PayPal, etc.)
+
+    const sessionConfig: Record<string, any> = {
       payment_method_types: ['card', 'us_bank_account'],
-      // Stripe automatically enables Apple Pay, Google Pay, and Link on compatible devices
       payment_method_options: {
         us_bank_account: {
           financial_connections: {
-            permissions: ['payment_method']
-          }
-        }
+            permissions: ['payment_method'],
+          },
+        },
       },
       line_items: [
         {
@@ -138,10 +134,20 @@ export async function POST(request: NextRequest) {
               description: `${licenseType || photo.license_type} license - ${photo.description || ''}`,
               images: photo.watermarked_url ? [photo.watermarked_url] : [photo.preview_url]
             },
-            unit_amount: Math.round(purchasePrice * 100) // Stripe uses cents
+            unit_amount: Math.round(fees.subtotal * 100),
           },
-          quantity: 1
-        }
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: {
+              name: 'Tourify Service Fee (10%)',
+            },
+            unit_amount: Math.round(fees.platformFee * 100),
+          },
+          quantity: 1,
+        },
       ],
       mode: 'payment',
       success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/photos/purchase/success?purchase_id=${purchase.id}`,
@@ -150,11 +156,21 @@ export async function POST(request: NextRequest) {
         purchase_id: purchase.id,
         photo_id: photoId,
         buyer_user_id: user.id,
-        seller_user_id: photo.user_id
+        seller_user_id: photo.user_id,
       },
       customer_email: user.email,
-      // Payment methods are manually specified above
-    })
+    }
+
+    if (sellerConnectId) {
+      sessionConfig.payment_intent_data = {
+        application_fee_amount: Math.round(fees.platformFee * 100),
+        transfer_data: {
+          destination: sellerConnectId,
+        },
+      }
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig as any)
 
     // Update purchase with Stripe session ID
     await supabase

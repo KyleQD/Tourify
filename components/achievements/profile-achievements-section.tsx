@@ -14,8 +14,12 @@ import {
   Target,
   Users,
   Zap,
-  ExternalLink
+  ExternalLink,
+  EyeOff,
+  Eye,
 } from "lucide-react"
+import { useToast } from "@/components/ui/use-toast"
+import { cn } from "@/lib/utils"
 import { Progress } from "@/components/ui/progress"
 import { AchievementCard } from "./achievement-card"
 import { BadgeCard } from "./badge-card"
@@ -58,6 +62,27 @@ export function ProfileAchievementsSection({
   const [totalBadges, setTotalBadges] = useState(0)
   const [totalEndorsements, setTotalEndorsements] = useState(0)
   const [loadNotice, setLoadNotice] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  const handleToggleBadgeVisibility = async (userBadgeId: string, currentlyVisible: boolean) => {
+    const newVisible = !currentlyVisible
+    try {
+      const res = await fetch("/api/badges", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ user_badge_id: userBadgeId, is_visible: newVisible }),
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.error)
+      setUserBadges(prev => prev.map(ub =>
+        ub.id === userBadgeId ? { ...ub, metadata: { ...ub.metadata, is_visible: newVisible } } : ub
+      ))
+      toast({ title: newVisible ? "Badge visible" : "Badge hidden", description: newVisible ? "This badge is now shown on your profile." : "This badge is now hidden from your profile." })
+    } catch (error) {
+      toast({ title: "Update failed", variant: "destructive" })
+    }
+  }
 
   useEffect(() => {
     loadAchievementData()
@@ -113,7 +138,11 @@ export function ProfileAchievementsSection({
   }
 
   const completedAchievementsList = userAchievements.filter(ua => ua.is_completed)
-  const activeBadges = userBadges.filter(ub => ub.is_active)
+  const activeBadges = userBadges.filter(ub => {
+    if (!ub.is_active) return false
+    if (!isOwnProfile && ub.metadata?.is_visible === false) return false
+    return true
+  })
   const userAchievementById = new Map(userAchievements.map(ua => [ua.achievement_id, ua]))
   const upcomingAchievements = achievements
     .filter(achievement => !userAchievementById.get(achievement.id)?.is_completed)
@@ -265,18 +294,37 @@ export function ProfileAchievementsSection({
           <TabsContent value="badges" className="space-y-4">
             {activeBadges.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {activeBadges.slice(0, 4).map((userBadge) => {
+                {activeBadges.slice(0, isOwnProfile ? 8 : 4).map((userBadge) => {
                   const badge = badges.find(b => b.id === userBadge.badge_id)
                   if (!badge) return null
+                  const isVisible = userBadge.metadata?.is_visible !== false
                   
                   return (
-                    <BadgeCard
-                      key={badge.id}
-                      badge={badge}
-                      userBadge={userBadge}
-                      showDetails={false}
-                      className="h-auto"
-                    />
+                    <div key={badge.id} className="relative">
+                      <BadgeCard
+                        badge={badge}
+                        userBadge={userBadge}
+                        showDetails={false}
+                        className="h-auto"
+                      />
+                      {isOwnProfile && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className={cn(
+                            "absolute top-2 left-2 h-7 w-7 p-0 rounded-full",
+                            isVisible ? "text-green-400 hover:text-green-300" : "text-slate-500 hover:text-slate-400"
+                          )}
+                          onClick={(e) => { e.stopPropagation(); handleToggleBadgeVisibility(userBadge.id, isVisible) }}
+                          title={isVisible ? "Visible on profile (click to hide)" : "Hidden from profile (click to show)"}
+                        >
+                          {isVisible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                        </Button>
+                      )}
+                      {isOwnProfile && !isVisible && (
+                        <div className="absolute inset-0 bg-slate-900/40 rounded-lg pointer-events-none" />
+                      )}
+                    </div>
                   )
                 })}
               </div>
@@ -288,6 +336,12 @@ export function ProfileAchievementsSection({
                   <p className="text-sm mt-2">Earn badges by demonstrating expertise!</p>
                 )}
               </div>
+            )}
+            {isOwnProfile && userBadges.filter(ub => ub.is_active && ub.metadata?.is_visible === false).length > 0 && (
+              <p className="text-xs text-slate-500 text-center">
+                <EyeOff className="h-3 w-3 inline mr-1" />
+                {userBadges.filter(ub => ub.is_active && ub.metadata?.is_visible === false).length} badge{userBadges.filter(ub => ub.is_active && ub.metadata?.is_visible === false).length !== 1 ? 's' : ''} hidden from your public profile
+              </p>
             )}
           </TabsContent>
 

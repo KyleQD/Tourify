@@ -80,7 +80,7 @@ export interface JobApplication {
   applicant_name: string
   applicant_email: string
   applicant_phone?: string
-  status: 'pending' | 'reviewed' | 'shortlisted' | 'approved' | 'rejected' | 'withdrawn'
+  status: 'pending' | 'reviewed' | 'shortlisted' | 'approved' | 'accepted' | 'rejected' | 'withdrawn'
   form_responses: Record<string, any>
   resume_url?: string
   cover_letter?: string

@@ -178,6 +178,19 @@ export const discoverRequestSchema = z.object({
   availableForHire: z.boolean().optional(),
 })
 
+const discoverMusicTrackSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  artist_name: z.string(),
+  artist_id: z.string().optional(),
+  cover_art_url: z.string().nullable().optional(),
+  file_url: z.string().optional(),
+  genre: z.string().nullable().optional(),
+  duration: z.number().nullable().optional(),
+  plays: z.number().optional(),
+  likes: z.number().optional(),
+})
+
 export const discoverResponseSchema = z.object({
   success: z.boolean(),
   sections: z.object({
@@ -189,6 +202,10 @@ export const discoverResponseSchema = z.object({
     venues: z.array(discoverProfileSchema).optional(),
     suggestions: z.array(discoverProfileSchema).optional(),
     hire_matches: z.array(discoverProfileSchema).optional(),
+    new_music: z.array(discoverMusicTrackSchema).optional(),
+    trending_music: z.array(discoverMusicTrackSchema).optional(),
+    new_artists: z.array(discoverProfileSchema).optional(),
+    nearby_events: z.array(discoverEventSchema).optional(),
   }),
   stats: z
     .object({

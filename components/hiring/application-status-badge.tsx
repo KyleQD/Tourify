@@ -14,8 +14,10 @@ interface ApplicationStatusBadgeProps {
 function getApplicationStatusConfig(status: string): ApplicationStatusConfig {
   const normalizedStatus = status.toLowerCase()
 
-  if (normalizedStatus === "approved")
+  if (normalizedStatus === "approved" || normalizedStatus === "accepted")
     return { label: "Approved", className: "border-emerald-500/40 bg-emerald-700/70 text-emerald-100" }
+  if (normalizedStatus === "pending")
+    return { label: "Pending", className: "border-amber-500/40 bg-amber-700/70 text-amber-100" }
   if (normalizedStatus === "rejected")
     return { label: "Rejected", className: "border-rose-500/40 bg-rose-700/70 text-rose-100" }
   if (normalizedStatus === "reviewed")

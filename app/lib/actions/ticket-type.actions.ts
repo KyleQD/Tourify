@@ -1,18 +1,13 @@
 'use server'
 
 import { z } from 'zod'
-import { createSafeActionClient } from 'next-safe-action' // Assuming you use this
-import Stripe from 'stripe'
-import { PrismaClient, Prisma } from '@prisma/client' // Or your Prisma client instance
+import { createSafeActionClient } from 'next-safe-action'
+import { PrismaClient, Prisma } from '@prisma/client'
+import { getStripe } from '@/lib/stripe'
 
-// Initialize Prisma Client (ensure this is done correctly in your project, often a singleton)
 const prisma = new PrismaClient()
 
-// Initialize Stripe (ensure STRIPE_SECRET_KEY is in your .env)
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error('STRIPE_SECRET_KEY is not set in environment variables')
-}
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+const stripe = getStripe()
 
 // Define your action client if you're using next-safe-action
 // If not, you'd export plain async functions.

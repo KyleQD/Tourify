@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -573,17 +574,16 @@ export default function VenuesPage() {
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled
-                          title="Edit is not implemented"
-                          className="text-slate-500 cursor-not-allowed opacity-60"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
+                        <Link href={`/admin/dashboard/venues/${venue.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -862,28 +862,111 @@ export default function VenuesPage() {
                         <CardTitle className="text-lg font-semibold text-white">Booking History</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-center py-8 text-slate-400">
-                          <CalendarIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Booking history integration would be implemented here</p>
-                          <p className="text-sm">Connect to the booking management system</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          <AdminStatCard
+                            title="Total Bookings"
+                            value={selectedVenue.stats.total_bookings}
+                            icon={CalendarIcon}
+                            color="blue"
+                            size="default"
+                          />
+                          <AdminStatCard
+                            title="Completed Events"
+                            value={selectedVenue.stats.completed_events}
+                            icon={CheckCircle}
+                            color="green"
+                            size="default"
+                          />
                         </div>
+                        {bookingRequests.filter(r => r.venue_id === selectedVenue.id).length > 0 ? (
+                          <div className="space-y-3">
+                            {bookingRequests.filter(r => r.venue_id === selectedVenue.id).map((request) => (
+                              <div key={request.id} className="flex items-center justify-between rounded-lg bg-slate-800/50 p-4">
+                                <div>
+                                  <h4 className="font-medium text-white">{request.event_name}</h4>
+                                  <p className="text-sm text-slate-400">{formatSafeDate(request.event_date)} &middot; {request.requester_name}</p>
+                                </div>
+                                <Badge className={statusBadgeClass(request.status === "approved" ? "confirmed" : request.status)}>
+                                  {request.status}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center py-6 text-center space-y-3">
+                            <CalendarIcon className="h-10 w-10 text-slate-500" />
+                            <p className="text-slate-400">No booking requests found for this venue</p>
+                            <Link href="/admin/dashboard/events">
+                              <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                View Events
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
                       </CardContent>
                     </AdminSurfaceCard>
                   </TabsContent>
 
-                  <TabsContent value="analytics">
-                    <AdminSurfaceCard>
-                      <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-white">Performance Analytics</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center py-8 text-slate-400">
-                          <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Venue analytics charts would be displayed here</p>
-                          <p className="text-sm">Revenue trends, booking patterns, and performance metrics</p>
-                        </div>
-                      </CardContent>
-                    </AdminSurfaceCard>
+                  <TabsContent value="analytics" className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <AdminStatCard
+                        title="Capacity"
+                        value={formatNumber(selectedVenue.capacity)}
+                        icon={Users}
+                        color="blue"
+                        size="default"
+                      />
+                      <AdminStatCard
+                        title="Total Bookings"
+                        value={selectedVenue.stats.total_bookings}
+                        icon={CalendarIcon}
+                        color="green"
+                        size="default"
+                      />
+                      <AdminStatCard
+                        title="Average Rating"
+                        value={selectedVenue.stats.average_rating > 0 ? selectedVenue.stats.average_rating.toFixed(1) : 'N/A'}
+                        icon={Star}
+                        color="amber"
+                        size="default"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <AdminSurfaceCard>
+                        <CardHeader>
+                          <CardTitle className="text-lg font-semibold text-white">Revenue</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Total Revenue</span>
+                            <span className="text-green-400 font-semibold">${formatNumber(selectedVenue.stats.total_revenue)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Completed Events</span>
+                            <span className="text-white font-semibold">{selectedVenue.stats.completed_events}</span>
+                          </div>
+                        </CardContent>
+                      </AdminSurfaceCard>
+
+                      <AdminSurfaceCard>
+                        <CardHeader>
+                          <CardTitle className="text-lg font-semibold text-white">Booking Performance</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-400">Response Rate</span>
+                            <span className="text-white font-semibold">{selectedVenue.stats.response_rate}%</span>
+                          </div>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-400">Success Rate</span>
+                            <span className="text-white font-semibold">{selectedVenue.stats.booking_success_rate}%</span>
+                          </div>
+                          <Progress value={selectedVenue.stats.booking_success_rate} className="h-3" />
+                        </CardContent>
+                      </AdminSurfaceCard>
+                    </div>
                   </TabsContent>
                 </Tabs>
               </div>

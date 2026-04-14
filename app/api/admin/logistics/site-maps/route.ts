@@ -40,13 +40,23 @@ export async function GET(request: NextRequest) {
       `)
       .order('updated_at', { ascending: false })
 
-    // Apply filters
     if (eventId) query = query.eq('event_id', eventId)
     if (tourId) query = query.eq('tour_id', tourId)
     if (status) query = query.eq('status', status)
 
-    // Filter by user
-    query = query.eq('created_by', user.id)
+    // Include maps the user owns OR is a collaborator on
+    const { data: collaboratorMapIds } = await supabase
+      .from('site_map_collaborators')
+      .select('site_map_id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+
+    const collabIds = (collaboratorMapIds || []).map(c => c.site_map_id)
+    if (collabIds.length > 0) {
+      query = query.or(`created_by.eq.${user.id},id.in.(${collabIds.join(',')})`)
+    } else {
+      query = query.eq('created_by', user.id)
+    }
 
     const { data, error } = await query
 

@@ -100,9 +100,17 @@ export async function POST(request: NextRequest) {
 
     const { data: storefront } = await supabase
       .from("marketplace_storefronts")
-      .select("id")
+      .select("id, accepted_seller_agreement_at")
       .eq("seller_user_id", user.id)
       .maybeSingle()
+
+    if (payload.status === "published" && !storefront?.accepted_seller_agreement_at) {
+      return jsonError({
+        status: 403,
+        code: "seller_agreement_required",
+        message: "You must accept the Marketplace Seller Agreement before publishing listings. Visit /marketplace/seller-agreement to review and accept.",
+      })
+    }
 
     const trackId = payload.trackId || null
     if (payload.productType === "digital_asset" && payload.category === "music" && !trackId) {

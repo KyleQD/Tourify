@@ -60,7 +60,7 @@ interface TopBarProps {
 // QUICK ACTION CONFIGURATION BY ROLE
 // =============================================================================
 
-const quickActions = {
+const quickActions: Record<string, { label: string; icon: any; href: string; color: string }[]> = {
   admin: [
     { label: 'New Tour', icon: Calendar, href: '/admin/tours/new', color: 'text-blue-400' },
     { label: 'Add Staff', icon: Users, href: '/admin/staff/new', color: 'text-green-400' },

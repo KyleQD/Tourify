@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -510,17 +511,16 @@ export default function ArtistsPage() {
                           <Eye className="h-4 w-4 mr-1" />
                           View
                         </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          disabled
-                          title="Edit is not implemented"
-                          className="text-slate-500 cursor-not-allowed opacity-60"
-                        >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
+                        <Link href={`/admin/dashboard/artists/${artist.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-slate-400 hover:text-white"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                        </Link>
                       </div>
                     </div>
                   </div>
@@ -657,31 +657,104 @@ export default function ArtistsPage() {
                   <TabsContent value="bookings">
                     <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
                       <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-white">Recent Bookings</CardTitle>
+                        <CardTitle className="text-lg font-semibold text-white">Event History</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="text-center py-8 text-slate-400">
-                          <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Booking history integration would be implemented here</p>
-                          <p className="text-sm">Connect to the booking management system</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                          <AdminStatCard
+                            title="Total Bookings"
+                            value={selectedArtist.stats.total_bookings}
+                            icon={Calendar}
+                            color="blue"
+                            size="default"
+                          />
+                          <AdminStatCard
+                            title="Completed Events"
+                            value={selectedArtist.stats.completed_events}
+                            icon={CheckCircle}
+                            color="green"
+                            size="default"
+                          />
+                        </div>
+                        <div className="flex flex-col items-center py-6 text-center space-y-3">
+                          <Calendar className="h-10 w-10 text-slate-500" />
+                          <p className="text-slate-400">View this artist&apos;s full event history in the Events section</p>
+                          <Link href="/admin/dashboard/events">
+                            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Go to Events
+                            </Button>
+                          </Link>
                         </div>
                       </CardContent>
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="performance">
-                    <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-semibold text-white">Performance Analytics</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-center py-8 text-slate-400">
-                          <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Performance analytics charts would be displayed here</p>
-                          <p className="text-sm">Revenue trends, audience growth, and engagement metrics</p>
-                        </div>
-                      </CardContent>
-                    </Card>
+                  <TabsContent value="performance" className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <AdminStatCard
+                        title="Completed Events"
+                        value={selectedArtist.stats.completed_events}
+                        icon={CheckCircle}
+                        color="green"
+                        size="default"
+                      />
+                      <AdminStatCard
+                        title="Total Revenue"
+                        value={`$${formatNumber(selectedArtist.stats.total_revenue)}`}
+                        icon={DollarSign}
+                        color="amber"
+                        size="default"
+                      />
+                      <AdminStatCard
+                        title="Average Rating"
+                        value={selectedArtist.stats.average_rating > 0 ? selectedArtist.stats.average_rating.toFixed(1) : 'N/A'}
+                        icon={Star}
+                        color="purple"
+                        size="default"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle className="text-lg font-semibold text-white">Audience</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Followers</span>
+                            <span className="text-white font-semibold">{formatNumber(selectedArtist.stats.followers)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Monthly Listeners</span>
+                            <span className="text-white font-semibold">{formatNumber(selectedArtist.stats.monthly_listeners)}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+                        <CardHeader>
+                          <CardTitle className="text-lg font-semibold text-white">Completion Rate</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-slate-400">Events Completed</span>
+                            <span className="text-white font-semibold">
+                              {selectedArtist.stats.total_bookings > 0
+                                ? `${Math.round((selectedArtist.stats.completed_events / selectedArtist.stats.total_bookings) * 100)}%`
+                                : 'N/A'}
+                            </span>
+                          </div>
+                          <Progress
+                            value={selectedArtist.stats.total_bookings > 0 ? (selectedArtist.stats.completed_events / selectedArtist.stats.total_bookings) * 100 : 0}
+                            className="h-3"
+                          />
+                          <p className="text-xs text-slate-500">
+                            {selectedArtist.stats.completed_events} of {selectedArtist.stats.total_bookings} bookings completed
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </TabsContent>
 
                   <TabsContent value="social">
@@ -727,11 +800,32 @@ export default function ArtistsPage() {
                       <CardHeader>
                         <CardTitle className="text-lg font-semibold text-white">Contract Management</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="text-center py-8 text-slate-400">
-                          <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>Contract management interface would be implemented here</p>
-                          <p className="text-sm">Upload, manage, and track artist contracts and agreements</p>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800/50">
+                          <div className="flex items-center space-x-3">
+                            <FileText className="h-5 w-5 text-slate-400" />
+                            <div>
+                              <p className="text-white font-medium">Contract Status</p>
+                              <p className="text-sm text-slate-400 capitalize">{selectedArtist.contract_status === 'none' ? 'No active contracts' : selectedArtist.contract_status}</p>
+                            </div>
+                          </div>
+                          <Badge className={
+                            selectedArtist.contract_status === 'active' ? 'bg-green-500/20 text-green-400 border-green-500/30' :
+                            selectedArtist.contract_status === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' :
+                            selectedArtist.contract_status === 'expired' ? 'bg-red-500/20 text-red-400 border-red-500/30' :
+                            'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                          }>
+                            {selectedArtist.contract_status === 'none' ? 'None' : selectedArtist.contract_status}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-col items-center py-4 text-center space-y-3">
+                          <p className="text-slate-400">Manage contracts and agreements for this artist in the Contracts section</p>
+                          <Link href="/admin/dashboard/contracts">
+                            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
+                              <FileText className="h-4 w-4 mr-2" />
+                              View Contracts
+                            </Button>
+                          </Link>
                         </div>
                       </CardContent>
                     </Card>

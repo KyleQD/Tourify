@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+import { getStripeOrNull } from '@/lib/stripe'
 
-const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-11-20.acacia' })
-  : null
+const stripe = getStripeOrNull()
 
 // Enhanced validation schemas
 const purchaseTicketSchema = z.object({

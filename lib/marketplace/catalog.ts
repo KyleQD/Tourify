@@ -11,6 +11,20 @@ export const MARKETPLACE_PRODUCT_TYPE = {
   physicalMerch: "physical_merch",
   service: "service",
   tip: "tip",
+  ticket: "ticket",
+  rental: "rental",
+  artOriginal: "art_original",
+  artPrint: "art_print",
+  commission: "commission",
+} as const
+
+export const MARKETPLACE_SELLER_TYPE = {
+  artist: "artist",
+  venue: "venue",
+  photographer: "photographer",
+  painter: "painter",
+  individual: "individual",
+  company: "company",
 } as const
 
 export const MARKETPLACE_CATEGORIES: MarketplaceCategoryDefinition[] = [
@@ -23,7 +37,7 @@ export const MARKETPLACE_CATEGORIES: MarketplaceCategoryDefinition[] = [
   {
     id: "photos-and-prints",
     label: "Photos & Prints",
-    productTypes: [MARKETPLACE_PRODUCT_TYPE.digitalAsset, MARKETPLACE_PRODUCT_TYPE.podPrint],
+    productTypes: [MARKETPLACE_PRODUCT_TYPE.digitalAsset, MARKETPLACE_PRODUCT_TYPE.podPrint, MARKETPLACE_PRODUCT_TYPE.artPrint],
     supportsFulfillment: true,
   },
   {
@@ -35,13 +49,37 @@ export const MARKETPLACE_CATEGORIES: MarketplaceCategoryDefinition[] = [
   {
     id: "services",
     label: "Services",
-    productTypes: [MARKETPLACE_PRODUCT_TYPE.service],
+    productTypes: [MARKETPLACE_PRODUCT_TYPE.service, MARKETPLACE_PRODUCT_TYPE.commission],
     supportsFulfillment: false,
   },
   {
     id: "support",
     label: "Support",
     productTypes: [MARKETPLACE_PRODUCT_TYPE.tip],
+    supportsFulfillment: false,
+  },
+  {
+    id: "tickets",
+    label: "Tickets",
+    productTypes: [MARKETPLACE_PRODUCT_TYPE.ticket],
+    supportsFulfillment: true,
+  },
+  {
+    id: "fine-art",
+    label: "Fine Art",
+    productTypes: [MARKETPLACE_PRODUCT_TYPE.artOriginal, MARKETPLACE_PRODUCT_TYPE.artPrint, MARKETPLACE_PRODUCT_TYPE.commission, MARKETPLACE_PRODUCT_TYPE.podPrint],
+    supportsFulfillment: true,
+  },
+  {
+    id: "photography",
+    label: "Photography",
+    productTypes: [MARKETPLACE_PRODUCT_TYPE.digitalAsset, MARKETPLACE_PRODUCT_TYPE.artPrint, MARKETPLACE_PRODUCT_TYPE.podPrint, MARKETPLACE_PRODUCT_TYPE.service],
+    supportsFulfillment: true,
+  },
+  {
+    id: "rentals",
+    label: "Rentals",
+    productTypes: [MARKETPLACE_PRODUCT_TYPE.rental],
     supportsFulfillment: false,
   },
 ]

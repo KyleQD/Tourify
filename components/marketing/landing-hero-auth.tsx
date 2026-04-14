@@ -4,7 +4,7 @@ import { Suspense } from "react"
 import { ExternalLink } from "lucide-react"
 import { TourifyAuthPortal } from "@/components/auth/tourify-auth-portal"
 
-const DEMO_URL = "https://demo.tourify.live"
+const BETA_URL = "https://demo.tourify.live"
 
 function AuthPortalFallback() {
   return (
@@ -36,19 +36,19 @@ export function LandingHeroWithAuth() {
         <TourifyAuthPortal
           defaultTab="signup"
           showSecurityFooter={false}
-          cardTitle="Get started free"
-          cardDescription="Create your account and unlock the full Tourify experience."
+          cardTitle="Create your free account"
+          cardDescription="Discover hundreds of helpful features for artist and event management."
         />
       </Suspense>
       <p className="mt-4 text-center text-sm text-slate-400">
         Want to look around first?{" "}
         <a
-          href={DEMO_URL}
+          href={BETA_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 font-medium text-purple-300 underline-offset-4 hover:text-white hover:underline"
         >
-          Try the demo
+          Try the beta today
           <ExternalLink className="h-3 w-3" aria-hidden />
         </a>
       </p>

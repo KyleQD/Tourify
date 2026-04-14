@@ -81,6 +81,8 @@ const profileFormSchema = z.object({
   showMarketplace: z.boolean().default(true),
   showPortfolio: z.boolean().default(true),
   showAchievements: z.boolean().default(true),
+  showMusicPlayer: z.boolean().default(true),
+  showJukebox: z.boolean().default(true),
   supportTitle: z
     .string()
     .max(80, {
@@ -173,6 +175,8 @@ export function ProfileSettings() {
       showMarketplace: true,
       showPortfolio: true,
       showAchievements: true,
+      showMusicPlayer: true,
+      showJukebox: true,
       supportTitle: "Support my art",
       supportMessage: "",
       tipJarUrl: "",
@@ -222,6 +226,8 @@ export function ProfileSettings() {
             showMarketplace: publicVisibility.show_marketplace ?? true,
             showPortfolio: publicVisibility.show_portfolio ?? true,
             showAchievements: publicVisibility.show_achievements ?? true,
+            showMusicPlayer: publicVisibility.show_music_player ?? true,
+            showJukebox: publicVisibility.show_jukebox ?? true,
             supportTitle: supportSettings.support_title ?? "Support my art",
             supportMessage: supportSettings.support_message ?? "",
             tipJarUrl: supportSettings.tip_jar_url ?? "",
@@ -278,6 +284,8 @@ export function ProfileSettings() {
             show_marketplace: data.showMarketplace,
             show_portfolio: data.showPortfolio,
             show_achievements: data.showAchievements,
+            show_music_player: data.showMusicPlayer,
+            show_jukebox: data.showJukebox,
           },
           support: {
             support_title: data.supportTitle,
@@ -726,6 +734,36 @@ export function ProfileSettings() {
                       <div className="space-y-0.5">
                         <FormLabel className="text-base">Show Achievements</FormLabel>
                         <FormDescription>Display badges and milestones to visitors.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="showMusicPlayer"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Music Player</FormLabel>
+                        <FormDescription>Display your uploaded music tracks on your public profile.</FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="showJukebox"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Show Jukebox</FormLabel>
+                        <FormDescription>Display your liked songs, playlists, and what you&apos;re listening to on your public profile.</FormDescription>
                       </div>
                       <FormControl>
                         <Switch checked={field.value} onCheckedChange={field.onChange} />

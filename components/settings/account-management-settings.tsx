@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from 'react'
+import { supabase } from '@/lib/supabase/client'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'

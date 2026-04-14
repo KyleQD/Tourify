@@ -45,8 +45,11 @@ interface Message {
   created_at: string
   sender?: {
     id: string
-    display_name: string
-    role: string
+    username?: string
+    full_name?: string
+    display_name?: string
+    avatar_url?: string
+    role?: string
   }
 }
 
@@ -151,12 +154,9 @@ export function MessageBoard({
 
     try {
       await createAnnouncement({
-        title: `${priority.toUpperCase()}: Quick Announcement`,
+        subject: `${priority.toUpperCase()}: Quick Announcement`,
         content: messageInput.trim(),
         priority,
-        announcementType: 'general',
-        tourId,
-        eventId,
         venueId
       })
       
@@ -313,7 +313,7 @@ export function MessageBoard({
                       <p>No messages yet. Start the conversation!</p>
                     </div>
                   ) : (
-                    channelMessages.map((message: Message) => (
+                    channelMessages.map((message: any) => (
                       <div key={message.id} className="flex space-x-3">
                         <Avatar className="h-8 w-8">
                           <AvatarFallback className="bg-slate-700 text-white text-xs">

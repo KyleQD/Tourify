@@ -1,478 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// RSS Feed Sources - Expanded Music Industry Focus with Indie & Underground
+// RSS Feed Sources — deduplicated, one entry per unique URL
 const RSS_SOURCES = [
   // Major Music Publications
-  {
-    name: 'Mixmag',
-    url: 'https://mixmag.net/feed',
-    category: 'Electronic Music',
-    priority: 1
-  },
-  {
-    name: 'Resident Advisor',
-    url: 'https://ra.co/xml/rss.xml',
-    category: 'Electronic Music',
-    priority: 1
-  },
-  {
-    name: 'Pitchfork',
-    url: 'https://pitchfork.com/feed/feed-news/rss/',
-    category: 'Music News',
-    priority: 1
-  },
-  {
-    name: 'Billboard',
-    url: 'https://www.billboard.com/feed/rss/news',
-    category: 'Music Industry',
-    priority: 1
-  },
-  {
-    name: 'Rolling Stone',
-    url: 'https://www.rollingstone.com/feed/',
-    category: 'Music & Culture',
-    priority: 1
-  },
-  {
-    name: 'NME',
-    url: 'https://www.nme.com/feed',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'Variety',
-    url: 'https://variety.com/feed/music/',
-    category: 'Music Industry',
-    priority: 1
-  },
-  {
-    name: 'Spin',
-    url: 'https://www.spin.com/feed/',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'The Guardian Music',
-    url: 'https://www.theguardian.com/music/rss',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'BBC Music',
-    url: 'https://feeds.bbci.co.uk/news/entertainment_and_arts/music/rss.xml',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'DJ Mag',
-    url: 'https://djmag.com/rss.xml',
-    category: 'Electronic Music',
-    priority: 2
-  },
-  {
-    name: 'Fact Magazine',
-    url: 'https://www.factmag.com/feed/',
-    category: 'Electronic Music',
-    priority: 2
-  },
-  {
-    name: 'The Quietus',
-    url: 'https://thequietus.com/rss',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'Clash Magazine',
-    url: 'https://www.clashmusic.com/feed',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'Drowned in Sound',
-    url: 'https://drownedinsound.com/rss',
-    category: 'Music News',
-    priority: 3
-  },
-  {
-    name: 'The Line of Best Fit',
-    url: 'https://www.thelineofbestfit.com/feed',
-    category: 'Music News',
-    priority: 2
-  },
-  {
-    name: 'Gorilla vs Bear',
-    url: 'https://gorillavsbear.net/feed/',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'Pigeons & Planes',
-    url: 'https://pigeonsandplanes.com/feed',
-    category: 'Hip Hop',
-    priority: 2
-  },
-  {
-    name: 'Complex Music',
-    url: 'https://www.complex.com/music/rss.xml',
-    category: 'Hip Hop',
-    priority: 2
-  },
-  
+  { name: 'Pitchfork', url: 'https://pitchfork.com/feed/feed-news/rss/', category: 'Music News', priority: 1 },
+  { name: 'Billboard', url: 'https://www.billboard.com/feed/rss/news', category: 'Music Industry', priority: 1 },
+  { name: 'Rolling Stone', url: 'https://www.rollingstone.com/feed/', category: 'Music & Culture', priority: 1 },
+  { name: 'Variety', url: 'https://variety.com/feed/music/', category: 'Music Industry', priority: 1 },
+  { name: 'Mixmag', url: 'https://mixmag.net/feed', category: 'Electronic Music', priority: 1 },
+  { name: 'Resident Advisor', url: 'https://ra.co/xml/rss.xml', category: 'Electronic Music', priority: 1 },
+  { name: 'NME', url: 'https://www.nme.com/feed', category: 'Music News', priority: 2 },
+  { name: 'Spin', url: 'https://www.spin.com/feed/', category: 'Music News', priority: 2 },
+  { name: 'The Guardian Music', url: 'https://www.theguardian.com/music/rss', category: 'Music News', priority: 2 },
+  { name: 'BBC Music', url: 'https://feeds.bbci.co.uk/news/entertainment_and_arts/music/rss.xml', category: 'Music News', priority: 2 },
+  { name: 'DJ Mag', url: 'https://djmag.com/rss.xml', category: 'Electronic Music', priority: 2 },
+  { name: 'Fact Magazine', url: 'https://www.factmag.com/feed/', category: 'Electronic Music', priority: 2 },
+  { name: 'The Quietus', url: 'https://thequietus.com/rss', category: 'Music News', priority: 2 },
+  { name: 'Clash Magazine', url: 'https://www.clashmusic.com/feed', category: 'Music News', priority: 2 },
+  { name: 'The Line of Best Fit', url: 'https://www.thelineofbestfit.com/feed', category: 'Music News', priority: 2 },
+
   // Indie & Underground Music
-  {
-    name: 'Stereogum',
-    url: 'https://www.stereogum.com/feed/',
-    category: 'Indie Music',
-    priority: 2
-  },
-  {
-    name: 'BrooklynVegan',
-    url: 'https://www.brooklynvegan.com/feed/',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The FADER',
-    url: 'https://www.thefader.com/feed',
-    category: 'Indie Music',
-    priority: 2
-  },
-  {
-    name: 'Consequence',
-    url: 'https://consequence.net/feed/',
-    category: 'Indie Music',
-    priority: 2
-  },
-  {
-    name: 'Alternative Press',
-    url: 'https://www.altpress.com/feed/',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'Under the Radar',
-    url: 'https://undertheradarmag.com/feed/',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'Aquarium Drunkard',
-    url: 'https://aquariumdrunkard.com/feed/',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'Gorilla vs Bear',
-    url: 'https://gorillavsbear.net/feed/',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The Line of Best Fit',
-    url: 'https://www.thelineofbestfit.com/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'DIY Magazine',
-    url: 'https://diymag.com/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The 405',
-    url: 'https://www.thefourohfive.com/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The Quietus',
-    url: 'https://thequietus.com/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'Drowned in Sound',
-    url: 'https://drownedinsound.com/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The Skinny',
-    url: 'https://www.theskinny.co.uk/music/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'Clash Magazine',
-    url: 'https://www.clashmusic.com/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The Music',
-    url: 'https://themusic.com.au/feed',
-    category: 'Indie Music',
-    priority: 3
-  },
-  {
-    name: 'The Ringer',
-    url: 'https://www.theringer.com/music/feed',
-    category: 'Indie Music',
-    priority: 2
-  },
-  
+  { name: 'Stereogum', url: 'https://www.stereogum.com/feed/', category: 'Indie Music', priority: 2 },
+  { name: 'BrooklynVegan', url: 'https://www.brooklynvegan.com/feed/', category: 'Indie Music', priority: 3 },
+  { name: 'The FADER', url: 'https://www.thefader.com/feed', category: 'Indie Music', priority: 2 },
+  { name: 'Consequence', url: 'https://consequence.net/feed/', category: 'Indie Music', priority: 2 },
+  { name: 'Alternative Press', url: 'https://www.altpress.com/feed/', category: 'Indie Music', priority: 3 },
+  { name: 'Under the Radar', url: 'https://undertheradarmag.com/feed/', category: 'Indie Music', priority: 3 },
+  { name: 'Aquarium Drunkard', url: 'https://aquariumdrunkard.com/feed/', category: 'Indie Music', priority: 3 },
+  { name: 'Gorilla vs Bear', url: 'https://gorillavsbear.net/feed/', category: 'Indie Music', priority: 3 },
+  { name: 'DIY Magazine', url: 'https://diymag.com/feed', category: 'Indie Music', priority: 3 },
+  { name: 'The Skinny', url: 'https://www.theskinny.co.uk/music/feed', category: 'Indie Music', priority: 3 },
+  { name: 'The Music', url: 'https://themusic.com.au/feed', category: 'Indie Music', priority: 3 },
+  { name: 'The Ringer', url: 'https://www.theringer.com/music/feed', category: 'Indie Music', priority: 2 },
+  { name: 'Pigeons & Planes', url: 'https://pigeonsandplanes.com/feed', category: 'Indie Music', priority: 2 },
+
   // Underground & Experimental
-  {
-    name: 'Tiny Mix Tapes',
-    url: 'https://www.tinymixtapes.com/feed',
-    category: 'Underground Music',
-    priority: 3
-  },
-  {
-    name: 'Fact Magazine',
-    url: 'https://www.factmag.com/feed/',
-    category: 'Underground Music',
-    priority: 3
-  },
-  {
-    name: 'The Wire',
-    url: 'https://www.thewire.co.uk/feed',
-    category: 'Underground Music',
-    priority: 3
-  },
-  {
-    name: 'Bandcamp Daily',
-    url: 'https://daily.bandcamp.com/feed',
-    category: 'Underground Music',
-    priority: 3
-  },
-  {
-    name: 'Noisey',
-    url: 'https://www.vice.com/en_us/rss/topic/music',
-    category: 'Underground Music',
-    priority: 2
-  },
-  {
-    name: 'Pitchfork Reviews',
-    url: 'https://pitchfork.com/feed/feed-album-reviews/rss/',
-    category: 'Underground Music',
-    priority: 2
-  },
-  {
-    name: 'The Needle Drop',
-    url: 'https://www.theneedledrop.com/feed',
-    category: 'Underground Music',
-    priority: 3
-  },
-  {
-    name: 'Sputnik Music',
-    url: 'https://www.sputnikmusic.com/rss.php',
-    category: 'Underground Music',
-    priority: 3
-  },
-  {
-    name: 'Rate Your Music',
-    url: 'https://rateyourmusic.com/rss/news',
-    category: 'Underground Music',
-    priority: 3
-  },
-  
+  { name: 'Bandcamp Daily', url: 'https://daily.bandcamp.com/feed', category: 'Underground Music', priority: 3 },
+  { name: 'Pitchfork Reviews', url: 'https://pitchfork.com/feed/feed-album-reviews/rss/', category: 'Underground Music', priority: 2 },
+  { name: 'The Wire', url: 'https://www.thewire.co.uk/feed', category: 'Underground Music', priority: 3 },
+
   // Hip-Hop & Urban
-  {
-    name: 'Complex',
-    url: 'https://www.complex.com/feed/rss',
-    category: 'Hip-Hop',
-    priority: 2
-  },
-  {
-    name: 'Hypebeast',
-    url: 'https://hypebeast.com/music/feed',
-    category: 'Hip-Hop',
-    priority: 3
-  },
-  {
-    name: 'XXL',
-    url: 'https://www.xxlmag.com/feed/',
-    category: 'Hip-Hop',
-    priority: 2
-  },
-  {
-    name: 'HotNewHipHop',
-    url: 'https://www.hotnewhiphop.com/feed/',
-    category: 'Hip-Hop',
-    priority: 3
-  },
-  {
-    name: 'Rap Radar',
-    url: 'https://rapradar.com/feed/',
-    category: 'Hip-Hop',
-    priority: 3
-  },
-  {
-    name: 'Okayplayer',
-    url: 'https://www.okayplayer.com/feed',
-    category: 'Hip-Hop',
-    priority: 3
-  },
-  {
-    name: 'The Source',
-    url: 'https://thesource.com/feed/',
-    category: 'Hip-Hop',
-    priority: 3
-  },
-  {
-    name: 'Vibe',
-    url: 'https://www.vibe.com/feed/',
-    category: 'Hip-Hop',
-    priority: 3
-  },
-  
+  { name: 'Complex', url: 'https://www.complex.com/feed/rss', category: 'Hip-Hop', priority: 2 },
+  { name: 'XXL', url: 'https://www.xxlmag.com/feed/', category: 'Hip-Hop', priority: 2 },
+  { name: 'HotNewHipHop', url: 'https://www.hotnewhiphop.com/feed/', category: 'Hip-Hop', priority: 3 },
+  { name: 'Hypebeast', url: 'https://hypebeast.com/music/feed', category: 'Hip-Hop', priority: 3 },
+  { name: 'Okayplayer', url: 'https://www.okayplayer.com/feed', category: 'Hip-Hop', priority: 3 },
+  { name: 'The Source', url: 'https://thesource.com/feed/', category: 'Hip-Hop', priority: 3 },
+  { name: 'Vibe', url: 'https://www.vibe.com/feed/', category: 'Hip-Hop', priority: 3 },
+
   // Electronic & Dance
-  {
-    name: 'Resident Advisor',
-    url: 'https://ra.co/feed',
-    category: 'Electronic Music',
-    priority: 2
-  },
-  {
-    name: 'Electronic Beats',
-    url: 'https://www.electronicbeats.net/feed/',
-    category: 'Electronic Music',
-    priority: 3
-  },
-  {
-    name: 'Mixmag',
-    url: 'https://mixmag.net/feed',
-    category: 'Electronic Music',
-    priority: 2
-  },
-  {
-    name: 'DJ Mag',
-    url: 'https://djmag.com/feed',
-    category: 'Electronic Music',
-    priority: 2
-  },
-  {
-    name: 'XLR8R',
-    url: 'https://www.xlr8r.com/feed/',
-    category: 'Electronic Music',
-    priority: 3
-  },
-  
+  { name: 'Electronic Beats', url: 'https://www.electronicbeats.net/feed/', category: 'Electronic Music', priority: 3 },
+  { name: 'XLR8R', url: 'https://www.xlr8r.com/feed/', category: 'Electronic Music', priority: 3 },
+
   // Metal & Heavy Music
-  {
-    name: 'Metal Injection',
-    url: 'https://metalinjection.net/feed',
-    category: 'Metal Music',
-    priority: 3
-  },
-  {
-    name: 'MetalSucks',
-    url: 'https://www.metalsucks.net/feed/',
-    category: 'Metal Music',
-    priority: 3
-  },
-  {
-    name: 'Lambgoat',
-    url: 'https://lambgoat.com/feed/',
-    category: 'Metal Music',
-    priority: 3
-  },
-  {
-    name: 'Metal Hammer',
-    url: 'https://www.loudersound.com/feed',
-    category: 'Metal Music',
-    priority: 2
-  },
-  {
-    name: 'Decibel Magazine',
-    url: 'https://decibelmagazine.com/feed/',
-    category: 'Metal Music',
-    priority: 3
-  },
-  {
-    name: 'Blabbermouth',
-    url: 'https://blabbermouth.net/feed',
-    category: 'Metal Music',
-    priority: 3
-  },
-  {
-    name: 'Metal Archives',
-    url: 'https://www.metal-archives.com/rss/news',
-    category: 'Metal Music',
-    priority: 3
-  },
-  
-  // Jazz & Experimental
-  {
-    name: 'JazzTimes',
-    url: 'https://jazztimes.com/feed/',
-    category: 'Jazz Music',
-    priority: 3
-  },
-  {
-    name: 'DownBeat',
-    url: 'https://downbeat.com/feed/',
-    category: 'Jazz Music',
-    priority: 3
-  },
-  {
-    name: 'All About Jazz',
-    url: 'https://www.allaboutjazz.com/feed',
-    category: 'Jazz Music',
-    priority: 3
-  },
-  {
-    name: 'Jazzwise',
-    url: 'https://www.jazzwise.com/feed',
-    category: 'Jazz Music',
-    priority: 3
-  },
-  
+  { name: 'Metal Injection', url: 'https://metalinjection.net/feed', category: 'Metal Music', priority: 3 },
+  { name: 'MetalSucks', url: 'https://www.metalsucks.net/feed/', category: 'Metal Music', priority: 3 },
+  { name: 'Metal Hammer', url: 'https://www.loudersound.com/feed', category: 'Metal Music', priority: 2 },
+  { name: 'Blabbermouth', url: 'https://blabbermouth.net/feed', category: 'Metal Music', priority: 3 },
+
+  // Jazz
+  { name: 'JazzTimes', url: 'https://jazztimes.com/feed/', category: 'Jazz Music', priority: 3 },
+  { name: 'All About Jazz', url: 'https://www.allaboutjazz.com/feed', category: 'Jazz Music', priority: 3 },
+
   // Local & Regional
-  {
-    name: 'Chicago Reader',
-    url: 'https://chicagoreader.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  },
-  {
-    name: 'LA Weekly',
-    url: 'https://www.laweekly.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  },
-  {
-    name: 'Austin Chronicle',
-    url: 'https://www.austinchronicle.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  },
-  {
-    name: 'Nashville Scene',
-    url: 'https://www.nashvillescene.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  },
-  {
-    name: 'Seattle Weekly',
-    url: 'https://www.seattleweekly.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  },
-  {
-    name: 'SF Weekly',
-    url: 'https://www.sfweekly.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  },
-  {
-    name: 'Village Voice',
-    url: 'https://www.villagevoice.com/music/feed/',
-    category: 'Local Music',
-    priority: 3
-  }
+  { name: 'Chicago Reader', url: 'https://chicagoreader.com/music/feed/', category: 'Local Music', priority: 3 },
+  { name: 'Austin Chronicle', url: 'https://www.austinchronicle.com/music/feed/', category: 'Local Music', priority: 3 },
+  { name: 'Nashville Scene', url: 'https://www.nashvillescene.com/music/feed/', category: 'Local Music', priority: 3 },
 ]
 
 interface RSSItem {
@@ -490,7 +83,7 @@ interface RSSItem {
 
 // Cache for RSS feeds to avoid hitting rate limits
 const RSS_CACHE = new Map<string, { data: RSSItem[], timestamp: number }>()
-const CACHE_DURATION = 10 * 60 * 1000 // 10 minutes
+const CACHE_DURATION = 15 * 60 * 1000 // 15 minutes
 
 function decodeXmlText(value: string) {
   return String(value || '')

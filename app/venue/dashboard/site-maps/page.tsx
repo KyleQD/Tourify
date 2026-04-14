@@ -1,0 +1,134 @@
+'use client'
+
+import React, { useState, useEffect } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Map, Eye, Calendar, Loader2, ExternalLink } from "lucide-react"
+import { VenueSiteMapViewer } from "@/components/venue/site-map-viewer"
+import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+
+interface SharedSiteMap {
+  id: string
+  name: string
+  description?: string
+  width: number
+  height: number
+  status: string
+  event_id?: string
+  tour_id?: string
+  created_at: string
+  updated_at: string
+  permissions: {
+    can_edit?: boolean
+    can_export?: boolean
+  }
+}
+
+export default function VenueSiteMapsPage() {
+  const [maps, setMaps] = useState<SharedSiteMap[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [selectedMap, setSelectedMap] = useState<SharedSiteMap | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      setIsLoading(true)
+      try {
+        const resp = await fetch('/api/site-maps/shared', { credentials: 'include' })
+        const data = await resp.json()
+        if (data.success) setMaps(data.data || [])
+      } catch {} finally {
+        setIsLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  if (selectedMap) {
+    return (
+      <VenueSiteMapViewer
+        siteMapId={selectedMap.id}
+        siteMapName={selectedMap.name}
+        canEdit={selectedMap.permissions?.can_edit || false}
+        onBack={() => setSelectedMap(null)}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
+            <Map className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Site Maps</h1>
+            <p className="text-slate-400 text-sm">View site maps shared with your venue</p>
+          </div>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <Card className="bg-slate-900/50 border-slate-700/50">
+          <CardContent className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
+          </CardContent>
+        </Card>
+      ) : maps.length === 0 ? (
+        <Card className="bg-slate-900/50 border-slate-700/50">
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
+            <div className="p-6 bg-slate-800/50 rounded-2xl">
+              <Map className="h-12 w-12 text-slate-500" />
+            </div>
+            <h3 className="text-lg font-semibold text-white">No Shared Site Maps</h3>
+            <p className="text-slate-400 max-w-sm text-center text-sm">
+              Site maps will appear here when event organizers share them with your venue.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {maps.map(map => (
+            <Card
+              key={map.id}
+              className="bg-slate-900/50 border-slate-700/50 hover:border-purple-500/40 transition-all cursor-pointer"
+              onClick={() => setSelectedMap(map)}
+            >
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-xl border border-purple-500/30">
+                      <Map className="h-5 w-5 text-purple-300" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">{map.name}</h3>
+                      {map.description && (
+                        <p className="text-sm text-slate-400 mt-0.5">{map.description}</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                        <span>{map.width} x {map.height}px</span>
+                        <span>Updated {formatSafeDate(map.updated_at)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={map.permissions?.can_edit
+                      ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+                      : "bg-green-500/20 text-green-300 border-green-500/30"
+                    }>
+                      {map.permissions?.can_edit ? 'Edit' : 'View'}
+                    </Badge>
+                    <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}

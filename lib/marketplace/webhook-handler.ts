@@ -1,4 +1,4 @@
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
 import { getFailedPaymentPatch, getPaidLifecycleTransition, getRefundPatch } from '@/lib/marketplace/order-lifecycle'
 
 export async function handleMarketplaceStripeEvent({

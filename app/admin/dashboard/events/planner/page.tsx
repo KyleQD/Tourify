@@ -43,8 +43,9 @@ import {
   Building2,
   User,
   Music,
-  Award,
-  Sparkles
+    Award,
+    Sparkles,
+    Map
 } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -83,34 +84,41 @@ const PLANNING_STEPS = [
   },
   {
     id: 3,
+    title: "Site Map & Layout",
+    subtitle: "Designing the Space",
+    icon: Map,
+    description: "Create or attach a site map to plan zones, equipment, and flow"
+  },
+  {
+    id: 4,
     title: "Ticketing & Registration",
     subtitle: "Your Audience, Secured",
     icon: Ticket,
     description: "Create ticket types, registration forms, and pricing"
   },
   {
-    id: 4,
+    id: 5,
     title: "Team & Permissions",
     subtitle: "Orchestrating Your Crew",
     icon: UserCog,
     description: "Assign roles, manage permissions, and coordinate teams"
   },
   {
-    id: 5,
+    id: 6,
     title: "Marketing & Promotion",
     subtitle: "Spreading the Word",
     icon: MegaphoneIcon,
     description: "Build campaigns, create content, and reach your audience"
   },
   {
-    id: 6,
+    id: 7,
     title: "Financials & Reporting",
     subtitle: "Keeping the Books Balanced",
     icon: BarChart3,
     description: "Track budgets, manage payments, and monitor revenue"
   },
   {
-    id: 7,
+    id: 8,
     title: "Review & Publish",
     subtitle: "Launch Sequence Engaged!",
     icon: Rocket,
@@ -248,6 +256,10 @@ interface EventPlannerData {
     type: string
   }>
   
+  // Site Map & Layout
+  siteMapName?: string
+  siteMapSize?: string
+
   // Step 3: Ticketing & Registration
   ticketTypes: Array<{
     id: string
@@ -608,30 +620,36 @@ export default function EventPlannerPage() {
                       />
                     )}
                     {currentStep === 3 && (
+                      <SiteMapLayoutStep
+                        eventData={eventData}
+                        updateEventData={updateEventData}
+                      />
+                    )}
+                    {currentStep === 4 && (
                       <TicketingStep 
                         eventData={eventData}
                         onUpdate={updateEventData}
                       />
                     )}
-                    {currentStep === 4 && (
+                    {currentStep === 5 && (
                       <TeamPermissionsStep 
                         eventData={eventData}
                         onUpdate={updateEventData}
                       />
                     )}
-                    {currentStep === 5 && (
+                    {currentStep === 6 && (
                       <MarketingPromotionStep 
                         eventData={eventData}
                         updateEventData={updateEventData}
                       />
                     )}
-                    {currentStep === 6 && (
+                    {currentStep === 7 && (
                       <FinancialsReportingStep 
                         eventData={eventData}
                         updateEventData={updateEventData}
                       />
                     )}
-                    {currentStep === 7 && (
+                    {currentStep === 8 && (
                       <ReviewPublishStep 
                         eventData={eventData}
                         updateEventData={updateEventData}
@@ -4620,5 +4638,89 @@ function EventPreviewModal({
         </div>
       </motion.div>
     </motion.div>
+  )
+}
+
+// Site Map & Layout step for event planner wizard
+function SiteMapLayoutStep({ eventData, updateEventData }: {
+  eventData: any
+  updateEventData: (updates: Partial<EventPlannerData>) => void
+}) {
+  const [hasSiteMap, setHasSiteMap] = useState(false)
+  const [siteMapName, setSiteMapName] = useState(eventData.siteMapName || '')
+  const [siteMapSize, setSiteMapSize] = useState(eventData.siteMapSize || 'medium')
+
+  const sizeOptions = [
+    { value: 'small', label: 'Small', dimensions: '800 x 600', desc: 'Club or small venue' },
+    { value: 'medium', label: 'Medium', dimensions: '1200 x 900', desc: 'Mid-size venue or outdoor area' },
+    { value: 'large', label: 'Large', dimensions: '1600 x 1200', desc: 'Large venue or festival grounds' },
+    { value: 'xlarge', label: 'Extra Large', dimensions: '2000 x 1500', desc: 'Multi-stage festival or campus' },
+  ]
+
+  return (
+    <div className="space-y-8">
+      <div className="text-center space-y-2">
+        <h2 className="text-2xl font-bold text-white">Site Map & Layout</h2>
+        <p className="text-slate-400">Plan the physical layout of your event space</p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="p-6 rounded-2xl border border-slate-700/50 bg-slate-800/30 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500">
+              <Map className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white">Create a Site Map</h3>
+              <p className="text-sm text-slate-400">You can create the site map now or come back to it later from the event detail page</p>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-slate-300">Site Map Name</Label>
+            <Input
+              value={siteMapName}
+              onChange={(e) => {
+                setSiteMapName(e.target.value)
+                updateEventData({ siteMapName: e.target.value })
+              }}
+              placeholder={`${eventData.name || 'Event'} Site Map`}
+              className="bg-slate-800/50 border-slate-700/50 text-white mt-1"
+            />
+          </div>
+
+          <div>
+            <Label className="text-slate-300 mb-3 block">Choose a Size</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {sizeOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setSiteMapSize(opt.value)
+                    updateEventData({ siteMapSize: opt.value })
+                  }}
+                  className={`flex flex-col p-4 rounded-xl border transition-all text-left ${
+                    siteMapSize === opt.value
+                      ? 'border-purple-500 bg-purple-500/20 text-white'
+                      : 'border-slate-700/50 bg-slate-800/30 text-slate-400 hover:border-slate-600'
+                  }`}
+                >
+                  <span className="font-medium text-sm">{opt.label}</span>
+                  <span className="text-xs opacity-70 mt-0.5">{opt.dimensions}</span>
+                  <span className="text-xs opacity-50 mt-1">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 rounded-xl border border-blue-500/30 bg-blue-500/10">
+          <p className="text-sm text-blue-300">
+            <strong>Tip:</strong> You can skip this step and add a site map later from the event&apos;s Site Map tab. The full interactive builder will be available there.
+          </p>
+        </div>
+      </div>
+    </div>
   )
 }

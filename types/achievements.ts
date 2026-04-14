@@ -427,6 +427,7 @@ export interface AchievementProgress {
 export interface BadgeGrantRequest {
   badge_id: string
   user_id: string
+  granted_by?: string
   granted_reason?: string
   related_project_id?: string
   related_event_id?: string

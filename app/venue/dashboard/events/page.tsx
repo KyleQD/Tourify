@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, Grid, List, Search, Plus, Music, Users, Loader2, Mic, Video } from "lucide-react"
+import { Calendar, Grid, List, Search, Plus, Music, Users, Loader2, Mic, Video, MapPin } from "lucide-react"
 import { PageHeader } from "../../components/navigation/page-header"
 import { useVenueEvents, type VenueEvent } from "../../lib/hooks/use-venue-events"
 import { useRouter } from "next/navigation"
@@ -100,9 +100,12 @@ export default function EventsPage() {
               style={{ width: `${(0 / safeCapacity) * 100}%` }}
             ></div>
           </div>
-          <div className="flex justify-between pt-2">
+          <div className="flex justify-between items-center pt-2">
             <Button variant="outline" size="sm" onClick={() => handleViewDetails(event.id)}>
               Details
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => router.push('/venue/dashboard/site-maps')} title="View Site Maps">
+              <MapPin className="h-4 w-4" />
             </Button>
             <Button size="sm" onClick={() => handleManageEvent(event.id)}>
               Manage

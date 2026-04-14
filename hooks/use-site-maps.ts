@@ -20,6 +20,9 @@ interface UseSiteMapsReturn {
   refreshSiteMaps: () => Promise<void>
   exportSiteMap: (id: string) => Promise<boolean>
   importSiteMap: (file: File, eventId?: string, tourId?: string) => Promise<SiteMap | null>
+  shareSiteMap: (id: string, options: any) => Promise<any>
+  getCollaborators: (id: string) => Promise<any[]>
+  removeCollaborator: (siteMapId: string, userId: string) => Promise<boolean>
 }
 
 export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn {
@@ -228,6 +231,51 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     return () => clearInterval(interval)
   }, [autoRefresh, refreshInterval, fetchSiteMaps])
 
+  const shareSiteMap = useCallback(async (
+    siteMapId: string,
+    target: { userId?: string; email?: string },
+    permissions: 'view' | 'edit' | 'admin' = 'view'
+  ): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/share`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ...target, permissions })
+      })
+      const result = await response.json()
+      return result.success === true
+    } catch (err) {
+      console.error('Error sharing site map:', err)
+      return false
+    }
+  }, [])
+
+  const getCollaborators = useCallback(async (siteMapId: string) => {
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/collaborators`, {
+        credentials: 'include'
+      })
+      const result = await response.json()
+      return result.success ? result.data : []
+    } catch {
+      return []
+    }
+  }, [])
+
+  const removeCollaborator = useCallback(async (siteMapId: string, userId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(
+        `/api/admin/logistics/site-maps/${siteMapId}/collaborators?userId=${userId}`,
+        { method: 'DELETE', credentials: 'include' }
+      )
+      const result = await response.json()
+      return result.success === true
+    } catch {
+      return false
+    }
+  }, [])
+
   return {
     siteMaps,
     selectedSiteMap,
@@ -239,7 +287,10 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     selectSiteMap,
     refreshSiteMaps,
     exportSiteMap,
-    importSiteMap
+    importSiteMap,
+    shareSiteMap,
+    getCollaborators,
+    removeCollaborator
   }
 }
 

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
-import Stripe from "stripe"
+import type Stripe from "stripe"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { calculateMarketplaceFeeBreakdown } from "@/lib/marketplace/fees"
 import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
-import { getMarketplaceStripe } from "@/lib/marketplace/stripe-server"
+import { getStripe } from "@/lib/stripe"
 import { marketplaceCheckoutRequestSchema } from "@tourify/api-contracts"
 
 export const dynamic = "force-dynamic"
@@ -135,6 +135,14 @@ export async function POST(request: NextRequest) {
     const subtotal = lineItems.reduce((sum, line) => sum + line.lineTotal, 0)
     const feeBreakdown = calculateMarketplaceFeeBreakdown({ subtotal })
 
+    const { data: sellerProfile } = await supabase
+      .from("profiles")
+      .select("stripe_connect_account_id")
+      .eq("id", sellerUserId)
+      .single()
+
+    const sellerStripeAccountId = sellerProfile?.stripe_connect_account_id || null
+
     const { data: order, error: orderError } = await supabase
       .from("marketplace_orders")
       .insert({
@@ -147,9 +155,9 @@ export async function POST(request: NextRequest) {
         subtotal_amount: feeBreakdown.subtotal,
         platform_fee_amount: feeBreakdown.platformFee,
         tax_amount: feeBreakdown.taxAmount,
-        total_amount: feeBreakdown.total,
+        total_amount: feeBreakdown.buyerTotal,
         shipping_address: payload.shippingAddress || null,
-        metadata: payload.metadata || {},
+        metadata: { ...(payload.metadata || {}), sellerStripeAccountId },
       })
       .select("*")
       .single()
@@ -197,10 +205,12 @@ export async function POST(request: NextRequest) {
       platform_fee_amount: feeBreakdown.platformFee,
       net_amount: feeBreakdown.sellerPayout,
       payout_status: "pending",
-      payout_provider: "manual",
+      payout_provider: sellerStripeAccountId ? "stripe_connect" : "manual",
       available_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       metadata: {
         taxAmount: feeBreakdown.taxAmount,
+        buyerTotal: feeBreakdown.buyerTotal,
+        sellerStripeAccountId,
       },
     })
     if (payoutError) {
@@ -217,18 +227,10 @@ export async function POST(request: NextRequest) {
 
     let session: Stripe.Checkout.Session
     try {
-      const stripe = getMarketplaceStripe()
-      session = await stripe.checkout.sessions.create({
-        payment_method_types: ["card", "us_bank_account"],
-        payment_method_options: {
-          us_bank_account: {
-            financial_connections: {
-              permissions: ["payment_method"],
-            },
-          },
-        },
-        mode: "payment",
-        line_items: lineItems.map(item => ({
+      const stripe = getStripe()
+
+      const checkoutLineItems = [
+        ...lineItems.map(item => ({
           quantity: item.quantity,
           price_data: {
             currency: currency.toLowerCase(),
@@ -239,6 +241,29 @@ export async function POST(request: NextRequest) {
             },
           },
         })),
+        {
+          quantity: 1,
+          price_data: {
+            currency: currency.toLowerCase(),
+            unit_amount: Math.round(feeBreakdown.platformFee * 100),
+            product_data: {
+              name: "Tourify Service Fee (10%)",
+            },
+          },
+        },
+      ]
+
+      const sessionParams: Stripe.Checkout.SessionCreateParams = {
+        payment_method_types: ["card", "us_bank_account"],
+        payment_method_options: {
+          us_bank_account: {
+            financial_connections: {
+              permissions: ["payment_method"],
+            },
+          },
+        },
+        mode: "payment",
+        line_items: checkoutLineItems,
         success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/artist/store?checkout=success&order_id=${order.id}`,
         cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/artist/store?checkout=cancelled&order_id=${order.id}`,
         metadata: {
@@ -248,7 +273,18 @@ export async function POST(request: NextRequest) {
           buyer_user_id: user.id,
         },
         customer_email: user.email || undefined,
-      })
+      }
+
+      if (sellerStripeAccountId) {
+        sessionParams.payment_intent_data = {
+          application_fee_amount: Math.round(feeBreakdown.platformFee * 100),
+          transfer_data: {
+            destination: sellerStripeAccountId,
+          },
+        }
+      }
+
+      session = await stripe.checkout.sessions.create(sessionParams)
     } catch (sessionError) {
       console.error("Failed to create Stripe checkout session", sessionError)
       await supabase.from("marketplace_payout_ledger").delete().eq("order_id", order.id)

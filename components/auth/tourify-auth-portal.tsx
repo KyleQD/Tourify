@@ -17,16 +17,9 @@ import {
   normalizePostLoginRedirect,
   normalizeUsername,
 } from "@/lib/auth/tourify-auth-helpers"
-import { ArrowRight, Building2, CheckCircle, Eye, EyeOff, Loader2, MapPin, Music, Shield, Sparkles, User } from "lucide-react"
+import { ArrowRight, CheckCircle, Eye, EyeOff, Loader2, Shield, Sparkles } from "lucide-react"
 
 type AccountType = "general" | "artist" | "venue" | "organization"
-
-const ACCOUNT_TYPE_OPTIONS: { value: AccountType; label: string; description: string; icon: typeof User }[] = [
-  { value: "general", label: "General", description: "Fan & enthusiast", icon: User },
-  { value: "artist", label: "Artist", description: "Performer & musician", icon: Music },
-  { value: "venue", label: "Venue", description: "Venue owner or manager", icon: MapPin },
-  { value: "organization", label: "Organization", description: "Label, agency, or promoter", icon: Building2 },
-]
 
 export interface TourifyAuthPortalProps {
   /** When true, read/write `?tab=` to match the selected tab (full login page). */
@@ -337,15 +330,14 @@ export function TourifyAuthPortal({
         className={`login-auth-shard bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden ${className ?? ""}`}
         style={{ clipPath: "polygon(3% 0, 100% 1%, 97% 100%, 0 96%, 1% 18%)" }}
       >
-        <CardHeader className="text-center pb-6">
-          <div className="flex justify-center mb-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-              <Sparkles className="h-6 w-6 text-white" />
+        <CardHeader className="text-center pb-4 pt-6">
+          <div className="flex justify-center mb-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+              <Sparkles className="h-5 w-5 text-white" />
             </div>
           </div>
           <CardTitle className="text-2xl text-white font-bold">{cardTitle}</CardTitle>
           <CardDescription className="text-gray-300">{cardDescription}</CardDescription>
-          <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-cyan-100">Priority Creator Access</p>
         </CardHeader>
 
         <CardContent>
@@ -521,78 +513,7 @@ export function TourifyAuthPortal({
             </TabsContent>
 
             <TabsContent value="signup" className="space-y-4 mt-6">
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
-                  onClick={() => void handleSocialSignIn("google")}
-                  disabled={isSubmitting || !!isSocialSubmitting}
-                >
-                  {isSocialSubmitting === "google" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Sign up with Google
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
-                  onClick={() => void handleSocialSignIn("apple")}
-                  disabled={isSubmitting || !!isSocialSubmitting}
-                >
-                  {isSocialSubmitting === "apple" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Sign up with Apple
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
-                  onClick={() => void handleSocialSignIn("facebook")}
-                  disabled={isSubmitting || !!isSocialSubmitting}
-                >
-                  {isSocialSubmitting === "facebook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Sign up with Facebook
-                </Button>
-              </div>
-              <div className="relative py-1">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/20" />
-                </div>
-                <div className="relative flex justify-center">
-                  <span className="bg-slate-900/80 px-3 text-xs uppercase tracking-[0.14em] text-slate-300">
-                    or create with email
-                  </span>
-                </div>
-              </div>
               <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label className="text-white font-medium">I am a...</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {ACCOUNT_TYPE_OPTIONS.map((opt) => {
-                      const Icon = opt.icon
-                      const isSelected = signUpData.accountType === opt.value
-                      return (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          disabled={isSubmitting}
-                          onClick={() => setSignUpData({ ...signUpData, accountType: opt.value })}
-                          className={`flex items-center gap-2 rounded-lg border p-2.5 text-left transition-all duration-200 ${
-                            isSelected
-                              ? "border-purple-500 bg-purple-500/20 text-white"
-                              : "border-white/15 bg-white/5 text-slate-300 hover:border-white/30 hover:bg-white/10"
-                          }`}
-                        >
-                          <Icon className={`h-4 w-4 flex-shrink-0 ${isSelected ? "text-purple-400" : "text-slate-400"}`} />
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium leading-tight">{opt.label}</p>
-                            <p className="text-[10px] leading-tight text-slate-400">{opt.description}</p>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="portal-signup-name" className="text-white font-medium">
@@ -733,6 +654,49 @@ export function TourifyAuthPortal({
                   )}
                 </Button>
               </form>
+
+              <div className="relative py-1">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/20" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-slate-900/80 px-3 text-xs uppercase tracking-[0.14em] text-slate-300">
+                    or sign up with
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  onClick={() => void handleSocialSignIn("google")}
+                  disabled={isSubmitting || !!isSocialSubmitting}
+                >
+                  {isSocialSubmitting === "google" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Sign up with Google
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  onClick={() => void handleSocialSignIn("apple")}
+                  disabled={isSubmitting || !!isSocialSubmitting}
+                >
+                  {isSocialSubmitting === "apple" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Sign up with Apple
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10"
+                  onClick={() => void handleSocialSignIn("facebook")}
+                  disabled={isSubmitting || !!isSocialSubmitting}
+                >
+                  {isSocialSubmitting === "facebook" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Sign up with Facebook
+                </Button>
+              </div>
 
               <div className="text-center text-sm text-gray-400">
                 By signing up, you agree to our{" "}

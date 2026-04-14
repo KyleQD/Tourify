@@ -365,7 +365,7 @@ export function GlobalSyncDashboard() {
                         </Badge>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-white">{announcement.title}</p>
+                        <p className="text-sm font-medium text-white">{announcement.subject}</p>
                         <p className="text-xs text-slate-400 mt-1">
                           {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
                         </p>

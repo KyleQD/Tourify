@@ -3,8 +3,6 @@
 import { BadgeCheck, Flame, Landmark, MapPinned, Radar, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-
 interface NewsFiltersProps {
   activeFacet: NewsFacet
   onFacetChange: (facet: NewsFacet) => void
@@ -18,7 +16,7 @@ const FILTERS: Array<{ value: NewsFacet; label: string; icon: LucideIcon }> = [
   { value: 'local', label: 'Local', icon: MapPinned },
   { value: 'industry', label: 'Industry', icon: Landmark },
   { value: 'gossip', label: 'Gossip', icon: Radar },
-  { value: 'verified', label: 'Verified Only', icon: BadgeCheck }
+  { value: 'verified', label: 'Verified', icon: BadgeCheck }
 ]
 
 export function NewsFilters({ activeFacet, onFacetChange }: NewsFiltersProps) {
@@ -29,20 +27,19 @@ export function NewsFilters({ activeFacet, onFacetChange }: NewsFiltersProps) {
         const isActive = activeFacet === filter.value
 
         return (
-          <Button
+          <button
             key={filter.value}
             type="button"
-            variant={isActive ? 'default' : 'outline'}
-            className={
+            className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-sm font-medium transition-all duration-200 ${
               isActive
-                ? 'rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                : 'surface-chip hover:bg-white/10'
-            }
+                ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-lg shadow-fuchsia-500/20'
+                : 'border border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:bg-white/10 hover:text-white'
+            }`}
             onClick={() => onFacetChange(filter.value)}
           >
-            <Icon className="mr-2 h-4 w-4" />
+            <Icon className="h-3.5 w-3.5" />
             {filter.label}
-          </Button>
+          </button>
         )
       })}
     </div>

@@ -74,7 +74,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function PromotionsPage() {
-  const { artistProfile } = useArtist()
+  const { profile: artistProfile } = useArtist()
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)

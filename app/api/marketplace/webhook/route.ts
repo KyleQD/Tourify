@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
-import Stripe from "stripe"
+import type Stripe from "stripe"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
-import { getMarketplaceStripe } from "@/lib/marketplace/stripe-server"
+import { getStripe } from "@/lib/stripe"
 import { handleMarketplaceStripeEvent } from "@/lib/marketplace/webhook-handler"
 
 const getWebhookSecret = () => {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get("stripe-signature")
     if (!signature) return NextResponse.json({ error: "Missing stripe signature" }, { status: 400 })
 
-    const stripe = getMarketplaceStripe()
+    const stripe = getStripe()
     let event: Stripe.Event
     try {
       event = stripe.webhooks.constructEvent(body, signature, getWebhookSecret())

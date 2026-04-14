@@ -53,6 +53,19 @@ interface DiscoverPost {
   }
 }
 
+interface DiscoverMusicTrack {
+  id: string
+  title: string
+  artist_name: string
+  artist_id?: string
+  cover_art_url?: string | null
+  file_url?: string
+  genre?: string | null
+  duration?: number | null
+  plays?: number
+  likes?: number
+}
+
 interface DiscoverResponse {
   success: boolean
   sections: {
@@ -71,6 +84,10 @@ interface DiscoverResponse {
     venues: DiscoverProfile[]
     suggestions: DiscoverProfile[]
     hire_matches: DiscoverProfile[]
+    new_music: DiscoverMusicTrack[]
+    trending_music: DiscoverMusicTrack[]
+    new_artists: DiscoverProfile[]
+    nearby_events: DiscoverEvent[]
   }
   stats: {
     trending_count: number
@@ -447,11 +464,21 @@ export async function GET(request: NextRequest) {
 
   const categories = deriveDiscoverCategories({ intent, location })
   const perCategoryLimit = Math.max(8, Math.ceil((sectionLimit * 4) / categories.length))
-  const rssPayloads = await Promise.all(
-    categories.map((category) =>
-      fetchJson(`/api/feed/rss-news?limit=${perCategoryLimit}&category=${encodeURIComponent(category)}`)
-    )
-  )
+
+  const eventsDiscoverParams = new URLSearchParams({ limit: String(sectionLimit), sortBy: 'date' })
+  if (location) eventsDiscoverParams.set('location', location)
+
+  const [rssPayloads, eventsPayload, newMusicPayload, trendingMusicPayload, suggestionsPayload] = await Promise.all([
+    Promise.all(
+      categories.map((category) =>
+        fetchJson(`/api/feed/rss-news?limit=${perCategoryLimit}&category=${encodeURIComponent(category)}`)
+      )
+    ),
+    fetchJson(`/api/events/discover?${eventsDiscoverParams.toString()}`),
+    fetchJson(`/api/feed/music?sortBy=recent&limit=${sectionLimit}`),
+    fetchJson(`/api/feed/music?sortBy=trending&limit=${sectionLimit}`),
+    authResult ? fetchJson(`/api/social/suggested?limit=${sectionLimit}`) : Promise.resolve(null),
+  ])
 
   const rssItems = dedupeRssItems(
     rssPayloads.flatMap((payload) => (Array.isArray(payload?.news) ? payload.news as RSSNewsItem[] : []))
@@ -466,7 +493,35 @@ export async function GET(request: NextRequest) {
 
   const selectedRss = (locationFilteredRss.length ? locationFilteredRss : rssItems).slice(0, sectionLimit * 4)
   const posts = normalizePostsFromRss(selectedRss).slice(0, sectionLimit)
-  const events = normalizeEventsFromRss(selectedRss).slice(0, sectionLimit)
+  const rssEvents = normalizeEventsFromRss(selectedRss)
+
+  const platformEvents = normalizeEventsFromDiscover(eventsPayload)
+  const allEvents = [...platformEvents, ...rssEvents]
+  const events = allEvents.slice(0, sectionLimit)
+  const nearbyEvents = location
+    ? platformEvents.filter(e => matchesLocation(e.venue_city, location) || matchesLocation(e.venue_state, location))
+    : platformEvents.slice(0, sectionLimit)
+
+  function normalizeMusicTracks(payload: any): DiscoverMusicTrack[] {
+    const content = Array.isArray(payload?.content) ? payload.content : []
+    return content
+      .filter((item: any) => item.metadata?.url)
+      .map((item: any) => ({
+        id: item.id,
+        title: item.title,
+        artist_name: item.author?.name || item.metadata?.artist || 'Artist',
+        artist_id: item.author?.id,
+        cover_art_url: item.cover_image || null,
+        file_url: item.metadata?.url,
+        genre: item.metadata?.genre || null,
+        duration: item.metadata?.duration || null,
+        plays: item.engagement?.views || 0,
+        likes: item.engagement?.likes || 0,
+      }))
+  }
+
+  const newMusic = normalizeMusicTracks(newMusicPayload)
+  const trendingMusic = normalizeMusicTracks(trendingMusicPayload)
 
   const peopleParams = new URLSearchParams({
     limit: String(sectionLimit * 4),
@@ -484,9 +539,16 @@ export async function GET(request: NextRequest) {
   const artists = peopleRaw.filter((profile) => profile.account_type === 'artist').slice(0, sectionLimit)
   const venues = peopleRaw.filter((profile) => profile.account_type === 'venue').slice(0, sectionLimit)
   const people = peopleRaw.slice(0, sectionLimit)
-  const suggestions = peopleRaw
-    .filter((profile) => profile.verified || profile.available_for_hire)
+
+  const suggestionsFromApi = normalizeSuggestions(suggestionsPayload)
+  const suggestions = suggestionsFromApi.length > 0
+    ? suggestionsFromApi.slice(0, sectionLimit)
+    : peopleRaw.filter((profile) => profile.verified || profile.available_for_hire).slice(0, sectionLimit)
+
+  const newArtists = artists
+    .filter((a) => a.stats.followers < 100)
     .slice(0, sectionLimit)
+
   const hireMatches = rankHireMatches({
     profiles: peopleRaw.filter((profile) => profile.account_type === 'artist' && profile.available_for_hire),
     location,
@@ -514,6 +576,10 @@ export async function GET(request: NextRequest) {
       venues,
       suggestions,
       hire_matches: hireMatches,
+      new_music: newMusic.slice(0, sectionLimit),
+      trending_music: trendingMusic.slice(0, sectionLimit),
+      new_artists: newArtists,
+      nearby_events: nearbyEvents.slice(0, sectionLimit),
     },
     stats: {
       trending_count: posts.length,

@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceRoleClient()
-    const { recipientId, content, threadId, messageType, metadata } = await request.json()
+    const { recipientId, content, threadId, messageType, metadata, taskCard } = await request.json()
 
     if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
       const canWriteThread = await hasWorkflowThreadPermission({
@@ -205,7 +205,19 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (!recipientId || !content?.trim()) {
+    // Build message content — support task card messages
+    let messageContent = content?.trim() || ''
+    if (taskCard && taskCard.title && taskCard.action_url) {
+      messageContent = `[TASK:${JSON.stringify({
+        title: taskCard.title,
+        description: taskCard.description || '',
+        action_url: taskCard.action_url,
+        action_label: taskCard.action_label || 'Go to Task',
+        is_sensitive: taskCard.is_sensitive || false,
+      })}]`
+    }
+
+    if (!recipientId || !messageContent) {
       return NextResponse.json({ 
         error: 'Recipient ID and message content are required' 
       }, { status: 400 })
@@ -250,13 +262,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to find or create conversation' }, { status: 500 })
     }
 
-    // Create the message
     const { data: message, error: messageError } = await supabase
       .from('messages')
       .insert({
         conversation_id: conversation.id,
         sender_id: user.id,
-        content: content.trim()
+        content: messageContent
       })
       .select(`
         id,

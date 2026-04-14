@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase/server'
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -27,6 +27,7 @@ interface ServiceStatus {
 const startTime = Date.now()
 
 export async function GET(request: NextRequest) {
+  const supabase = await createClient()
   const healthCheck: HealthCheck = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -34,9 +35,9 @@ export async function GET(request: NextRequest) {
     version: process.env.npm_package_version || '1.0.0',
     environment: process.env.NODE_ENV || 'development',
     services: {
-      database: await checkDatabase(),
+      database: await checkDatabase(supabase),
       redis: await checkRedis(),
-      supabase: await checkSupabase()
+      supabase: await checkSupabase(supabase)
     },
     metrics: {
       memoryUsage: process.memoryUsage(),
@@ -58,11 +59,10 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(healthCheck, { status: statusCode })
 }
 
-async function checkDatabase(): Promise<ServiceStatus> {
+async function checkDatabase(supabase: Awaited<ReturnType<typeof createClient>>): Promise<ServiceStatus> {
   try {
     const start = Date.now()
     
-    // Simple query to test database connectivity
     const { error } = await supabase
       .from('profiles')
       .select('count')
@@ -127,11 +127,10 @@ async function checkRedis(): Promise<ServiceStatus> {
   }
 }
 
-async function checkSupabase(): Promise<ServiceStatus> {
+async function checkSupabase(supabase: Awaited<ReturnType<typeof createClient>>): Promise<ServiceStatus> {
   try {
     const start = Date.now()
     
-    // Test Supabase connection
     const { data, error } = await supabase.auth.getSession()
 
     const responseTime = Date.now() - start
@@ -159,7 +158,7 @@ async function checkSupabase(): Promise<ServiceStatus> {
 // Readiness probe endpoint
 export async function HEAD(request: NextRequest) {
   try {
-    // Quick health check without detailed metrics
+    const supabase = await createClient()
     const { error } = await supabase.auth.getSession()
     
     if (error) {

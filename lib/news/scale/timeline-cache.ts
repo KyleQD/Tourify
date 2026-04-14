@@ -7,7 +7,7 @@ interface TimelineCacheEntry {
 }
 
 const TIMELINE_CACHE = new Map<string, TimelineCacheEntry>()
-const TIMELINE_CACHE_TTL_MS = 60 * 1000
+const TIMELINE_CACHE_TTL_MS = 3 * 60 * 1000
 
 function getCacheKey(params: { userId?: string; facet: string; query?: string }): string {
   const userKey = params.userId || 'anonymous'

@@ -58,11 +58,27 @@ const STATUS_COLORS: Record<string, string> = {
   failed: "bg-red-600/20 text-red-400 border-red-600/30",
 }
 
+interface StripeConnectStatus {
+  connected: boolean
+  accountId: string | null
+  chargesEnabled: boolean
+  payoutsEnabled: boolean
+  detailsSubmitted: boolean
+}
+
 export default function PaymentsPage() {
-  const { artistProfile } = useArtist()
+  const { profile: artistProfile } = useArtist()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
+  const [connectStatus, setConnectStatus] = useState<StripeConnectStatus>({
+    connected: false,
+    accountId: null,
+    chargesEnabled: false,
+    payoutsEnabled: false,
+    detailsSubmitted: false,
+  })
+  const [isConnectLoading, setIsConnectLoading] = useState(false)
   const [summary, setSummary] = useState<PayoutSummary>({
     totalEarnings: 0,
     pendingPayouts: 0,
@@ -72,7 +88,74 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     loadTransactions()
+    loadConnectStatus()
   }, [artistProfile])
+
+  async function loadConnectStatus() {
+    try {
+      const res = await fetch("/api/stripe/connect", { credentials: "include" })
+      if (res.ok) {
+        const data = await res.json()
+        setConnectStatus(data)
+      }
+    } catch {}
+  }
+
+  async function handleConnectStripe() {
+    setIsConnectLoading(true)
+    try {
+      if (!connectStatus.connected) {
+        const createRes = await fetch("/api/stripe/connect", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "create_account" }),
+        })
+        if (!createRes.ok) {
+          const body = await createRes.json()
+          if (body.accountId) {
+            // Account already exists, proceed to onboarding
+          } else {
+            toast.error(body.error || "Failed to create Stripe account")
+            return
+          }
+        }
+      }
+
+      const linkRes = await fetch("/api/stripe/connect", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "onboarding_link" }),
+      })
+      const linkData = await linkRes.json()
+      if (linkData.url) {
+        window.location.href = linkData.url
+      } else {
+        toast.error(linkData.error || "Failed to generate onboarding link")
+      }
+    } catch {
+      toast.error("Failed to connect Stripe account")
+    } finally {
+      setIsConnectLoading(false)
+    }
+  }
+
+  async function openStripeDashboard() {
+    try {
+      const res = await fetch("/api/stripe/connect", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dashboard_link" }),
+      })
+      const data = await res.json()
+      if (data.url) window.open(data.url, "_blank")
+      else toast.error(data.error || "Failed to open dashboard")
+    } catch {
+      toast.error("Failed to open Stripe dashboard")
+    }
+  }
 
   async function loadTransactions() {
     setIsLoading(true)
@@ -157,23 +240,88 @@ export default function PaymentsPage() {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
-              <Button
-                className="bg-purple-600 hover:bg-purple-700 rounded-xl"
-                onClick={() => {
-                  window.open("https://connect.stripe.com/setup", "_blank")
-                  toast.info("Opening Stripe Connect setup...")
-                }}
-              >
-                <CreditCard className="h-4 w-4 mr-2" />
-                Stripe Connect Setup
-                <ExternalLink className="h-3 w-3 ml-1" />
-              </Button>
+              {connectStatus.chargesEnabled ? (
+                <Button
+                  className="bg-green-600 hover:bg-green-700 rounded-xl"
+                  onClick={openStripeDashboard}
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Stripe Dashboard
+                  <ExternalLink className="h-3 w-3 ml-1" />
+                </Button>
+              ) : (
+                <Button
+                  className="bg-purple-600 hover:bg-purple-700 rounded-xl"
+                  onClick={handleConnectStripe}
+                  disabled={isConnectLoading}
+                >
+                  <CreditCard className="h-4 w-4 mr-2" />
+                  {isConnectLoading
+                    ? "Connecting..."
+                    : connectStatus.connected && !connectStatus.detailsSubmitted
+                      ? "Complete Stripe Setup"
+                      : "Connect Stripe Account"}
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto p-8 space-y-8">
+        {/* Stripe Connect Status */}
+        {!connectStatus.chargesEnabled && (
+          <Card className="bg-gradient-to-r from-purple-900/40 to-pink-900/40 border-purple-500/20 rounded-xl">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-purple-500/20 rounded-xl">
+                  <CreditCard className="h-6 w-6 text-purple-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white">
+                    {connectStatus.connected ? "Complete your Stripe setup" : "Connect your Stripe account"}
+                  </h3>
+                  <p className="text-sm text-slate-300 mt-1">
+                    Connect your Stripe account to receive direct payments when fans purchase your music.
+                    Tourify adds a 10% service fee on top of your price -- you keep 100% of what you set.
+                  </p>
+                  <Button
+                    className="mt-3 bg-purple-600 hover:bg-purple-700 rounded-full px-6"
+                    onClick={handleConnectStripe}
+                    disabled={isConnectLoading}
+                  >
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    {isConnectLoading ? "Setting up..." : "Set up Stripe Connect"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {connectStatus.chargesEnabled && (
+          <Card className="bg-green-900/20 border-green-500/20 rounded-xl">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="p-2 bg-green-500/20 rounded-lg">
+                <Wallet className="h-5 w-5 text-green-400" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-green-300">Stripe Connected</p>
+                <p className="text-xs text-green-400/70">Payments and payouts are active. Fans pay your listed price + 10% Tourify service fee.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-green-500/30 text-green-300 hover:bg-green-500/10 rounded-full"
+                onClick={openStripeDashboard}
+              >
+                View Dashboard
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl shadow-lg">

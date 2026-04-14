@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/hooks/use-toast"
 
 interface AdminThread {
   id: string
@@ -16,6 +17,7 @@ interface AdminThread {
 }
 
 export default function MessagesPage() {
+  const { toast } = useToast()
   const [threads, setThreads] = useState<AdminThread[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -70,7 +72,7 @@ export default function MessagesPage() {
         throw new Error(payload.error || "Failed to send broadcast")
 
       setMessage("")
-      alert(`Broadcast queued: ${payload.broadcastId}`)
+      toast({ title: "Broadcast Queued", description: `Your broadcast has been sent (ID: ${payload.broadcastId})` })
     } catch (broadcastError) {
       setError(broadcastError instanceof Error ? broadcastError.message : "Failed to send broadcast")
     } finally {

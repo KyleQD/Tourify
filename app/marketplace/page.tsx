@@ -18,7 +18,7 @@ interface MarketplaceDiscoverItem {
   marketplace_listing_variants?: Array<{ id: string; title: string; price: number }>
 }
 
-const categories = ["all", "music", "photos-and-prints", "merch", "services", "support"]
+const categories = ["all", "music", "photos-and-prints", "merch", "services", "tickets", "fine-art", "photography", "rentals", "support"]
 
 function getApiErrorMessage(payload: any, fallback: string) {
   if (typeof payload?.error === "string") return payload.error
@@ -102,7 +102,7 @@ export default function MarketplacePage() {
             <p className="text-xs text-emerald-300">Showing storefront for @{sellerUsername}</p>
           ) : null}
           <p className="text-sm text-slate-300">
-            Discover music, stems, beats, prints, photo downloads, merch, and creative services from artists.
+            Discover music, art, photography, tickets, merch, rentals, and creative services from creators and venues.
           </p>
         </header>
 

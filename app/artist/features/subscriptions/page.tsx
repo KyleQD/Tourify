@@ -35,6 +35,8 @@ interface SubscriptionTier {
   subscriber_count: number
   status: "active" | "draft" | "archived"
   created_at: string
+  stripe_product_id: string | null
+  stripe_price_id: string | null
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -50,7 +52,7 @@ const TIER_ICONS = [
 ]
 
 export default function SubscriptionsPage() {
-  const { artistProfile } = useArtist()
+  const { profile: artistProfile } = useArtist()
   const [tiers, setTiers] = useState<SubscriptionTier[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
@@ -94,6 +96,8 @@ export default function SubscriptionsPage() {
         subscriber_count: row.subscriber_count ?? 0,
         status: row.status ?? "active",
         created_at: row.created_at,
+        stripe_product_id: row.stripe_product_id ?? null,
+        stripe_price_id: row.stripe_price_id ?? null,
       }))
 
       setTiers(mapped)
@@ -137,6 +141,25 @@ export default function SubscriptionsPage() {
     setShowCreateDialog(true)
   }
 
+  async function syncTierToStripe(tierId: string) {
+    try {
+      const res = await fetch("/api/subscriptions/tiers/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tierId }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        console.error("Stripe sync failed:", data.error)
+        toast.error("Tier saved, but Stripe sync failed. You can retry from the tier card.")
+        return
+      }
+      toast.success("Tier synced to Stripe")
+    } catch {
+      toast.error("Tier saved, but Stripe sync failed.")
+    }
+  }
+
   async function handleSave() {
     if (!formData.name || !formData.price) {
       toast.error("Name and price are required")
@@ -157,6 +180,8 @@ export default function SubscriptionsPage() {
         status: formData.status,
       }
 
+      let savedTierId: string
+
       if (editingTier) {
         const { error } = await supabase
           .from("artist_subscription_tiers")
@@ -164,14 +189,22 @@ export default function SubscriptionsPage() {
           .eq("id", editingTier.id)
 
         if (error) throw error
+        savedTierId = editingTier.id
         toast.success("Tier updated")
       } else {
-        const { error } = await supabase
+        const { data: inserted, error } = await supabase
           .from("artist_subscription_tiers")
           .insert(payload)
+          .select("id")
+          .single()
 
         if (error) throw error
+        savedTierId = inserted.id
         toast.success("Tier created")
+      }
+
+      if (formData.status === "active") {
+        await syncTierToStripe(savedTierId)
       }
 
       setShowCreateDialog(false)
@@ -361,6 +394,29 @@ export default function SubscriptionsPage() {
                       ${(tier.price * tier.subscriber_count).toFixed(2)}/
                       {tier.interval === "monthly" ? "mo" : "yr"}
                     </span>
+                  </div>
+                  <div className="pt-2 flex items-center justify-between text-xs">
+                    {tier.stripe_price_id ? (
+                      <span className="text-green-400 flex items-center gap-1">
+                        <CreditCard className="h-3 w-3" />
+                        Synced to Stripe
+                      </span>
+                    ) : (
+                      <span className="text-yellow-400 flex items-center gap-1">
+                        <CreditCard className="h-3 w-3" />
+                        Not synced
+                      </span>
+                    )}
+                    {tier.status === "active" && !tier.stripe_price_id && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-purple-400 hover:text-purple-300 text-xs h-6 px-2"
+                        onClick={() => syncTierToStripe(tier.id).then(loadTiers)}
+                      >
+                        Sync Now
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>

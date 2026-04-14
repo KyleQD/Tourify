@@ -19,7 +19,10 @@ import {
   Clock,
   Check,
   CheckCheck,
-  Loader2
+  Loader2,
+  ExternalLink,
+  Shield,
+  ClipboardCheck,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
@@ -61,6 +64,32 @@ interface Conversation {
     created_at: string
     sender_id: string
   }
+}
+
+interface TaskCardData {
+  title: string
+  description?: string
+  actionUrl?: string
+  actionLabel?: string
+  isSensitive?: boolean
+}
+
+function parseTaskCard(content: string): TaskCardData | null {
+  if (!content.startsWith('[TASK:')) return null
+  try {
+    const jsonStr = content.slice(6, content.lastIndexOf(']'))
+    const parsed = JSON.parse(jsonStr)
+    if (parsed.title && parsed.action_url) {
+      return {
+        title: parsed.title,
+        description: parsed.description,
+        actionUrl: parsed.action_url,
+        actionLabel: parsed.action_label,
+        isSensitive: parsed.is_sensitive,
+      }
+    }
+  } catch { /* not a task card */ }
+  return null
 }
 
 export default function MessagesPage() {
@@ -155,7 +184,7 @@ export default function MessagesPage() {
     try {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, username, display_name, avatar_url')
+        .select('id, username, full_name, avatar_url')
         .eq('id', senderId)
         .single()
 
@@ -163,7 +192,7 @@ export default function MessagesPage() {
         setMessages(prev =>
           prev.map(msg =>
             msg.sender_id === senderId && msg.sender.username === 'Loading...'
-              ? { ...msg, sender: { ...profile } }
+              ? { ...msg, sender: { id: profile.id, username: profile.username, full_name: profile.full_name, avatar_url: profile.avatar_url } }
               : msg
           )
         )
@@ -470,6 +499,7 @@ export default function MessagesPage() {
                     <div className="space-y-4">
                       {messages.map((message) => {
                         const isOwnMessage = message.sender_id === user?.id
+                        const taskCard = parseTaskCard(message.content)
                         
                         return (
                           <div
@@ -487,13 +517,41 @@ export default function MessagesPage() {
                                   </Avatar>
                                 )}
                                 <div className="flex-1">
-                                  <div className={`p-3 rounded-2xl ${
-                                    isOwnMessage 
-                                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
-                                      : 'bg-slate-700 text-white'
-                                  }`}>
-                                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                                  </div>
+                                  {taskCard ? (
+                                    <div className={`p-3 rounded-2xl border ${taskCard.isSensitive ? 'border-amber-500/30 bg-amber-500/5' : 'border-purple-500/30 bg-purple-500/5'}`}>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <ClipboardCheck className={`h-4 w-4 ${taskCard.isSensitive ? 'text-amber-400' : 'text-purple-400'}`} />
+                                        <span className="text-xs font-medium text-slate-300">Task Assignment</span>
+                                        {taskCard.isSensitive && (
+                                          <Badge className="bg-amber-500/20 text-amber-400 text-[10px] px-1.5 py-0">
+                                            <Shield className="h-2.5 w-2.5 mr-0.5" /> Sensitive
+                                          </Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-sm font-semibold text-white">{taskCard.title}</p>
+                                      {taskCard.description && (
+                                        <p className="text-xs text-slate-400 mt-1">{taskCard.description}</p>
+                                      )}
+                                      {taskCard.actionUrl && (
+                                        <Button
+                                          size="sm"
+                                          onClick={() => window.location.href = taskCard.actionUrl!}
+                                          className="mt-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white text-xs h-7"
+                                        >
+                                          <ExternalLink className="h-3 w-3 mr-1" />
+                                          {taskCard.actionLabel || 'Go to Task'}
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <div className={`p-3 rounded-2xl ${
+                                      isOwnMessage 
+                                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white' 
+                                        : 'bg-slate-700 text-white'
+                                    }`}>
+                                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                                    </div>
+                                  )}
                                   <p className="text-xs text-gray-400 mt-1 text-right">
                                     {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                                   </p>

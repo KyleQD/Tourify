@@ -1,6 +1,12 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
+import { createBrowserClient } from "@supabase/ssr"
+
+const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"

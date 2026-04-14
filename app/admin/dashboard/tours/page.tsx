@@ -148,23 +148,30 @@ export default function ToursPage() {
     }
   }
 
-  // Logistics status component for tours
   const TourLogisticsStatus = ({ tour }: { tour: any }) => {
     const calculateLogisticsProgress = () => {
-      const logistics = tour.logistics || {}
       let completed = 0
       let total = 0
-      
-      if (logistics.transportation) { total++; if (logistics.transportation !== 'pending') completed++ }
-      if (logistics.accommodation) { total++; if (logistics.accommodation !== 'pending') completed++ }
-      if (logistics.equipment) { total++; if (logistics.equipment !== 'pending') completed++ }
-      if (logistics.crew) { total++; if (logistics.crew > 0) completed++ }
-      
+      const transport = tour.transportation || tour.logistics?.transportation
+      const accommodation = tour.accommodation || tour.logistics?.accommodation
+      const equipment = tour.equipment_requirements || tour.logistics?.equipment
+      const crew = tour.crew_size || tour.logistics?.crew
+
+      if (transport) { total++; if (transport !== 'pending' && transport !== '') completed++ }
+      if (accommodation) { total++; if (accommodation !== 'pending' && accommodation !== '') completed++ }
+      if (equipment) { total++; if (equipment !== 'pending' && equipment !== '') completed++ }
+      if (crew) { total++; if (Number(crew) > 0) completed++ }
+
       return total > 0 ? Math.round((completed / total) * 100) : 0
     }
 
     const progress = calculateLogisticsProgress()
     const status = progress === 100 ? 'Complete' : progress > 50 ? 'In Progress' : 'Not Started'
+
+    const transport = tour.transportation || tour.logistics?.transportation || 'Pending'
+    const accommodation = tour.accommodation || tour.logistics?.accommodation || 'Pending'
+    const equipment = tour.equipment_requirements || tour.logistics?.equipment || 'Pending'
+    const crew = tour.crew_size || tour.logistics?.crew || 0
 
     return (
       <div className="mt-4 space-y-3">
@@ -188,33 +195,32 @@ export default function ToursPage() {
           </Link>
         </div>
         
-        {/* Logistics breakdown */}
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center space-x-2">
             <Truck className="h-3 w-3 text-blue-400" />
             <span className="text-slate-400">Transport</span>
-            <span className={`${tour.logistics?.transportation === 'confirmed' ? 'text-green-400' : 'text-slate-500'}`}>
-              {tour.logistics?.transportation || 'Pending'}
+            <span className={`${transport !== 'Pending' ? 'text-green-400' : 'text-slate-500'}`}>
+              {transport}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <Hotel className="h-3 w-3 text-green-400" />
             <span className="text-slate-400">Accommodation</span>
-            <span className={`${tour.logistics?.accommodation === 'confirmed' ? 'text-green-400' : 'text-slate-500'}`}>
-              {tour.logistics?.accommodation || 'Pending'}
+            <span className={`${accommodation !== 'Pending' ? 'text-green-400' : 'text-slate-500'}`}>
+              {accommodation}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <Headphones className="h-3 w-3 text-purple-400" />
             <span className="text-slate-400">Equipment</span>
-            <span className={`${tour.logistics?.equipment === 'confirmed' ? 'text-green-400' : 'text-slate-500'}`}>
-              {tour.logistics?.equipment || 'Pending'}
+            <span className={`${equipment !== 'Pending' ? 'text-green-400' : 'text-slate-500'}`}>
+              {equipment}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <Users className="h-3 w-3 text-orange-400" />
             <span className="text-slate-400">Crew</span>
-            <span className="text-white">{tour.logistics?.crew || 0}</span>
+            <span className="text-white">{crew}</span>
           </div>
         </div>
       </div>
@@ -313,9 +319,11 @@ export default function ToursPage() {
                 <Eye className="h-4 w-4 mr-2" />
                 Manage Tour
               </Button>
-              <Button variant="ghost" size="sm">
-                <Edit className="h-4 w-4" />
-              </Button>
+              <Link href={`/admin/dashboard/tours/${tour.id}`}>
+                <Button variant="ghost" size="sm">
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </Link>
             </div>
           </div>
 

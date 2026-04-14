@@ -35,7 +35,7 @@ export function useRSSNews(options: UseRSSNewsOptions = {}) {
     category,
     source,
     autoRefresh = false,
-    refreshInterval = 5 * 60 * 1000 // 5 minutes
+    refreshInterval = 15 * 60 * 1000 // 15 minutes
   } = options
 
   const [news, setNews] = useState<RSSNewsItem[]>([])

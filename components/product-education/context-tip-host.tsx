@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { useProductEducation } from "./product-education-context"
 
 export function ContextTipHost() {
-  const pathname = usePathname()
   const { dismissContextTip, snoozeContextTip, openLearnMoreForActiveTip, activeContextTip } =
     useProductEducation()
 

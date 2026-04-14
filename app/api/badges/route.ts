@@ -55,16 +55,54 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { badge_id, user_id, granted_reason, related_project_id, related_event_id, related_collaboration_id, expires_at } = body
 
-    // Grant badge
+    if (!badge_id) {
+      return NextResponse.json({ error: 'badge_id is required' }, { status: 400 })
+    }
+
+    const recipientId = user_id || user.id
+    const grantedByOther = user_id && user_id !== user.id
+
     const userBadge = await achievementService.grantBadge({
       badge_id,
-      user_id: user_id || user.id,
+      user_id: recipientId,
+      granted_by: grantedByOther ? user.id : undefined,
       granted_reason,
       related_project_id,
       related_event_id,
       related_collaboration_id,
       expires_at
     })
+
+    if (grantedByOther) {
+      try {
+        const { data: grantor } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single()
+
+        const { data: badge } = await supabase
+          .from('badges')
+          .select('name')
+          .eq('id', badge_id)
+          .single()
+
+        await supabase.from('notifications').insert({
+          user_id: recipientId,
+          type: 'badge_granted',
+          title: 'New Badge Received!',
+          content: `${grantor?.full_name || 'A manager'} awarded you the "${badge?.name || 'badge'}" badge${granted_reason ? `: ${granted_reason}` : '.'}`,
+          metadata: {
+            badge_id,
+            granted_by: user.id,
+            granted_reason,
+            user_badge_id: userBadge?.id,
+          },
+        })
+      } catch (notifyError) {
+        console.warn('Failed to notify badge recipient:', notifyError)
+      }
+    }
 
     return NextResponse.json({ 
       message: 'Badge granted successfully',
@@ -76,5 +114,37 @@ export async function POST(request: NextRequest) {
       { error: 'Failed to grant badge' },
       { status: 500 }
     )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const { user_badge_id, is_visible } = body
+
+    if (!user_badge_id) {
+      return NextResponse.json({ error: 'user_badge_id is required' }, { status: 400 })
+    }
+
+    const { data, error } = await supabase
+      .from('user_badges')
+      .update({ metadata: { is_visible: is_visible !== false } })
+      .eq('id', user_badge_id)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return NextResponse.json({ success: true, user_badge: data })
+  } catch (error) {
+    console.error('Error updating badge visibility:', error)
+    return NextResponse.json({ error: 'Failed to update badge visibility' }, { status: 500 })
   }
 } 
