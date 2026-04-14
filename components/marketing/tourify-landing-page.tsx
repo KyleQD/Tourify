@@ -150,34 +150,71 @@ export function TourifyLandingPage() {
         <section className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
           {/* Top row — logo + auth portal */}
           <div id="get-started" className="grid scroll-mt-20 items-start gap-8 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] lg:gap-12">
-            <div className="flex flex-col justify-center gap-6">
+            <div className="flex flex-col justify-center gap-8 lg:gap-10">
               <TourifyLogo variant="white" size="xl" className="!h-auto w-full max-w-[32rem] drop-shadow-xl" />
-              <div className="max-w-xl space-y-3">
-                <p className="text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl">
-                  Join the open beta — free early access
-                </p>
-                <p className="text-pretty text-base leading-relaxed text-slate-300 sm:text-lg">
-                  Create your account to try Tourify before general release. No credit card — just the full product
-                  experience while we ship new features every week.
-                </p>
-                <p className="text-sm text-slate-400">
-                  <a
-                    href="#get-started"
-                    className="font-medium text-purple-300 underline-offset-4 transition-colors hover:text-white hover:underline"
-                  >
-                    Sign up free on the right
-                  </a>
-                  {" · "}
-                  <a
-                    href={BETA_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 font-medium text-purple-300 underline-offset-4 transition-colors hover:text-white hover:underline"
-                  >
-                    Or explore the demo
-                    <ExternalLink className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
-                  </a>
-                </p>
+              <div className="relative max-w-md lg:max-w-lg">
+                <div
+                  className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-gradient-to-br from-white/[0.08] via-white/[0.04] to-transparent p-6 shadow-[0_28px_90px_-28px_rgba(0,0,0,0.65)] backdrop-blur-md sm:p-7"
+                  aria-labelledby="hero-beta-heading"
+                >
+                  <div
+                    className="pointer-events-none absolute -right-24 -top-24 h-44 w-44 rounded-full bg-purple-500/25 blur-3xl"
+                    aria-hidden
+                  />
+                  <div
+                    className="pointer-events-none absolute -bottom-20 -left-20 h-36 w-36 rounded-full bg-cyan-500/15 blur-3xl"
+                    aria-hidden
+                  />
+
+                  <div className="relative flex flex-col gap-5">
+                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-purple-400/30 bg-purple-950/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-purple-100/95 shadow-inner shadow-purple-950/40">
+                      <Sparkles className="h-3.5 w-3.5 shrink-0 text-cyan-300" aria-hidden />
+                      Open beta
+                    </div>
+
+                    <div className="space-y-3">
+                      <h2
+                        id="hero-beta-heading"
+                        className="text-balance text-2xl font-bold leading-tight tracking-tight text-white sm:text-[1.65rem] sm:leading-snug lg:text-3xl lg:leading-tight"
+                      >
+                        Join the open beta with{" "}
+                        <span className="bg-gradient-to-r from-purple-200 via-fuchsia-200 to-cyan-200 bg-clip-text text-transparent">
+                          free early access
+                        </span>
+                      </h2>
+                      <p className="text-pretty text-[15px] leading-relaxed text-slate-200/95 sm:text-base sm:leading-relaxed">
+                        Create your account to try Tourify before general release.{" "}
+                        <span className="font-medium text-white">No credit card</span>
+                        {" — "}full product access while we ship new features every week.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-2.5 pt-0.5 sm:flex-row sm:flex-wrap sm:items-stretch">
+                      <a
+                        href="#get-started"
+                        className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full border border-white/25 bg-white/12 px-5 py-2.5 text-center text-sm font-semibold text-white shadow-lg shadow-purple-950/50 transition hover:border-white/40 hover:bg-white/[0.18] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/90 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:flex-none sm:justify-center"
+                      >
+                        Sign up free
+                        <ArrowRight className="h-4 w-4 shrink-0 opacity-90" aria-hidden />
+                      </a>
+                      <a
+                        href={BETA_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.03] px-5 py-2.5 text-center text-sm font-medium text-slate-100 transition hover:border-white/22 hover:bg-white/[0.08] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 sm:flex-none sm:justify-center"
+                      >
+                        Explore the demo
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-200" aria-hidden />
+                      </a>
+                    </div>
+
+                    <p className="border-t border-white/[0.06] pt-4 text-xs leading-relaxed text-slate-400">
+                      Prefer the form? Use{" "}
+                      <span className="font-medium text-slate-300">Create your free account</span> on the right — same
+                      signup, zero friction.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             <div className="w-full">
