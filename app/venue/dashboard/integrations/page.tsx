@@ -2,15 +2,13 @@
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Check, ExternalLink, Plus, Search } from "lucide-react"
-import { useRouter } from "next/navigation"
-
 export default function IntegrationsPage() {
-  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
 
   // Mock data for integrations
@@ -136,6 +134,14 @@ export default function IntegrationsPage() {
 
   return (
     <div className="space-y-6 pb-20">
+      <Alert className="border-amber-500/40 bg-amber-500/10 text-amber-100">
+        <AlertTitle>Demo preview</AlertTitle>
+        <AlertDescription>
+          Connections and status on this page are static sample data for UI exploration. They are not live
+          integrations. Use Settings → Integrations for real social connections where available.
+        </AlertDescription>
+      </Alert>
+
       <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold break-words">Integrations</h1>

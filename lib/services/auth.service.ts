@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
+import { normalizeAccountTypeForProfile } from '@/lib/auth/normalize-account-type'
 
 export interface SignupData {
   email: string
@@ -59,7 +60,8 @@ export class AuthService {
       const metadata: any = {}
       if (data.full_name) metadata.full_name = data.full_name
       if (data.username) metadata.username = data.username
-      if (data.account_type) metadata.account_type = data.account_type
+      if (data.account_type)
+        metadata.account_type = normalizeAccountTypeForProfile(data.account_type)
       if (data.organization) metadata.organization = data.organization
       if (data.role) metadata.role = data.role
       if (data.enable_mfa !== undefined) metadata.enable_mfa = data.enable_mfa

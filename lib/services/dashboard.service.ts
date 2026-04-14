@@ -51,6 +51,42 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   }
 }
 
+/** Sum engagement fields without loading every post in one response (keeps deploy / mobile fast). */
+async function sumPostEngagementForUser(userId: string): Promise<{ likes: number; shares: number; views: number }> {
+  const pageSize = 500
+  const maxRows = 25_000
+  let offset = 0
+  let likes = 0
+  let shares = 0
+  let views = 0
+
+  while (offset < maxRows) {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('likes_count, shares_count, views_count')
+      .eq('user_id', userId)
+      .order('id', { ascending: true })
+      .range(offset, offset + pageSize - 1)
+
+    if (error) {
+      console.warn('[DashboardService] posts engagement batch failed:', error.message)
+      break
+    }
+    if (!data?.length) break
+
+    for (const row of data) {
+      likes += row.likes_count || 0
+      shares += row.shares_count || 0
+      views += row.views_count || 0
+    }
+
+    if (data.length < pageSize) break
+    offset += pageSize
+  }
+
+  return { likes, shares, views }
+}
+
 export class DashboardService {
   private static async getUserEventCount(userId: string): Promise<number> {
     // events table may have organizer_id or user_id depending on the migration state
@@ -109,20 +145,19 @@ export class DashboardService {
 
   static async getDashboardStats(userId: string): Promise<DashboardStats> {
     return safeQuery(async () => {
-      const [postsResult, followersResult, eventCountResult] = await Promise.allSettled([
-        supabase
-          .from('posts')
-          .select('likes_count, shares_count, views_count')
-          .eq('user_id', userId),
+      const [engagementResult, followersResult, eventCountResult] = await Promise.allSettled([
+        sumPostEngagementForUser(userId),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
         this.getUserEventCount(userId),
       ])
 
-      const posts = postsResult.status === 'fulfilled' ? (postsResult.value.data ?? []) : []
-      const likes = posts.reduce((t, p) => t + (p.likes_count || 0), 0)
-      const shares = posts.reduce((t, p) => t + (p.shares_count || 0), 0)
-      const views = posts.reduce((t, p) => t + (p.views_count || 0), 0)
-      const followers = followersResult.status === 'fulfilled' ? (followersResult.value.count ?? 0) : 0
+      const postTotals =
+        engagementResult.status === 'fulfilled' ? engagementResult.value : { likes: 0, shares: 0, views: 0 }
+      const { likes, shares, views } = postTotals
+      const followers =
+        followersResult.status === 'fulfilled' && !followersResult.value.error
+          ? (followersResult.value.count ?? 0)
+          : 0
       const events = eventCountResult.status === 'fulfilled' ? eventCountResult.value : 0
 
       const engagement = followers > 0 ? Math.min(100, Math.round(((likes + shares) / followers) * 10)) : 0

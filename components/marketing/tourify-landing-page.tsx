@@ -150,8 +150,35 @@ export function TourifyLandingPage() {
         <section className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
           {/* Top row — logo + auth portal */}
           <div id="get-started" className="grid scroll-mt-20 items-start gap-8 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] lg:gap-12">
-            <div className="flex flex-col justify-center">
+            <div className="flex flex-col justify-center gap-6">
               <TourifyLogo variant="white" size="xl" className="!h-auto w-full max-w-[32rem] drop-shadow-xl" />
+              <div className="max-w-xl space-y-3">
+                <p className="text-balance text-xl font-semibold tracking-tight text-white sm:text-2xl">
+                  Join the open beta — free early access
+                </p>
+                <p className="text-pretty text-base leading-relaxed text-slate-300 sm:text-lg">
+                  Create your account to try Tourify before general release. No credit card — just the full product
+                  experience while we ship new features every week.
+                </p>
+                <p className="text-sm text-slate-400">
+                  <a
+                    href="#get-started"
+                    className="font-medium text-purple-300 underline-offset-4 transition-colors hover:text-white hover:underline"
+                  >
+                    Sign up free on the right
+                  </a>
+                  {" · "}
+                  <a
+                    href={BETA_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-medium text-purple-300 underline-offset-4 transition-colors hover:text-white hover:underline"
+                  >
+                    Or explore the demo
+                    <ExternalLink className="h-3 w-3 shrink-0 opacity-70" aria-hidden />
+                  </a>
+                </p>
+              </div>
             </div>
             <div className="w-full">
               <LandingHeroWithAuth />

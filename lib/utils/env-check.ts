@@ -7,7 +7,6 @@ export function warnMissingEnv(): void {
   ]
   const missing = required.filter((k) => !process.env[k])
   if (missing.length > 0) {
-    // eslint-disable-next-line no-console
     console.warn('[env-check] Missing env vars:', missing.join(', '))
   }
 }

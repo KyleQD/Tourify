@@ -277,13 +277,10 @@ export default function DashboardPage() {
         
         if (!dashboardUserId) return
         
-        // Add timeout to prevent hanging
-        const statsPromise = DashboardService.getDashboardStats(dashboardUserId)
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Dashboard stats timeout')), 5000)
-        )
-        
-        const stats = await Promise.race([statsPromise, timeoutPromise]) as any
+        // Load stats without an aggressive client timeout: a 5s race was firing on
+        // production (slow networks / large post history) while Supabase was still OK,
+        // which showed misleading fallback numbers and the red error banner.
+        const stats = await DashboardService.getDashboardStats(dashboardUserId)
         setDashboardData({
           stats: {
             likes: stats.likes || 0,

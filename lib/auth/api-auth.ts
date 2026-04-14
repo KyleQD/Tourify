@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 import { agentSessionLogServer } from '@/lib/debug/agent-session-log'
+import { profileIndicatesAdminAccess } from '@/lib/auth/admin-profile-gates'
 import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 function parseAuthFromRequestCookies(request: NextRequest) {
@@ -96,7 +97,7 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
         .maybeSingle(),
       supabase
         .from('profiles')
-        .select('id, account_type, role, account_settings')
+        .select('id, account_type, role, account_settings, is_admin')
         .eq('id', user.id)
         .limit(1)
         .maybeSingle(),
@@ -105,17 +106,9 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
     const organizerAccount = orgResult.status === 'fulfilled' ? orgResult.value.data : null
     const adminProfile = profileResult.status === 'fulfilled' ? profileResult.value.data : null
 
-    const hasLegacyOrganizerData = Boolean(
-      adminProfile?.account_settings?.organizer_data?.organization_name ||
-      adminProfile?.account_settings?.organizer_accounts?.length
+    const hasOrganizerAccess = Boolean(
+      organizerAccount || profileIndicatesAdminAccess(adminProfile),
     )
-    const hasAdminProfile =
-      adminProfile?.account_type === 'admin' ||
-      adminProfile?.account_type === 'organizer' ||
-      adminProfile?.account_type === 'organization' ||
-      adminProfile?.role === 'admin'
-
-    const hasOrganizerAccess = Boolean(organizerAccount || hasLegacyOrganizerData || hasAdminProfile)
     // #region agent log
     agentSessionLogServer({
       hypothesisId: 'H3',
@@ -123,8 +116,7 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
       message: 'organizer permission flags',
       data: {
         hasOrganizerRow: Boolean(organizerAccount),
-        hasLegacyOrganizerData,
-        hasAdminProfile,
+        profileGrantsAdmin: profileIndicatesAdminAccess(adminProfile),
         accountType: adminProfile?.account_type ?? null,
       },
     })

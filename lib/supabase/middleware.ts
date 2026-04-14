@@ -1,7 +1,10 @@
 import { createServerClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '../database.types'
 import { parseUserFromCookieNameValueList } from '@/lib/supabase/tourify-session-cookie'
+
+export type MiddlewareSupabase = SupabaseClient<Database>
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -84,12 +87,12 @@ export async function updateSession(request: NextRequest) {
       console.log(`[Middleware] User ID: ${finalUser?.id || 'none'}`)
     }
 
-    return { supabaseResponse, user: finalUser }
+    return { supabaseResponse, user: finalUser, supabase }
   } catch (error) {
     console.error('[Middleware] Error in updateSession:', error)
     
     if (isDev) console.log('[Middleware] Exception occurred, trying manual fallback...')
     const fallbackUser = parseAuthFromCookies(request)
-    return { supabaseResponse, user: fallbackUser }
+    return { supabaseResponse, user: fallbackUser, supabase }
   }
 } 

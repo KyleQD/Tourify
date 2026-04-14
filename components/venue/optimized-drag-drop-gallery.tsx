@@ -11,7 +11,7 @@ interface GalleryItem {
 }
 import { ConfirmDialog } from "./confirm-dialog"
 import { GalleryItem } from "./gallery-item"
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 
 interface OptimizedDragDropGalleryProps {
   items: GalleryItem[]

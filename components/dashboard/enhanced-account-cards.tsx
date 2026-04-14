@@ -49,8 +49,16 @@ export function EnhancedAccountCards() {
   useEffect(() => {
     const loadAccountCards = async () => {
       try {
-        // Get real metrics for all accounts
-        const accountMetrics = await DashboardService.getAccountMetrics(accounts)
+        const metricsTimeoutMs = 45_000
+        const accountMetrics = await Promise.race([
+          DashboardService.getAccountMetrics(accounts),
+          new Promise<Awaited<ReturnType<typeof DashboardService.getAccountMetrics>>>((resolve) => {
+            setTimeout(() => {
+              console.warn('[EnhancedAccountCards] getAccountMetrics timed out — using empty metrics')
+              resolve([])
+            }, metricsTimeoutMs)
+          }),
+        ])
         
                 const cards: AccountCard[] = accounts.map(account => {
           const isCurrent = currentAccount?.profile_id === account.profile_id

@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
+import { profileIndicatesAdminAccess } from '@/lib/auth/admin-profile-gates'
+import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user } = await updateSession(request)
+  const { supabaseResponse, user, supabase } = await updateSession(request)
   const { pathname } = request.nextUrl
 
   const authRoutes = [
@@ -84,26 +86,42 @@ export async function middleware(request: NextRequest) {
 
   if (user && pathname.startsWith('/admin')) {
     try {
-      const { createClient } = await import('@/lib/supabase/server')
-      const supabase = await createClient()
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role, account_type, account_settings')
+        .select('role, account_type, account_settings, is_admin')
         .eq('id', user.id)
         .single()
 
-      const hasAdminRole = profile?.role === 'admin' || profile?.account_type === 'admin'
-      const hasOrganizerAccounts =
-        Array.isArray(profile?.account_settings?.organizer_accounts) &&
-        profile.account_settings.organizer_accounts.length > 0
-      const hasLegacyOrganizerData =
-        !!profile?.account_settings?.organizer_data?.organization_name
-
-      if (!hasAdminRole && !hasOrganizerAccounts && !hasLegacyOrganizerData) {
+      if (!profileIndicatesAdminAccess(profile)) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch {
       // On error, allow through -- individual API routes have their own guards
+    }
+  }
+
+  if (user && pathnameRequiresArtistAccount(pathname)) {
+    try {
+      const [{ data: artistProfile }, { data: accountProfile }] = await Promise.all([
+        supabase.from('artist_profiles').select('id').eq('user_id', user.id).limit(1).maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('account_type')
+          .eq('id', user.id)
+          .limit(1)
+          .maybeSingle(),
+      ])
+
+      const hasArtistSurface =
+        Boolean(artistProfile?.id) || accountProfile?.account_type === 'artist'
+
+      if (!hasArtistSurface) {
+        const redirectUrl = new URL('/dashboard', request.url)
+        redirectUrl.searchParams.set('error', 'artist-account-required')
+        return NextResponse.redirect(redirectUrl)
+      }
+    } catch {
+      // Allow through; pages may still gate UX
     }
   }
 

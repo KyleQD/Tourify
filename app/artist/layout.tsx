@@ -7,6 +7,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { MobileArtistNav } from "@/components/artist/mobile-artist-nav"
 import { ArtistProvider } from "@/contexts/artist-context"
 import { useRouteAccountSync } from "@/hooks/use-route-account-sync"
+import { pathnameRequiresArtistAccount } from "@/lib/artist/protected-routes"
 
 function ArtistLayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -15,7 +16,7 @@ function ArtistLayoutContent({ children }: { children: ReactNode }) {
   
   // Check if this is a public artist profile (e.g., /artist/felix)
   // Exclude known dashboard routes
-  const isDashboardRoute = pathname.match(/^\/artist\/(dashboard|feed|music|content|events|profile|settings|business|community|features|epk)/)
+  const isDashboardRoute = pathnameRequiresArtistAccount(pathname)
   const isPublicProfile = pathname.match(/^\/artist\/[^\/]+$/) && !isDashboardRoute
   
   // For public profiles, don't show sidebar

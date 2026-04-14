@@ -1,7 +1,7 @@
 import { calculateMarketplaceFeeBreakdown } from "../fees"
 
 describe("marketplace fee breakdown", () => {
-  it("calculates subtotal, platform fee, payout, and total", () => {
+  it("calculates subtotal, platform fee on top, seller payout, and buyer total", () => {
     const breakdown = calculateMarketplaceFeeBreakdown({
       subtotal: 100,
       taxAmount: 8.25,
@@ -10,9 +10,10 @@ describe("marketplace fee breakdown", () => {
 
     expect(breakdown.subtotal).toBe(100)
     expect(breakdown.platformFee).toBe(15)
-    expect(breakdown.sellerPayout).toBe(85)
+    expect(breakdown.sellerPayout).toBe(100)
     expect(breakdown.taxAmount).toBe(8.25)
     expect(breakdown.total).toBe(108.25)
+    expect(breakdown.buyerTotal).toBe(123.25)
   })
 
   it("guards invalid values and clamps platform fee", () => {
@@ -31,6 +32,7 @@ describe("marketplace fee breakdown", () => {
       platformFeePercentage: 2,
     })
     expect(overHundred.platformFee).toBe(50)
-    expect(overHundred.sellerPayout).toBe(0)
+    expect(overHundred.sellerPayout).toBe(50)
+    expect(overHundred.buyerTotal).toBe(100)
   })
 })
