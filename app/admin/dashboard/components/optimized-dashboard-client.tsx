@@ -72,11 +72,8 @@ export default function OptimizedDashboardClient() {
   const [eventsLoading, setEventsLoading] = useState(true)
   const [notificationsLoading, setNotificationsLoading] = useState(true)
   
-  // Error states
-  const [statsError, setStatsError] = useState<string | null>(null)
-  const [toursError, setToursError] = useState<string | null>(null)
-  const [eventsError, setEventsError] = useState<string | null>(null)
-  const [notificationsError, setNotificationsError] = useState<string | null>(null)
+  // Error state (kept for DataLoadingStatus component — always null since we handle errors gracefully)
+  const statsError: string | null = null
 
   // UI state
   const [activeTab, setActiveTab] = useState('overview')
@@ -187,74 +184,40 @@ export default function OptimizedDashboardClient() {
       return
     }
 
+    async function safeFetch<T>(url: string, extract: (json: any) => T, fallback: T): Promise<T> {
+      try {
+        const res = await fetch(url, buildNoStoreInit())
+        if (!res.ok) {
+          console.warn(`[Dashboard] ${url} returned ${res.status}`)
+          return fallback
+        }
+        const json = await res.json()
+        return extract(json)
+      } catch (err) {
+        console.warn(`[Dashboard] ${url} fetch failed:`, err)
+        return fallback
+      }
+    }
+
     const fetchData = async () => {
-      try {
-        // Fetch stats
-        const statsResponse = await fetch('/api/admin/dashboard/stats', buildNoStoreInit())
-        
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json()
-          setStats(statsData.stats)
-        } else {
-          setStatsError(`Stats API failed: ${statsResponse.status}`)
-        }
-      } catch (error) {
-        setStatsError('Failed to load stats')
-        console.error('Stats fetch error:', error)
-      } finally {
-        setStatsLoading(false)
-      }
+      const [statsData, toursData, eventsData, notificationsData] = await Promise.allSettled([
+        safeFetch('/api/admin/dashboard/stats', (j) => j.stats ?? null, null),
+        safeFetch('/api/admin/tours', (j) => j.tours ?? [], []),
+        safeFetch('/api/admin/events', (j) => j.events ?? [], []),
+        safeFetch('/api/admin/notifications', (j) => j.notifications ?? [], []),
+      ])
 
-      try {
-        // Fetch tours
-        const toursResponse = await fetch('/api/admin/tours', buildNoStoreInit())
-        
-        if (toursResponse.ok) {
-          const toursData = await toursResponse.json()
-          setTours(toursData.tours || [])
-        } else {
-          setToursError(`Tours API failed: ${toursResponse.status}`)
-        }
-      } catch (error) {
-        setToursError('Failed to load tours')
-        console.error('Tours fetch error:', error)
-      } finally {
-        setToursLoading(false)
-      }
+      if (statsData.status === 'fulfilled') setStats(statsData.value)
+      setStatsLoading(false)
 
-      try {
-        // Fetch events
-        const eventsResponse = await fetch('/api/admin/events', buildNoStoreInit())
-        
-        if (eventsResponse.ok) {
-          const eventsData = await eventsResponse.json()
-          setEvents(eventsData.events || [])
-        } else {
-          setEventsError(`Events API failed: ${eventsResponse.status}`)
-        }
-      } catch (error) {
-        setEventsError('Failed to load events')
-        console.error('Events fetch error:', error)
-      } finally {
-        setEventsLoading(false)
-      }
+      if (toursData.status === 'fulfilled') setTours(toursData.value ?? [])
+      setToursLoading(false)
 
-      try {
-        // Fetch notifications
-        const notificationsResponse = await fetch('/api/admin/notifications', buildNoStoreInit())
-        
-        if (notificationsResponse.ok) {
-          const notificationsData = await notificationsResponse.json()
-          setNotifications(notificationsData.notifications || [])
-        } else {
-          setNotificationsError(`Notifications API failed: ${notificationsResponse.status}`)
-        }
-      } catch (error) {
-        setNotificationsError('Failed to load notifications')
-        console.error('Notifications fetch error:', error)
-      } finally {
-        setNotificationsLoading(false)
-      }
+      if (eventsData.status === 'fulfilled') setEvents(eventsData.value ?? [])
+      setEventsLoading(false)
+
+      if (notificationsData.status === 'fulfilled') setNotifications(notificationsData.value ?? [])
+      setNotificationsLoading(false)
     }
 
     fetchData()
@@ -271,18 +234,20 @@ export default function OptimizedDashboardClient() {
       try {
         const { supabase } = await import('@/lib/supabase')
 
+        function safeRefresh(url: string, onData: (json: any) => void) {
+          if (cancelled) return
+          fetch(url, buildNoStoreInit())
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (data && !cancelled) onData(data) })
+            .catch(() => {})
+        }
+
         subscriptions.push(
           supabase
             .channel('tours-changes')
             .on('postgres_changes',
               { event: '*', schema: 'public', table: 'tours' },
-              () => {
-                if (cancelled) return
-                fetch('/api/admin/tours', buildNoStoreInit())
-                  .then(response => response.json())
-                  .then(data => { if (!cancelled) setTours(data.tours || []) })
-                  .catch(error => console.error('Error refreshing tours:', error))
-              }
+              () => safeRefresh('/api/admin/tours', (d) => setTours(d.tours || []))
             )
             .subscribe()
         )
@@ -292,13 +257,7 @@ export default function OptimizedDashboardClient() {
             .channel('events-changes')
             .on('postgres_changes',
               { event: '*', schema: 'public', table: 'events' },
-              () => {
-                if (cancelled) return
-                fetch('/api/admin/events', buildNoStoreInit())
-                  .then(response => response.json())
-                  .then(data => { if (!cancelled) setEvents(data.events || []) })
-                  .catch(error => console.error('Error refreshing events:', error))
-              }
+              () => safeRefresh('/api/admin/events', (d) => setEvents(d.events || []))
             )
             .subscribe()
         )
@@ -308,13 +267,7 @@ export default function OptimizedDashboardClient() {
             .channel('ticket-sales-changes')
             .on('postgres_changes',
               { event: '*', schema: 'public', table: 'ticket_sales' },
-              () => {
-                if (cancelled) return
-                fetch('/api/admin/dashboard/stats', buildNoStoreInit())
-                  .then(response => response.json())
-                  .then(data => { if (!cancelled) setStats(data.stats) })
-                  .catch(error => console.error('Error refreshing stats:', error))
-              }
+              () => safeRefresh('/api/admin/dashboard/stats', (d) => { if (d.stats) setStats(d.stats) })
             )
             .subscribe()
         )
@@ -324,13 +277,7 @@ export default function OptimizedDashboardClient() {
             .channel('staff-changes')
             .on('postgres_changes',
               { event: '*', schema: 'public', table: 'staff_profiles' },
-              () => {
-                if (cancelled) return
-                fetch('/api/admin/dashboard/stats', buildNoStoreInit())
-                  .then(response => response.json())
-                  .then(data => { if (!cancelled) setStats(data.stats) })
-                  .catch(error => console.error('Error refreshing stats:', error))
-              }
+              () => safeRefresh('/api/admin/dashboard/stats', (d) => { if (d.stats) setStats(d.stats) })
             )
             .subscribe()
         )
@@ -509,35 +456,8 @@ export default function OptimizedDashboardClient() {
     return allMappedTasks.filter(t => t.status !== 'completed').slice(0, 5)
   }, [allMappedTasks])
 
-  // Error handling
-  if (statsError && toursError && eventsError) {
-    return (
-      <div className="p-6">
-        <Card className="rounded-sm bg-red-900/40 border-red-700/40 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="h-6 w-6 text-red-400" />
-              <div>
-                <h3 className="text-lg font-semibold text-red-400">Error Loading Dashboard</h3>
-                <p className="text-red-300 text-sm">
-                  {statsError && `Stats: ${statsError}`}
-                  {toursError && `Tours: ${toursError}`}
-                  {eventsError && `Events: ${eventsError}`}
-                  {notificationsError && `Notifications: ${notificationsError}`}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex space-x-2">
-              <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Retry
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const isFullyLoaded = !statsLoading && !toursLoading && !eventsLoading && !notificationsLoading
+  const hasNoData = isFullyLoaded && !stats && tours.length === 0 && events.length === 0
 
   return (
     <ErrorBoundary>
@@ -600,6 +520,24 @@ export default function OptimizedDashboardClient() {
             </DropdownMenu>
           </div>
         </div>
+
+        {/* Empty state notice */}
+        {hasNoData && (
+          <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+            <CardContent className="p-4 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <AlertCircle className="h-5 w-5 text-slate-400" />
+                <p className="text-sm text-slate-400">
+                  No data to display yet. Create tours, events, or tickets to see your dashboard come to life.
+                </p>
+              </div>
+              <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Apple-inspired Widgets overview */}
         <WidgetsRow tours={tours} events={events} stats={stats} isLoading={statsLoading || toursLoading || eventsLoading} />

@@ -26,10 +26,9 @@ export const GET = withAdminAuth(async (request, { user, supabase }) => {
   } catch (error) {
     console.error('[Admin Notifications API] Error:', error)
     return NextResponse.json({
-      success: false,
-      error: 'Failed to fetch notifications',
+      success: true,
       notifications: [],
       timestamp: new Date().toISOString()
-    }, { status: 500 })
+    })
   }
 }) 

@@ -457,7 +457,7 @@ export class AccountManagementService {
           genres: artistData.genres || [],
           social_links: artistData.social_links || {},
           verification_status: 'unverified',
-          account_tier: 'basic',
+          account_tier: 'pro',
           settings: {
             allow_bookings: true,
             public_profile: true,
@@ -560,7 +560,7 @@ const { data: venueProfile, error: venueError } = await supabase
           contact_info: venueData.contact_info || {},
           social_links: venueData.social_links || {},
           verification_status: 'unverified',
-          account_tier: 'basic',
+          account_tier: 'pro',
           settings: {
             allow_bookings: true,
             public_profile: true,

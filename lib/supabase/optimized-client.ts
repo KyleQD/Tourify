@@ -9,19 +9,25 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Enhanced configuration for real-time communications
+function getSafeStorage() {
+  if (typeof window === 'undefined') return undefined
+  try {
+    const probe = '__tourify_probe__'
+    window.localStorage.setItem(probe, '1')
+    window.localStorage.removeItem(probe)
+    return window.localStorage
+  } catch {
+    return undefined
+  }
+}
+
 const optimizedClientConfig = {
   auth: {
-    // Optimize auth for faster token refresh
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
     flowType: 'pkce' as const,
-    
-    // Reduce token refresh frequency for better performance
-    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
-    
-    // Custom headers for better debugging
+    storage: getSafeStorage(),
     headers: {
       'X-Client-Info': 'tourify-admin-optimized'
     }

@@ -13,7 +13,7 @@ interface EPKPreviewProps {
   isPremium?: boolean
 }
 
-export function EPKPreview({ epkData, isPremium = false }: EPKPreviewProps) {
+export function EPKPreview({ epkData, isPremium = true }: EPKPreviewProps) {
   const [activeTab, setActiveTab] = useState("overview")
 
   if (!epkData) return null

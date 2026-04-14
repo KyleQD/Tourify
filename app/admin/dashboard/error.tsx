@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { AlertCircle, RefreshCw } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AlertCircle, RefreshCw, ShieldAlert } from 'lucide-react'
+import { isStorageSecurityError } from '@/lib/utils/is-storage-security-error'
 
 interface ErrorProps {
   error: Error & { digest?: string }
@@ -11,8 +12,9 @@ interface ErrorProps {
 }
 
 export default function Error({ error, reset }: ErrorProps) {
+  const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
+
   useEffect(() => {
-    // Log the error to an error reporting service
     console.error('Admin Dashboard Error:', error)
   }, [error])
 
@@ -24,22 +26,42 @@ export default function Error({ error, reset }: ErrorProps) {
       </div>
       <Card className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/20 bg-white/10 shadow-2xl shadow-purple-900/20 backdrop-blur-2xl">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
-        <CardHeader className="text-center">
+        <CardHeader className="relative text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/20">
-            <AlertCircle className="h-6 w-6 text-rose-300" />
+            {isPrivacyError ? (
+              <ShieldAlert className="h-6 w-6 text-amber-300" />
+            ) : (
+              <AlertCircle className="h-6 w-6 text-rose-300" />
+            )}
           </div>
-          <CardTitle className="text-white">Something went wrong!</CardTitle>
+          <CardTitle className="text-white">
+            {isPrivacyError ? "Browser privacy conflict" : "Something went wrong!"}
+          </CardTitle>
+          <CardDescription className="text-slate-300">
+            {isPrivacyError
+              ? "Your browser's privacy settings are blocking features this page needs to load."
+              : "We apologize for the inconvenience. Please try again."}
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-slate-300">
-            We apologize for the inconvenience. Please try again.
-          </p>
-          {error.message && (
-            <div className="rounded-xl border border-white/10 bg-slate-950/30 p-3">
-              <p className="break-all font-mono text-xs text-slate-200">
-                {error.message}
-              </p>
+        <CardContent className="relative space-y-4">
+          {isPrivacyError ? (
+            <div className="space-y-2 text-sm text-slate-200">
+              <p>Try one of the following:</p>
+              <ul className="list-disc space-y-1 pl-5 text-slate-300">
+                <li>Disable strict tracking protection for this site</li>
+                <li>Allow cookies for <span className="font-medium text-white">tourify.live</span></li>
+                <li>Exit private/incognito browsing mode</li>
+                <li>Use a different browser (Chrome, Firefox, Edge)</li>
+              </ul>
             </div>
+          ) : (
+            error.message && (
+              <div className="rounded-xl border border-white/10 bg-slate-950/30 p-3">
+                <p className="break-all font-mono text-xs text-slate-200">
+                  {error.message}
+                </p>
+              </div>
+            )
           )}
           <div className="flex flex-col space-y-2">
             <Button 
@@ -61,4 +83,4 @@ export default function Error({ error, reset }: ErrorProps) {
       </Card>
     </div>
   )
-} 
+}

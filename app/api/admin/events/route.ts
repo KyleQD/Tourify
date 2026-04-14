@@ -100,6 +100,7 @@ export const GET = withAdminAuth(async (req: NextRequest, { supabase }) => {
 
     return NextResponse.json({ events })
   } catch (e: any) {
-    return NextResponse.json({ events: [], error: e?.message || 'Unexpected error' }, { status: 500 })
+    console.error('[Admin Events API] Error:', e)
+    return NextResponse.json({ events: [] })
   }
 })

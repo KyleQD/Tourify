@@ -5,23 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, RefreshCw, ShieldAlert } from "lucide-react"
-
-function isStorageSecurityError(error: unknown): boolean {
-  if (!error) return false
-  const e = error as { name?: string; message?: string; cause?: unknown }
-  const raw = `${e?.name ?? ""} ${e?.message ?? ""} ${String(e?.cause ?? "")} ${String(error)}`
-  const msg = raw.toLowerCase().replace(/\u00a0/g, ' ').replace(/\u202f/g, ' ')
-  return (
-    e?.name === "SecurityError" ||
-    e?.name === "NS_ERROR_DOM_SECURITY_ERR" ||
-    msg.includes("operation is insecure") ||
-    msg.includes("securityerror") ||
-    msg.includes("access is denied") ||
-    msg.includes("the operation is not allowed") ||
-    msg.includes("failed to read the \"cookie\"") ||
-    msg.includes("failed to read the \"localstorage\"")
-  )
-}
+import { isStorageSecurityError } from "@/lib/utils/is-storage-security-error"
 
 export default function DashboardError({
   error,

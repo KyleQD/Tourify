@@ -1,8 +1,10 @@
 "use client"
 
+import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, ShieldAlert } from "lucide-react"
+import { isStorageSecurityError } from "@/lib/utils/is-storage-security-error"
 
 export default function GlobalError({
   error,
@@ -11,6 +13,8 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
+
   return (
     <html lang="en">
       <body className="bg-slate-950">
@@ -24,18 +28,38 @@ export default function GlobalError({
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent" />
             <CardHeader className="relative space-y-1 text-center">
               <div className="flex items-center space-x-2 mb-4">
-                <AlertCircle className="h-8 w-8 text-rose-300" />
+                {isPrivacyError ? (
+                  <ShieldAlert className="h-8 w-8 text-amber-300" />
+                ) : (
+                  <AlertCircle className="h-8 w-8 text-rose-300" />
+                )}
               </div>
-              <CardTitle className="text-2xl text-white">Something went wrong</CardTitle>
+              <CardTitle className="text-2xl text-white">
+                {isPrivacyError ? "Browser privacy conflict" : "Something went wrong"}
+              </CardTitle>
               <CardDescription className="text-slate-300">
-                We apologize for the inconvenience. Please try again.
+                {isPrivacyError
+                  ? "Your browser's privacy settings are blocking features this page needs to load."
+                  : "We apologize for the inconvenience. Please try again."}
               </CardDescription>
             </CardHeader>
             
             <CardContent className="relative flex flex-col items-center text-center">
-              <div className="mt-2 rounded-xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-200">
-                {error.message || "An unexpected error occurred"}
-              </div>
+              {isPrivacyError ? (
+                <div className="space-y-2 text-sm text-slate-200 text-left w-full">
+                  <p>Try one of the following:</p>
+                  <ul className="list-disc space-y-1 pl-5 text-slate-300">
+                    <li>Disable strict tracking protection for this site</li>
+                    <li>Allow cookies for <span className="font-medium text-white">tourify.live</span></li>
+                    <li>Exit private/incognito browsing mode</li>
+                    <li>Use a different browser (Chrome, Firefox, Edge)</li>
+                  </ul>
+                </div>
+              ) : (
+                <div className="mt-2 rounded-xl border border-white/10 bg-slate-950/30 p-3 text-sm text-slate-200">
+                  {error.message || "An unexpected error occurred"}
+                </div>
+              )}
             </CardContent>
             
             <CardFooter className="relative flex justify-center">
@@ -61,4 +85,4 @@ export default function GlobalError({
       </body>
     </html>
   )
-} 
+}

@@ -86,20 +86,24 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
   try {
     const supabase = createServiceClient()
 
-    const { data: organizerAccount } = await supabase
-      .from('organizer_accounts')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle()
+    const [orgResult, profileResult] = await Promise.allSettled([
+      supabase
+        .from('organizer_accounts')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from('profiles')
+        .select('id, account_type, role, account_settings')
+        .eq('id', user.id)
+        .limit(1)
+        .maybeSingle(),
+    ])
 
-    const { data: adminProfile } = await supabase
-      .from('profiles')
-      .select('id, account_type, role, is_admin, account_settings')
-      .eq('id', user.id)
-      .limit(1)
-      .maybeSingle()
+    const organizerAccount = orgResult.status === 'fulfilled' ? orgResult.value.data : null
+    const adminProfile = profileResult.status === 'fulfilled' ? profileResult.value.data : null
 
     const hasLegacyOrganizerData = Boolean(
       adminProfile?.account_settings?.organizer_data?.organization_name ||
@@ -109,8 +113,7 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
       adminProfile?.account_type === 'admin' ||
       adminProfile?.account_type === 'organizer' ||
       adminProfile?.account_type === 'organization' ||
-      adminProfile?.role === 'admin' ||
-      adminProfile?.is_admin === true
+      adminProfile?.role === 'admin'
 
     const hasOrganizerAccess = Boolean(organizerAccount || hasLegacyOrganizerData || hasAdminProfile)
     // #region agent log

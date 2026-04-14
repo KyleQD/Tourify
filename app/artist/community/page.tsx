@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
   Users, 
   MessageSquare, 
@@ -17,29 +16,36 @@ import {
   Filter,
   Plus,
   TrendingUp,
-  Clock,
   UserPlus,
   Zap,
-  Globe,
   Star,
   Calendar,
-  Bell,
-  FolderOpen,
-  GitBranch
 } from "lucide-react"
-import { SimpleCollaborationHub } from "@/components/collaboration/simple-collaboration-hub"
-// import { EnhancedCollaborationHub } from "@/components/collaboration/enhanced-collaboration-hub"
-// import { RealTimeActivityFeed } from "@/components/collaboration/real-time-activity-feed"
+import { useCommunityStats } from "@/hooks/use-community-stats"
+import { EnhancedCollaborationHub } from "@/components/collaboration/enhanced-collaboration-hub"
+import { RealTimeActivityFeed } from "@/components/collaboration/real-time-activity-feed"
 
-const communityFeatures = [
+interface CommunityFeature {
+  label: string
+  icon: typeof Heart
+  href: string
+  description: string
+  color: string
+  statsKey: string
+  category: string
+  statsLabel: string
+}
+
+const communityFeatures: CommunityFeature[] = [
   { 
     label: "Fan Engagement", 
     icon: Heart, 
     href: "/artist/features/fan-engagement", 
     description: "Manage your fan club and connect with your audience",
     color: "from-pink-500 to-rose-600",
-    stats: { total: 1247, recent: 23 },
-    category: "fans"
+    statsKey: "fanEngagement",
+    category: "fans",
+    statsLabel: "fans",
   },
   { 
     label: "Network", 
@@ -47,8 +53,9 @@ const communityFeatures = [
     href: "/artist/network", 
     description: "Connect with other artists and industry professionals",
     color: "from-blue-500 to-cyan-600",
-    stats: { total: 89, recent: 5 },
-    category: "professional"
+    statsKey: "network",
+    category: "professional",
+    statsLabel: "connections",
   },
   { 
     label: "Jobs", 
@@ -56,8 +63,9 @@ const communityFeatures = [
     href: "/artist/jobs", 
     description: "Find and post music industry jobs",
     color: "from-green-500 to-emerald-600",
-    stats: { total: 12, recent: 3 },
-    category: "professional"
+    statsKey: "jobs",
+    category: "professional",
+    statsLabel: "open jobs",
   },
   { 
     label: "Messages", 
@@ -65,8 +73,9 @@ const communityFeatures = [
     href: "/artist/messages", 
     description: "Send and receive direct messages",
     color: "from-purple-500 to-violet-600",
-    stats: { total: 156, recent: 8 },
-    category: "communication"
+    statsKey: "messages",
+    category: "communication",
+    statsLabel: "conversations",
   },
   {
     label: "Events",
@@ -74,8 +83,9 @@ const communityFeatures = [
     href: "/artist/events",
     description: "Discover and create community events",
     color: "from-orange-500 to-red-600",
-    stats: { total: 7, recent: 2 },
-    category: "events"
+    statsKey: "events",
+    category: "events",
+    statsLabel: "upcoming",
   },
   {
     label: "Collaborations",
@@ -83,8 +93,9 @@ const communityFeatures = [
     href: "/artist/collaborations",
     description: "Find artists to collaborate with and manage projects",
     color: "from-indigo-500 to-purple-600",
-    stats: { total: 4, recent: 1 },
-    category: "professional"
+    statsKey: "collaborations",
+    category: "professional",
+    statsLabel: "projects",
   },
   {
     label: "Project Workspaces",
@@ -92,56 +103,72 @@ const communityFeatures = [
     href: "/collaboration/projects",
     description: "Collaborative project management and file sharing",
     color: "from-green-500 to-teal-600",
-    stats: { total: 2, recent: 0 },
-    category: "professional"
-  }
-]
-
-const quickStats = [
-  { label: "Total Connections", value: "1.4K", change: "+12%", icon: Users },
-  { label: "Active Conversations", value: "23", change: "+8", icon: MessageSquare },
-  { label: "Community Events", value: "7", change: "+2", icon: Calendar },
-]
-
-const recentActivity = [
-  {
-    id: 1,
-    type: "connection",
-    user: { name: "Sarah Johnson", avatar: "/avatars/sarah.jpg", role: "Producer" },
-    action: "connected with you",
-    time: "2 hours ago"
+    statsKey: "projectWorkspaces",
+    category: "professional",
+    statsLabel: "workspaces",
   },
-  {
-    id: 2,
-    type: "message",
-    user: { name: "Mike Chen", avatar: "/avatars/mike.jpg", role: "Sound Engineer" },
-    action: "sent you a message",
-    time: "4 hours ago"
-  },
-  {
-    id: 3,
-    type: "event",
-    user: { name: "Local Music Scene", avatar: "/avatars/community.jpg", role: "Community" },
-    action: "invited you to 'Open Mic Night'",
-    time: "1 day ago"
-  }
 ]
 
 const fadeIn = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 }
+  exit: { opacity: 0, y: -20 },
 }
 
 const staggerContainer = {
   animate: {
     transition: {
-      staggerChildren: 0.1
-    }
-  }
+      staggerChildren: 0.1,
+    },
+  },
 }
 
-function CommunityFeatureCard({ feature, index }: { feature: typeof communityFeatures[0], index: number }) {
+function StatCardSkeleton() {
+  return (
+    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm animate-pulse">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-3 bg-slate-700/50 rounded w-24" />
+            <div className="h-7 bg-slate-700/50 rounded w-16" />
+            <div className="h-3 bg-slate-700/30 rounded w-12" />
+          </div>
+          <div className="h-12 w-12 bg-slate-700/50 rounded-xl" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function FeatureCardSkeleton() {
+  return (
+    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm animate-pulse h-full">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="h-12 w-12 rounded-xl bg-slate-700/50" />
+          <div className="h-5 w-16 bg-slate-700/30 rounded" />
+        </div>
+        <div className="space-y-2 mt-3">
+          <div className="h-5 bg-slate-700/50 rounded w-3/4" />
+          <div className="h-4 bg-slate-700/30 rounded w-full" />
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="h-4 bg-slate-700/30 rounded w-1/2" />
+      </CardContent>
+    </Card>
+  )
+}
+
+function CommunityFeatureCard({ 
+  feature, 
+  index, 
+  stats 
+}: { 
+  feature: CommunityFeature
+  index: number
+  stats: { total: number; recent: number } | null
+}) {
   return (
     <motion.div
       variants={fadeIn}
@@ -159,9 +186,9 @@ function CommunityFeatureCard({ feature, index }: { feature: typeof communityFea
                 <feature.icon className="h-6 w-6 text-white" />
               </div>
               <div className="flex items-center space-x-2">
-                {feature.stats.recent > 0 && (
+                {stats && stats.recent > 0 && (
                   <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-xs">
-                    +{feature.stats.recent} new
+                    +{stats.recent} new
                   </Badge>
                 )}
               </div>
@@ -177,7 +204,9 @@ function CommunityFeatureCard({ feature, index }: { feature: typeof communityFea
           </CardHeader>
           <CardContent className="pt-0">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-500">{feature.stats.total.toLocaleString()} {feature.category === "fans" ? "fans" : "items"}</span>
+              <span className="text-slate-500">
+                {stats ? `${stats.total.toLocaleString()} ${feature.statsLabel}` : '...'}
+              </span>
               <span className="text-purple-400 group-hover:text-purple-300 transition-colors">
                 View all →
               </span>
@@ -192,6 +221,7 @@ function CommunityFeatureCard({ feature, index }: { feature: typeof communityFea
 export default function CommunityDashboard() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const { quickStats, featureStats, isLoading } = useCommunityStats()
 
   const filteredFeatures = useMemo(() => {
     return communityFeatures.filter(feature => {
@@ -207,9 +237,35 @@ export default function CommunityDashboard() {
     return cats.map(cat => ({
       value: cat,
       label: cat.charAt(0).toUpperCase() + cat.slice(1),
-      count: cat === "all" ? communityFeatures.length : communityFeatures.filter(f => f.category === cat).length
+      count: cat === "all" ? communityFeatures.length : communityFeatures.filter(f => f.category === cat).length,
     }))
   }, [])
+
+  function getFeatureStat(statsKey: string): { total: number; recent: number } | null {
+    if (isLoading) return null
+    return (featureStats as any)[statsKey] ?? { total: 0, recent: 0 }
+  }
+
+  const displayStats = [
+    { 
+      label: "Total Connections", 
+      value: isLoading ? '...' : quickStats.totalConnections.toLocaleString(), 
+      change: quickStats.connectionsChange, 
+      icon: Users,
+    },
+    { 
+      label: "Active Conversations", 
+      value: isLoading ? '...' : String(quickStats.activeConversations), 
+      change: quickStats.conversationsChange, 
+      icon: MessageSquare,
+    },
+    { 
+      label: "Community Events", 
+      value: isLoading ? '...' : String(quickStats.communityEvents), 
+      change: quickStats.eventsChange, 
+      icon: Calendar,
+    },
+  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
@@ -238,10 +294,12 @@ export default function CommunityDashboard() {
                   className="pl-10 w-[250px] bg-slate-800/50 border-slate-700/50 text-white focus:border-purple-500/50 focus:ring-purple-500/20"
                 />
               </div>
-              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg">
-                <UserPlus className="mr-2 h-4 w-4" />
-                Find People
-              </Button>
+              <Link href="/artist/network">
+                <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg">
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Find People
+                </Button>
+              </Link>
             </div>
           </motion.div>
         </div>
@@ -255,33 +313,43 @@ export default function CommunityDashboard() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="grid gap-6 md:grid-cols-3"
         >
-          {quickStats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
-              whileHover={{ y: -5, scale: 1.02 }}
-            >
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-slate-400">{stat.label}</p>
-                      <p className="text-2xl font-bold text-white">{stat.value}</p>
-                      <p className="text-xs text-green-400 flex items-center mt-1">
-                        <TrendingUp className="h-3 w-3 mr-1" />
-                        {stat.change}
-                      </p>
+          {isLoading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            displayStats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}
+                whileHover={{ y: -5, scale: 1.02 }}
+              >
+                <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-400">{stat.label}</p>
+                        <p className="text-2xl font-bold text-white">{stat.value}</p>
+                        {stat.change && stat.change !== '0' && (
+                          <p className="text-xs text-green-400 flex items-center mt-1">
+                            <TrendingUp className="h-3 w-3 mr-1" />
+                            {stat.change}
+                          </p>
+                        )}
+                      </div>
+                      <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
+                        <stat.icon className="h-6 w-6 text-white" />
+                      </div>
                     </div>
-                    <div className="h-12 w-12 bg-gradient-to-br from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                      <stat.icon className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))
+          )}
         </motion.div>
 
         <div className="grid gap-6 lg:grid-cols-3">
@@ -333,17 +401,21 @@ export default function CommunityDashboard() {
               className="grid grid-cols-1 md:grid-cols-2 gap-6"
             >
               <AnimatePresence mode="wait">
-                {filteredFeatures.map((feature, index) => (
-                  <CommunityFeatureCard
-                    key={feature.label}
-                    feature={feature}
-                    index={index}
-                  />
-                ))}
+                {isLoading
+                  ? Array.from({ length: 4 }).map((_, i) => <FeatureCardSkeleton key={`skel-${i}`} />)
+                  : filteredFeatures.map((feature, index) => (
+                      <CommunityFeatureCard
+                        key={feature.label}
+                        feature={feature}
+                        index={index}
+                        stats={getFeatureStat(feature.statsKey)}
+                      />
+                    ))
+                }
               </AnimatePresence>
             </motion.div>
 
-            {filteredFeatures.length === 0 && (
+            {!isLoading && filteredFeatures.length === 0 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -373,14 +445,7 @@ export default function CommunityDashboard() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.6 }}
           >
-            <Card className="bg-slate-950/90 border-slate-800 text-white">
-              <CardHeader>
-                <CardTitle>Activity Feed</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-slate-400">Loading activity...</p>
-              </CardContent>
-            </Card>
+            <RealTimeActivityFeed />
           </motion.div>
         </div>
 
@@ -390,7 +455,7 @@ export default function CommunityDashboard() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.8 }}
         >
-          <SimpleCollaborationHub />
+          <EnhancedCollaborationHub />
         </motion.div>
 
         {/* Quick Actions */}
@@ -412,11 +477,11 @@ export default function CommunityDashboard() {
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Send Message", icon: MessageSquare, href: "/artist/messages/new" },
+                  { label: "Send Message", icon: MessageSquare, href: "/artist/messages" },
                   { label: "Find Collaborators", icon: Users, href: "/artist/collaborations" },
                   { label: "New Project", icon: Plus, href: "/collaboration/projects/create" },
-                  { label: "Browse Opportunities", icon: TrendingUp, href: "/artist/collaborations?tab=browse" }
-                ].map((action, index) => (
+                  { label: "Browse Opportunities", icon: TrendingUp, href: "/artist/collaborations?tab=browse" },
+                ].map((action) => (
                   <motion.div
                     key={action.label}
                     whileHover={{ scale: 1.05 }}
@@ -442,4 +507,4 @@ export default function CommunityDashboard() {
       </div>
     </div>
   )
-} 
+}

@@ -13,43 +13,24 @@ import { supabase } from '@/lib/supabase'
 export type AccountType = 'general' | 'artist' | 'venue' | 'organizer' | 'photographer'
 
 // Upload tier configurations
+// During beta all accounts get pro-level upload limits
+const PRO_TIER = {
+  maxSizeBytes: 100 * 1024 * 1024, // 100MB
+  maxDimensions: { width: 8192, height: 8192 },
+  quality: 0.95,
+  format: 'image/webp',
+  enableFullRes: true,
+}
+
 export const UPLOAD_TIERS = {
-  general: {
-    maxSizeBytes: 5 * 1024 * 1024, // 5MB
-    maxDimensions: { width: 2048, height: 2048 },
-    quality: 0.85,
-    format: 'image/webp',
-    enableFullRes: false
-  },
-  artist: {
-    maxSizeBytes: 50 * 1024 * 1024, // 50MB
-    maxDimensions: { width: 4096, height: 4096 },
-    quality: 0.90,
-    format: 'image/webp',
-    enableFullRes: true
-  },
-  venue: {
-    maxSizeBytes: 50 * 1024 * 1024, // 50MB
-    maxDimensions: { width: 4096, height: 4096 },
-    quality: 0.90,
-    format: 'image/webp',
-    enableFullRes: true
-  },
-  organizer: {
-    maxSizeBytes: 50 * 1024 * 1024, // 50MB
-    maxDimensions: { width: 4096, height: 4096 },
-    quality: 0.90,
-    format: 'image/webp',
-    enableFullRes: true
-  },
+  general: { ...PRO_TIER },
+  artist: { ...PRO_TIER },
+  venue: { ...PRO_TIER },
+  organizer: { ...PRO_TIER },
   photographer: {
-    maxSizeBytes: 100 * 1024 * 1024, // 100MB for full-res
-    maxDimensions: { width: 8192, height: 8192 }, // Support very high res
-    quality: 0.95,
-    format: 'image/webp',
-    enableFullRes: true,
-    enableWatermark: true
-  }
+    ...PRO_TIER,
+    enableWatermark: true,
+  },
 }
 
 // Storage bucket mapping

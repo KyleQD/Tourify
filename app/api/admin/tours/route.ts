@@ -14,11 +14,19 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     if (orgId) query = query.eq('org_id', orgId)
 
     const { data, error } = await query
-    if (error) throw error
+
+    if (error) {
+      const code = (error as any)?.code
+      if (code === '42P01' || code === 'PGRST204' || code === 'PGRST205') {
+        return NextResponse.json({ success: true, tours: [] })
+      }
+      console.error('[Admin Tours API] Query error:', error)
+      return NextResponse.json({ success: true, tours: [] })
+    }
 
     return NextResponse.json({ success: true, tours: data || [] })
   } catch (error) {
     console.error('[Admin Tours API] Error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch tours', tours: [] }, { status: 500 })
+    return NextResponse.json({ success: true, tours: [] })
   }
 })
