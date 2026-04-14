@@ -194,18 +194,24 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private getUserId(): string | undefined {
-    // Get user ID from localStorage, context, or other sources
-    return localStorage.getItem('userId') || undefined
+    try {
+      return localStorage.getItem('userId') || undefined
+    } catch {
+      return undefined
+    }
   }
 
   private getSessionId(): string | undefined {
-    // Get session ID from localStorage or generate one
-    let sessionId = localStorage.getItem('sessionId')
-    if (!sessionId) {
-      sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-      localStorage.setItem('sessionId', sessionId)
+    try {
+      let sessionId = localStorage.getItem('sessionId')
+      if (!sessionId) {
+        sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        localStorage.setItem('sessionId', sessionId)
+      }
+      return sessionId
+    } catch {
+      return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     }
-    return sessionId
   }
 
   private resetError = () => {

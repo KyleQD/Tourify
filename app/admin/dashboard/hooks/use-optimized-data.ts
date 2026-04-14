@@ -153,11 +153,31 @@ export function useOptimizedData<T = any>({
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        // Try to extract fallback data from error responses (APIs may include defaults)
+        try {
+          const errorBody = await response.json()
+          const transformed = memoizedTransform(errorBody)
+          if (transformed != null) {
+            setCachedData(cacheKey, transformed, memoizedOptions.ttl)
+            setState({ data: transformed, isLoading: false, error: null, lastUpdated: new Date() })
+            memoizedOnSuccess(transformed)
+            return
+          }
+        } catch { /* response body wasn't valid JSON or transform failed */ }
+
+        const errorMessage = `Failed to load (${response.status})`
+        setState(prev => ({ ...prev, isLoading: false, error: errorMessage }))
+        memoizedOnError(errorMessage)
+        return
       }
 
       const rawData = await response.json()
-      const transformedData = memoizedTransform(rawData)
+      let transformedData: any
+      try {
+        transformedData = memoizedTransform(rawData)
+      } catch {
+        transformedData = rawData
+      }
 
       // Cache the data
       setCachedData(cacheKey, transformedData, memoizedOptions.ttl)

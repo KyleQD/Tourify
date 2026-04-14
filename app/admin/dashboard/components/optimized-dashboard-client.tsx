@@ -283,23 +283,6 @@ export default function OptimizedDashboardClient() {
         )
       } catch (error) {
         console.warn('Real-time subscriptions unavailable:', error)
-        // #region agent log
-        fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '650e81' },
-          body: JSON.stringify({
-            sessionId: '650e81',
-            hypothesisId: 'H1',
-            location: 'optimized-dashboard-client.tsx:setupRealTimeSubscriptions:catch',
-            message: 'realtime setup failed',
-            data: {
-              errName: error instanceof Error ? error.name : typeof error,
-              errMessage: error instanceof Error ? error.message.slice(0, 160) : 'non-error',
-            },
-            timestamp: Date.now(),
-          }),
-        }).catch(() => {})
-        // #endregion
       }
     }
 

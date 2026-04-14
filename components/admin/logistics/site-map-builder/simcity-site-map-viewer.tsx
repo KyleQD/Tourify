@@ -1,7 +1,6 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -509,7 +508,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     }
 
     ctx.restore()
-  }, [siteMap, elements, zoom, pan, showGrid, selectedElementForPlacement, hoverPosition, canvasTheme, elementStatuses])
+  }, [siteMap, elements, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses])
 
   const drawElementSymbol = (ctx: CanvasRenderingContext2D, type: string, w: number, h: number, color: string) => {
     const cx = w / 2
@@ -998,106 +997,65 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         "bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl border border-slate-700/30 rounded-3xl shadow-2xl shadow-slate-900/50 w-full max-w-[95vw] h-full max-h-[95vh] flex flex-col overflow-hidden",
         isFullscreen && "max-w-none max-h-none h-full w-full rounded-none"
       )}>
-        {/* Futuristic Header */}
-        <div className="relative p-6 border-b border-slate-700/30 bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-purple-500/20 rounded-t-3xl"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(147,51,234,0.1)_0%,transparent_70%)]"></div>
+        {/* Compact Header */}
+        <div className="relative px-4 py-2.5 border-b border-slate-700/30 bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl">
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-purple-500/10"></div>
           
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 rounded-2xl blur-lg opacity-60 group-hover:opacity-80 transition-opacity duration-300"></div>
-                <div className="relative p-3 bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 rounded-2xl shadow-xl border border-white/20">
-                  <MapPin className="h-6 w-6 text-white drop-shadow-lg" />
-                </div>
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/50 to-blue-500/50 rounded-2xl blur opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl shadow-lg">
+                <MapPin className="h-4 w-4 text-white" />
               </div>
               
-              <div className="space-y-2">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-purple-100 to-blue-100 bg-clip-text text-transparent tracking-tight drop-shadow-lg">
-                  {siteMap.name}
-                </h1>
-                <div className="flex items-center gap-4">
-                  <Badge 
-                    variant="secondary" 
+              <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  <h1 className="text-lg font-bold text-white truncate">{siteMap.name}</h1>
+                  <Badge
+                    variant="secondary"
                     className={cn(
-                      "px-3 py-1 text-xs font-medium rounded-full border backdrop-blur-sm transition-all duration-200",
-                      siteMap.status === 'published' 
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30 shadow-emerald-500/20" 
-                        : "bg-amber-500/20 text-amber-300 border-amber-500/30 shadow-amber-500/20"
+                      "px-2 py-0.5 text-[10px] font-medium rounded-full border shrink-0",
+                      siteMap.status === 'published'
+                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                        : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                     )}
                   >
-                    <div className={cn("w-2 h-2 rounded-full mr-2", siteMap.status === 'published' ? "bg-emerald-400 animate-pulse" : "bg-amber-400")}></div>
+                    <div className={cn("w-1.5 h-1.5 rounded-full mr-1", siteMap.status === 'published' ? "bg-emerald-400" : "bg-amber-400")}></div>
                     {siteMap.status}
                   </Badge>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded-full border border-slate-600/30 backdrop-blur-sm">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                    <span className="text-sm text-slate-300 font-mono">
-                      {siteMap.width} × {siteMap.height}px
-                    </span>
-                  </div>
+                  <span className="text-xs text-slate-400 font-mono shrink-0">{siteMap.width}×{siteMap.height}</span>
                 </div>
-                {siteMap.description && (
-                  <p className="text-sm text-slate-400 max-w-md leading-relaxed">{siteMap.description}</p>
-                )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowCollabPanel(!showCollabPanel)}
                 className={cn(
-                  "h-11 px-4 rounded-2xl border backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg",
-                  showCollabPanel
-                    ? "text-blue-300 bg-blue-500/20 border-blue-500/40 shadow-blue-500/20"
-                    : "text-slate-400 hover:text-white hover:bg-slate-700/50 border-slate-700/30"
+                  "h-8 px-2.5 rounded-lg border text-xs",
+                  showCollabPanel ? "text-blue-300 bg-blue-500/20 border-blue-500/40" : "text-slate-400 hover:text-white border-slate-700/30"
                 )}
               >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Collab
+                <MessageCircle className="h-3.5 w-3.5 mr-1.5" />Collab
               </Button>
               {!isReadOnly && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowShareDialog(true)}
-                  className="h-11 px-4 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-700/50 border border-slate-700/30 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg"
-                >
-                  <Share className="h-4 w-4 mr-2" />
-                  Share
+                <Button variant="ghost" size="sm" onClick={() => setShowShareDialog(true)} className="h-8 px-2.5 rounded-lg text-xs text-slate-400 hover:text-white border border-slate-700/30">
+                  <Share className="h-3.5 w-3.5 mr-1.5" />Share
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsFullscreen(!isFullscreen)}
-                className="h-11 w-11 rounded-2xl text-slate-400 hover:text-white hover:bg-slate-700/50 border border-slate-700/30 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg"
-              >
-                {isFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
+              <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(!isFullscreen)} className="h-8 w-8 rounded-lg text-slate-400 hover:text-white border border-slate-700/30">
+                {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
               </Button>
-              
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsEditing(!isEditing)}
-                className={cn(
-                  "h-11 w-11 rounded-2xl transition-all duration-300 border backdrop-blur-sm hover:scale-105",
-                  isEditing 
-                    ? "text-purple-300 bg-purple-500/20 border-purple-500/40 shadow-purple-500/20 shadow-lg" 
-                    : "text-slate-400 hover:text-white hover:bg-slate-700/50 border-slate-700/30 hover:shadow-lg"
-                )}
+                className={cn("h-8 w-8 rounded-lg border", isEditing ? "text-purple-300 bg-purple-500/20 border-purple-500/40" : "text-slate-400 hover:text-white border-slate-700/30")}
               >
-                <Edit3 className="h-4 w-4" />
+                <Edit3 className="h-3.5 w-3.5" />
               </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                className="h-11 w-11 rounded-2xl text-slate-400 hover:text-white hover:bg-red-500/20 border border-red-500/30 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-red-500/20"
-              >
+              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-red-500/20 border border-red-500/30">
                 ✕
               </Button>
             </div>
@@ -1105,47 +1063,37 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         </div>
 
         <div className="flex flex-1 overflow-hidden">
-          {/* Left Sidebar - Element Library (hidden in read-only) */}
-          {!isReadOnly && <div className="w-80 border-r border-slate-700/30 bg-gradient-to-b from-slate-900/40 via-slate-800/40 to-slate-900/40 backdrop-blur-2xl">
-            <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-blue-500/5"></div>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col relative z-10">
-              <div className="p-6 border-b border-slate-700/30">
-                <TabsList className="grid w-full grid-cols-2 bg-slate-800/60 border border-slate-700/40 backdrop-blur-xl rounded-2xl p-1 shadow-2xl">
-                  <TabsTrigger 
-                    value="elements" 
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl font-medium"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Square className="h-4 w-4" />
-                      Elements
-                    </div>
+          {/* Left Sidebar */}
+          {!isReadOnly && <div className="w-72 border-r border-slate-700/30 bg-slate-900/40 backdrop-blur-2xl flex flex-col">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+              <div className="px-3 py-2 border-b border-slate-700/30">
+                <TabsList className="grid w-full grid-cols-3 bg-slate-800/60 border border-slate-700/40 rounded-lg p-0.5 h-8">
+                  <TabsTrigger value="elements" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md text-xs font-medium h-7">
+                    <Square className="h-3 w-3 mr-1" />Elements
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="tools" 
-                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white data-[state=active]:shadow-lg transition-all duration-300 rounded-xl font-medium"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Settings className="h-4 w-4" />
-                      Tools
-                    </div>
+                  <TabsTrigger value="tools" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md text-xs font-medium h-7">
+                    <Settings className="h-3 w-3 mr-1" />Tools
+                  </TabsTrigger>
+                  <TabsTrigger value="inspect" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md text-xs font-medium h-7">
+                    <Eye className="h-3 w-3 mr-1" />Inspect
                   </TabsTrigger>
                 </TabsList>
               </div>
 
               <div className="flex-1 overflow-hidden">
                 <TabsContent value="elements" className="h-full mt-0">
-                  <ElementLibrary 
-                    onElementSelect={handleElementSelect}
-                    selectedElement={selectedElementForPlacement}
-                    className="h-full bg-transparent"
-                  />
+                  <ElementLibrary onElementSelect={handleElementSelect} selectedElement={selectedElementForPlacement} className="h-full" />
                 </TabsContent>
-
-                <TabsContent value="tools" className="h-full mt-0 p-4">
-                  <ToolPalette 
-                    selectedTool={selectedTool}
-                    onToolSelect={handleToolSelect}
-                    className="h-full"
+                <TabsContent value="tools" className="h-full mt-0 p-3">
+                  <ToolPalette selectedTool={selectedTool} onToolSelect={handleToolSelect} className="h-full" />
+                </TabsContent>
+                <TabsContent value="inspect" className="h-full mt-0">
+                  <ElementInspector
+                    element={elements.find(e => e.id === selectedElement) || null}
+                    onUpdate={(id, updates) => {
+                      updateElements(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el))
+                    }}
+                    onDelete={(id) => { deleteElement(id) }}
                   />
                 </TabsContent>
               </div>
@@ -1636,6 +1584,108 @@ function ElementButton({ element, isSelected, onSelect, color }: {
   )
 }
 
+// Element Inspector Component
+function ElementInspector({ element, onUpdate, onDelete }: {
+  element: SiteMapElement | null
+  onUpdate: (id: string, updates: Partial<SiteMapElement>) => void
+  onDelete: (id: string) => void
+}) {
+  if (!element) return (
+    <div className="h-full flex items-center justify-center p-6">
+      <div className="text-center space-y-2">
+        <MousePointer className="h-8 w-8 text-slate-600 mx-auto" />
+        <p className="text-sm text-slate-500">Select an element on the canvas to inspect its properties</p>
+      </div>
+    </div>
+  )
+
+  const cannedInfo = getElementById(element.type)
+
+  return (
+    <div className="h-full overflow-y-auto p-3 space-y-3">
+      <div className="flex items-center gap-2">
+        <div className="p-1.5 rounded-md" style={{ backgroundColor: element.stroke }}>
+          {cannedInfo?.icon ? <cannedInfo.icon className="h-4 w-4 text-white" /> : <Square className="h-4 w-4 text-white" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-white truncate">{element.label}</div>
+          <div className="text-[10px] text-slate-400">{element.type}</div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Position</h4>
+        <div className="grid grid-cols-2 gap-1.5">
+          <div>
+            <Label className="text-[10px] text-slate-400">X</Label>
+            <Input type="number" value={element.x} onChange={e => onUpdate(element.id, { x: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
+          </div>
+          <div>
+            <Label className="text-[10px] text-slate-400">Y</Label>
+            <Input type="number" value={element.y} onChange={e => onUpdate(element.id, { y: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
+          </div>
+          <div>
+            <Label className="text-[10px] text-slate-400">Width</Label>
+            <Input type="number" value={element.width} onChange={e => onUpdate(element.id, { width: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
+          </div>
+          <div>
+            <Label className="text-[10px] text-slate-400">Height</Label>
+            <Input type="number" value={element.height} onChange={e => onUpdate(element.id, { height: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
+          </div>
+        </div>
+        <div>
+          <Label className="text-[10px] text-slate-400">Rotation</Label>
+          <Input type="number" value={element.rotation} onChange={e => onUpdate(element.id, { rotation: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Appearance</h4>
+        <div>
+          <Label className="text-[10px] text-slate-400">Label</Label>
+          <Input value={element.label} onChange={e => onUpdate(element.id, { label: e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
+        </div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <div>
+            <Label className="text-[10px] text-slate-400">Fill</Label>
+            <div className="flex items-center gap-1.5">
+              <input type="color" value={element.fill.startsWith('rgba') ? element.stroke : element.fill} onChange={e => onUpdate(element.id, { fill: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" />
+              <span className="text-[10px] text-slate-400 truncate">{element.fill.slice(0, 12)}</span>
+            </div>
+          </div>
+          <div>
+            <Label className="text-[10px] text-slate-400">Stroke</Label>
+            <div className="flex items-center gap-1.5">
+              <input type="color" value={element.stroke} onChange={e => onUpdate(element.id, { stroke: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" />
+              <span className="text-[10px] text-slate-400 truncate">{element.stroke}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {cannedInfo && (
+        <div className="space-y-2">
+          <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Properties</h4>
+          <div className="space-y-1 bg-slate-800/30 rounded-lg p-2">
+            {Object.entries(cannedInfo.properties).map(([key, value]) => (
+              <div key={key} className="flex justify-between items-center">
+                <span className="text-[10px] text-slate-400 capitalize">{key.replace(/_/g, ' ')}</span>
+                <span className="text-[10px] text-slate-300 font-mono">{String(value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="pt-2 border-t border-slate-700/30">
+        <Button variant="ghost" size="sm" onClick={() => onDelete(element.id)} className="w-full h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg">
+          <Trash2 className="h-3 w-3 mr-1.5" /> Delete Element
+        </Button>
+      </div>
+    </div>
+  )
+}
+
 // Tool Palette Component
 function ToolPalette({ selectedTool, onToolSelect, className }: {
   selectedTool: string
@@ -1668,47 +1718,40 @@ function ToolPalette({ selectedTool, onToolSelect, className }: {
   ]
 
   return (
-    <div className={cn("space-y-5", className)}>
+    <div className={cn("space-y-4", className)}>
       {toolGroups.map(group => (
-        <div key={group.name} className="space-y-2">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider px-1">{group.name}</h3>
-          <div className="space-y-1">
+        <div key={group.name} className="space-y-1">
+          <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-1">{group.name}</h3>
+          <div className="space-y-0.5">
             {group.tools.map(tool => (
-              <Button
+              <button
                 key={tool.id}
-                variant={selectedTool === tool.id ? "default" : "ghost"}
-                size="sm"
                 onClick={() => onToolSelect(tool.id)}
                 className={cn(
-                  "w-full h-auto p-3 justify-start rounded-xl transition-all duration-200",
+                  "w-full flex items-center gap-2.5 p-2 rounded-lg transition-all duration-150 text-left",
                   selectedTool === tool.id
-                    ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700/50 border border-slate-700/20 hover:border-slate-600/40"
+                    ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40"
+                    : "hover:bg-slate-800/50 border border-transparent"
                 )}
               >
-                <div className="flex items-center gap-3 w-full">
-                  <div className={cn(
-                    "p-2 rounded-lg transition-all duration-200",
-                    selectedTool === tool.id ? "bg-white/20" : "bg-slate-700/50"
-                  )}>
-                    <tool.icon className="h-4 w-4 text-white" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="text-sm font-medium">{tool.label}</div>
-                    <div className="text-xs opacity-70">{tool.description}</div>
-                  </div>
-                  <kbd className="text-[10px] text-slate-500 bg-slate-800/50 border border-slate-700/50 px-1.5 py-0.5 rounded font-mono">
-                    {tool.shortcut}
-                  </kbd>
+                <div className={cn("p-1.5 rounded-md", selectedTool === tool.id ? "bg-purple-500/30" : "bg-slate-700/50")}>
+                  <tool.icon className="h-3.5 w-3.5 text-white" />
                 </div>
-              </Button>
+                <div className="flex-1">
+                  <div className={cn("text-xs font-medium", selectedTool === tool.id ? "text-white" : "text-slate-300")}>{tool.label}</div>
+                  <div className="text-[10px] text-slate-500">{tool.description}</div>
+                </div>
+                <kbd className="text-[9px] text-slate-500 bg-slate-800/50 border border-slate-700/50 px-1 py-0.5 rounded font-mono">{tool.shortcut}</kbd>
+              </button>
             ))}
           </div>
         </div>
       ))}
 
-      <div className="pt-3 border-t border-slate-700/30 px-1">
-        <p className="text-xs text-slate-500">Press <kbd className="text-[10px] bg-slate-800/50 border border-slate-700/50 px-1 py-0.5 rounded font-mono">?</kbd> for all shortcuts</p>
+      <div className="pt-2 border-t border-slate-700/30 px-1">
+        <p className="text-[10px] text-slate-500">
+          <kbd className="bg-slate-800/50 border border-slate-700/50 px-1 py-0.5 rounded font-mono text-[9px]">Space</kbd> + drag to pan
+        </p>
       </div>
     </div>
   )

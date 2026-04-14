@@ -377,33 +377,26 @@ export default function AnalyticsDashboard() {
     return rows.map(row => row.join(',')).join('\n')
   }
 
-  if (hasErrors) {
-    return (
-      <div className="space-y-6">
-        <Card className="bg-red-900/20 border-red-700/50">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-3">
-              <AlertCircle className="h-6 w-6 text-red-400" />
-              <div>
-                <h3 className="text-lg font-semibold text-red-400">Error Loading Analytics</h3>
-                <p className="text-red-300 text-sm">
-                  {statsError && `Stats: ${statsError}`}
-                  {toursError && `Tours: ${toursError}`}
-                  {eventsError && `Events: ${eventsError}`}
-                  {artistsError && `Artists: ${artistsError}`}
-                  {venuesError && `Venues: ${venuesError}`}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
   return (
     <ErrorBoundary>
       <div className="space-y-6">
+        {hasErrors && (
+          <Card className="bg-amber-900/20 border-amber-700/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <AlertCircle className="h-5 w-5 text-amber-400 shrink-0" />
+                  <p className="text-amber-300 text-sm">
+                    Some data could not be loaded. Showing available information.
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => window.location.reload()} className="text-amber-300 hover:text-amber-100">
+                  <RefreshCw className="h-4 w-4 mr-1" /> Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>

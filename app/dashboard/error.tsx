@@ -66,7 +66,7 @@ export default function DashboardError({
             </ul>
           ) : (
             <p className="rounded-xl border border-white/10 bg-slate-950/40 p-3 text-sm text-slate-300">
-              {error.message || "An unexpected error occurred"}
+              {error.message?.slice(0, 300) || "An unexpected error occurred"}
             </p>
           )}
           {retryCount >= 2 && !isPrivacyError && (
