@@ -148,73 +148,72 @@ export function TourifyLandingPage() {
       <main id="main-content" className="relative z-10">
         {/* Hero Section */}
         <section className="mx-auto max-w-7xl px-4 pb-16 pt-4 sm:px-6 sm:pt-6 lg:px-8 lg:pt-8">
-          <div id="get-started" className="grid scroll-mt-20 items-start gap-12 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] lg:gap-16">
-            {/* Left — copy + demo CTA */}
-            <div className="mx-auto max-w-xl text-center lg:mx-0 lg:max-w-none lg:pt-2 lg:text-left">
-              <div className="mb-4">
-                <TourifyLogo variant="white" size="xl" className="!h-auto w-full max-w-[32rem] drop-shadow-xl" />
-              </div>
-
-              <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-                The future of{" "}
-                <span className="bg-gradient-to-r from-purple-300 via-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
-                  live events
-                </span>{" "}
-                starts here
-              </h1>
-
-              <p className="mx-auto mt-6 max-w-lg text-pretty text-lg leading-relaxed text-slate-300 lg:mx-0">
-                Tourify connects artists, venues, and fans on one intelligent platform.
-                Discover, book, and promote — powered by AI matching and real-time&nbsp;signal.
-              </p>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-4 lg:justify-start">
-                <Button
-                  asChild
-                  size="lg"
-                  className="gap-2 bg-white text-slate-950 shadow-xl shadow-white/10 hover:bg-slate-100"
-                >
-                  <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
-                    <Play className="h-4 w-4" aria-hidden />
-                    Try the Beta Today
-                    <ExternalLink className="h-3.5 w-3.5 opacity-50" aria-hidden />
-                  </a>
-                </Button>
-                <Button asChild size="lg" variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">
-                  <a href="#features">See how it works</a>
-                </Button>
-              </div>
-
-              {/* Account type features */}
-              <div className="mt-10 space-y-4">
-                {accountTypeFeatures.map(({ title, icon: Icon, color, items }) => (
-                  <div
-                    key={title}
-                    className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-sm"
-                  >
-                    <div className="mb-3 flex items-center gap-2">
-                      <Icon className={`h-4.5 w-4.5 ${
-                        color === "purple" ? "text-purple-300" : color === "fuchsia" ? "text-fuchsia-300" : "text-cyan-300"
-                      }`} aria-hidden />
-                      <h3 className="text-sm font-semibold text-white">{title}</h3>
-                    </div>
-                    <ul className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-                      {items.map((item) => (
-                        <li key={item} className="flex items-start gap-1.5 text-[13px] leading-snug text-slate-300">
-                          <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400/70" aria-hidden />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+          {/* Top row — logo + auth portal */}
+          <div id="get-started" className="grid scroll-mt-20 items-start gap-8 lg:grid-cols-[1fr_420px] xl:grid-cols-[1fr_460px] lg:gap-12">
+            <div className="flex flex-col justify-center">
+              <TourifyLogo variant="white" size="xl" className="!h-auto w-full max-w-[32rem] drop-shadow-xl" />
             </div>
-
-            {/* Right — auth portal */}
             <div className="w-full">
               <LandingHeroWithAuth />
             </div>
+          </div>
+
+          {/* Copy + CTA below */}
+          <div className="mx-auto mt-12 max-w-3xl text-center">
+            <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+              The future of{" "}
+              <span className="bg-gradient-to-r from-purple-300 via-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
+                live events
+              </span>{" "}
+              starts here
+            </h1>
+
+            <p className="mx-auto mt-6 max-w-lg text-pretty text-lg leading-relaxed text-slate-300">
+              Tourify connects artists, venues, and fans on one intelligent platform.
+              Discover, book, and promote — powered by AI matching and real-time&nbsp;signal.
+            </p>
+
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Button
+                asChild
+                size="lg"
+                className="gap-2 bg-white text-slate-950 shadow-xl shadow-white/10 hover:bg-slate-100"
+              >
+                <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
+                  <Play className="h-4 w-4" aria-hidden />
+                  Try the Beta Today
+                  <ExternalLink className="h-3.5 w-3.5 opacity-50" aria-hidden />
+                </a>
+              </Button>
+              <Button asChild size="lg" variant="outline" className="border-white/20 bg-white/5 text-white hover:bg-white/10">
+                <a href="#features">See how it works</a>
+              </Button>
+            </div>
+          </div>
+
+          {/* Account type features */}
+          <div className="mx-auto mt-14 grid max-w-5xl gap-4 md:grid-cols-3">
+            {accountTypeFeatures.map(({ title, icon: Icon, color, items }) => (
+              <div
+                key={title}
+                className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-5 py-4 backdrop-blur-sm"
+              >
+                <div className="mb-3 flex items-center gap-2">
+                  <Icon className={`h-4.5 w-4.5 ${
+                    color === "purple" ? "text-purple-300" : color === "fuchsia" ? "text-fuchsia-300" : "text-cyan-300"
+                  }`} aria-hidden />
+                  <h3 className="text-sm font-semibold text-white">{title}</h3>
+                </div>
+                <ul className="space-y-1.5">
+                  {items.map((item) => (
+                    <li key={item} className="flex items-start gap-1.5 text-[13px] leading-snug text-slate-300">
+                      <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400/70" aria-hidden />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
           </div>
         </section>
 
