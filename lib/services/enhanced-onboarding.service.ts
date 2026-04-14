@@ -1,10 +1,16 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+let _supabase: SupabaseClient | null = null
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return _supabase
+}
 
 // Validation schemas
 const addExistingUserSchema = z.object({
@@ -105,7 +111,7 @@ export class EnhancedOnboardingService {
       const validatedData = addExistingUserSchema.parse(data)
 
       // Get user profile
-      const { data: userProfile, error: userError } = await supabase
+      const { data: userProfile, error: userError } = await getSupabase()
         .from('profiles')
         .select('*')
         .eq('id', validatedData.user_id)
@@ -114,14 +120,14 @@ export class EnhancedOnboardingService {
       if (userError) throw new Error('User not found')
 
       // Check if user is already in onboarding for this venue (by email)
-      let existingCandidateQuery = supabase
+      let existingCandidateQuery = getSupabase()
         .from('staff_onboarding_candidates')
         .select('id')
         .eq('email', userProfile.email)
       
       // Only filter by venue_id if the column exists
       try {
-        const { data: columnCheck } = await supabase
+        const { data: columnCheck } = await getSupabase()
           .from('information_schema.columns')
           .select('column_name')
           .eq('table_name', 'staff_onboarding_candidates')
@@ -161,7 +167,7 @@ export class EnhancedOnboardingService {
 
       // Only add venue_id if the column exists
       try {
-        const { data: columnCheck } = await supabase
+        const { data: columnCheck } = await getSupabase()
           .from('information_schema.columns')
           .select('column_name')
           .eq('table_name', 'staff_onboarding_candidates')
@@ -175,7 +181,7 @@ export class EnhancedOnboardingService {
         // Column doesn't exist, continue without venue_id
       }
 
-      const { data: candidate, error: candidateError } = await supabase
+      const { data: candidate, error: candidateError } = await getSupabase()
         .from('staff_onboarding_candidates')
         .insert(candidateData)
         .select()
@@ -184,7 +190,7 @@ export class EnhancedOnboardingService {
       if (candidateError) throw candidateError
 
       // Create notification for the user
-      await supabase
+      await getSupabase()
         .from('notifications')
         .insert({
           user_id: validatedData.user_id,
@@ -243,7 +249,7 @@ export class EnhancedOnboardingService {
 
       // Only add venue_id if the column exists
       try {
-        const { data: columnCheck } = await supabase
+        const { data: columnCheck } = await getSupabase()
           .from('information_schema.columns')
           .select('column_name')
           .eq('table_name', 'staff_onboarding_candidates')
@@ -257,7 +263,7 @@ export class EnhancedOnboardingService {
         // Column doesn't exist, continue without venue_id
       }
 
-      const { data: candidate, error: candidateError } = await supabase
+      const { data: candidate, error: candidateError } = await getSupabase()
         .from('staff_onboarding_candidates')
         .insert(candidateData)
         .select()
@@ -266,7 +272,7 @@ export class EnhancedOnboardingService {
       if (candidateError) throw candidateError
 
       // Create invitation record
-      await supabase
+      await getSupabase()
         .from('staff_invitations')
         .insert({
           email: validatedData.email,
@@ -285,7 +291,7 @@ export class EnhancedOnboardingService {
 
       // Send invitation notification
       if (validatedData.email) {
-        await supabase
+        await getSupabase()
           .from('notifications')
           .insert({
             type: 'staff_signup_invite',
@@ -319,14 +325,14 @@ export class EnhancedOnboardingService {
   static async getOnboardingCandidates(venueId: string) {
     try {
       // First check if venue_id column exists
-      const { data: columnCheck, error: columnError } = await supabase
+      const { data: columnCheck, error: columnError } = await getSupabase()
         .from('information_schema.columns')
         .select('column_name')
         .eq('table_name', 'staff_onboarding_candidates')
         .eq('column_name', 'venue_id')
         .single()
 
-      let query = supabase
+      let query = getSupabase()
         .from('staff_onboarding_candidates')
         .select(`
           *,
@@ -354,14 +360,14 @@ export class EnhancedOnboardingService {
   static async getOnboardingTemplates(venueId: string) {
     try {
       // First check if venue_id column exists
-      const { data: columnCheck, error: columnError } = await supabase
+      const { data: columnCheck, error: columnError } = await getSupabase()
         .from('information_schema.columns')
         .select('column_name')
         .eq('table_name', 'staff_onboarding_templates')
         .eq('column_name', 'venue_id')
         .single()
 
-      let query = supabase
+      let query = getSupabase()
         .from('staff_onboarding_templates')
         .select('*')
 
@@ -390,7 +396,7 @@ export class EnhancedOnboardingService {
       const validatedData = onboardingResponseSchema.parse(data)
 
       // Update candidate with responses
-      const { data: candidate, error: candidateError } = await supabase
+      const { data: candidate, error: candidateError } = await getSupabase()
         .from('staff_onboarding_candidates')
         .update({
           onboarding_responses: validatedData.responses,
@@ -406,7 +412,7 @@ export class EnhancedOnboardingService {
       if (candidateError) throw candidateError
 
       // Create notification for admin review
-      await supabase
+      await getSupabase()
         .from('notifications')
         .insert({
           type: 'onboarding_completed',
@@ -438,7 +444,7 @@ export class EnhancedOnboardingService {
     reviewerId?: string
   ) {
     try {
-      const { data: candidate, error: candidateError } = await supabase
+      const { data: candidate, error: candidateError } = await getSupabase()
         .from('staff_onboarding_candidates')
         .select('*')
         .eq('id', candidateId)
@@ -458,7 +464,7 @@ export class EnhancedOnboardingService {
         updateData.approved_at = new Date().toISOString()
       }
 
-      const { data: updatedCandidate, error: updateError } = await supabase
+      const { data: updatedCandidate, error: updateError } = await getSupabase()
         .from('staff_onboarding_candidates')
         .update(updateData)
         .eq('id', candidateId)
@@ -474,7 +480,7 @@ export class EnhancedOnboardingService {
 
       // Create notification for candidate
       if (candidate.user_id) {
-        await supabase
+        await getSupabase()
           .from('notifications')
           .insert({
             user_id: candidate.user_id,
@@ -509,7 +515,7 @@ export class EnhancedOnboardingService {
       if (!candidate.id) return
 
       // Add to venue team members
-      await supabase
+      await getSupabase()
         .from('venue_team_members')
         .insert({
           venue_id: candidate.venue_id,
@@ -544,14 +550,14 @@ export class EnhancedOnboardingService {
   static async getOnboardingStats(venueId: string) {
     try {
       // First check if venue_id column exists
-      const { data: columnCheck, error: columnError } = await supabase
+      const { data: columnCheck, error: columnError } = await getSupabase()
         .from('information_schema.columns')
         .select('column_name')
         .eq('table_name', 'staff_onboarding_candidates')
         .eq('column_name', 'venue_id')
         .single()
 
-      let query = supabase
+      let query = getSupabase()
         .from('staff_onboarding_candidates')
         .select('status, stage, onboarding_progress')
 

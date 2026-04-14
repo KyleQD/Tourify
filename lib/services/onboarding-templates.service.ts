@@ -1,9 +1,15 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+let _supabase: SupabaseClient | null = null
+function getSupabase(): SupabaseClient {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+  }
+  return _supabase
+}
 
 export interface OnboardingField {
   id: string
@@ -49,7 +55,7 @@ export class OnboardingTemplatesService {
    */
   static async getTemplates(venueId: string): Promise<OnboardingTemplate[]> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('staff_onboarding_templates')
         .select('*')
         .eq('venue_id', venueId)
@@ -69,7 +75,7 @@ export class OnboardingTemplatesService {
    */
   static async createTemplate(template: Omit<OnboardingTemplate, 'id' | 'created_at' | 'updated_at'>): Promise<OnboardingTemplate> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('staff_onboarding_templates')
         .insert({
           ...template,
@@ -92,7 +98,7 @@ export class OnboardingTemplatesService {
    */
   static async updateTemplate(id: string, updates: Partial<OnboardingTemplate>): Promise<OnboardingTemplate> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await getSupabase()
         .from('staff_onboarding_templates')
         .update({
           ...updates,
@@ -115,7 +121,7 @@ export class OnboardingTemplatesService {
    */
   static async deleteTemplate(id: string): Promise<void> {
     try {
-      const { error } = await supabase
+      const { error } = await getSupabase()
         .from('staff_onboarding_templates')
         .delete()
         .eq('id', id)
