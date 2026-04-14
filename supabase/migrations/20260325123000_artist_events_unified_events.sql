@@ -29,6 +29,7 @@ alter table public.events
   add column if not exists latitude double precision,
   add column if not exists longitude double precision,
   add column if not exists genre_tags jsonb default '[]'::jsonb,
+  add column if not exists status text,
   add column if not exists created_at timestamptz default now();
 
 -- Ensure status can support artist flow

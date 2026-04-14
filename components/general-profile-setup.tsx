@@ -21,6 +21,7 @@ import {
   Sparkles
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { getAuthSignUpEmailRedirectTo } from "@/lib/auth/auth-email-redirect"
 
 interface GeneralProfileSetupProps {
   userData: {
@@ -94,6 +95,7 @@ export default function GeneralProfileSetup({ userData, onComplete }: GeneralPro
         email: userData.email,
         password: userData.password,
         options: {
+          emailRedirectTo: getAuthSignUpEmailRedirectTo(),
           data: {
             name: profile.name,
             username: profile.username,

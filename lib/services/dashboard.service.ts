@@ -51,10 +51,18 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   }
 }
 
+interface EngagementSumOptions {
+  /** Cap rows scanned (pagination); lower for account-switcher cards, higher for full dashboard. */
+  maxRows?: number
+}
+
 /** Sum engagement fields without loading every post in one response (keeps deploy / mobile fast). */
-async function sumPostEngagementForUser(userId: string): Promise<{ likes: number; shares: number; views: number }> {
+async function sumPostEngagementForUser(
+  userId: string,
+  options?: EngagementSumOptions,
+): Promise<{ likes: number; shares: number; views: number }> {
   const pageSize = 500
-  const maxRows = 25_000
+  const maxRows = options?.maxRows ?? 25_000
   let offset = 0
   let likes = 0
   let shares = 0
@@ -143,10 +151,14 @@ export class DashboardService {
       .slice(0, 3)
   }
 
-  static async getDashboardStats(userId: string): Promise<DashboardStats> {
+  static async getDashboardStats(
+    userId: string,
+    options?: { engagementSampleMaxRows?: number },
+  ): Promise<DashboardStats> {
     return safeQuery(async () => {
+      const engagementCap = options?.engagementSampleMaxRows ?? 25_000
       const [engagementResult, followersResult, eventCountResult] = await Promise.allSettled([
-        sumPostEngagementForUser(userId),
+        sumPostEngagementForUser(userId, { maxRows: engagementCap }),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
         this.getUserEventCount(userId),
       ])
@@ -252,7 +264,9 @@ export class DashboardService {
   static async getAccountMetrics(accounts: UserAccount[]): Promise<AccountMetrics[]> {
     const results = await Promise.allSettled(
       accounts.map(async (account): Promise<AccountMetrics> => {
-        const stats = await this.getDashboardStats(account.profile_id)
+        const stats = await this.getDashboardStats(account.profile_id, {
+          engagementSampleMaxRows: 4_000,
+        })
 
         let urgentCount = 0
         if (account.account_type === 'venue' || account.account_type === 'artist') {

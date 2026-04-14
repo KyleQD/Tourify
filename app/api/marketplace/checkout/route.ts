@@ -4,7 +4,8 @@ import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers
 import { calculateMarketplaceFeeBreakdown } from "@/lib/marketplace/fees"
 import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
-import { getStripe } from "@/lib/stripe"
+import { resolveStripeConnectAccountId } from "@/lib/stripe-connect-resolve"
+import { getStripeClient } from "@/lib/stripe"
 import { marketplaceCheckoutRequestSchema } from "@tourify/api-contracts"
 
 export const dynamic = "force-dynamic"
@@ -137,11 +138,11 @@ export async function POST(request: NextRequest) {
 
     const { data: sellerProfile } = await supabase
       .from("profiles")
-      .select("stripe_connect_account_id")
+      .select("stripe_connect_account_id, stripe_connect_v2_account_id, stripe_connect_account_kind")
       .eq("id", sellerUserId)
       .single()
 
-    const sellerStripeAccountId = sellerProfile?.stripe_connect_account_id || null
+    const sellerStripeAccountId = resolveStripeConnectAccountId(sellerProfile)
 
     const { data: order, error: orderError } = await supabase
       .from("marketplace_orders")
@@ -227,7 +228,7 @@ export async function POST(request: NextRequest) {
 
     let session: Stripe.Checkout.Session
     try {
-      const stripe = getStripe()
+      const stripe = getStripeClient()
 
       const checkoutLineItems = [
         ...lineItems.map(item => ({

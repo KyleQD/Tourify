@@ -61,6 +61,7 @@ const STATUS_COLORS: Record<string, string> = {
 interface StripeConnectStatus {
   connected: boolean
   accountId: string | null
+  connectKind?: "v1_express" | "v2" | null
   chargesEnabled: boolean
   payoutsEnabled: boolean
   detailsSubmitted: boolean
@@ -74,6 +75,7 @@ export default function PaymentsPage() {
   const [connectStatus, setConnectStatus] = useState<StripeConnectStatus>({
     connected: false,
     accountId: null,
+    connectKind: null,
     chargesEnabled: false,
     payoutsEnabled: false,
     detailsSubmitted: false,

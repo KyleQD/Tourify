@@ -1,39 +1,49 @@
--- Extend staff_invitations to support tour-scoped invites and roles
+-- Extend staff_invitations to support tour-scoped invites and roles.
+-- Table may be created later by 20250813123000_create_staff_invitations_if_missing.sql — skip if absent.
 
--- Add columns if they do not exist
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'staff_invitations' AND column_name = 'tour_id'
-  ) THEN
-    ALTER TABLE staff_invitations ADD COLUMN tour_id UUID;
-  END IF;
+do $body$
+begin
+  if not exists (
+    select 1 from information_schema.tables
+    where table_schema = 'public' and table_name = 'staff_invitations'
+  ) then
+    return;
+  end if;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'staff_invitations' AND column_name = 'role'
-  ) THEN
-    ALTER TABLE staff_invitations ADD COLUMN role TEXT;
-  END IF;
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'staff_invitations' and column_name = 'tour_id'
+  ) then
+    alter table public.staff_invitations add column tour_id uuid;
+  end if;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'staff_invitations' AND column_name = 'origin'
-  ) THEN
-    ALTER TABLE staff_invitations ADD COLUMN origin TEXT DEFAULT 'tour';
-  END IF;
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'staff_invitations' and column_name = 'role'
+  ) then
+    alter table public.staff_invitations add column role text;
+  end if;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'staff_invitations' AND column_name = 'created_by'
-  ) THEN
-    ALTER TABLE staff_invitations ADD COLUMN created_by UUID;
-  END IF;
-END $$;
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'staff_invitations' and column_name = 'origin'
+  ) then
+    alter table public.staff_invitations add column origin text default 'tour';
+  end if;
 
--- Indexes for quick filtering
-CREATE INDEX IF NOT EXISTS idx_staff_invitations_tour ON staff_invitations(tour_id);
-CREATE INDEX IF NOT EXISTS idx_staff_invitations_role ON staff_invitations(role);
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'staff_invitations' and column_name = 'created_by'
+  ) then
+    alter table public.staff_invitations add column created_by uuid;
+  end if;
+end $body$;
 
-
+do $body$
+begin
+  if to_regclass('public.staff_invitations') is null then
+    return;
+  end if;
+  execute 'create index if not exists idx_staff_invitations_tour on public.staff_invitations(tour_id)';
+  execute 'create index if not exists idx_staff_invitations_role on public.staff_invitations(role)';
+end $body$;

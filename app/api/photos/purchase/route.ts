@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { createClient } from '@/lib/supabase/server'
 import { calculateMarketplaceFeeBreakdown } from '@/lib/marketplace/fees'
-import { getStripe } from '@/lib/stripe'
+import { resolveStripeConnectAccountId } from '@/lib/stripe-connect-resolve'
+import { getStripeClient } from '@/lib/stripe'
 
 export const dynamic = 'force-dynamic'
 
@@ -81,11 +82,11 @@ export async function POST(request: NextRequest) {
     // Resolve seller Stripe Connect account for direct payouts
     const { data: sellerProfile } = await supabase
       .from('profiles')
-      .select('stripe_connect_account_id')
+      .select('stripe_connect_account_id, stripe_connect_v2_account_id, stripe_connect_account_kind')
       .eq('id', photo.user_id)
       .single()
 
-    const sellerConnectId = sellerProfile?.stripe_connect_account_id || null
+    const sellerConnectId = resolveStripeConnectAccountId(sellerProfile)
 
     // Create purchase record
     const { data: purchase, error: purchaseError } = await supabase
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const stripe = getStripe()
+    const stripe = getStripeClient()
 
     const sessionConfig: Record<string, any> = {
       payment_method_types: ['card', 'us_bank_account'],

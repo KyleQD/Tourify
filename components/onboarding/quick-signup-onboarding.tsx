@@ -101,7 +101,9 @@ export default function QuickSignupOnboarding() {
       
       toast({
         title: "Account created successfully!",
-        description: "Please check your email to verify your account.",
+        description: result.needsEmailConfirmation
+          ? "Please check your email to verify your account."
+          : "You are signed in. Continue to set up your profile.",
       })
       
     } catch (err) {

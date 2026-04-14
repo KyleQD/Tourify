@@ -315,7 +315,13 @@ export function TourifyAuthPortal({
         if (inviteToken) {
           console.log("Invitation flow will continue after email confirmation")
         }
-        setSuccess("Account created successfully! Please check your email to confirm your account.")
+        if (result.needsEmailConfirmation) {
+          setSuccess(
+            "Account created successfully! Please check your email to confirm your account."
+          )
+        } else {
+          setSuccess("Account created successfully! You are signed in — continue to your dashboard.")
+        }
       }
     } catch (err) {
       setError(mapAuthError(err instanceof Error ? err : "Failed to sign up"))

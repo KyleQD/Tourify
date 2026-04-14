@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -26,22 +26,51 @@ interface AnalyticsData {
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"]
 
+function emptyAnalyticsData(period: string): AnalyticsData {
+  return {
+    revenue: 0,
+    statusDistribution: {},
+    dailyRevenue: {},
+    eventPopularity: [],
+    totalEvents: 0,
+    totalBookings: 0,
+    period,
+  }
+}
+
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [period, setPeriod] = useState("30")
+  const [authMessage, setAuthMessage] = useState<string | null>(null)
   const searchParams = useSearchParams()
   const accountId = searchParams.get("accountId") || ""
   const scope = searchParams.get("scope") || "dashboard"
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [period])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
+    setLoading(true)
+    setAuthMessage(null)
     try {
-      const response = await fetch(`/api/analytics?period=${period}&accountId=${accountId}&scope=${scope}`)
+      const q = new URLSearchParams({
+        period,
+        scope,
+      })
+      if (accountId) q.set("accountId", accountId)
+
+      const response = await fetch(`/api/analytics?${q.toString()}`)
       const raw = await response.json()
+
+      if (response.status === 401) {
+        setAuthMessage(typeof raw.message === "string" ? raw.message : "Sign in to view analytics.")
+        setData(emptyAnalyticsData(period))
+        return
+      }
+
+      if (!response.ok) {
+        console.error("Analytics request failed:", response.status, raw)
+        setData(null)
+        return
+      }
 
       // Normalize backend shapes to the UI's expected format
       const dailyRevenue: Record<string, number> = raw.dailyRevenue
@@ -76,10 +105,15 @@ export default function AnalyticsPage() {
       setData(normalized)
     } catch (error) {
       console.error("Error fetching analytics:", error)
+      setData(null)
     } finally {
       setLoading(false)
     }
-  }
+  }, [period, accountId, scope])
+
+  useEffect(() => {
+    void fetchAnalytics()
+  }, [fetchAnalytics])
 
   if (loading) {
     return (
@@ -115,6 +149,11 @@ export default function AnalyticsPage() {
 
   return (
     <div className="container mx-auto p-6">
+      {authMessage ? (
+        <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-100">
+          {authMessage}
+        </p>
+      ) : null}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
         <div className="text-sm text-slate-400">Scope: {scope || 'dashboard'} {accountId && `(Account: ${accountId})`}</div>
@@ -164,7 +203,10 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              {(data.eventPopularity.reduce((sum, event) => sum + event.occupancyRate, 0) / data.eventPopularity.length).toFixed(1)}%
+              {data.eventPopularity.length === 0
+                ? "0"
+                : (data.eventPopularity.reduce((sum, event) => sum + event.occupancyRate, 0) / data.eventPopularity.length).toFixed(1)}
+              %
             </p>
           </CardContent>
         </Card>
@@ -196,24 +238,28 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {statusData.length === 0 ? (
+                <p className="flex h-full items-center justify-center text-sm text-muted-foreground">No booking data for this period</p>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={100}
+                      label
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
             </div>
           </CardContent>
         </Card>

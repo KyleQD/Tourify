@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
-import { getStripe } from "@/lib/stripe"
+import { getStripeClient } from "@/lib/stripe"
 
 const syncTierSchema = z.object({
   tierId: z.string().uuid("Invalid tier ID"),
@@ -34,11 +34,11 @@ export async function POST(request: NextRequest) {
     if (tierError || !tier)
       return NextResponse.json({ error: "Tier not found" }, { status: 404 })
 
-    const stripe = getStripe()
+    const stripe = getStripeClient()
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, stripe_connect_account_id")
+      .select("full_name")
       .eq("id", user.id)
       .single()
 

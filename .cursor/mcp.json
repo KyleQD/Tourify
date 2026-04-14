@@ -1,6 +1,6 @@
 {
-  "mcpServers": sb_secret_sm_CQ55CXJmGpb1YKfA8dQ_izJCjFoT
-    "supabase": sb_publishable_cj8psrsGED8reVycacaZ-w_1PJ6tZtQ
+  "mcpServers": {
+    "supabase": {
       "command": "npx",
       "args": [
         "-y",
@@ -9,16 +9,15 @@
         "--project-ref=auqddrodjezjlypkzfpi"
       ]
     },
-    
-      "sequential-thinking": {
-        "command": "npx",
-        "args": [
-          "-y",
-          "@modelcontextprotocol/server-sequential-thinking"
-        ]
-      }
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    }
   },
   "env": {
     "SUPABASE_ACCESS_TOKEN": "ZjdnAVqYbZaCvDTQEfp8bdyKtkJ64hTVTEGLZ2TwHYm8H4dA2QwcZqDCK82J9sJ5oeceqeMEOAs2QGfmRpzIHQ=="
   }
-} 
+}

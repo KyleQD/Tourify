@@ -23,7 +23,7 @@ BEGIN
         SELECT 1 FROM tour_team_members ttm
         WHERE ttm.tour_id = tours.id
           AND ttm.user_id = auth.uid()
-          AND COALESCE(ttm.status, 'pending') = 'confirmed'
+          AND coalesce(ttm.is_active, true) = true
       )
     );
   END IF;
@@ -43,7 +43,7 @@ BEGIN
         SELECT 1 FROM tour_team_members ttm
         WHERE ttm.tour_id = events.tour_id
           AND ttm.user_id = auth.uid()
-          AND COALESCE(ttm.status, 'pending') = 'confirmed'
+          AND coalesce(ttm.is_active, true) = true
       )
     );
   END IF;
@@ -72,7 +72,7 @@ BEGIN
     ON tour_team_members FOR SELECT
     USING (
       EXISTS (SELECT 1 FROM tours WHERE tours.id = tour_team_members.tour_id AND tours.created_by = auth.uid()) OR
-      (tour_team_members.user_id = auth.uid() AND COALESCE(tour_team_members.status, 'pending') = 'confirmed')
+      (tour_team_members.user_id = auth.uid() AND coalesce(tour_team_members.is_active, true) = true)
     );
   END IF;
 
@@ -108,7 +108,7 @@ BEGIN
           SELECT 1 FROM tour_team_members ttm
           WHERE ttm.tour_id = tour_vendors.tour_id
             AND ttm.user_id = auth.uid()
-            AND COALESCE(ttm.status, 'pending') = 'confirmed'
+            AND coalesce(ttm.is_active, true) = true
         )
       );
     END IF;

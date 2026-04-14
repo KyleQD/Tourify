@@ -49,7 +49,7 @@ export function EnhancedAccountCards() {
   useEffect(() => {
     const loadAccountCards = async () => {
       try {
-        const metricsTimeoutMs = 45_000
+        const metricsTimeoutMs = 20_000
         const accountMetrics = await Promise.race([
           DashboardService.getAccountMetrics(accounts),
           new Promise<Awaited<ReturnType<typeof DashboardService.getAccountMetrics>>>((resolve) => {

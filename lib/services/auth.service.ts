@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 import { normalizeAccountTypeForProfile } from '@/lib/auth/normalize-account-type'
+import { getAuthSignUpEmailRedirectTo } from '@/lib/auth/auth-email-redirect'
 
 export interface SignupData {
   email: string
@@ -67,12 +68,7 @@ export class AuthService {
       if (data.enable_mfa !== undefined) metadata.enable_mfa = data.enable_mfa
       metadata.onboarding_completed = false
 
-      // Use the current host so callbacks work for tourify.live, demo, and local.
-      const baseOrigin =
-        typeof window !== 'undefined'
-          ? window.location.origin
-          : (process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live')
-      const redirectUrl = `${baseOrigin}/auth/callback`
+      const redirectUrl = getAuthSignUpEmailRedirectTo()
 
       console.log('[AuthService] Using redirect URL:', redirectUrl)
 

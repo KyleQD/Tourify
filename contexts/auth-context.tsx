@@ -3,12 +3,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { getAuthSignUpEmailRedirectTo } from '@/lib/auth/auth-email-redirect'
 import { useRouter } from 'next/navigation'
-import {
-  AUTH_SESSION_INIT_TIMEOUT_MS,
-  isSessionCheckTimeout,
-  rejectAfterSessionTimeout,
-} from '@/lib/auth/session-init'
 
 function authDevLog(...args: unknown[]) {
   if (process.env.NODE_ENV !== 'development') return
@@ -25,7 +21,11 @@ interface AuthContextType {
   /** Re-run initial getSession (e.g. after timeout or network recovery). */
   retrySessionCheck: () => Promise<void>
   signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
-  signUp: (email: string, password: string, metadata?: { full_name?: string; username?: string; account_type?: string }) => Promise<{ error?: AuthError }>
+  signUp: (
+    email: string,
+    password: string,
+    metadata?: { full_name?: string; username?: string; account_type?: string }
+  ) => Promise<{ error?: AuthError; needsEmailConfirmation?: boolean }>
   signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
   signOut: () => Promise<{ error?: AuthError }>
   resetPassword: (email: string) => Promise<{ error?: AuthError }>
@@ -54,15 +54,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const started = typeof performance !== 'undefined' ? performance.now() : 0
     authDevLog('[Auth] Checking initial session...')
     try {
-      const result = await Promise.race([
-        supabase.auth.getSession(),
-        rejectAfterSessionTimeout(AUTH_SESSION_INIT_TIMEOUT_MS),
-      ])
-      const { data: { session: nextSession }, error } = result
+      const { data: { session: nextSession }, error } = await supabase.auth.getSession()
 
       if (error) {
         console.error('[Auth] Session check error:', error)
         setAuthError(error.message)
+        setSession(null)
+        setUser(null)
       } else {
         setAuthError(null)
         authDevLog(
@@ -70,28 +68,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           nextSession ? `User ${nextSession.user?.id}` : 'No session',
           `(${(performance.now() - started).toFixed(0)}ms)`,
         )
+        setSession(nextSession)
+        setUser(nextSession?.user ?? null)
       }
-
-      setSession(nextSession)
-      setUser(nextSession?.user ?? null)
     } catch (error) {
-      if (isSessionCheckTimeout(error)) {
-        console.error('[Auth] Session check timed out after', AUTH_SESSION_INIT_TIMEOUT_MS, 'ms')
-        setAuthError(
-          'Session check timed out. Check your connection and that authentication is configured for this environment.',
-        )
-        setSession(null)
-        setUser(null)
-      } else {
-        console.error('[Auth] Session check failed:', error)
-        setAuthError(
-          error instanceof Error
-            ? error.message
-            : 'Unable to verify your session. Try refreshing the page.',
-        )
-        setSession(null)
-        setUser(null)
-      }
+      console.error('[Auth] Session check failed:', error)
+      setAuthError(
+        error instanceof Error
+          ? error.message
+          : 'Unable to verify your session. Try refreshing the page.',
+      )
+      setSession(null)
+      setUser(null)
     } finally {
       setLoading(false)
     }
@@ -229,10 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
         options: {
-          emailRedirectTo:
-            typeof window !== 'undefined'
-              ? `${window.location.origin}/auth/callback?type=signup&redirectTo=%2Flogin`
-              : undefined,
+          emailRedirectTo: getAuthSignUpEmailRedirectTo(),
           data: {
             full_name: metadata?.full_name,
             username: normalizedUsername || metadata?.username,
@@ -273,12 +258,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
+      const needsEmailConfirmation = Boolean(data.user) && !data.session
+
       authDevLog('[Auth] Sign up successful:', {
         userId: data.user?.id,
         email: data.user?.email,
-        needsConfirmation: !data.session ? 'Yes' : 'No'
+        needsConfirmation: needsEmailConfirmation ? 'Yes' : 'No'
       })
-      return { error: undefined }
+      return { error: undefined, needsEmailConfirmation }
     } catch (error) {
       console.error('[Auth] Sign up failed with exception:', error)
       return { 

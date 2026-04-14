@@ -36,15 +36,3 @@ CREATE POLICY "Users can log activity for their site maps" ON site_map_activity_
             )
         )
     );
-
--- Also ensure the user has a profile record
-INSERT INTO profiles (id, username, full_name, email, created_at, updated_at)
-VALUES (
-    '97b9e178-b65f-47a3-910e-550864a4568a',
-    'kyle_daley',
-    'Kyle Daley',
-    'kyle@example.com',
-    NOW(),
-    NOW()
-)
-ON CONFLICT (id) DO NOTHING;

@@ -182,11 +182,12 @@ CREATE TRIGGER trigger_follows_delete
   FOR EACH ROW
   EXECUTE FUNCTION update_follower_counts();
 
--- Ensure profiles table has the necessary columns
+-- Ensure profiles table has the necessary columns (metadata used by friend_suggestions_view; added later in other migrations for some envs)
 ALTER TABLE profiles 
 ADD COLUMN IF NOT EXISTS followers_count INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS following_count INTEGER DEFAULT 0,
-ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;
+ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS metadata JSONB;
 
 -- Create a view for friend suggestions with better performance
 CREATE OR REPLACE VIEW friend_suggestions_view AS

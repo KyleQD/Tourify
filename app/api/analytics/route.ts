@@ -14,6 +14,19 @@ export async function GET(request: NextRequest) {
     const { createClient } = await import('@/lib/supabase/server')
     const supabase = await createClient()
 
+    const {
+      data: { user: authedUser },
+    } = await supabase.auth.getUser()
+
+    if (scope === 'dashboard' && !authedUser?.id) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Sign in to view dashboard analytics.' },
+        { status: 401 },
+      )
+    }
+
+    const effectiveAccountId = accountId || authedUser?.id || ''
+
     // Legacy events (organizer scoped)
     let legacyEventsQuery = supabase
       .from('events')
@@ -21,7 +34,7 @@ export async function GET(request: NextRequest) {
       .gte('start_date', startDate.toISOString())
       .order('start_date', { ascending: true })
 
-    if (accountId) legacyEventsQuery = legacyEventsQuery.eq('organizer_id', accountId)
+    if (effectiveAccountId) legacyEventsQuery = legacyEventsQuery.eq('organizer_id', effectiveAccountId)
 
     // Canonical events_v2 (creator scoped)
     let eventsV2Query = supabase
@@ -30,7 +43,7 @@ export async function GET(request: NextRequest) {
       .gte('start_at', startDate.toISOString())
       .order('start_at', { ascending: true })
 
-    if (accountId) eventsV2Query = eventsV2Query.eq('created_by', accountId)
+    if (effectiveAccountId) eventsV2Query = eventsV2Query.eq('created_by', effectiveAccountId)
 
     const [legacyEventsResult, eventsV2Result] = await Promise.all([
       legacyEventsQuery,
@@ -65,7 +78,7 @@ export async function GET(request: NextRequest) {
         .select('id, event_id, status, amount, created_at')
         .gte('created_at', startDate.toISOString())
 
-      if (accountId) bookingsQuery = bookingsQuery.eq('organizer_id', accountId)
+      if (effectiveAccountId) bookingsQuery = bookingsQuery.eq('organizer_id', effectiveAccountId)
 
       const bookingsResult = await bookingsQuery
       const bookings = bookingsResult.error ? [] : (bookingsResult.data || [])

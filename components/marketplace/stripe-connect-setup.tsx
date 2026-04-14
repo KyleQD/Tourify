@@ -9,6 +9,8 @@ import { toast } from "sonner"
 interface StripeConnectStatus {
   connected: boolean
   accountId: string | null
+  /** Present when API returns Connect V2 vs legacy Express (Option B). */
+  connectKind?: "v1_express" | "v2" | null
   chargesEnabled: boolean
   payoutsEnabled: boolean
   detailsSubmitted: boolean
@@ -18,6 +20,7 @@ export function StripeConnectSetup() {
   const [connectStatus, setConnectStatus] = useState<StripeConnectStatus>({
     connected: false,
     accountId: null,
+    connectKind: null,
     chargesEnabled: false,
     payoutsEnabled: false,
     detailsSubmitted: false,

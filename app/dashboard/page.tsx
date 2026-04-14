@@ -92,7 +92,7 @@ interface UserProfile {
 }
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth()
+  const { user, loading, authError, retrySessionCheck } = useAuth()
   const { currentAccount } = useMultiAccount()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -101,19 +101,7 @@ export default function DashboardPage() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Force load state for handling redirect scenarios
-  const [forceLoad, setForceLoad] = useState(false)
-
-  // Keep a stable fallback user object to avoid effect churn.
-  const dashboardUser = useMemo(() => {
-    if (user) return user
-    if (!forceLoad) return null
-    return {
-      id: 'temp-user',
-      email: 'user@example.com',
-      user_metadata: { full_name: 'User' }
-    } as any
-  }, [user, forceLoad])
+  const [isRetryingSession, setIsRetryingSession] = useState(false)
 
   const publicProfileRoute = useMemo(() => {
     const customUrl = userProfile?.custom_url
@@ -166,22 +154,13 @@ export default function DashboardPage() {
       return userProfile.metadata.username
     }
     // Fallback to user metadata or email
-    return dashboardUser?.user_metadata?.name || dashboardUser?.email?.split('@')[0] || "Creator"
+    const meta = user?.user_metadata as { full_name?: string; name?: string } | undefined
+    return meta?.full_name || meta?.name || user?.email?.split('@')[0] || 'Creator'
   }
 
   // Fetch user profile function using optimized API
   const fetchUserProfile = async () => {
-    if (!dashboardUser || dashboardUser.id === 'temp-user') {
-      // Set a basic fallback profile for temp users
-      setUserProfile({
-        id: 'temp-user',
-        username: 'user',
-        full_name: 'User',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      } as UserProfile)
-      return
-    }
+    if (!user?.id) return
 
     try {
       const response = await fetch('/api/profile/current')
@@ -216,21 +195,21 @@ export default function DashboardPage() {
           
           setUserProfile(transformedProfile)
         } else {
-          // Set fallback profile to prevent hanging
+          const meta = user.user_metadata as { full_name?: string } | undefined
           setUserProfile({
-            id: dashboardUser.id,
-            username: dashboardUser.email?.split('@')[0] || 'user',
-            full_name: dashboardUser.user_metadata?.full_name || dashboardUser.email?.split('@')[0] || 'User',
+            id: user.id,
+            username: user.email?.split('@')[0] || 'user',
+            full_name: meta?.full_name || user.email?.split('@')[0] || 'Creator',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           } as UserProfile)
         }
       } else {
-        // Set fallback profile to prevent hanging
+        const meta = user.user_metadata as { full_name?: string } | undefined
         setUserProfile({
-          id: dashboardUser.id,
-          username: dashboardUser.email?.split('@')[0] || 'user',
-          full_name: dashboardUser.user_metadata?.full_name || dashboardUser.email?.split('@')[0] || 'User',
+          id: user.id,
+          username: user.email?.split('@')[0] || 'user',
+          full_name: meta?.full_name || user.email?.split('@')[0] || 'Creator',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         } as UserProfile)
@@ -246,25 +225,27 @@ export default function DashboardPage() {
         console.error('Profile fetch error status:', err.status)
       }
       
-      // Set fallback profile to prevent hanging
+      const meta = user.user_metadata as { full_name?: string } | undefined
       setUserProfile({
-        id: dashboardUser.id,
-        username: dashboardUser.email?.split('@')[0] || 'user',
-        full_name: dashboardUser.user_metadata?.full_name || dashboardUser.email?.split('@')[0] || 'User',
+        id: user.id,
+        username: user.email?.split('@')[0] || 'user',
+        full_name: meta?.full_name || user.email?.split('@')[0] || 'Creator',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       } as UserProfile)
     }
   }
 
-  const dashboardUserId = dashboardUser?.id
+  const dashboardUserId = user?.id
 
   useEffect(() => {
-    if (!loading && !user && !forceLoad) {
-      router.push('/login')
-      return
-    }
+    if (loading) return
+    if (user) return
+    if (authError) return
+    router.push('/login')
+  }, [loading, user, authError, router])
 
+  useEffect(() => {
     if (!dashboardUserId) {
       return
     }
@@ -416,12 +397,12 @@ export default function DashboardPage() {
     loadDashboardData().catch(() => {})
 
     const handleFocus = () => {
-      if (dashboardUser) fetchUserProfile().catch(() => {})
+      if (user?.id) fetchUserProfile().catch(() => {})
     }
 
     const handleStorageChange = (e: StorageEvent) => {
       try {
-        if (e.key === 'profile-updated' && dashboardUser) {
+        if (e.key === 'profile-updated' && user?.id) {
           fetchUserProfile().catch(() => {})
           try { localStorage.removeItem('profile-updated') } catch { /* noop */ }
         }
@@ -439,17 +420,9 @@ export default function DashboardPage() {
         window.removeEventListener('storage', handleStorageChange)
       } catch { /* noop */ }
     }
-  }, [user, loading, router, dashboardUserId, forceLoad])
+  }, [user, loading, router, dashboardUserId])
 
-  useEffect(() => {
-    const forceLoadTimer = setTimeout(() => {
-      setForceLoad(true)
-    }, 3000)
-    
-    return () => clearTimeout(forceLoadTimer)
-  }, [])
-
-  if (loading && !forceLoad) {
+  if (loading) {
     return (
       <BrandLoadingScreen
         message="Loading..."
@@ -459,7 +432,40 @@ export default function DashboardPage() {
     )
   }
 
-  if (!dashboardUser) {
+  if (!user) {
+    if (authError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 px-4">
+          <Card className="max-w-md w-full bg-white/10 border-white/20 text-white backdrop-blur-xl">
+            <CardHeader>
+              <CardTitle className="text-white">We couldn&apos;t verify your session</CardTitle>
+              <CardDescription className="text-gray-300">
+                {authError}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row">
+              <Button
+                className="rounded-xl bg-purple-600 hover:bg-purple-500"
+                disabled={isRetryingSession}
+                onClick={async () => {
+                  setIsRetryingSession(true)
+                  try {
+                    await retrySessionCheck()
+                  } finally {
+                    setIsRetryingSession(false)
+                  }
+                }}
+              >
+                {isRetryingSession ? 'Trying again…' : 'Try again'}
+              </Button>
+              <Button variant="outline" className="rounded-xl border-white/30 text-white hover:bg-white/10" asChild>
+                <a href="/login">Go to login</a>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
     return null
   }
 
@@ -483,7 +489,7 @@ export default function DashboardPage() {
                 <div className="relative">
                   <Avatar className="h-16 w-16 border-2 border-white/20">
                     <AvatarImage
-                      src={userProfile?.avatar_url || dashboardUser.user_metadata?.avatar_url}
+                      src={userProfile?.avatar_url || (user.user_metadata as { avatar_url?: string })?.avatar_url}
                       alt={`${getDisplayName()} profile photo`}
                     />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-lg font-semibold">
@@ -756,9 +762,9 @@ export default function DashboardPage() {
 
             {/* Right Column - Quick Actions */}
             <div className="lg:col-span-3 space-y-6">
-              {dashboardUserId && dashboardUserId !== 'temp-user' && (
+              {dashboardUserId ? (
                 <DashboardContractsCard userId={dashboardUserId} />
-              )}
+              ) : null}
               <div className="w-full">
                 <EnhancedQuickActions />
               </div>

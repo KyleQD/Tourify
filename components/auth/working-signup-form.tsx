@@ -38,6 +38,7 @@ import {
   CheckCircle2
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { getAuthSignUpEmailRedirectTo } from '@/lib/auth/auth-email-redirect'
 
 interface SignupFormData {
   email: string
@@ -158,6 +159,7 @@ export default function WorkingSignupForm() {
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: getAuthSignUpEmailRedirectTo(),
           data: {
             full_name: formData.fullName,
             username: formData.username,

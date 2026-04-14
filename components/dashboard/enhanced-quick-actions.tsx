@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { useAuth } from "@/contexts/auth-context"
 import { JukeboxPlayer } from "@/components/dashboard/jukebox-player"
 import { 
   Music, 
@@ -57,6 +58,7 @@ interface QuickAction {
 }
 
 export function EnhancedQuickActions() {
+  const { user } = useAuth()
   const { accounts, currentAccount } = useMultiAccount()
   const router = useRouter()
   const [quickActions, setQuickActions] = useState<QuickAction[]>([])
@@ -66,13 +68,23 @@ export function EnhancedQuickActions() {
 
   useEffect(() => {
     const loadQuickActions = () => {
+      const analyticsAccountId =
+        currentAccount?.profile_id ||
+        accounts[0]?.profile_id ||
+        user?.id ||
+        ''
+
       const baseActions: QuickAction[] = [
         {
           id: 'view-analytics',
           title: 'Dashboard Analytics',
-          description: 'Check your dashboard performance metrics',
+          description: analyticsAccountId
+            ? 'Check your dashboard performance metrics'
+            : 'Open analytics after your account finishes loading',
           icon: BarChart3,
-          href: `/analytics?scope=dashboard&accountId=${currentAccount?.profile_id || ''}`,
+          href: analyticsAccountId
+            ? `/analytics?scope=dashboard&accountId=${encodeURIComponent(analyticsAccountId)}`
+            : '/analytics?scope=dashboard',
           priority: 'medium'
         },
         {
@@ -238,7 +250,7 @@ export function EnhancedQuickActions() {
     }
 
     loadQuickActions()
-  }, [accounts, currentAccount])
+  }, [accounts, currentAccount, user?.id])
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {

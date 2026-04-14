@@ -152,6 +152,10 @@ export interface Database {
           posts_count: number
           created_at: string
           updated_at: string
+          stripe_connect_account_id: string | null
+          stripe_connect_v2_account_id: string | null
+          stripe_connect_account_kind: 'v1_express' | 'v2' | null
+          stripe_customer_id: string | null
         }
         Insert: {
           id: string
@@ -167,6 +171,10 @@ export interface Database {
           posts_count?: number
           created_at?: string
           updated_at?: string
+          stripe_connect_account_id?: string | null
+          stripe_connect_v2_account_id?: string | null
+          stripe_connect_account_kind?: 'v1_express' | 'v2' | null
+          stripe_customer_id?: string | null
         }
         Update: {
           id?: string
@@ -182,6 +190,10 @@ export interface Database {
           posts_count?: number
           created_at?: string
           updated_at?: string
+          stripe_connect_account_id?: string | null
+          stripe_connect_v2_account_id?: string | null
+          stripe_connect_account_kind?: 'v1_express' | 'v2' | null
+          stripe_customer_id?: string | null
         }
       }
       follows: {
