@@ -92,6 +92,9 @@ async function createSupabaseClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      auth: {
+        storageKey: 'sb-tourify-auth-token',
+      },
       cookies: {
         getAll() {
           return cookieStore.getAll()
