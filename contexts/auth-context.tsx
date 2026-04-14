@@ -1,9 +1,14 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import {
+  AUTH_SESSION_INIT_TIMEOUT_MS,
+  isSessionCheckTimeout,
+  rejectAfterSessionTimeout,
+} from '@/lib/auth/session-init'
 
 function authDevLog(...args: unknown[]) {
   if (process.env.NODE_ENV !== 'development') return
@@ -17,6 +22,8 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   authError: string | null
+  /** Re-run initial getSession (e.g. after timeout or network recovery). */
+  retrySessionCheck: () => Promise<void>
   signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
   signUp: (email: string, password: string, metadata?: { full_name?: string; username?: string; account_type?: string }) => Promise<{ error?: AuthError }>
   signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
@@ -43,41 +50,71 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null)
   const router = useRouter()
 
-  useEffect(() => {
-    // Check initial session
-    const checkSession = async () => {
-      try {
-        setLoading(true)
-        authDevLog('[Auth] Checking initial session...')
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('[Auth] Session check error:', error)
-          setAuthError(error.message)
-        } else {
-          setAuthError(null)
-          authDevLog('[Auth] Initial session check:', session ? `User ${session.user?.id} authenticated` : 'No session')
-        }
-        
-        setSession(session)
-        setUser(session?.user ?? null)
-      } catch (error) {
-        console.error('[Auth] Session check failed:', error)
-      } finally {
-        setLoading(false) // Always set loading to false after initial check
-      }
-    }
+  const runInitialSessionCheck = useCallback(async () => {
+    const started = typeof performance !== 'undefined' ? performance.now() : 0
+    authDevLog('[Auth] Checking initial session...')
+    try {
+      const result = await Promise.race([
+        supabase.auth.getSession(),
+        rejectAfterSessionTimeout(AUTH_SESSION_INIT_TIMEOUT_MS),
+      ])
+      const { data: { session: nextSession }, error } = result
 
-    checkSession()
+      if (error) {
+        console.error('[Auth] Session check error:', error)
+        setAuthError(error.message)
+      } else {
+        setAuthError(null)
+        authDevLog(
+          '[Auth] Initial session:',
+          nextSession ? `User ${nextSession.user?.id}` : 'No session',
+          `(${(performance.now() - started).toFixed(0)}ms)`,
+        )
+      }
+
+      setSession(nextSession)
+      setUser(nextSession?.user ?? null)
+    } catch (error) {
+      if (isSessionCheckTimeout(error)) {
+        console.error('[Auth] Session check timed out after', AUTH_SESSION_INIT_TIMEOUT_MS, 'ms')
+        setAuthError(
+          'Session check timed out. Check your connection and that authentication is configured for this environment.',
+        )
+        setSession(null)
+        setUser(null)
+      } else {
+        console.error('[Auth] Session check failed:', error)
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to verify your session. Try refreshing the page.',
+        )
+        setSession(null)
+        setUser(null)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const retrySessionCheck = useCallback(async () => {
+    setAuthError(null)
+    setLoading(true)
+    await runInitialSessionCheck()
+  }, [runInitialSessionCheck])
+
+  useEffect(() => {
+    void runInitialSessionCheck()
 
     // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       authDevLog('[Auth] State change:', event, session ? `User ${session.user?.id}` : 'No session')
-      
+
       setSession(session)
       setUser(session?.user ?? null)
+      if (session) setAuthError(null)
 
       // Don't automatically redirect on sign in - let components handle this
       // The middleware will handle protecting routes and the login page will redirect after successful sign in
@@ -103,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, [router])
+  }, [router, runInitialSessionCheck])
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -373,6 +410,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     loading,
     authError,
+    retrySessionCheck,
     signIn,
     signUp,
     signInWithSocial,

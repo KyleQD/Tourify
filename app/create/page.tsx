@@ -87,8 +87,11 @@ const createOptions: CreateOption[] = [
   }
 ]
 
+const AUTH_SLOW_HINT_MS = 8_000
+
 export default function CreatePage() {
-  const { user, loading } = useAuth()
+  const { user, loading, authError, retrySessionCheck } = useAuth()
+  const [showSlowAuthHint, setShowSlowAuthHint] = useState(false)
   const { accounts, hasAccountType, createArtistAccount, createVenueAccount, createOrganizerAccount, isLoading } = useMultiAccount()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -147,7 +150,7 @@ export default function CreatePage() {
   })
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!loading && !user && !authError) {
       router.push('/')
       return
     }
@@ -167,7 +170,16 @@ export default function CreatePage() {
           break
       }
     }
-  }, [user, loading, router, searchParams, selectedOption])
+  }, [user, loading, authError, router, searchParams, selectedOption])
+
+  useEffect(() => {
+    if (!loading) {
+      setShowSlowAuthHint(false)
+      return
+    }
+    const t = window.setTimeout(() => setShowSlowAuthHint(true), AUTH_SLOW_HINT_MS)
+    return () => window.clearTimeout(t)
+  }, [loading])
 
   const isAccountAlreadyCreated = (optionId: string): boolean => {
     // Remove limitations - users can create unlimited accounts of any type
@@ -295,8 +307,8 @@ export default function CreatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-center text-white">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4">
+        <div className="text-center text-white max-w-md">
           <div className="relative mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mx-auto animate-pulse">
               <Plus className="h-8 w-8 text-white" />
@@ -305,12 +317,43 @@ export default function CreatePage() {
           </div>
           <h2 className="text-2xl font-bold mb-2">Loading Creator Studio</h2>
           <p className="text-gray-400">Preparing account creation tools...</p>
+          {showSlowAuthHint && (
+            <p className="text-sm text-amber-200/90 mt-4">
+              Still connecting to authentication… If this does not clear, check your network or try again after it finishes.
+            </p>
+          )}
         </div>
       </div>
     )
   }
 
   if (!user) {
+    if (authError) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4">
+          <div className="max-w-lg w-full">
+            <Alert className="bg-red-500/15 border-red-500/40">
+              <AlertCircle className="h-5 w-5 text-red-300" />
+              <AlertDescription className="text-red-100">
+                <p className="font-medium mb-2">Could not verify your session</p>
+                <p className="text-sm opacity-90 mb-4">{authError}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="secondary" onClick={() => void retrySessionCheck()}>
+                    Try again
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => window.location.reload()}>
+                    Reload page
+                  </Button>
+                  <Button type="button" variant="ghost" className="text-white" onClick={() => router.push('/login')}>
+                    Go to login
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        </div>
+      )
+    }
     return null
   }
 
@@ -365,6 +408,18 @@ export default function CreatePage() {
               <CheckCircle className="h-5 w-5 text-green-400" />
               <AlertDescription className="text-green-200">
                 {success}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {authError && (
+            <Alert className="mb-8 bg-amber-500/15 border-amber-500/40 backdrop-blur-sm">
+              <AlertCircle className="h-5 w-5 text-amber-300" />
+              <AlertDescription className="text-amber-100">
+                <span className="block mb-2">{authError}</span>
+                <Button type="button" size="sm" variant="secondary" onClick={() => void retrySessionCheck()}>
+                  Retry session check
+                </Button>
               </AlertDescription>
             </Alert>
           )}

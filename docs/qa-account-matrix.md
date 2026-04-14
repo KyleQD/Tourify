@@ -57,12 +57,33 @@ Quick env checklist (non-fatal): `npm run check:integration-env`
 
 ## CI note
 
-`npm run verify:ci` runs `lint` and `next build`. Networked smoke scripts are **not** included by default so CI stays deterministic without secrets.
+`npm run verify:ci` runs `lint`, `npm test`, and `next build`. Networked smoke scripts are **not** included by default so CI stays deterministic without secrets.
+
+## `/create` (Creator Studio) and session init
+
+- Initial UI is gated on [`contexts/auth-context.tsx`](../contexts/auth-context.tsx): `getSession` is bounded by [`AUTH_SESSION_INIT_TIMEOUT_MS`](../lib/auth/session-init.ts) (10s). On timeout, `authError` is set and [`app/create/page.tsx`](../app/create/page.tsx) shows **Try again** / **Reload** / **Go to login** instead of hanging forever.
+- Slow loads: after 8s while `loading`, the create page shows a **Still connecting…** hint.
+
+### Demo / Vercel (operational)
+
+- In the Vercel project for **demo.tourify.live**, confirm `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` match the same Supabase project (no placeholders). Run `npm run check:integration-env` locally with the same values loaded in `.env`.
+- In the browser Network tab on `/create`, confirm requests to your Supabase host complete (no stuck `auth/v1` calls).
+
+### Supabase DB checklist for account creation (operational)
+
+- **Auth trigger:** `on_auth_user_created` on `auth.users` runs `handle_new_user` so each user gets a `profiles` row (see [`supabase/migrations/20260412120000_signup_trigger_account_type.sql`](../supabase/migrations/20260412120000_signup_trigger_account_type.sql)).
+- **RLS:** `artist_profiles` / `venue_profiles` allow authenticated users to insert their own row (`auth.uid() = user_id`) — baseline in [`supabase/migrations/20240415000000_create_profiles.sql`](../supabase/migrations/20240415000000_create_profiles.sql). Reconcile if later migrations changed policies.
+- **Organizer:** `POST /api/accounts` with action `create_organizer` — verify route and service role / RLS on `organizer_accounts` in the deployed project.
+
+### Manual smoke: `/create`
+
+1. Sign in, open `/create`, confirm the creator options render (not infinite loading).
+2. Create artist / venue / organizer test rows; confirm inserts in Table Editor and no `42501` in the console.
 
 ## Last automation run
 
 Local agent run (repo state at implementation):
 
 - `npm run lint`: **pass**
-- `npm test`: **pass** (19 suites); `lib/marketplace/__tests__/fees.test.ts` aligned with fee-on-top behavior in [`lib/marketplace/fees.ts`](../lib/marketplace/fees.ts).
+- `npm test`: **pass** (20 suites), including session-init helper tests.
 - `npm run check:integration-env`: Stripe keys missing in dev env (expected unless configured).
