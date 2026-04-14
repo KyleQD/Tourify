@@ -378,6 +378,12 @@ CREATE TABLE IF NOT EXISTS booking_requests (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Legacy DBs may already have booking_requests without artist_id; CREATE TABLE IF NOT EXISTS
+-- does not add missing columns, but RLS policies and indexes require this column.
+ALTER TABLE public.booking_requests
+  ADD COLUMN IF NOT EXISTS artist_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+
 ALTER TABLE booking_requests ENABLE ROW LEVEL SECURITY;
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='booking_requests' AND policyname='booking_requests_own') THEN

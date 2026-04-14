@@ -17,30 +17,39 @@
 --    STABLE because they don't modify data.
 -- ---------------------------------------------------------------------------
 
+-- tours_core defines tour_team_members without is_active; logistics helpers expect it.
+ALTER TABLE IF EXISTS public.tour_team_members
+  ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+
+-- Resolve tour via tour_teams.team_id (tours_core shape). Legacy rows also have team_id.
 CREATE OR REPLACE FUNCTION is_event_team_member(p_event_id uuid)
 RETURNS boolean
 LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1
     FROM tour_team_members ttm
-    JOIN tour_events te ON te.tour_id = ttm.tour_id
+    INNER JOIN tour_teams tt ON tt.id = ttm.team_id
+    INNER JOIN tour_events te ON te.tour_id = tt.tour_id
     WHERE te.event_id = p_event_id
       AND ttm.user_id = auth.uid()
-      AND ttm.is_active = true
+      AND coalesce(ttm.is_active, true) = true
   );
 $$;
 
 CREATE OR REPLACE FUNCTION is_tour_team_member(p_tour_id uuid)
 RETURNS boolean
 LANGUAGE sql SECURITY DEFINER STABLE
+SET search_path = public
 AS $$
   SELECT EXISTS (
     SELECT 1
     FROM tour_team_members ttm
-    WHERE ttm.tour_id = p_tour_id
+    INNER JOIN tour_teams tt ON tt.id = ttm.team_id
+    WHERE tt.tour_id = p_tour_id
       AND ttm.user_id = auth.uid()
-      AND ttm.is_active = true
+      AND coalesce(ttm.is_active, true) = true
   );
 $$;
 

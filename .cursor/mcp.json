@@ -1,6 +1,6 @@
 {
-  "mcpServers": {
-    "supabase": {
+  "mcpServers": sb_secret_sm_CQ55CXJmGpb1YKfA8dQ_izJCjFoT
+    "supabase": sb_publishable_cj8psrsGED8reVycacaZ-w_1PJ6tZtQ
       "command": "npx",
       "args": [
         "-y",

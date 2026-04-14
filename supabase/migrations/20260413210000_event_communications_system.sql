@@ -108,7 +108,8 @@ CREATE POLICY "Authenticated users read own event bulletins"
   USING (
     author_id = auth.uid()
     OR event_id IN (
-      SELECT ep.event_id FROM event_participants ep WHERE ep.user_id = auth.uid()
+      SELECT e.id FROM events_v2 e
+      WHERE public.is_org_member(auth.uid(), e.org_id)
     )
     OR event_id IN (
       SELECT e.id FROM events_v2 e WHERE e.created_by = auth.uid()
@@ -145,7 +146,8 @@ CREATE POLICY "Authenticated users read own event documents"
   USING (
     author_id = auth.uid()
     OR event_id IN (
-      SELECT ep.event_id FROM event_participants ep WHERE ep.user_id = auth.uid()
+      SELECT e.id FROM events_v2 e
+      WHERE public.is_org_member(auth.uid(), e.org_id)
     )
     OR event_id IN (
       SELECT e.id FROM events_v2 e WHERE e.created_by = auth.uid()

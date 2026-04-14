@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
-import { agentSessionLogServer } from '@/lib/debug/agent-session-log'
 
 const createTourSchema = z.object({
   name: z.string().min(1, 'Tour name is required'),
@@ -17,14 +16,6 @@ const createTourSchema = z.object({
 
 export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
-    // #region agent log
-    agentSessionLogServer({
-      hypothesisId: 'H3',
-      location: 'app/api/tours/route.ts:GET:entered',
-      message: 'tours GET handler entered (withAdminAuth passed)',
-      data: { ok: true },
-    })
-    // #endregion
     console.log('[Tours API] GET request started')
 
     const { searchParams } = new URL(request.url)
@@ -50,17 +41,6 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
 
     if (toursError) {
       console.error('[Tours API] Error fetching tours:', toursError)
-      // #region agent log
-      agentSessionLogServer({
-        hypothesisId: 'H5',
-        location: 'app/api/tours/route.ts:GET:toursError',
-        message: 'supabase tours query error',
-        data: {
-          code: toursError.code ?? null,
-          hint: (toursError as { hint?: string }).hint?.slice(0, 80) ?? null,
-        },
-      })
-      // #endregion
       // Return empty array instead of error if table doesn't exist
       if (toursError.code === '42P01') {
         console.log('[Tours API] Tours table does not exist, returning empty array')

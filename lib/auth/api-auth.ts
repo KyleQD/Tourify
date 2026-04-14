@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
-import { agentSessionLogServer } from '@/lib/debug/agent-session-log'
 import { profileIndicatesAdminAccess } from '@/lib/auth/admin-profile-gates'
 import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
@@ -72,18 +71,6 @@ export async function authenticateApiRequest(request?: NextRequest): Promise<{ u
  */
 export async function checkAdminPermissions(user: any, opts?: { tourId?: string }): Promise<boolean> {
   if (!user?.id) return false
-  // #region agent log
-  const svc = process.env.SUPABASE_SERVICE_ROLE_KEY
-  const hasServiceRoleConfigured = Boolean(
-    svc && svc.length > 30 && !svc.includes('your_service_role') && !svc.includes('your_'),
-  )
-  agentSessionLogServer({
-    hypothesisId: 'H2',
-    location: 'lib/auth/api-auth.ts:checkAdminPermissions:entry',
-    message: 'checkAdminPermissions entry',
-    data: { hasServiceRoleConfigured, hasUserId: true },
-  })
-  // #endregion
   try {
     const supabase = createServiceClient()
 
@@ -109,18 +96,6 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
     const hasOrganizerAccess = Boolean(
       organizerAccount || profileIndicatesAdminAccess(adminProfile),
     )
-    // #region agent log
-    agentSessionLogServer({
-      hypothesisId: 'H3',
-      location: 'lib/auth/api-auth.ts:checkAdminPermissions:flags',
-      message: 'organizer permission flags',
-      data: {
-        hasOrganizerRow: Boolean(organizerAccount),
-        profileGrantsAdmin: profileIndicatesAdminAccess(adminProfile),
-        accountType: adminProfile?.account_type ?? null,
-      },
-    })
-    // #endregion
     if (!hasOrganizerAccess) return false
 
     if (!opts?.tourId) return true
@@ -147,17 +122,6 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
     return !!team
   } catch (err) {
     console.error('[API Auth] checkAdminPermissions error:', err)
-    // #region agent log
-    agentSessionLogServer({
-      hypothesisId: 'H2',
-      location: 'lib/auth/api-auth.ts:checkAdminPermissions:catch',
-      message: 'checkAdminPermissions threw or DB error',
-      data: {
-        errName: err instanceof Error ? err.name : 'unknown',
-        errMessage: err instanceof Error ? err.message.slice(0, 120) : 'non-error',
-      },
-    })
-    // #endregion
     return false
   }
 }
@@ -201,18 +165,6 @@ export function withAdminAuth(
   return withAuth(async (request, auth) => {
     const tourId = opts?.tourIdFromRequest?.(request)
     const hasAdminAccess = await checkAdminPermissions(auth.user, { tourId })
-    // #region agent log
-    agentSessionLogServer({
-      hypothesisId: 'H3',
-      location: 'lib/auth/api-auth.ts:withAdminAuth',
-      message: 'withAdminAuth permission result',
-      data: {
-        path: request.nextUrl?.pathname ?? '',
-        hasAdminAccess,
-        hasTourIdFilter: Boolean(tourId),
-      },
-    })
-    // #endregion
     if (!hasAdminAccess) {
       return NextResponse.json({
         error: 'Forbidden',

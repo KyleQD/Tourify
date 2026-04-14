@@ -57,4 +57,5 @@ BEGIN
   END IF;
 END $$;
 
-COMMENT ON TABLE storage.objects IS 'artist-music bucket: private, owner-only RLS. Public playback uses signed URLs via /api/music/stream.';
+-- Note: do not COMMENT ON storage.objects here; Supabase owns that table and the
+-- migration role typically lacks ownership (42501 on remote push).
