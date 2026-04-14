@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { supabase } from "@/lib/supabase"
 import { useArtist } from "@/contexts/artist-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -237,7 +238,7 @@ export default function ContractsPage() {
     return () => {
       cancelled = true
     }
-  }, [showCreateModal, editingContract?.counterparty_user_id, editingContract?.id, supabase])
+  }, [showCreateModal, editingContract?.counterparty_user_id, editingContract?.id])
 
   const openBlankModal = () => {
     setEditingContract(null)

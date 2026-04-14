@@ -28,7 +28,7 @@ import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { usePhotoViewer } from '@/hooks/use-photo-viewer'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 interface PostData {
   id: string

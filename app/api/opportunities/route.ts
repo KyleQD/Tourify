@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import {
   getPersonalizedOpportunities,
   ingestOpportunitiesFromRss
 } from '@/lib/opportunities/rss-opportunities-service'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 function getSupabaseServiceClient() {
-  return createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  return createServiceRoleClient()
 }
 
 function parseTypes(value: string | null) {

@@ -1,6 +1,6 @@
 'use client'
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import React, { useState, useEffect } from 'react'
 import { useEnhancedAccounts } from '@/hooks/use-enhanced-accounts'
 import { useCrossPlatformPosting, useContentSuggestions } from '@/hooks/use-cross-platform-posting'

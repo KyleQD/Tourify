@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,10 +9,12 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Input } from '@/components/ui/input'
 import { 
   Heart, 
   MessageCircle, 
   Share2, 
+  Send,
   MoreHorizontal, 
   Music, 
   Image as ImageIcon, 
@@ -39,6 +42,18 @@ import { useArtist } from '@/contexts/artist-context'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+
+interface PostComment {
+  id: string
+  post_id: string
+  user_id: string
+  content: string
+  created_at: string
+  profiles?: {
+    username: string
+    avatar_url?: string
+  }
+}
 
 interface Post {
   id: string
@@ -69,6 +84,12 @@ export default function ArtistFeedPage() {
   const [isLoadingNetwork, setIsLoadingNetwork] = useState(true)
   const [activeTab, setActiveTab] = useState('live')
   const [feedFilter, setFeedFilter] = useState<'all' | 'following' | 'trending'>('all')
+  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
+  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({})
+  const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({})
+  const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set())
+  const [submittingComment, setSubmittingComment] = useState<Set<string>>(new Set())
+
   function buildNoStoreInit(input?: RequestInit): RequestInit {
     return {
       credentials: 'include',
@@ -287,74 +308,145 @@ export default function ArtistFeedPage() {
     toast.success('Post created successfully!')
   }
 
+  const updatePostInAllLists = (postId: string, updater: (post: Post) => Post) => {
+    setPosts(prev => prev.map(p => p.id === postId ? updater(p) : p))
+    setNetworkPosts(prev => prev.map(p => p.id === postId ? updater(p) : p))
+  }
+
   const handleLike = async (postId: string) => {
+    if (!user?.id) return
+
+    const post = [...posts, ...networkPosts].find(p => p.id === postId)
+    if (!post) return
+
+    const wasLiked = post.is_liked
+
+    updatePostInAllLists(postId, p => ({
+      ...p,
+      is_liked: !wasLiked,
+      likes_count: wasLiked ? p.likes_count - 1 : p.likes_count + 1
+    }))
+
     try {
-      const { error } = await supabase
-        .from('post_likes')
-        .upsert({
-          post_id: postId,
-          user_id: user?.id
-        })
+      if (wasLiked) {
+        const { error } = await supabase
+          .from('post_likes')
+          .delete()
+          .eq('post_id', postId)
+          .eq('user_id', user.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('post_likes')
+          .insert({ post_id: postId, user_id: user.id })
+        if (error) throw error
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      updatePostInAllLists(postId, p => ({
+        ...p,
+        is_liked: wasLiked,
+        likes_count: wasLiked ? p.likes_count + 1 : p.likes_count - 1
+      }))
+      toast.error('Failed to update like')
+    }
+  }
+
+  const loadComments = async (postId: string) => {
+    setLoadingComments(prev => new Set(prev).add(postId))
+    try {
+      const { data, error } = await supabase
+        .from('post_comments')
+        .select('*, profiles:user_id(username, avatar_url)')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true })
 
       if (error) throw error
-
-      // Optimistically update the UI
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              is_liked: !post.is_liked,
-              likes_count: post.is_liked ? post.likes_count - 1 : post.likes_count + 1
-            }
-          : post
-      ))
-
-      toast.success('Post liked!')
+      setPostComments(prev => ({ ...prev, [postId]: (data || []) as PostComment[] }))
     } catch (error) {
-      console.error('Error liking post:', error)
-      toast.error('Failed to like post')
+      console.error('Error loading comments:', error)
+    } finally {
+      setLoadingComments(prev => { const s = new Set(prev); s.delete(postId); return s })
     }
   }
 
   const handleComment = async (postId: string) => {
-    // TODO: Implement comment functionality
-    toast.info('Comment functionality coming soon!')
+    const isExpanded = expandedComments.has(postId)
+    if (isExpanded) {
+      setExpandedComments(prev => { const s = new Set(prev); s.delete(postId); return s })
+    } else {
+      setExpandedComments(prev => new Set(prev).add(postId))
+      if (!postComments[postId]) {
+        await loadComments(postId)
+      }
+    }
+  }
+
+  const submitComment = async (postId: string) => {
+    if (!user?.id) return
+    const text = (commentTexts[postId] || '').trim()
+    if (!text) return
+
+    setSubmittingComment(prev => new Set(prev).add(postId))
+    try {
+      const { data, error } = await supabase
+        .from('post_comments')
+        .insert({ post_id: postId, user_id: user.id, content: text })
+        .select('*, profiles:user_id(username, avatar_url)')
+        .single()
+
+      if (error) throw error
+
+      setPostComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), data as PostComment]
+      }))
+      setCommentTexts(prev => ({ ...prev, [postId]: '' }))
+      updatePostInAllLists(postId, p => ({ ...p, comments_count: p.comments_count + 1 }))
+    } catch (error) {
+      console.error('Error submitting comment:', error)
+      toast.error('Failed to post comment')
+    } finally {
+      setSubmittingComment(prev => { const s = new Set(prev); s.delete(postId); return s })
+    }
   }
 
   const handleShare = async (postId: string) => {
-    // TODO: Implement share functionality
-    toast.info('Share functionality coming soon!')
+    const url = `${window.location.origin}/posts/${postId}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Post link copied to clipboard!')
+    } catch {
+      toast.error('Failed to copy link')
+    }
   }
 
-  const handleFollow = async (userId: string, action: 'follow' | 'unfollow') => {
-    try {
-      const response = await fetch('/api/follow', buildNoStoreInit({
-        method: 'POST',
-        body: JSON.stringify({ 
-          following_id: userId, 
-          action 
-        })
-      }))
+  const handleFollow = async (targetUserId: string, action: 'follow' | 'unfollow') => {
+    if (!user?.id) return
 
-      if (!response.ok) {
-        toast.info('Follow functionality coming soon!')
-        return
+    try {
+      if (action === 'follow') {
+        const { error } = await supabase
+          .from('follows')
+          .insert({ follower_id: user.id, following_id: targetUserId })
+        if (error) throw error
+        toast.success('Followed successfully!')
+      } else {
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', targetUserId)
+        if (error) throw error
+        toast.success('Unfollowed successfully')
       }
 
-      const result = await response.json()
-      
-      if (result.success) {
-        toast.success(result.message)
-        // Refresh network posts if we're on the following tab
-        if (feedFilter === 'following') {
-          fetchNetworkPosts()
-        }
-      } else {
-        toast.info('Follow functionality coming soon!')
+      if (feedFilter === 'following') {
+        fetchNetworkPosts()
       }
     } catch (error) {
-      console.log('Follow functionality not ready yet:', error)
-      toast.info('Follow functionality coming soon!')
+      console.error('Error updating follow:', error)
+      toast.error('Failed to update follow status')
     }
   }
 
@@ -942,6 +1034,65 @@ export default function ArtistFeedPage() {
                               <span className="capitalize">{post.visibility}</span>
                             </div>
                           </div>
+
+                          {/* Inline Comments Section */}
+                          <AnimatePresence>
+                            {expandedComments.has(post.id) && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="pt-4 border-t border-slate-700/50 space-y-3 overflow-hidden"
+                              >
+                                {loadingComments.has(post.id) ? (
+                                  <div className="flex items-center justify-center py-4">
+                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500" />
+                                  </div>
+                                ) : (
+                                  <>
+                                    {(postComments[post.id] || []).length === 0 && (
+                                      <p className="text-white/40 text-sm text-center py-2">No comments yet. Be the first!</p>
+                                    )}
+                                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                                      {(postComments[post.id] || []).map(comment => (
+                                        <div key={comment.id} className="flex items-start gap-2">
+                                          <Avatar className="h-7 w-7 flex-shrink-0">
+                                            <AvatarImage src={comment.profiles?.avatar_url} />
+                                            <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xs">
+                                              {(comment.profiles?.username || '?').charAt(0).toUpperCase()}
+                                            </AvatarFallback>
+                                          </Avatar>
+                                          <div className="flex-1 bg-white/5 rounded-xl px-3 py-2">
+                                            <span className="text-white/80 text-xs font-semibold">{comment.profiles?.username || 'User'}</span>
+                                            <p className="text-white/70 text-sm">{comment.content}</p>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+
+                                <div className="flex items-center gap-2">
+                                  <Input
+                                    placeholder="Write a comment..."
+                                    value={commentTexts[post.id] || ''}
+                                    onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(post.id) } }}
+                                    className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/30 text-sm"
+                                    disabled={submittingComment.has(post.id)}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    onClick={() => submitComment(post.id)}
+                                    disabled={submittingComment.has(post.id) || !(commentTexts[post.id] || '').trim()}
+                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-3"
+                                  >
+                                    <Send className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </CardContent>
                       </Card>
                     </motion.div>

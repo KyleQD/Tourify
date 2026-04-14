@@ -32,15 +32,22 @@ This document expands the architecture audit into a **sequenced plan** for shipp
 
 ## Phase 1 — Security hardening (pre-launch, high priority)
 
-**1.1 RLS audit (Supabase)**  
+**1.0 Done in this pass (partial)**  
+- Consolidated many `app/api/**` service-role clients onto `import { createServiceRoleClient, serviceRoleClient } from '@/lib/supabase/service-role'` (notifications, invitations, onboarding templates, payment, cron, opportunities, messages, social suggested, debug introspection routes, posts comments, etc.).  
+- `app/api/posts/create`: shared cookie parser `parseUserFromRequestCookieHeader`; **removed hardcoded test-user fallback** (unauthenticated requests now get `401`).  
+- `app/api/opportunities/sync`: uses `isAuthorizedCronRequest` (Vercel cron + `Authorization` / `x-internal-api-secret` + legacy `x-cron-secret` when it matches `CRON_SECRET`).  
+- `lib/auth/route-guards.ts`: documented production internal-auth expectations; cron guard accepts legacy `x-cron-secret`.  
+- Removed dead `@supabase/supabase-js` import from `app/api/feed/rss-news/route.ts`.
+
+**1.1 RLS audit (Supabase)** — still required  
 For tables touched by: social graph, notifications, marketplace, ticketing, venue staffing, and artist events — verify policies for `SELECT` / `INSERT` / `UPDATE` / `DELETE` match product rules. Service-role paths in `lib/auth/server.ts` (e.g. suggestions after auth) bypass RLS; treat them as **trusted server code** and keep surface small.
 
-**1.2 API route inventory**  
+**1.2 API route inventory** — ongoing  
 Scan remaining handlers for:
 
-- Raw `createClient(url, serviceKey)` or duplicate service factories — consolidate on `createServiceRoleClient`.
+- Any **new** raw `createClient(url, serviceKey)` (prefer `@/lib/supabase/service-role`).
 - Missing auth on mutating routes (POST/PATCH/DELETE).
-- Debug routes: ensure `isAuthorizedInternalRequest` (or equivalent) and disable or 404 in production where appropriate.
+- Debug routes: ensure `isAuthorizedInternalRequest` (or equivalent) and disable or 404 in production where appropriate (all under `app/api/debug/**` currently gate in production).
 
 **1.3 Secrets & env**  
 Confirm `SUPABASE_SERVICE_ROLE_KEY` is never `NEXT_PUBLIC_*`. Rotate any key that ever appeared in client bundles or logs.

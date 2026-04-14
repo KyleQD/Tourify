@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native"
 import * as WebBrowser from "expo-web-browser"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { useAccountMode } from "@/hooks/use-account-mode"
 import { env } from "@/lib/config/env"
 

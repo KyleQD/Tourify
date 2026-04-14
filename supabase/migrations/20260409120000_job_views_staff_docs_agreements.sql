@@ -31,6 +31,21 @@ create table if not exists staff_documents (
   updated_at timestamptz not null default now()
 );
 
+-- If the table already existed (from an older migration without all columns),
+-- add any missing columns so the index and RLS policies below succeed.
+-- Columns are added without NOT NULL to avoid failures on existing rows.
+alter table staff_documents add column if not exists owner_user_id uuid references auth.users(id) on delete cascade;
+alter table staff_documents add column if not exists organization_id uuid;
+alter table staff_documents add column if not exists staff_member_id uuid;
+alter table staff_documents add column if not exists candidate_id uuid;
+alter table staff_documents add column if not exists document_type text;
+alter table staff_documents add column if not exists storage_bucket text default 'profile-images';
+alter table staff_documents add column if not exists storage_path text;
+alter table staff_documents add column if not exists verified_status text default 'pending';
+alter table staff_documents add column if not exists expires_at timestamptz;
+alter table staff_documents add column if not exists retention_policy_id uuid;
+alter table staff_documents add column if not exists metadata jsonb default '{}';
+
 create index if not exists idx_staff_documents_owner on staff_documents(owner_user_id);
 create index if not exists idx_staff_documents_org on staff_documents(organization_id);
 create index if not exists idx_staff_documents_candidate on staff_documents(candidate_id);

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import Stripe from "stripe"
+import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
 import { resolveEventReference } from "../events/_lib/event-reference"
 import { authenticateRequestWithBearerFallback } from "@/lib/auth/mobile-request-auth"
 import { paymentCheckoutRequestSchema } from "@tourify/api-contracts"
@@ -8,11 +8,6 @@ import { paymentCheckoutRequestSchema } from "@tourify/api-contracts"
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2025-04-30.basil",
 }) : null
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
 
 export async function POST(req: NextRequest) {
   try {

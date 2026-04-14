@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const { metrics } = await request.json()
     
     if (!Array.isArray(metrics) || metrics.length === 0) {
       return NextResponse.json({ error: 'Invalid metrics data' }, { status: 400 })
     }
 
-    // Store metrics in Supabase (you'll need to create this table)
     const { error } = await supabase
       .from('performance_metrics')
-      .insert(metrics.map(metric => ({
+      .insert(metrics.map((metric: any) => ({
         ...metric,
         created_at: new Date().toISOString()
       })))
@@ -31,6 +34,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('sessionId')
     const timeRange = searchParams.get('timeRange') || '24h'
@@ -41,7 +47,6 @@ export async function GET(request: NextRequest) {
       query = query.eq('sessionId', sessionId)
     }
     
-    // Add time range filter
     const hoursAgo = timeRange === '1h' ? 1 : timeRange === '24h' ? 24 : 168
     const cutoffTime = new Date(Date.now() - hoursAgo * 60 * 60 * 1000).toISOString()
     query = query.gte('created_at', cutoffTime)
@@ -53,7 +58,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch metrics' }, { status: 500 })
     }
 
-    // Aggregate metrics for dashboard
     const aggregated = aggregateMetrics(data || [])
     
     return NextResponse.json({ metrics: data, aggregated })

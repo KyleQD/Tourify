@@ -16,8 +16,8 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { VirtualTable, VirtualList } from "./virtual-scroll"
 import { ErrorBoundary } from "./error-boundary"
-import { HelpSystem, useHelpSystem } from "./help-system"
 import { KeyboardShortcutsHelp, useKeyboardShortcutsHelp } from "./keyboard-shortcuts-help"
+import { useProductEducation } from "@/components/product-education/product-education-context"
 import { RealTimeStatusBar } from "@/components/admin/real-time-indicator"
 import AnalyticsDashboard from "./analytics-dashboard"
 import DataLoadingStatus from "./data-loading-status"
@@ -151,9 +151,23 @@ export default function OptimizedDashboardClient() {
     }
   }, [currentAccount?.account_type])
 
-  // Help system
-  const { isOpen: helpOpen, openHelp, closeHelp } = useHelpSystem()
+  const { openHelp, startTour } = useProductEducation()
   const { isOpen: shortcutsOpen, openHelp: openShortcuts, closeHelp: closeShortcuts } = useKeyboardShortcutsHelp()
+
+  useEffect(() => {
+    function onToggleHelp() {
+      openHelp()
+    }
+    function onShowShortcuts() {
+      openShortcuts()
+    }
+    window.addEventListener("toggleHelp", onToggleHelp)
+    window.addEventListener("showKeyboardShortcuts", onShowShortcuts)
+    return () => {
+      window.removeEventListener("toggleHelp", onToggleHelp)
+      window.removeEventListener("showKeyboardShortcuts", onShowShortcuts)
+    }
+  }, [openHelp, openShortcuts])
 
   useEffect(() => {
     void trackDashboardUxEvent({
@@ -254,7 +268,7 @@ export default function OptimizedDashboardClient() {
 
     const setupRealTimeSubscriptions = async () => {
       try {
-        const { supabase } = await import('@/lib/supabase/client')
+        const { supabase } = await import('@/lib/supabase')
 
         subscriptions.push(
           supabase
@@ -575,6 +589,10 @@ export default function OptimizedDashboardClient() {
                 <DropdownMenuItem onSelect={handleOpenHelp}>
                   <HelpCircle className="h-4 w-4 mr-2" />
                   Help
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => startTour("admin-dashboard-intro")}>
+                  <Target className="h-4 w-4 mr-2" />
+                  Guided tour
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -1044,7 +1062,6 @@ export default function OptimizedDashboardClient() {
         </Tabs>
 
         {/* Help System */}
-        <HelpSystem isOpen={helpOpen} onClose={closeHelp} />
         <KeyboardShortcutsHelp isOpen={shortcutsOpen} onClose={closeShortcuts} />
         
         {/* Real-time Status Bar */}

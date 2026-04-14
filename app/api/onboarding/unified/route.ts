@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { UnifiedOnboardingService } from "@/lib/services/unified-onboarding.service"
 import { z } from "zod"
 
-const supabase = await createClient()
 // Validation schemas
 const getFlowSchema = z.object({
   flow_type: z.enum(['artist', 'venue', 'staff', 'invitation'])
@@ -29,6 +28,7 @@ const completeFlowSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const { searchParams } = new URL(request.url)
     const flowType = searchParams.get('flow_type')
     const userId = searchParams.get('user_id')
@@ -89,10 +89,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient()
     const body = await request.json()
     const action = body.action
 
-    // Get user from session
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json(

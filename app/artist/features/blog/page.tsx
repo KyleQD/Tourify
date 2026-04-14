@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from "@/lib/supabase"
 import { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
 import { Button } from "@/components/ui/button"

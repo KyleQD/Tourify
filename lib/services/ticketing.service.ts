@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { type TicketType, type TicketSale, type SharePlatform, type PromoCode } from '@/types/ticketing'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 

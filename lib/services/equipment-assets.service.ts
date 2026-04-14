@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import type { EquipmentAsset } from '@/types/database.types'
 
 export interface ListAssetsArgs {

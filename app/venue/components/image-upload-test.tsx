@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/auth-context'
 
 interface TestResult {

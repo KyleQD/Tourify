@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react"
 import * as Linking from "expo-linking"
 import * as WebBrowser from "expo-web-browser"
 import { Session } from "@supabase/supabase-js"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 WebBrowser.maybeCompleteAuthSession()
 

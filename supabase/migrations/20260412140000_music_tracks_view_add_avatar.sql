@@ -1,6 +1,8 @@
 -- Add artist_avatar_url to the music_tracks view so callers don't need a
 -- relationship join (views lack FK metadata in PostgREST).
-create or replace view public.music_tracks as
+-- DROP first because CREATE OR REPLACE VIEW cannot reorder existing columns.
+drop view if exists public.music_tracks cascade;
+create view public.music_tracks as
 select
   tracks.id,
   tracks.user_id,

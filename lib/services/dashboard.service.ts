@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { AccountManagementService, UserAccount } from './account-management.service'
 
 export interface DashboardStats {

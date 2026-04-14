@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/hooks/use-theme"
 import { AuthProvider } from "@/contexts/auth-context"
 import { MultiAccountProvider } from "@/hooks/use-multi-account"
 import { Nav } from "@/components/nav"
+import { EducationRoot } from "@/components/product-education/education-root"
 import { Toaster } from "sonner"
 import { warnMissingEnv } from "@/lib/utils/env-check"
 // Demo mode removed for production
@@ -62,13 +63,15 @@ export default function RootLayout({
         <ThemeProvider defaultTheme="dark">
           <AuthProvider>
             <MultiAccountProvider>
-              <div className="flex flex-col min-h-screen">
-                <Nav />
-                <main className="flex-1">
-                  {children}
-                </main>
-                <Toaster richColors position="top-right" />
-              </div>
+              <EducationRoot>
+                <div className="flex flex-col min-h-screen">
+                  <Nav />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <Toaster richColors position="top-right" />
+                </div>
+              </EducationRoot>
             </MultiAccountProvider>
           </AuthProvider>
         </ThemeProvider>

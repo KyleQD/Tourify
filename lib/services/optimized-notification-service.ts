@@ -1,8 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { supabase as browserSupabase } from '@/lib/supabase/client'
+import { supabase as browserSupabase } from '@/lib/supabase'
 import { z } from 'zod'
+import {
+  sendEmailNotification,
+  sendSMSNotification,
+  sendPushNotification,
+} from './notification-channels'
 
 /** Route handlers need service role; browser hooks use the session-scoped client. */
 function getNotificationsDb(): SupabaseClient<Database> {
@@ -59,7 +64,8 @@ export interface NotificationMetrics {
   totalNotifications: number
   unreadCount: number
   deliveryRate: number
-  averageLatency: number
+  averageLatency: number | null
+  engagementRate: number
   topNotificationTypes: Array<{
     type: string
     count: number
@@ -139,7 +145,12 @@ export class OptimizedNotificationService {
       // Log notification creation for analytics
       await this.logNotificationEvent(notification.id, 'created', validatedData.userId)
 
-      return this.transformNotification(notification)
+      const transformed = this.transformNotification(notification)
+
+      // Fire-and-forget external channel delivery — never blocks the response
+      this.deliverToExternalChannels(transformed).catch(() => {})
+
+      return transformed
     } catch (error) {
       console.error('Error creating notification:', error)
       throw error
@@ -198,7 +209,14 @@ export class OptimizedNotificationService {
         await this.logNotificationEvent(notification.id, 'created', notification.user_id)
       }
 
-      return createdNotifications.map(this.transformNotification)
+      const transformed = createdNotifications.map(this.transformNotification)
+
+      // Fire-and-forget external channel delivery for each notification
+      for (const n of transformed) {
+        this.deliverToExternalChannels(n).catch(() => {})
+      }
+
+      return transformed
     } catch (error) {
       console.error('Error creating batch notifications:', error)
       throw error
@@ -404,69 +422,107 @@ export class OptimizedNotificationService {
    */
   static async getMetrics(userId: string): Promise<NotificationMetrics> {
     try {
-      // Get total and unread counts
-      const { count: totalCount } = await getNotificationsDb()
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
+      const db = getNotificationsDb()
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      const ONE_HOUR_MS = 60 * 60 * 1000
 
-      const { count: unreadCount } = await getNotificationsDb()
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', userId)
-        .eq('is_read', false)
+      const [
+        { count: totalCount },
+        { count: unreadCount },
+        { count: readCount },
+        { data: last30dNotifications },
+        { data: recentActivity },
+      ] = await Promise.all([
+        db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+        db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', false),
+        db.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', userId).eq('is_read', true),
+        db.from('notifications').select('type, is_read, created_at, read_at').eq('user_id', userId).gte('created_at', thirtyDaysAgo),
+        db.from('notifications').select('type, created_at').eq('user_id', userId).gte('created_at', sevenDaysAgo).order('created_at', { ascending: false }),
+      ])
 
-      // Get top notification types
-      const { data: typeStats } = await getNotificationsDb()
-        .from('notifications')
-        .select('type')
-        .eq('user_id', userId)
-        .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+      const total = totalCount || 0
 
-      const typeCounts = (typeStats || []).reduce((acc, notification) => {
-        acc[notification.type] = (acc[notification.type] || 0) + 1
-        return acc
-      }, {} as Record<string, number>)
+      // deliveryRate: read notifications as a percentage of total
+      const deliveryRate = total > 0
+        ? Math.round(((readCount || 0) / total) * 10000) / 100
+        : 0
 
-      const topNotificationTypes = Object.entries(typeCounts)
-        .map(([type, count]) => ({
+      // averageLatency: avg ms between created_at and delivered_at in
+      // notification_delivery_log. The table may not exist yet, so we
+      // gracefully fall back to null.
+      let averageLatency: number | null = null
+      try {
+        const { data: deliveryLogs } = await db
+          .from('notification_delivery_log')
+          .select('created_at, delivered_at')
+          .eq('user_id', userId)
+          .not('delivered_at', 'is', null)
+          .limit(500)
+
+        if (deliveryLogs && deliveryLogs.length > 0) {
+          const totalLatency = deliveryLogs.reduce((sum: number, log: any) => {
+            return sum + (new Date(log.delivered_at).getTime() - new Date(log.created_at).getTime())
+          }, 0)
+          averageLatency = Math.round(totalLatency / deliveryLogs.length)
+        }
+      } catch {
+        // notification_delivery_log table may not exist yet
+      }
+
+      // engagementRate: notifications read within 1 hour of creation / total (last 30 days)
+      const rows = last30dNotifications || []
+      const quickReadCount = rows.filter((n: any) => {
+        if (!n.is_read || !n.read_at) return false
+        return (new Date(n.read_at).getTime() - new Date(n.created_at).getTime()) <= ONE_HOUR_MS
+      }).length
+      const last30dTotal = rows.length
+      const engagementRate = last30dTotal > 0
+        ? Math.round((quickReadCount / last30dTotal) * 10000) / 100
+        : 0
+
+      // Per-type engagement rates
+      const typeAgg: Record<string, { count: number; engaged: number }> = {}
+      for (const n of rows) {
+        if (!typeAgg[n.type]) typeAgg[n.type] = { count: 0, engaged: 0 }
+        typeAgg[n.type].count++
+        if (n.is_read && n.read_at) {
+          const delta = new Date(n.read_at).getTime() - new Date(n.created_at).getTime()
+          if (delta <= ONE_HOUR_MS) typeAgg[n.type].engaged++
+        }
+      }
+
+      const topNotificationTypes = Object.entries(typeAgg)
+        .map(([type, { count, engaged }]) => ({
           type,
           count,
-          engagementRate: 0 // TODO: Calculate from analytics
+          engagementRate: count > 0 ? Math.round((engaged / count) * 10000) / 100 : 0,
         }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
 
-      // Get recent activity (last 7 days)
-      const { data: recentActivity } = await getNotificationsDb()
-        .from('notifications')
-        .select('type, created_at')
-        .eq('user_id', userId)
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-        .order('created_at', { ascending: false })
-
-      const activityByDay = (recentActivity || []).reduce((acc, notification) => {
+      // Recent activity (last 7 days) grouped by day
+      const activityByDay = (recentActivity || []).reduce((acc: Record<string, Record<string, number>>, notification: any) => {
         const date = new Date(notification.created_at).toISOString().split('T')[0]
-        if (!acc[date]) {
-          acc[date] = {}
-        }
+        if (!acc[date]) acc[date] = {}
         acc[date][notification.type] = (acc[date][notification.type] || 0) + 1
         return acc
       }, {} as Record<string, Record<string, number>>)
 
       const recentActivityArray = Object.entries(activityByDay).map(([date, types]) => ({
         timestamp: date,
-        type: Object.keys(types).join(', '),
-        count: Object.values(types).reduce((sum, count) => sum + count, 0)
+        type: Object.keys(types as Record<string, number>).join(', '),
+        count: Object.values(types as Record<string, number>).reduce((sum, c) => sum + c, 0),
       }))
 
       return {
-        totalNotifications: totalCount || 0,
+        totalNotifications: total,
         unreadCount: unreadCount || 0,
-        deliveryRate: 100, // TODO: Calculate from analytics
-        averageLatency: 0, // TODO: Calculate from analytics
+        deliveryRate,
+        averageLatency,
+        engagementRate,
         topNotificationTypes,
-        recentActivity: recentActivityArray
+        recentActivity: recentActivityArray,
       }
     } catch (error) {
       console.error('Error fetching notification metrics:', error)
@@ -520,6 +576,26 @@ export class OptimizedNotificationService {
   }
 
   /**
+   * Delete a notification
+   */
+  static async deleteNotification(notificationId: string, userId: string): Promise<void> {
+    try {
+      const { error } = await getNotificationsDb()
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId)
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      await this.logNotificationEvent(notificationId, 'deleted', userId)
+    } catch (error) {
+      console.error('Error deleting notification:', error)
+      throw error
+    }
+  }
+
+  /**
    * Clean up old notifications
    */
   static async cleanupOldNotifications(): Promise<number> {
@@ -538,6 +614,91 @@ export class OptimizedNotificationService {
   // =============================================================================
   // PRIVATE HELPER METHODS
   // =============================================================================
+
+  /**
+   * Deliver a notification through external channels (email, SMS, push)
+   * based on user preferences. Runs fire-and-forget — failures are logged
+   * but never block the caller.
+   */
+  private static async deliverToExternalChannels(
+    notification: OptimizedNotification
+  ): Promise<void> {
+    if (typeof window !== 'undefined') return
+
+    try {
+      const [prefs, contactInfo] = await Promise.all([
+        this.getPreferences(notification.userId),
+        this.getUserContactInfo(notification.userId),
+      ])
+
+      if (!contactInfo) return
+
+      const results: Record<string, { success: boolean; error?: string }> = {}
+
+      if (prefs?.emailEnabled && contactInfo.email) {
+        results.email = await sendEmailNotification({
+          to: contactInfo.email,
+          subject: notification.title,
+          body: `<h2>${notification.title}</h2><p>${notification.content}</p>`,
+        })
+      }
+
+      if (prefs?.pushEnabled && contactInfo.pushToken) {
+        results.push = await sendPushNotification({
+          pushToken: contactInfo.pushToken,
+          title: notification.title,
+          body: notification.content,
+          data: notification.metadata as Record<string, string> | undefined,
+        })
+      }
+
+      const smsEligible =
+        notification.priority === 'urgent' || notification.priority === 'high'
+      if (smsEligible && contactInfo.phone) {
+        results.sms = await sendSMSNotification({
+          to: contactInfo.phone,
+          body: `${notification.title}: ${notification.content}`,
+        })
+      }
+
+      const channelKeys = Object.keys(results)
+      if (channelKeys.length > 0) {
+        await this.logNotificationEvent(notification.id, 'delivered', notification.userId, {
+          channels: results,
+        })
+      }
+    } catch (error) {
+      console.error('[notification-channels] delivery error (non-blocking):', error)
+    }
+  }
+
+  /**
+   * Look up email (via Supabase Auth admin), phone, and push token for a user.
+   * Returns null when contact info cannot be resolved.
+   */
+  private static async getUserContactInfo(
+    userId: string
+  ): Promise<{ email?: string; phone?: string; pushToken?: string } | null> {
+    try {
+      const db = getNotificationsDb()
+
+      // Email lives in auth.users; phone/push_token live in public.profiles
+      const [authResult, profileResult] = await Promise.all([
+        db.auth.admin.getUserById(userId),
+        db.from('profiles').select('phone, push_token').eq('id', userId).single(),
+      ])
+
+      const email = authResult.data?.user?.email ?? undefined
+      const phone = (profileResult.data as any)?.phone ?? undefined
+      const pushToken = (profileResult.data as any)?.push_token ?? undefined
+
+      if (!email && !phone && !pushToken) return null
+
+      return { email, phone, pushToken }
+    } catch {
+      return null
+    }
+  }
 
   private static async shouldSendNotification(
     userId: string,
@@ -568,9 +729,16 @@ export class OptimizedNotificationService {
     metadata?: Record<string, any>
   ): Promise<void> {
     try {
-      // This would log to an analytics table if implemented
-      console.log(`📊 Notification ${eventType}: ${notificationId} for user ${userId}`, metadata)
+      await getNotificationsDb()
+        .from('notification_events')
+        .insert({
+          notification_id: notificationId,
+          event_type: eventType,
+          user_id: userId,
+          metadata: metadata ?? {},
+        })
     } catch (error) {
+      // Non-blocking: log to console so analytics failures never break the notification flow
       console.error('Error logging notification event:', error)
     }
   }

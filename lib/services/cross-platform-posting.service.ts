@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 

@@ -1,24 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { checkAuth } from '@/lib/auth/api-auth'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
-
-// Create service role client directly
-function createServiceClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceKey) {
-    throw new Error('Missing Supabase environment variables')
-  }
-
-  return createClient(supabaseUrl, serviceKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-}
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function GET(
   request: NextRequest,
@@ -27,7 +10,7 @@ export async function GET(
   try {
     const resolvedParams = await params
     const postId = resolvedParams.id
-    const supabase = createServiceClient()
+    const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
@@ -149,7 +132,7 @@ export async function POST(
   try {
     const resolvedParams = await params
     const postId = resolvedParams.id
-    const supabase = createServiceClient()
+    const supabase = createServiceRoleClient()
     
     // Check authentication
     const auth = await checkAuth(request)

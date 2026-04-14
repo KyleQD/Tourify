@@ -1,19 +1,6 @@
-import type { Metadata } from "next"
-import { EnhancedSettingsLayout } from "@/components/settings/enhanced-settings-layout"
-import { AccountScopedSettings } from "@/components/settings/account-scoped-settings"
+import { redirect } from "next/navigation"
 
-// Prevent pre-rendering since this page requires providers
-export const dynamic = 'force-dynamic'
-
-export const metadata: Metadata = {
-  title: "Admin Settings | Tourify",
-  description: "Manage administrative settings and platform configuration",
+/** Canonical organizer settings live under the dashboard shell */
+export default function AdminSettingsRedirectPage() {
+  redirect("/admin/dashboard/settings")
 }
-
-export default function AdminSettingsPage() {
-  return (
-    <EnhancedSettingsLayout>
-      <AccountScopedSettings />
-    </EnhancedSettingsLayout>
-  )
-} 

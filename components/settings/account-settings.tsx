@@ -1,6 +1,6 @@
 "use client"
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"

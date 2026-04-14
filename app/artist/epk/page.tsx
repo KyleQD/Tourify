@@ -25,7 +25,7 @@ import MusicSection from "@/components/epk/music-section"
 import SocialSection from "@/components/epk/social-section"
 import ShowsSection from "@/components/epk/shows-section"
 import ContactSection from "@/components/epk/contact-section"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { pdf } from "@react-pdf/renderer"
 import { EPKDocument } from "@/components/epk/EPKDocument"
 

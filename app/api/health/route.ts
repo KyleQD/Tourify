@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -93,38 +93,35 @@ async function checkDatabase(): Promise<ServiceStatus> {
 
 async function checkRedis(): Promise<ServiceStatus> {
   try {
-    if (!process.env.REDIS_URL) {
+    const redisUrl = process.env.REDIS_URL || process.env.KV_REST_API_URL
+    if (!redisUrl) {
       return {
-        status: 'healthy', // Redis is optional
-        error: 'Redis not configured'
+        status: 'healthy',
+        error: 'Redis not configured (optional)'
       }
     }
 
     const start = Date.now()
-    
-    // Simple ping to test Redis connectivity
-    const response = await fetch('/api/analytics/metrics?healthcheck=true', {
-      method: 'GET',
-      headers: { 'Cache-Control': 'no-cache' }
-    })
 
-    const responseTime = Date.now() - start
-
-    if (!response.ok) {
-      return {
-        status: 'degraded',
-        responseTime,
-        error: 'Redis health check failed'
-      }
+    const { Redis } = await import('@upstash/redis').catch(() => ({ Redis: null }))
+    if (!Redis) {
+      return { status: 'healthy', error: 'Redis SDK not available' }
     }
 
+    const redis = new Redis({
+      url: process.env.KV_REST_API_URL || redisUrl,
+      token: process.env.KV_REST_API_TOKEN || ''
+    })
+    await redis.ping()
+
+    const responseTime = Date.now() - start
     return {
       status: responseTime > 500 ? 'degraded' : 'healthy',
       responseTime
     }
   } catch (error) {
     return {
-      status: 'degraded', // Redis failures are not critical
+      status: 'degraded',
       error: error instanceof Error ? error.message : 'Unknown Redis error'
     }
   }

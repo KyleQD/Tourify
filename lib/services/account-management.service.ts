@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
 export type ProfileType = 'general' | 'artist' | 'venue' | 'admin' | 'staff'

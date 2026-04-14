@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { authenticator } from 'otplib'
 import QRCode from 'qrcode'
+import { SMSDeliveryService } from './sms-delivery.service'
 
 export interface MFAMethod {
   id: string
@@ -32,13 +33,27 @@ export interface SMSProvider {
   sendSMS: (phoneNumber: string, message: string) => Promise<boolean>
 }
 
-// Simple SMS provider interface (would integrate with Twilio, AWS SNS, etc.)
+class TwilioSMSProvider implements SMSProvider {
+  async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
+    const result = await SMSDeliveryService.sendSMS({ to: phoneNumber, body: message })
+    return result.success
+  }
+}
+
 class MockSMSProvider implements SMSProvider {
   async sendSMS(phoneNumber: string, message: string): Promise<boolean> {
     console.log(`[MockSMS] Sending to ${phoneNumber}: ${message}`)
-    // In a real implementation, this would send via Twilio/AWS SNS
     return true
   }
+}
+
+function createSMSProvider(): SMSProvider {
+  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+    console.log('[MFA] Using Twilio SMS provider')
+    return new TwilioSMSProvider()
+  }
+  console.log('[MFA] Twilio not configured, using mock SMS provider')
+  return new MockSMSProvider()
 }
 
 export class MFAService {
@@ -47,7 +62,7 @@ export class MFAService {
   private verificationCodes: Map<string, { code: string; expires: number; attempts: number }> = new Map()
 
   private constructor() {
-    this.smsProvider = new MockSMSProvider()
+    this.smsProvider = createSMSProvider()
     
     // Clean up expired codes every 5 minutes
     setInterval(() => {

@@ -1,50 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
-
-// Create service role client for database operations (bypasses RLS)
-function createServiceRoleClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase environment variables for service role')
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-}
-
-// Helper function to manually parse auth session from cookies
-function parseAuthFromCookies(request: NextRequest): any | null {
-  try {
-    const cookies = request.headers.get('cookie') || ''
-    const cookieArray = cookies.split(';').map(c => c.trim())
-    
-    const authCookie = cookieArray.find(cookie => 
-      cookie.startsWith('sb-tourify-auth-token=')
-    )
-    
-    if (!authCookie) {
-      return null
-    }
-
-    const token = authCookie.split('=')[1]
-    if (!token) {
-      return null
-    }
-
-    const sessionData = JSON.parse(decodeURIComponent(token))
-    return sessionData?.user || null
-  } catch (error) {
-    console.error('[Posts API] Error parsing auth cookie:', error)
-    return null
-  }
-}
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 // Helper function to get account type from route context
 function getAccountTypeFromRoute(routeContext: string): string {
@@ -142,14 +99,9 @@ export async function POST(request: NextRequest) {
   try {
     console.log('📝 Posts API called - using route-based account detection...')
     
-    // Enhanced authentication with fallback
-    let user = parseAuthFromCookies(request)
+    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
     if (!user) {
-      console.log('⚠️  Primary auth failed, using fallback for testing')
-      user = {
-        id: 'bce15693-d2bf-42db-a2f2-68239568fafe',
-        email: 'clive@example.com'
-      }
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     const userId = user.id

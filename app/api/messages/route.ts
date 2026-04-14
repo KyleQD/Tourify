@@ -1,60 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
-
-// Create service role client for database operations
-function createServiceRoleClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase environment variables for service role')
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-}
-
-// Helper function to parse auth from cookies (same as social follow)
-function parseAuthFromCookies(request: NextRequest): any | null {
-  try {
-    const cookies = request.headers.get('cookie') || ''
-    const cookieArray = cookies.split(';').map(c => c.trim())
-    
-    const authCookie = cookieArray.find(cookie => 
-      cookie.startsWith('sb-tourify-auth-token=')
-    )
-    
-    if (!authCookie) {
-      return null
-    }
-
-    const token = authCookie.split('=')[1]
-    if (!token) {
-      return null
-    }
-
-    const sessionData = JSON.parse(decodeURIComponent(token))
-    
-    if (sessionData?.user) {
-      return sessionData.user
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error parsing auth cookie:', error)
-    return null
-  }
-}
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 // GET - Fetch conversations for the current user
 export async function GET(request: NextRequest) {
   try {
-    const user = parseAuthFromCookies(request)
+    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -178,7 +130,7 @@ export async function GET(request: NextRequest) {
 // POST - Send a new message
 export async function POST(request: NextRequest) {
   try {
-    const user = parseAuthFromCookies(request)
+    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

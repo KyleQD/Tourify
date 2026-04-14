@@ -51,23 +51,30 @@ export default function HashtagPage() {
   )
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
+    <div className="min-w-0 space-y-6">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={() => router.back()}
+        >
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
-        <div className="flex-1">
-          <div className="flex items-center">
-            <Hash className="h-6 w-6 mr-2 text-purple-400" />
-            <h1 className="text-2xl font-bold">#{tag}</h1>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <Hash className="h-6 w-6 shrink-0 text-purple-400" />
+            <h1 className="truncate text-2xl font-bold" title={`#${tag}`}>
+              #{tag}
+            </h1>
           </div>
           <p className="text-gray-400">{postCount} posts</p>
         </div>
 
         <Button
           variant={isFollowing ? "default" : "outline"}
-          className={isFollowing ? "bg-purple-600" : "border-gray-700"}
+          className={`shrink-0 ${isFollowing ? "bg-purple-600" : "border-gray-700"}`}
           onClick={handleFollowToggle}
         >
           <Bell className="h-4 w-4 mr-2" />

@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useAuth } from '@/contexts/auth-context'
@@ -503,10 +503,9 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
           .eq('status', 'published')
 
         const { count: eventCount } = await supabase
-          .from('artist_events')
+          .from('events')
           .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_public', true)
+          .eq('artist_id', userId)
 
         console.log('📊 Basic counts loaded:', { musicCount, videoCount, photoCount, blogCount, eventCount })
 
@@ -646,8 +645,12 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
 
         case 'event':
           const { data: eventData, error: eventError } = await supabase
-            .from('artist_events')
-            .insert(contentData)
+            .from('events')
+            .insert({
+              ...data,
+              artist_id: user.id,
+              creator_account_type: 'artist',
+            })
             .select()
             .single()
           if (eventError) throw eventError

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 import { LoadingSpinner } from "../loading-spinner"
 
 interface FeedLayoutProps {
@@ -15,9 +16,10 @@ export function FeedLayout({ defaultTab = "all", showPostCreator = true }: FeedL
   const [isLoading, setIsLoading] = useState(false)
 
   return (
-    <div className="space-y-4">
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-800 w-full justify-start overflow-x-auto">
+    <div className="min-w-0 space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="min-w-0">
+        <TabsList className={venueDashboardTabListClass}>
+          <TabsTrigger value="following">Following</TabsTrigger>
           <TabsTrigger value="all">All</TabsTrigger>
           <TabsTrigger value="trending">Trending</TabsTrigger>
           <TabsTrigger value="music">Music</TabsTrigger>

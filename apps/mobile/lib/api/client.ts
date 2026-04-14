@@ -1,5 +1,5 @@
 import { env } from "@/lib/config/env"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import AsyncStorage from "@react-native-async-storage/async-storage"
 import * as Network from "expo-network"
 

@@ -450,6 +450,7 @@ export default function EventsPage() {
             title="No events scheduled"
             description="Create an event to get started"
             action={{ label: "Create Event", href: "/admin/dashboard/events/create" }}
+            learnMoreArticleId="tour-management"
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

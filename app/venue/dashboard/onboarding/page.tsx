@@ -110,24 +110,24 @@ export default function OnboardingPage() {
   // Complete onboarding
   const completeOnboarding = () => {
     // In a real app, you would save the data to the server here
-    router.push("/dashboard")
+    router.push("/venue/dashboard")
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-10">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold">Welcome to Tourify</h1>
-        <p className="text-gray-400 mt-2">Let's set up your artist profile</p>
+    <div className="mx-auto max-w-3xl min-w-0 px-3 py-10 sm:px-4">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold break-words">Welcome to Tourify</h1>
+        <p className="mt-2 text-balance text-gray-400">Let&apos;s set up your artist profile</p>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8 min-w-0">
         <Progress value={progress} className="h-2 bg-gray-800" />
-        <div className="flex justify-between mt-2 text-sm text-gray-400">
-          <span>Basic Info</span>
-          <span>Artist Type</span>
-          <span>Genres</span>
-          <span>Skills</span>
-          <span>Media</span>
+        <div className="mt-2 flex flex-wrap justify-between gap-x-2 gap-y-1 text-xs text-gray-400 sm:text-sm">
+          <span className="shrink-0">Basic Info</span>
+          <span className="shrink-0">Artist Type</span>
+          <span className="shrink-0">Genres</span>
+          <span className="shrink-0">Skills</span>
+          <span className="shrink-0">Media</span>
         </div>
       </div>
 

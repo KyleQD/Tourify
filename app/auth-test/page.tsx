@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useAuth } from "@/contexts/auth-context"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRouter } from "next/navigation"

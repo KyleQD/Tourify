@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { normalizeEpkAppearance, type EpkAppearance } from '@/lib/epk/epk-appearance'
 
 interface EPKData {

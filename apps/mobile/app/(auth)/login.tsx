@@ -70,7 +70,10 @@ export default function LoginScreen() {
           <Text style={secondaryTextStyle}>Continue with Facebook</Text>
         </Pressable>
       </View>
-      <Link href="/(auth)/signup" style={{ color: "#cbd5e1", textAlign: "center", marginTop: 8 }}>
+      <Link href="/(auth)/forgot-password" style={{ color: "#94a3b8", textAlign: "center", marginTop: 8 }}>
+        Forgot Password?
+      </Link>
+      <Link href="/(auth)/signup" style={{ color: "#cbd5e1", textAlign: "center", marginTop: 4 }}>
         New here? Create an account
       </Link>
     </SafeAreaView>

@@ -1,6 +1,6 @@
 "use client"
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import React, { useState, useEffect } from "react"
 import { useArtist } from "@/contexts/artist-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

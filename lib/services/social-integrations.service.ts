@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
 import type { ArtistSocialIntegration, ConnectRequest } from '@/types/social-integrations.type'
 

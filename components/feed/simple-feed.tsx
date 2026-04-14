@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { RefreshCw, Heart, MessageCircle, Share2, Clock, MapPin, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 import Link from 'next/link'
 

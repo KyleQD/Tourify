@@ -167,7 +167,7 @@ export const achievementEngine = {
   }
 }
 
-async function awardUnlockedAchievementRewards(args: {
+export async function awardUnlockedAchievementRewards(args: {
   supabase: SupabaseClient
   userId: string
   unlockedAchievements: AchievementRow[]

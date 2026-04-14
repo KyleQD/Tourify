@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, createContext, useContext } from "react"
+import { sendAgentLog } from "@/lib/debug/agent-log-client"
 
 type Theme = "dark" | "light" | "system"
 
@@ -24,7 +25,21 @@ export function ThemeProvider({
 
   useEffect(() => {
     setMounted(true)
-    const savedTheme = localStorage.getItem("theme") as Theme | null
+    // #region agent log
+    let savedTheme: Theme | null = null
+    try {
+      savedTheme = localStorage.getItem("theme") as Theme | null
+    } catch (e) {
+      const err = e as { name?: string; message?: string }
+      sendAgentLog({
+        runId: 'verify',
+        hypothesisId: 'B',
+        location: 'hooks/use-theme.tsx:theme-read',
+        message: 'localStorage.getItem(theme) threw',
+        data: { errName: err?.name, errMsgLen: err?.message?.length },
+      })
+    }
+    // #endregion
     if (savedTheme) {
       setTheme(savedTheme)
     } else {
@@ -46,7 +61,20 @@ export function ThemeProvider({
       root.classList.add(theme)
     }
 
-    localStorage.setItem("theme", theme)
+    // #region agent log
+    try {
+      localStorage.setItem("theme", theme)
+    } catch (e) {
+      const err = e as { name?: string; message?: string }
+      sendAgentLog({
+        runId: 'verify',
+        hypothesisId: 'B',
+        location: 'hooks/use-theme.tsx:theme-write',
+        message: 'localStorage.setItem(theme) threw (non-fatal)',
+        data: { errName: err?.name, errMsgLen: err?.message?.length },
+      })
+    }
+    // #endregion
   }, [theme, mounted])
 
   const toggleTheme = () => {

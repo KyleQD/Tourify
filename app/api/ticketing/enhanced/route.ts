@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import Stripe from 'stripe'
 import { createClient } from '@/lib/supabase/server'
+
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2024-11-20.acacia' })
+  : null
 
 // Enhanced validation schemas
 const purchaseTicketSchema = z.object({
@@ -324,7 +329,10 @@ export async function POST(request: NextRequest) {
       const fees = totalAmount * 0.03 // 3% processing fee
       const orderNumber = `TKT${Date.now()}${Math.floor(Math.random() * 1000)}`
 
-      // Create ticket sale
+      const isFreeTicket = totalAmount === 0
+      const useStripe = stripe && !isFreeTicket
+
+      // Create ticket sale with pending status when using Stripe
       const { data: sale, error: saleError } = await supabase
         .from('ticket_sales')
         .insert({
@@ -336,7 +344,7 @@ export async function POST(request: NextRequest) {
           quantity: validatedData.quantity,
           total_amount: totalAmount,
           fees,
-          payment_status: 'paid', // Assuming immediate payment
+          payment_status: useStripe ? 'pending' : 'paid',
           payment_method: validatedData.payment_method || 'stripe',
           transaction_id: validatedData.transaction_id,
           order_number: orderNumber,
@@ -390,6 +398,49 @@ export async function POST(request: NextRequest) {
           })
       }
 
+      // Create Stripe Checkout session for paid tickets
+      if (useStripe) {
+        const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+
+        const session = await stripe.checkout.sessions.create({
+          mode: 'payment',
+          customer_email: validatedData.customer_email,
+          line_items: [
+            {
+              price_data: {
+                currency: 'usd',
+                unit_amount: Math.round((totalAmount / validatedData.quantity) * 100),
+                product_data: {
+                  name: ticketType.name,
+                  description: ticketType.description || `Ticket for event`,
+                },
+              },
+              quantity: validatedData.quantity,
+            },
+          ],
+          metadata: {
+            sale_id: sale.id,
+            user_id: validatedData.customer_email,
+            event_id: validatedData.event_id,
+            ticket_type_id: validatedData.ticket_type_id,
+            order_number: orderNumber,
+          },
+          success_url: `${origin}/tickets/confirmation?order=${orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}/tickets/purchase?event_id=${validatedData.event_id}&cancelled=true`,
+        })
+
+        console.log('[Enhanced Ticketing API] Stripe Checkout session created:', session.id)
+        return NextResponse.json({
+          sale,
+          order_number: orderNumber,
+          discount_applied: discountAmount > 0,
+          discount_amount: discountAmount,
+          checkout_url: session.url,
+          checkout_session_id: session.id,
+        }, { status: 201 })
+      }
+
+      // Free ticket or dev mode without Stripe — mark as paid directly
       console.log('[Enhanced Ticketing API] Successfully created ticket sale:', sale.id)
       return NextResponse.json({ 
         sale,

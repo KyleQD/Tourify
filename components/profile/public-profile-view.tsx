@@ -258,7 +258,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
     try {
       setLoading(true)
       
-      const { supabase } = await import('@/lib/supabase/client')
+      const { supabase } = await import('@/lib/supabase')
       
       console.log('🔍 Fetching real posts for profile:', profile.id)
       
@@ -560,7 +560,7 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
 
   const handleLikePost = async (postId: string) => {
     try {
-      const { supabase } = await import('@/lib/supabase/client')
+      const { supabase } = await import('@/lib/supabase')
       
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {

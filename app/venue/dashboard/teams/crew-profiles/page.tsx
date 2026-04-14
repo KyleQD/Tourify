@@ -13,8 +13,8 @@ export default function CrewProfilesPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb navigation */}
-      <Breadcrumb className="mb-6">
-        <BreadcrumbList>
+      <Breadcrumb className="mb-6 min-w-0">
+        <BreadcrumbList className="flex-wrap gap-y-1 overflow-x-auto">
           <BreadcrumbItem>
             <BreadcrumbLink href="/venue/dashboard/dashboard">Dashboard</BreadcrumbLink>
           </BreadcrumbItem>

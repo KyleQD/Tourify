@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 export type MediaType = 'avatar' | 'post' | 'venue' | 'event' | 'document'
 
 export interface UploadOptions {

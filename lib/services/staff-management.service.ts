@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 // Types for our three-tier system
 export interface StaffMember {

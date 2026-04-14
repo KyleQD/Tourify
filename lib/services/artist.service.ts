@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 
 export interface EventData {

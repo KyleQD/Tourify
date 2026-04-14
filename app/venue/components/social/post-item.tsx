@@ -147,6 +147,13 @@ export function PostItem({
   const { toast } = useToast()
   const router = useRouter()
 
+  const currentUserMeta = currentUser?.user_metadata as
+    | { full_name?: string; avatar_url?: string }
+    | undefined
+  const currentUserDisplayName =
+    currentUserMeta?.full_name?.trim() || currentUser?.email || ""
+  const currentUserAvatarUrl = currentUserMeta?.avatar_url
+
   const [isLiked, setIsLiked] = useState(post.likes.includes(currentUser?.id || ""))
   const [likeCount, setLikeCount] = useState(post.likes.length)
   const [isBookmarked, setIsBookmarked] = useState(false)
@@ -591,9 +598,9 @@ export function PostItem({
         {showCommentForm && (
           <div className="mt-3 flex space-x-3">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={currentUser?.avatar} alt={currentUser?.name} />
+              <AvatarImage src={currentUserAvatarUrl} alt={currentUserDisplayName} />
               <AvatarFallback>
-                {renderAvatarFallback(currentUser?.name)}
+                {renderAvatarFallback(currentUserDisplayName)}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-2">

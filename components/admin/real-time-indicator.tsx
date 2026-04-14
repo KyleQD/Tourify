@@ -66,7 +66,7 @@ export function RealTimeStatusBar() {
   useEffect(() => {
     const checkConnection = async () => {
       try {
-        const { supabase } = await import('@/lib/supabase/client')
+        const { supabase } = await import('@/lib/supabase')
         
         // Test connection
         const { data, error } = await supabase
@@ -92,7 +92,7 @@ export function RealTimeStatusBar() {
   useEffect(() => {
     const setupRealTimeListener = async () => {
       try {
-        const { supabase } = await import('@/lib/supabase/client')
+        const { supabase } = await import('@/lib/supabase')
 
         const subscription = supabase
           .channel('real-time-status')

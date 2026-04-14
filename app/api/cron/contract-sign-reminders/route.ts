@@ -1,19 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
 import {
   pickReminderDay,
   sendContractReminderEmailForCron,
   type ContractReminderDay,
 } from "@/lib/services/contract-email.service"
 import { isAuthorizedCronRequest, unauthorizedResponse } from "@/lib/auth/route-guards"
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 function getAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) return null
-  return createClient(url, key, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  })
+  try {
+    return createServiceRoleClient()
+  } catch {
+    return null
+  }
 }
 
 async function runReminders() {

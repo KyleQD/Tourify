@@ -3,7 +3,7 @@
 import { useAuth } from '@/contexts/auth-context'
 import { useArtist } from '@/contexts/artist-context'
 import { useMultiAccount } from '@/hooks/use-multi-account'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 
 // RSS Feed Sources - Expanded Music Industry Focus with Indie & Underground
 const RSS_SOURCES = [

@@ -66,14 +66,17 @@ export function useProfile(): UseProfileReturn {
     try {
       setLoading(true)
       
-      // Fetch general profile
+      // Use maybeSingle() so a missing row (PGRST116) returns null instead of throwing.
+      // The signup trigger creates this row automatically, but it may be absent for
+      // users who signed up before the trigger was deployed or if the trigger failed.
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .maybeSingle()
       
-      if (profileError) throw profileError
+      if (profileError)
+        console.warn('[useProfile] profiles query error:', profileError.message)
 
       const { data: artistProfile } = await supabase
         .from('artist_profiles')
@@ -87,7 +90,6 @@ export function useProfile(): UseProfileReturn {
         .eq('user_id', userId)
         .maybeSingle()
 
-      // Optional row — .single() caused PostgREST 406 when no onboarding record existed yet
       const { data: onboarding, error: onboardingError } = await supabase
         .from('onboarding')
         .select('*')
@@ -98,9 +100,9 @@ export function useProfile(): UseProfileReturn {
         console.warn('[useProfile] onboarding row unavailable:', onboardingError.message)
 
       setProfileData({
-        profile,
-        artistProfile,
-        venueProfile
+        profile: profile ?? null,
+        artistProfile: artistProfile ?? null,
+        venueProfile: venueProfile ?? null
       })
       setOnboardingState(onboarding ?? null)
       setActiveProfileType((onboarding?.active_profile_type as ProfileType) ?? 'general')

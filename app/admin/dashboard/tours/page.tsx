@@ -416,6 +416,7 @@ export default function ToursPage() {
             title="No tours yet"
             description="Create your first tour to get started"
             action={{ label: "Create Tour", href: "/admin/dashboard/tours/planner" }}
+            learnMoreArticleId="tour-management"
           />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

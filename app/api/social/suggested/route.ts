@@ -1,59 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-
-// Create service role client for database operations
-function createServiceRoleClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase environment variables for service role')
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-}
-
-// Helper function to manually parse auth session from cookies
-function parseAuthFromCookies(request: NextRequest): any | null {
-  try {
-    const cookies = request.headers.get('cookie') || ''
-    const cookieArray = cookies.split(';').map(c => c.trim())
-    
-    const authCookie = cookieArray.find(cookie => 
-      cookie.startsWith('sb-tourify-auth-token=')
-    )
-    
-    if (!authCookie) {
-      return null
-    }
-
-    const token = authCookie.split('=')[1]
-    if (!token) {
-      return null
-    }
-
-    const sessionData = JSON.parse(decodeURIComponent(token))
-    
-    if (sessionData?.user) {
-      return sessionData.user
-    }
-    
-    return null
-  } catch (error) {
-    console.error('Error parsing auth cookie:', error)
-    return null
-  }
-}
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 export async function GET(request: NextRequest) {
   try {
-    // Use the same authentication method as the working feed posts API
-    const user = parseAuthFromCookies(request)
+    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
     
     if (!user) {
       console.error('❌ Authentication failed - no user from cookies')

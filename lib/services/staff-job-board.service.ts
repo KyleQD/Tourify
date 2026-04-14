@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 // Types matching our database schema
 export interface JobPosting {

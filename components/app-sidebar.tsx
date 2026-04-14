@@ -43,7 +43,7 @@ import { motion } from "framer-motion"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useEffect, useState } from "react"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 // View Profile Button Component
 function ViewProfileButton() {

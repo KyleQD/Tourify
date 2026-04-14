@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
-import { EquipmentManagement } from "../../../components/venue/equipment-management"
-import { PageHeader } from "../../../components/navigation/page-header"
-import { Breadcrumbs } from "../../../components/navigation/breadcrumbs"
+import { EquipmentManagement } from "../../components/equipment-management"
+import { PageHeader } from "../../components/navigation/page-header"
+import { Breadcrumbs } from "../../components/navigation/breadcrumbs"
 import { Button } from "@/components/ui/button"
 import { Download, FileText, Plus, Upload } from "lucide-react"
 
@@ -16,8 +16,8 @@ export default function EquipmentPage() {
       <div className="flex flex-col gap-2">
         <Breadcrumbs
           items={[
-            { label: "Dashboard", href: "/dashboard" },
-            { label: "Equipment Management", href: "/equipment" },
+            { label: "Dashboard", href: "/venue/dashboard/dashboard" },
+            { label: "Equipment Management", href: "/venue/dashboard/equipment" },
           ]}
         />
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

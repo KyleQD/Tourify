@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
-// Lightweight Lodging API to prevent 404s and enable UI rendering
-// Returns empty datasets and zeroed analytics/utilization by default.
+async function requireAdmin(request: NextRequest) {
+  const auth = await authenticateApiRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return null
+}
 
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   const { searchParams } = new URL(request.url)
   const type = searchParams.get('type') || 'providers'
 
@@ -49,16 +55,22 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   const body = await safeJson(request)
   return NextResponse.json({ success: true, message: 'Lodging endpoint stubbed', action: body?.action || 'unknown', data: {} })
 }
 
 export async function PUT(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   const body = await safeJson(request)
   return NextResponse.json({ success: true, message: 'Lodging endpoint stubbed', action: body?.action || 'unknown', data: {} })
 }
 
 export async function DELETE(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   return NextResponse.json({ success: true, message: 'Lodging endpoint stubbed' })
 }
 

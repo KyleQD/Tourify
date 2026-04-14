@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { NotificationService } from '@/lib/services/notification-service'
 import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
 
 // Helper function to get authenticated user
 async function getAuthenticatedUser(request: NextRequest) {

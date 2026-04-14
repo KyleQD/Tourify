@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Calendar, Clock, MapPin, Users, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 interface Event {
   id?: string

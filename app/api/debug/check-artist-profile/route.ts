@@ -1,22 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
-
-function createServiceRoleClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Missing Supabase environment variables')
-  }
-
-  return createClient(supabaseUrl, serviceRoleKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  })
-}
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function GET(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()

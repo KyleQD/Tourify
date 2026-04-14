@@ -7,7 +7,7 @@
  * - Photographer: Full resolution + watermarked previews
  */
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 // Account type definitions
 export type AccountType = 'general' | 'artist' | 'venue' | 'organizer' | 'photographer'

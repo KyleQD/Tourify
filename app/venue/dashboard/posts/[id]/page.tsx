@@ -52,7 +52,7 @@ export default function PostDetailPage() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">Post Not Found</h2>
         <p className="text-gray-400 mb-6">The post you're looking for doesn't exist or has been removed.</p>
-        <Link href="/social">
+        <Link href="/venue/dashboard/network-feed">
           <Button className="bg-purple-600 hover:bg-purple-700">Return to Feed</Button>
         </Link>
       </div>
@@ -60,25 +60,25 @@ export default function PostDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.back()}>
+    <div className="min-w-0 space-y-6">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
 
-        <h1 className="text-2xl font-bold">Post Details</h1>
+        <h1 className="min-w-0 truncate text-2xl font-bold">Post Details</h1>
       </div>
 
       <Card className="bg-gray-900 text-white border-gray-800">
         <CardHeader>
-          <div className="flex items-center space-x-4">
-            <Avatar>
+          <div className="flex min-w-0 items-center gap-4">
+            <Avatar className="shrink-0">
               <AvatarImage src={author.avatar} />
               <AvatarFallback>{author.fullName[0]}</AvatarFallback>
             </Avatar>
-            <div>
-              <CardTitle>{author.fullName}</CardTitle>
-              <p className="text-sm text-muted-foreground">@{author.username}</p>
+            <div className="min-w-0">
+              <CardTitle className="truncate">{author.fullName}</CardTitle>
+              <p className="truncate text-sm text-muted-foreground">@{author.username}</p>
             </div>
           </div>
         </CardHeader>
@@ -87,25 +87,25 @@ export default function PostDetailPage() {
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">More from {author.fullName}</h2>
+      <div className="min-w-0 space-y-4">
+        <h2 className="text-xl font-semibold break-words">More from {author.fullName}</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {posts
             .filter((p) => p.userId === author.id && p.id !== post.id)
             .slice(0, 4)
             .map((relatedPost) => {
               return (
-                <Link key={relatedPost.id} href={`/posts/${relatedPost.id}`}>
-                  <Card className="bg-gray-900 text-white border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer h-full">
+                <Link key={relatedPost.id} href={`/venue/dashboard/posts/${relatedPost.id}`}>
+                  <Card className="h-full cursor-pointer border-gray-800 bg-gray-900 text-white transition-colors hover:bg-gray-800">
                     <CardContent className="p-4">
-                      <div className="flex items-center space-x-3 mb-2">
-                        <div className="h-8 w-8 rounded-full bg-purple-600 flex items-center justify-center">
+                      <div className="mb-2 flex min-w-0 items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-600">
                           {author.fullName.charAt(0)}
                         </div>
-                        <div>
-                          <p className="font-medium">{author.fullName}</p>
-                          <p className="text-xs text-gray-500">@{author.username}</p>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium">{author.fullName}</p>
+                          <p className="truncate text-xs text-gray-500">@{author.username}</p>
                         </div>
                       </div>
                       <p className="text-sm line-clamp-3">{relatedPost.content}</p>

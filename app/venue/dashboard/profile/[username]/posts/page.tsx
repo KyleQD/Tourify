@@ -48,7 +48,7 @@ export default function UserPostsPage() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">User Not Found</h2>
         <p className="text-gray-400 mb-6">The user you're looking for doesn't exist or has been removed.</p>
-        <Link href="/">
+        <Link href="/venue/dashboard">
           <Button className="bg-purple-600 hover:bg-purple-700">Return to Home</Button>
         </Link>
       </div>
@@ -58,17 +58,19 @@ export default function UserPostsPage() {
   const isOwnProfile = currentUser?.id === profileUser.id
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <Link href={`/profile/${username}`}>
+    <div className="min-w-0 space-y-6">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-4">
+        <Link href={`/venue/dashboard/profile/${username}`} className="shrink-0">
           <Button variant="ghost" size="icon" className="h-8 w-8">
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </Link>
 
-        <div>
-          <h1 className="text-2xl font-bold">{profileUser.fullName}'s Posts</h1>
-          <p className="text-gray-400">@{profileUser.username}</p>
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-bold" title={`${profileUser.fullName}'s Posts`}>
+            {`${profileUser.fullName}'s Posts`}
+          </h1>
+          <p className="truncate text-gray-400">@{profileUser.username}</p>
         </div>
       </div>
 

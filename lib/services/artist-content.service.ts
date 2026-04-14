@@ -1,4 +1,4 @@
-import { supabase as supabaseClient } from '@/lib/supabase/client'
+import { supabase as supabaseClient } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 
 // Types for content

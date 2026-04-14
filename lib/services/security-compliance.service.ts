@@ -1,9 +1,25 @@
-import { supabase } from '@/lib/supabase/client'
+import crypto from 'crypto'
+import { supabase } from '@/lib/supabase'
 import type { 
   JobApplication, 
   OnboardingCandidate, 
   StaffMember
 } from '@/types/admin-onboarding'
+
+const ALGORITHM = 'aes-256-gcm'
+const IV_LENGTH = 12
+const AUTH_TAG_LENGTH = 16
+
+function getEncryptionKey(): Buffer | null {
+  const keyHex = process.env.ENCRYPTION_KEY
+  if (!keyHex) return null
+  const buf = Buffer.from(keyHex, 'hex')
+  if (buf.length !== 32) {
+    console.warn('[Security Compliance Service] ENCRYPTION_KEY must be 64 hex chars (32 bytes). Falling back to base64.')
+    return null
+  }
+  return buf
+}
 
 export class SecurityComplianceService {
   /**
@@ -149,19 +165,34 @@ export class SecurityComplianceService {
   }
 
   /**
-   * Encrypt sensitive data before storage
+   * Encrypt sensitive data before storage using AES-256-GCM.
+   * Falls back to base64 when ENCRYPTION_KEY is not configured.
    */
   static async encryptSensitiveData(data: Record<string, any>, fieldsToEncrypt: string[]) {
     try {
       console.log('🔧 [Security Compliance Service] Encrypting sensitive data...')
       
       const encryptedData = { ...data }
-      
+      const key = getEncryptionKey()
+
+      if (!key) {
+        console.warn('[Security Compliance Service] ENCRYPTION_KEY not set — using base64 encoding (NOT secure).')
+        for (const field of fieldsToEncrypt) {
+          if (data[field]) {
+            encryptedData[field] = btoa(JSON.stringify(data[field]))
+          }
+        }
+        return encryptedData
+      }
+
       for (const field of fieldsToEncrypt) {
         if (data[field]) {
-          // In a real implementation, you would use a proper encryption library
-          // For now, we'll use a simple base64 encoding as a placeholder
-          encryptedData[field] = btoa(JSON.stringify(data[field]))
+          const iv = crypto.randomBytes(IV_LENGTH)
+          const cipher = crypto.createCipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
+          const plaintext = JSON.stringify(data[field])
+          const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+          const authTag = cipher.getAuthTag()
+          encryptedData[field] = `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted.toString('hex')}`
         }
       }
 
@@ -173,24 +204,39 @@ export class SecurityComplianceService {
   }
 
   /**
-   * Decrypt sensitive data after retrieval
+   * Decrypt sensitive data after retrieval using AES-256-GCM.
+   * Falls back to base64 when ENCRYPTION_KEY is not configured.
    */
   static async decryptSensitiveData(data: Record<string, any>, fieldsToDecrypt: string[]) {
     try {
       console.log('🔧 [Security Compliance Service] Decrypting sensitive data...')
       
       const decryptedData = { ...data }
-      
+      const key = getEncryptionKey()
+
       for (const field of fieldsToDecrypt) {
-        if (data[field]) {
-          try {
-            // In a real implementation, you would use a proper decryption library
-            // For now, we'll use a simple base64 decoding as a placeholder
-            decryptedData[field] = JSON.parse(atob(data[field]))
-          } catch (e) {
-            // If decryption fails, keep the original value
-            console.warn(`Failed to decrypt field ${field}:`, e)
+        if (!data[field]) continue
+
+        try {
+          const value = data[field] as string
+          const parts = value.split(':')
+
+          if (key && parts.length === 3) {
+            const iv = Buffer.from(parts[0], 'hex')
+            const authTag = Buffer.from(parts[1], 'hex')
+            const ciphertext = Buffer.from(parts[2], 'hex')
+            const decipher = crypto.createDecipheriv(ALGORITHM, key, iv, { authTagLength: AUTH_TAG_LENGTH })
+            decipher.setAuthTag(authTag)
+            const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()])
+            decryptedData[field] = JSON.parse(decrypted.toString('utf8'))
+          } else {
+            if (!key) {
+              console.warn('[Security Compliance Service] ENCRYPTION_KEY not set — using base64 decoding.')
+            }
+            decryptedData[field] = JSON.parse(atob(value))
           }
+        } catch (e) {
+          console.warn(`Failed to decrypt field ${field}:`, e)
         }
       }
 

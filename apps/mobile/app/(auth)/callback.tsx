@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { ActivityIndicator, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 export default function OAuthCallbackScreen() {
   const router = useRouter()

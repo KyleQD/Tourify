@@ -39,8 +39,11 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   eslint: {
-    // Repository currently has existing lint debt; keep production builds unblocked.
-    ignoreDuringBuilds: true
+    ignoreDuringBuilds: false
+  },
+  typescript: {
+    // Strict builds: TypeScript errors fail `next build` so type issues are fixed before deploy.
+    ignoreBuildErrors: false
   },
   async redirects() {
     return [

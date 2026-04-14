@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { NotificationService } from '@/lib/services/notification-service'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
 
 // Validation schemas
 const createNotificationSchema = z.object({
@@ -65,14 +60,14 @@ export async function GET(request: NextRequest) {
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
     const type = searchParams.get('type') || undefined
 
-    const notifications = await NotificationService.getUserNotifications(user.id, {
+    const result = await NotificationService.getUserNotifications(user.id, {
       limit,
       offset,
       unreadOnly,
       type
     })
 
-    return NextResponse.json({ notifications })
+    return NextResponse.json({ notifications: result.notifications, totalCount: result.totalCount, unreadCount: result.unreadCount })
   } catch (error) {
     console.error('Error fetching notifications:', error)
     return NextResponse.json(
@@ -104,10 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const notification = await NotificationService.createNotification({
-      ...validatedData,
-      expiresAt: validatedData.expiresAt ? new Date(validatedData.expiresAt) : undefined
-    })
+    const notification = await NotificationService.createNotification(validatedData)
 
     return NextResponse.json({ notification })
   } catch (error) {
@@ -143,12 +135,12 @@ export async function PATCH(request: NextRequest) {
         if (!notificationId) {
           return NextResponse.json({ error: 'Notification ID required' }, { status: 400 })
         }
-        const notification = await NotificationService.markAsRead(notificationId, user.id)
-        return NextResponse.json({ notification })
+        await NotificationService.markAsRead(notificationId, user.id)
+        return NextResponse.json({ success: true })
 
       case 'markAllAsRead':
-        const notifications = await NotificationService.markAllAsRead(user.id)
-        return NextResponse.json({ notifications })
+        const markedCount = await NotificationService.markAllAsRead(user.id)
+        return NextResponse.json({ success: true, count: markedCount })
 
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -177,8 +169,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Notification ID required' }, { status: 400 })
     }
 
-    const result = await NotificationService.deleteNotification(notificationId, user.id)
-    return NextResponse.json(result)
+    await NotificationService.deleteNotification(notificationId, user.id)
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting notification:', error)
     return NextResponse.json(

@@ -4,7 +4,7 @@ import { useRouter } from "expo-router"
 import { useAuth } from "@/lib/auth/auth-provider"
 import { useSession } from "@/hooks/use-session"
 import { useAccountMode } from "@/hooks/use-account-mode"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { getCreatorCapabilities, updateCreatorCapabilities } from "@/lib/api/creator-capabilities"
 import { isQueuedOfflineError } from "@/lib/api/client"
 import {

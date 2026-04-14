@@ -6,6 +6,7 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
 interface FeatureTabsProps {
   tabs: {
@@ -41,10 +42,10 @@ export function FeatureTabs({ tabs, defaultTab, className, onChange }: FeatureTa
   }
 
   return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className={cn("w-full", className)}>
-      <TabsList className="w-full justify-start overflow-x-auto">
+    <Tabs value={activeTab} onValueChange={handleTabChange} className={cn("w-full min-w-0", className)}>
+      <TabsList className={venueDashboardTabListClass}>
         {tabs.map((tab) => (
-          <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-2">
+          <TabsTrigger key={tab.id} value={tab.id} className="flex shrink-0 items-center gap-2">
             {tab.icon}
             <span>{tab.label}</span>
             {typeof tab.badge === "number" && (

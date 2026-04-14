@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 import { OptimizedNotificationService, SocialNotificationHelpers } from '@/lib/services/optimized-notification-service'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
+import { createClient } from '@/lib/supabase/server'
 
 // =============================================================================
 // VALIDATION SCHEMAS
@@ -53,19 +49,24 @@ const socialInteractionSchema = z.object({
 // =============================================================================
 
 async function getAuthenticatedUser(request: NextRequest) {
+  // Try Bearer token first (mobile / API key clients)
   const authHeader = request.headers.get('authorization')
-  if (!authHeader?.startsWith('Bearer ')) {
-    return null
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7)
+    const { data: { user }, error } = await supabase.auth.getUser(token)
+    if (!error && user) return user
   }
 
-  const token = authHeader.substring(7)
-  const { data: { user }, error } = await supabase.auth.getUser(token)
-  
-  if (error || !user) {
-    return null
+  // Fall back to SSR session cookie (web clients)
+  try {
+    const serverClient = await createClient()
+    const { data: { user } } = await serverClient.auth.getUser()
+    if (user) return user
+  } catch {
+    // ignore
   }
 
-  return user
+  return null
 }
 
 async function checkAdminOrSelf(user: any, targetUserId: string) {

@@ -2,8 +2,13 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+
+function authDevLog(...args: unknown[]) {
+  if (process.env.NODE_ENV !== 'development') return
+  console.log(...args)
+}
 
 type SocialProvider = 'google' | 'apple' | 'facebook'
 
@@ -41,13 +46,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const checkSession = async () => {
       try {
         setLoading(true)
-        console.log('[Auth] Checking initial session...')
+        authDevLog('[Auth] Checking initial session...')
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('[Auth] Session check error:', error)
         } else {
-          console.log('[Auth] Initial session check:', session ? `User ${session.user?.id} authenticated` : 'No session')
+          authDevLog('[Auth] Initial session check:', session ? `User ${session.user?.id} authenticated` : 'No session')
         }
         
         setSession(session)
@@ -65,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] State change:', event, session ? `User ${session.user?.id}` : 'No session')
+      authDevLog('[Auth] State change:', event, session ? `User ${session.user?.id}` : 'No session')
       
       setSession(session)
       setUser(session?.user ?? null)
@@ -74,22 +79,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // The middleware will handle protecting routes and the login page will redirect after successful sign in
 
       if (event === 'SIGNED_OUT') {
-        console.log('[Auth] User signed out, clearing local data')
+        authDevLog('[Auth] User signed out, clearing local data')
         // Safari strict privacy modes can block storage APIs.
         try {
           localStorage.removeItem('onboardingData')
         } catch (storageError) {
-          console.warn('[Auth] Could not clear onboardingData from localStorage:', storageError)
+          authDevLog('[Auth] Could not clear onboardingData from localStorage:', storageError)
         }
         router.push('/login')
       }
 
       if (event === 'TOKEN_REFRESHED') {
-        console.log('[Auth] Token refreshed successfully')
+        authDevLog('[Auth] Token refreshed successfully')
       }
 
       if (event === 'SIGNED_IN') {
-        console.log('[Auth] User signed in successfully')
+        authDevLog('[Auth] User signed in successfully')
       }
     })
 
@@ -99,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true)
-      console.log('[Auth] Attempting sign in for:', email)
+      authDevLog('[Auth] Attempting sign in for:', email)
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -115,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
       
-      console.log('[Auth] Sign in successful:', {
+      authDevLog('[Auth] Sign in successful:', {
         userId: data.user?.id,
         email: data.user?.email,
         emailConfirmed: data.user?.email_confirmed_at ? 'Yes' : 'No'
@@ -136,7 +141,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     try {
       setLoading(true)
-      console.log('[Auth] Attempting sign up for:', email, 'with metadata:', metadata)
+      authDevLog('[Auth] Attempting sign up for:', email, 'with metadata:', metadata)
       
       // Check for configuration issues first
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -227,7 +232,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       
-      console.log('[Auth] Sign up successful:', {
+      authDevLog('[Auth] Sign up successful:', {
         userId: data.user?.id,
         email: data.user?.email,
         needsConfirmation: !data.session ? 'Yes' : 'No'
@@ -250,7 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     try {
       setLoading(true)
-      console.log('[Auth] Attempting sign out')
+      authDevLog('[Auth] Attempting sign out')
       
       const { error } = await supabase.auth.signOut()
       
@@ -259,7 +264,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
       
-      console.log('[Auth] Sign out successful')
+      authDevLog('[Auth] Sign out successful')
       return { error: undefined }
     } catch (error) {
       console.error('[Auth] Sign out failed with exception:', error)
@@ -293,7 +298,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string) => {
     try {
-      console.log('[Auth] Attempting password reset for:', email)
+      authDevLog('[Auth] Attempting password reset for:', email)
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
@@ -304,7 +309,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error }
       }
       
-      console.log('[Auth] Reset password email sent successfully')
+      authDevLog('[Auth] Reset password email sent successfully')
       return { error: undefined }
     } catch (error) {
       console.error('[Auth] Reset password failed with exception:', error)
@@ -323,7 +328,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { error: 'No user logged in' }
       }
 
-      console.log('[Auth] Updating profile for user:', user.id, 'with updates:', updates)
+      authDevLog('[Auth] Updating profile for user:', user.id, 'with updates:', updates)
 
       const { error } = await supabase.auth.updateUser({
         data: updates
@@ -349,7 +354,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Don't return error here as the main auth update succeeded
         console.warn('[Auth] Profiles table update failed, but auth update succeeded')
       } else {
-        console.log('[Auth] Profile updated successfully in both auth and profiles table')
+        authDevLog('[Auth] Profile updated successfully in both auth and profiles table')
       }
       
       return { error: undefined }

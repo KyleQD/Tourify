@@ -1,5 +1,10 @@
 -- Staffing query performance indexes for deployment-scale filtering and dashboards
 
+-- Ensure columns referenced by these indexes exist.
+-- staff_onboarding_candidates may have been created by an older migration
+-- that didn't include user_id; add it idempotently before indexing.
+alter table staff_onboarding_candidates add column if not exists user_id uuid references auth.users(id) on delete set null;
+
 create index if not exists idx_staff_members_venue_status_created
   on staff_members(venue_id, status, created_at desc);
 

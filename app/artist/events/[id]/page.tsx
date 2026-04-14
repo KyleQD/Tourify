@@ -1,5 +1,6 @@
 "use client"
 
+import { supabase } from "@/lib/supabase"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useArtist } from "@/contexts/artist-context"
@@ -194,16 +195,25 @@ export default function EventDetailPage() {
     try {
       setIsLoading(true)
       const { data, error } = await supabase
-        .from('artist_events')
+        .from('events')
         .select('*')
         .eq('id', eventId)
-        .eq('user_id', user.id)
+        .eq('artist_id', user.id)
         .single()
 
       if (error) throw error
       
       if (data) {
-        setEvent(data)
+        setEvent({
+          ...data,
+          title: data.name || data.title,
+          type: data.event_type || data.type,
+          venue_address: data.address || data.venue_address,
+          venue_city: data.city || data.venue_city,
+          venue_state: data.state || data.venue_state,
+          venue_country: data.country || data.venue_country,
+          is_public: data.is_public ?? (data.status === 'published'),
+        })
       } else {
         toast.error('Event not found')
         router.push('/artist/events')
@@ -218,97 +228,89 @@ export default function EventDetailPage() {
   }
 
   const loadTasks = async () => {
-    // Mock data for now - you could create an event_tasks table
-    setTasks([
-      { id: '1', title: 'Book sound equipment', completed: true, due_date: '2024-01-15' },
-      { id: '2', title: 'Confirm catering', completed: false, due_date: '2024-01-20' },
-      { id: '3', title: 'Set up merchandise table', completed: false, due_date: '2024-01-25' },
-      { id: '4', title: 'Sound check', completed: false, due_date: '2024-01-30' }
-    ])
+    try {
+      const { data, error } = await supabase
+        .from('logistics_tasks')
+        .select('id, title, description, completed, due_date, assignee')
+        .eq('event_id', eventId)
+        .order('due_date', { ascending: true })
+
+      if (error) throw error
+      setTasks(data ?? [])
+    } catch (err) {
+      console.error('Error loading tasks:', err)
+      setTasks([])
+    }
   }
 
   const loadExpenses = async () => {
-    // Mock data for now - you could create an event_expenses table
-    setExpenses([
-      { id: '1', description: 'Venue rental', amount: 2500, category: 'Venue', date: '2024-01-10' },
-      { id: '2', description: 'Sound equipment', amount: 800, category: 'Equipment', date: '2024-01-12' },
-      { id: '3', description: 'Marketing materials', amount: 300, category: 'Marketing', date: '2024-01-14' }
-    ])
+    try {
+      const { data, error } = await supabase
+        .from('artist_financial_transactions')
+        .select('id, description, amount, category, date')
+        .eq('event_id', eventId)
+        .order('date', { ascending: false })
+
+      if (error) throw error
+      setExpenses(data ?? [])
+    } catch (err) {
+      console.error('Error loading expenses:', err)
+      setExpenses([])
+    }
   }
 
   const loadCrewMembers = async () => {
-    // Mock data for now - you could create an event_crew table
-    setCrewMembers([
-      { 
-        id: '1', 
-        user_id: 'user1', 
-        name: 'John Smith', 
-        email: 'john@example.com',
-        role: 'Sound Engineer', 
-        status: 'accepted', 
-        permissions: ['equipment_access', 'backstage_access'],
-        created_at: new Date().toISOString()
-      },
-      { 
-        id: '2', 
-        name: 'Sarah Johnson', 
-        email: 'sarah@example.com',
-        role: 'Stage Manager', 
-        status: 'invited', 
-        permissions: ['full_access'],
-        created_at: new Date().toISOString()
-      }
-    ])
+    try {
+      const { data, error } = await supabase
+        .from('event_crew_assignments')
+        .select('id, user_id, email, name, role, status, permissions, created_at')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setCrewMembers((data ?? []).map(m => ({
+        ...m,
+        permissions: m.permissions ?? [],
+      })))
+    } catch (err) {
+      console.error('Error loading crew:', err)
+      setCrewMembers([])
+    }
   }
 
   const loadVenues = async () => {
-    // Mock data for now - you could create a venues table
-    setVenues([
-      {
-        id: '1',
-        name: 'The Grand Theater',
-        address: '123 Main St',
-        city: 'Los Angeles',
-        state: 'CA',
-        country: 'USA',
-        capacity: 2500,
-        venue_type: 'Theater',
-        amenities: ['Sound System', 'Lighting Rig', 'Green Rooms', 'Parking'],
-        contact_email: 'booking@grandtheater.com',
-        booking_status: 'available',
-        price_range: { min: 5000, max: 15000 },
-        user_id: 'venue_user_1'
-      },
-      {
-        id: '2',
-        name: 'Riverside Amphitheater',
-        address: '456 River Rd',
-        city: 'Austin',
-        state: 'TX',
-        country: 'USA',
-        capacity: 8000,
-        venue_type: 'Outdoor',
-        amenities: ['Outdoor Stage', 'VIP Area', 'Food Court', 'Merchandise Booths'],
-        contact_email: 'events@riverside.com',
-        booking_status: 'available',
-        price_range: { min: 10000, max: 25000 },
-        user_id: 'venue_user_2'
-      }
-    ])
+    try {
+      const { data, error } = await supabase
+        .from('venues')
+        .select('id, name, address, city, state, country, capacity, venue_type, amenities, contact_email, booking_status, price_range, images, user_id')
+        .limit(20)
+
+      if (error) throw error
+      setVenues((data ?? []).map(v => ({
+        ...v,
+        amenities: v.amenities ?? [],
+        images: v.images ?? [],
+      })))
+    } catch (err) {
+      console.error('Error loading venues:', err)
+      setVenues([])
+    }
   }
 
   const loadBookingRequests = async () => {
-    // Mock data for now - you could create a booking_requests table
-    setBookingRequests([
-      {
-        id: '1',
-        venue_id: '1',
-        event_id: eventId,
-        message: 'Looking to book for our upcoming concert.',
-        status: 'pending',
-        created_at: new Date().toISOString()
-      }
-    ])
+    try {
+      const { data, error } = await supabase
+        .from('booking_requests')
+        .select('id, venue_id, event_id, message, status, created_at')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setBookingRequests(data ?? [])
+    } catch (err) {
+      console.error('Error loading booking requests:', err)
+      setBookingRequests([])
+    }
   }
 
   const addTask = async () => {
@@ -356,10 +358,10 @@ export default function EventDetailPage() {
 
     try {
       const { error } = await supabase
-        .from('artist_events')
+        .from('events')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', event.id)
-        .eq('user_id', user.id)
+        .eq('artist_id', user.id)
 
       if (error) throw error
       

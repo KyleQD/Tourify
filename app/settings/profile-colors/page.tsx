@@ -1,6 +1,6 @@
 "use client"
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useState, useEffect } from "react"
 import { ProfileColorCustomizer } from "@/components/profile/profile-color-customizer"
 import { useProfileColors } from "@/hooks/use-profile-colors"

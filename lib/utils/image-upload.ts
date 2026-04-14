@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 // Image upload configuration
 export const IMAGE_CONFIG = {

@@ -1,6 +1,6 @@
 "use client"
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -153,13 +153,17 @@ export default function MessagesPage() {
 
   const fetchSenderDetails = async (senderId: string) => {
     try {
-      const response = await fetch(`/api/profile/current`)
-      if (response.ok) {
-        const data = await response.json()
-        setMessages(prev => 
-          prev.map(msg => 
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar_url')
+        .eq('id', senderId)
+        .single()
+
+      if (profile) {
+        setMessages(prev =>
+          prev.map(msg =>
             msg.sender_id === senderId && msg.sender.username === 'Loading...'
-              ? { ...msg, sender: { ...data.profile } }
+              ? { ...msg, sender: { ...profile } }
               : msg
           )
         )

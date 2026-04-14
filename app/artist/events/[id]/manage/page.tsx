@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import { supabase } from '@/lib/supabase'
 import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -59,7 +60,7 @@ export default function ManageArtistEventPage() {
     const load = async () => {
       setIsLoading(true)
       const { data, error } = await supabase
-        .from('artist_events')
+        .from('events')
         .select('*')
         .eq('id', eventId)
         .single()
@@ -76,22 +77,22 @@ export default function ManageArtistEventPage() {
 
       // Initialize forms
       setDetails({
-        title: data.title || '',
+        title: data.name || data.title || '',
         description: data.description || '',
         eventDate: data.event_date || '',
         startTime: data.start_time || '',
         endTime: data.end_time || '',
-        type: (data.type as EventType) || 'concert',
+        type: (data.event_type as EventType) || (data.type as EventType) || 'concert',
         categories: notesJson.categories || [],
         tags: notesJson.tags || []
       })
       setVenue(v => ({
         ...v,
         venueName: data.venue_name || '',
-        address: data.venue_address || '',
-        city: data.venue_city || '',
-        state: data.venue_state || '',
-        country: data.venue_country || '',
+        address: data.address || '',
+        city: data.city || '',
+        state: data.state || '',
+        country: data.country || '',
         capacity: data.capacity ? String(data.capacity) : ''
       }))
       setScheduleItems(notesJson.schedule || [])
@@ -142,19 +143,21 @@ export default function ManageArtistEventPage() {
     }
 
     const { error } = await supabase
-      .from('artist_events')
+      .from('events')
       .update({
+        name: details.title,
         title: details.title,
         description: details.description,
         event_date: details.eventDate,
         start_time: details.startTime || null,
         end_time: details.endTime || null,
+        event_type: details.type,
         type: details.type,
         venue_name: venue.venueName || null,
-        venue_address: venue.address || null,
-        venue_city: venue.city || null,
-        venue_state: venue.state || null,
-        venue_country: venue.country || null,
+        address: venue.address || null,
+        city: venue.city || null,
+        state: venue.state || null,
+        country: venue.country || null,
         capacity: venue.capacity ? Number(venue.capacity) : null,
         notes: JSON.stringify(notesPayload)
       })
@@ -184,19 +187,21 @@ export default function ManageArtistEventPage() {
         lineup
       }
       const { error } = await supabase
-        .from('artist_events')
+        .from('events')
         .update({
+          name: details.title,
           title: details.title,
           description: details.description,
           event_date: details.eventDate,
           start_time: details.startTime || null,
           end_time: details.endTime || null,
+          event_type: details.type,
           type: details.type,
           venue_name: venue.venueName || null,
-          venue_address: venue.address || null,
-          venue_city: venue.city || null,
-          venue_state: venue.state || null,
-          venue_country: venue.country || null,
+          address: venue.address || null,
+          city: venue.city || null,
+          state: venue.state || null,
+          country: venue.country || null,
           capacity: venue.capacity ? Number(venue.capacity) : null,
           notes: JSON.stringify(notesPayload)
         })
@@ -479,20 +484,23 @@ export default function ManageArtistEventPage() {
 // Types
 interface ArtistEvent {
   id: string
-  title: string
+  name: string
+  title?: string
   description?: string | null
-  type: EventType
+  event_type: EventType
+  type?: EventType
   venue_name?: string | null
-  venue_address?: string | null
-  venue_city?: string | null
-  venue_state?: string | null
-  venue_country?: string | null
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  country?: string | null
   event_date: string
   start_time?: string | null
   end_time?: string | null
   capacity?: number | null
   slug?: string | null
   notes?: string | null
+  artist_id?: string | null
 }
 
 type EventType = 'concert' | 'festival' | 'tour' | 'recording' | 'interview' | 'other'

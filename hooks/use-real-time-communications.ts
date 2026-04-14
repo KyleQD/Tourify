@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
 // =============================================================================
@@ -10,47 +10,36 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 
 interface Message {
   id: string
-  channel_id: string
+  conversation_id: string
   sender_id: string
   content: string
-  message_type: string
-  priority: string
-  thread_id?: string
-  attachments?: any[]
-  mentions?: string[]
-  reactions?: Record<string, any>
-  is_edited: boolean
-  is_deleted: boolean
-  is_pinned: boolean
+  message_type?: string
+  is_read: boolean
+  read_at?: string
   created_at: string
-  updated_at: string
+  updated_at?: string
   sender?: {
     id: string
-    display_name: string
-    role: string
+    username: string
+    full_name: string
+    avatar_url?: string
   }
 }
 
 interface Announcement {
   id: string
-  title: string
-  content: string
-  announcement_type: string
-  priority: string
-  target_audience: string[]
-  tour_id?: string
-  event_id?: string
   venue_id?: string
-  expires_at?: string
-  is_published: boolean
-  acknowledgment_required?: boolean
-  created_by: string
+  sender_id: string
+  recipients: string[]
+  subject: string
+  content: string
+  message_type: string
+  priority: string
+  read_by: string[]
+  requires_acknowledgment: boolean
+  acknowledged_by: string[]
+  sent_at: string
   created_at: string
-  created_by_profile?: {
-    id: string
-    display_name: string
-    role: string
-  }
 }
 
 interface Channel {
@@ -133,7 +122,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
         return
       }
 
-      // Subscribe to messages in specified channels
+      // Subscribe to messages in specified conversations
       if (channelIds.length > 0) {
         const messagesChannel = supabase
           .channel('messages')
@@ -143,13 +132,13 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
               event: 'INSERT',
               schema: 'public',
               table: 'messages',
-              filter: `channel_id=in.(${channelIds.join(',')})`
+              filter: `conversation_id=in.(${channelIds.join(',')})`
             },
             (payload) => {
               const newMessage = payload.new as Message
               setState(prev => ({
                 ...prev,
-                messages: [newMessage, ...prev.messages.slice(0, 99)], // Keep last 100 messages
+                messages: [newMessage, ...prev.messages.slice(0, 99)],
                 lastUpdate: new Date()
               }))
             }
@@ -160,7 +149,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
               event: 'UPDATE',
               schema: 'public',
               table: 'messages',
-              filter: `channel_id=in.(${channelIds.join(',')})`
+              filter: `conversation_id=in.(${channelIds.join(',')})`
             },
             (payload) => {
               const updatedMessage = payload.new as Message
@@ -179,7 +168,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
               event: 'DELETE',
               schema: 'public',
               table: 'messages',
-              filter: `channel_id=in.(${channelIds.join(',')})`
+              filter: `conversation_id=in.(${channelIds.join(',')})`
             },
             (payload) => {
               const deletedMessage = payload.old as Message
@@ -194,12 +183,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
         subscriptionsRef.current.push(messagesChannel)
       }
 
-      // Subscribe to announcements
-      let announcementFilter = 'is_published=eq.true'
-      if (tourId) announcementFilter += `,tour_id=eq.${tourId}`
-      if (eventId) announcementFilter += `,event_id=eq.${eventId}`
-      if (venueId) announcementFilter += `,venue_id=eq.${venueId}`
-
+      // Subscribe to team_communications (announcements)
       const announcementsChannel = supabase
         .channel('announcements')
         .on(
@@ -207,8 +191,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
           {
             event: 'INSERT',
             schema: 'public',
-            table: 'announcements',
-            filter: announcementFilter
+            table: 'team_communications'
           },
           (payload) => {
             const newAnnouncement = payload.new as Announcement
@@ -224,8 +207,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
           {
             event: 'UPDATE',
             schema: 'public',
-            table: 'announcements',
-            filter: announcementFilter
+            table: 'team_communications'
           },
           (payload) => {
             const updatedAnnouncement = payload.new as Announcement
@@ -343,7 +325,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
         }, 5000)
       }
     }
-  }, [channelIds, tourId, eventId, venueId, enablePresence, autoReconnect, supabase])
+  }, [channelIds, tourId, eventId, venueId, enablePresence, autoReconnect])
 
   // =============================================================================
   // EFFECT HOOKS
@@ -370,34 +352,48 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
   // ACTION METHODS
   // =============================================================================
 
-  const sendMessage = useCallback(async (channelId: string, content: string, options: {
+  const sendMessage = useCallback(async (conversationId: string, content: string, options: {
     messageType?: string
-    priority?: string
-    threadId?: string
-    mentions?: string[]
-    attachments?: any[]
   } = {}) => {
     try {
-      const response = await fetch('/api/admin/communications/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          channel_id: channelId,
-          content,
-          message_type: options.messageType || 'text',
-          priority: options.priority || 'general',
-          thread_id: options.threadId,
-          mentions: options.mentions,
-          attachments: options.attachments
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      const { data, error: insertError } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: user.id,
+          content: content.trim(),
+          message_type: options.messageType || 'text'
         })
-      })
+        .select(`
+          id,
+          content,
+          sender_id,
+          conversation_id,
+          is_read,
+          created_at,
+          sender:profiles!sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single()
 
-      if (!response.ok) {
-        throw new Error('Failed to send message')
-      }
+      if (insertError) throw new Error(insertError.message)
 
-      const result = await response.json()
-      return result.data
+      await supabase
+        .from('conversations')
+        .update({
+          last_message_id: data.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', conversationId)
+
+      return data
     } catch (err) {
       console.error('Error sending message:', err)
       throw err
@@ -405,57 +401,68 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
   }, [])
 
   const createAnnouncement = useCallback(async (announcement: {
-    title: string
+    subject: string
     content: string
-    announcementType?: string
+    messageType?: string
     priority?: string
-    targetAudience?: string[]
-    tourId?: string
-    eventId?: string
+    recipients?: string[]
     venueId?: string
+    requiresAcknowledgment?: boolean
   }) => {
     try {
-      const response = await fetch('/api/admin/communications/announcements', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: announcement.title,
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
+
+      const { data, error: insertError } = await supabase
+        .from('team_communications')
+        .insert({
+          sender_id: user.id,
+          subject: announcement.subject,
           content: announcement.content,
-          announcement_type: announcement.announcementType || 'general',
-          priority: announcement.priority || 'important',
-          target_audience: announcement.targetAudience || [],
-          tour_id: announcement.tourId,
-          event_id: announcement.eventId,
-          venue_id: announcement.venueId
+          message_type: announcement.messageType || 'announcement',
+          priority: announcement.priority || 'normal',
+          recipients: announcement.recipients || [],
+          venue_id: announcement.venueId || venueId || null,
+          requires_acknowledgment: announcement.requiresAcknowledgment ?? false
         })
-      })
+        .select()
+        .single()
 
-      if (!response.ok) {
-        throw new Error('Failed to create announcement')
-      }
-
-      const result = await response.json()
-      return result.data
+      if (insertError) throw new Error(insertError.message)
+      return data
     } catch (err) {
       console.error('Error creating announcement:', err)
       throw err
     }
-  }, [])
+  }, [venueId])
 
-  const acknowledgeAnnouncement = useCallback(async (announcementId: string, note?: string) => {
+  const acknowledgeAnnouncement = useCallback(async (announcementId: string) => {
     try {
-      const response = await fetch(`/api/admin/communications/announcements/${announcementId}/acknowledge`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ note })
-      })
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not authenticated')
 
-      if (!response.ok) {
-        throw new Error('Failed to acknowledge announcement')
-      }
+      const { data: existing, error: fetchError } = await supabase
+        .from('team_communications')
+        .select('acknowledged_by')
+        .eq('id', announcementId)
+        .single()
 
-      const result = await response.json()
-      return result.data
+      if (fetchError) throw new Error(fetchError.message)
+
+      const alreadyAcknowledged = (existing.acknowledged_by || []) as string[]
+      if (alreadyAcknowledged.includes(user.id)) return existing
+
+      const { data, error: updateError } = await supabase
+        .from('team_communications')
+        .update({
+          acknowledged_by: [...alreadyAcknowledged, user.id]
+        })
+        .eq('id', announcementId)
+        .select()
+        .single()
+
+      if (updateError) throw new Error(updateError.message)
+      return data
     } catch (err) {
       console.error('Error acknowledging announcement:', err)
       throw err
@@ -483,24 +490,28 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
     acknowledgeAnnouncement,
     reconnect,
 
-    // Utility methods
-    getChannelMessages: (channelId: string) => 
-      state.messages.filter(msg => msg.channel_id === channelId),
+    getConversationMessages: (conversationId: string) => 
+      state.messages.filter(msg => msg.conversation_id === conversationId),
     
-    getUnreadCount: (channelId: string) => 
-      state.messages.filter(msg => 
-        msg.channel_id === channelId && 
-        new Date(msg.created_at) > new Date() // This would need proper last_read tracking
-      ).length,
+    getUnreadCount: async (conversationId: string) => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return 0
 
-    getPriorityMessages: (priority: string) =>
-      state.messages.filter(msg => msg.priority === priority),
+      const { count, error } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', conversationId)
+        .eq('is_read', false)
+        .neq('sender_id', user.id)
 
-    getActiveAnnouncements: () =>
-      state.announcements.filter(ann => 
-        ann.is_published && 
-        (!ann.expires_at || new Date(ann.expires_at) > new Date())
-      )
+      if (error) {
+        console.error('Error fetching unread count:', error)
+        return 0
+      }
+      return count ?? 0
+    },
+
+    getActiveAnnouncements: () => state.announcements
   }
 }
 
@@ -508,17 +519,17 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
 // UTILITY HOOK FOR SIMPLE MESSAGE LISTENING
 // =============================================================================
 
-export function useChannelMessages(channelId: string) {
+export function useConversationMessages(conversationId: string) {
   const { messages, isConnected, sendMessage } = useRealTimeCommunications({
-    channelIds: [channelId]
+    channelIds: [conversationId]
   })
 
-  const channelMessages = messages.filter(msg => msg.channel_id === channelId)
+  const conversationMessages = messages.filter(msg => msg.conversation_id === conversationId)
 
   return {
-    messages: channelMessages,
+    messages: conversationMessages,
     isConnected,
-    sendMessage: (content: string, options?: any) => sendMessage(channelId, content, options)
+    sendMessage: (content: string, options?: any) => sendMessage(conversationId, content, options)
   }
 }
 
@@ -527,25 +538,18 @@ export function useChannelMessages(channelId: string) {
 // =============================================================================
 
 export function useAnnouncements(options: {
-  tourId?: string
-  eventId?: string
   venueId?: string
 } = {}) {
   const { announcements, isConnected, createAnnouncement, acknowledgeAnnouncement } = 
     useRealTimeCommunications(options)
 
-  const activeAnnouncements = announcements.filter(ann => 
-    ann.is_published && 
-    (!ann.expires_at || new Date(ann.expires_at) > new Date())
-  )
-
-  const emergencyAnnouncements = activeAnnouncements.filter(ann => ann.priority === 'emergency')
-  const urgentAnnouncements = activeAnnouncements.filter(ann => ann.priority === 'urgent')
+  const urgentAnnouncements = announcements.filter(ann => ann.priority === 'urgent')
+  const highAnnouncements = announcements.filter(ann => ann.priority === 'high')
 
   return {
-    announcements: activeAnnouncements,
-    emergencyAnnouncements,
+    announcements,
     urgentAnnouncements,
+    highAnnouncements,
     isConnected,
     createAnnouncement,
     acknowledgeAnnouncement

@@ -37,7 +37,7 @@ import {
   Smartphone,
   CheckCircle2
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 
 interface SignupFormData {
   email: string

@@ -20,8 +20,8 @@ export default function SocialPage() {
   // const { posts, users } = useSocial()
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="grid gap-8 lg:grid-cols-3">
+    <div className="container mx-auto min-w-0 px-3 py-8 sm:px-4">
+      <div className="grid min-w-0 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-8">
           <Card>
             <CardHeader>

@@ -7,9 +7,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   DropdownMenu,
@@ -41,6 +38,7 @@ import {
   Target,
   Clock,
   Radio,
+  RadioTower,
   Plus,
   Menu,
   PanelLeftClose,
@@ -75,7 +73,10 @@ interface NavItem {
   isNew?: boolean
   isPro?: boolean
   description?: string
+  /** Shown in collapsed sidebar tooltip */
   shortcut?: string
+  /** `e.key` when Cmd/Ctrl is held (no Shift/Alt) */
+  metaShortcutKey?: string
 }
 
 
@@ -91,7 +92,7 @@ export function OptimizedSidebar() {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   
   // Fetch real admin stats
-  const { stats, isLoading } = useAdminStats()
+  const { stats } = useAdminStats()
 
   const profile = currentAccount?.profile_data as
     | { display_name?: string; username?: string; organization_name?: string }
@@ -111,7 +112,8 @@ export function OptimizedSidebar() {
       href: "/admin/dashboard", 
       icon: Home,
       description: "Main dashboard overview",
-      shortcut: "⌘1"
+      shortcut: "⌘1",
+      metaShortcutKey: "1",
     },
     { 
       label: "Tours", 
@@ -121,6 +123,7 @@ export function OptimizedSidebar() {
       badgeColor: "bg-purple-500/20 text-purple-400",
       description: "Manage tours and itineraries",
       shortcut: "⌘2",
+      metaShortcutKey: "2",
       children: [
         { label: "Active Tours", href: "/admin/dashboard/tours?status=active", icon: Activity, description: "Currently running tours" },
         { label: "Planning", href: "/admin/dashboard/tours?status=planning", icon: Target, description: "Tours in planning phase" },
@@ -135,6 +138,7 @@ export function OptimizedSidebar() {
       badgeColor: "bg-green-500/20 text-green-400",
       description: "Event management and scheduling",
       shortcut: "⌘3",
+      metaShortcutKey: "3",
       children: [
         { label: "Upcoming", href: "/admin/dashboard/events?status=upcoming", icon: Clock, description: "Future events" },
         { label: "Live Events", href: "/admin/dashboard/events?status=live", icon: Radio, description: "Currently happening" },
@@ -149,6 +153,7 @@ export function OptimizedSidebar() {
       badgeColor: "bg-pink-500/20 text-pink-400",
       description: "Artist profiles and bookings",
       shortcut: "⌘4",
+      metaShortcutKey: "4",
     },
     { 
       label: "Venues", 
@@ -158,6 +163,7 @@ export function OptimizedSidebar() {
       badgeColor: "bg-orange-500/20 text-orange-400",
       description: "Venue partnerships and management",
       shortcut: "⌘5",
+      metaShortcutKey: "5",
     },
     { 
       label: "Ticketing", 
@@ -166,7 +172,8 @@ export function OptimizedSidebar() {
       badge: stats?.ticketsSold ? `${(stats.ticketsSold / 1000).toFixed(1)}K` : "0",
       badgeColor: "bg-blue-500/20 text-blue-400",
       description: "Ticket sales and management",
-      shortcut: "⌘6"
+      shortcut: "⌘6",
+      metaShortcutKey: "6",
     },
     { 
       label: "Staff & Crew", 
@@ -175,14 +182,16 @@ export function OptimizedSidebar() {
       badge: stats?.staffMembers?.toString() || "0",
       badgeColor: "bg-cyan-500/20 text-cyan-400",
       description: "Team management and scheduling",
-      shortcut: "⌘7"
+      shortcut: "⌘7",
+      metaShortcutKey: "7",
     },
     { 
       label: "Logistics", 
       href: "/admin/dashboard/logistics", 
       icon: Truck,
       description: "Transportation and equipment",
-      shortcut: "⌘8"
+      shortcut: "⌘8",
+      metaShortcutKey: "8",
     },
     { 
       label: "Finances", 
@@ -191,19 +200,21 @@ export function OptimizedSidebar() {
       badge: stats?.monthlyRevenue ? `$${(stats.monthlyRevenue / 1000).toFixed(0)}K` : "$0",
       badgeColor: "bg-green-500/20 text-green-400",
       description: "Financial tracking and reporting",
-      shortcut: "⌘9"
+      shortcut: "⌘9",
+      metaShortcutKey: "9",
     },
     { 
       label: "Analytics", 
       href: "/admin/dashboard/analytics", 
       icon: BarChart3,
       description: "Data insights and reports",
-      shortcut: "⌘0"
+      shortcut: "⌘0",
+      metaShortcutKey: "0",
     },
     {
       label: "Connect Telemetry",
       href: "/admin/dashboard/connect",
-      icon: Radio,
+      icon: RadioTower,
       badge: "New",
       badgeColor: "bg-emerald-500/20 text-emerald-300",
       description: "In-person connect funnel monitoring",
@@ -213,7 +224,8 @@ export function OptimizedSidebar() {
       href: "/admin/dashboard/settings", 
       icon: SettingsIcon,
       description: "System configuration",
-      shortcut: "⌘,"
+      shortcut: "⌘,",
+      metaShortcutKey: ",",
     }
   ], [stats])
 
@@ -231,21 +243,18 @@ export function OptimizedSidebar() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts (match `metaShortcutKey` to `e.key` exactly)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.metaKey || e.ctrlKey) {
-        const key = e.key
-        const item = navItems.find(item => item.shortcut?.includes(key))
-        if (item) {
-          e.preventDefault()
-          window.location.href = item.href
-        }
-      }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return
+      const item = navItems.find((i) => i.metaShortcutKey === e.key)
+      if (!item) return
+      e.preventDefault()
+      window.location.href = item.href
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
   }, [navItems])
 
   const toggleExpanded = useCallback((href: string) => {
@@ -264,7 +273,9 @@ export function OptimizedSidebar() {
   )
 
   const SidebarContent = () => (
-    <div className={`flex flex-col h-screen bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
+    <div
+      data-education-anchor="admin-sidebar"
+      className={`flex flex-col h-screen bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
       isCollapsed ? 'w-16' : 'w-64'
     }`}>
       {/* Header */}

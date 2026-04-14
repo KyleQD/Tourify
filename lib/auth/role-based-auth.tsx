@@ -1,7 +1,8 @@
 "use client"
 
-import { supabase } from '@/lib/supabase/client'
-import { useEffect, useState, createContext, useContext } from 'react'
+import { supabase } from '@/lib/supabase'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { useAuth as useCoreAuth } from '@/contexts/auth-context'
 
 // =============================================================================
 // ROLE AND PERMISSION TYPES
@@ -128,201 +129,121 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ]
 }
 
-// =============================================================================
-// AUTH CONTEXT
-// =============================================================================
-
-const AuthContext = createContext<AuthState & {
-  hasPermission: (permission: Permission) => boolean
-  hasAnyPermission: (permissions: Permission[]) => boolean
-  hasRole: (role: UserRole) => boolean
-  signOut: () => Promise<void>
-  refreshUser: () => Promise<void>
-}>({
-  user: null,
-  isLoading: true,
-  isAuthenticated: false,
-  permissions: [],
-  hasPermission: () => false,
-  hasAnyPermission: () => false,
-  hasRole: () => false,
-  signOut: async () => {},
-  refreshUser: async () => {}
-})
-
-// =============================================================================
-// AUTH PROVIDER COMPONENT
-// =============================================================================
-
-interface AuthProviderProps {
-  children: React.ReactNode
+function getUserPermissions(role: UserRole): Permission[] {
+  return ROLE_PERMISSIONS[role] || []
 }
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    isAuthenticated: false,
-    permissions: []
-  })
+// =============================================================================
+// HOOK: derives role-based profile from the core AuthProvider already mounted
+// in app/layout.tsx. No second provider needed.
+// =============================================================================
 
-  // Using imported supabase instance
-  
-  // =============================================================================
-  // UTILITY FUNCTIONS
-  // =============================================================================
-  
-  const getUserPermissions = (role: UserRole): Permission[] => {
-    return ROLE_PERMISSIONS[role] || []
-  }
-  
-  const hasPermission = (permission: Permission): boolean => {
-    if (authState.user?.role === 'admin') return true
-    return authState.permissions.includes(permission)
-  }
-  
-  const hasAnyPermission = (permissions: Permission[]): boolean => {
-    if (authState.user?.role === 'admin') return true
-    return permissions.some(permission => authState.permissions.includes(permission))
-  }
-  
-  const hasRole = (role: UserRole): boolean => {
-    return authState.user?.role === role
-  }
-  
-  const refreshUser = async (): Promise<void> => {
-    try {
-      setAuthState(prev => ({ ...prev, isLoading: true }))
-      
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser()
-      
-      if (authError || !authUser) {
-        setAuthState({
-          user: null,
-          isLoading: false,
-          isAuthenticated: false,
-          permissions: []
-        })
-        return
-      }
-      
-      // Get user profile with role information
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, display_name, role, avatar_url')
-        .eq('id', authUser.id)
-        .single()
-      
-      if (profileError || !profile) {
-        console.error('Error fetching user profile:', profileError)
-        setAuthState({
-          user: null,
-          isLoading: false,
-          isAuthenticated: false,
-          permissions: []
-        })
-        return
-      }
-      
-      const userProfile: UserProfile = {
-        id: profile.id,
-        display_name: profile.display_name,
-        role: profile.role as UserRole,
-        email: authUser.email,
-        avatar_url: profile.avatar_url
-      }
-      
-      const permissions = getUserPermissions(userProfile.role)
-      
-      setAuthState({
-        user: userProfile,
-        isLoading: false,
-        isAuthenticated: true,
-        permissions
-      })
-      
-    } catch (error) {
-      console.error('Error refreshing user:', error)
-      setAuthState({
-        user: null,
-        isLoading: false,
-        isAuthenticated: false,
-        permissions: []
-      })
-    }
-  }
-  
-  const signOut = async (): Promise<void> => {
-    try {
-      await supabase.auth.signOut()
-      setAuthState({
-        user: null,
-        isLoading: false,
-        isAuthenticated: false,
-        permissions: []
-      })
-    } catch (error) {
-      console.error('Error signing out:', error)
-    }
-  }
-  
-  // =============================================================================
-  // EFFECTS
-  // =============================================================================
-  
+export function useAuth() {
+  const coreAuth = useCoreAuth()
+  const [roleProfile, setRoleProfile] = useState<UserProfile | null>(null)
+  const [profileLoading, setProfileLoading] = useState(true)
+
   useEffect(() => {
-    // Initial auth state check
-    refreshUser()
-    
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          await refreshUser()
-        } else if (event === 'SIGNED_OUT') {
-          setAuthState({
-            user: null,
-            isLoading: false,
-            isAuthenticated: false,
-            permissions: []
+    let cancelled = false
+
+    async function loadProfile() {
+      if (!coreAuth.user) {
+        setRoleProfile(null)
+        setProfileLoading(false)
+        return
+      }
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, display_name, role, avatar_url')
+          .eq('id', coreAuth.user.id)
+          .single()
+
+        if (!cancelled && profile) {
+          setRoleProfile({
+            id: profile.id,
+            display_name: profile.display_name,
+            role: (profile.role as UserRole) || 'viewer',
+            email: coreAuth.user.email,
+            avatar_url: profile.avatar_url,
           })
         }
+      } catch {
+        if (!cancelled) setRoleProfile(null)
+      } finally {
+        if (!cancelled) setProfileLoading(false)
       }
-    )
-    
-    return () => subscription.unsubscribe()
-  }, [])
-  
-  // =============================================================================
-  // CONTEXT VALUE
-  // =============================================================================
-  
-  const contextValue = {
-    ...authState,
+    }
+
+    setProfileLoading(true)
+    loadProfile()
+    return () => { cancelled = true }
+  }, [coreAuth.user])
+
+  const isLoading = coreAuth.loading || profileLoading
+  const permissions = useMemo(
+    () => roleProfile ? getUserPermissions(roleProfile.role) : [],
+    [roleProfile]
+  )
+
+  const hasPermission = useCallback(
+    (permission: Permission): boolean => {
+      if (roleProfile?.role === 'admin') return true
+      return permissions.includes(permission)
+    },
+    [roleProfile, permissions]
+  )
+
+  const hasAnyPermission = useCallback(
+    (perms: Permission[]): boolean => {
+      if (roleProfile?.role === 'admin') return true
+      return perms.some(p => permissions.includes(p))
+    },
+    [roleProfile, permissions]
+  )
+
+  const hasRole = useCallback(
+    (role: UserRole): boolean => roleProfile?.role === role,
+    [roleProfile]
+  )
+
+  const signOut = useCallback(async () => {
+    await coreAuth.signOut()
+  }, [coreAuth])
+
+  const refreshUser = useCallback(async () => {
+    setProfileLoading(true)
+    if (!coreAuth.user) { setProfileLoading(false); return }
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, display_name, role, avatar_url')
+        .eq('id', coreAuth.user.id)
+        .single()
+      if (profile) {
+        setRoleProfile({
+          id: profile.id,
+          display_name: profile.display_name,
+          role: (profile.role as UserRole) || 'viewer',
+          email: coreAuth.user.email,
+          avatar_url: profile.avatar_url,
+        })
+      }
+    } finally { setProfileLoading(false) }
+  }, [coreAuth.user])
+
+  return {
+    user: roleProfile,
+    isLoading,
+    isAuthenticated: !!roleProfile,
+    permissions,
     hasPermission,
     hasAnyPermission,
     hasRole,
     signOut,
-    refreshUser
+    refreshUser,
   }
-  
-  return (
-    <AuthContext.Provider value={contextValue}>
-      {children}
-    </AuthContext.Provider>
-  )
-}
-
-// =============================================================================
-// CUSTOM HOOKS
-// =============================================================================
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
 }
 
 export function usePermissions() {

@@ -1,31 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 import { ingestOpportunitiesFromRss } from '@/lib/opportunities/rss-opportunities-service'
-
-function getSupabaseServiceClient() {
-  return createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
-}
-
-function isAuthorized(request: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) return false
-  const provided = request.headers.get('x-cron-secret') || ''
-  return provided === cronSecret
-}
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { isAuthorizedCronRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 export async function POST(request: NextRequest) {
   try {
-    if (!isAuthorized(request))
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+    if (!isAuthorizedCronRequest(request)) return unauthorizedResponse()
 
-    const supabase = getSupabaseServiceClient()
+    const supabase = createServiceRoleClient()
     const result = await ingestOpportunitiesFromRss({
       origin: request.nextUrl.origin,
       supabase

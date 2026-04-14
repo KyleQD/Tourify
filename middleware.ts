@@ -97,6 +97,25 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  if (user && pathname.startsWith('/admin')) {
+    try {
+      const { createClient } = await import('@/lib/supabase/server')
+      const supabase = await createClient()
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, account_type')
+        .eq('id', user.id)
+        .single()
+
+      const isAdmin = profile?.role === 'admin' || profile?.account_type === 'admin'
+      if (!isAdmin) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    } catch {
+      // On error, allow through -- individual API routes have their own guards
+    }
+  }
+
   // Handle legacy routes
   if (pathname === '/auth/signin' || pathname === '/signin') {
     return NextResponse.redirect(new URL('/login', request.url))
@@ -122,6 +141,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|api/debug/|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

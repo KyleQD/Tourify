@@ -1,4 +1,4 @@
-import { supabase as supabaseClient } from '@/lib/supabase/client'
+import { supabase as supabaseClient } from '@/lib/supabase'
 import type { Database } from '@/types/supabase'
 
 export interface Account {

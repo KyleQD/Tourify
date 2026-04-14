@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { FileText, ArrowRight, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 interface DashboardContractsCardProps {
   userId: string

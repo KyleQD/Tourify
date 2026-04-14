@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
-// Stub rentals endpoint to satisfy hooks/use-rentals.ts
+async function requireAdmin(request: NextRequest) {
+  const auth = await authenticateApiRequest(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  return null
+}
+
 export async function GET(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
+
   const { searchParams } = new URL(request.url)
   const type = searchParams.get('type') || 'agreements'
 
@@ -12,15 +21,21 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({})
 }
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   return NextResponse.json({ success: true })
 }
 
-export async function PUT() {
+export async function PUT(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   return NextResponse.json({ success: true })
 }
 
-export async function DELETE() {
+export async function DELETE(request: NextRequest) {
+  const denied = await requireAdmin(request)
+  if (denied) return denied
   return NextResponse.json({ success: true })
 }
 

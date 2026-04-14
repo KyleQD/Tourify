@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import type { EventLocationLink, Location } from '@/types/database.types'
 
 export interface ListEventLocationsArgs {

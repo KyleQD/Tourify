@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { MessageSquare, Heart, Share2, Bookmark } from "lucide-react"
 import type { Database } from "@/types/supabase"

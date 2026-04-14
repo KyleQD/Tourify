@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Camera, Upload, X, Image as ImageIcon } from 'lucide-react'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/auth-context'
 
 interface ImageUploadProps {

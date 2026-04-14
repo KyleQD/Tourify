@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { 
   Achievement, 
   UserAchievement, 
@@ -20,7 +20,8 @@ import {
   BadgeStats,
   EndorsementStats
 } from '@/types/achievements'
-import { achievementEngine } from '@/lib/services/achievement-engine.service'
+import { achievementEngine, resolveTarget, awardUnlockedAchievementRewards } from '@/lib/services/achievement-engine.service'
+import type { AchievementRow } from '@/lib/services/achievement-engine.service'
 
 type ProfileStub = {
   id: string
@@ -734,29 +735,132 @@ export class AchievementService {
   // UTILITY METHODS
   // =============================================
 
-  async checkAndAwardAchievements(userId: string): Promise<void> {
+  async checkAndAwardAchievements(userId: string): Promise<Achievement[]> {
     try {
-      // This would implement the logic to check if a user qualifies for any achievements
-      // based on their activity and progress
-      // For now, this is a placeholder that would be called after significant user actions
-      
-      // Example: Check if user uploaded their first track
-      // const { data: tracks } = await this.supabase
-      //   .from('tracks')
-      //   .select('id')
-      //   .eq('user_id', userId)
-      //   .limit(1)
-      
-      // if (tracks && tracks.length > 0) {
-      //   await this.recordAchievementProgress({
-      //     achievement_id: 'first-track-achievement-id',
-      //     event_type: 'track_uploaded',
-      //     event_value: 1
-      //   })
-      // }
+      const [
+        postsResult,
+        eventsAsOrganizerResult,
+        eventsAsArtistResult,
+        followersResult,
+        profileResult,
+        tracksResult,
+      ] = await Promise.all([
+        this.supabase
+          .from('posts')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId),
+        this.supabase
+          .from('events')
+          .select('id', { count: 'exact', head: true })
+          .eq('organizer_id', userId),
+        this.supabase
+          .from('events')
+          .select('id', { count: 'exact', head: true })
+          .eq('artist_id', userId),
+        this.supabase
+          .from('follows')
+          .select('id', { count: 'exact', head: true })
+          .eq('following_id', userId),
+        this.supabase
+          .from('profiles')
+          .select('avatar_url, bio, location, full_name')
+          .eq('id', userId)
+          .maybeSingle(),
+        this.supabase
+          .from('tracks')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userId),
+      ])
+
+      const profile = profileResult.data
+      const profileFields = [profile?.avatar_url, profile?.bio, profile?.location, profile?.full_name]
+      const filledFields = profileFields.filter(Boolean).length
+      const profileComplete = filledFields === profileFields.length ? 100 : Math.round((filledFields / profileFields.length) * 100)
+
+      const eventsCreated = (eventsAsOrganizerResult.count ?? 0) + (eventsAsArtistResult.count ?? 0)
+
+      const stats: Record<string, number> = {
+        posts_count: postsResult.count ?? 0,
+        events_created: eventsCreated,
+        followers_count: followersResult.count ?? 0,
+        profile_completeness: profileComplete,
+        tracks_uploaded: tracksResult.count ?? 0,
+      }
+
+      const { data: achievements, error: achievementsError } = await this.supabase
+        .from('achievements')
+        .select('id, name, requirements, metric_key, target_value, evaluation_mode, points')
+        .eq('is_active', true)
+
+      if (achievementsError || !achievements?.length) return []
+
+      const { data: existingRows } = await this.supabase
+        .from('user_achievements')
+        .select('achievement_id, is_completed, current_value')
+        .eq('user_id', userId)
+
+      const existingMap = new Map(
+        (existingRows || []).map(r => [r.achievement_id, r])
+      )
+
+      const newlyAwarded: AchievementRow[] = []
+      const nowIso = new Date().toISOString()
+
+      for (const achievement of achievements as AchievementRow[]) {
+        const existing = existingMap.get(achievement.id)
+        if (existing?.is_completed) continue
+
+        const metricKey = achievement.metric_key
+          || achievement.requirements?.metric_key
+        if (!metricKey || stats[metricKey] === undefined) continue
+
+        const currentStatValue = stats[metricKey]
+        const target = resolveTarget(achievement)
+        const prevValue = Number(existing?.current_value ?? 0)
+        const nextValue = Math.max(prevValue, currentStatValue)
+        const progressPercentage = Math.min(100, Math.round((nextValue / target) * 100))
+        const isCompleted = nextValue >= target
+
+        const { error: upsertError } = await this.supabase
+          .from('user_achievements')
+          .upsert(
+            {
+              user_id: userId,
+              achievement_id: achievement.id,
+              current_value: nextValue,
+              target_value: target,
+              progress_percentage: progressPercentage,
+              is_completed: isCompleted,
+              completed_at: isCompleted ? nowIso : null,
+              updated_at: nowIso,
+            },
+            { onConflict: 'user_id,achievement_id' }
+          )
+
+        if (!upsertError && isCompleted) {
+          newlyAwarded.push(achievement)
+        }
+      }
+
+      if (newlyAwarded.length > 0) {
+        await awardUnlockedAchievementRewards({
+          supabase: this.supabase,
+          userId,
+          unlockedAchievements: newlyAwarded,
+        })
+      }
+
+      if (!newlyAwarded.length) return []
+
+      const { data: fullAchievements } = await this.supabase
+        .from('achievements')
+        .select('*')
+        .in('id', newlyAwarded.map(a => a.id))
+
+      return (fullAchievements || []) as Achievement[]
     } catch (error) {
       console.error('Error checking achievements:', error)
-      throw error
+      return []
     }
   }
 

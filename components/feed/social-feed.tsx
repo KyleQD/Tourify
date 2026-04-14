@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { EnhancedPostCreator } from './enhanced-post-creator'
 import { formatDistanceToNow } from 'date-fns'
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'

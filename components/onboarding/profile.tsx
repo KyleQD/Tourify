@@ -1,6 +1,6 @@
 "use client"
 
-import { supabase } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase'
 import { useState } from "react"
 import { Loader2, User, MapPin, Briefcase, Globe, Camera } from "lucide-react"
 import { Button } from "@/components/ui/button"

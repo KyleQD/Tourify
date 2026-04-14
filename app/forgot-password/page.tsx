@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { AuthErrorDisplay } from "@/components/ui/auth-error-display"
 import { mapAuthError, AuthErrorInfo } from "@/lib/auth-errors"
 import { CheckCircle, Loader2 } from "lucide-react"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")

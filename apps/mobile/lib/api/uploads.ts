@@ -1,5 +1,5 @@
 import { env } from "@/lib/config/env"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 export async function uploadPortfolioFile(params: {
   uri: string

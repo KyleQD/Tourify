@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { useProfile } from "../context/profile-context"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { PhotoViewer } from '@/components/photos/photo-viewer'
 import { usePhotoViewer } from '@/hooks/use-photo-viewer'
@@ -128,7 +129,18 @@ export default function HomePage() {
         const data = await response.json()
         
         if (data.data && Array.isArray(data.data)) {
-          // Transform API data to match the expected format
+          const postIds = data.data.map((p: any) => p.id).filter(Boolean)
+          let likedPostIds: string[] = []
+
+          if (postIds.length > 0 && profile?.id) {
+            const { data: likesData } = await supabase
+              .from('post_likes')
+              .select('post_id')
+              .in('post_id', postIds)
+              .eq('user_id', profile.id)
+            likedPostIds = likesData?.map(l => l.post_id) || []
+          }
+
           const transformedPosts = data.data.map((post: any) => ({
             id: post.id,
             author: {
@@ -142,7 +154,7 @@ export default function HomePage() {
             comments: post.comments_count || 0,
             shares: post.shares_count || 0,
             media: post.media_urls || [],
-            isLiked: false, // TODO: Check if current user liked this post
+            isLiked: likedPostIds.includes(post.id),
           }))
           
           // Debug: Log posts with media

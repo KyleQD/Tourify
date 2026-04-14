@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 import {
   Music,
   Calendar,
@@ -161,19 +162,19 @@ export function TabbedNavigation() {
   }
 
   return (
-    <Tabs defaultValue="music" value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid grid-cols-3 md:grid-cols-6 bg-gray-800/50 p-1 rounded-lg">
+    <Tabs defaultValue="music" value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0">
+      <TabsList className={cn(venueDashboardTabListClass, "rounded-lg")}>
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.id}
             value={tab.id}
             className={cn(
-              "flex items-center gap-2 data-[state=active]:bg-gray-700",
+              "flex shrink-0 items-center gap-2 data-[state=active]:bg-gray-700",
               "data-[state=active]:text-white data-[state=active]:shadow-none",
             )}
           >
-            <tab.icon className="h-4 w-4" />
-            <span className="hidden md:inline">{tab.label}</span>
+            <tab.icon className="h-4 w-4 shrink-0" />
+            <span className="hidden sm:inline">{tab.label}</span>
           </TabsTrigger>
         ))}
       </TabsList>
@@ -203,11 +204,11 @@ export function TabbedNavigation() {
                     >
                       <item.icon className="h-5 w-5" />
                     </div>
-                    <div>
-                      <div className="flex items-center">
-                        <h3 className="font-medium group-hover:text-white">{item.title}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <h3 className="font-medium break-words group-hover:text-white">{item.title}</h3>
                         {item.badge && (
-                          <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 text-white">
+                          <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 text-white">
                             {item.badge}
                           </span>
                         )}

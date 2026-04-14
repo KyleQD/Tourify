@@ -28,7 +28,7 @@ import {
   Zap
 } from "lucide-react"
 import { toast } from "sonner"
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import { useAppearanceSettings } from "@/hooks/use-appearance-settings"
 import { EnhancedArtistSettings } from "./enhanced-artist-settings"
@@ -41,6 +41,7 @@ import { PortfolioSettings } from "./portfolio-settings"
 import { ExperienceSettings } from "./experience-settings"
 import { CertificationsSettings } from "./certifications-settings"
 import { AboutSettings } from "./about-settings"
+import { ResetEducationButton } from "@/components/product-education/reset-education-button"
 
 interface AccountInfo {
   id: string
@@ -373,6 +374,17 @@ export function EnhancedSettingsRouter() {
                   Coming soon...
                 </p>
               </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+            <CardHeader>
+              <CardTitle className="text-white">Guides and tours</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-400">
+                Clear dismissed tips, help favorites, recent articles, and the venue spotlight tour on this browser.
+              </p>
+              <ResetEducationButton />
             </CardContent>
           </Card>
         </TabsContent>

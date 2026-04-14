@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase/client"
+import { supabase } from "@/lib/supabase"
 
 // Enhanced types for comprehensive staff management
 export interface StaffMember {

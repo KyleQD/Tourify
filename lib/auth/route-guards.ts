@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+/**
+ * Internal/debug routes: in production require `INTERNAL_API_SECRET` or `CRON_SECRET`
+ * via `Authorization: Bearer …` or `x-internal-api-secret`. Non-production allows all
+ * callers so local dev works without secrets.
+ */
 function hasBearerAuthMatch(request: NextRequest, secret: string) {
   const authorizationHeader = request.headers.get('authorization')
   if (authorizationHeader === `Bearer ${secret}`) return true
@@ -24,7 +29,10 @@ export function isAuthorizedCronRequest(request: NextRequest) {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
 
-  return hasBearerAuthMatch(request, secret)
+  if (hasBearerAuthMatch(request, secret)) return true
+
+  const legacy = request.headers.get('x-cron-secret') || ''
+  return legacy === secret
 }
 
 export function unauthorizedResponse() {

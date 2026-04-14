@@ -2,15 +2,18 @@
 
 import { useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { sendAgentLog } from "@/lib/debug/agent-log-client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, ShieldAlert } from "lucide-react"
 
 function isStorageSecurityError(error: Error & { cause?: unknown }): boolean {
   const raw = `${error?.name ?? ""} ${error?.message ?? ""} ${String((error as any)?.cause ?? "")} ${String(error)}`
-  const msg = raw.toLowerCase()
+  // Normalize odd whitespace (e.g. narrow no-break space) so substring checks match WebKit messages.
+  const msg = raw.toLowerCase().replace(/\u00a0/g, ' ').replace(/\u202f/g, ' ')
   return (
     error?.name === "SecurityError" ||
+    error?.name === "NS_ERROR_DOM_SECURITY_ERR" ||
     msg.includes("operation is insecure") ||
     msg.includes("securityerror") ||
     msg.includes("access is denied") ||
@@ -32,7 +35,22 @@ export default function Error({
 
   useEffect(() => {
     console.error(error)
-  }, [error])
+    // #region agent log
+    const e = error as Error & { cause?: unknown }
+    sendAgentLog({
+      runId: 'verify',
+      hypothesisId: 'A',
+      location: 'app/error.tsx',
+      message: 'root error boundary',
+      data: {
+        errName: e?.name,
+        errMsgLen: e?.message?.length,
+        isPrivacyUi: isPrivacyError,
+        msgSnippet: e?.message?.slice(0, 120),
+      },
+    })
+    // #endregion
+  }, [error, isPrivacyError])
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 p-4">

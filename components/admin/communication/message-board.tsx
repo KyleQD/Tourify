@@ -13,7 +13,6 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { 
   Send, 
-  Pin, 
   AlertTriangle, 
   Clock, 
   Users, 
@@ -38,12 +37,11 @@ interface MessageBoardProps {
 
 interface Message {
   id: string
-  channel_id: string
+  conversation_id: string
   sender_id: string
   content: string
-  message_type: string
-  priority: string
-  is_pinned: boolean
+  message_type?: string
+  is_read: boolean
   created_at: string
   sender?: {
     id: string
@@ -92,7 +90,7 @@ export function MessageBoard({
     sendMessage,
     createAnnouncement,
     acknowledgeAnnouncement,
-    getChannelMessages,
+    getConversationMessages,
     getActiveAnnouncements
   } = useRealTimeCommunications({
     channelIds: selectedChannelId ? [selectedChannelId] : [],
@@ -192,7 +190,7 @@ export function MessageBoard({
     }
   }
 
-  const channelMessages = getChannelMessages(selectedChannelId)
+  const channelMessages = getConversationMessages(selectedChannelId)
   const activeAnnouncements = getActiveAnnouncements()
 
   // =============================================================================
@@ -326,22 +324,13 @@ export function MessageBoard({
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center space-x-2">
                             <span className="text-sm font-medium text-white">
-                              {message.sender?.display_name || 'Unknown'}
+                              {message.sender?.full_name || message.sender?.username || 'Unknown'}
                             </span>
-                            <Badge variant="outline" className="text-xs">
-                              {message.sender?.role}
-                            </Badge>
-                            {message.priority !== 'general' && (
-                              <Badge variant="outline" className={`text-xs ${getPriorityColor(message.priority)}`}>
-                                {getPriorityIcon(message.priority)}
-                                <span className="ml-1">{message.priority}</span>
-                              </Badge>
-                            )}
                             <span className="text-xs text-slate-400">
                               {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                             </span>
-                            {message.is_pinned && (
-                              <Pin className="h-3 w-3 text-yellow-400" />
+                            {!message.is_read && (
+                              <span className="h-2 w-2 rounded-full bg-blue-400 inline-block" />
                             )}
                           </div>
                           
@@ -427,7 +416,7 @@ export function MessageBoard({
                         <CardContent className="p-4">
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <h4 className="font-semibold text-white">{announcement.title}</h4>
+                              <h4 className="font-semibold text-white">{announcement.subject}</h4>
                               <Badge className={getPriorityColor(announcement.priority)}>
                                 {getPriorityIcon(announcement.priority)}
                                 <span className="ml-1 capitalize">{announcement.priority}</span>
@@ -441,7 +430,7 @@ export function MessageBoard({
                                 {formatDistanceToNow(new Date(announcement.created_at), { addSuffix: true })}
                               </span>
                               
-                              {announcement.acknowledgment_required && (
+                              {announcement.requires_acknowledgment && (
                                 <Button
                                   size="sm"
                                   variant="outline"

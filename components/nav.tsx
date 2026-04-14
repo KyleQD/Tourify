@@ -31,7 +31,8 @@ import {
   Zap,
   Activity,
   Sparkles,
-  Briefcase
+  Briefcase,
+  HelpCircle,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useProfile } from "@/hooks/use-profile"
@@ -43,6 +44,7 @@ import { WorkingNotificationBell } from "@/components/working-notification-bell"
 import { CompactAccountSwitcher } from "@/components/compact-account-switcher"
 import { EnhancedAccountSearch } from "@/components/search/enhanced-account-search"
 import { MobileSearchModal } from "@/components/search/mobile-search-modal"
+import { useProductEducation } from "@/components/product-education/product-education-context"
 
 export function Nav() {
   const router = useRouter()
@@ -53,6 +55,7 @@ export function Nav() {
   const [notifications, setNotifications] = useState(0)
   const [primaryProfile, setPrimaryProfile] = useState<any>(null)
   const [showMobileSearch, setShowMobileSearch] = useState(false)
+  const { openHelp } = useProductEducation()
 
   // Load primary profile data directly for nav display
   useEffect(() => {
@@ -216,6 +219,18 @@ export function Nav() {
             <Search className="h-5 w-5 text-slate-300" />
           </Button>
 
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            data-education-anchor="global-help"
+            onClick={() => openHelp()}
+            className="relative p-2 hover:bg-slate-800/50 rounded-full"
+            aria-label="Open help"
+          >
+            <HelpCircle className="h-5 w-5 text-slate-300" />
+          </Button>
+
           {/* Notifications */}
           <WorkingNotificationBell />
 
@@ -278,6 +293,13 @@ export function Nav() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-slate-700" />
+              <DropdownMenuItem
+                className="text-slate-200 hover:bg-slate-700/50 cursor-pointer"
+                onClick={() => openHelp()}
+              >
+                <HelpCircle className="mr-2 h-4 w-4" />
+                Help and guides
+              </DropdownMenuItem>
               <DropdownMenuItem 
                 className="text-slate-200 hover:bg-slate-700/50 cursor-pointer"
                 onClick={() => router.push('/profile')}

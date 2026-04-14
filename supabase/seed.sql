@@ -1,0 +1,3 @@
+-- Seed file for local development
+-- Add any local development seed data here.
+-- This file is intentionally minimal; production data is managed through migrations.
