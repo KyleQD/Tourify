@@ -16,7 +16,7 @@ import {
   Hand, Search, Filter, Star, Copy, RotateCw, FlipHorizontal,
   FlipVertical, AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyCenter,
   AlignHorizontalJustifyCenter, Ruler, AlertTriangle, MousePointer, Check,
-  MessageCircle
+  MessageCircle, Utensils, Music, Shield, Heart, TreePine
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { CANNED_ELEMENTS, getElementById, type CannedElement } from "@/lib/data/canned-elements"
@@ -147,14 +147,33 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     })
   }, [pushHistory])
 
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; elementId: string } | null>(null)
+  const [isPanning, setIsPanning] = useState(false)
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 })
+  const [isSpaceHeld, setIsSpaceHeld] = useState(false)
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKeyboard(e: KeyboardEvent) {
+      if (e.key === ' ' && document.activeElement?.tagName !== 'INPUT') {
+        e.preventDefault()
+        setIsSpaceHeld(true)
+      }
       if (isReadOnly) return
       const meta = e.metaKey || e.ctrlKey
       if (meta && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
       if (meta && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo() }
       if (meta && e.key === 'y') { e.preventDefault(); redo() }
+      if (meta && e.key === 'd' && selectedElement) {
+        e.preventDefault()
+        const el = elements.find(el => el.id === selectedElement)
+        if (el) {
+          const dup = { ...el, id: `element_${Date.now()}`, x: el.x + 20, y: el.y + 20 }
+          updateElements(prev => [...prev, dup])
+          setSelectedElement(dup.id)
+        }
+      }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedElement && document.activeElement?.tagName !== 'INPUT') {
           e.preventDefault()
@@ -166,11 +185,18 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         setSelectedElementForPlacement(null)
         setSelectedTool('select')
         setSelectedElement(null)
+        setContextMenu(null)
       }
+      if (e.key === 'v' || e.key === 'V') { if (document.activeElement?.tagName !== 'INPUT') setSelectedTool('select') }
+      if (e.key === 'h' || e.key === 'H') { if (document.activeElement?.tagName !== 'INPUT') setSelectedTool('pan') }
+    }
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.key === ' ') setIsSpaceHeld(false)
     }
     window.addEventListener('keydown', handleKeyboard)
-    return () => window.removeEventListener('keydown', handleKeyboard)
-  }, [isReadOnly, undo, redo, selectedElement, updateElements])
+    window.addEventListener('keyup', handleKeyUp)
+    return () => { window.removeEventListener('keydown', handleKeyboard); window.removeEventListener('keyup', handleKeyUp) }
+  }, [isReadOnly, undo, redo, selectedElement, updateElements, elements])
 
   // Save to API
   const saveToAPI = useCallback(async () => {
@@ -611,37 +637,76 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     }
   }
 
+  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    r = Math.min(r, w / 2, h / 2)
+    ctx.beginPath()
+    ctx.moveTo(x + r, y)
+    ctx.arcTo(x + w, y, x + w, y + h, r)
+    ctx.arcTo(x + w, y + h, x, y + h, r)
+    ctx.arcTo(x, y + h, x, y, r)
+    ctx.arcTo(x, y, x + w, y, r)
+    ctx.closePath()
+  }
+
   const drawElement = (ctx: CanvasRenderingContext2D, element: SiteMapElement) => {
     ctx.save()
     ctx.translate(element.x + element.width / 2, element.y + element.height / 2)
     ctx.rotate((element.rotation * Math.PI) / 180)
     ctx.translate(-element.width / 2, -element.height / 2)
 
-    // Draw element with enhanced styling
-    const gradient = ctx.createLinearGradient(0, 0, element.width, element.height)
-    gradient.addColorStop(0, element.fill)
-    gradient.addColorStop(1, element.fill.replace('0.3', '0.1'))
-    
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, element.width, element.height)
-    
-    ctx.strokeStyle = element.stroke
-    ctx.lineWidth = element.strokeWidth
-    ctx.strokeRect(0, 0, element.width, element.height)
+    const r = Math.min(8, element.width * 0.08, element.height * 0.08)
+    const isSelected = selectedElement === element.id
 
-    // Draw icon/symbol in center of element
+    // Drop shadow
+    ctx.shadowColor = isSelected ? 'rgba(251, 191, 36, 0.5)' : 'rgba(0, 0, 0, 0.4)'
+    ctx.shadowBlur = isSelected ? 16 : 8
+    ctx.shadowOffsetY = isSelected ? 0 : 2
+
+    // Body fill with gradient
+    const gradient = ctx.createLinearGradient(0, 0, 0, element.height)
+    gradient.addColorStop(0, element.fill)
+    const darker = element.fill.replace(/[\d.]+\)$/, (m) => `${Math.max(0, parseFloat(m) * 0.5)})`)
+    gradient.addColorStop(1, darker || element.fill)
+    ctx.fillStyle = gradient
+    roundRect(ctx, 0, 0, element.width, element.height, r)
+    ctx.fill()
+
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetY = 0
+
+    // Border
+    ctx.strokeStyle = isSelected ? '#fbbf24' : element.stroke
+    ctx.lineWidth = isSelected ? 3 : element.strokeWidth
+    if (isSelected) ctx.setLineDash([6, 4])
+    roundRect(ctx, 0, 0, element.width, element.height, r)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    // Icon/symbol
     drawElementSymbol(ctx, element.type, element.width, element.height, element.stroke)
 
-    // Draw label with background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'
-    ctx.fillRect(0, element.height - 25, element.width, 25)
-    
-    ctx.fillStyle = '#ffffff'
-    ctx.font = '12px Inter, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(element.label, element.width / 2, element.height - 8)
+    // Label bar at bottom with rounded bottom corners
+    const labelH = Math.min(22, element.height * 0.3)
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)'
+    roundRect(ctx, 0, element.height - labelH, element.width, labelH, r)
+    ctx.fill()
+    // Clip top corners of label bar (flat top)
+    ctx.fillRect(0, element.height - labelH, element.width, Math.min(r, labelH * 0.5))
 
-    // Draw status indicator
+    ctx.fillStyle = '#ffffff'
+    const fontSize = Math.min(11, element.width * 0.12)
+    ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const maxLabelW = element.width - 8
+    let label = element.label
+    while (ctx.measureText(label).width > maxLabelW && label.length > 3) {
+      label = label.slice(0, -2) + '…'
+    }
+    ctx.fillText(label, element.width / 2, element.height - labelH / 2)
+
+    // Status indicator
     const status = elementStatuses[element.id]
     if (status) {
       const statusColors: Record<string, string> = {
@@ -652,23 +717,30 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         blocked: '#ef4444',
         verified: '#10b981'
       }
-      const color = statusColors[status] || '#64748b'
-      ctx.fillStyle = color
+      const c = statusColors[status] || '#64748b'
+      ctx.fillStyle = c
       ctx.beginPath()
-      ctx.arc(element.width - 8, 8, 6, 0, Math.PI * 2)
+      ctx.arc(element.width - 8, 8, 5, 0, Math.PI * 2)
       ctx.fill()
-      ctx.strokeStyle = '#000'
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)'
       ctx.lineWidth = 1.5
       ctx.stroke()
     }
 
-    // Draw selection highlight
-    if (selectedElement === element.id) {
-      ctx.strokeStyle = '#fbbf24'
-      ctx.lineWidth = 3
-      ctx.setLineDash([5, 5])
-      ctx.strokeRect(-2, -2, element.width + 4, element.height + 4)
-      ctx.setLineDash([])
+    // Drag handle indicator when selected
+    if (isSelected) {
+      const handleSize = 6
+      const handles = [
+        { x: 0, y: 0 }, { x: element.width, y: 0 },
+        { x: 0, y: element.height }, { x: element.width, y: element.height }
+      ]
+      handles.forEach(h => {
+        ctx.fillStyle = '#fbbf24'
+        ctx.strokeStyle = '#000'
+        ctx.lineWidth = 1
+        ctx.fillRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize)
+        ctx.strokeRect(h.x - handleSize / 2, h.y - handleSize / 2, handleSize, handleSize)
+      })
     }
 
     ctx.restore()
@@ -727,32 +799,75 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     ctx.restore()
   }
 
-  // Event handlers
-  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+  // Helper to get map coords from mouse event
+  const getMapCoords = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current
-    if (!canvas) return
-
+    if (!canvas) return { x: 0, y: 0 }
     const rect = canvas.getBoundingClientRect()
-    const rawX = (event.clientX - rect.left - pan.x) / zoom
-    const rawY = (event.clientY - rect.top - pan.y) / zoom
+    return {
+      x: (event.clientX - rect.left - pan.x) / zoom,
+      y: (event.clientY - rect.top - pan.y) / zoom
+    }
+  }, [pan, zoom])
+
+  const hitTestElement = useCallback((mx: number, my: number) => {
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const el = elements[i]
+      if (mx >= el.x && mx <= el.x + el.width && my >= el.y && my <= el.y + el.height) return el
+    }
+    return null
+  }, [elements])
+
+  // Event handlers
+  const handleCanvasMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    setContextMenu(null)
+    const shouldPan = selectedTool === 'pan' || isSpaceHeld || event.button === 1
+    if (shouldPan) {
+      setIsPanning(true)
+      setPanStart({ x: event.clientX - pan.x, y: event.clientY - pan.y })
+      event.preventDefault()
+      return
+    }
+
+    if (event.button !== 0) return
+    const { x: rawX, y: rawY } = getMapCoords(event)
+
+    if (selectedElementForPlacement) return
+
+    if (selectedTool === 'select' && !isReadOnly) {
+      const hit = hitTestElement(rawX, rawY)
+      if (hit) {
+        setSelectedElement(hit.id)
+        setSelectedElements([hit.id])
+        setIsDragging(true)
+        setDragStart({ x: rawX - hit.x, y: rawY - hit.y })
+      }
+    }
+  }
+
+  const handleCanvasMouseUp = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isPanning) {
+      setIsPanning(false)
+      return
+    }
+
+    if (isDragging) {
+      setIsDragging(false)
+      return
+    }
+
+    if (event.button !== 0) return
+    const { x: rawX, y: rawY } = getMapCoords(event)
 
     if (selectedElementForPlacement) {
-      // Snap position to grid and align dimensions
       const snappedPosition = snapToGridPosition(rawX, rawY)
       const alignedDimensions = getGridAlignedDimensions(selectedElementForPlacement.width, selectedElementForPlacement.height)
-      
-      // Center the element on the snapped position
       const centeredX = snappedPosition.x - alignedDimensions.width / 2
       const centeredY = snappedPosition.y - alignedDimensions.height / 2
-      
-      // Final snap to ensure element is grid-aligned
       const finalPosition = snapToGridPosition(centeredX, centeredY)
-      
-      // Check if placement is valid before placing
       const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-      
+
       if (isValid) {
-        // Place the selected element
         const newElement: SiteMapElement = {
           id: `element_${Date.now()}`,
           type: selectedElementForPlacement.id,
@@ -768,20 +883,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
           data: selectedElementForPlacement.properties
         }
         updateElements(prev => [...prev, newElement])
-        
         setSelectedElementForPlacement(null)
         setSelectedTool('select')
         setHighlightedGridCells([])
         setIsValidPlacement(true)
       }
-      // If invalid, don't place - just keep the preview showing
     } else {
-      // Select existing element
-      const clickedElement = elements.find(element => 
-        rawX >= element.x && rawX <= element.x + element.width &&
-        rawY >= element.y && rawY <= element.y + element.height
-      )
-
+      const clickedElement = hitTestElement(rawX, rawY)
       if (clickedElement) {
         setSelectedElement(clickedElement.id)
         setSelectedElements([clickedElement.id])
@@ -793,32 +901,72 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   }
 
   const handleCanvasMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (selectedElementForPlacement) {
-      const canvas = canvasRef.current
-      if (!canvas) return
+    if (isPanning) {
+      setPan({ x: event.clientX - panStart.x, y: event.clientY - panStart.y })
+      return
+    }
 
-      const rect = canvas.getBoundingClientRect()
-      const rawX = (event.clientX - rect.left - pan.x) / zoom
-      const rawY = (event.clientY - rect.top - pan.y) / zoom
-      
-      // Snap hover position to grid for preview
+    if (isDragging && selectedElement && !isReadOnly) {
+      const { x: rawX, y: rawY } = getMapCoords(event)
+      const newX = rawX - dragStart.x
+      const newY = rawY - dragStart.y
+      const snapped = snapToGridPosition(newX, newY)
+      setElements(prev => prev.map(el =>
+        el.id === selectedElement ? { ...el, x: snapped.x, y: snapped.y } : el
+      ))
+      setHasUnsavedChanges(true)
+      return
+    }
+
+    if (selectedElementForPlacement) {
+      const { x: rawX, y: rawY } = getMapCoords(event)
       const snappedPosition = snapToGridPosition(rawX, rawY)
       setHoverPosition(snappedPosition)
-      
-      // Calculate highlighted grid cells
+
       const alignedDimensions = getGridAlignedDimensions(selectedElementForPlacement.width, selectedElementForPlacement.height)
       const centeredX = snappedPosition.x - alignedDimensions.width / 2
       const centeredY = snappedPosition.y - alignedDimensions.height / 2
       const finalPosition = snapToGridPosition(centeredX, centeredY)
-      
       const cells = getOccupiedGridCells(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
       setHighlightedGridCells(cells)
-      
-      // Check placement validity
       const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
       setIsValidPlacement(isValid)
     }
   }
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
+    const { x: rawX, y: rawY } = getMapCoords(event)
+    const hit = hitTestElement(rawX, rawY)
+    if (hit && !isReadOnly) {
+      setSelectedElement(hit.id)
+      setContextMenu({ x: event.clientX, y: event.clientY, elementId: hit.id })
+    } else {
+      setContextMenu(null)
+    }
+  }
+
+  const duplicateElement = useCallback((elementId: string) => {
+    const el = elements.find(e => e.id === elementId)
+    if (!el) return
+    const dup = { ...el, id: `element_${Date.now()}`, x: el.x + gridSize, y: el.y + gridSize }
+    updateElements(prev => [...prev, dup])
+    setSelectedElement(dup.id)
+    setContextMenu(null)
+  }, [elements, updateElements, gridSize])
+
+  const deleteElement = useCallback((elementId: string) => {
+    updateElements(prev => prev.filter(el => el.id !== elementId))
+    setSelectedElement(null)
+    setContextMenu(null)
+  }, [updateElements])
+
+  const rotateElement = useCallback((elementId: string) => {
+    updateElements(prev => prev.map(el =>
+      el.id === elementId ? { ...el, rotation: (el.rotation + 90) % 360 } : el
+    ))
+    setContextMenu(null)
+  }, [updateElements])
 
   const handleElementSelect = (element: CannedElement) => {
     setSelectedElementForPlacement(element)
@@ -1005,153 +1153,97 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
           </div>}
 
           {/* Main Canvas Area */}
-          <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 relative">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.08)_0%,transparent_70%)]"></div>
-            <div className="absolute inset-0 bg-gradient-to-br from-transparent via-blue-500/5 to-purple-500/5"></div>
-            {/* Futuristic Toolbar */}
-            <div className="p-6 border-b border-slate-700/30 backdrop-blur-sm relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  {selectedElementForPlacement && (
-                    <div className="flex items-center gap-4 px-5 py-3 bg-gradient-to-r from-slate-800/60 to-slate-700/60 rounded-2xl border border-slate-600/40 backdrop-blur-xl shadow-lg">
-                      <div className="relative">
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl blur-sm opacity-60"></div>
-                        <div className="relative p-2.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
-                          {selectedElementForPlacement.icon && <selectedElementForPlacement.icon className="h-5 w-5 text-white drop-shadow-lg" />}
-                        </div>
+          <div className="flex-1 flex flex-col bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 relative min-w-0">
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(147,51,234,0.06)_0%,transparent_70%)]"></div>
+            {/* Compact Toolbar */}
+            <div className="px-3 py-2 border-b border-slate-700/30 backdrop-blur-sm relative z-10">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {selectedElementForPlacement ? (
+                    <div className="flex items-center gap-2.5 px-3 py-1.5 bg-slate-800/60 rounded-xl border border-slate-600/40 backdrop-blur-xl">
+                      <div className="p-1.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg">
+                        {selectedElementForPlacement.icon && <selectedElementForPlacement.icon className="h-3.5 w-3.5 text-white" />}
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm text-white font-semibold tracking-tight">{selectedElementForPlacement.name}</span>
-                        <span className="text-xs text-slate-400 font-medium">Click to place on canvas</span>
+                      <div className="flex flex-col leading-none">
+                        <span className="text-xs text-white font-semibold">{selectedElementForPlacement.name}</span>
+                        <span className="text-[10px] text-slate-400">Click canvas to place</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse shadow-green-400/50"></div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedElementForPlacement(null)
-                            setSelectedTool('select')
-                            setHoverPosition(null)
-                          }}
-                          className="h-7 w-7 p-0 text-slate-400 hover:text-white hover:bg-red-500/20 rounded-lg transition-all duration-200 hover:scale-110"
-                        >
-                          ✕
-                        </Button>
-                      </div>
+                      <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setSelectedElementForPlacement(null); setSelectedTool('select'); setHoverPosition(null) }}
+                        className="h-5 w-5 p-0 text-slate-400 hover:text-white hover:bg-red-500/20 rounded"
+                      >
+                        ✕
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-500">Tool:</span>
+                      <Badge variant="outline" className="text-xs text-slate-300 border-slate-600/50 bg-slate-800/60 px-2 py-0.5 rounded-lg capitalize">
+                        {selectedTool}
+                      </Badge>
                     </div>
                   )}
-                  
-                  {!selectedElementForPlacement && (
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm text-slate-400 font-medium">Active Tool:</div>
-                      <Badge 
-                        variant="outline" 
-                        className="text-sm text-slate-300 border-slate-600/50 bg-gradient-to-r from-slate-800/60 to-slate-700/60 backdrop-blur-sm px-3 py-1.5 rounded-xl font-medium shadow-lg"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                          {selectedTool}
-                        </div>
-                      </Badge>
+
+                  {selectedElement && !selectedElementForPlacement && (
+                    <div className="flex items-center gap-1 ml-2 pl-2 border-l border-slate-700/40">
+                      <span className="text-xs text-slate-500 truncate max-w-24">
+                        {elements.find(e => e.id === selectedElement)?.label}
+                      </span>
+                      <Button variant="ghost" size="sm" onClick={() => duplicateElement(selectedElement)} className="h-5 w-5 p-0 text-slate-400 hover:text-white" title="Duplicate (Cmd+D)">
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => rotateElement(selectedElement)} className="h-5 w-5 p-0 text-slate-400 hover:text-white" title="Rotate 90°">
+                        <RotateCw className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => deleteElement(selectedElement)} className="h-5 w-5 p-0 text-slate-400 hover:text-red-400" title="Delete">
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {/* Grid Controls */}
-                  <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowGrid(!showGrid)}
-                      className={cn(
-                        "h-6 w-6 p-0 rounded transition-all duration-200",
-                        showGrid ? "text-purple-400 bg-purple-500/20" : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-                      )}
-                    >
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-0.5 bg-slate-800/50 rounded-lg p-0.5">
+                    <Button variant="ghost" size="sm" onClick={() => setShowGrid(!showGrid)} className={cn("h-6 w-6 p-0 rounded", showGrid ? "text-purple-400 bg-purple-500/20" : "text-slate-400 hover:text-white")} title="Toggle Grid">
                       <Grid className="h-3 w-3" />
                     </Button>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSnapToGrid(!snapToGrid)}
-                      className={cn(
-                        "h-6 w-6 p-0 rounded transition-all duration-200",
-                        snapToGrid ? "text-green-400 bg-green-500/20" : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-                      )}
-                      title="Snap to Grid"
-                    >
-                      ⚡
+                    <Button variant="ghost" size="sm" onClick={() => setSnapToGrid(!snapToGrid)} className={cn("h-6 w-6 p-0 rounded", snapToGrid ? "text-green-400 bg-green-500/20" : "text-slate-400 hover:text-white")} title="Snap to Grid">
+                      <Zap className="h-3 w-3" />
                     </Button>
-                    
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setGridSize(prev => Math.max(10, prev - 5))}
-                        className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="text-xs text-slate-300 w-8 text-center font-mono">
-                        {gridSize}px
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setGridSize(prev => Math.min(100, prev + 5))}
-                        className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Zoom Controls */}
-                  <div className="flex items-center gap-1 bg-slate-800/50 rounded-lg p-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setZoom(prev => Math.max(0.1, prev - 0.1))}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setGridSize(prev => Math.max(10, prev - 5))} className="h-6 w-6 p-0 text-slate-400 hover:text-white">
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="text-xs text-slate-300 w-12 text-center font-mono">
-                      {Math.round(zoom * 100)}%
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setZoom(prev => Math.min(5, prev + 0.1))}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                    >
+                    <span className="text-[10px] text-slate-400 w-7 text-center font-mono">{gridSize}px</span>
+                    <Button variant="ghost" size="sm" onClick={() => setGridSize(prev => Math.min(100, prev + 5))} className="h-6 w-6 p-0 text-slate-400 hover:text-white">
                       <Plus className="h-3 w-3" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={fitToContent}
-                      className="h-6 w-6 p-0 text-slate-400 hover:text-white"
-                      title="Fit to content"
-                    >
+                  </div>
+
+                  <div className="w-px h-4 bg-slate-700/40"></div>
+
+                  <div className="flex items-center gap-0.5 bg-slate-800/50 rounded-lg p-0.5">
+                    <Button variant="ghost" size="sm" onClick={() => setZoom(prev => Math.max(0.1, prev - 0.1))} className="h-6 w-6 p-0 text-slate-400 hover:text-white">
+                      <ZoomOut className="h-3 w-3" />
+                    </Button>
+                    <span className="text-[10px] text-slate-300 w-9 text-center font-mono">{Math.round(zoom * 100)}%</span>
+                    <Button variant="ghost" size="sm" onClick={() => setZoom(prev => Math.min(5, prev + 0.1))} className="h-6 w-6 p-0 text-slate-400 hover:text-white">
+                      <ZoomIn className="h-3 w-3" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={fitToContent} className="h-6 w-6 p-0 text-slate-400 hover:text-white" title="Fit to content">
                       <Maximize className="h-3 w-3" />
                     </Button>
                   </div>
 
-                  {/* Canvas Theme */}
+                  <div className="w-px h-4 bg-slate-700/40"></div>
+
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => setCanvasTheme(prev => prev === 'dark' ? 'light' : 'dark')}
-                    className={cn(
-                      "h-6 px-2 rounded text-xs transition-all duration-200",
-                      canvasTheme === 'light'
-                        ? "text-amber-400 bg-amber-500/20"
-                        : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-                    )}
+                    className={cn("h-6 px-2 rounded text-[10px]", canvasTheme === 'light' ? "text-amber-400 bg-amber-500/20" : "text-slate-400 hover:text-white")}
                     title="Toggle canvas theme"
                   >
                     <Palette className="h-3 w-3 mr-1" />
@@ -1161,17 +1253,18 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
               </div>
             </div>
 
-            <div className="flex-1 p-6 relative z-10">
-              <div className="relative w-full h-full bg-gradient-to-br from-slate-900/40 via-slate-800/30 to-slate-900/40 rounded-3xl border border-slate-700/40 overflow-hidden shadow-2xl backdrop-blur-sm">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(147,51,234,0.05)_0%,transparent_70%)]"></div>
-                <div className="absolute inset-0 bg-gradient-to-br from-transparent via-blue-500/3 to-purple-500/3"></div>
+            <div className="flex-1 p-2 relative z-10">
+              <div className="relative w-full h-full bg-slate-950/30 rounded-xl border border-slate-700/30 overflow-hidden shadow-inner">
                 <canvas
                   ref={canvasRef}
                   width={siteMap.width}
                   height={siteMap.height}
-                  className="absolute inset-0 w-full h-full rounded-3xl"
-                  onClick={handleCanvasClick}
+                  className="absolute inset-0 w-full h-full"
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseUp={handleCanvasMouseUp}
                   onMouseMove={handleCanvasMouseMove}
+                  onMouseLeave={() => { setIsPanning(false); if (isDragging) { setIsDragging(false); pushHistory(elements) } }}
+                  onContextMenu={handleContextMenu}
                   onWheel={(e) => {
                     e.preventDefault()
                     const rect = canvasRef.current!.getBoundingClientRect()
@@ -1186,11 +1279,74 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                     setZoom(newZoom)
                   }}
                   style={{
-                    cursor: selectedElementForPlacement 
-                      ? (isValidPlacement ? 'crosshair' : 'not-allowed')
-                      : selectedTool === 'select' ? 'default' : 'crosshair'
+                    cursor: isPanning || isSpaceHeld || selectedTool === 'pan'
+                      ? (isPanning ? 'grabbing' : 'grab')
+                      : isDragging ? 'move'
+                      : selectedElementForPlacement
+                        ? (isValidPlacement ? 'crosshair' : 'not-allowed')
+                        : selectedTool === 'select' ? 'default' : 'crosshair'
                   }}
                 />
+
+                {/* Minimap */}
+                <div className="absolute bottom-3 right-3 w-36 h-24 bg-slate-900/90 border border-slate-600/50 rounded-lg overflow-hidden backdrop-blur-sm shadow-lg">
+                  <div className="relative w-full h-full">
+                    {elements.map(el => {
+                      const sx = (el.x / siteMap.width) * 100
+                      const sy = (el.y / siteMap.height) * 100
+                      const sw = (el.width / siteMap.width) * 100
+                      const sh = (el.height / siteMap.height) * 100
+                      return (
+                        <div
+                          key={el.id}
+                          className="absolute"
+                          style={{
+                            left: `${sx}%`, top: `${sy}%`,
+                            width: `${Math.max(sw, 2)}%`, height: `${Math.max(sh, 2)}%`,
+                            backgroundColor: el.stroke,
+                            opacity: el.id === selectedElement ? 1 : 0.6,
+                            borderRadius: 1
+                          }}
+                        />
+                      )
+                    })}
+                    {/* Viewport indicator */}
+                    {canvasRef.current && (() => {
+                      const rect = canvasRef.current!.getBoundingClientRect()
+                      const vx = (-pan.x / zoom / siteMap.width) * 100
+                      const vy = (-pan.y / zoom / siteMap.height) * 100
+                      const vw = (rect.width / zoom / siteMap.width) * 100
+                      const vh = (rect.height / zoom / siteMap.height) * 100
+                      return (
+                        <div
+                          className="absolute border border-white/60 bg-white/10 rounded-sm"
+                          style={{ left: `${vx}%`, top: `${vy}%`, width: `${vw}%`, height: `${vh}%` }}
+                        />
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                {/* Context Menu */}
+                {contextMenu && (
+                  <div
+                    className="fixed z-[100] bg-slate-800/95 border border-slate-600/50 rounded-xl shadow-2xl backdrop-blur-xl py-1.5 min-w-40"
+                    style={{ left: contextMenu.x, top: contextMenu.y }}
+                  >
+                    <button onClick={() => duplicateElement(contextMenu.elementId)} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-200 hover:bg-slate-700/60 transition-colors">
+                      <Copy className="h-3.5 w-3.5 text-slate-400" /> Duplicate
+                      <kbd className="ml-auto text-[10px] text-slate-500 font-mono">⌘D</kbd>
+                    </button>
+                    <button onClick={() => rotateElement(contextMenu.elementId)} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-200 hover:bg-slate-700/60 transition-colors">
+                      <RotateCw className="h-3.5 w-3.5 text-slate-400" /> Rotate 90°
+                    </button>
+                    <div className="my-1 border-t border-slate-700/50"></div>
+                    <button onClick={() => deleteElement(contextMenu.elementId)} className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
+                      <kbd className="ml-auto text-[10px] text-slate-500 font-mono">Del</kbd>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -1208,91 +1364,73 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
           )}
         </div>
 
-        {/* Futuristic Status Bar */}
-        <div className="flex items-center justify-between p-6 border-t border-slate-700/30 bg-gradient-to-r from-slate-900/40 via-slate-800/30 to-slate-900/40 backdrop-blur-2xl relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5"></div>
-          <div className="relative flex items-center gap-8 text-sm text-slate-400">
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-700/30 backdrop-blur-sm">
-              <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse shadow-blue-400/50"></div>
-              <span className="font-medium text-slate-300">Zoom: {Math.round(zoom * 100)}%</span>
+        {/* Compact Status Bar */}
+        <div className="flex items-center justify-between px-3 py-1.5 border-t border-slate-700/30 bg-slate-900/60 backdrop-blur-xl relative">
+          <div className="flex items-center gap-4 text-[11px] text-slate-400">
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-blue-400 rounded-full"></div>
+              <span>{Math.round(zoom * 100)}%</span>
             </div>
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-700/30 backdrop-blur-sm">
-              <div className="w-2 h-2 bg-purple-400 rounded-full shadow-purple-400/50"></div>
-              <span className="font-medium text-slate-300">Elements: {elements.length}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+              <span>{elements.length} elements</span>
             </div>
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-700/30 backdrop-blur-sm">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full shadow-emerald-400/50"></div>
-              <span className="font-medium text-slate-300">Grid: {gridSize}px</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+              <span>Grid {gridSize}px</span>
             </div>
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-700/30 backdrop-blur-sm">
-              <div className={cn("w-2 h-2 rounded-full shadow-lg", snapToGrid ? "bg-green-400 shadow-green-400/50 animate-pulse" : "bg-slate-500")}></div>
-              <span className="font-medium text-slate-300">Snap: {snapToGrid ? "ON" : "OFF"}</span>
+            <div className="flex items-center gap-1.5">
+              <div className={cn("w-1.5 h-1.5 rounded-full", snapToGrid ? "bg-green-400" : "bg-slate-500")}></div>
+              <span>Snap {snapToGrid ? "ON" : "OFF"}</span>
             </div>
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 rounded-xl border border-slate-700/30 backdrop-blur-sm">
-              <div className="w-2 h-2 bg-amber-400 rounded-full shadow-amber-400/50"></div>
-              <span className="font-medium text-slate-300">Tool: {selectedTool}</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+              <span className="capitalize">{selectedTool}</span>
             </div>
+            {hasUnsavedChanges && (
+              <div className="flex items-center gap-1.5 text-amber-400">
+                <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></div>
+                <span>Unsaved</span>
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
             {!isReadOnly && (
               <>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={undo}
-                  disabled={historyIndex <= 0}
-                  className="h-9 px-3 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl disabled:opacity-30"
-                  title="Undo (Ctrl+Z)"
-                >
-                  <RotateCcw className="h-4 w-4" />
+                <Button size="sm" variant="ghost" onClick={undo} disabled={historyIndex <= 0} className="h-6 w-6 p-0 text-slate-400 hover:text-white disabled:opacity-30" title="Undo (⌘Z)">
+                  <RotateCcw className="h-3 w-3" />
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={redo}
-                  disabled={historyIndex >= history.length - 1}
-                  className="h-9 px-3 text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-xl disabled:opacity-30"
-                  title="Redo (Ctrl+Shift+Z)"
-                >
-                  <RotateCw className="h-4 w-4" />
+                <Button size="sm" variant="ghost" onClick={redo} disabled={historyIndex >= history.length - 1} className="h-6 w-6 p-0 text-slate-400 hover:text-white disabled:opacity-30" title="Redo (⌘⇧Z)">
+                  <RotateCw className="h-3 w-3" />
                 </Button>
+                <div className="w-px h-3 bg-slate-700/40 mx-0.5"></div>
               </>
             )}
-            <div className="flex items-center gap-1 bg-slate-800/50 rounded-xl p-1">
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={exportAsPNG}
-                className="h-7 px-2 text-xs text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg"
-                title="Export as PNG"
-              >
-                <Download className="h-3 w-3 mr-1" />
-                PNG
-              </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={exportAsJSON}
-                className="h-7 px-2 text-xs text-slate-400 hover:text-white hover:bg-slate-700/50 rounded-lg"
-                title="Export as JSON"
-              >
-                <Download className="h-3 w-3 mr-1" />
-                JSON
-              </Button>
-            </div>
+            <Button size="sm" variant="ghost" onClick={exportAsPNG} className="h-6 px-1.5 text-[10px] text-slate-400 hover:text-white" title="Export PNG">
+              <Download className="h-3 w-3 mr-0.5" />PNG
+            </Button>
+            <Button size="sm" variant="ghost" onClick={exportAsJSON} className="h-6 px-1.5 text-[10px] text-slate-400 hover:text-white" title="Export JSON">
+              <Download className="h-3 w-3 mr-0.5" />JSON
+            </Button>
             {!isReadOnly && (
-              <Button
-                size="sm"
-                onClick={saveToAPI}
-                disabled={isSaving}
-                className="bg-gradient-to-r from-purple-500 via-blue-500 to-purple-500 hover:from-purple-600 hover:via-blue-600 hover:to-purple-600 text-white rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 px-6 py-2.5 font-semibold backdrop-blur-sm"
-              >
-                <div className="flex items-center gap-2">
-                  <Save className="h-4 w-4" />
-                  {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'Saved'}
-                </div>
-              </Button>
+              <>
+                <div className="w-px h-3 bg-slate-700/40 mx-0.5"></div>
+                <Button
+                  size="sm"
+                  onClick={saveToAPI}
+                  disabled={isSaving}
+                  className={cn(
+                    "h-7 px-3 text-xs font-semibold rounded-lg transition-all duration-200",
+                    hasUnsavedChanges
+                      ? "bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white shadow-lg"
+                      : "bg-slate-700/50 text-slate-400"
+                  )}
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  {isSaving ? 'Saving…' : hasUnsavedChanges ? 'Save' : 'Saved'}
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -1318,193 +1456,183 @@ function ElementLibrary({ onElementSelect, selectedElement, className }: {
 }) {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
 
-  // Group elements by category
   const categorizedElements = CANNED_ELEMENTS.reduce((acc, element) => {
     const category = element.category
-    if (!acc[category]) {
-      acc[category] = []
-    }
+    if (!acc[category]) acc[category] = []
     acc[category].push(element)
     return acc
   }, {} as Record<string, typeof CANNED_ELEMENTS>)
 
   const categories = Array.from(new Set(CANNED_ELEMENTS.map(el => el.category))).sort()
   const filteredElements = CANNED_ELEMENTS.filter(element => {
-    const matchesSearch = element.name.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesSearch = !searchTerm || element.name.toLowerCase().includes(searchTerm.toLowerCase()) || element.description.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesCategory = selectedCategory === "all" || element.category === selectedCategory
     return matchesSearch && matchesCategory
   })
 
-  const categoryIcons = {
-    'infrastructure': Building,
-    'venue': MapPin,
-    'performance': Users,
-    'furniture': Square,
-    'food': Users,
-    'security': Users,
-    'transportation': Truck,
-    'technology': Zap
+  const categoryConfig: Record<string, { icon: typeof Building; colors: string; label: string }> = {
+    infrastructure: { icon: Building, colors: '#059669', label: 'Infrastructure' },
+    venue: { icon: MapPin, colors: '#7c3aed', label: 'Tents & Venue' },
+    performance: { icon: Music, colors: '#db2777', label: 'Performance' },
+    furniture: { icon: Square, colors: '#d97706', label: 'Furniture' },
+    food: { icon: Utensils, colors: '#ea580c', label: 'Food & Drink' },
+    security: { icon: Shield, colors: '#dc2626', label: 'Security' },
+    transportation: { icon: Truck, colors: '#475569', label: 'Transport' },
+    technology: { icon: Zap, colors: '#0891b2', label: 'Technology' },
+    vendors: { icon: Star, colors: '#e27419', label: 'Vendors' },
+    essential_services: { icon: Heart, colors: '#2563eb', label: 'Services' },
+    signage: { icon: MapPin, colors: '#9333ea', label: 'Signage' },
+    sanitation: { icon: Trash2, colors: '#334155', label: 'Sanitation' },
+    landscaping: { icon: TreePine, colors: '#15803d', label: 'Landscaping' },
   }
 
-  const categoryColors = {
-    'infrastructure': 'from-green-500 to-teal-500',
-    'venue': 'from-purple-500 to-indigo-500',
-    'performance': 'from-pink-500 to-rose-500',
-    'furniture': 'from-amber-500 to-orange-500',
-    'food': 'from-orange-500 to-red-500',
-    'security': 'from-red-500 to-pink-500',
-    'transportation': 'from-gray-500 to-slate-500',
-    'technology': 'from-blue-500 to-cyan-500'
+  const toggleCategory = (cat: string) => {
+    setCollapsedCategories(prev => {
+      const next = new Set(prev)
+      next.has(cat) ? next.delete(cat) : next.add(cat)
+      return next
+    })
   }
 
   return (
     <div className={cn("h-full flex flex-col", className)}>
-      {/* Search */}
-      <div className="p-4 border-b border-slate-700/30">
+      <div className="p-3 border-b border-slate-700/30">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
           <Input
             placeholder="Search elements..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-400 rounded-xl focus:border-purple-500/50 focus:ring-purple-500/20"
+            className="pl-8 h-8 text-sm bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 rounded-lg focus:border-purple-500/50 focus:ring-purple-500/20"
           />
         </div>
       </div>
 
-      {/* Categories */}
-      <div className="px-4 py-2 border-b border-slate-700/30">
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          <Button
-            variant={selectedCategory === "all" ? "default" : "ghost"}
-            size="sm"
+      <div className="px-3 py-1.5 border-b border-slate-700/30">
+        <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
+          <button
             onClick={() => setSelectedCategory("all")}
             className={cn(
-              "whitespace-nowrap rounded-lg transition-all duration-200",
+              "shrink-0 px-2.5 py-1 text-[11px] font-medium rounded-lg transition-all",
               selectedCategory === "all"
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg"
+                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow"
                 : "text-slate-400 hover:text-white hover:bg-slate-700/50"
             )}
           >
             All
-          </Button>
-          {categories.map(category => {
-            const Icon = categoryIcons[category as keyof typeof categoryIcons] || Square
-            const colorClass = categoryColors[category as keyof typeof categoryColors] || 'from-gray-500 to-slate-500'
+          </button>
+          {categories.map(cat => {
+            const conf = categoryConfig[cat] || { icon: Square, colors: '#6b7280', label: cat }
+            const Icon = conf.icon
+            const count = categorizedElements[cat]?.length || 0
             return (
-              <Button
-                key={category}
-                variant={selectedCategory === category ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setSelectedCategory(category)}
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
                 className={cn(
-                  "whitespace-nowrap rounded-lg transition-all duration-200 flex items-center gap-1",
-                  selectedCategory === category
-                    ? "text-white shadow-lg"
+                  "shrink-0 flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg transition-all",
+                  selectedCategory === cat
+                    ? "text-white shadow"
                     : "text-slate-400 hover:text-white hover:bg-slate-700/50"
                 )}
-                style={selectedCategory === category ? {
-                  background: `linear-gradient(to right, var(--${colorClass.split(' ')[0].replace('from-', '')}), var(--${colorClass.split(' ')[2].replace('to-', '')}))`
-                } : undefined}
+                style={selectedCategory === cat ? { backgroundColor: conf.colors } : undefined}
               >
                 <Icon className="h-3 w-3" />
-                <span className="capitalize">{category}</span>
-              </Button>
+                {conf.label}
+                <span className="opacity-60">{count}</span>
+              </button>
             )
           })}
         </div>
       </div>
 
-      {/* Elements */}
-      <div className="flex-1 overflow-y-auto px-4">
-        <div className="space-y-2 py-4">
-          {(selectedCategory === "all" ? 
-            categories.map(category => {
-              const categoryElements = categorizedElements[category]
-              const Icon = categoryIcons[category as keyof typeof categoryIcons] || Square
-              const colorClass = categoryColors[category as keyof typeof categoryColors] || 'from-gray-500 to-slate-500'
-              
+      <div className="flex-1 overflow-y-auto px-2">
+        <div className="space-y-0.5 py-2">
+          {searchTerm ? (
+            filteredElements.map(element => {
+              const conf = categoryConfig[element.category] || { icon: Square, colors: '#6b7280', label: element.category }
               return (
-                <div key={category} className="space-y-2">
-                  <div className="flex items-center gap-2 px-2 py-1">
-                    <div className={cn("p-1.5 rounded-lg bg-gradient-to-r", colorClass)}>
+                <ElementButton key={element.id} element={element} isSelected={selectedElement?.id === element.id} onSelect={onElementSelect} color={conf.colors} />
+              )
+            })
+          ) : selectedCategory !== "all" ? (
+            filteredElements.map(element => {
+              const conf = categoryConfig[element.category] || { icon: Square, colors: '#6b7280', label: element.category }
+              return (
+                <ElementButton key={element.id} element={element} isSelected={selectedElement?.id === element.id} onSelect={onElementSelect} color={conf.colors} />
+              )
+            })
+          ) : (
+            categories.map(cat => {
+              const elems = categorizedElements[cat]
+              if (!elems?.length) return null
+              const conf = categoryConfig[cat] || { icon: Square, colors: '#6b7280', label: cat }
+              const Icon = conf.icon
+              const isCollapsed = collapsedCategories.has(cat)
+              return (
+                <div key={cat}>
+                  <button
+                    onClick={() => toggleCategory(cat)}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-slate-800/40 transition-colors"
+                  >
+                    <div className="p-1 rounded-md" style={{ backgroundColor: conf.colors }}>
                       <Icon className="h-3 w-3 text-white" />
                     </div>
-                    <h3 className="text-sm font-semibold text-slate-300 capitalize">{category}</h3>
-                    <Badge variant="outline" className="text-xs text-slate-400 border-slate-600 bg-slate-800/50">
-                      {categoryElements.length}
+                    <span className="text-xs font-semibold text-slate-300 flex-1 text-left">{conf.label}</span>
+                    <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700 bg-transparent px-1.5 py-0">
+                      {elems.length}
                     </Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 gap-1">
-                    {categoryElements.map(element => (
-                      <Button
-                        key={element.id}
-                        variant={selectedElement?.id === element.id ? "default" : "ghost"}
-                        size="sm"
-                        onClick={() => onElementSelect(element)}
-                        className={cn(
-                          "h-auto p-3 justify-start rounded-xl transition-all duration-200",
-                          selectedElement?.id === element.id
-                            ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg"
-                            : "text-slate-300 hover:text-white hover:bg-slate-700/50 border border-slate-700/20 hover:border-slate-600/40"
-                        )}
-                      >
-                        <div className="flex items-center gap-3 w-full">
-                          <div className={cn("p-2 rounded-lg bg-gradient-to-r", colorClass)}>
-                            {element.icon ? <element.icon className="h-4 w-4 text-white" /> : <Square className="h-4 w-4 text-white" />}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <div className="text-sm font-medium truncate">{element.name}</div>
-                            <div className="text-xs opacity-70 truncate">{element.description}</div>
-                          </div>
-                          <div className="flex flex-col gap-1">
-                            <Badge variant="outline" className="text-xs text-slate-400 border-slate-600 bg-slate-800/50">
-                              {element.width}×{element.height}
-                            </Badge>
-                            {selectedElement?.id === element.id && (
-                              <Check className="h-3 w-3 text-white" />
-                            )}
-                          </div>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
+                    <ChevronDown className={cn("h-3 w-3 text-slate-500 transition-transform", isCollapsed && "-rotate-90")} />
+                  </button>
+                  {!isCollapsed && (
+                    <div className="ml-2 space-y-0.5 mt-0.5">
+                      {elems.map(element => (
+                        <ElementButton key={element.id} element={element} isSelected={selectedElement?.id === element.id} onSelect={onElementSelect} color={conf.colors} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
-            }) : 
-            filteredElements.map(element => (
-              <Button
-                key={element.id}
-                variant={selectedElement?.id === element.id ? "default" : "ghost"}
-                size="sm"
-                onClick={() => onElementSelect(element)}
-                className={cn(
-                  "h-auto p-3 justify-start rounded-xl transition-all duration-200",
-                  selectedElement?.id === element.id
-                    ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-lg"
-                    : "text-slate-300 hover:text-white hover:bg-slate-700/50 border border-slate-700/20 hover:border-slate-600/40"
-                )}
-              >
-                <div className="flex items-center gap-3 w-full">
-                  <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500 to-blue-500">
-                    {element.icon ? <element.icon className="h-4 w-4 text-white" /> : <Square className="h-4 w-4 text-white" />}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="text-sm font-medium truncate">{element.name}</div>
-                    <div className="text-xs opacity-70 truncate">{element.description}</div>
-                  </div>
-                  <Badge variant="outline" className="text-xs text-slate-400 border-slate-600 bg-slate-800/50">
-                    {element.width}×{element.height}
-                  </Badge>
-                </div>
-              </Button>
-            ))
+            })
+          )}
+          {filteredElements.length === 0 && (
+            <div className="py-8 text-center text-sm text-slate-500">No elements found</div>
           )}
         </div>
       </div>
     </div>
+  )
+}
+
+function ElementButton({ element, isSelected, onSelect, color }: {
+  element: CannedElement
+  isSelected: boolean
+  onSelect: (el: CannedElement) => void
+  color: string
+}) {
+  return (
+    <button
+      onClick={() => onSelect(element)}
+      className={cn(
+        "flex items-center gap-2 w-full px-2 py-2 rounded-lg transition-all duration-150 text-left group",
+        isSelected
+          ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40 shadow-sm"
+          : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700/30"
+      )}
+    >
+      <div className="shrink-0 p-1.5 rounded-md transition-colors" style={{ backgroundColor: isSelected ? color : `${color}33` }}>
+        {element.icon ? <element.icon className="h-3.5 w-3.5 text-white" /> : <Square className="h-3.5 w-3.5 text-white" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className={cn("text-xs font-medium truncate", isSelected ? "text-white" : "text-slate-300")}>
+          {element.name}
+        </div>
+      </div>
+      <span className="text-[10px] text-slate-500 font-mono shrink-0">{element.width}×{element.height}</span>
+      {isSelected && <Check className="h-3 w-3 text-purple-400 shrink-0" />}
+    </button>
   )
 }
 

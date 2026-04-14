@@ -118,17 +118,32 @@ let _instance: SupabaseClient<Database> | null = null
 function getClient(): SupabaseClient<Database> {
   if (_instance) return _instance
 
-  _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      storageKey: 'sb-tourify-auth-token',
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-      storage: safeStorage,
-    },
-    global: { headers: { 'X-Client-Info': 'tourify-web' } },
-  })
+  try {
+    _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        storageKey: 'sb-tourify-auth-token',
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storage: safeStorage,
+      },
+      global: { headers: { 'X-Client-Info': 'tourify-web' } },
+    })
+  } catch (initErr) {
+    console.warn('[Supabase] Client creation failed, retrying without PKCE:', initErr)
+    _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        storageKey: 'sb-tourify-auth-token',
+        autoRefreshToken: true,
+        detectSessionInUrl: false,
+        flowType: 'implicit',
+        storage: safeStorage,
+      },
+      global: { headers: { 'X-Client-Info': 'tourify-web' } },
+    })
+  }
 
   // Async side-effects: failures are logged, never thrown
   if (typeof window !== 'undefined') {

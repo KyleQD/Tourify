@@ -53,21 +53,33 @@ async function safeQuery<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
 
 export class DashboardService {
   private static async getUserEventCount(userId: string): Promise<number> {
-    const [legacy, v2] = await Promise.allSettled([
+    // events table may have organizer_id or user_id depending on the migration state
+    const [legacyOrganizer, legacyUser, v2] = await Promise.allSettled([
       supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', userId),
+      supabase.from('events').select('*', { count: 'exact', head: true }).eq('user_id', userId),
       supabase.from('events_v2').select('*', { count: 'exact', head: true }).eq('created_by', userId),
     ])
-    const legacyCount = legacy.status === 'fulfilled' ? (legacy.value.count ?? 0) : 0
+    const orgCount = legacyOrganizer.status === 'fulfilled' && !legacyOrganizer.value.error
+      ? (legacyOrganizer.value.count ?? 0) : 0
+    const userCount = legacyUser.status === 'fulfilled' && !legacyUser.value.error
+      ? (legacyUser.value.count ?? 0) : 0
+    const legacyCount = Math.max(orgCount, userCount)
     const v2Count = v2.status === 'fulfilled' ? (v2.value.count ?? 0) : 0
     return legacyCount + v2Count
   }
 
   private static async getRecentUserEvents(userId: string) {
-    const [legacyResult, v2Result] = await Promise.allSettled([
+    const [legacyOrgResult, legacyUserResult, v2Result] = await Promise.allSettled([
       supabase
         .from('events')
         .select('id, title, created_at, capacity')
         .eq('organizer_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(3),
+      supabase
+        .from('events')
+        .select('id, title, created_at, capacity')
+        .eq('user_id', userId)
         .order('created_at', { ascending: false })
         .limit(3),
       supabase
@@ -78,7 +90,13 @@ export class DashboardService {
         .limit(3),
     ])
 
-    const legacy = legacyResult.status === 'fulfilled' ? (legacyResult.value.data ?? []) : []
+    const orgEvents = legacyOrgResult.status === 'fulfilled' && !legacyOrgResult.value.error
+      ? (legacyOrgResult.value.data ?? []) : []
+    const userEvents = legacyUserResult.status === 'fulfilled' && !legacyUserResult.value.error
+      ? (legacyUserResult.value.data ?? []) : []
+    // Deduplicate by id, preferring organizer_id results
+    const seenIds = new Set(orgEvents.map(e => e.id))
+    const legacy = [...orgEvents, ...userEvents.filter(e => !seenIds.has(e.id))]
     const modern = (v2Result.status === 'fulfilled' ? (v2Result.value.data ?? []) : []).map(e => ({
       ...e,
       title: e.title || 'Event',

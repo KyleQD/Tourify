@@ -19,8 +19,13 @@ export default function DashboardError({
   const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
 
   useEffect(() => {
-    console.error("[Dashboard Error Boundary]", error)
-  }, [error])
+    console.error("[Dashboard Error Boundary]", {
+      name: error?.name,
+      message: error?.message?.slice(0, 200),
+      isPrivacy: isPrivacyError,
+      digest: error?.digest,
+    })
+  }, [error, isPrivacyError])
 
   function handleRetry() {
     setRetryCount((c) => c + 1)
