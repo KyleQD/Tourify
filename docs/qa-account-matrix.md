@@ -39,7 +39,7 @@ Signup UI values `industry` and `tour_manager` are normalized client-side via [`
 
 Run from repo root with a populated `.env` (not placeholder demo keys) where noted.
 
-Quick env checklist (non-fatal): `npm run check:integration-env`
+Quick env checklist (non-fatal): `npm run check:integration-env` (loads `.env` then `.env.local` like Next.js)
 
 | Command | Needs | Purpose |
 |---------|--------|---------|
