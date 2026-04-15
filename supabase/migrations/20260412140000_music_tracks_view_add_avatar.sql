@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Add artist_avatar_url to the music_tracks view so callers don't need a
 -- relationship join (views lack FK metadata in PostgREST).
 -- DROP first because CREATE OR REPLACE VIEW cannot reorder existing columns.

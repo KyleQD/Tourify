@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Artist Business Core: contracts, campaigns, social posts, financial transactions
 create extension if not exists "uuid-ossp";
 

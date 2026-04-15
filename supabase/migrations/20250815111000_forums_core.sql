@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Forums core schema: communities, subscriptions, threads, comments, votes
 -- Creates Reddit-like forums that users can follow. Includes RLS and counters.
 

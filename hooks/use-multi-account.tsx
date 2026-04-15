@@ -1,8 +1,41 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { useAuth } from '@/contexts/auth-context'
 import { AccountManagementService, UserAccount, ActiveSession } from '@/lib/services/account-management.service'
+
+const ACCOUNTS_FETCH_TIMEOUT_MS = 22_000
+
+function fallbackGeneralAccounts(user: User): UserAccount[] {
+  const handle = user.email?.split('@')[0] || `user-${user.id.slice(0, 8)}`
+  const name =
+    (user.user_metadata?.full_name as string | undefined) ||
+    (user.user_metadata?.name as string | undefined) ||
+    handle
+
+  return [
+    {
+      account_type: 'general',
+      profile_id: user.id,
+      profile_data: {
+        id: user.id,
+        username: (user.user_metadata?.username as string | undefined) || handle,
+        full_name: name,
+        display_name: name,
+        avatar_url: (user.user_metadata?.avatar_url as string | undefined) || null,
+        email: user.email,
+      },
+      permissions: {
+        can_post: true,
+        can_manage_settings: true,
+        can_view_analytics: false,
+        can_manage_content: false,
+      },
+      is_active: true,
+    },
+  ]
+}
 
 interface MultiAccountContextType {
   accounts: UserAccount[]
@@ -102,72 +135,102 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       setError(null)
       
       console.log('🔄 [MultiAccount] Refreshing accounts for user:', user.id)
-      const userAccounts = await AccountManagementService.getUserAccounts(user.id)
-      console.log('📋 [MultiAccount] Received accounts from service:', userAccounts.length)
+
+      // One same-origin request (server runs Supabase) avoids many parallel browser→Supabase calls
+      // that can stall under Safari / strict privacy or flaky networks.
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), ACCOUNTS_FETCH_TIMEOUT_MS)
+      let res: Response
+      try {
+        res = await fetch(`/api/accounts?ts=${Date.now()}`, {
+          method: 'GET',
+          credentials: 'include',
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+      if (res.status === 401) {
+        setAccounts([])
+        setActiveAccount(null)
+        setActiveSession(null)
+        setError('Your session expired. Please sign in again.')
+        return
+      }
+
+      if (!res.ok) {
+        throw new Error(`Accounts request failed (${res.status})`)
+      }
+
+      const body = (await res.json()) as {
+        success?: boolean
+        accounts?: UserAccount[]
+        activeSession?: ActiveSession | null
+        error?: string
+      }
+
+      if (!body.success || !Array.isArray(body.accounts)) {
+        throw new Error(body.error || 'Invalid accounts response')
+      }
+
+      const userAccounts = body.accounts
+
+      console.log('📋 [MultiAccount] Received accounts from API:', userAccounts.length)
       console.log('📋 [MultiAccount] Account details:', userAccounts.map(acc => ({
         type: acc.account_type,
         id: acc.profile_id,
         name: acc.profile_data?.organization_name || acc.profile_data?.artist_name || acc.profile_data?.venue_name || acc.profile_data?.display_name || acc.profile_data?.full_name || 'General'
       })))
       
-      // Update accounts state immediately
       setAccounts(userAccounts)
+      setActiveSession(body.activeSession ?? null)
       
-      // Preserve current active account if it still exists, otherwise set to general
       const currentActiveId = activeAccount?.profile_id
       const currentActiveType = activeAccount?.account_type
       
       let newActiveAccount = null
       if (currentActiveId && currentActiveType) {
-        // Try to find the same account in the new list
         newActiveAccount = userAccounts.find(acc => 
           acc.profile_id === currentActiveId && acc.account_type === currentActiveType
-        )
+        ) ?? null
       }
       
-      // If current active account not found, default to general account
       if (!newActiveAccount) {
         const generalAccount = userAccounts.find(acc => acc.account_type === 'general')
-        newActiveAccount = generalAccount || userAccounts[0]
+        newActiveAccount = generalAccount || userAccounts[0] || null
       }
       
-      setActiveAccount(newActiveAccount || null)
+      setActiveAccount(newActiveAccount)
       
       console.log('✅ [MultiAccount] Active account set to:', newActiveAccount?.account_type || 'none')
       console.log('✅ [MultiAccount] Admin accounts found:', userAccounts.filter(acc => acc.account_type === 'admin').length)
-      
-      // Get active session (gracefully handle if session tables don't exist)
-      try {
-        const session = await AccountManagementService.getActiveSession(user.id)
-        setActiveSession(session)
-      } catch (sessionError) {
-        console.log('Session management not available:', sessionError)
-        setActiveSession(null)
-      }
-      
       console.log('✅ [MultiAccount] Account refresh completed successfully')
       
     } catch (err: any) {
       console.error('Error fetching accounts:', err)
       
       let errorMessage = 'Failed to fetch accounts'
-      
-      if (err instanceof Error) {
+      const isAbort = err?.name === 'AbortError'
+      if (isAbort) {
+        errorMessage =
+          'Loading accounts timed out. You can refresh the page. A minimal profile is shown so you are not stuck on this screen.'
+      } else if (err instanceof Error) {
         errorMessage = err.message
       } else if (err && typeof err === 'object') {
-        if (err.message) {
-          errorMessage = err.message
-        } else if (err.error) {
-          errorMessage = err.error
-        } else if (err.details) {
-          errorMessage = err.details
-        } else {
-          // Handle empty objects by providing a more helpful message
-          errorMessage = 'Account data unavailable. Please try refreshing the page.'
-        }
+        if (err.message) errorMessage = err.message
+        else if (err.error) errorMessage = err.error
+        else if (err.details) errorMessage = err.details
+        else errorMessage = 'Account data unavailable. Please try refreshing the page.'
       }
       
       setError(errorMessage)
+
+      const fb = fallbackGeneralAccounts(user)
+      setAccounts(fb)
+      setActiveAccount(fb[0] ?? null)
+      setActiveSession(null)
     } finally {
       setIsLoading(false)
     }

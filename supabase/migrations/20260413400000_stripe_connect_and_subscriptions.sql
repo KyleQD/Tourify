@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Add Stripe columns to profiles and create subscriptions table
 
 -- Stripe Connect account ID for sellers (artists, venues, etc.)

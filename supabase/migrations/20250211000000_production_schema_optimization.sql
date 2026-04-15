@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- ============================================================================= 
 -- PRODUCTION SCHEMA OPTIMIZATION
 -- This migration consolidates the database schema for production readiness

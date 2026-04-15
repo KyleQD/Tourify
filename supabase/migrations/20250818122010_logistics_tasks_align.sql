@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Align logistics_tasks FKs and add notifications on assignment
 create extension if not exists pgcrypto;
 

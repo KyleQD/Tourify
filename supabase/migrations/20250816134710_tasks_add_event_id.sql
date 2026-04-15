@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Ensure tasks has event_id to derive org context reliably
 do $$ begin
   if to_regclass('public.tasks') is not null then

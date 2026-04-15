@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Comprehensive Authentication System Fix
 -- This migration consolidates all authentication fixes and ensures proper user signup
 

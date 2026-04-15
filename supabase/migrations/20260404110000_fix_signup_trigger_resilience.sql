@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Harden signup profile trigger so auth signup does not fail when
 -- metadata is incomplete or username candidates collide.
 

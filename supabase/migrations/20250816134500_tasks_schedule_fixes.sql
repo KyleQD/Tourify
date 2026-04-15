@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Safe, idempotent fixes for tasks/schedule schema mismatches
 -- Adds missing columns if prior tables existed with different shapes
 -- Ensures dependent indexes/triggers exist without errors

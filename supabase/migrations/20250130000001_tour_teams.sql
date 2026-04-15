@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- TOUR TEAMS MIGRATION
 -- This migration adds support for tour teams and team members

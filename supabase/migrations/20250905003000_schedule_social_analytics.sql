@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- pg_cron / pg_net for scheduled social-analytics (optional Edge invocation).
 -- Supabase Vault (`create extension vault`) is dashboard-enabled on hosted projects, not always available via migration.
 

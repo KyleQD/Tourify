@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 create extension if not exists pgcrypto;
 
 create table if not exists hiring_audit_events (

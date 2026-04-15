@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Temporarily mark all existing profiles as upgraded (Pro) during beta
 -- NEVER RESET THE DATABASE
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 create table if not exists staffing_api_telemetry (
   id uuid primary key default gen_random_uuid(),
   endpoint text not null,

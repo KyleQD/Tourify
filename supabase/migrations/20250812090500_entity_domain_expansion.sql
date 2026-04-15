@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- Entity Domain Expansion (Additive, Non-breaking)
 -- Agencies, Companies, Equipment Assets (polymorphic), Locations, Participants, Packages

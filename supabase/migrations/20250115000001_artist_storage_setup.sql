@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================
 -- Artist Storage Setup Migration
 -- Creates storage buckets and policies for artist content

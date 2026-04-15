@@ -1,9 +1,15 @@
 "use client"
 
 import { useEffect, useMemo, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
 
 type LoadingVariant = 'pulse' | 'rotate' | 'glow' | 'particles' | 'waves' | 'orbit' | 'breathe'
+
+// Canonical asset in public/ is SVG; avoid 404ing missing /images/*.png first.
+const DEFAULT_LOGO = '/tourify-logo-white.svg'
+const LEGACY_PNG_LOGO = '/images/tourify-logo-white.png'
 
 interface BrandLoadingScreenProps {
   message?: string
@@ -23,16 +29,27 @@ interface LoadingContainerProps {
   fullScreen: boolean
 }
 
+function loadingHeading(message: string) {
+  const trimmed = message.trim()
+  if (!trimmed) return 'Loading'
+  return trimmed.replace(/\.+$/u, '').trim() || 'Loading'
+}
+
+function uniqueLogoCandidates(logoSrc: string) {
+  return [...new Set([logoSrc, DEFAULT_LOGO, LEGACY_PNG_LOGO])].filter(Boolean)
+}
+
 function LoadingContainer({ children, fullScreen }: LoadingContainerProps) {
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950 text-white">
+      <div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-zinc-950 text-white">
         <div className="pointer-events-none absolute inset-0">
-          <div className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-purple-500/20 blur-3xl" />
-          <div className="absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.07),transparent_50%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(139,92,246,0.22),transparent_55%),radial-gradient(ellipse_90%_60%_at_100%_100%,rgba(59,130,246,0.14),transparent_50%)]" />
+          <div className="absolute -top-28 left-1/2 h-[22rem] w-[22rem] -translate-x-1/2 rounded-full bg-violet-500/15 blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-blue-500/12 blur-3xl" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(0,0,0,0.5),transparent_45%)]" />
         </div>
-        <div className="relative z-10 w-full max-w-md px-6">{children}</div>
+        <div className="relative z-10 w-full max-w-sm px-5 sm:max-w-md sm:px-6">{children}</div>
       </div>
     )
   }
@@ -40,41 +57,36 @@ function LoadingContainer({ children, fullScreen }: LoadingContainerProps) {
   return (
     <div className="relative flex min-h-[60vh] w-full items-center justify-center overflow-hidden px-4 py-12 text-white">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-20 left-1/2 h-56 w-56 -translate-x-1/2 rounded-full bg-purple-500/20 blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 h-52 w-52 rounded-full bg-blue-500/20 blur-3xl" />
+        <div className="absolute -top-24 left-1/2 h-60 w-60 -translate-x-1/2 rounded-full bg-violet-500/15 blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 h-52 w-52 rounded-full bg-blue-500/12 blur-3xl" />
       </div>
-      <div className="relative z-10 w-full max-w-md">{children}</div>
+      <div className="relative z-10 w-full max-w-sm sm:max-w-md">{children}</div>
     </div>
   )
 }
 
-function getLoadingDots({ dots }: { dots: string }) {
-  if (!dots) return ' '
-  return dots
-}
-
 export function BrandLoadingScreen({
-  message = 'Loading...',
+  message = 'Loading',
   subMessage = 'Preparing your Tourify experience',
   variant = 'glow',
   showProgress = false,
   progress = 0,
   fullScreen = true,
-  logoSrc = '/tourify-logo-white.svg',
+  logoSrc = DEFAULT_LOGO,
   primaryColor,
   secondaryColor,
   onComplete
 }: BrandLoadingScreenProps) {
-  const [dots, setDots] = useState('')
+  const logoCandidates = useMemo(() => uniqueLogoCandidates(logoSrc), [logoSrc])
+  const [logoAttempt, setLogoAttempt] = useState(0)
   const [simulatedProgress, setSimulatedProgress] = useState(0)
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setDots((currentDots) => (currentDots.length >= 3 ? '' : `${currentDots}.`))
-    }, 450)
+    setLogoAttempt(0)
+  }, [logoSrc])
 
-    return () => clearInterval(interval)
-  }, [])
+  const displayLogoSrc =
+    logoCandidates[Math.min(logoAttempt, logoCandidates.length - 1)] ?? DEFAULT_LOGO
 
   useEffect(() => {
     if (!showProgress) return
@@ -111,55 +123,88 @@ export function BrandLoadingScreen({
     '--brand-secondary': secondaryColor ?? 'rgba(59, 130, 246, 1)'
   } as React.CSSProperties
 
+  function handleLogoError() {
+    setLogoAttempt((attempt) =>
+      attempt < logoCandidates.length - 1 ? attempt + 1 : attempt
+    )
+  }
+
+  const heading = loadingHeading(message)
+
+  const cardVariantClass =
+    variant === 'pulse'
+      ? 'ring-1 ring-violet-500/25'
+      : variant === 'glow'
+        ? 'shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_25px_80px_-20px_rgba(139,92,246,0.35),0_18px_50px_-24px_rgba(59,130,246,0.2)]'
+        : ''
+
   return (
     <LoadingContainer fullScreen={fullScreen}>
       <Card
-        className="relative overflow-hidden rounded-3xl border border-white/20 bg-white/10 p-8 shadow-2xl shadow-purple-900/20 backdrop-blur-2xl"
+        className={cn(
+          'relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/45 p-9 shadow-2xl backdrop-blur-2xl sm:rounded-3xl sm:p-10',
+          cardVariantClass
+        )}
         style={styleVars}
       >
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/20 via-white/5 to-transparent" />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.07] via-transparent to-transparent" />
+        <div className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-violet-500/[0.14] via-transparent to-sky-500/[0.12] opacity-70 sm:rounded-3xl" />
 
-        <div className="relative flex flex-col items-center gap-6 text-center">
-          <div className="relative flex h-24 w-24 items-center justify-center rounded-2xl border border-white/25 bg-white/15 p-4 shadow-xl backdrop-blur-xl">
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-purple-400/20 to-blue-400/10" />
+        <div className="relative flex flex-col items-center gap-7 text-center">
+          <div className="relative flex h-[4.5rem] w-full max-w-[220px] items-center justify-center rounded-xl px-4 py-3 ring-1 ring-white/10 sm:h-[5rem] sm:max-w-[240px]">
+            <div
+              className={cn(
+                'absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500/10 via-transparent to-sky-500/10',
+                variant === 'pulse' && 'motion-safe:animate-pulse'
+              )}
+            />
+            {/* eslint-disable-next-line @next/next/no-img-element -- dynamic public paths + chained fallbacks */}
             <img
-              src={logoSrc}
-              alt="Tourify logo"
-              className="relative h-full w-full object-contain drop-shadow-[0_0_18px_rgba(192,132,252,0.55)]"
+              src={displayLogoSrc}
+              alt="Tourify"
+              width={220}
+              height={72}
+              decoding="async"
+              fetchPriority={fullScreen ? 'high' : 'auto'}
+              onError={handleLogoError}
+              className="relative z-[1] h-12 w-auto max-w-full object-contain object-center drop-shadow-[0_0_20px_rgba(167,139,250,0.35)] sm:h-14"
             />
           </div>
 
-          <div className="space-y-2">
-            <p className="text-lg font-medium text-white">
-              {message}
-              {getLoadingDots({ dots })}
-            </p>
-            <p className="text-sm text-slate-300">{subMessage}</p>
+          <div className="flex w-full flex-col items-center gap-3">
+            <div className="flex items-center justify-center gap-2.5">
+              <Loader2
+                className="h-5 w-5 shrink-0 animate-spin text-violet-400/90"
+                aria-hidden
+              />
+              <p className="text-lg font-semibold tracking-tight text-white sm:text-xl">{heading}</p>
+            </div>
+            <p className="max-w-[280px] text-sm leading-relaxed text-zinc-400 sm:max-w-xs">{subMessage}</p>
           </div>
 
           {showProgress ? (
-            <div className="w-full max-w-xs space-y-2">
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+            <div className="w-full max-w-xs space-y-2.5">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10 ring-1 ring-white/5">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-purple-400 to-blue-400 transition-all duration-200"
+                  className="h-full rounded-full bg-gradient-to-r from-violet-400 via-fuchsia-400/90 to-sky-400 transition-[width] duration-300 ease-out"
                   style={{ width: `${effectiveProgress}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-300">{Math.round(effectiveProgress)}%</p>
+              <p className="text-xs tabular-nums text-zinc-500">{Math.round(effectiveProgress)}%</p>
             </div>
           ) : (
-            <div className="flex items-center gap-1">
+            <div className="flex h-5 items-center gap-1.5" aria-hidden>
               {[0, 1, 2].map((item) => (
                 <span
                   key={item}
-                  className="h-1.5 w-1.5 animate-pulse rounded-full bg-purple-300/90"
-                  style={{ animationDelay: `${item * 120}ms` }}
+                  className="h-1.5 w-1.5 animate-bounce rounded-full bg-gradient-to-r from-violet-300 to-sky-300/90 shadow-[0_0_8px_rgba(167,139,250,0.45)]"
+                  style={{ animationDelay: `${item * 140}ms` }}
                 />
               ))}
             </div>
           )}
 
-          <span className="text-xs uppercase tracking-[0.28em] text-slate-400">Tourify</span>
+          <span className="text-[0.65rem] font-medium uppercase tracking-[0.32em] text-zinc-500">Tourify</span>
         </div>
       </Card>
     </LoadingContainer>

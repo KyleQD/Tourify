@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- RLS policies to allow confirmed team members scoped access to tours and related tables
 
 -- Link events to tours when present (nullable; legacy rows may have no tour)

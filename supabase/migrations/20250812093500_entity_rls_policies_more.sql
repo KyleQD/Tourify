@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- Additional RBAC-driven RLS Policies (Additive, Idempotent)
 -- Depends on: has_entity_permission

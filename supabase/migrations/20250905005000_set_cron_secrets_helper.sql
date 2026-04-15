@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Helper: set Postgres settings so scheduled jobs can read app.settings.* (optional).
 -- Usage (run once in SQL editor, customize values):
 --   select set_config('app.settings.project_url', 'https://YOUR_PROJECT_REF.supabase.co', true);

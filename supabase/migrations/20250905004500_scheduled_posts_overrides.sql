@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Ensure scheduled_posts has account_specific_content JSONB column for per-platform overrides
 do $body$
 begin

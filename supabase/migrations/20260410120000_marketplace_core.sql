@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Integrated artist marketplace core schema
 create extension if not exists "pgcrypto";
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Canonical achievements engine + scalable catalog
 -- Aligns runtime service expectations with Supabase-managed schema.
 

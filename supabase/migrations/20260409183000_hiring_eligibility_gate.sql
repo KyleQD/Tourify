@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Hiring eligibility gate hardening + snapshot ledger
 
 create table if not exists hiring_eligibility_snapshots (

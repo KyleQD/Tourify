@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Artist music pinning support
 -- Adds `artist_music.is_pinned` and indexes to support pinned-first ordering.
 

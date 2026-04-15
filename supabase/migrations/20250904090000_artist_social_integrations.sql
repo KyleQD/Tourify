@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Artist social integrations: connect external social media accounts
 create table if not exists artist_social_integrations (
   id uuid primary key default uuid_generate_v4(),

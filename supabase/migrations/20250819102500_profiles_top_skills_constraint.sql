@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Enforce max 6 top skills on profiles
 
 do $$

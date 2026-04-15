@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Scaling indexes and materialized views for forum performance
 
 -- Extensions needed

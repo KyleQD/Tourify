@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Recurring booking templates and slots for venue schedules
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

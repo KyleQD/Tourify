@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Admin Staffing, Onboarding, and Communications Core
 create extension if not exists pgcrypto;
 

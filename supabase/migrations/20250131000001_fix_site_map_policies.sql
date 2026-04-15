@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Fix duplicate policy conflicts for site map system
 -- This migration handles existing policies that might conflict
 

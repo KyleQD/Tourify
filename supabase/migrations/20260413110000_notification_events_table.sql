@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Notification events audit table for analytics (getMetrics, logNotificationEvent)
 create table if not exists notification_events (
   id uuid primary key default gen_random_uuid(),

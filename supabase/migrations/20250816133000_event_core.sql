@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event core: calendars, holds, events, audit logs
 create extension if not exists pgcrypto;
 

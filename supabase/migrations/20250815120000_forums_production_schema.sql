@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Production-ready Forums system with Reddit-like features
 -- This migration replaces the simple forum system with a comprehensive one
 -- Includes: communities, threads, nested comments, votes, tags, moderation, notifications

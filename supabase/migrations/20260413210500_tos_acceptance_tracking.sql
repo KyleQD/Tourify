@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- TOS (Terms of Service) Acceptance Tracking
 -- Adds tos_accepted_at to profiles and seeds platform TOS agreement templates

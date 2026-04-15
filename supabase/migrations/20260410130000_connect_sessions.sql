@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 create table if not exists public.connect_sessions (
   id uuid primary key,
   sharer_user_id uuid not null references auth.users(id) on delete cascade,

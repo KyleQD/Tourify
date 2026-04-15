@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Allow trigger to upsert into profiles during auth.users insert safely
 
 alter table profiles enable row level security;

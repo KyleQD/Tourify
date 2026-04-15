@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Organizations, RBAC, Invites
 create extension if not exists pgcrypto;
 

@@ -59,11 +59,16 @@ export class AccountManagementService {
           
           try {
             // Try to create profile via API endpoint
+            const profileCreateSignal =
+              typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
+                ? AbortSignal.timeout(15000)
+                : undefined
             const response = await fetch('/api/profile/create', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
               },
+              signal: profileCreateSignal,
             })
             
             if (response.ok) {
@@ -210,13 +215,25 @@ export class AccountManagementService {
         console.log('❌ [Account Management] No organizer accounts found in profile settings')
       }
 
-      // Try to get artist profiles
-      try {
-        const { data: artistProfiles, error: artistError } = await clientToUse
-          .from('artist_profiles')
-          .select('*')
+      // Load linked account rows in parallel (was sequential browser→Supabase calls and could stall dashboards).
+      console.log('[Account Management] Loading artist/venue/staff/organizer data in parallel...')
+      const [
+        { data: artistProfiles, error: artistError },
+        { data: venueProfiles, error: venueError },
+        { data: staffMemberships, error: staffError },
+        { data: organizerAccountsTable, error: organizerError },
+      ] = await Promise.all([
+        clientToUse.from('artist_profiles').select('*').eq('user_id', userId),
+        clientToUse.from('venue_profiles').select('*').or(`user_id.eq.${userId},main_profile_id.eq.${userId}`),
+        clientToUse
+          .from('venue_team_members')
+          .select('id, venue_id, name, email, role, department, status, venue_profiles:venue_id(id, venue_name, url_slug)')
           .eq('user_id', userId)
+          .in('status', ['active', 'inactive']),
+        clientToUse.from('organizer_accounts').select('*').eq('user_id', userId).eq('is_active', true),
+      ])
 
+      try {
         if (artistProfiles && !artistError) {
           artistProfiles.forEach((artist: any) => {
             accounts.push({
@@ -241,14 +258,8 @@ export class AccountManagementService {
         console.log('[Account Management] Artist profiles not available:', artistError)
       }
 
-      // Try to get venue profiles - only show accounts that actually exist in database
       try {
         console.log('[Account Management] Checking for venue profiles in database...')
-        const { data: venueProfiles, error: venueError } = await clientToUse
-          .from('venue_profiles')
-          .select('*')
-          .or(`user_id.eq.${userId},main_profile_id.eq.${userId}`)
-
         if (venueProfiles && !venueError && venueProfiles.length > 0) {
           console.log(`[Account Management] Found ${venueProfiles.length} venue profiles in database:`, venueProfiles.map((v: any) => v.venue_name))
           venueProfiles.forEach((venue: any) => {
@@ -276,14 +287,7 @@ export class AccountManagementService {
         console.log('[Account Management] Venue profiles not available:', venueError)
       }
 
-      // Try to get staff memberships tied to this user
       try {
-        const { data: staffMemberships, error: staffError } = await clientToUse
-          .from('venue_team_members')
-          .select('id, venue_id, name, email, role, department, status, venue_profiles:venue_id(id, venue_name, url_slug)')
-          .eq('user_id', userId)
-          .in('status', ['active', 'inactive'])
-
         if (staffMemberships && !staffError && staffMemberships.length > 0) {
           staffMemberships.forEach((membership: any) => {
             accounts.push({
@@ -309,14 +313,7 @@ export class AccountManagementService {
         console.log('[Account Management] Staff memberships not available:', staffError)
       }
 
-      // Check for organizer accounts in dedicated organizer_accounts table (NEW ROBUST APPROACH)
       try {
-        const { data: organizerAccountsTable, error: organizerError } = await clientToUse
-          .from('organizer_accounts')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-
         if (organizerAccountsTable && !organizerError) {
           organizerAccountsTable.forEach((organizer: any) => {
             console.log('➕ [Account Management] Adding organizer account from table:', organizer.organization_name)

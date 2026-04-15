@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Idempotent repair: tour_team_members shape differs between tours_core (no tour_id
 -- on members, no is_active) and tour_teams migrations. Ensures helpers match DBs that
 -- already recorded 20260413220500 before the join/column fixes.

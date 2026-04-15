@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Content reports table for DMCA/copyright and general content moderation
 CREATE TABLE IF NOT EXISTS public.content_reports (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event Attendance & Guestlist (Safe, Additive)
 -- - Adds event_attendance for RSVP statuses
 -- - Adds event_guestlist for invited guests (with optional user binding)

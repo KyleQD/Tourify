@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create events table
 CREATE TABLE IF NOT EXISTS events (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

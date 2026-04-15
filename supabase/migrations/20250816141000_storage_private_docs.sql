@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Private docs storage bucket and policies
 -- Create bucket if not exists
 insert into storage.buckets (id, name, public) values ('private-docs','private-docs', false)

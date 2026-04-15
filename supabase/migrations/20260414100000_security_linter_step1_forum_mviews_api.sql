@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Step 1 (security linter 0016_materialized_view_in_api):
 -- Forum ranking MVs are refreshed by postgres/cron; they must not be directly
 -- queryable via PostgREST (anon / authenticated).

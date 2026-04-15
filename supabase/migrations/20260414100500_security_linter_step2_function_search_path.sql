@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Step 2 (security linter 0011_function_search_path_mutable):
 -- Pin search_path on public schema functions so object resolution does not
 -- follow the caller's mutable search_path. Include extensions for unqualified

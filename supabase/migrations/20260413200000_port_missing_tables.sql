@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Port tables referenced in application code that were only in backup migrations.
 -- Uses IF NOT EXISTS / CREATE ... IF NOT EXISTS throughout to be safely idempotent.
 

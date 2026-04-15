@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create posts table
 CREATE TABLE IF NOT EXISTS posts (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

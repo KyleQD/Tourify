@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event vendor requests: track vendor engagement per event
 create extension if not exists pgcrypto;
 

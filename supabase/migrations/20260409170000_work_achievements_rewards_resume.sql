@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Work achievements, rewards wallet, and resume highlight system
 
 create table if not exists user_reward_wallets (

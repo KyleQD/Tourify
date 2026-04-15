@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Atomic view counter for job posting templates (avoid read-modify-write races)
 create or replace function increment_job_posting_views(p_job_id uuid)
 returns void

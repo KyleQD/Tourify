@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create staff_invitations table if it does not exist, augmented for tour invites
 
 CREATE TABLE IF NOT EXISTS staff_invitations (

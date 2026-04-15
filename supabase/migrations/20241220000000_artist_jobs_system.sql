@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- ARTIST JOBS SYSTEM MIGRATION
 -- This migration creates the complete artist jobs ecosystem

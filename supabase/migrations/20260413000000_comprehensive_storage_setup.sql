@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- Comprehensive Storage Buckets Migration
 -- Creates all application storage buckets that were previously only defined in

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Attach events to venues by optional foreign key venue_id
 -- Idempotent migration: safe to run multiple times
 

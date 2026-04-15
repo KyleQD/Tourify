@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Staffing query performance indexes for deployment-scale filtering and dashboards
 
 -- Ensure columns referenced by these indexes exist.

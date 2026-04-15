@@ -144,7 +144,7 @@ export function TourifyHubPage() {
   }, [appliedLocation])
 
   if (loading) {
-    return <BrandLoadingScreen message="Loading hub..." logoSrc="/tourify-logo-white.svg" fullScreen={false} />
+    return <BrandLoadingScreen message="Loading hub..." fullScreen={false} />
   }
 
   return (

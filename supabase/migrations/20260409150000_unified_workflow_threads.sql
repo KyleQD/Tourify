@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Unified workflow threads for event/tour collaboration
 
 create table if not exists workflow_threads (

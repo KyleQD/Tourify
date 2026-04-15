@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event Extensions Migration (Safe, Additive)
 -- - Adds friendly URL support via slug
 -- - Adds created_by (alias for user_id used by some code paths)

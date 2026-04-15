@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 create table if not exists public.connect_telemetry_events (
   id bigint generated always as identity primary key,
   request_id uuid not null,

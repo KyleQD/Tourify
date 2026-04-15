@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Financial tracking: transactions and budgets for organizer operations
 create extension if not exists pgcrypto;
 

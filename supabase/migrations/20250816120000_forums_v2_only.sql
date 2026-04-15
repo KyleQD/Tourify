@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Simple migration to create just the new forum system without conflicts
 -- This focuses on the core forum functionality needed for the UI
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Logistics: vendor workflows, equipment catalog/inventory, and location tracking
 create extension if not exists pgcrypto;
 

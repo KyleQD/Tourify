@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- Venue Core: booking requests, documents, team, analytics, availability, pricing
 -- Safe migration (idempotent): uses IF NOT EXISTS guards; no destructive ops

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Profile Content Core: top skills, endorsements, portfolio, experience, certifications
 -- Non-destructive: creates columns/tables/policies if missing
 

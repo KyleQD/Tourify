@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Fix notifications table schema mismatch
 -- This migration adds missing columns that the application code expects
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Fix get_venue_dashboard_stats: venue_booking_requests has no event_id in core schema.
 -- Upcoming events should be counted from events.venue_id instead of a broken join.
 

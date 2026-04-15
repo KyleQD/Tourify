@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event HQ: Resources table for shared itineraries, links, notes, files
 CREATE TABLE IF NOT EXISTS event_resources (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Step 3 (security linter 0024_permissive_rls_policy): replace INSERT/UPDATE/DELETE/ALL
 -- policies that use bare true / open WITH CHECK with role- and data-scoped rules.
 

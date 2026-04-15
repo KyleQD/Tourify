@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Marketplace expansion: universal seller support, external links, seller agreement tracking
 
 alter table public.marketplace_storefronts

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Extend handle_new_user() trigger to read account_type from user metadata
 -- and persist it to profiles.account_type on signup.
 

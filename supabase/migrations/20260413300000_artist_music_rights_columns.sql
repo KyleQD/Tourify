@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Add rights attestation columns to artist_music
 ALTER TABLE public.artist_music
   ADD COLUMN IF NOT EXISTS rights_confirmed boolean NOT NULL DEFAULT false,

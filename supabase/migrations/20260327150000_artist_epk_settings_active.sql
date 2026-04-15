@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 create table if not exists public.artist_epk_settings (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,

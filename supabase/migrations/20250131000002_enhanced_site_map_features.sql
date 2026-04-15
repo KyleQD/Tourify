@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Enhanced Site Map Features Migration
 -- Phase 1: Core functionality with layers, measurements, QR codes, and version control
 

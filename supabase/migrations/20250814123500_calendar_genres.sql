@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Calendar genres/tags support for booking requests and events
 
 -- Add simple genre tagging to booking requests

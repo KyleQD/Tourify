@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Unify artist event creation on core `events` table
 -- Safe, additive migration for artist-specific event pipeline
 

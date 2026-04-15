@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Ticketing schema tied to events_v2 (canonical event model)
 create extension if not exists pgcrypto;
 

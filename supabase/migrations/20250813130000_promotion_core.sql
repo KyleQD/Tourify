@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Core schema for promotions, organizer pages, follows, and feeds
 
 -- 1) promotion_posts

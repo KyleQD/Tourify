@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- ============================================================================= 
 -- COMPLETE FOLLOW/FRIEND REQUEST SYSTEM
 -- This migration ensures the complete ecosystem for follow requests is set up

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Step 5 (security linter 0014_extension_in_public):
 -- Install/move extensions in the dedicated "extensions" schema instead of public.
 -- supabase/config.toml already sets extra_search_path = ["public", "extensions"] for the API.

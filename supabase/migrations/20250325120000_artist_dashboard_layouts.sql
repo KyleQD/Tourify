@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Per-user artist dashboard widget order / visibility (author-scoped, RLS owner-only)
 -- Aligns with docs/artist-dashboard-wireframe.md
 

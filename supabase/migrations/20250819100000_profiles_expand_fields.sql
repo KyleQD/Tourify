@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Expand profiles table with additional columns for user settings and visibility
 -- Non-destructive: only adds columns/constraints if missing. No data resets.
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Fix RLS policies for site_maps table
 -- This fixes the "new row violates row-level security policy" error
 

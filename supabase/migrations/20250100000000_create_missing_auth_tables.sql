@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create tables referenced by later migrations (20250101000000_fix_authentication_system.sql,
 -- 20250120000000_event_social_features.sql) that were never added to the active migration set.
 

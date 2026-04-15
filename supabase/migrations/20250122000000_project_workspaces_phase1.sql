@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- PROJECT WORKSPACES - PHASE 1 IMPLEMENTATION
 -- Builds on existing infrastructure for collaboration projects

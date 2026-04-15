@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Fast aggregate RPC for staffing dashboard overview cards.
 create or replace function staffing_overview_counts(p_venue_id uuid)
 returns table (

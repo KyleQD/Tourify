@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Music commerce expansion: listings<->tracks link, playlists, buyer library, and canonical music view.
 
 alter table public.marketplace_listings

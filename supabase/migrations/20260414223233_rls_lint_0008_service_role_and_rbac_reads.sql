@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Supabase linter 0008_rls_enabled_no_policy:
 -- https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy
 --

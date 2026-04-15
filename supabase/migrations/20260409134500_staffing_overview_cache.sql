@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Cached staffing summary snapshots for dashboard hot paths
 
 create table if not exists staffing_overview_cache (

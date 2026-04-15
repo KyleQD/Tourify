@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Incidents logging
 create extension if not exists pgcrypto;
 

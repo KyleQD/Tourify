@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 create table if not exists staffing_alert_events (
   id uuid primary key default gen_random_uuid(),
   venue_id uuid not null,

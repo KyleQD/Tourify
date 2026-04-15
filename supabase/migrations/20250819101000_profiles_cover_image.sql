@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Add cover_image to profiles and backfill from existing sources
 
 begin;

@@ -106,10 +106,10 @@ export function Loading({ className, variant = 'default', size = 'md', text }: L
 
 // Full page loading overlay
 export function LoadingOverlay({ text = "Loading..." }: { text?: string }) {
-  return <BrandLoadingScreen message={text} logoSrc="/tourify-logo-white.svg" fullScreen={true} />
+  return <BrandLoadingScreen message={text} fullScreen />
 }
 
 // Page transition loading
 export function PageLoading() {
-  return <BrandLoadingScreen message="Loading..." logoSrc="/tourify-logo-white.svg" fullScreen={true} />
+  return <BrandLoadingScreen message="Loading" fullScreen />
 } 

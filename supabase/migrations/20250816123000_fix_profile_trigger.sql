@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Fix signup failure: make profile creation trigger idempotent and robust
 -- Root cause: INSERT into public.profiles failed (duplicate key) when the user row
 -- already had a profile (e.g., retried signup, partial state). We now UPSERT.

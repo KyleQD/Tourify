@@ -424,11 +424,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <BrandLoadingScreen
-        message="Loading..."
-        logoSrc="/tourify-logo-white.svg"
-        fullScreen={true}
-      />
+      <BrandLoadingScreen message="Loading" fullScreen />
     )
   }
 

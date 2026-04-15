@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Option B: parallel Connect columns — legacy Express (v1) vs V2 core accounts.
 -- Existing sellers keep stripe_connect_account_id + kind v1_express; new onboarding uses v2 column + kind v2.
 

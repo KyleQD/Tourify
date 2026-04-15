@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Offers, signatures, and required docs
 create extension if not exists pgcrypto;
 

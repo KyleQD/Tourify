@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- RLS Policies for New Entity Tables using has_entity_permission RPC
 -- (Postgres < 16: no CREATE POLICY IF NOT EXISTS — use drop + create.)

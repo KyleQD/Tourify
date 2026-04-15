@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================
 -- Artist Music System Migration
 -- Creates tables for artist music uploads and management

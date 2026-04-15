@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Notify assignee on logistics task status changes
 create or replace function notify_task_status_change() returns trigger language plpgsql as $$
 declare title_text text;

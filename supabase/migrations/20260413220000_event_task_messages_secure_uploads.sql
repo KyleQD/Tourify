@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event Task Messages & Secure Uploads
 -- Provides actionable task assignments with deep-link routing
 -- and encrypted document storage with full audit trails

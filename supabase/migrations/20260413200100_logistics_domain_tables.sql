@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- LOGISTICS DOMAIN TABLES (consolidated from backup migrations)
 -- Covers: Lodging, Rentals (backline), and Travel Coordination

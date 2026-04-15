@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Tasks and Schedule for Event Ops
 create extension if not exists pgcrypto;
 

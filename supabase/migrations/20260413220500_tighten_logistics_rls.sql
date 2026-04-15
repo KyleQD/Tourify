@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- Tighten RLS on logistics domain tables
 -- Replaces blanket auth.uid() IS NOT NULL checks with proper scoping:

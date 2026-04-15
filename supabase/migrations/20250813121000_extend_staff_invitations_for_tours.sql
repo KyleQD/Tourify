@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Extend staff_invitations to support tour-scoped invites and roles.
 -- Table may be created later by 20250813123000_create_staff_invitations_if_missing.sql — skip if absent.
 

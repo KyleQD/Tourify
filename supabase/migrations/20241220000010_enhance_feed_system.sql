@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Enhanced Feed System Migration
 -- This migration adds comprehensive social features to the existing posts system
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create profiles table
 CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,

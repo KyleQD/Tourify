@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Restore complete signup side-effects on auth.users insert (profile row with email,
 -- active profile row, onboarding row) and keep profiles in sync when email is confirmed.
 

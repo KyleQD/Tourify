@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Shared helpers for idempotent migrations without NOTICE spam from DROP POLICY IF EXISTS.
 do $body$
 begin

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Site Map System Migration
 -- Interactive site maps for festival vendors and logistics management
 

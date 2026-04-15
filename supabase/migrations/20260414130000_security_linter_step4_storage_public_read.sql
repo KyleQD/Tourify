@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Step 4 (security linter 0025_public_bucket_allows_listing):
 -- Public buckets must not use SELECT policies that match only bucket_id (full-bucket list).
 -- Require a normal object path: first segment + at least one file segment, bounded length, no "..".

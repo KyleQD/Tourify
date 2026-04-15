@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- RLS fixes for schedules and schedule_items subqueries returning multiple rows
 
 do $$ begin

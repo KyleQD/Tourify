@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- Minimal Entity Registry (Compatibility Views)
 -- Non-breaking: expose a unified view over existing profile tables

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- COMPREHENSIVE NOTIFICATION SYSTEM MIGRATION
 -- This migration fixes all notification system issues and implements scalability

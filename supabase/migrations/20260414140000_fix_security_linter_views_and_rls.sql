@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Supabase database linter:
 -- 0010_security_definer_view: use security_invoker (Postgres 15+)
 -- 0013_rls_disabled_in_public: enable RLS + minimal safe policies

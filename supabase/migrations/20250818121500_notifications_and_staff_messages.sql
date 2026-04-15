@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Minimal notifications and staff_messages as per product definitions
 create extension if not exists pgcrypto;
 

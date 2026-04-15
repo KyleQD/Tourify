@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Job Board core tables for publishing job postings externally and on org profiles
 create extension if not exists pgcrypto;
 

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- =============================================================================
 -- EVENT SOCIAL FEATURES MIGRATION
 -- Comprehensive system for event pages with social features and attendance

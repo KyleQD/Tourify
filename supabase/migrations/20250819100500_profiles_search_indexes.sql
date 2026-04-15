@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create GIN indexes for array fields used in search/filtering
 -- Non-destructive and safe to re-run
 

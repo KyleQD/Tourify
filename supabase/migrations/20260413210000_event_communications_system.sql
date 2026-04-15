@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Event Communications System: Bulletins, Group Chats, Documents
 -- Provides internal communication capabilities for event teams
 

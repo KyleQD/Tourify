@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Add per-platform status tracking on scheduled_posts (table may not exist on all migration paths)
 
 alter table if exists scheduled_posts

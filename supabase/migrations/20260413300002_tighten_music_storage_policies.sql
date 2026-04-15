@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Tighten artist-music storage bucket policies
 -- Ensure only the owner can directly access objects via RLS.
 -- All public access goes through the application's signed URL endpoints.

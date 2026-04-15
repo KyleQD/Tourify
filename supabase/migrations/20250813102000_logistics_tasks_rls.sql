@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Tighten RLS for logistics tables using entity RBAC
 
 -- Drop permissive policies if they exist

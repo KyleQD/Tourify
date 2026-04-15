@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Migration for Friend Suggestions System
 -- This migration ensures all necessary tables and indexes exist for the friend suggestions system
 

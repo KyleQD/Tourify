@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Tours domain: multi-event, multi-venue, multi-artist, vendor and team scaffolding
 create extension if not exists pgcrypto;
 

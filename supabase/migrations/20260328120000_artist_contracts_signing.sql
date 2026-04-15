@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Artist contracts: counterparty, template metadata, send + sign RPCs, RLS for counterparties
 
 alter table public.artist_contracts

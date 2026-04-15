@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Compatibility RLS for tasks: support legacy schemas without org_id
 
 do $$ begin

@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Create 10 default music forums for Reddit-like discussions
 -- This migration depends on forums table existing from 20250815111000_forums_core.sql
 

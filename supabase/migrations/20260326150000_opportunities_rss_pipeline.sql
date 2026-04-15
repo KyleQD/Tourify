@@ -1,3 +1,5 @@
+set client_min_messages = warning;
+
 -- Opportunities pipeline backed by external RSS sources.
 -- Non-destructive: create-if-missing plus idempotent policies/indexes.
 
