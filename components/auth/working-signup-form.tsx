@@ -184,53 +184,19 @@ export default function WorkingSignupForm() {
 
       console.log('User account created successfully:', data.user.id)
 
-      // Step 2: Create profile manually
-      console.log('Creating profile manually...')
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([{
-          id: data.user.id,
-          name: formData.fullName,
-          username: formData.username,
-          full_name: formData.fullName,
-          email: formData.email,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
+      // Profile, user_active_profiles, and onboarding rows are created by the
+      // database trigger `on_auth_user_created` (see supabase migrations).
 
-      if (profileError) {
-        console.error('Profile creation failed:', profileError)
-        // Don't fail the signup, just log the error
-        // The user account was created successfully
-      } else {
-        console.log('Profile created successfully')
-      }
+      const needsEmailConfirmation = Boolean(data.user) && !data.session
 
-      // Step 3: Create active profile entry
-      console.log('Creating active profile entry...')
-      const { error: activeProfileError } = await supabase
-        .from('user_active_profiles')
-        .insert([{
-          user_id: data.user.id,
-          active_profile_type: 'general',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-
-      if (activeProfileError) {
-        console.error('Active profile creation failed:', activeProfileError)
-        // Don't fail the signup, just log the error
-      } else {
-        console.log('Active profile created successfully')
-      }
-
-      // Step 4: Record TOS acceptance
-      if (formData.acceptTerms) {
+      // TOS / agreements require an authenticated session (RLS + API use cookies)
+      if (formData.acceptTerms && data.session) {
         const now = new Date().toISOString()
-        await supabase
+        const { error: tosError } = await supabase
           .from('profiles')
           .update({ tos_accepted_at: now, tos_version: 1, privacy_accepted_at: now })
           .eq('id', data.user.id)
+        if (tosError) console.error('TOS profile update failed:', tosError)
 
         try {
           await fetch('/api/agreements/accept', {
@@ -245,12 +211,11 @@ export default function WorkingSignupForm() {
             })
           })
         } catch {
-          // Non-blocking: acceptance was persisted on profile
+          // Non-blocking
         }
       }
 
-      // Step 5: Handle success
-      if ((data as any).needsEmailConfirmation) {
+      if (needsEmailConfirmation) {
         setSuccess('Account created successfully! Please check your email to confirm your account.')
         // Store signup data for onboarding
         localStorage.setItem('signup_data', JSON.stringify({

@@ -26,6 +26,8 @@ interface AuthContextType {
     password: string,
     metadata?: { full_name?: string; username?: string; account_type?: string }
   ) => Promise<{ error?: AuthError; needsEmailConfirmation?: boolean }>
+  /** Resend signup confirmation when the inbox is empty or the link expired. */
+  resendSignupConfirmation: (email: string) => Promise<{ error?: AuthError }>
   signInWithSocial: (provider: SocialProvider, redirectTo?: string) => Promise<{ error?: AuthError }>
   signOut: () => Promise<{ error?: AuthError }>
   resetPassword: (email: string) => Promise<{ error?: AuthError }>
@@ -146,6 +148,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           status: error.status,
           name: error.name
         })
+        const msg = error.message.toLowerCase()
+        if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+          return {
+            error: {
+              ...error,
+              message:
+                'Confirm your email before signing in. Check your inbox and spam folder, or use “Resend confirmation email” on the Sign Up tab.',
+            } as AuthError,
+          }
+        }
         return { error }
       }
       
@@ -280,6 +292,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const resendSignupConfirmation = async (email: string) => {
+    const trimmed = email.trim()
+    if (!trimmed || !trimmed.includes('@')) {
+      return {
+        error: {
+          message: 'Enter the email you used to sign up.',
+          status: 400,
+          name: 'ValidationError',
+        } as AuthError,
+      }
+    }
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: trimmed,
+        options: { emailRedirectTo: getAuthSignUpEmailRedirectTo() },
+      })
+      if (error) {
+        let message = error.message
+        if (message.toLowerCase().includes('rate limit') || message.toLowerCase().includes('too many')) {
+          message = 'Too many resend attempts. Wait a few minutes and try again.'
+        }
+        return { error: { ...error, message } as AuthError }
+      }
+      return { error: undefined }
+    } catch (error) {
+      console.error('[Auth] Resend signup confirmation failed:', error)
+      return {
+        error: {
+          message: 'Could not resend the email. Check your connection and try again.',
+          status: 500,
+          name: 'UnexpectedError',
+        } as AuthError,
+      }
+    }
+  }
+
   const signOut = async () => {
     try {
       setLoading(true)
@@ -400,6 +449,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     retrySessionCheck,
     signIn,
     signUp,
+    resendSignupConfirmation,
     signInWithSocial,
     signOut,
     resetPassword,

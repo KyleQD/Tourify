@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
@@ -42,7 +42,7 @@ export function TourifyAuthPortal({
   cardTitle = "Create your Tourify account",
   cardDescription = "Start free in minutes and activate your profile fast.",
 }: TourifyAuthPortalProps) {
-  const { isAuthenticated, signIn, signUp, signInWithSocial } = useAuth()
+  const { isAuthenticated, signIn, signUp, resendSignupConfirmation, signInWithSocial } = useAuth()
   const searchParams = useSearchParams()
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -52,6 +52,9 @@ export function TourifyAuthPortal({
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isSocialSubmitting, setIsSocialSubmitting] = useState<"google" | "apple" | "facebook" | null>(null)
+  const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState<string | null>(null)
+  const [resendCooldownSec, setResendCooldownSec] = useState(0)
+  const [isResendingConfirmation, setIsResendingConfirmation] = useState(false)
   const [isUsernameEditedManually, setIsUsernameEditedManually] = useState(false)
   const [usernameCheck, setUsernameCheck] = useState<{
     normalized: string
@@ -113,6 +116,12 @@ export function TourifyAuthPortal({
   useEffect(() => {
     setActiveAuthTab(initialAuthTab)
   }, [initialAuthTab])
+
+  useEffect(() => {
+    if (activeAuthTab !== "signin" || !pendingConfirmationEmail) return
+    if (signInData.email.trim()) return
+    setSignInData((prev) => ({ ...prev, email: pendingConfirmationEmail }))
+  }, [activeAuthTab, pendingConfirmationEmail, signInData.email])
 
   useEffect(() => {
     if (isUsernameEditedManually) return
@@ -191,6 +200,31 @@ export function TourifyAuthPortal({
   }, [signInData.email, signInData.password, signUpData.email, signUpData.password])
 
   useEffect(() => {
+    if (resendCooldownSec <= 0) return
+    const id = setTimeout(() => setResendCooldownSec((s) => Math.max(0, s - 1)), 1000)
+    return () => clearTimeout(id)
+  }, [resendCooldownSec])
+
+  const handleResendSignupConfirmation = useCallback(async () => {
+    if (!pendingConfirmationEmail || resendCooldownSec > 0 || isResendingConfirmation) return
+    setIsResendingConfirmation(true)
+    setError(null)
+    const { error: resendError } = await resendSignupConfirmation(pendingConfirmationEmail)
+    setIsResendingConfirmation(false)
+    if (resendError) {
+      setError(mapAuthError(resendError))
+      return
+    }
+    setSuccess("Confirmation email sent again. Check your inbox and spam folder.")
+    setResendCooldownSec(60)
+  }, [
+    pendingConfirmationEmail,
+    resendCooldownSec,
+    isResendingConfirmation,
+    resendSignupConfirmation,
+  ])
+
+  useEffect(() => {
     if (isAuthenticated && success && !isRedirecting) {
       const validRedirectTo = normalizePostLoginRedirect(redirectTo)
       setIsRedirecting(true)
@@ -205,6 +239,8 @@ export function TourifyAuthPortal({
     setError(null)
     setSuccess(null)
     setIsRedirecting(false)
+    setPendingConfirmationEmail(null)
+    setResendCooldownSec(0)
   }
 
   const handleContactSupport = () => {
@@ -310,16 +346,20 @@ export function TourifyAuthPortal({
         account_type: signUpData.accountType,
       })
 
-      if (result.error) setError(mapAuthError(result.error))
-      else {
+      if (result.error) {
+        setPendingConfirmationEmail(null)
+        setError(mapAuthError(result.error))
+      } else {
         if (inviteToken) {
           console.log("Invitation flow will continue after email confirmation")
         }
         if (result.needsEmailConfirmation) {
+          setPendingConfirmationEmail(signUpData.email.trim())
           setSuccess(
             "Account created successfully! Please check your email to confirm your account."
           )
         } else {
+          setPendingConfirmationEmail(null)
           setSuccess("Account created successfully! You are signed in — continue to your dashboard.")
         }
       }
@@ -371,11 +411,38 @@ export function TourifyAuthPortal({
           ) : null}
 
           {success ? (
-            <div className="mb-6 p-4 rounded-lg bg-green-500/20 border border-green-500/50 backdrop-blur-sm">
-              <div className="flex items-center text-green-200">
-                <CheckCircle className="h-4 w-4 mr-2" />
-                <span className="text-sm font-medium">{success}</span>
+            <div className="mb-6 space-y-3 rounded-lg border border-green-500/50 bg-green-500/20 p-4 backdrop-blur-sm">
+              <div className="flex items-start gap-2 text-green-200">
+                <CheckCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span className="text-sm font-medium leading-relaxed">{success}</span>
               </div>
+              {pendingConfirmationEmail ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="touch-manipulation border-green-400/40 bg-green-950/30 text-green-100 hover:bg-green-950/50"
+                    disabled={isResendingConfirmation || resendCooldownSec > 0}
+                    onClick={() => void handleResendSignupConfirmation()}
+                  >
+                    {isResendingConfirmation ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending…
+                      </>
+                    ) : resendCooldownSec > 0 ? (
+                      `Resend available in ${resendCooldownSec}s`
+                    ) : (
+                      "Resend confirmation email"
+                    )}
+                  </Button>
+                  <p className="text-xs text-green-100/80">
+                    Didn&apos;t get it? Check spam and promotions folders. Links work best in Safari,
+                    Chrome, or Firefox.
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -446,7 +513,13 @@ export function TourifyAuthPortal({
                   </Label>
                   <Input
                     id="portal-signin-email"
+                    name="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder="Enter your email"
                     value={signInData.email}
                     onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
@@ -463,7 +536,9 @@ export function TourifyAuthPortal({
                   <div className="relative">
                     <Input
                       id="portal-signin-password"
+                      name="password"
                       type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       placeholder="Enter your password"
                       value={signInData.password}
                       onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
@@ -484,7 +559,7 @@ export function TourifyAuthPortal({
 
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="touch-manipulation min-h-11 w-full rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:from-purple-700 hover:to-blue-700 hover:shadow-purple-500/25 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -520,14 +595,16 @@ export function TourifyAuthPortal({
 
             <TabsContent value="signup" className="space-y-4 mt-6">
               <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="portal-signup-name" className="text-white font-medium">
                       Full Name
                     </Label>
                     <Input
                       id="portal-signup-name"
+                      name="name"
                       type="text"
+                      autoComplete="name"
                       placeholder="John Doe"
                       value={signUpData.name}
                       onChange={(e) => setSignUpData({ ...signUpData, name: e.target.value })}
@@ -543,7 +620,12 @@ export function TourifyAuthPortal({
                     </Label>
                     <Input
                       id="portal-signup-username"
+                      name="username"
                       type="text"
+                      autoComplete="username"
+                      autoCapitalize="none"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="auto-generated from your name"
                       value={signUpData.username}
                       onChange={(e) => {
@@ -579,7 +661,13 @@ export function TourifyAuthPortal({
                   </Label>
                   <Input
                     id="portal-signup-email"
+                    name="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     placeholder="john@example.com"
                     value={signUpData.email}
                     onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
@@ -596,7 +684,9 @@ export function TourifyAuthPortal({
                   <div className="relative">
                     <Input
                       id="portal-signup-password"
+                      name="new-password"
                       type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       placeholder="Create a strong password"
                       value={signUpData.password}
                       onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
@@ -623,7 +713,9 @@ export function TourifyAuthPortal({
                   <div className="relative">
                     <Input
                       id="portal-signup-confirm-password"
+                      name="confirm-new-password"
                       type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       placeholder="Confirm your password"
                       value={signUpData.confirmPassword}
                       onChange={(e) => setSignUpData({ ...signUpData, confirmPassword: e.target.value })}
@@ -644,7 +736,7 @@ export function TourifyAuthPortal({
 
                 <Button
                   type="submit"
-                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-green-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="touch-manipulation min-h-11 w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:from-green-700 hover:to-emerald-700 hover:shadow-green-500/25 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled={isSubmitting || usernameCheck.isChecking || usernameCheck.available === false}
                 >
                   {isSubmitting ? (

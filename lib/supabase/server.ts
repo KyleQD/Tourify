@@ -1,11 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from '../database.types'
+import { mergeAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 interface CookieSet {
   name: string
   value: string
-  options?: any
+  options?: Record<string, unknown>
 }
 
 export async function createClient() {
@@ -25,7 +26,7 @@ export async function createClient() {
         setAll(cookiesToSet: CookieSet[]) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, mergeAuthCookieOptions(options) as any)
             )
           } catch {
             // The `setAll` method was called from a Server Component.

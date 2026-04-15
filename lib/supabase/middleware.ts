@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '../database.types'
 import { parseUserFromCookieNameValueList } from '@/lib/supabase/tourify-session-cookie'
+import { mergeAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 export type MiddlewareSupabase = SupabaseClient<Database>
 
@@ -42,14 +43,14 @@ export async function updateSession(request: NextRequest) {
           supabaseResponse = NextResponse.next({
             request,
           })
-          supabaseResponse.cookies.set(name, value, options)
+          supabaseResponse.cookies.set(name, value, mergeAuthCookieOptions(options) as any)
         },
         remove(name: string, options: any) {
           request.cookies.set(name, '')
           supabaseResponse = NextResponse.next({
             request,
           })
-          supabaseResponse.cookies.set(name, '', options)
+          supabaseResponse.cookies.set(name, '', mergeAuthCookieOptions(options) as any)
         },
       },
     }
