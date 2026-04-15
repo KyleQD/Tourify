@@ -296,8 +296,9 @@ deno_version = 1
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Local: disabling avoids the "analytics requires mounting default docker socket" warning unless you need Logflare analytics in Docker.
 [analytics]
-enabled = true
+enabled = false
 port = 54327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

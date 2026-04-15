@@ -44,26 +44,26 @@ begin
     return;
   end if;
   execute 'alter table public.feed_events enable row level security';
-  execute 'drop policy if exists feed_events_select_own on public.feed_events';
+  perform migration_helpers.drop_policy_if_exists('public', 'feed_events', 'feed_events_select_own');
   execute $p$
     create policy feed_events_select_own on public.feed_events
       for select to authenticated
       using (auth.uid() = user_id)
   $p$;
-  execute 'drop policy if exists feed_events_insert_own on public.feed_events';
+  perform migration_helpers.drop_policy_if_exists('public', 'feed_events', 'feed_events_insert_own');
   execute $p$
     create policy feed_events_insert_own on public.feed_events
       for insert to authenticated
       with check (auth.uid() = user_id)
   $p$;
-  execute 'drop policy if exists feed_events_update_own on public.feed_events';
+  perform migration_helpers.drop_policy_if_exists('public', 'feed_events', 'feed_events_update_own');
   execute $p$
     create policy feed_events_update_own on public.feed_events
       for update to authenticated
       using (auth.uid() = user_id)
       with check (auth.uid() = user_id)
   $p$;
-  execute 'drop policy if exists feed_events_delete_own on public.feed_events';
+  perform migration_helpers.drop_policy_if_exists('public', 'feed_events', 'feed_events_delete_own');
   execute $p$
     create policy feed_events_delete_own on public.feed_events
       for delete to authenticated
@@ -78,7 +78,7 @@ do $$
 begin
   if to_regclass('public.forum_kind') is not null then
     execute 'alter table public.forum_kind enable row level security';
-    execute 'drop policy if exists forum_kind_select on public.forum_kind';
+    perform migration_helpers.drop_policy_if_exists('public', 'forum_kind', 'forum_kind_select');
     execute $p$
       create policy forum_kind_select on public.forum_kind
         for select using (true)
@@ -87,7 +87,7 @@ begin
 
   if to_regclass('public.content_kind') is not null then
     execute 'alter table public.content_kind enable row level security';
-    execute 'drop policy if exists content_kind_select on public.content_kind';
+    perform migration_helpers.drop_policy_if_exists('public', 'content_kind', 'content_kind_select');
     execute $p$
       create policy content_kind_select on public.content_kind
         for select using (true)
@@ -96,7 +96,7 @@ begin
 
   if to_regclass('public.post_kind') is not null then
     execute 'alter table public.post_kind enable row level security';
-    execute 'drop policy if exists post_kind_select on public.post_kind';
+    perform migration_helpers.drop_policy_if_exists('public', 'post_kind', 'post_kind_select');
     execute $p$
       create policy post_kind_select on public.post_kind
         for select using (true)
@@ -105,7 +105,7 @@ begin
 
   if to_regclass('public.vote_kind') is not null then
     execute 'alter table public.vote_kind enable row level security';
-    execute 'drop policy if exists vote_kind_select on public.vote_kind';
+    perform migration_helpers.drop_policy_if_exists('public', 'vote_kind', 'vote_kind_select');
     execute $p$
       create policy vote_kind_select on public.vote_kind
         for select using (true)
@@ -122,7 +122,7 @@ begin
     return;
   end if;
   execute 'alter table public.venues_v2 enable row level security';
-  execute 'drop policy if exists venues_v2_select on public.venues_v2';
+  perform migration_helpers.drop_policy_if_exists('public', 'venues_v2', 'venues_v2_select');
   execute $p$
     create policy venues_v2_select on public.venues_v2
       for select to authenticated
@@ -142,20 +142,20 @@ begin
         )
       )
   $p$;
-  execute 'drop policy if exists venues_v2_insert on public.venues_v2';
+  perform migration_helpers.drop_policy_if_exists('public', 'venues_v2', 'venues_v2_insert');
   execute $p$
     create policy venues_v2_insert on public.venues_v2
       for insert to authenticated
       with check (auth.uid() = created_by)
   $p$;
-  execute 'drop policy if exists venues_v2_update on public.venues_v2';
+  perform migration_helpers.drop_policy_if_exists('public', 'venues_v2', 'venues_v2_update');
   execute $p$
     create policy venues_v2_update on public.venues_v2
       for update to authenticated
       using (auth.uid() = created_by)
       with check (auth.uid() = created_by)
   $p$;
-  execute 'drop policy if exists venues_v2_delete on public.venues_v2';
+  perform migration_helpers.drop_policy_if_exists('public', 'venues_v2', 'venues_v2_delete');
   execute $p$
     create policy venues_v2_delete on public.venues_v2
       for delete to authenticated
@@ -172,7 +172,7 @@ begin
     return;
   end if;
   execute 'alter table public.communication_channels enable row level security';
-  execute 'drop policy if exists communication_channels_select on public.communication_channels';
+  perform migration_helpers.drop_policy_if_exists('public', 'communication_channels', 'communication_channels_select');
   execute $p$
     create policy communication_channels_select on public.communication_channels
       for select to authenticated
@@ -189,7 +189,7 @@ begin
     null;
   else
     execute 'alter table public.staffing_overview_cache enable row level security';
-    execute 'drop policy if exists staffing_overview_cache_select on public.staffing_overview_cache';
+    perform migration_helpers.drop_policy_if_exists('public', 'staffing_overview_cache', 'staffing_overview_cache_select');
     execute $p$
       create policy staffing_overview_cache_select on public.staffing_overview_cache
         for select to authenticated
@@ -203,7 +203,7 @@ begin
     null;
   else
     execute 'alter table public.staffing_api_telemetry enable row level security';
-    execute 'drop policy if exists staffing_api_telemetry_select on public.staffing_api_telemetry';
+    perform migration_helpers.drop_policy_if_exists('public', 'staffing_api_telemetry', 'staffing_api_telemetry_select');
     execute $p$
       create policy staffing_api_telemetry_select on public.staffing_api_telemetry
         for select to authenticated
@@ -221,7 +221,7 @@ begin
     null;
   else
     execute 'alter table public.staffing_alert_events enable row level security';
-    execute 'drop policy if exists staffing_alert_events_select on public.staffing_alert_events';
+    perform migration_helpers.drop_policy_if_exists('public', 'staffing_alert_events', 'staffing_alert_events_select');
     execute $p$
       create policy staffing_alert_events_select on public.staffing_alert_events
         for select to authenticated

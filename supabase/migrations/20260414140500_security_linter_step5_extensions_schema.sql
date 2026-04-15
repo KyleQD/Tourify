@@ -2,7 +2,13 @@
 -- Install/move extensions in the dedicated "extensions" schema instead of public.
 -- supabase/config.toml already sets extra_search_path = ["public", "extensions"] for the API.
 
-create schema if not exists extensions;
+do $body$
+begin
+  if not exists (select 1 from pg_namespace where nspname = 'extensions') then
+    create schema extensions;
+  end if;
+end;
+$body$;
 
 comment on schema extensions is 'PostgreSQL extensions (Supabase advisor: keep out of public).';
 

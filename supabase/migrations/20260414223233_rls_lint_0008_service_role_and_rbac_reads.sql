@@ -12,45 +12,45 @@
 do $rbac$
 begin
   if to_regclass('public.rbac_permissions') is not null then
-    execute 'drop policy if exists _lint0008_rbac_permissions_read on public.rbac_permissions';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_permissions', '_lint0008_rbac_permissions_read');
     execute 'create policy _lint0008_rbac_permissions_read on public.rbac_permissions for select to authenticated using (true)';
-    execute 'drop policy if exists _lint0008_service_role_all on public.rbac_permissions';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_permissions', '_lint0008_service_role_all');
     execute 'create policy _lint0008_service_role_all on public.rbac_permissions for all to service_role using (true) with check (true)';
   end if;
 
   if to_regclass('public.rbac_roles') is not null then
-    execute 'drop policy if exists _lint0008_rbac_roles_read on public.rbac_roles';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_roles', '_lint0008_rbac_roles_read');
     execute 'create policy _lint0008_rbac_roles_read on public.rbac_roles for select to authenticated using (true)';
-    execute 'drop policy if exists _lint0008_service_role_all on public.rbac_roles';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_roles', '_lint0008_service_role_all');
     execute 'create policy _lint0008_service_role_all on public.rbac_roles for all to service_role using (true) with check (true)';
   end if;
 
   if to_regclass('public.rbac_role_permissions') is not null then
-    execute 'drop policy if exists _lint0008_rbac_role_permissions_read on public.rbac_role_permissions';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_role_permissions', '_lint0008_rbac_role_permissions_read');
     execute 'create policy _lint0008_rbac_role_permissions_read on public.rbac_role_permissions for select to authenticated using (true)';
-    execute 'drop policy if exists _lint0008_service_role_all on public.rbac_role_permissions';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_role_permissions', '_lint0008_service_role_all');
     execute 'create policy _lint0008_service_role_all on public.rbac_role_permissions for all to service_role using (true) with check (true)';
   end if;
 
   if to_regclass('public.rbac_user_entity_roles') is not null then
-    execute 'drop policy if exists _lint0008_rbac_user_entity_roles_own on public.rbac_user_entity_roles';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_user_entity_roles', '_lint0008_rbac_user_entity_roles_own');
     execute $p$
       create policy _lint0008_rbac_user_entity_roles_own on public.rbac_user_entity_roles
       for select to authenticated
       using (user_id = auth.uid())
     $p$;
-    execute 'drop policy if exists _lint0008_service_role_all on public.rbac_user_entity_roles';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_user_entity_roles', '_lint0008_service_role_all');
     execute 'create policy _lint0008_service_role_all on public.rbac_user_entity_roles for all to service_role using (true) with check (true)';
   end if;
 
   if to_regclass('public.rbac_user_permission_overrides') is not null then
-    execute 'drop policy if exists _lint0008_rbac_overrides_own on public.rbac_user_permission_overrides';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_user_permission_overrides', '_lint0008_rbac_overrides_own');
     execute $p$
       create policy _lint0008_rbac_overrides_own on public.rbac_user_permission_overrides
       for select to authenticated
       using (user_id = auth.uid())
     $p$;
-    execute 'drop policy if exists _lint0008_service_role_all on public.rbac_user_permission_overrides';
+    perform migration_helpers.drop_policy_if_exists('public', 'rbac_user_permission_overrides', '_lint0008_service_role_all');
     execute 'create policy _lint0008_service_role_all on public.rbac_user_permission_overrides for all to service_role using (true) with check (true)';
   end if;
 end $rbac$;
@@ -152,7 +152,7 @@ begin
   foreach t in array tbls
   loop
     continue when to_regclass(format('public.%I', t)) is null;
-    execute format('drop policy if exists _lint0008_service_role_all on public.%I', t);
+    perform migration_helpers.drop_policy_if_exists('public', t, '_lint0008_service_role_all');
     execute format(
       'create policy _lint0008_service_role_all on public.%I for all to service_role using (true) with check (true)',
       t

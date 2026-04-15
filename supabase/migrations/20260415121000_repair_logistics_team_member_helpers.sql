@@ -2,8 +2,21 @@
 -- on members, no is_active) and tour_teams migrations. Ensures helpers match DBs that
 -- already recorded 20260413220500 before the join/column fixes.
 
-ALTER TABLE IF EXISTS public.tour_team_members
-  ADD COLUMN IF NOT EXISTS is_active boolean DEFAULT true;
+do $body$
+begin
+  if to_regclass('public.tour_team_members') is not null
+    and not exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'tour_team_members'
+        and column_name = 'is_active'
+    )
+  then
+    alter table public.tour_team_members add column is_active boolean default true;
+  end if;
+end;
+$body$;
 
 CREATE OR REPLACE FUNCTION public.is_event_team_member(p_event_id uuid)
 RETURNS boolean
