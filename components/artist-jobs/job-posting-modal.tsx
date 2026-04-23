@@ -35,6 +35,7 @@ import {
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui/use-toast'
 import { 
   CreateJobFormData, 
   ArtistJobCategory,
@@ -84,6 +85,7 @@ const stepVariants = {
 }
 
 export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: JobPostingModalProps) {
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<CreateJobFormData>({
@@ -255,9 +257,8 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
-    
+
     try {
-      // Prepare form data
       const submitData = {
         ...formData,
         event_date: eventDate ? format(eventDate, 'yyyy-MM-dd') : undefined,
@@ -269,38 +270,47 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(submitData),
       })
 
-      if (!response.ok) {
-        const errorText = await response.text()
-        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      const rawText = await response.text()
+      let result: { success?: boolean; error?: string; data?: { title?: string } }
+      try {
+        result = rawText ? JSON.parse(rawText) : {}
+      } catch {
+        throw new Error(`HTTP ${response.status}: ${rawText || response.statusText}`)
       }
 
-      const result = await response.json()
-
-      if (result.success) {
-        console.log('Job posted successfully:', result.data.title)
-        
-        // Call the callback with the new job data
-        try {
-          onJobCreated(result.data)
-        } catch (callbackError) {
-          console.error('Error in onJobCreated callback:', callbackError)
-        }
-        
-        // Reset form and close modal
-        resetForm()
-        onClose()
-      } else {
-        const errorMessage = result.error || 'Unknown error occurred'
-        console.error('API returned error:', errorMessage)
-        alert(`Error creating job: ${errorMessage}`)
+      if (!response.ok || !result.success) {
+        const msg = result.error || rawText || `Request failed (${response.status})`
+        throw new Error(msg)
       }
+
+      if (result.data?.title) console.log('Job posted successfully:', result.data.title)
+
+      try {
+        onJobCreated(result.data)
+      } catch (callbackError) {
+        console.error('Error in onJobCreated callback:', callbackError)
+      }
+
+      toast({
+        title: 'Job posted',
+        description: result.data?.title
+          ? `"${result.data.title}" is live on the job board.`
+          : 'Your job is live on the job board.',
+      })
+      resetForm()
+      onClose()
     } catch (error) {
       console.error('Error submitting job:', error)
       const errorMessage = error instanceof Error ? error.message : 'Network error occurred'
-      alert(`Error submitting job: ${errorMessage}`)
+      toast({
+        title: 'Could not post job',
+        description: errorMessage,
+        variant: 'destructive',
+      })
     } finally {
       setIsSubmitting(false)
     }

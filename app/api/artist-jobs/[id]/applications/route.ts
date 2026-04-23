@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { ArtistJobsService } from '@/lib/services/artist-jobs.service'
 import { createClient } from '@/lib/supabase/server'
+import { getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 import { CreateApplicationFormData } from '@/types/artist-jobs'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
-import { isJobApplicationStatus } from '@/lib/hiring/states'
+import { isArtistBoardApplicationStatus } from '@/lib/hiring/states'
 
 const allowedJobTransitions: Record<string, string[]> = {
   pending: ['reviewed', 'shortlisted', 'accepted', 'rejected', 'withdrawn'],
@@ -132,7 +133,7 @@ export async function GET(
       )
     }
 
-    const applications = await ArtistJobsService.getJobApplications(params.id, user.id)
+    const applications = await ArtistJobsService.getJobApplications(params.id, user.id, supabase as any)
 
     return NextResponse.json({
       success: true,
@@ -143,7 +144,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch applications'
+        error: getPostgrestErrorMessage(error) || 'Failed to fetch applications',
       },
       { status: 500 }
     )
@@ -185,7 +186,7 @@ export async function POST(
       )
     }
 
-    const application = await ArtistJobsService.applyToJob(applicationData, user.id)
+    const application = await ArtistJobsService.applyToJob(applicationData, user.id, supabase as any)
 
     await writeArtistHiringAuditEvent({
       supabase,
@@ -207,7 +208,7 @@ export async function POST(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to submit application'
+        error: getPostgrestErrorMessage(error) || 'Failed to submit application',
       },
       { status: 500 }
     )
@@ -235,7 +236,7 @@ export async function PATCH(
     const body = await request.json()
     const {
       applicationId,
-      status,
+      status: rawStatus,
       feedback,
       responseMessage,
       applicationType = 'job'
@@ -247,17 +248,21 @@ export async function PATCH(
       applicationType?: 'job' | 'collaboration'
     }
 
-    if (!applicationId || !status) {
+    if (!applicationId || !rawStatus) {
       return NextResponse.json(
         { success: false, error: 'applicationId and status are required' },
         { status: 400 }
       )
     }
 
+    // Staff board uses "approved"; artist_job_applications CHECK only allows "accepted"
+    const status =
+      applicationType === 'job' && rawStatus === 'approved' ? 'accepted' : rawStatus
+
     const isCollaborationFlow = applicationType === 'collaboration'
     const isValidStatus = isCollaborationFlow
       ? ['pending', 'reviewed', 'accepted', 'rejected', 'withdrawn'].includes(status)
-      : isJobApplicationStatus(status) || status === 'accepted'
+      : isArtistBoardApplicationStatus(status)
 
     if (!isValidStatus) {
       return NextResponse.json(
@@ -311,7 +316,8 @@ export async function PATCH(
         applicationId,
         status as any,
         user.id,
-        responseMessage
+        responseMessage,
+        supabase as any
       )
 
       await writeArtistHiringAuditEvent({
@@ -372,7 +378,8 @@ export async function PATCH(
       applicationId,
       status as any,
       user.id,
-      feedback
+      feedback,
+      supabase as any
     )
 
     await writeArtistHiringAuditEvent({
@@ -397,7 +404,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update application status'
+        error: getPostgrestErrorMessage(error) || 'Failed to update application status',
       },
       { status: 500 }
     )

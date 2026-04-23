@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ArtistJobsService } from '@/lib/services/artist-jobs.service'
 import { createClient } from '@/lib/supabase/server'
+import { getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
 import { CreateJobFormData } from '@/types/artist-jobs'
 
 export async function GET(
@@ -13,7 +14,7 @@ export async function GET(
     // Get user (optional for viewing jobs)
     const { data: { user } } = await supabase.auth.getUser()
     
-    const job = await ArtistJobsService.getJob(params.id, user?.id)
+    const job = await ArtistJobsService.getJob(params.id, user?.id, supabase as any)
     
     if (!job) {
       return NextResponse.json(
@@ -34,7 +35,7 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to fetch job'
+        error: getPostgrestErrorMessage(error) || 'Failed to fetch job',
       },
       { status: 500 }
     )
@@ -62,7 +63,7 @@ export async function PUT(
 
     const updates: Partial<CreateJobFormData> = await request.json()
     
-    const job = await ArtistJobsService.updateJob(params.id, updates, user.id)
+    const job = await ArtistJobsService.updateJob(params.id, updates, user.id, supabase as any)
 
     return NextResponse.json({
       success: true,
@@ -74,7 +75,7 @@ export async function PUT(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to update job'
+        error: getPostgrestErrorMessage(error) || 'Failed to update job',
       },
       { status: 500 }
     )
@@ -122,7 +123,7 @@ export async function PATCH(
   } catch (error) {
     console.error('Error in PATCH /api/artist-jobs/[id]:', error)
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Failed to update job status' },
+      { success: false, error: getPostgrestErrorMessage(error) || 'Failed to update job status' },
       { status: 500 }
     )
   }
@@ -147,7 +148,7 @@ export async function DELETE(
       )
     }
 
-    await ArtistJobsService.deleteJob(params.id, user.id)
+    await ArtistJobsService.deleteJob(params.id, user.id, supabase as any)
 
     return NextResponse.json({
       success: true,
@@ -158,7 +159,7 @@ export async function DELETE(
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Failed to delete job'
+        error: getPostgrestErrorMessage(error) || 'Failed to delete job',
       },
       { status: 500 }
     )

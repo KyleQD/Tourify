@@ -16,6 +16,18 @@ export const JOB_APPLICATION_STATUSES = [
   'withdrawn',
 ] as const
 
+/** artist_job_applications.status CHECK (staff job_applications uses approved, etc.) */
+export const ARTIST_BOARD_APPLICATION_STATUSES = [
+  'pending',
+  'reviewed',
+  'shortlisted',
+  'accepted',
+  'rejected',
+  'withdrawn',
+] as const
+
+export type ArtistBoardApplicationStatus = (typeof ARTIST_BOARD_APPLICATION_STATUSES)[number]
+
 export const HIRING_PIPELINE_STAGES = [
   'application_received',
   'under_review',
@@ -53,6 +65,10 @@ const milestoneLabels: Record<HiringPipelineStage, string> = {
 
 export function isJobApplicationStatus(value: string): value is JobApplicationStatus {
   return (JOB_APPLICATION_STATUSES as readonly string[]).includes(value)
+}
+
+export function isArtistBoardApplicationStatus(value: string): value is ArtistBoardApplicationStatus {
+  return (ARTIST_BOARD_APPLICATION_STATUSES as readonly string[]).includes(value)
 }
 
 export function buildHiringMilestones(input: {

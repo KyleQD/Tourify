@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validate as validateUuid } from 'uuid'
 import { createClient } from '@/lib/supabase/server'
+import { getPostgrestErrorCode, getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
 
 interface JsonRecord {
   [key: string]: any
@@ -123,7 +125,10 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in GET /api/artist-jobs:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch jobs' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: getPostgrestErrorMessage(error) || 'Failed to fetch jobs' },
+      { status: 500 }
+    )
   }
 }
 
@@ -148,10 +153,28 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
 
+    const categoryId = String(body.category_id)
+    if (!validateUuid(categoryId))
+      return NextResponse.json({ success: false, error: 'Invalid category_id format' }, { status: 400 })
+
+    const { data: categoryRow, error: categoryError } = await supabase
+      .from('artist_job_categories')
+      .select('id')
+      .eq('id', categoryId)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (categoryError) throw categoryError
+    if (!categoryRow)
+      return NextResponse.json(
+        { success: false, error: 'Invalid or inactive job category' },
+        { status: 400 }
+      )
+
     const insertPayload: JsonRecord = {
       title: body.title,
       description: body.description,
-      category_id: body.category_id,
+      category_id: categoryId,
       posted_by: user.id,
       posted_by_type: body.posted_by_type || 'artist',
       job_type: body.job_type || 'one_time',
@@ -198,12 +221,15 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Error in POST /api/artist-jobs:', error)
-    return NextResponse.json(
-      {
-        success: false,
-        error: error instanceof Error ? error.message : 'Failed to create job',
-      },
-      { status: 500 }
-    )
+    const message = getPostgrestErrorMessage(error) || 'Failed to create job'
+    const code = getPostgrestErrorCode(error)
+    const clientErrorCodes = new Set(['23503', '23514', '22P02', '23502'])
+    const status =
+      code === '42501'
+        ? 403
+        : code && clientErrorCodes.has(code)
+          ? 400
+          : 500
+    return NextResponse.json({ success: false, error: message }, { status })
   }
 }

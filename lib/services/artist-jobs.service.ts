@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import { getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
 import { supabase } from '@/lib/supabase'
 import {
   ArtistJob,
@@ -13,6 +15,13 @@ import {
   CollaborationFilters,
   ApiResponse
 } from '@/types/artist-jobs'
+
+/** Server routes must pass createClient(); browser code can omit. */
+type ArtistJobsDbClient = SupabaseClient<any>
+
+function resolveArtistJobsClient(client?: ArtistJobsDbClient): ArtistJobsDbClient {
+  return client ?? (supabase as ArtistJobsDbClient)
+}
 
 export class ArtistJobsService {
   // =============================================================================
@@ -182,8 +191,13 @@ export class ArtistJobsService {
     }
   }
 
-  static async getJob(id: string, userId?: string): Promise<ArtistJob | null> {
-    const { data, error } = await supabase
+  static async getJob(
+    id: string,
+    userId?: string,
+    client?: ArtistJobsDbClient
+  ): Promise<ArtistJob | null> {
+    const db = resolveArtistJobsClient(client)
+    const { data, error } = await db
       .from('artist_jobs')
       .select(`
         *,
@@ -201,7 +215,7 @@ export class ArtistJobsService {
 
     // Check if user has saved this job
     if (userId) {
-      const { data: saveData } = await supabase
+      const { data: saveData } = await db
         .from('artist_job_saves')
         .select('id')
         .eq('job_id', id)
@@ -211,7 +225,7 @@ export class ArtistJobsService {
       job.is_saved = !!saveData
 
       // Get user's application if exists
-      const { data: applicationData } = await supabase
+      const { data: applicationData } = await db
         .from('artist_job_applications')
         .select('*')
         .eq('job_id', id)
@@ -222,9 +236,7 @@ export class ArtistJobsService {
     }
 
     // Track view
-    if (userId) {
-      await this.trackJobView(id, userId)
-    }
+    if (userId) await this.trackJobView(id, userId, db)
 
     return job
   }
@@ -251,8 +263,14 @@ export class ArtistJobsService {
     return data as ArtistJob
   }
 
-  static async updateJob(id: string, updates: Partial<CreateJobFormData>, userId: string): Promise<ArtistJob> {
-    const { data, error } = await supabase
+  static async updateJob(
+    id: string,
+    updates: Partial<CreateJobFormData>,
+    userId: string,
+    client?: ArtistJobsDbClient
+  ): Promise<ArtistJob> {
+    const db = resolveArtistJobsClient(client)
+    const { data, error } = await db
       .from('artist_jobs')
       .update(updates)
       .eq('id', id)
@@ -271,8 +289,9 @@ export class ArtistJobsService {
     return data as ArtistJob
   }
 
-  static async deleteJob(id: string, userId: string): Promise<void> {
-    const { error } = await supabase
+  static async deleteJob(id: string, userId: string, client?: ArtistJobsDbClient): Promise<void> {
+    const db = resolveArtistJobsClient(client)
+    const { error } = await db
       .from('artist_jobs')
       .delete()
       .eq('id', id)
@@ -306,8 +325,13 @@ export class ArtistJobsService {
   // JOB APPLICATIONS
   // =============================================================================
 
-  static async applyToJob(applicationData: CreateApplicationFormData, userId: string): Promise<ArtistJobApplication> {
-    const { data, error } = await supabase
+  static async applyToJob(
+    applicationData: CreateApplicationFormData,
+    userId: string,
+    client?: ArtistJobsDbClient
+  ): Promise<ArtistJobApplication> {
+    const db = resolveArtistJobsClient(client)
+    const { data, error } = await db
       .from('artist_job_applications')
       .insert({
         ...applicationData,
@@ -318,15 +342,20 @@ export class ArtistJobsService {
 
     if (error) {
       console.error('Error applying to job:', error)
-      throw new Error('Failed to apply to job')
+      throw new Error(getPostgrestErrorMessage(error) || 'Failed to apply to job')
     }
 
     return data as ArtistJobApplication
   }
 
-  static async getJobApplications(jobId: string, userId: string): Promise<ArtistJobApplication[]> {
+  static async getJobApplications(
+    jobId: string,
+    userId: string,
+    client?: ArtistJobsDbClient
+  ): Promise<ArtistJobApplication[]> {
+    const db = resolveArtistJobsClient(client)
     // Verify user owns the job
-    const { data: job } = await supabase
+    const { data: job } = await db
       .from('artist_jobs')
       .select('posted_by')
       .eq('id', jobId)
@@ -337,7 +366,7 @@ export class ArtistJobsService {
       throw new Error('Unauthorized: You can only view applications for your own jobs')
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await db
       .from('artist_job_applications')
       .select('*')
       .eq('job_id', jobId)
@@ -376,9 +405,11 @@ export class ArtistJobsService {
     applicationId: string,
     status: ArtistJobApplication['status'],
     userId: string,
-    feedback?: string
+    feedback?: string,
+    client?: ArtistJobsDbClient
   ): Promise<ArtistJobApplication> {
-    const { data, error } = await supabase
+    const db = resolveArtistJobsClient(client)
+    const { data, error } = await db
       .from('artist_job_applications')
       .update({
         status,
@@ -470,8 +501,13 @@ export class ArtistJobsService {
   // ANALYTICS & TRACKING
   // =============================================================================
 
-  static async trackJobView(jobId: string, userId?: string): Promise<void> {
-    const { error } = await supabase
+  static async trackJobView(
+    jobId: string,
+    userId?: string,
+    client?: ArtistJobsDbClient
+  ): Promise<void> {
+    const db = resolveArtistJobsClient(client)
+    const { error } = await db
       .from('artist_job_views')
       .insert({
         job_id: jobId,
@@ -744,9 +780,11 @@ export class ArtistJobsService {
     applicationId: string,
     status: CollaborationApplication['status'],
     userId: string,
-    responseMessage?: string
+    responseMessage?: string,
+    client?: ArtistJobsDbClient
   ): Promise<CollaborationApplication> {
-    const { data, error } = await supabase
+    const db = resolveArtistJobsClient(client)
+    const { data, error } = await db
       .from('collaboration_applications')
       .update({
         status,

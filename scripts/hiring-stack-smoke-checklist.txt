@@ -1,0 +1,40 @@
+Tourify hiring / onboarding / comms — smoke checklist and audit notes
+======================================================================
+
+E2E smoke (artist opportunity board)
+------------------------------------
+1. GET /api/artist-jobs/categories — returns rows; category ids match UI selects.
+2. POST /api/artist-jobs (logged in) — creates row; 400 with clear message if category invalid.
+3. GET /api/artist-jobs — new job appears when status=open.
+4. POST /api/artist-jobs/{id}/applications (as another user) — row in artist_job_applications.
+5. GET /api/artist-jobs/{id}/applications (as job owner) — lists applications.
+6. PATCH application status (owner): pending → reviewed → accepted; applicant notification if configured.
+
+E2E smoke (venue staff board — separate product)
+------------------------------------------------
+1. POST job_posting path with venue context (admin job-postings or staffing action) — RBAC + insert.
+2. Applicant flow against job_applications — approval blocked until hiring gate satisfied:
+   verified staff_documents, agreement_acceptances, optional certifications per migration
+   supabase/migrations/20260409183000_hiring_eligibility_gate.sql
+
+Onboarding (docs vs code)
+-------------------------
+Entry: app/onboarding/page.tsx (query: type, token, invitation).
+Flows: QuickSignupOnboarding; ArtistVenueOnboarding (artist | venue); StaffOnboarding; InvitationOnboarding.
+Service: lib/services/unified-onboarding.service.ts
+Docs: docs/STREAMLINED_ONBOARDING_FLOW.md, docs/ONBOARDING_IMPLEMENTATION_GUIDE.md, docs/ONBOARDING_SYSTEM_AUDIT_REPORT.md
+Gap to watch: docs reference migrations/0004_unified_onboarding_schema.sql — confirm table names match current supabase/migrations.
+
+Communications
+--------------
+Artist application PATCH: app/api/artist-jobs/[id]/applications/route.ts writes hiring_audit_events, notifications; OptimizedNotificationService for applicant.
+Broader messaging schema: supabase/migrations/20260413210000_event_communications_system.sql
+Verify RLS on notifications allows authenticated inserts used by that route (failures are caught and logged as warnings).
+
+Database drift
+--------------
+Apply migration 20260423190222_ensure_artist_job_categories_seed.sql on environments missing category rows (fixes FK failures on job POST).
+
+RLS reminder
+------------
+artist_job_applications INSERT requires auth.uid() = applicant_id — server routes must use createClient() session (fixed by passing supabase into ArtistJobsService.applyToJob).
