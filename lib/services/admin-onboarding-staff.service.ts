@@ -1230,9 +1230,21 @@ export class AdminOnboardingStaffService {
    */
   static async getTeamCommunications(venueId: string): Promise<TeamCommunication[]> {
     try {
-      const tableExists = await checkTableExists('staff_messages')
-      if (!tableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] staff_messages table does not exist, returning empty array')
+      const teamCommsExists = await checkTableExists('team_communications')
+      if (teamCommsExists) {
+        const { data, error } = await supabase
+          .from('team_communications')
+          .select('*')
+          .eq('venue_id', venueId)
+          .order('sent_at', { ascending: false })
+
+        if (error) throw error
+        return (data || []) as TeamCommunication[]
+      }
+
+      const legacyExists = await checkTableExists('staff_messages')
+      if (!legacyExists) {
+        console.warn('⚠️ [Admin Onboarding Staff Service] No team_communications or staff_messages table, returning empty array')
         return []
       }
 
@@ -1243,7 +1255,7 @@ export class AdminOnboardingStaffService {
         .order('sent_at', { ascending: false })
 
       if (error) throw error
-      return data || []
+      return (data || []) as TeamCommunication[]
     } catch (error) {
       console.error('❌ [Admin Onboarding Staff Service] Error fetching team communications:', error)
       return []

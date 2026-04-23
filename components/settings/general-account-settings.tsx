@@ -16,7 +16,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { toast } from '@/components/ui/use-toast'
-import { useMultiAccount } from '@/hooks/use-multi-account'
+import { useAuth } from '@/contexts/auth-context'
 import { 
   User, 
   Globe, 
@@ -93,7 +93,9 @@ type PrivacyFormData = z.infer<typeof privacySchema>
 type AppearanceFormData = z.infer<typeof appearanceSchema>
 
 export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProps) {
-  const { currentAccount } = useMultiAccount()
+  const { user } = useAuth()
+  /** Main `profiles` row is always keyed by auth user id (not artist/venue persona ids). */
+  const mainProfileId = user?.id
   const [isLoading, setIsLoading] = useState(false)
   const [profile, setProfile] = useState<any>(null)
 
@@ -153,18 +155,17 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
   })
 
   useEffect(() => {
-    if (currentAccount) {
-      loadProfile()
-    }
-  }, [currentAccount])
+    if (mainProfileId) loadProfile()
+  }, [mainProfileId])
 
   const loadProfile = async () => {
+    if (!mainProfileId) return
     try {
       setIsLoading(true)
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', currentAccount?.profile_id)
+        .eq('id', mainProfileId)
         .single()
 
       if (error) throw error
@@ -184,17 +185,32 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
         twitter: data.metadata?.twitter || '',
       })
 
-      // Load notification preferences
       const notifications = data.account_settings?.notifications || {}
+      const { data: np } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', mainProfileId)
+        .maybeSingle()
+
+      const prefsJson = (np?.preferences || {}) as Record<string, unknown>
+      const mentionsPref =
+        typeof prefsJson.mentions === 'object' && prefsJson.mentions !== null
+          ? (prefsJson.mentions as { enabled?: boolean }).enabled
+          : undefined
+
       notificationForm.reset({
-        email_notifications: notifications.email_notifications ?? true,
-        push_notifications: notifications.push_notifications ?? true,
-        sms_notifications: notifications.sms_notifications ?? false,
+        email_notifications: np?.email_enabled ?? notifications.email_notifications ?? true,
+        push_notifications: np?.push_enabled ?? notifications.push_notifications ?? true,
+        sms_notifications: np?.sms_enabled ?? notifications.sms_notifications ?? false,
         marketing_emails: notifications.marketing_emails ?? false,
-        new_followers: notifications.new_followers ?? true,
-        likes_comments: notifications.likes_comments ?? true,
-        mentions: notifications.mentions ?? true,
-        direct_messages: notifications.direct_messages ?? true,
+        new_followers: np?.enable_follows ?? notifications.new_followers ?? true,
+        likes_comments:
+          np != null
+            ? Boolean(np.enable_likes ?? true) && Boolean(np.enable_comments ?? true)
+            : (notifications.likes_comments ?? true),
+        mentions:
+          typeof mentionsPref === 'boolean' ? mentionsPref : (notifications.mentions ?? true),
+        direct_messages: np?.enable_messages ?? notifications.direct_messages ?? true,
       })
 
       // Load privacy preferences
@@ -234,6 +250,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
   }
 
   const onSubmitProfile = async (data: ProfileFormData) => {
+    if (!mainProfileId) return
     try {
       setIsLoading(true)
       const { error } = await supabase
@@ -252,7 +269,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
           },
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentAccount?.profile_id)
+        .eq('id', mainProfileId)
 
       if (error) throw error
 
@@ -275,8 +292,46 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
   }
 
   const onSubmitNotifications = async (data: NotificationFormData) => {
+    if (!mainProfileId) return
     try {
       setIsLoading(true)
+      const { data: priorNp } = await supabase
+        .from('notification_preferences')
+        .select('*')
+        .eq('user_id', mainProfileId)
+        .maybeSingle()
+
+      const priorPrefs = (priorNp?.preferences || {}) as Record<string, unknown>
+
+      const { error: npError } = await supabase.from('notification_preferences').upsert(
+        {
+          user_id: mainProfileId,
+          email_enabled: data.email_notifications,
+          push_enabled: data.push_notifications,
+          sms_enabled: data.sms_notifications,
+          in_app_enabled: priorNp?.in_app_enabled ?? true,
+          enable_follows: data.new_followers,
+          enable_likes: data.likes_comments,
+          enable_comments: data.likes_comments,
+          enable_messages: data.direct_messages,
+          enable_shares: priorNp?.enable_shares ?? true,
+          enable_events: priorNp?.enable_events ?? true,
+          enable_system: priorNp?.enable_system ?? true,
+          quiet_hours_enabled: priorNp?.quiet_hours_enabled ?? false,
+          quiet_hours_start: priorNp?.quiet_hours_start ?? '22:00:00',
+          quiet_hours_end: priorNp?.quiet_hours_end ?? '08:00:00',
+          digest_frequency: priorNp?.digest_frequency ?? 'daily',
+          preferences: {
+            ...priorPrefs,
+            mentions: { enabled: data.mentions },
+            marketing_emails: data.marketing_emails,
+          },
+        },
+        { onConflict: 'user_id' }
+      )
+
+      if (npError) throw npError
+
       const { error } = await supabase
         .from('profiles')
         .update({
@@ -286,7 +341,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
           },
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentAccount?.profile_id)
+        .eq('id', mainProfileId)
 
       if (error) throw error
 
@@ -309,6 +364,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
   }
 
   const onSubmitPrivacy = async (data: PrivacyFormData) => {
+    if (!mainProfileId) return
     try {
       setIsLoading(true)
       const { error } = await supabase
@@ -320,7 +376,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
           },
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentAccount?.profile_id)
+        .eq('id', mainProfileId)
 
       if (error) throw error
 
@@ -343,6 +399,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
   }
 
   const onSubmitAppearance = async (data: AppearanceFormData) => {
+    if (!mainProfileId) return
     try {
       setIsLoading(true)
       const { error } = await supabase
@@ -354,7 +411,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
           },
           updated_at: new Date().toISOString()
         })
-        .eq('id', currentAccount?.profile_id)
+        .eq('id', mainProfileId)
 
       if (error) throw error
 

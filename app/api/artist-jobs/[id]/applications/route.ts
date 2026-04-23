@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ArtistJobsService } from '@/lib/services/artist-jobs.service'
 import { createClient } from '@/lib/supabase/server'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 import { CreateApplicationFormData } from '@/types/artist-jobs'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
 import { isJobApplicationStatus } from '@/lib/hiring/states'
@@ -98,11 +99,12 @@ async function writeArtistHiringAuditEvent(input: {
         : toStatus === 'shortlisted' ? `Your application for "${jobTitle || 'a role'}" has been shortlisted!`
         : `Your application for "${jobTitle || 'a role'}" has been updated to ${toStatus}.`
 
-      await supabase.from('notifications').insert({
-        user_id: applicantUserId,
+      await OptimizedNotificationService.createNotification({
+        userId: applicantUserId,
         type: 'artist_application_status_updated',
         title: applicantTitle,
         content: applicantContent,
+        relatedUserId: actorUserId,
         metadata: { ...metadata, job_title: jobTitle },
       })
     } catch (error) {

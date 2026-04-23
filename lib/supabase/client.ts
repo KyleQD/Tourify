@@ -1,5 +1,7 @@
+import { createBrowserClient, type CookieOptionsWithName } from '@supabase/ssr'
 import { createClient as _createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../database.types'
+import { mergeAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 // ---------------------------------------------------------------------------
 // Environment
@@ -20,19 +22,30 @@ if (!hasValidConfig && process.env.NODE_ENV === 'production') {
   )
 }
 
+function shouldUseSsrBrowserClient() {
+  try {
+    return (
+      typeof globalThis !== 'undefined' &&
+      typeof (globalThis as unknown as { document?: { cookie?: string } }).document !== 'undefined' &&
+      typeof (globalThis as unknown as { document: { cookie?: string } }).document.cookie === 'string'
+    )
+  } catch {
+    return false
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Storage – cookie + localStorage hybrid, fully fault-tolerant.
-// Every path is wrapped so that a SecurityError (Safari ITP, incognito,
-// sandboxed iframe, etc.) never propagates to the caller.
+// Legacy storage (Expo / React Native, etc.) — no document.cookie.
 // ---------------------------------------------------------------------------
 
 function canAccessStorage(): boolean {
-  if (typeof window === 'undefined') return false
+  if (typeof globalThis === 'undefined') return false
   try {
-    // Probe both storage mechanisms; either may throw SecurityError
+    const g = globalThis as unknown as { localStorage?: Storage }
+    if (!g.localStorage) return false
     const probe = '__tourify_probe__'
-    localStorage.setItem(probe, '1')
-    localStorage.removeItem(probe)
+    g.localStorage.setItem(probe, '1')
+    g.localStorage.removeItem(probe)
     return true
   } catch {
     return false
@@ -47,132 +60,208 @@ function isStorageAvailable(): boolean {
 
 const inMemoryFallback = new Map<string, string>()
 
-const safeStorage: {
+const legacySafeStorage: {
   getItem: (key: string) => string | null
   setItem: (key: string, value: string) => void
   removeItem: (key: string) => void
 } = {
   getItem(key) {
-    if (typeof window === 'undefined') return null
+    const g = globalThis as unknown as { document?: { cookie?: string } }
+    if (typeof g.document === 'undefined') {
+      return inMemoryFallback.get(key) ?? null
+    }
 
-    // 1. Try cookies
     try {
-      const cookies = document.cookie.split(';')
+      const cookies = g.document.cookie.split(';')
       for (const part of cookies) {
         const trimmed = part.trim()
         const eq = trimmed.indexOf('=')
         if (eq === -1) continue
         if (trimmed.slice(0, eq) === key) return decodeURIComponent(trimmed.slice(eq + 1))
       }
-    } catch { /* SecurityError – continue */ }
-
-    // 2. Try localStorage
-    if (isStorageAvailable()) {
-      try { return localStorage.getItem(key) } catch { /* noop */ }
+    } catch {
+      /* noop */
     }
 
-    // 3. In-memory fallback (session-only, survives within page lifetime)
+    if (isStorageAvailable()) {
+      try {
+        return (globalThis as unknown as { localStorage: Storage }).localStorage.getItem(key)
+      } catch {
+        /* noop */
+      }
+    }
+
     return inMemoryFallback.get(key) ?? null
   },
 
   setItem(key, value) {
-    if (typeof window === 'undefined') return
-
-    // Always write to in-memory so the session is never lost within the page
     inMemoryFallback.set(key, value)
 
-    // Cookie
-    try {
-      const expires = new Date()
-      expires.setFullYear(expires.getFullYear() + 1)
-      const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-      document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secure}`
-    } catch { /* Safari ITP / sandboxed iframe */ }
+    const g = globalThis as unknown as { document?: { cookie?: string } }
+    if (typeof g.document !== 'undefined') {
+      try {
+        const expires = new Date()
+        expires.setFullYear(expires.getFullYear() + 1)
+        const loc = globalThis as unknown as { location?: { protocol?: string } }
+        const secure = loc.location?.protocol === 'https:' ? '; Secure' : ''
+        g.document.cookie = `${key}=${encodeURIComponent(value)}; expires=${expires.toUTCString()}; path=/; SameSite=Lax${secure}`
+      } catch {
+        /* noop */
+      }
+    }
 
-    // localStorage
     if (isStorageAvailable()) {
-      try { localStorage.setItem(key, value) } catch { /* noop */ }
+      try {
+        ;(globalThis as unknown as { localStorage: Storage }).localStorage.setItem(key, value)
+      } catch {
+        /* noop */
+      }
     }
   },
 
   removeItem(key) {
-    if (typeof window === 'undefined') return
-
     inMemoryFallback.delete(key)
 
-    try { document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/` } catch { /* noop */ }
+    const g = globalThis as unknown as { document?: { cookie?: string } }
+    if (typeof g.document !== 'undefined') {
+      try {
+        g.document.cookie = `${key}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/`
+      } catch {
+        /* noop */
+      }
+    }
 
     if (isStorageAvailable()) {
-      try { localStorage.removeItem(key) } catch { /* noop */ }
+      try {
+        ;(globalThis as unknown as { localStorage: Storage }).localStorage.removeItem(key)
+      } catch {
+        /* noop */
+      }
     }
   },
 }
 
-// ---------------------------------------------------------------------------
-// Singleton client – created lazily on first access so module evaluation
-// never throws even when storage is blocked.
-// ---------------------------------------------------------------------------
-
-let _instance: SupabaseClient<Database> | null = null
-
-function getClient(): SupabaseClient<Database> {
-  if (_instance) return _instance
-
+function createLegacyPersistedClient(): SupabaseClient<Database> {
   try {
-    _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+    return _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         storageKey: 'sb-tourify-auth-token',
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
-        storage: safeStorage,
+        storage: legacySafeStorage,
       },
-      global: { headers: { 'X-Client-Info': 'tourify-web' } },
+      global: { headers: { 'X-Client-Info': 'tourify-web-legacy' } },
     })
   } catch (initErr) {
-    console.warn('[Supabase] Client creation failed, retrying without PKCE:', initErr)
-    _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+    console.warn('[Supabase] Legacy client init failed, retrying without PKCE:', initErr)
+    return _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         storageKey: 'sb-tourify-auth-token',
         autoRefreshToken: true,
         detectSessionInUrl: false,
         flowType: 'implicit',
-        storage: safeStorage,
+        storage: legacySafeStorage,
       },
-      global: { headers: { 'X-Client-Info': 'tourify-web' } },
+      global: { headers: { 'X-Client-Info': 'tourify-web-legacy' } },
     })
   }
+}
 
-  // Async side-effects: failures are logged, never thrown
-  if (typeof window !== 'undefined') {
-    _instance.auth.getSession().catch((err) => {
-      console.warn('[Supabase] getSession failed (non-fatal):', err)
-    })
+// ---------------------------------------------------------------------------
+// Singleton — lazy via Proxy so importing this module never throws.
+// DOM browser: @supabase/ssr createBrowserClient (chunked cookies, matches middleware).
+// Non-DOM client (e.g. React Native): legacy supabase-js + safeStorage.
+// Server / build: lightweight anon client without session persistence.
+// ---------------------------------------------------------------------------
 
-    _instance.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') {
-        try { localStorage.removeItem('onboardingData') } catch { /* noop */ }
+let _instance: SupabaseClient<Database> | null = null
+let _hashListenerAttached = false
+
+function attachRecoveryHashListener(client: SupabaseClient<Database>) {
+  if (_hashListenerAttached) return
+  const w =
+    typeof globalThis !== 'undefined'
+      ? (globalThis as unknown as { window?: { location?: { hash?: string; href?: string } } }).window
+      : undefined
+  if (!w?.location) return
+  _hashListenerAttached = true
+
+  client.auth.onAuthStateChange((event) => {
+    if (event === 'SIGNED_OUT') {
+      try {
+        ;(globalThis as unknown as { localStorage?: Storage }).localStorage?.removeItem('onboardingData')
+      } catch {
+        /* noop */
       }
-      if (event === 'SIGNED_IN') {
-        try {
-          const hash = window.location.hash
-          if (hash.includes('type=recovery')) {
-            window.location.href = '/auth/verification?type=recovery&success=true'
-          } else if (hash.includes('type=signup')) {
-            window.location.href = '/auth/verification?type=signup&success=true'
-          }
-        } catch { /* noop */ }
+    }
+    if (event === 'SIGNED_IN') {
+      try {
+        const hash = w.location?.hash ?? ''
+        if (hash.includes('type=recovery')) {
+          w.location.href = '/auth/verification?type=recovery&success=true'
+        } else if (hash.includes('type=signup')) {
+          w.location.href = '/auth/verification?type=signup&success=true'
+        }
+      } catch {
+        /* noop */
       }
+    }
+  })
+}
+
+function getClient(): SupabaseClient<Database> {
+  if (_instance) return _instance
+
+  if (!hasValidConfig) {
+    _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      global: { headers: { 'X-Client-Info': 'tourify-web-unconfigured' } },
     })
+    return _instance
   }
+
+  if (typeof window === 'undefined') {
+    _instance = _createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+        detectSessionInUrl: false,
+      },
+      global: { headers: { 'X-Client-Info': 'tourify-web-server' } },
+    })
+    return _instance
+  }
+
+  if (!shouldUseSsrBrowserClient()) {
+    _instance = createLegacyPersistedClient()
+    attachRecoveryHashListener(_instance)
+    return _instance
+  }
+
+  _instance = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey, {
+    isSingleton: true,
+    auth: {
+      storageKey: 'sb-tourify-auth-token',
+    },
+    cookieOptions: mergeAuthCookieOptions({
+      name: 'sb-tourify-auth-token',
+    }) as CookieOptionsWithName,
+    global: { headers: { 'X-Client-Info': 'tourify-web' } },
+  })
+
+  attachRecoveryHashListener(_instance)
 
   return _instance
 }
 
 // Proxy that lazily initialises on first property access.
-// This lets every module `import { supabase }` without risk of a top-level throw.
 export const supabase: SupabaseClient<Database> = new Proxy({} as SupabaseClient<Database>, {
   get(_target, prop, receiver) {
     return Reflect.get(getClient(), prop, receiver)
@@ -180,52 +269,42 @@ export const supabase: SupabaseClient<Database> = new Proxy({} as SupabaseClient
 })
 
 export async function checkSession() {
-  const { data: { session }, error } = await supabase.auth.getSession()
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession()
   if (error) throw new Error(`Session check failed: ${error.message}`)
   return session
 }
 
 export async function getProfile(userId: string) {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-  
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single()
+
   if (error) throw new Error(`Failed to fetch profile: ${error.message}`)
   return data
 }
 
-export async function updateProfile(userId: string, updates: Partial<Database['public']['Tables']['profiles']['Row']>) {
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('id', userId)
-  
+export async function updateProfile(
+  userId: string,
+  updates: Partial<Database['public']['Tables']['profiles']['Row']>,
+) {
+  const { error } = await supabase.from('profiles').update(updates).eq('id', userId)
+
   if (error) throw new Error(`Failed to update profile: ${error.message}`)
 }
 
 export async function getArtistProfile(userId: string) {
-  const { data, error } = await supabase
-    .from('artist_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-  
+  const { data, error } = await supabase.from('artist_profiles').select('*').eq('user_id', userId).single()
+
   if (error) throw new Error(`Failed to fetch artist profile: ${error.message}`)
   return data
 }
 
 export async function getVenueProfile(userId: string) {
-  const { data, error } = await supabase
-    .from('venue_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-  
+  const { data, error } = await supabase.from('venue_profiles').select('*').eq('user_id', userId).single()
+
   if (error) throw new Error(`Failed to fetch venue profile: ${error.message}`)
   return data
 }
 
-// Export the supabase instance directly - no circular dependency
-export default supabase 
+export default supabase

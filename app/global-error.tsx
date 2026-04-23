@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo } from "react"
+import * as Sentry from "@sentry/nextjs"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, ShieldAlert } from "lucide-react"
@@ -14,6 +15,11 @@ export default function GlobalError({
   reset: () => void
 }) {
   const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
+
+  useEffect(() => {
+    if (isPrivacyError) return
+    Sentry.captureException(error)
+  }, [error, isPrivacyError])
 
   return (
     <html lang="en">

@@ -16,6 +16,8 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
+import { supabase } from "@/lib/supabase"
+import { getAuthSignUpEmailRedirectTo } from "@/lib/auth/auth-email-redirect"
 import { 
   CheckCircle, Clock, Star, Award, Zap, BrainCircuit, Users, 
   Briefcase, Calendar, MapPin, Phone, Mail, Globe, Shield,
@@ -297,34 +299,69 @@ export default function EnhancedOnboardingFlow() {
     }
   }
 
+  function emailLocalUsernameHint(email: string) {
+    const local = email.split("@")[0] ?? "user"
+    const cleaned = local.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 60)
+    return cleaned || "user"
+  }
+
   async function handleAccountCreation() {
     setIsLoading(true)
+    setErrors({})
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          full_name: formData.full_name,
-          invitation_token: invitationData?.token
-        })
+      const email = String(formData.email ?? "").trim()
+      const password = String(formData.password ?? "")
+      const full_name = String(formData.full_name ?? "").trim()
+
+      if (!email || !password) {
+        setErrors({ account: "Email and password are required" })
+        return
+      }
+
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: getAuthSignUpEmailRedirectTo(),
+          data: {
+            full_name: full_name || undefined,
+            username: emailLocalUsernameHint(email),
+            account_type: "general",
+          },
+        },
       })
 
-      const data = await response.json()
-      
-      if (data.success) {
-        setAccountCreated(true)
-        setCompletedSteps(prev => new Set([...prev, currentStep]))
-        setCurrentStep(currentStep + 1)
-        toast({
-          title: "Account Created",
-          description: "Your account has been created successfully!",
-        })
-      } else {
-        setErrors({ account: data.error })
+      if (error) {
+        setErrors({ account: error.message || "Failed to create account" })
+        return
       }
-    } catch (error) {
+
+      if (!data.user) {
+        setErrors({ account: "Failed to create account" })
+        return
+      }
+
+      const needsEmailConfirmation = Boolean(data.user) && !data.session
+      if (needsEmailConfirmation) {
+        toast({
+          title: "Confirm your email",
+          description:
+            "We sent a confirmation link. Open it to activate your account, then sign in and return here to finish onboarding.",
+        })
+        setErrors({
+          account: "Check your inbox to confirm your email before continuing.",
+        })
+        return
+      }
+
+      setAccountCreated(true)
+      setCompletedSteps((prev) => new Set([...prev, currentStep]))
+      setCurrentStep(currentStep + 1)
+      toast({
+        title: "Account created",
+        description: "Your account is ready. Continue with the next steps.",
+      })
+    } catch {
       setErrors({ account: "Failed to create account. Please try again." })
     } finally {
       setIsLoading(false)

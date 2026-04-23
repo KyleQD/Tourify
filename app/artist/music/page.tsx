@@ -157,6 +157,14 @@ export default function MusicPage() {
     }
   }, [user])
 
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("upload") !== "1") return
+    setShowUploader(true)
+    router.replace("/artist/music", { scroll: false })
+  }, [router])
+
   const loadProfile = async () => {
     if (!user) return
 

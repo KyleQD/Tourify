@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 export async function GET(
   request: NextRequest,
@@ -141,12 +142,13 @@ export async function POST(
           .eq('id', siteMapId)
           .single()
 
-        await supabase.from('notifications').insert({
-          user_id: assignedTo,
+        await OptimizedNotificationService.createNotification({
+          userId: assignedTo,
           type: 'site_map_task_assigned',
           title: 'New Task Assigned',
-          message: `${assignerName} assigned you a task: "${title}" on site map "${siteMap?.name || 'Unknown'}"`,
-          data: {
+          content: `${assignerName} assigned you a task: "${title}" on site map "${siteMap?.name || 'Unknown'}"`,
+          relatedUserId: user.id,
+          metadata: {
             siteMapId,
             siteMapName: siteMap?.name,
             eventId: siteMap?.event_id,
@@ -154,9 +156,8 @@ export async function POST(
             title,
             priority,
             assignedBy: user.id,
-            assignedByName: assignerName
+            assignedByName: assignerName,
           },
-          read: false
         })
       } catch (notifErr) {
         console.warn('[Tasks API] Notification failed:', notifErr)
@@ -172,13 +173,13 @@ export async function POST(
           .eq('id', user.id)
           .single()
 
-        await supabase.from('notifications').insert({
-          user_id: assignedTo,
+        await OptimizedNotificationService.createNotification({
+          userId: assignedTo,
           type: 'site_map_task_completed',
           title: 'Task Completed',
-          message: `${completerProfile?.full_name || 'Someone'} completed the task: "${title}"`,
-          data: { siteMapId, taskId: newTaskId, title },
-          read: false
+          content: `${completerProfile?.full_name || 'Someone'} completed the task: "${title}"`,
+          relatedUserId: user.id,
+          metadata: { siteMapId, taskId: newTaskId, title },
         })
       } catch {}
     }

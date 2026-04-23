@@ -12,20 +12,22 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Progress } from '@/components/ui/progress'
-import { 
-  Eye, 
-  EyeOff, 
-  ArrowRight, 
+import {
+  Eye,
+  EyeOff,
+  ArrowRight,
   ArrowLeft,
-  CheckCircle, 
-  Music, 
-  User, 
-  Building, 
-  Briefcase, 
+  CheckCircle,
+  Music,
+  User,
+  Building,
+  Briefcase,
   Truck,
   Lock,
-  CheckCircle2
-} from 'lucide-react'
+  CheckCircle2,
+} from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { getAuthSignUpEmailRedirectTo } from "@/lib/auth/auth-email-redirect"
 
 interface SignupFormData {
   email: string
@@ -136,38 +138,76 @@ export default function NextAuthSignupForm() {
     setSuccess(null)
 
     try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: getAuthSignUpEmailRedirectTo(),
+          data: {
+            full_name: formData.fullName,
+            username: formData.username,
+            account_type: formData.accountType,
+            organization: formData.organization,
+            role: formData.role,
+            enable_mfa: formData.enableMFA,
+          },
         },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-          name: formData.fullName,
-          username: formData.username,
-          fullName: formData.fullName,
-          accountType: formData.accountType,
-          organization: formData.organization,
-          role: formData.role,
-          enableMFA: formData.enableMFA
-        })
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.error || 'Signup failed')
+      if (error) {
+        setError(error.message || "Signup failed")
         return
       }
 
-      setSuccess('Account created successfully! Please sign in.')
-      
-      // Redirect to signin page
-      setTimeout(() => {
-        router.push('/auth/signin')
-      }, 2000)
+      if (!data.user) {
+        setError("Failed to create user account")
+        return
+      }
 
+      const needsEmailConfirmation = Boolean(data.user) && !data.session
+
+      if (formData.acceptTerms && data.session) {
+        const now = new Date().toISOString()
+        const { error: tosError } = await supabase
+          .from("profiles")
+          .update({ tos_accepted_at: now, tos_version: 1, privacy_accepted_at: now })
+          .eq("id", data.user.id)
+        if (tosError) console.error("TOS profile update failed:", tosError)
+
+        try {
+          await fetch("/api/agreements/accept", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              template_id: "a0000000-0000-0000-0000-000000000001",
+              template_version: 1,
+              context: "signup",
+              signature_method: "clickwrap",
+              metadata: {
+                account_type: formData.accountType,
+                email: formData.email,
+              },
+            }),
+          })
+        } catch {
+          /* non-blocking */
+        }
+      }
+
+      if (needsEmailConfirmation) {
+        setSuccess("Account created! Check your email to confirm, then sign in.")
+        setTimeout(() => {
+          router.push(
+            `/login?message=account_created&email=${encodeURIComponent(formData.email)}`,
+          )
+        }, 2000)
+        return
+      }
+
+      setSuccess("Account created successfully! Redirecting…")
+      setTimeout(() => {
+        router.push("/dashboard")
+      }, 2000)
     } catch (error) {
       console.error('Signup error:', error)
       setError('An unexpected error occurred')

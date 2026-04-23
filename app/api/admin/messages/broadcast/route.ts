@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,42 +19,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'recipientGroup and message are required' }, { status: 400 })
     }
 
-    const supabase = await createClient()
-
-    const recipientUserIds = await resolveRecipientGroup(supabase, recipientGroup)
+    const svc = createServiceRoleClient()
+    const recipientUserIds = await resolveRecipientGroup(svc, recipientGroup)
 
     if (recipientUserIds.length === 0) {
       return NextResponse.json({ success: true, broadcastId: null, recipientCount: 0 })
     }
 
     const broadcastId = crypto.randomUUID()
+    const title = templateId ? `Broadcast (${templateId})` : 'Admin Broadcast'
 
-    const notificationRows = recipientUserIds.map((userId: string) => ({
-      user_id: userId,
-      type: 'admin_broadcast',
-      title: templateId ? `Broadcast (${templateId})` : 'Admin Broadcast',
-      message,
-      data: { broadcastId, recipientGroup, templateId: templateId || null },
-      read: false,
-    }))
+    const BATCH_SIZE = 200
+    let delivered = 0
+    for (let i = 0; i < recipientUserIds.length; i += BATCH_SIZE) {
+      const slice = recipientUserIds.slice(i, i + BATCH_SIZE)
+      const batch = slice.map((recipientId: string) => ({
+        userId: recipientId,
+        type: 'admin_broadcast',
+        title,
+        content: typeof message === 'string' ? message : String(message),
+        summary: 'Broadcast from Tourify admin',
+        metadata: {
+          broadcastId,
+          recipientGroup,
+          templateId: templateId || null,
+          senderUserId: user.id,
+        },
+        relatedUserId: user.id,
+        priority: 'normal' as const,
+      }))
 
-    const BATCH_SIZE = 500
-    for (let i = 0; i < notificationRows.length; i += BATCH_SIZE) {
-      const batch = notificationRows.slice(i, i + BATCH_SIZE)
-      const { error: insertError } = await supabase.from('notifications').insert(batch)
-      if (insertError) {
-        console.error('[Broadcast] Insert error at batch', i, insertError)
-        return NextResponse.json(
-          { success: false, error: 'Failed to insert broadcast notifications' },
-          { status: 500 }
-        )
-      }
+      const created = await OptimizedNotificationService.createBatchNotifications(batch)
+      delivered += created.length
     }
 
     return NextResponse.json({
       success: true,
       broadcastId,
       recipientCount: recipientUserIds.length,
+      deliveredCount: delivered,
     })
   } catch (error) {
     console.error('[Admin Messages Broadcast API] Error:', error)
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function resolveRecipientGroup(supabase: any, group: string): Promise<string[]> {
+async function resolveRecipientGroup(supabase: ReturnType<typeof createServiceRoleClient>, group: string): Promise<string[]> {
   try {
     let query = supabase.from('profiles').select('id')
 

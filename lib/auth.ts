@@ -9,6 +9,7 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return bcrypt.compare(password, hashedPassword)
 }
 
+/** @deprecated Use Supabase `auth.signUp` (e.g. TourifyAuthPortal). Prisma-only users bypass email verification and DB auth triggers. */
 export async function createUser(userData: {
   email: string
   password: string

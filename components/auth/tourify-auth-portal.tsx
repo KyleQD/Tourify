@@ -257,8 +257,14 @@ export function TourifyAuthPortal({
     try {
       const result = await signIn(signInData.email, signInData.password)
 
-      if (result.error) setError(mapAuthError(result.error))
-      else setSuccess("Successfully signed in! Please wait...")
+      if (result.error) {
+        setError(mapAuthError(result.error))
+        return
+      }
+
+      setSuccess("Successfully signed in! Redirecting…")
+      const validRedirectTo = normalizePostLoginRedirect(redirectTo)
+      window.location.assign(validRedirectTo)
     } catch (err) {
       setError(mapAuthError(err instanceof Error ? err : "Failed to sign in"))
     } finally {

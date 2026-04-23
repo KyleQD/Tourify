@@ -3,6 +3,7 @@ import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-sta
 import type { JobApplication } from '@/types/admin-onboarding'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 import { CONTRACT_PROVIDERS, sendHireContractWithProvider } from '@/lib/contracts/provider-adapter'
 import { isJobApplicationStatus } from '@/lib/hiring/states'
 import { canTransitionApplicationStatus } from '@/lib/hiring/application-transitions'
@@ -115,14 +116,13 @@ async function recordApprovedApplicationMetric(input: {
 }
 
 async function notifyApplicantStatusChange(input: {
-  supabase: any
   applicantUserId?: string | null
   applicationId: string
   venueId?: string | null
   status: string
   feedback?: string | null
 }) {
-  const { supabase, applicantUserId, applicationId, venueId, status, feedback } = input
+  const { applicantUserId, applicationId, venueId, status, feedback } = input
   if (!applicantUserId) return
 
   const title = status === 'approved' ? 'Application Approved' : 'Application Update'
@@ -134,8 +134,8 @@ async function notifyApplicantStatusChange(input: {
         : `Your application status is now ${status}.`
 
   try {
-    await supabase.from('notifications').insert({
-      user_id: applicantUserId,
+    await OptimizedNotificationService.createNotification({
+      userId: applicantUserId,
       type: 'hiring_application_status_updated',
       title,
       content,
@@ -535,7 +535,6 @@ export async function POST(request: NextRequest) {
         } catch {}
       }
       await notifyApplicantStatusChange({
-        supabase,
         applicantUserId: candidate?.user_id || currentApplication.applicant_id,
         applicationId,
         venueId: currentApplication.venue_id,
@@ -602,7 +601,6 @@ export async function POST(request: NextRequest) {
 
       const updated = await AdminOnboardingStaffService.updateApplicationStatus(applicationId, { status: 'rejected' })
       await notifyApplicantStatusChange({
-        supabase,
         applicantUserId: currentApplication.applicant_id,
         applicationId,
         venueId: currentApplication.venue_id,
@@ -660,11 +658,12 @@ export async function POST(request: NextRequest) {
 
       if (currentApplication.applicant_id) {
         try {
-          await supabase.from('notifications').insert({
-            user_id: currentApplication.applicant_id,
+          await OptimizedNotificationService.createNotification({
+            userId: currentApplication.applicant_id,
             type: 'hiring_evidence_requested',
             title: 'Additional verification requested',
             content: requestedMessage,
+            relatedUserId: user.id,
             metadata: {
               application_id: applicationId,
               venue_id: currentApplication.venue_id,

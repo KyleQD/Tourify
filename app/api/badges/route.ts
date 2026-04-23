@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { achievementService } from '@/lib/services/achievement.service'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 export async function GET(request: NextRequest) {
   try {
@@ -87,11 +88,13 @@ export async function POST(request: NextRequest) {
           .eq('id', badge_id)
           .single()
 
-        await supabase.from('notifications').insert({
-          user_id: recipientId,
+        await OptimizedNotificationService.createNotification({
+          userId: recipientId,
           type: 'badge_granted',
           title: 'New Badge Received!',
           content: `${grantor?.full_name || 'A manager'} awarded you the "${badge?.name || 'badge'}" badge${granted_reason ? `: ${granted_reason}` : '.'}`,
+          summary: 'Badge granted',
+          relatedUserId: user.id,
           metadata: {
             badge_id,
             granted_by: user.id,

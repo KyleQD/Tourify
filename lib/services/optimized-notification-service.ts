@@ -3,11 +3,7 @@ import type { Database } from '@/lib/database.types'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { supabase as browserSupabase } from '@/lib/supabase'
 import { z } from 'zod'
-import {
-  sendEmailNotification,
-  sendSMSNotification,
-  sendPushNotification,
-} from './notification-channels'
+import { deliverNotificationOutbound } from '@/lib/services/notification-delivery'
 
 /** Route handlers need service role; browser hooks use the session-scoped client. */
 function getNotificationsDb(): SupabaseClient<Database> {
@@ -43,6 +39,7 @@ export interface NotificationPreferences {
   userId: string
   emailEnabled: boolean
   pushEnabled: boolean
+  smsEnabled: boolean
   inAppEnabled: boolean
   enableLikes: boolean
   enableComments: boolean
@@ -251,6 +248,15 @@ export class OptimizedNotificationService {
         includeExpired = false
       } = options
 
+      const inboxPrefs = await this.getPreferences(userId).catch(() => null)
+      if (inboxPrefs && inboxPrefs.inAppEnabled === false) {
+        return {
+          notifications: [],
+          totalCount: 0,
+          unreadCount: 0,
+        }
+      }
+
       let query = getNotificationsDb()
         .from('notifications')
         .select(`
@@ -385,26 +391,30 @@ export class OptimizedNotificationService {
     preferences: Partial<NotificationPreferences>
   ): Promise<NotificationPreferences> {
     try {
+      const cur = await this.getPreferences(userId).catch(() => null)
+      const upsertPayload = {
+        user_id: userId,
+        email_enabled: preferences.emailEnabled ?? cur?.emailEnabled ?? true,
+        push_enabled: preferences.pushEnabled ?? cur?.pushEnabled ?? true,
+        sms_enabled: preferences.smsEnabled ?? cur?.smsEnabled ?? false,
+        in_app_enabled: preferences.inAppEnabled ?? cur?.inAppEnabled ?? true,
+        enable_likes: preferences.enableLikes ?? cur?.enableLikes ?? true,
+        enable_comments: preferences.enableComments ?? cur?.enableComments ?? true,
+        enable_shares: preferences.enableShares ?? cur?.enableShares ?? true,
+        enable_follows: preferences.enableFollows ?? cur?.enableFollows ?? true,
+        enable_messages: preferences.enableMessages ?? cur?.enableMessages ?? true,
+        enable_events: preferences.enableEvents ?? cur?.enableEvents ?? true,
+        enable_system: preferences.enableSystem ?? cur?.enableSystem ?? true,
+        quiet_hours_enabled: preferences.quietHoursEnabled ?? cur?.quietHoursEnabled ?? false,
+        quiet_hours_start: preferences.quietHoursStart ?? cur?.quietHoursStart ?? '22:00:00',
+        quiet_hours_end: preferences.quietHoursEnd ?? cur?.quietHoursEnd ?? '08:00:00',
+        digest_frequency: preferences.digestFrequency ?? cur?.digestFrequency ?? 'daily',
+        preferences: preferences.preferences ?? cur?.preferences ?? {},
+      }
+
       const { data, error } = await getNotificationsDb()
         .from('notification_preferences')
-        .upsert({
-          user_id: userId,
-          email_enabled: preferences.emailEnabled,
-          push_enabled: preferences.pushEnabled,
-          in_app_enabled: preferences.inAppEnabled,
-          enable_likes: preferences.enableLikes,
-          enable_comments: preferences.enableComments,
-          enable_shares: preferences.enableShares,
-          enable_follows: preferences.enableFollows,
-          enable_messages: preferences.enableMessages,
-          enable_events: preferences.enableEvents,
-          enable_system: preferences.enableSystem,
-          quiet_hours_enabled: preferences.quietHoursEnabled,
-          quiet_hours_start: preferences.quietHoursStart,
-          quiet_hours_end: preferences.quietHoursEnd,
-          digest_frequency: preferences.digestFrequency,
-          preferences: preferences.preferences || {}
-        })
+        .upsert(upsertPayload)
         .select()
         .single()
 
@@ -626,77 +636,23 @@ export class OptimizedNotificationService {
     if (typeof window !== 'undefined') return
 
     try {
-      const [prefs, contactInfo] = await Promise.all([
-        this.getPreferences(notification.userId),
-        this.getUserContactInfo(notification.userId),
-      ])
+      const results = await deliverNotificationOutbound({
+        id: notification.id,
+        userId: notification.userId,
+        type: notification.type,
+        title: notification.title,
+        content: notification.content,
+        priority: notification.priority,
+        metadata: notification.metadata,
+      })
 
-      if (!contactInfo) return
-
-      const results: Record<string, { success: boolean; error?: string }> = {}
-
-      if (prefs?.emailEnabled && contactInfo.email) {
-        results.email = await sendEmailNotification({
-          to: contactInfo.email,
-          subject: notification.title,
-          body: `<h2>${notification.title}</h2><p>${notification.content}</p>`,
-        })
-      }
-
-      if (prefs?.pushEnabled && contactInfo.pushToken) {
-        results.push = await sendPushNotification({
-          pushToken: contactInfo.pushToken,
-          title: notification.title,
-          body: notification.content,
-          data: notification.metadata as Record<string, string> | undefined,
-        })
-      }
-
-      const smsEligible =
-        notification.priority === 'urgent' || notification.priority === 'high'
-      if (smsEligible && contactInfo.phone) {
-        results.sms = await sendSMSNotification({
-          to: contactInfo.phone,
-          body: `${notification.title}: ${notification.content}`,
-        })
-      }
-
-      const channelKeys = Object.keys(results)
-      if (channelKeys.length > 0) {
+      if (Object.keys(results).length > 0) {
         await this.logNotificationEvent(notification.id, 'delivered', notification.userId, {
           channels: results,
         })
       }
     } catch (error) {
       console.error('[notification-channels] delivery error (non-blocking):', error)
-    }
-  }
-
-  /**
-   * Look up email (via Supabase Auth admin), phone, and push token for a user.
-   * Returns null when contact info cannot be resolved.
-   */
-  private static async getUserContactInfo(
-    userId: string
-  ): Promise<{ email?: string; phone?: string; pushToken?: string } | null> {
-    try {
-      const db = getNotificationsDb()
-
-      // Email lives in auth.users; phone/push_token live in public.profiles
-      const [authResult, profileResult] = await Promise.all([
-        db.auth.admin.getUserById(userId),
-        db.from('profiles').select('phone, push_token').eq('id', userId).single(),
-      ])
-
-      const email = authResult.data?.user?.email ?? undefined
-      const phone = (profileResult.data as any)?.phone ?? undefined
-      const pushToken = (profileResult.data as any)?.push_token ?? undefined
-
-      if (!email && !phone && !pushToken) return null
-
-      return { email, phone, pushToken }
-    } catch {
-      return null
     }
   }
 
@@ -770,6 +726,7 @@ export class OptimizedNotificationService {
       userId: data.user_id,
       emailEnabled: data.email_enabled,
       pushEnabled: data.push_enabled,
+      smsEnabled: Boolean(data.sms_enabled),
       inAppEnabled: data.in_app_enabled,
       enableLikes: data.enable_likes,
       enableComments: data.enable_comments,

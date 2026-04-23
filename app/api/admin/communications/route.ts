@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 const sendMessageSchema = z.object({
   subject: z.string().min(1),
@@ -9,18 +10,21 @@ const sendMessageSchema = z.object({
   priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
   recipients: z.array(z.string().uuid()).default([]),
   requires_acknowledgment: z.boolean().default(false),
+  venue_id: z.string().uuid().nullable().optional(),
 })
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminAuth(async (request: NextRequest) => {
   try {
+    const svc = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
     const type = searchParams.get('type')
+    const venueId = searchParams.get('venue_id')
 
-    let q = supabase
-      .from('team_communications')
-      .select('*', { count: 'exact' })
+    let q = svc.from('team_communications').select('*', { count: 'exact' })
+
+    if (venueId) q = q.eq('venue_id', venueId)
 
     if (type && type !== 'all') {
       q = q.eq('message_type', type)
@@ -46,15 +50,17 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
   try {
+    const svc = createServiceRoleClient()
     const body = await request.json()
     const validated = sendMessageSchema.parse(body)
 
-    const { data, error } = await supabase
+    const { data, error } = await svc
       .from('team_communications')
       .insert({
         sender_id: user.id,
+        venue_id: validated.venue_id ?? null,
         subject: validated.subject,
         content: validated.content,
         message_type: validated.message_type,
@@ -81,8 +87,9 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PATCH = withAdminAuth(async (request: NextRequest, { user }) => {
   try {
+    const svc = createServiceRoleClient()
     const body = await request.json()
     const { id, action } = body
 
@@ -91,7 +98,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
     }
 
     if (action === 'mark_read') {
-      const { data: msg } = await supabase
+      const { data: msg } = await svc
         .from('team_communications')
         .select('read_by')
         .eq('id', id)
@@ -106,7 +113,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
         readBy.push(user.id)
       }
 
-      const { error } = await supabase
+      const { error } = await svc
         .from('team_communications')
         .update({ read_by: readBy })
         .eq('id', id)
@@ -119,7 +126,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
     }
 
     if (action === 'acknowledge') {
-      const { data: msg } = await supabase
+      const { data: msg } = await svc
         .from('team_communications')
         .select('acknowledged_by')
         .eq('id', id)
@@ -134,7 +141,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
         ackedBy.push(user.id)
       }
 
-      const { error } = await supabase
+      const { error } = await svc
         .from('team_communications')
         .update({ acknowledged_by: ackedBy })
         .eq('id', id)

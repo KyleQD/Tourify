@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -34,10 +34,12 @@ import { AdminEmptyState } from "../components/admin-empty-state"
 import { AdminStatCard } from "../components/admin-stat-card"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { useAuth } from "@/contexts/auth-context"
 
 interface TeamMessage {
   id: string
   sender_id: string | null
+  venue_id?: string | null
   subject: string
   content: string
   message_type: string
@@ -48,6 +50,21 @@ interface TeamMessage {
   acknowledged_by: string[]
   sent_at: string
   created_at: string
+}
+
+const uuidRe =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+function parseRecipientList(raw: string): string[] {
+  const parts = raw
+    .split(/[\s,;]+/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+  const out: string[] = []
+  for (const p of parts) {
+    if (uuidRe.test(p)) out.push(p.toLowerCase())
+  }
+  return [...new Set(out)]
 }
 
 function priorityColor(p: string): string {
@@ -84,11 +101,17 @@ function formatTime(ts: string): string {
 }
 
 export default function CommunicationsPage() {
+  const { user } = useAuth()
   const [loading, setLoading] = useState(true)
   const [messages, setMessages] = useState<TeamMessage[]>([])
   const [total, setTotal] = useState(0)
   const [showCompose, setShowCompose] = useState(false)
   const [sending, setSending] = useState(false)
+  const [venueFilter, setVenueFilter] = useState('')
+  const venueIdParam = useMemo(() => {
+    const t = venueFilter.trim()
+    return uuidRe.test(t) ? t.toLowerCase() : ''
+  }, [venueFilter])
 
   const [newMsg, setNewMsg] = useState({
     subject: '',
@@ -96,6 +119,8 @@ export default function CommunicationsPage() {
     message_type: 'general',
     priority: 'normal',
     requires_acknowledgment: false,
+    venue_id: '',
+    recipients_raw: '',
   })
 
   function buildNoStoreInit(input?: RequestInit): RequestInit {
@@ -114,7 +139,9 @@ export default function CommunicationsPage() {
   const fetchMessages = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/communications?limit=100', buildNoStoreInit())
+      const q = new URLSearchParams({ limit: '100' })
+      if (venueIdParam) q.set('venue_id', venueIdParam)
+      const res = await fetch(`/api/admin/communications?${q.toString()}`, buildNoStoreInit())
       if (!res.ok) throw new Error('Failed to fetch')
       const data = await res.json()
       setMessages(data.messages || [])
@@ -124,7 +151,7 @@ export default function CommunicationsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [venueIdParam])
 
   useEffect(() => { fetchMessages() }, [fetchMessages])
 
@@ -136,14 +163,33 @@ export default function CommunicationsPage() {
 
     setSending(true)
     try {
+      const recipients = parseRecipientList(newMsg.recipients_raw)
+      const venueTrim = newMsg.venue_id.trim()
+      const payload = {
+        subject: newMsg.subject,
+        content: newMsg.content,
+        message_type: newMsg.message_type,
+        priority: newMsg.priority,
+        requires_acknowledgment: newMsg.requires_acknowledgment,
+        recipients,
+        ...(uuidRe.test(venueTrim) ? { venue_id: venueTrim.toLowerCase() } : {}),
+      }
       const res = await fetch('/api/admin/communications', buildNoStoreInit({
         method: 'POST',
-        body: JSON.stringify(newMsg),
+        body: JSON.stringify(payload),
       }))
       if (!res.ok) throw new Error('Failed to send')
       toast.success('Message sent')
       setShowCompose(false)
-      setNewMsg({ subject: '', content: '', message_type: 'general', priority: 'normal', requires_acknowledgment: false })
+      setNewMsg({
+        subject: '',
+        content: '',
+        message_type: 'general',
+        priority: 'normal',
+        requires_acknowledgment: false,
+        venue_id: '',
+        recipients_raw: '',
+      })
       fetchMessages()
     } catch {
       toast.error('Failed to send message')
@@ -178,7 +224,18 @@ export default function CommunicationsPage() {
 
   const announcements = messages.filter(m => m.message_type === 'announcement')
   const alerts = messages.filter(m => m.message_type === 'alert' || m.priority === 'urgent')
-  const unacknowledged = messages.filter(m => m.requires_acknowledgment && m.acknowledged_by.length === 0)
+  const uid = user?.id
+  const unacknowledged = uid
+    ? messages.filter(
+        (m) =>
+          m.requires_acknowledgment &&
+          !(Array.isArray(m.acknowledged_by) ? m.acknowledged_by : []).includes(uid)
+      )
+    : messages.filter(
+        (m) =>
+          m.requires_acknowledgment &&
+          (Array.isArray(m.acknowledged_by) ? m.acknowledged_by : []).length === 0
+      )
 
   if (loading) return <AdminPageSkeleton />
 
@@ -247,6 +304,26 @@ export default function CommunicationsPage() {
                       className="border-slate-700 bg-slate-800"
                     />
                   </div>
+                  <div>
+                    <Label className="text-slate-300">Venue ID (optional)</Label>
+                    <Input
+                      placeholder="Link message to a venue UUID"
+                      value={newMsg.venue_id}
+                      onChange={(e) => setNewMsg(p => ({ ...p, venue_id: e.target.value }))}
+                      className="border-slate-700 bg-slate-800 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300">Recipient user IDs</Label>
+                    <Textarea
+                      placeholder="Comma or line-separated profile UUIDs (optional)"
+                      rows={2}
+                      value={newMsg.recipients_raw}
+                      onChange={(e) => setNewMsg(p => ({ ...p, recipients_raw: e.target.value }))}
+                      className="border-slate-700 bg-slate-800 font-mono text-xs"
+                    />
+                    <p className="text-[11px] text-slate-500 mt-1">Recipients receive an in-app notification when UUIDs are valid.</p>
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -268,6 +345,16 @@ export default function CommunicationsPage() {
               <RefreshCw className="mr-2 h-4 w-4" />
               Refresh
             </Button>
+            <div className="flex items-center gap-2 min-w-0 max-w-xs">
+              <Label htmlFor="venue-filter" className="text-slate-400 text-xs whitespace-nowrap shrink-0">Venue</Label>
+              <Input
+                id="venue-filter"
+                placeholder="Venue UUID filter…"
+                value={venueFilter}
+                onChange={(e) => setVenueFilter(e.target.value)}
+                className="border-slate-700 bg-slate-800 text-xs h-9"
+              />
+            </div>
           </>
         }
       />
@@ -317,8 +404,9 @@ export default function CommunicationsPage() {
                             <Badge variant="secondary" className="text-[10px]">{msg.message_type}</Badge>
                           </div>
                           <p className="mt-1 text-sm text-slate-400 line-clamp-2">{msg.content}</p>
-                          <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
+                          <div className="mt-2 flex items-center gap-3 text-xs text-slate-500 flex-wrap">
                             <span>{formatTime(msg.sent_at)}</span>
+                            {msg.venue_id ? <span className="font-mono text-[10px]">venue {msg.venue_id.slice(0, 8)}…</span> : null}
                             <span>{msg.read_by?.length || 0} read</span>
                             {msg.requires_acknowledgment && (
                               <span>{msg.acknowledged_by?.length || 0} acknowledged</span>

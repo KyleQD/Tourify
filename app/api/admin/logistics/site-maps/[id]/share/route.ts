@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 export async function POST(
   request: NextRequest,
@@ -112,13 +113,13 @@ export async function POST(
 
     // Send notification to the target user
     try {
-      await supabase.from('notifications').insert({
-        user_id: targetUserId,
+      await OptimizedNotificationService.createNotification({
+        userId: targetUserId,
         type: 'site_map_shared',
         title: 'Site Map Shared With You',
-        message: `You have been given ${permissions} access to the site map "${siteMap.name}"`,
-        data: { siteMapId, siteMapName: siteMap.name, permissions, sharedBy: user.id },
-        read: false
+        content: `You have been given ${permissions} access to the site map "${siteMap.name}"`,
+        relatedUserId: user.id,
+        metadata: { siteMapId, siteMapName: siteMap.name, permissions, sharedBy: user.id },
       })
     } catch {}
 

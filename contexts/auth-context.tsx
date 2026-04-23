@@ -11,6 +11,23 @@ function authDevLog(...args: unknown[]) {
   console.log(...args)
 }
 
+const SESSION_CHECK_TIMEOUT_MS = 12_000
+
+function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => Error): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => reject(onTimeout()), ms)
+    promise
+      .then((value) => {
+        clearTimeout(id)
+        resolve(value)
+      })
+      .catch((err) => {
+        clearTimeout(id)
+        reject(err)
+      })
+  })
+}
+
 type SocialProvider = 'google' | 'apple' | 'facebook'
 
 interface AuthContextType {
@@ -56,7 +73,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const started = typeof performance !== 'undefined' ? performance.now() : 0
     authDevLog('[Auth] Checking initial session...')
     try {
-      const { data: { session: nextSession }, error } = await supabase.auth.getSession()
+      const { data: { session: nextSession }, error } = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_CHECK_TIMEOUT_MS,
+        () =>
+          new Error(
+            'Sign-in check timed out. Check your connection, then use Try again or refresh the page.',
+          ),
+      )
 
       if (error) {
         console.error('[Auth] Session check error:', error)
@@ -166,6 +190,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: data.user?.email,
         emailConfirmed: data.user?.email_confirmed_at ? 'Yes' : 'No'
       })
+
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+        setAuthError(null)
+      }
+
       return { error: undefined }
     } catch (error) {
       console.error('[Auth] Sign in failed with exception:', error)
@@ -277,6 +308,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: data.user?.email,
         needsConfirmation: needsEmailConfirmation ? 'Yes' : 'No'
       })
+
+      if (data.session) {
+        setSession(data.session)
+        setUser(data.session.user)
+        setAuthError(null)
+      }
+
       return { error: undefined, needsEmailConfirmation }
     } catch (error) {
       console.error('[Auth] Sign up failed with exception:', error)

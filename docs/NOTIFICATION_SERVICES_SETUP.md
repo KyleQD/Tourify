@@ -320,6 +320,31 @@ NOTIFICATION_DEBUG=true
 
 This will log detailed information about notification delivery attempts.
 
+## Account notifications (Resend, Twilio, Expo)
+
+Outbound delivery for rows in `public.notifications` is handled by:
+
+- **App path**: `OptimizedNotificationService` after insert.
+- **Database triggers** (likes, comments, shares, follow): configure a **Database Webhook** on `INSERT` for `public.notifications` so your app can send email/SMS/push for those rows.
+
+### Environment variables (server)
+
+| Variable | Purpose |
+|----------|---------|
+| `RESEND_API_KEY` | Email via Resend (`lib/services/notification-channels.ts`) |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` | SMS |
+| `NOTIFICATION_INSERT_WEBHOOK_SECRET` | Shared secret for `POST /api/webhooks/supabase/notifications` |
+
+### Supabase Database Webhook
+
+1. Dashboard → **Database** → **Webhooks** → **Create hook**.
+2. Table: `notifications`, Events: **Insert**.
+3. URL: `https://<your-app-host>/api/webhooks/supabase/notifications`
+4. HTTP Headers: `Authorization: Bearer <same value as NOTIFICATION_INSERT_WEBHOOK_SECRET>`  
+   (Alternatively send header `x-notification-webhook-secret: <secret>`.)
+
+Enable **Realtime** replication for `public.notifications` if you use the in-app bell with Supabase Realtime.
+
 ## Next Steps
 
 1. **Set up environment variables** for your chosen providers

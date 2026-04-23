@@ -9,6 +9,7 @@ import {
   isHiringEligibilityGateError,
   recordHiringEligibilitySnapshot,
 } from '@/lib/services/hiring-eligibility.service'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 function buildEligibilityConflictPayload(assessment: any) {
   return {
@@ -60,14 +61,13 @@ async function writeHiringAuditEvent(input: {
 }
 
 async function notifyApplicantStatusChange(input: {
-  supabase: any
   applicantUserId?: string | null
   applicationId: string
   venueId?: string | null
   status: string
   feedback?: string | null
 }) {
-  const { supabase, applicantUserId, applicationId, venueId, status, feedback } = input
+  const { applicantUserId, applicationId, venueId, status, feedback } = input
   if (!applicantUserId) return
 
   const title = status === 'approved' ? 'Application Approved' : 'Application Update'
@@ -79,8 +79,8 @@ async function notifyApplicantStatusChange(input: {
         : `Your application status is now ${status}.`
 
   try {
-    await supabase.from('notifications').insert({
-      user_id: applicantUserId,
+    await OptimizedNotificationService.createNotification({
+      userId: applicantUserId,
       type: 'hiring_application_status_updated',
       title,
       content,
@@ -260,7 +260,6 @@ export async function PATCH(
 
     if (status === 'approved' || status === 'rejected') {
       await notifyApplicantStatusChange({
-        supabase,
         applicantUserId: currentApplication.applicant_id,
         applicationId: id,
         venueId: currentApplication.venue_id,

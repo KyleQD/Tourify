@@ -1,79 +1,17 @@
-// @ts-nocheck
-import { NextRequest, NextResponse } from 'next/server'
-import { createUser, getUserByEmail } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from "next/server"
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { email, password, name, username, fullName, accountType, organization, role, enableMFA } = body
-
-    // Validation
-    if (!email || !password) {
-      return NextResponse.json(
-        { error: 'Email and password are required' },
-        { status: 400 }
-      )
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { error: 'Password must be at least 6 characters' },
-        { status: 400 }
-      )
-    }
-
-    // Check if user already exists
-    const existingUser = await getUserByEmail(email)
-    if (existingUser) {
-      return NextResponse.json(
-        { error: 'User already exists' },
-        { status: 400 }
-      )
-    }
-
-    // Check if username is taken
-    if (username) {
-      const existingUsername = await prisma.user.findUnique({
-        where: { username }
-      })
-      if (existingUsername) {
-        return NextResponse.json(
-          { error: 'Username already taken' },
-          { status: 400 }
-        )
-      }
-    }
-
-    // Create user
-    const user = await createUser({
-      email,
-      password,
-      name,
-      username,
-      fullName,
-      accountType,
-      organization,
-      role,
-      enableMFA
-    })
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user
-
-    return NextResponse.json(
-      { 
-        message: 'User created successfully',
-        user: userWithoutPassword
-      },
-      { status: 201 }
-    )
-
-  } catch (error) {
-    console.error('Signup error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+/**
+ * Legacy Prisma/bcrypt signup is removed. All accounts must be created via Supabase Auth
+ * (e.g. `/login` Sign Up tab) so email verification, sessions, and `auth.users` triggers stay consistent.
+ */
+export async function POST(_request: NextRequest) {
+  return NextResponse.json(
+    {
+      error:
+        "This signup endpoint is deprecated. Create an account at /login (Sign Up tab) for email verification and a unified profile.",
+      deprecated: true,
+      migrateTo: "/login?tab=signup",
+    },
+    { status: 410 },
+  )
 }

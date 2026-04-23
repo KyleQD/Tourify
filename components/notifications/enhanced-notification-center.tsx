@@ -74,6 +74,18 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
+      const { data: prefsRow } = await supabase
+        .from("notification_preferences")
+        .select("in_app_enabled")
+        .eq("user_id", session.user.id)
+        .maybeSingle()
+
+      if (prefsRow && prefsRow.in_app_enabled === false) {
+        setNotifications([])
+        setUnreadCount(0)
+        return
+      }
+
       const { data, error } = await supabase
         .from("notifications")
         .select(`

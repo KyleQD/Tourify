@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { achievementService } from '@/lib/services/achievement.service'
+import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 
 export async function GET(request: NextRequest) {
   try {
@@ -77,11 +78,13 @@ export async function POST(request: NextRequest) {
           .eq('id', user.id)
           .single()
 
-        await supabase.from('notifications').insert({
-          user_id: endorsee_id,
+        await OptimizedNotificationService.createNotification({
+          userId: endorsee_id,
           type: 'endorsement_received',
           title: 'New Endorsement!',
           content: `${endorser?.full_name || 'Someone'} endorsed you for "${skill}"${comment ? `: "${comment}"` : '.'}`,
+          summary: 'New endorsement',
+          relatedUserId: user.id,
           metadata: {
             endorsement_id: endorsement?.id,
             endorser_id: user.id,

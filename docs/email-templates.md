@@ -11,6 +11,41 @@ Use these repo files as the canonical HTML sources:
 - Reset password: `auth-email-reset-password.html`
 - Invite user: `auth-email-invite-user.html`
 
+Each file includes the **Tourify logo** as an absolute URL to `/tourify-logo-white-email.jpg` on your public site (JPEG for broad email client support), plus a visible **Tourify** wordmark when images are blocked.
+
+### Logo URL (important)
+
+Supabase templates cannot read environment variables. The repo HTML defaults to the same canonical origin as `app/layout.tsx` when `NEXT_PUBLIC_SITE_URL` is unset:
+
+`https://demo.tourify.live/tourify-logo-white-email.jpg`
+
+If production uses another host (for example `https://www.tourify.live`), **search and replace** `https://demo.tourify.live` in all four `auth-email-*.html` files with your real **Site URL** origin before pasting into the dashboard, so the image and header links match the app users see.
+
+Ensure `tourify-logo-white-email.jpg` is deployed under `public/` at the root of that host (same path as in the repo).
+
+## Per-environment checklist (Vercel + Supabase)
+
+1. Set **`NEXT_PUBLIC_SITE_URL`** in Vercel to the exact public origin (no trailing slash), e.g. `https://demo.tourify.live`.
+2. In Supabase → **Authentication** → **URL Configuration**, set **Site URL** to that same origin (or your chosen canonical; apex and `www` are different hosts—pick one and redirect the other).
+3. Under **Additional Redirect URLs**, add at least:
+   - `{SITE_URL}/auth/callback`
+   - `{SITE_URL}/login`
+   - `{SITE_URL}/dashboard`
+   - `{SITE_URL}/onboarding`
+4. Confirm signup emails use `emailRedirectTo` built in [`lib/auth/auth-email-redirect.ts`](../lib/auth/auth-email-redirect.ts); the path must appear in the allow list above or Supabase will reject the redirect after the user clicks the link.
+5. **Preview deployments:** either add each preview origin to Additional Redirect URLs (noisy) or avoid email signup on previews / use a separate Supabase project for staging.
+
+## Custom SMTP (deliverability)
+
+Supabase’s built-in mail is fine for development; production inboxes often require your own domain.
+
+1. Supabase Dashboard → **Project Settings** → **Authentication** (or **Auth** → **SMTP Settings**, depending on UI version).
+2. Enable **custom SMTP** with your provider (e.g. Resend, Postmark, SES).
+3. Configure **SPF**, **DKIM**, and optionally **DMARC** for the sending domain so messages are not filed as spam.
+4. Re-send a test confirmation after switching SMTP.
+
+Application transactional mail (Resend) for product emails is separate; auth confirmation is still driven by Supabase until you use a custom Auth hook.
+
 ## Supabase dashboard setup
 
 1. Open Supabase Dashboard -> Authentication -> Email Templates.
@@ -54,6 +89,25 @@ Supabase template variables:
 - `{{ .TokenHash }}`
 - `{{ .RedirectTo }}`
 
+## Programmatic / transactional email (Next.js)
+
+Shared layout and logo URL resolution (from `NEXT_PUBLIC_SITE_URL`) live in:
+
+- [`lib/email/email-layout.ts`](../lib/email/email-layout.ts)
+- [`lib/email/email-branding.ts`](../lib/email/email-branding.ts)
+
+Contract and organization invite emails use `emailLayout()` and pick up the logo automatically.
+
+## Promotional emails (campaigns, manual sends)
+
+Reusable HTML and plain-text builders per account type (no automated onboarding send):
+
+- [`lib/email/account-promotional-templates.ts`](../lib/email/account-promotional-templates.ts) — `buildGeneralPromotionalEmail`, `buildArtistPromotionalEmail`, `buildVenuePromotionalEmail`, `buildOrganizationPromotionalEmail`, `buildAdminPromotionalEmail`
+
+Optional Resend send helper (requires `RESEND_API_KEY`):
+
+- [`lib/email/send-promotional-email.ts`](../lib/email/send-promotional-email.ts) — `sendPromotionalEmailViaResend`
+
 ## Smoke-test checklist
 
 - Email signup sends confirmation and lands user in login flow.
@@ -61,3 +115,4 @@ Supabase template variables:
 - Reset password email link reaches reset flow.
 - Invite email link reaches auth flow.
 - Google/Apple/Facebook sign-in returns to `/auth/callback`.
+- Logo image loads from your production domain; with images off, **Tourify** wordmark still appears.
