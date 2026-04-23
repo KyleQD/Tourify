@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
+import { useCurrentVenue } from "@/hooks/use-venue"
 import { StaffProfileCard } from "@/components/venue/staff/staff-profile-card"
 import { StaffProfileForm } from "@/components/venue/staff/staff-profile-form"
 import { EnhancedStaffProfilesService, StaffProfileData, CreateStaffProfileData, UpdateStaffProfileData } from "@/lib/services/enhanced-staff-profiles.service"
@@ -58,6 +59,7 @@ import {
 
 export default function EnhancedStaffManagement() {
   const { toast } = useToast()
+  const { venue, loading: venueLoading } = useCurrentVenue()
   const [staff, setStaff] = useState<StaffProfileData[]>([])
   const [filteredStaff, setFilteredStaff] = useState<StaffProfileData[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -69,20 +71,17 @@ export default function EnhancedStaffManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingStaff, setEditingStaff] = useState<StaffProfileData | null>(null)
   const [selectedStaff, setSelectedStaff] = useState<StaffProfileData | null>(null)
-  const [venueId, setVenueId] = useState<string>("")
-
-  // Load staff data
-  useEffect(() => {
-    // TODO: Get venueId from context or URL params
-    // For now, using a placeholder
-    setVenueId("default-venue-id")
-  }, [])
+  const venueId = venue?.id ?? ""
 
   useEffect(() => {
-    if (venueId) {
-      loadStaffData()
+    if (venueLoading) return
+    if (venueId) void loadStaffData()
+    else {
+      setStaff([])
+      setFilteredStaff([])
+      setIsLoading(false)
     }
-  }, [venueId])
+  }, [venueId, venueLoading])
 
   // Filter staff based on search and filters
   useEffect(() => {
@@ -256,6 +255,26 @@ export default function EnhancedStaffManagement() {
 
   const roleCategories = Array.from(new Set(staff.map(s => s.role_category).filter(Boolean)))
   const departments = Array.from(new Set(staff.map(s => s.department).filter(Boolean)))
+
+  if (venueLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4" />
+          <p className="text-gray-400">Loading venue…</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!venueId) {
+    return (
+      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-8 text-center text-amber-100">
+        <p className="font-medium">No venue found for your account.</p>
+        <p className="mt-2 text-sm text-amber-200/90">Create or join a venue to manage staff profiles.</p>
+      </div>
+    )
+  }
 
   if (isLoading) {
     return (

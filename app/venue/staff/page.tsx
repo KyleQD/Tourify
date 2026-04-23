@@ -17,6 +17,7 @@ import { useCurrentVenue } from "@/hooks/use-venue"
 import StaffOnboardingSystem from "./components/staff-onboarding-system"
 import EnhancedStaffOnboarding from "./components/enhanced-staff-onboarding"
 import JobBoardIntegration from "./components/job-board-integration"
+import { VenueTeamCommunicationsPanel } from "../components/venue-team-communications-panel"
 import { EmployeeManagementOverview } from "@/components/staff/employee-management-overview"
 import { EmployeeRosterPanel } from "@/components/staff/employee-roster-panel"
 import { StaffingHealthPanel } from "@/components/staff/staffing-health-panel"
@@ -922,220 +923,22 @@ export default function FuturisticStaffManagement() {
           <JobBoardIntegration />
         </TabsContent>
 
-        {/* Communications Tab */}
+        {/* Communications Tab — live team_communications (see docs/tourify-rebuild-phase-0-1-dependency-map.md) */}
         <TabsContent value="communications" className="space-y-6">
-          {/* Enhanced Communication System */}
-          <Card className="bg-slate-800/30 border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-cyan-400">Staff Communication Hub</CardTitle>
-              <CardDescription>
-                Send messages, broadcast announcements, and manage staff communications
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                <Button className="h-20 flex-col bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30">
-                  <MonitorSpeaker className="h-8 w-8 mb-2 text-blue-400" />
-                  <span className="text-blue-400">Broadcast to All</span>
-                </Button>
-                <Button className="h-20 flex-col bg-green-600/20 hover:bg-green-600/30 border border-green-500/30">
-                  <Users className="h-8 w-8 mb-2 text-green-400" />
-                  <span className="text-green-400">Department Message</span>
-                </Button>
-                <Button className="h-20 flex-col bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30">
-                  <Calendar className="h-8 w-8 mb-2 text-purple-400" />
-                  <span className="text-purple-400">Schedule Update</span>
-                </Button>
-                <Button className="h-20 flex-col bg-red-600/20 hover:bg-red-600/30 border border-red-500/30">
-                  <AlertTriangle className="h-8 w-8 mb-2 text-red-400" />
-                  <span className="text-red-400">Emergency Alert</span>
-                </Button>
+          {venueLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4" />
+                <p className="text-slate-400">Loading venue…</p>
               </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Recent Messages */}
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-4">Recent Messages</h3>
-                  <div className="space-y-3">
-                    {[
-                      { sender: "You", message: "Team meeting at 3 PM today", time: "10 min ago", type: "announcement" },
-                      { sender: "Maya Rodriguez", message: "Sound check complete for tonight", time: "25 min ago", type: "update" },
-                      { sender: "System", message: "New staff member Sarah Johnson onboarded", time: "1 hour ago", type: "system" }
-                    ].map((msg, i) => (
-                      <div key={i} className="p-3 bg-slate-700/30 rounded-lg">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-white font-medium text-sm">{msg.sender}</span>
-                          <span className="text-slate-400 text-xs">{msg.time}</span>
-                        </div>
-                        <p className="text-slate-300 text-sm">{msg.message}</p>
-                        <Badge variant="outline" className="text-xs mt-1 bg-slate-600/50 border-slate-500">
-                          {msg.type}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quick Message */}
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-4">Send Quick Message</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <Label htmlFor="recipients">Recipients</Label>
-                      <Select>
-                        <SelectTrigger className="bg-slate-700/50 border-slate-600">
-                          <SelectValue placeholder="Select recipients" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
-                          <SelectItem value="all">All Staff</SelectItem>
-                          <SelectItem value="technical">Technical Team</SelectItem>
-                          <SelectItem value="security">Security Team</SelectItem>
-                          <SelectItem value="service">Service Team</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="priority">Priority</Label>
-                      <Select>
-                        <SelectTrigger className="bg-slate-700/50 border-slate-600">
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
-                          <SelectItem value="low">Low</SelectItem>
-                          <SelectItem value="normal">Normal</SelectItem>
-                          <SelectItem value="high">High</SelectItem>
-                          <SelectItem value="urgent">Urgent</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="message">Message</Label>
-                      <Textarea
-                        id="message"
-                        placeholder="Type your message..."
-                        className="bg-slate-700/50 border-slate-600"
-                        rows={4}
-                      />
-                    </div>
-                    <Button className="w-full bg-cyan-600 hover:bg-cyan-700">
-                      <Send className="h-4 w-4 mr-2" />
-                      Send Message
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Message Center */}
-            <Card className="lg:col-span-2 bg-slate-800/30 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <MessageSquare className="h-5 w-5 text-cyan-400" />
-                  <span className="text-cyan-400">Message Center</span>
-                  <div className="ml-auto flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-green-400">Live</span>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-96">
-                  <div className="space-y-4">
-                    {[
-                      { sender: "Maya Rodriguez", message: "Sound system check complete. All levels optimal.", time: "2 min ago", avatar: "/placeholder.svg" },
-                      { sender: "You", message: "Great work! How's the new mixing board?", time: "1 min ago", isMe: true },
-                      { sender: "Jordan Kim", message: "Bar inventory restocked. Ready for tonight's rush.", time: "5 min ago", avatar: "/placeholder.svg" },
-                      { sender: "Sam Taylor", message: "Security briefing complete. Team is positioned.", time: "8 min ago", avatar: "/placeholder.svg" }
-                    ].map((msg, i) => (
-                      <div key={i} className={`flex ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`flex items-start space-x-2 max-w-xs ${msg.isMe ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                          {!msg.isMe && (
-                            <Avatar className="h-8 w-8">
-                              <AvatarImage src={msg.avatar} />
-                              <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs">
-                                {msg.sender.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <div>
-                            <div className={`p-3 rounded-lg ${
-                              msg.isMe 
-                                ? 'bg-gradient-to-r from-cyan-500 to-purple-600 text-white' 
-                                : 'bg-slate-700/50 text-white'
-                            }`}>
-                              <p className="text-sm">{msg.message}</p>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1">{msg.time}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-                <div className="flex items-center space-x-2 mt-4">
-                  <Input 
-                    placeholder="Type your message..."
-                    className="flex-1 bg-slate-700/50 border-slate-600 text-white placeholder-slate-400"
-                  />
-                  <Button className="bg-gradient-to-r from-cyan-500 to-purple-600">
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Communication Tools */}
-            <Card className="bg-slate-800/30 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-purple-400">Communication Hub</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button className="w-full justify-start bg-gradient-to-r from-green-600/20 to-emerald-600/20 border border-green-500/30 hover:from-green-600/30 hover:to-emerald-600/30">
-                  <MonitorSpeaker className="h-4 w-4 mr-2" />
-                  All-Call System
-                </Button>
-                <Button className="w-full justify-start bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border border-blue-500/30 hover:from-blue-600/30 hover:to-cyan-600/30">
-                  <Headphones className="h-4 w-4 mr-2" />
-                  Team Channels
-                </Button>
-                <Button className="w-full justify-start bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30">
-                  <Bell className="h-4 w-4 mr-2" />
-                  Priority Alerts
-                </Button>
-                <Button className="w-full justify-start bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border border-yellow-500/30 hover:from-yellow-600/30 hover:to-orange-600/30">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Task Assignments
-                </Button>
-                
-                {/* Online Staff */}
-                <div className="pt-4 border-t border-slate-700">
-                  <div className="text-sm text-slate-400 mb-3">Online Staff ({stats.onlineStaff})</div>
-                  <div className="space-y-2">
-                    {staffMembers.filter(s => s.status === 'online').map((staff) => (
-                      <div key={staff.id} className="flex items-center space-x-2 p-2 rounded-lg bg-slate-700/30 hover:bg-slate-700/50 transition-colors cursor-pointer">
-                        <div className="relative">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={staff.avatar} />
-                            <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs">
-                              {staff.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full border border-slate-800"></div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-white text-sm">{staff.name}</div>
-                          <div className="text-slate-400 text-xs">{staff.role}</div>
-                        </div>
-                        <MessageSquare className="h-4 w-4 text-slate-400 hover:text-cyan-400 transition-colors" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+            </div>
+          ) : venue?.id ? (
+            <VenueTeamCommunicationsPanel venueId={venue.id} />
+          ) : (
+            <div className="text-center py-12 text-slate-400">
+              <p>No venue found. Create or select a venue to use team messages.</p>
+            </div>
+          )}
         </TabsContent>
 
         {/* Analytics Tab */}

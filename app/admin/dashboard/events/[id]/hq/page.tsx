@@ -22,6 +22,7 @@ import {
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
+import Link from "next/link"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 
 const PRIORITY_CONFIG = {
@@ -252,9 +253,12 @@ export default function EventHQPage() {
     <div className="space-y-6 text-white pb-20">
       {/* Header */}
       <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900 via-purple-950/30 to-slate-900 p-6">
-        <div className="flex items-center gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
           <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/dashboard/events/${eventId}`)} className="text-slate-400 hover:text-white">
             <ArrowLeft className="h-4 w-4 mr-1" />Back to event
+          </Button>
+          <Button variant="outline" size="sm" asChild className="border-cyan-600/50 text-cyan-200 hover:bg-cyan-950/40">
+            <Link href={`/admin/dashboard/events/${eventId}/command-center`}>Command center</Link>
           </Button>
           <Badge variant="outline" className="capitalize border-purple-600/50 text-purple-300">{userRole}</Badge>
         </div>

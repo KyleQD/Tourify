@@ -38,3 +38,11 @@ Apply migration 20260423190222_ensure_artist_job_categories_seed.sql on environm
 RLS reminder
 ------------
 artist_job_applications INSERT requires auth.uid() = applicant_id — server routes must use createClient() session (fixed by passing supabase into ArtistJobsService.applyToJob).
+
+Rebuild — unified facade + command center (Phase 2 / 8 / 10)
+-----------------------------------------------------------
+1. GET /api/jobs — returns artist_jobs (open) + optional staff_postings when venue_id query param set (session cookie).
+2. POST /api/jobs — expect 405 with guidance until unified write is implemented.
+3. Venue /venue/staff → Communications tab — loads team_communications for current venue; send inserts a row.
+4. Admin /admin/dashboard/events/{id}/command-center — loads GET /api/events/{id}/hq; links to HQ, jobs facade, venue staff.
+5. lib/rebuild/hiring-automation.ts — placeholder for approval→onboarding side effects (Phase 9).

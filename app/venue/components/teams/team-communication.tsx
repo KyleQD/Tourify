@@ -1,4 +1,5 @@
 "use client"
+// TODO(rebuild Phase 0.3+): wire to team_communications or event_group_messages — see docs/tourify-rebuild-phase-0-1-dependency-map.md
 
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"

@@ -1,4 +1,5 @@
 "use client"
+// TODO(rebuild Phase 2+): replace mock templates with onboarding_workflows API — see docs/tourify-rebuild-phase-0-1-dependency-map.md
 
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"

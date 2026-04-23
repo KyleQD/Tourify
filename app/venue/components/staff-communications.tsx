@@ -1,4 +1,5 @@
 "use client"
+// TODO(rebuild): prefer VenueTeamCommunicationsPanel + venueId — see docs/tourify-rebuild-phase-0-1-dependency-map.md
 
 import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
