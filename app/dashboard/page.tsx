@@ -422,7 +422,9 @@ export default function DashboardPage() {
     }
   }, [user, loading, router, dashboardUserId])
 
-  if (loading) {
+  // If the auth listener already set `user` but `getSession()` is still slow (Safari Private, etc.),
+  // do not block the whole dashboard — same pattern as Nav showing the avatar early.
+  if (loading && !user) {
     return (
       <BrandLoadingScreen message="Loading" fullScreen />
     )

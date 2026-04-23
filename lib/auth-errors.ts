@@ -8,13 +8,35 @@ export interface AuthErrorInfo {
   severity: 'error' | 'warning' | 'info'
 }
 
+/** Used by sign-in and error UI so “unverified” is never treated as wrong password. */
+export function isEmailNotConfirmedAuthError(error: AuthError | Error | string): boolean {
+  const raw = typeof error === 'string' ? error : (error.message ?? '')
+  const m = raw.toLowerCase()
+  if (m.includes('email not confirmed')) return true
+  if (m.includes('email address not confirmed')) return true
+  if (m.includes('confirm your email before signing in')) return true
+  if (m.includes('confirm your email')) return true
+  return false
+}
+
 export function mapAuthError(error: AuthError | Error | string): AuthErrorInfo {
-  const errorMessage = typeof error === 'string' ? error : error.message?.toLowerCase() || ''
+  const errorMessage =
+    typeof error === 'string' ? error.toLowerCase() : error.message?.toLowerCase() || ''
+
+  // Email not confirmed — must run before invalid-credentials heuristics
+  if (isEmailNotConfirmedAuthError(error)) {
+    return {
+      message: 'Email not confirmed',
+      description: 'Please check your email and click the confirmation link before signing in.',
+      actionable: true,
+      action: 'Check your email for confirmation link',
+      severity: 'warning'
+    }
+  }
 
   // Invalid credentials
   if (errorMessage.includes('invalid login credentials') || 
       errorMessage.includes('invalid credentials') ||
-      errorMessage.includes('email not confirmed') ||
       errorMessage.includes('invalid email or password')) {
     return {
       message: 'Invalid email or password',
@@ -22,18 +44,6 @@ export function mapAuthError(error: AuthError | Error | string): AuthErrorInfo {
       actionable: true,
       action: 'Try again or reset your password',
       severity: 'error'
-    }
-  }
-
-  // Email not confirmed
-  if (errorMessage.includes('email not confirmed') || 
-      errorMessage.includes('confirm your email')) {
-    return {
-      message: 'Email not confirmed',
-      description: 'Please check your email and click the confirmation link before signing in.',
-      actionable: true,
-      action: 'Check your email for confirmation link',
-      severity: 'warning'
     }
   }
 

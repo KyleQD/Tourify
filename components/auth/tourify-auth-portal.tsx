@@ -4,12 +4,22 @@ import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useAuth } from "@/contexts/auth-context"
+import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { AuthErrorDisplay } from "@/components/ui/auth-error-display"
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { mapAuthError, type AuthErrorInfo } from "@/lib/auth-errors"
 import {
   type AuthTab,
@@ -55,6 +65,7 @@ export function TourifyAuthPortal({
   const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState<string | null>(null)
   const [resendCooldownSec, setResendCooldownSec] = useState(0)
   const [isResendingConfirmation, setIsResendingConfirmation] = useState(false)
+  const [showVerifyEmailDialog, setShowVerifyEmailDialog] = useState(false)
   const [isUsernameEditedManually, setIsUsernameEditedManually] = useState(false)
   const [usernameCheck, setUsernameCheck] = useState<{
     normalized: string
@@ -205,18 +216,19 @@ export function TourifyAuthPortal({
     return () => clearTimeout(id)
   }, [resendCooldownSec])
 
-  const handleResendSignupConfirmation = useCallback(async () => {
-    if (!pendingConfirmationEmail || resendCooldownSec > 0 || isResendingConfirmation) return
+  const handleResendSignupConfirmation = useCallback(async (): Promise<boolean> => {
+    if (!pendingConfirmationEmail || resendCooldownSec > 0 || isResendingConfirmation) return false
     setIsResendingConfirmation(true)
     setError(null)
     const { error: resendError } = await resendSignupConfirmation(pendingConfirmationEmail)
     setIsResendingConfirmation(false)
     if (resendError) {
       setError(mapAuthError(resendError))
-      return
+      return false
     }
     setSuccess("Confirmation email sent again. Check your inbox and spam folder.")
     setResendCooldownSec(60)
+    return true
   }, [
     pendingConfirmationEmail,
     resendCooldownSec,
@@ -241,6 +253,7 @@ export function TourifyAuthPortal({
     setIsRedirecting(false)
     setPendingConfirmationEmail(null)
     setResendCooldownSec(0)
+    setShowVerifyEmailDialog(false)
   }
 
   const handleContactSupport = () => {
@@ -257,12 +270,25 @@ export function TourifyAuthPortal({
     try {
       const result = await signIn(signInData.email, signInData.password)
 
+      if (result.needsEmailVerification && result.error) {
+        const trimmed = signInData.email.trim()
+        if (!trimmed) {
+          setError(mapAuthError(result.error))
+          return
+        }
+        setPendingConfirmationEmail(trimmed)
+        setShowVerifyEmailDialog(true)
+        return
+      }
+
       if (result.error) {
         setError(mapAuthError(result.error))
         return
       }
 
       setSuccess("Successfully signed in! Redirecting…")
+      // Ensure SSR cookie chunking / storage flushes before full page load (avoids empty session on next document).
+      await supabase.auth.getSession()
       const validRedirectTo = normalizePostLoginRedirect(redirectTo)
       window.location.assign(validRedirectTo)
     } catch (err) {
@@ -284,6 +310,8 @@ export function TourifyAuthPortal({
   }
 
   const handleAuthTabChange = (tab: AuthTab) => {
+    setShowVerifyEmailDialog(false)
+    if (!success) setPendingConfirmationEmail(null)
     setActiveAuthTab(tab)
     if (!syncSearchParams || typeof window === "undefined") return
     const nextUrl = new URL(window.location.href)
@@ -378,6 +406,48 @@ export function TourifyAuthPortal({
 
   return (
     <div className={wrapperClassName ?? "w-full max-w-md mx-auto"}>
+      <AlertDialog open={showVerifyEmailDialog} onOpenChange={setShowVerifyEmailDialog}>
+        <AlertDialogContent className="border border-white/20 bg-slate-950 text-white shadow-2xl sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Verify your email</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              You must confirm your email before signing in. We can send another confirmation link to{" "}
+              <span className="font-medium text-white">
+                {pendingConfirmationEmail ?? "the address you entered"}
+              </span>
+              .
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:justify-end">
+            <AlertDialogCancel className="touch-manipulation border-white/25 bg-white/5 text-white hover:bg-white/10">
+              Not now
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              className="touch-manipulation bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+              disabled={!pendingConfirmationEmail || isResendingConfirmation || resendCooldownSec > 0}
+              onClick={() =>
+                void (async () => {
+                  const ok = await handleResendSignupConfirmation()
+                  if (ok) setShowVerifyEmailDialog(false)
+                })()
+              }
+            >
+              {isResendingConfirmation ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Sending…
+                </>
+              ) : resendCooldownSec > 0 ? (
+                `Resend in ${resendCooldownSec}s`
+              ) : (
+                "Resend verification email"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <Card
         className={`login-auth-shard bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden ${className ?? ""}`}
         style={{ clipPath: "polygon(3% 0, 100% 1%, 97% 100%, 0 96%, 1% 18%)" }}

@@ -1,60 +1,15 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { getAuthSignUpEmailRedirectTo } from '@/lib/auth/auth-email-redirect'
+import { isEmailNotConfirmedAuthError } from '@/lib/auth-errors'
 import { useRouter } from 'next/navigation'
 
 function authDevLog(...args: unknown[]) {
   if (process.env.NODE_ENV !== 'development') return
   console.log(...args)
-}
-
-/** One attempt; slow mobile / cold token refresh can exceed a few seconds at scale. */
-const SESSION_CHECK_TIMEOUT_MS = 28_000
-
-class SessionCheckTimeoutError extends Error {
-  readonly name = 'SessionCheckTimeoutError'
-  constructor() {
-    super(
-      'Sign-in check timed out. Check your connection, then use Try again or refresh the page.',
-    )
-  }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => Error): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const id = setTimeout(() => reject(onTimeout()), ms)
-    promise
-      .then((value) => {
-        clearTimeout(id)
-        resolve(value)
-      })
-      .catch((err) => {
-        clearTimeout(id)
-        reject(err)
-      })
-  })
-}
-
-async function getSessionWithTimeoutAndRetry() {
-  const runOnce = () =>
-    withTimeout(
-      supabase.auth.getSession(),
-      SESSION_CHECK_TIMEOUT_MS,
-      () => new SessionCheckTimeoutError(),
-    )
-
-  try {
-    return await runOnce()
-  } catch (first) {
-    if (first instanceof SessionCheckTimeoutError) {
-      console.warn('[Auth] Initial getSession timed out; retrying once before surfacing an error')
-      return await runOnce()
-    }
-    throw first
-  }
 }
 
 type SocialProvider = 'google' | 'apple' | 'facebook'
@@ -64,9 +19,12 @@ interface AuthContextType {
   session: Session | null
   loading: boolean
   authError: string | null
-  /** Re-run initial getSession (e.g. after timeout or network recovery). */
+  /** Re-run initial session read from Supabase (e.g. after network recovery). */
   retrySessionCheck: () => Promise<void>
-  signIn: (email: string, password: string) => Promise<{ error?: AuthError }>
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ error?: AuthError; needsEmailVerification?: boolean }>
   signUp: (
     email: string,
     password: string,
@@ -97,18 +55,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
   const router = useRouter()
+  /**
+   * `onAuthStateChange` (e.g. INITIAL_SESSION) can hydrate session before `getSession()`
+   * finishes or if `getSession()` times out on slow / strict browsers (Safari Private).
+   * Never wipe listener-hydrated auth in that case.
+   */
+  const authListenerHydratedRef = useRef(false)
 
   const runInitialSessionCheck = useCallback(async () => {
     const started = typeof performance !== 'undefined' ? performance.now() : 0
     authDevLog('[Auth] Checking initial session...')
     try {
-      const { data: { session: nextSession }, error } = await getSessionWithTimeoutAndRetry()
+      // No artificial timeout: real accounts must not fail a slow cold refresh / Safari.
+      // `onAuthStateChange` + `authListenerHydratedRef` handle races if this is slow.
+      const { data: { session: nextSession }, error } = await supabase.auth.getSession()
 
       if (error) {
         console.error('[Auth] Session check error:', error)
-        setAuthError(error.message)
-        setSession(null)
-        setUser(null)
+        if (authListenerHydratedRef.current) {
+          console.warn(
+            '[Auth] getSession reported error but listener already hydrated; keeping session:',
+            error.message,
+          )
+          setAuthError(null)
+        } else {
+          setAuthError(error.message)
+          setSession(null)
+          setUser(null)
+        }
       } else {
         setAuthError(null)
         authDevLog(
@@ -118,16 +92,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
         setSession(nextSession)
         setUser(nextSession?.user ?? null)
+        if (nextSession) authListenerHydratedRef.current = true
       }
     } catch (error) {
       console.error('[Auth] Session check failed:', error)
-      setAuthError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to verify your session. Try refreshing the page.',
-      )
-      setSession(null)
-      setUser(null)
+      if (authListenerHydratedRef.current) {
+        console.warn(
+          '[Auth] getSession failed or timed out but listener already hydrated session; keeping user',
+        )
+        setAuthError(null)
+      } else {
+        setAuthError(
+          error instanceof Error
+            ? error.message
+            : 'Unable to verify your session. Try refreshing the page.',
+        )
+        setSession(null)
+        setUser(null)
+      }
     } finally {
       setLoading(false)
     }
@@ -140,22 +122,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [runInitialSessionCheck])
 
   useEffect(() => {
-    void runInitialSessionCheck()
-
-    // Listen for auth state changes
+    // Register listener before getSession so INITIAL_SESSION can hydrate the UI
+    // (and authListenerHydratedRef) before a slow or timing-out getSession completes.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       authDevLog('[Auth] State change:', event, session ? `User ${session.user?.id}` : 'No session')
 
+      authListenerHydratedRef.current = Boolean(session)
       setSession(session)
       setUser(session?.user ?? null)
       if (session) setAuthError(null)
+
+      // Unblock the app as soon as the listener reports state — `getSession()` can lag
+      // or hit our timeout while INITIAL_SESSION / SIGNED_IN already applied the session.
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || session) {
+        setLoading(false)
+      }
 
       // Don't automatically redirect on sign in - let components handle this
       // The middleware will handle protecting routes and the login page will redirect after successful sign in
 
       if (event === 'SIGNED_OUT') {
+        authListenerHydratedRef.current = false
         authDevLog('[Auth] User signed out, clearing local data')
         // Safari strict privacy modes can block storage APIs.
         try {
@@ -174,6 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authDevLog('[Auth] User signed in successfully')
       }
     })
+
+    void runInitialSessionCheck()
 
     return () => subscription.unsubscribe()
   }, [router, runInitialSessionCheck])
@@ -194,13 +185,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           status: error.status,
           name: error.name
         })
-        const msg = error.message.toLowerCase()
-        if (msg.includes('email not confirmed') || msg.includes('not confirmed')) {
+        if (isEmailNotConfirmedAuthError(error)) {
           return {
+            needsEmailVerification: true,
             error: {
               ...error,
               message:
-                'Confirm your email before signing in. Check your inbox and spam folder, or use “Resend confirmation email” on the Sign Up tab.',
+                'Confirm your email before signing in. Check your inbox and spam folder, or tap “Resend verification email” in the dialog.',
             } as AuthError,
           }
         }

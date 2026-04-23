@@ -26,13 +26,16 @@ Ensure `tourify-logo-white-email.jpg` is deployed under `public/` at the root of
 ## Per-environment checklist (Vercel + Supabase)
 
 1. Set **`NEXT_PUBLIC_SITE_URL`** in Vercel to the exact public origin (no trailing slash), e.g. `https://demo.tourify.live`.
-2. In Supabase → **Authentication** → **URL Configuration**, set **Site URL** to that same origin (or your chosen canonical; apex and `www` are different hosts—pick one and redirect the other).
-3. Under **Additional Redirect URLs**, add at least:
-   - `{SITE_URL}/auth/callback`
+2. In Supabase → **Authentication** → **URL Configuration**, set **Site URL** to that same **origin only** (no `/auth/callback` path or query string; apex and `www` are different hosts—pick one and redirect the other).
+3. Under **Additional Redirect URLs**, prefer `{SITE_URL}/**` on production so OAuth (`/auth/callback?...&authType=social`), password reset (`/reset-password`), and signup confirmation all match. Otherwise add at least:
+   - `{SITE_URL}/**` (recommended), or enumerate:
+   - `{SITE_URL}/auth/callback` (and any fixed `emailRedirectTo` query strings you use)
+   - `{SITE_URL}/reset-password`
    - `{SITE_URL}/login`
    - `{SITE_URL}/dashboard`
    - `{SITE_URL}/onboarding`
-4. Confirm signup emails use `emailRedirectTo` built in [`lib/auth/auth-email-redirect.ts`](../lib/auth/auth-email-redirect.ts); the path must appear in the allow list above or Supabase will reject the redirect after the user clicks the link.
+   - `{SITE_URL}/auth/verification`
+4. Confirm signup emails use `emailRedirectTo` built in [`lib/auth/auth-email-redirect.ts`](../lib/auth/auth-email-redirect.ts); that full URL (including query string) must be allow-listed, or use the `{SITE_URL}/**` wildcard.
 5. **Preview deployments:** either add each preview origin to Additional Redirect URLs (noisy) or avoid email signup on previews / use a separate Supabase project for staging.
 
 ## Custom SMTP (deliverability)
@@ -60,12 +63,14 @@ Application transactional mail (Resend) for product emails is separate; auth con
 
 In Supabase Dashboard -> Authentication -> URL Configuration:
 
-- Site URL: your production app origin
-- Additional Redirect URLs must include:
-  - `https://<your-domain>/auth/callback`
+- Site URL: your production app origin only (no auth path)
+- Additional Redirect URLs: include `https://<your-domain>/**` when supported, or list:
+  - `https://<your-domain>/auth/callback` (plus query-specific URLs if not using `/**`)
+  - `https://<your-domain>/reset-password`
   - `https://<your-domain>/login`
   - `https://<your-domain>/dashboard`
   - `https://<your-domain>/onboarding`
+  - `https://<your-domain>/auth/verification`
 
 ## Social providers
 

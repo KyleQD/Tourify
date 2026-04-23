@@ -258,7 +258,7 @@ export class AuthService {
         typeof window !== 'undefined'
           ? window.location.origin
           : (process.env.NEXT_PUBLIC_SITE_URL || 'https://tourify.live')
-      const redirectUrl = `${baseOrigin}/auth/reset-password`
+      const redirectUrl = `${baseOrigin}/reset-password`
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl
