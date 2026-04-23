@@ -11,7 +11,17 @@ function authDevLog(...args: unknown[]) {
   console.log(...args)
 }
 
-const SESSION_CHECK_TIMEOUT_MS = 12_000
+/** One attempt; slow mobile / cold token refresh can exceed a few seconds at scale. */
+const SESSION_CHECK_TIMEOUT_MS = 28_000
+
+class SessionCheckTimeoutError extends Error {
+  readonly name = 'SessionCheckTimeoutError'
+  constructor() {
+    super(
+      'Sign-in check timed out. Check your connection, then use Try again or refresh the page.',
+    )
+  }
+}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => Error): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -26,6 +36,25 @@ function withTimeout<T>(promise: Promise<T>, ms: number, onTimeout: () => Error)
         reject(err)
       })
   })
+}
+
+async function getSessionWithTimeoutAndRetry() {
+  const runOnce = () =>
+    withTimeout(
+      supabase.auth.getSession(),
+      SESSION_CHECK_TIMEOUT_MS,
+      () => new SessionCheckTimeoutError(),
+    )
+
+  try {
+    return await runOnce()
+  } catch (first) {
+    if (first instanceof SessionCheckTimeoutError) {
+      console.warn('[Auth] Initial getSession timed out; retrying once before surfacing an error')
+      return await runOnce()
+    }
+    throw first
+  }
 }
 
 type SocialProvider = 'google' | 'apple' | 'facebook'
@@ -73,14 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const started = typeof performance !== 'undefined' ? performance.now() : 0
     authDevLog('[Auth] Checking initial session...')
     try {
-      const { data: { session: nextSession }, error } = await withTimeout(
-        supabase.auth.getSession(),
-        SESSION_CHECK_TIMEOUT_MS,
-        () =>
-          new Error(
-            'Sign-in check timed out. Check your connection, then use Try again or refresh the page.',
-          ),
-      )
+      const { data: { session: nextSession }, error } = await getSessionWithTimeoutAndRetry()
 
       if (error) {
         console.error('[Auth] Session check error:', error)

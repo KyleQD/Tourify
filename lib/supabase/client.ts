@@ -72,7 +72,8 @@ const legacySafeStorage: {
     }
 
     try {
-      const cookies = g.document.cookie.split(';')
+      const cookieHeader = g.document.cookie ?? ''
+      const cookies = cookieHeader.split(';')
       for (const part of cookies) {
         const trimmed = part.trim()
         const eq = trimmed.indexOf('=')
@@ -199,11 +200,13 @@ function attachRecoveryHashListener(client: SupabaseClient<Database>) {
     }
     if (event === 'SIGNED_IN') {
       try {
-        const hash = w.location?.hash ?? ''
+        const loc = w.location
+        if (!loc) return
+        const hash = loc.hash ?? ''
         if (hash.includes('type=recovery')) {
-          w.location.href = '/auth/verification?type=recovery&success=true'
+          loc.href = '/auth/verification?type=recovery&success=true'
         } else if (hash.includes('type=signup')) {
-          w.location.href = '/auth/verification?type=signup&success=true'
+          loc.href = '/auth/verification?type=signup&success=true'
         }
       } catch {
         /* noop */

@@ -1,3 +1,4 @@
+import path from 'node:path'
 import type { NextConfig } from 'next'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -36,6 +37,9 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Parent folder has its own package-lock.json; this repo uses pnpm-lock.yaml here.
+  // Pin tracing to this app so Next does not infer the wrong workspace root (see Next.js outputFileTracingRoot docs).
+  outputFileTracingRoot: path.join(process.cwd()),
   reactStrictMode: true,
   poweredByHeader: false,
   eslint: {
