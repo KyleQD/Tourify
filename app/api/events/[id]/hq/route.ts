@@ -123,7 +123,7 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
       try { return (await query).data || [] } catch { return [] }
     }
 
-    const [bulletins, resources, calendar, team, tasks] = await Promise.all([
+    const [bulletins, resources, calendar, team, tasks, eventPostings, eventGroups, eventDocs] = await Promise.all([
       safeQuery(
         svc.from('event_bulletins')
           .select('*')
@@ -161,6 +161,20 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
           .order('due_date', { ascending: true })
           .limit(50)
       ),
+      safeQuery(
+        svc
+          .from('job_posting_templates')
+          .select('id,title,status,applications_count,created_at')
+          .eq('event_id', eventId)
+          .order('created_at', { ascending: false })
+          .limit(30)
+      ),
+      safeQuery(
+        svc.from('event_group_chats').select('id,name,group_type').eq('event_id', eventId).limit(30)
+      ),
+      safeQuery(
+        svc.from('event_documents').select('id,title,document_type,visible_to,pinned,created_at').eq('event_id', eventId).limit(50)
+      ),
     ])
 
     const visibleBulletins = bulletins.filter((b: any) => {
@@ -172,6 +186,25 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
       if (!r.visible_to || r.visible_to.includes('all')) return true
       return r.visible_to.includes(role)
     })
+
+    const visibleDocuments = (eventDocs || []).filter((d: any) => {
+      if (!d.visible_to || d.visible_to.includes('all')) return true
+      return d.visible_to.includes(role)
+    })
+
+    const postingIds = (eventPostings || []).map((p: { id: string }) => p.id).filter(Boolean)
+    let hiringApplicationsTotal = 0
+    if (postingIds.length > 0) {
+      try {
+        const { count } = await svc
+          .from('job_applications')
+          .select('id', { count: 'exact', head: true })
+          .in('job_posting_id', postingIds)
+        hiringApplicationsTotal = count || 0
+      } catch {
+        hiringApplicationsTotal = 0
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -192,6 +225,12 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
       calendar,
       team,
       tasks,
+      hiring: {
+        postings: eventPostings || [],
+        applications_total: hiringApplicationsTotal,
+      },
+      group_chats: eventGroups || [],
+      documents: visibleDocuments,
     })
   } catch (error) {
     console.error('[Event HQ] Error:', error)

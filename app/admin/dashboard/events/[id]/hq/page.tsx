@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useCallback, useEffect, useState } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,8 +18,9 @@ import {
   ArrowLeft, Megaphone, FileText, Calendar, Users, Link2, Plus, Pin,
   Clock, MapPin, AlertTriangle, Info, Loader2, CheckCircle, Trash2,
   ExternalLink, StickyNote, Globe, BookOpen, Phone, Briefcase,
-  Music, Shield, Star, Send, Bell, Eye,
+  Music, Shield, Star, Send, Bell, Eye, MessageCircle,
 } from "lucide-react"
+import { EventChatsPanel } from "@/components/admin/events/event-chats-panel"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -47,6 +48,7 @@ const CALENDAR_TYPE_COLORS: Record<string, string> = {
 export default function EventHQPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const eventId = params.id as string
 
@@ -100,10 +102,11 @@ export default function EventHQPage() {
   const [calDesc, setCalDesc] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showStaffingDialog, setShowStaffingDialog] = useState(false)
+  const [staffingTitle, setStaffingTitle] = useState("")
+  const [staffingDescription, setStaffingDescription] = useState("")
 
-  useEffect(() => { loadHQ() }, [eventId])
-
-  async function loadHQ() {
+  const loadHQ = useCallback(async () => {
     setIsLoading(true)
     try {
       const res = await fetch(`/api/events/${eventId}/hq`, { credentials: "include" })
@@ -130,7 +133,17 @@ export default function EventHQPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [eventId, toast])
+
+  useEffect(() => {
+    void loadHQ()
+  }, [loadHQ])
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "bulletin" || tab === "resources" || tab === "calendar" || tab === "team" || tab === "tasks" || tab === "chats")
+      setActiveTab(tab)
+  }, [searchParams])
 
   async function handlePostBulletin() {
     if (!bulletinTitle.trim() || !bulletinContent.trim()) return
@@ -226,6 +239,41 @@ export default function EventHQPage() {
     } catch { toast({ title: "Delete failed", variant: "destructive" }) }
   }
 
+  async function handleCreateEventStaffingJob() {
+    if (!staffingTitle.trim()) {
+      toast({ title: "Title required", variant: "destructive" })
+      return
+    }
+    setIsSubmitting(true)
+    try {
+      const res = await fetch(`/api/events/${eventId}/job-postings`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: staffingTitle.trim(),
+          description: staffingDescription.trim() || null,
+          department: "Event operations",
+          position: staffingTitle.trim(),
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) throw new Error(json.error || "Failed to publish")
+      toast({ title: "Staffing post published", description: "Workers can apply from the jobs board." })
+      setShowStaffingDialog(false)
+      setStaffingTitle("")
+      setStaffingDescription("")
+    } catch (e) {
+      toast({
+        title: "Could not create posting",
+        description: e instanceof Error ? e.message : "Try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -260,6 +308,17 @@ export default function EventHQPage() {
           <Button variant="outline" size="sm" asChild className="border-cyan-600/50 text-cyan-200 hover:bg-cyan-950/40">
             <Link href={`/admin/dashboard/events/${eventId}/command-center`}>Command center</Link>
           </Button>
+          {event.venue_id ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-600/50 text-amber-100 hover:bg-amber-950/40"
+              onClick={() => setShowStaffingDialog(true)}
+            >
+              <Briefcase className="h-4 w-4 mr-1" />
+              Staffing request
+            </Button>
+          ) : null}
           <Badge variant="outline" className="capitalize border-purple-600/50 text-purple-300">{userRole}</Badge>
         </div>
         <div className="flex items-start justify-between">
@@ -301,12 +360,13 @@ export default function EventHQPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-800 border-slate-700 grid w-full grid-cols-5">
+        <TabsList className="bg-slate-800 border-slate-700 grid w-full grid-cols-6">
           <TabsTrigger value="bulletin"><Megaphone className="h-4 w-4 mr-1" />Bulletin</TabsTrigger>
           <TabsTrigger value="resources"><FileText className="h-4 w-4 mr-1" />Resources</TabsTrigger>
           <TabsTrigger value="calendar"><Calendar className="h-4 w-4 mr-1" />Calendar</TabsTrigger>
           <TabsTrigger value="team"><Users className="h-4 w-4 mr-1" />Team</TabsTrigger>
           <TabsTrigger value="tasks"><CheckCircle className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
+          <TabsTrigger value="chats"><MessageCircle className="h-4 w-4 mr-1" />Chats</TabsTrigger>
         </TabsList>
 
         {/* BULLETIN BOARD TAB */}
@@ -543,6 +603,10 @@ export default function EventHQPage() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="chats" className="mt-6 space-y-4">
+          <EventChatsPanel eventId={eventId} />
+        </TabsContent>
       </Tabs>
 
       {/* Post Bulletin Dialog */}
@@ -635,6 +699,54 @@ export default function EventHQPage() {
               <Button variant="outline" className="border-slate-700" onClick={() => setShowCalendarDialog(false)}>Cancel</Button>
               <Button onClick={handleAddCalendarItem} disabled={isSubmitting || !calTitle.trim() || !calStart} className="bg-purple-600 hover:bg-purple-700">
                 {isSubmitting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}Add
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showStaffingDialog} onOpenChange={setShowStaffingDialog}>
+        <DialogContent className="max-w-lg border-slate-700 bg-slate-900">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              <Briefcase className="h-5 w-5 text-amber-400" />
+              Publish staffing request
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-slate-400">
+              Creates a published role on <span className="text-slate-200">job_posting_templates</span> linked to this event
+              for your venue.
+            </p>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Role title</Label>
+              <Input
+                value={staffingTitle}
+                onChange={(e) => setStaffingTitle(e.target.value)}
+                placeholder="e.g. Stage hands — load in"
+                className="border-slate-700 bg-slate-800"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Description (optional)</Label>
+              <Textarea
+                value={staffingDescription}
+                onChange={(e) => setStaffingDescription(e.target.value)}
+                rows={4}
+                className="resize-none border-slate-700 bg-slate-800"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" className="border-slate-700" onClick={() => setShowStaffingDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                className="bg-amber-600 hover:bg-amber-700"
+                disabled={isSubmitting || !staffingTitle.trim()}
+                onClick={() => void handleCreateEventStaffingJob()}
+              >
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Publish
               </Button>
             </div>
           </div>

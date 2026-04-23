@@ -1,7 +1,6 @@
 "use client"
-// TODO(rebuild Phase 2+): replace mock templates with onboarding_workflows API — see docs/tourify-rebuild-phase-0-1-dependency-map.md
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -95,16 +94,19 @@ interface OnboardingCandidate {
   venueId?: string
 }
 
-export default function OnboardingWizard({ 
-  candidate, 
-  isOpen, 
-  onClose 
-}: { 
+export default function OnboardingWizard({
+  candidate,
+  isOpen,
+  onClose,
+  venueId,
+}: {
   candidate: OnboardingCandidate | null
   isOpen: boolean
-  onClose: () => void 
+  onClose: () => void
+  venueId?: string
 }) {
   const { toast } = useToast()
+  const [liveOnboarding, setLiveOnboarding] = useState<{ candidates: number; workflows: number } | null>(null)
   const [activeTab, setActiveTab] = useState("overview")
   const [selectedTemplate, setSelectedTemplate] = useState<OnboardingTemplate | null>(null)
   const [isCreatingTemplate, setIsCreatingTemplate] = useState(false)
@@ -170,6 +172,28 @@ export default function OnboardingWizard({
     timestamp: Date
     type: 'success' | 'info' | 'warning'
   }>>([])
+
+  useEffect(() => {
+    if (!isOpen || !venueId) {
+      setLiveOnboarding(null)
+      return
+    }
+    let cancelled = false
+    void fetch(`/api/venue/onboarding/summary?venue_id=${encodeURIComponent(venueId)}`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled || !j?.success) return
+        const c = Array.isArray(j.data?.candidates) ? j.data.candidates.length : 0
+        const w = Array.isArray(j.data?.workflows) ? j.data.workflows.length : 0
+        setLiveOnboarding({ candidates: c, workflows: w })
+      })
+      .catch(() => {
+        if (!cancelled) setLiveOnboarding(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, venueId])
 
   // Add activity helper
   const addActivity = (action: string, type: 'success' | 'info' | 'warning' = 'info') => {
@@ -824,6 +848,13 @@ The Management Team`,
               <p className="text-slate-400 text-sm mt-1">
                 {candidate.position} • {candidate.department} • Starts {candidate.startDate}
               </p>
+              {liveOnboarding ? (
+                <p className="text-xs text-slate-500 mt-2">
+                  Live venue data: {liveOnboarding.candidates} onboarding candidate
+                  {liveOnboarding.candidates === 1 ? "" : "s"} · {liveOnboarding.workflows} workflow
+                  {liveOnboarding.workflows === 1 ? "" : "s"}
+                </p>
+              ) : null}
             </div>
             <div className="flex items-center space-x-2">
               <Button onClick={saveProgress} variant="outline" className="border-slate-600">

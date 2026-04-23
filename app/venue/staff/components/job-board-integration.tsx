@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useCurrentVenue } from "@/hooks/use-venue"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -82,6 +83,7 @@ interface JobApplication {
 }
 
 export default function JobBoardIntegration() {
+  const { venue } = useCurrentVenue()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("postings")
   const [showCreateJob, setShowCreateJob] = useState(false)
@@ -1546,6 +1548,7 @@ export default function JobBoardIntegration() {
             department: jobPostings.find(j => j.id === candidateForOnboarding.jobId)?.department || "Unknown",
             startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] // 1 week from now
           }}
+          venueId={venue?.id}
           isOpen={showOnboardingIntegration}
           onClose={() => {
             setShowOnboardingIntegration(false)

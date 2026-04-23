@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useCurrentVenue } from "@/hooks/use-venue"
 import { StaffProfileCard } from "@/components/venue/staff/staff-profile-card"
 import { StaffProfileForm } from "@/components/venue/staff/staff-profile-form"
+import { VenueTeamAccessCard } from "@/components/venue/staff/venue-team-access-card"
 import { EnhancedStaffProfilesService, StaffProfileData, CreateStaffProfileData, UpdateStaffProfileData } from "@/lib/services/enhanced-staff-profiles.service"
 import {
   Users,
@@ -371,6 +372,7 @@ export default function EnhancedStaffManagement() {
 
         {/* Overview Tab */}
         <TabsContent value="overview" className="space-y-6">
+          {venueId ? <VenueTeamAccessCard venueId={venueId} /> : null}
           {/* Search and Filters */}
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-6">

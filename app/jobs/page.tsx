@@ -183,11 +183,31 @@ export default function JobsPage() {
   const fetchStaffingJobs = async () => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/job-board')
+      const response = await fetch('/api/jobs?merge=1&per_page=40', { credentials: 'include' })
       const result = await response.json()
-      if (result.success) setStaffingJobs(result.data)
+      if (result.success && Array.isArray(result.data?.unified)) {
+        setStaffingJobs(result.data.unified)
+      } else if (result.success && Array.isArray(result.data?.staff_postings)) {
+        const rows = result.data.staff_postings as Record<string, unknown>[]
+        setStaffingJobs(
+          rows.map((r) => ({
+            source: 'venue',
+            id: r.id,
+            title: r.title,
+            organization_name: (r as { venue?: { name?: string } }).venue?.name ?? null,
+            location: r.location,
+            experience_level: r.experience_level,
+            employment_type: r.employment_type,
+            applications_count: Number(r.applications_count ?? 0),
+            views_count: Number(r.views_count ?? 0),
+            urgent: Boolean(r.urgent),
+            detail_href: `/jobs/${r.id}?source=venue`,
+          }))
+        )
+      } else setStaffingJobs([])
     } catch (error) {
       console.error('Error fetching staffing jobs:', error)
+      setStaffingJobs([])
     } finally {
       setIsLoading(false)
     }
@@ -363,10 +383,11 @@ export default function JobsPage() {
   }
 
   const getStaffingJobHref = (job: any) => {
+    if (job?.detail_href && typeof job.detail_href === 'string') return job.detail_href
     const id = job?.template_id || job?.id
     if (!id || typeof id !== 'string') return null
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
-    return isUuid ? `/jobs/${id}` : null
+    return isUuid ? `/jobs/${id}?source=venue` : null
   }
 
   const getDisplayJobs = () => {
@@ -760,6 +781,11 @@ export default function JobsPage() {
                                   </CardHeader>
                                   <CardContent className="text-slate-300 text-sm">
                                     <div className="flex flex-wrap items-center gap-3">
+                                      {(job as any).source && (
+                                        <Badge variant="outline" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50 capitalize">
+                                          {(job as any).source === 'artist' ? 'Artist board' : 'Venue staffing'}
+                                        </Badge>
+                                      )}
                                       {(job as any).organization_name && (
                                         <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
                                           <Building2 className="h-3.5 w-3.5 mr-1" />{(job as any).organization_name}

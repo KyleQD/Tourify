@@ -29,6 +29,7 @@
     "test:mobile-redirect": "npx tsx scripts/test-mobile-redirect.ts",
     "test:auth-redirects": "npx tsx scripts/test-auth-callback-redirects.ts",
     "test:venue-ops": "npx tsx scripts/test-venue-ops.ts",
+    "test:hiring-shifts-smoke": "npx tsx scripts/hiring-shifts-smoke.ts",
     "test:venue-routing": "npx tsx scripts/test-venue-routing.ts",
     "test:marketplace-smoke": "npx tsx scripts/marketplace-smoke-test.ts",
     "test:music-commerce-smoke": "npx tsx scripts/music-commerce-smoke-test.ts",

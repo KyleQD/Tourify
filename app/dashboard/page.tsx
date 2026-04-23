@@ -37,7 +37,8 @@ import {
   BarChart3,
   ArrowRight,
   Activity,
-  ChevronRight
+  ChevronRight,
+  Briefcase,
 } from 'lucide-react'
 
 interface DashboardData {
@@ -327,7 +328,21 @@ export default function DashboardPage() {
             href: '/profile',
             icon: User,
             color: 'from-orange-500 to-red-500'
-          }
+          },
+          {
+            title: 'Job applications',
+            description: 'Artist and venue staffing',
+            href: '/jobs/my-applications',
+            icon: Briefcase,
+            color: 'from-amber-500 to-orange-500'
+          },
+          {
+            title: 'Open jobs',
+            description: 'Browse gigs and staffing',
+            href: '/jobs?tab=staffing',
+            icon: Target,
+            color: 'from-indigo-500 to-violet-500'
+          },
         ]
       })
     } catch (error) {
@@ -385,7 +400,21 @@ export default function DashboardPage() {
             href: '/profile',
             icon: User,
             color: 'from-orange-500 to-red-500'
-          }
+          },
+          {
+            title: 'Job applications',
+            description: 'Artist and venue staffing',
+            href: '/jobs/my-applications',
+            icon: Briefcase,
+            color: 'from-amber-500 to-orange-500'
+          },
+          {
+            title: 'Open jobs',
+            description: 'Browse gigs and staffing',
+            href: '/jobs?tab=staffing',
+            icon: Target,
+            color: 'from-indigo-500 to-violet-500'
+          },
         ]
       })
     } finally {

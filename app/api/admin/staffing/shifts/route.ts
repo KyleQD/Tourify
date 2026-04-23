@@ -74,7 +74,9 @@ export async function GET(req: Request) {
     if (dateFrom) query = query.gte('shift_date', dateFrom)
     if (dateTo) query = query.lte('shift_date', dateTo)
 
-    const { data, error } = await query.order('shift_date', { ascending: true })
+    const { data, error } = await query
+      .order('shift_date', { ascending: true })
+      .order('start_time', { ascending: true })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ data: data ?? [] })
   } catch (e: any) {

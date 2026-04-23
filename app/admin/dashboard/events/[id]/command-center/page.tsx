@@ -5,7 +5,20 @@ import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Loader2, LayoutDashboard, Megaphone, Briefcase, Users, ArrowLeft } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import {
+  Loader2,
+  LayoutDashboard,
+  Megaphone,
+  Briefcase,
+  Users,
+  ArrowLeft,
+  CheckSquare,
+  MessageCircle,
+  FileText,
+  Calendar,
+} from "lucide-react"
+
 function buildNoStoreInit(input?: RequestInit): RequestInit {
   return {
     credentials: "include",
@@ -20,9 +33,57 @@ function buildNoStoreInit(input?: RequestInit): RequestInit {
   }
 }
 
-interface HqSummary {
+interface HqPayload {
+  success?: boolean
   event?: { id?: string; title?: string; venue_id?: string | null }
   userRole?: string | null
+  bulletins?: unknown[]
+  resources?: unknown[]
+  calendar?: unknown[]
+  team?: unknown[]
+  tasks?: unknown[]
+  hiring?: { postings?: unknown[]; applications_total?: number }
+  group_chats?: unknown[]
+  documents?: unknown[]
+  error?: string
+}
+
+function pickTimestampMs(row: Record<string, unknown>): number | null {
+  const keys = ["updated_at", "created_at", "start_time", "due_date", "pinned_at"]
+  for (const k of keys) {
+    const v = row[k]
+    if (typeof v === "string" && v) {
+      const t = Date.parse(v)
+      if (!Number.isNaN(t)) return t
+    }
+  }
+  return null
+}
+
+function computeLastActivityMs(hq: HqPayload): number | null {
+  let best: number | null = null
+  const bump = (t: number | null) => {
+    if (t == null) return
+    if (best == null || t > best) best = t
+  }
+  for (const list of [hq.bulletins, hq.resources, hq.tasks, hq.documents, hq.hiring?.postings, hq.group_chats, hq.calendar]) {
+    if (!Array.isArray(list)) continue
+    for (const item of list) {
+      if (item && typeof item === "object") bump(pickTimestampMs(item as Record<string, unknown>))
+    }
+  }
+  return best
+}
+
+function formatRelativeTime(isoMs: number) {
+  const diff = Date.now() - isoMs
+  const mins = Math.round(diff / 60000)
+  if (mins < 1) return "just now"
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 48) return `${hrs}h ago`
+  const days = Math.round(hrs / 24)
+  return `${days}d ago`
 }
 
 export default function EventCommandCenterPage() {
@@ -30,7 +91,7 @@ export default function EventCommandCenterPage() {
   const router = useRouter()
   const eventId = params.id as string
   const [loading, setLoading] = useState(true)
-  const [hq, setHq] = useState<HqSummary | null>(null)
+  const [hq, setHq] = useState<HqPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -40,9 +101,9 @@ export default function EventCommandCenterPage() {
       setError(null)
       try {
         const res = await fetch(`/api/events/${eventId}/hq`, buildNoStoreInit())
-        const json = await res.json()
+        const json = (await res.json()) as HqPayload
         if (!res.ok) throw new Error(json.error || res.statusText)
-        if (!cancelled) setHq(json as HqSummary)
+        if (!cancelled) setHq(json)
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load event")
       } finally {
@@ -75,9 +136,26 @@ export default function EventCommandCenterPage() {
   }
 
   const venueId = hq?.event?.venue_id
+  const bulletinsCount = hq?.bulletins?.length ?? 0
+  const teamCount = hq?.team?.length ?? 0
+  const tasksCount = hq?.tasks?.length ?? 0
+  const postingsCount = hq?.hiring?.postings?.length ?? 0
+  const appsTotal = hq?.hiring?.applications_total ?? 0
+  const chatsCount = hq?.group_chats?.length ?? 0
+  const docsCount = hq?.documents?.length ?? 0
+  const calendarItems = Array.isArray(hq?.calendar) ? hq.calendar : []
+  const upcomingCalendar = [...calendarItems]
+    .filter((c): c is Record<string, unknown> => Boolean(c && typeof c === "object"))
+    .sort((a, b) => {
+      const ta = typeof a.start_time === "string" ? Date.parse(a.start_time) : 0
+      const tb = typeof b.start_time === "string" ? Date.parse(b.start_time) : 0
+      return ta - tb
+    })
+    .slice(0, 5)
+  const lastActivityMs = hq ? computeLastActivityMs(hq) : null
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6">
+    <div className="mx-auto max-w-6xl space-y-6 p-6">
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/dashboard/events/${eventId}/hq`)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -91,62 +169,162 @@ export default function EventCommandCenterPage() {
       <p className="text-slate-400">
         {hq?.event?.title ? `Event: ${hq.event.title}` : `Event id: ${eventId}`}
         {hq?.userRole ? ` · Your role: ${hq.userRole}` : null}
+        {lastActivityMs ? ` · Last activity: ${formatRelativeTime(lastActivityMs)}` : null}
       </p>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border-slate-700 bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
               <Megaphone className="h-5 w-5 text-cyan-400" />
               Communications
             </CardTitle>
-            <CardDescription>Bulletins and group chats for this event.</CardDescription>
+            <CardDescription>Bulletins and team chat</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button asChild variant="secondary">
-              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=bulletin`}>Open HQ bulletins</Link>
+          <CardContent className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2 text-sm text-slate-300">
+              <Badge variant="secondary" className="bg-slate-800">
+                {bulletinsCount} bulletins
+              </Badge>
+              <Badge variant="secondary" className="bg-slate-800">
+                {chatsCount} groups
+              </Badge>
+            </div>
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=bulletin`}>Open bulletins</Link>
+            </Button>
+            <Button asChild variant="outline" size="sm" className="border-slate-600">
+              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=chats`}>Open chats</Link>
             </Button>
           </CardContent>
         </Card>
 
         <Card className="border-slate-700 bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-100">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
               <Briefcase className="h-5 w-5 text-amber-400" />
-              Jobs (facade)
+              Hiring
             </CardTitle>
-            <CardDescription>Unified read API across artist gigs and venue postings.</CardDescription>
+            <CardDescription>Roles tied to this event</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild variant="secondary">
-              <Link href={venueId ? `/api/jobs?venue_id=${venueId}` : "/api/jobs"} target="_blank" rel="noreferrer">
-                GET /api/jobs{venueId ? `?venue_id=…` : ""}
-              </Link>
+          <CardContent className="flex flex-col gap-2">
+            <div className="flex flex-wrap gap-2 text-sm text-slate-300">
+              <Badge variant="secondary" className="bg-slate-800">
+                {postingsCount} postings
+              </Badge>
+              <Badge variant="secondary" className="bg-slate-800">
+                {appsTotal} applications
+              </Badge>
+            </div>
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/jobs?tab=staffing">Public jobs board</Link>
             </Button>
-            <p className="mt-2 text-xs text-slate-500">Opens JSON in a new tab (for admins with a session on this origin).</p>
+            {venueId ? (
+              <Button asChild variant="outline" size="sm" className="border-slate-600">
+                <Link href={`/venue/dashboard/hiring-kanban?venue_id=${encodeURIComponent(venueId)}`}>Venue hiring board</Link>
+              </Button>
+            ) : null}
           </CardContent>
         </Card>
 
-        <Card className="border-slate-700 bg-slate-900/60 md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-100">
-              <Users className="h-5 w-5 text-violet-400" />
-              Staff & venue
+        <Card className="border-slate-700 bg-slate-900/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
+              <Calendar className="h-5 w-5 text-amber-300" />
+              Schedule
             </CardTitle>
-            <CardDescription>Deep links into existing dashboards (no duplicate roster UI here yet).</CardDescription>
+            <CardDescription>Next items on the event calendar</CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button asChild variant="outline">
-              <Link href="/venue/staff">Venue staff</Link>
+          <CardContent className="flex flex-col gap-2">
+            {upcomingCalendar.length === 0 ? (
+              <p className="text-sm text-slate-500">No calendar rows yet.</p>
+            ) : (
+              <ul className="space-y-2 text-sm text-slate-300">
+                {upcomingCalendar.map((row, idx) => (
+                  <li key={typeof row.id === "string" ? row.id : `cal-${idx}`} className="rounded-md border border-slate-700/80 bg-slate-950/40 px-2 py-1.5">
+                    <span className="font-medium text-slate-100">{typeof row.title === "string" ? row.title : "Item"}</span>
+                    {typeof row.start_time === "string" ? (
+                      <span className="ml-2 text-xs text-slate-500">{new Date(row.start_time).toLocaleString()}</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=calendar`}>Open calendar</Link>
             </Button>
-            {venueId ? (
-              <Button asChild variant="outline">
-                <Link href={`/venue/dashboard/jobs`}>Venue jobs</Link>
-              </Button>
-            ) : null}
-            <Button asChild variant="outline">
-              <Link href="/jobs">Public jobs</Link>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-700 bg-slate-900/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
+              <Users className="h-5 w-5 text-violet-400" />
+              Roster
+            </CardTitle>
+            <CardDescription>Event participants</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Badge variant="secondary" className="w-fit bg-slate-800">
+              {teamCount} members
+            </Badge>
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=team`}>Open team tab</Link>
             </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-700 bg-slate-900/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
+              <CheckSquare className="h-5 w-5 text-emerald-400" />
+              Tasks
+            </CardTitle>
+            <CardDescription>Logistics tasks</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Badge variant="secondary" className="w-fit bg-slate-800">
+              {tasksCount} tasks
+            </Badge>
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=tasks`}>Open tasks</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-700 bg-slate-900/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
+              <FileText className="h-5 w-5 text-sky-400" />
+              Documents
+            </CardTitle>
+            <CardDescription>Event document vault</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            <Badge variant="secondary" className="w-fit bg-slate-800">
+              {docsCount} visible docs
+            </Badge>
+            <Button asChild variant="secondary" size="sm">
+              <Link href={`/admin/dashboard/events/${eventId}/hq?tab=resources`}>Resources and docs</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-700 bg-slate-900/60">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base text-slate-100">
+              <MessageCircle className="h-5 w-5 text-pink-400" />
+              APIs
+            </CardTitle>
+            <CardDescription>Unified jobs read facade</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="outline" size="sm" className="border-slate-600">
+              <Link href={venueId ? `/api/jobs?venue_id=${venueId}&merge=1` : "/api/jobs?merge=1"} target="_blank" rel="noreferrer">
+                GET /api/jobs
+              </Link>
+            </Button>
+            <p className="mt-2 text-xs text-slate-500">JSON in a new tab (session on this origin).</p>
           </CardContent>
         </Card>
       </div>

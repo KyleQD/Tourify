@@ -18,6 +18,7 @@ import StaffOnboardingSystem from "./components/staff-onboarding-system"
 import EnhancedStaffOnboarding from "./components/enhanced-staff-onboarding"
 import JobBoardIntegration from "./components/job-board-integration"
 import { VenueTeamCommunicationsPanel } from "../components/venue-team-communications-panel"
+import { VenueStaffSchedulerShell } from "@/components/venue/staff/venue-staff-scheduler-shell"
 import { EmployeeManagementOverview } from "@/components/staff/employee-management-overview"
 import { EmployeeRosterPanel } from "@/components/staff/employee-roster-panel"
 import { StaffingHealthPanel } from "@/components/staff/staffing-health-panel"
@@ -1118,239 +1119,17 @@ export default function FuturisticStaffManagement() {
           </Card>
         </TabsContent>
 
-        {/* Smart Scheduler Tab */}
+        {/* Smart Scheduler Tab — staff_shifts */}
         <TabsContent value="scheduler" className="space-y-6">
-          {/* Scheduler Header */}
-          <Card className="bg-slate-800/30 border-slate-700/50 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-lg flex items-center justify-center">
-                    <Calendar className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-white">Staff Scheduler</h2>
-                    <p className="text-slate-400 text-sm">Manage shifts, assignments, and availability</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <Button variant="outline" className="border-slate-600">
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Schedule
-                  </Button>
-                  <Button className="bg-gradient-to-r from-cyan-500 to-purple-600">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create Shift
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {[
-                  { label: "Today's Shifts", value: "8", icon: Clock, color: "from-blue-500 to-cyan-500" },
-                  { label: "Staff Available", value: "12", icon: UserCheck, color: "from-green-500 to-emerald-500" },
-                  { label: "Open Positions", value: "3", icon: AlertTriangle, color: "from-red-500 to-orange-500" },
-                  { label: "Coverage Rate", value: "94%", icon: Target, color: "from-purple-500 to-pink-500" }
-                ].map((stat, i) => (
-                  <div key={i} className="p-4 bg-slate-700/30 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-slate-400 text-sm">{stat.label}</p>
-                        <p className="text-2xl font-bold text-white">{stat.value}</p>
-                      </div>
-                      <div className={`w-10 h-10 rounded-lg bg-gradient-to-r ${stat.color} flex items-center justify-center`}>
-                        <stat.icon className="h-5 w-5 text-white" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Schedule Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Today's Schedule */}
-            <Card className="lg:col-span-2 bg-slate-800/30 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="text-cyan-400">Today's Schedule</span>
-                  <div className="flex items-center space-x-2">
-                    <Input 
-                      type="date" 
-                      className="bg-slate-700/50 border-slate-600 text-white w-auto"
-                      defaultValue={new Date().toISOString().split('T')[0]}
-                    />
-                    <Button size="sm" variant="outline" className="border-slate-600">
-                      <Calendar className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {[
-                    { time: "08:00 - 12:00", title: "Setup Crew", department: "Technical", assigned: "Maya Rodriguez", status: "confirmed" },
-                    { time: "14:00 - 18:00", title: "Sound Check", department: "Technical", assigned: "Jordan Kim", status: "assigned" },
-                    { time: "18:00 - 23:00", title: "Event Security", department: "Security", assigned: "Sam Taylor", status: "confirmed" },
-                    { time: "20:00 - 02:00", title: "Bar Service", department: "Service", assigned: null, status: "open" },
-                    { time: "19:00 - 01:00", title: "Stage Management", department: "Operations", assigned: "Alex Chen", status: "confirmed" }
-                  ].map((shift, i) => (
-                    <div key={i} className="p-4 bg-slate-700/30 rounded-lg hover:bg-slate-700/50 transition-colors">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-3">
-                          <div className="text-cyan-400 font-mono text-sm">{shift.time}</div>
-                          <div>
-                            <h4 className="text-white font-medium">{shift.title}</h4>
-                            <p className="text-slate-400 text-sm">{shift.department}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Badge variant="outline" className={`text-xs ${
-                            shift.status === 'confirmed' ? 'bg-green-500/20 border-green-500/30 text-green-400' :
-                            shift.status === 'assigned' ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' :
-                            'bg-red-500/20 border-red-500/30 text-red-400'
-                          }`}>
-                            {shift.status}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      {shift.assigned ? (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <Avatar className="h-6 w-6">
-                              <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs">
-                                {shift.assigned.split(' ').map(n => n[0]).join('')}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-slate-300 text-sm">{shift.assigned}</span>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
-                              <MessageSquare className="h-3 w-3" />
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0">
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <span className="text-red-400 text-sm">Position Open</span>
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700 h-6 text-xs">
-                            Assign Staff
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+          {venue?.id ? (
+            <VenueStaffSchedulerShell venueId={venue.id} />
+          ) : (
+            <Card className="bg-slate-800/30 border-slate-700/50">
+              <CardContent className="p-8 text-center text-slate-400">
+                Select a venue context to load and create shifts.
               </CardContent>
             </Card>
-
-            {/* Staff Availability & AI Scheduler */}
-            <div className="space-y-6">
-              {/* Staff Availability */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="text-green-400">Staff Availability</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {staffMembers.map((staff) => (
-                      <div key={staff.id} className="flex items-center justify-between p-2 bg-slate-700/30 rounded">
-                        <div className="flex items-center space-x-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={staff.avatar} />
-                            <AvatarFallback className="bg-gradient-to-r from-cyan-500 to-purple-600 text-white text-xs">
-                              {staff.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="text-white text-sm font-medium">{staff.name}</div>
-                            <div className="text-slate-400 text-xs">{staff.department}</div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <div className={`w-2 h-2 rounded-full ${getStatusColor(staff.status)}`}></div>
-                          <Badge variant="outline" className="text-xs bg-slate-600/50 border-slate-500">
-                            {staff.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* AI Scheduler */}
-              <Card className="bg-slate-800/30 border-slate-700/50">
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <BrainCircuit className="h-5 w-5 text-purple-400" />
-                    <span className="text-purple-400">AI Scheduler</span>
-                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-600 text-white">BETA</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="p-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
-                      <h4 className="text-purple-400 font-medium mb-2">Optimization Suggestions</h4>
-                      <div className="text-slate-300 text-sm space-y-1">
-                        <p>• Move Maya to evening shift for better performance match</p>
-                        <p>• Jordan has availability conflict at 18:00</p>
-                        <p>• Recommend hiring additional security staff</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <Button className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 hover:from-purple-600/30 hover:to-pink-600/30 text-purple-400">
-                        <Sparkles className="h-4 w-4 mr-1" />
-                        Auto-Assign
-                      </Button>
-                      <Button className="bg-gradient-to-r from-cyan-600/20 to-blue-600/20 border border-cyan-500/30 hover:from-cyan-600/30 hover:to-blue-600/30 text-cyan-400">
-                        <TrendingUp className="h-4 w-4 mr-1" />
-                        Optimize
-                      </Button>
-                    </div>
-                    
-                    <Button className="w-full bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700">
-                      <Settings className="h-4 w-4 mr-2" />
-                      Configure AI Settings
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-
-          {/* Schedule Management Tools */}
-          <Card className="bg-slate-800/30 border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-orange-400">Schedule Management Tools</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Button className="h-20 flex-col bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30">
-                  <Calendar className="h-8 w-8 mb-2 text-blue-400" />
-                  <span className="text-blue-400">Weekly View</span>
-                </Button>
-                <Button className="h-20 flex-col bg-green-600/20 hover:bg-green-600/30 border border-green-500/30">
-                  <UserPlus className="h-8 w-8 mb-2 text-green-400" />
-                  <span className="text-green-400">Quick Assign</span>
-                </Button>
-                <Button className="h-20 flex-col bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30">
-                  <Target className="h-8 w-8 mb-2 text-purple-400" />
-                  <span className="text-purple-400">Coverage Report</span>
-                </Button>
-                <Button className="h-20 flex-col bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/30">
-                  <Bell className="h-8 w-8 mb-2 text-orange-400" />
-                  <span className="text-orange-400">Send Notifications</span>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          )}
         </TabsContent>
       </Tabs>
 

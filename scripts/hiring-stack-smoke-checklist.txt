@@ -46,3 +46,17 @@ Rebuild — unified facade + command center (Phase 2 / 8 / 10)
 3. Venue /venue/staff → Communications tab — loads team_communications for current venue; send inserts a row.
 4. Admin /admin/dashboard/events/{id}/command-center — loads GET /api/events/{id}/hq; links to HQ, jobs facade, venue staff.
 5. lib/rebuild/hiring-automation.ts — placeholder for approval→onboarding side effects (Phase 9).
+
+Phases 3–8 (worker UI → command center)
+---------------------------------------
+1. GET /api/jobs?merge=1 — unified[] merges artist + venue; staffing tab uses this.
+2. GET /api/me/applications — artist + venue application rows for logged-in user.
+3. /jobs/{id}?source=artist|venue — detail + apply uses correct API per source.
+4. POST /api/events/{eventId}/job-postings — creates job_posting_templates with event_id (ASSIGN_EVENT_ROLES).
+5. /venue/dashboard/hiring-kanban — lists /api/admin/applications?venue_id=; PATCH status via /api/admin/applications/{id}.
+6. /venue/staff scheduler tab — VenueStaffShiftsPanel + GET/POST /api/admin/staffing/shifts.
+7. CLI: npm run test:hiring-shifts-smoke — GET /api/jobs?merge=1; optional HIRING_SMOKE_COOKIE + HIRING_SMOKE_VENUE_ID for shifts GET.
+7. Event HQ — tab=chats loads EventChatsPanel → /api/admin/events/{id}/group-chats.
+8. GET /api/events/{id}/hq — includes hiring, group_chats, documents; command center shows counts.
+9. RBAC: GET /api/me/applications as other user must not return another user’s rows (RLS).
+10. lib/services/unified-documents.service.ts — listVisibleEventDocuments mirrors HQ visible_to filtering.
