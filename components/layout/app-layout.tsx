@@ -9,7 +9,6 @@ import { TopBar } from './top-bar'
 
 
 import { ConnectionStatusIndicator } from './connection-status-indicator'
-import { NotificationCenter } from './notification-center'
 import { EnhancedNotificationCenter } from '@/components/notifications/enhanced-notification-center'
 import { QuickActions } from './quick-actions'
 import { LoadingScreen } from '../ui/loading-screen'

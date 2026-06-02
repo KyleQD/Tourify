@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Map, Loader2, ZoomIn, ZoomOut, Layers, MapPin } from "lucide-react"
-import { SimCitySiteMapViewer } from "@/components/admin/logistics/site-map-builder/simcity-site-map-viewer"
+import { SiteMapEditor } from "@/components/admin/logistics/site-map/site-map-editor"
 
 interface SiteMapData {
   id: string
@@ -110,7 +110,7 @@ export default function ArtistEventSiteMapPage() {
   }
 
   return (
-    <SimCitySiteMapViewer
+    <SiteMapEditor
       siteMap={siteMap}
       onClose={() => router.back()}
       isReadOnly={true}

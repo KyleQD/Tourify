@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRealTimeCommunications } from '@/hooks/use-real-time-communications'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -22,6 +22,7 @@ import {
   Circle
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
 
 // =============================================================================
 // TYPES
@@ -81,6 +82,13 @@ export function MessageBoard({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
+  // Memoize the channel array so the realtime hook doesn't tear down
+  // subscriptions on every render with a brand-new array reference.
+  const channelIds = useMemo(
+    () => (selectedChannelId ? [selectedChannelId] : []),
+    [selectedChannelId],
+  )
+
   // Real-time communication hook
   const {
     messages,
@@ -96,7 +104,7 @@ export function MessageBoard({
     getConversationMessages,
     getActiveAnnouncements
   } = useRealTimeCommunications({
-    channelIds: selectedChannelId ? [selectedChannelId] : [],
+    channelIds,
     tourId,
     eventId,
     venueId,
@@ -129,16 +137,15 @@ export function MessageBoard({
 
     try {
       await sendMessage(selectedChannelId, messageInput.trim(), {
-        priority,
         messageType: 'text'
       })
-      
+
       setMessageInput('')
-      setPriority('general')
       setIsComposeMode(false)
       inputRef.current?.focus()
     } catch (error) {
       console.error('Failed to send message:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to send message')
     }
   }
 
@@ -159,12 +166,14 @@ export function MessageBoard({
         priority,
         venueId
       })
-      
+
       setMessageInput('')
       setPriority('general')
       setIsComposeMode(false)
+      toast.success('Announcement sent')
     } catch (error) {
       console.error('Failed to create announcement:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to send announcement')
     }
   }
 
@@ -242,23 +251,28 @@ export function MessageBoard({
           )}
         </div>
         
-        {/* Priority Toggle */}
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-slate-400">Priority:</span>
-          <Badge 
-            variant="outline" 
-            className={`cursor-pointer ${getPriorityColor(priority)}`}
-            onClick={() => {
-              const priorities: Array<typeof priority> = ['general', 'important', 'urgent', 'emergency']
-              const currentIndex = priorities.indexOf(priority)
-              const nextPriority = priorities[(currentIndex + 1) % priorities.length]
-              setPriority(nextPriority)
-            }}
-          >
-            {getPriorityIcon(priority)}
-            <span className="ml-1 capitalize">{priority}</span>
-          </Badge>
-        </div>
+        {/* Priority Toggle — only relevant in announcement mode */}
+        {isComposeMode && (
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-slate-400">Priority:</span>
+            <Badge
+              variant="outline"
+              role="button"
+              tabIndex={0}
+              aria-label={`Priority ${priority}. Click to cycle.`}
+              className={`cursor-pointer ${getPriorityColor(priority)}`}
+              onClick={() => {
+                const priorities: Array<typeof priority> = ['general', 'important', 'urgent', 'emergency']
+                const currentIndex = priorities.indexOf(priority)
+                const nextPriority = priorities[(currentIndex + 1) % priorities.length]
+                setPriority(nextPriority)
+              }}
+            >
+              {getPriorityIcon(priority)}
+              <span className="ml-1 capitalize">{priority}</span>
+            </Badge>
+          </div>
+        )}
       </div>
 
       <Tabs defaultValue="messages" className="w-full">

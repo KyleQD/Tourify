@@ -1,5 +1,12 @@
 # Notification System Documentation
 
+## Implementation Status (May 2026)
+
+- DM notification fan-out is now database-triggered on `messages` inserts, with `message` and `message_request` routing based on conversation trust tier.
+- Event group chat notification fan-out is now database-triggered on `event_group_messages` inserts (`group_message`).
+- `EnhancedNotificationCenter` is the canonical UI surface; legacy bell components were removed.
+- Notification deep links for direct messages now target `/messages?conversation=<id>`.
+
 ## Overview
 
 The Tourify notification system is a comprehensive, real-time notification platform that provides social media-style notifications for users. It supports multiple notification types, delivery channels, and user preferences.

@@ -40,11 +40,12 @@ import { useMultiAccount } from "@/hooks/use-multi-account"
 import { AccountSwitcher } from "@/components/account-switcher"
 import { TourifyLogo } from "@/components/tourify-logo"
 import { supabase } from "@/lib/supabase"
-import { WorkingNotificationBell } from "@/components/working-notification-bell"
+import { EnhancedNotificationCenter } from "@/components/notifications/enhanced-notification-center"
 import { CompactAccountSwitcher } from "@/components/compact-account-switcher"
 import { EnhancedAccountSearch } from "@/components/search/enhanced-account-search"
 import { MobileSearchModal } from "@/components/search/mobile-search-modal"
 import { useProductEducation } from "@/components/product-education/product-education-context"
+import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 
 export function Nav() {
   const router = useRouter()
@@ -84,20 +85,7 @@ export function Nav() {
   }, [user?.id])
 
   // Smart home navigation based on current account
-  const getHomeRoute = () => {
-    if (!currentAccount) return '/dashboard'
-
-    switch (currentAccount.account_type) {
-      case 'artist':
-        return '/artist'
-      case 'venue':
-        return '/venue'
-      case 'admin':
-        return '/admin/dashboard'
-      default:
-        return '/dashboard'
-    }
-  }
+  const getHomeRoute = () => getDashboardPathForAccountType(currentAccount?.account_type)
 
   // Smart home button click handler
   const handleHomeClick = () => {
@@ -232,7 +220,7 @@ export function Nav() {
           </Button>
 
           {/* Notifications */}
-          <WorkingNotificationBell />
+          <EnhancedNotificationCenter />
 
           {/* Friend Search */}
           <Button

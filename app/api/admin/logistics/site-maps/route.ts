@@ -101,9 +101,12 @@ export async function POST(request: NextRequest) {
     let body: CreateSiteMapRequest
     const contentType = request.headers.get('content-type')
     
+    let uploadedBackgroundImageUrl: string | undefined
+
     if (contentType?.includes('multipart/form-data')) {
       // Handle FormData
       const formData = await request.formData()
+      const backgroundImage = formData.get('backgroundImage')
       console.log('[Site Maps API] FormData received:', {
         name: formData.get('name'),
         description: formData.get('description'),
@@ -111,18 +114,48 @@ export async function POST(request: NextRequest) {
         width: formData.get('width'),
         height: formData.get('height'),
         eventId: formData.get('eventId'),
-        tourId: formData.get('tourId')
+        tourId: formData.get('tourId'),
+        hasBackgroundImage: backgroundImage instanceof File
       })
+
+      if (backgroundImage instanceof File && backgroundImage.size > 0) {
+        const fileExtension = backgroundImage.name.split('.').pop() || 'png'
+        const storagePath = `site-maps/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${fileExtension}`
+        const imageBuffer = Buffer.from(await backgroundImage.arrayBuffer())
+
+        const { error: uploadError } = await supabase.storage
+          .from('event-media')
+          .upload(storagePath, imageBuffer, {
+            upsert: false,
+            contentType: backgroundImage.type || 'image/png',
+            cacheControl: '3600',
+          })
+
+        if (uploadError) {
+          console.error('[Site Maps API] Background upload failed:', uploadError)
+          return NextResponse.json({ error: 'Failed to upload background image' }, { status: 500 })
+        }
+
+        const { data: publicUrlData } = supabase.storage
+          .from('event-media')
+          .getPublicUrl(storagePath)
+
+        uploadedBackgroundImageUrl = publicUrlData.publicUrl
+      }
+
       body = {
         name: formData.get('name') as string,
         description: formData.get('description') as string || formData.get('environment') as string || '',
         width: parseInt(formData.get('width') as string) || 1000,
         height: parseInt(formData.get('height') as string) || 1000,
         scale: parseFloat(formData.get('scale') as string) || 1.0,
+        scaleUnit: formData.get('scaleUnit') as string || 'meters',
+        templateId: formData.get('templateId') as string || undefined,
         backgroundColor: formData.get('backgroundColor') as string || '#f8f9fa',
         gridEnabled: formData.get('gridEnabled') === 'true',
         gridSize: parseInt(formData.get('gridSize') as string) || 20,
         isPublic: formData.get('isPublic') === 'true',
+        backgroundImageUrl: uploadedBackgroundImageUrl,
         eventId: formData.get('eventId') as string || undefined,
         tourId: formData.get('tourId') as string || undefined
       }
@@ -178,7 +211,9 @@ export async function POST(request: NextRequest) {
       width: body.width || 1000,
       height: body.height || 1000,
       scale: body.scale || 1.0,
+      scale_unit: (body as any).scaleUnit || 'meters',
       background_color: body.backgroundColor || '#f8f9fa',
+      background_image_url: body.backgroundImageUrl || null,
       grid_enabled: body.gridEnabled ?? true,
       grid_size: body.gridSize || 20,
       is_public: body.isPublic ?? false,
@@ -213,6 +248,40 @@ export async function POST(request: NextRequest) {
     }
     
     console.log('[Site Maps API] Site map created successfully:', data.id)
+
+    // Seed elements from selected template (if provided)
+    if ((body as any).templateId && (body as any).templateId !== 'blank') {
+      try {
+        const { data: template } = await supabase
+          .from('map_templates')
+          .select('template_data')
+          .eq('id', (body as any).templateId)
+          .maybeSingle()
+
+        const templateElements = template?.template_data?.elements
+        if (Array.isArray(templateElements) && templateElements.length > 0) {
+          const elementRows = templateElements.map((element: any) => ({
+            site_map_id: data.id,
+            name: element.name || 'Template Element',
+            element_type: element.element_type || 'custom',
+            x: element.x || 0,
+            y: element.y || 0,
+            width: element.width || 120,
+            height: element.height || 80,
+            rotation: element.rotation || 0,
+            color: element.color || '#9333ea',
+            stroke_color: element.stroke_color || '#7e22ce',
+            stroke_width: element.stroke_width || 2,
+            opacity: element.opacity || 1,
+            properties: element.properties || {},
+          }))
+
+          await supabase.from('site_map_elements').insert(elementRows)
+        }
+      } catch (templateError) {
+        console.warn('[Site Maps API] Failed to seed template elements:', templateError)
+      }
+    }
 
     // Log activity (optional - don't fail if this fails)
     try {

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Map, Plus, ExternalLink, Loader2 } from "lucide-react"
-import { SiteMapManagerEnhanced } from "@/components/admin/logistics/site-map-manager-enhanced"
+import { SiteMapManager } from "@/components/admin/logistics/site-map/site-map-manager"
 import { useToast } from "@/hooks/use-toast"
 
 interface EventSiteMapTabProps {
@@ -77,7 +77,7 @@ export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
             </Button>
           </div>
         )}
-        <SiteMapManagerEnhanced eventId={eventId} compact={showBuilder || hasMaps === true} />
+        <SiteMapManager eventId={eventId} compact={showBuilder || hasMaps === true} />
       </div>
     )
   }

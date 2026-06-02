@@ -33,9 +33,10 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
 
     const { data: actorParticipant } = await svc
       .from('event_participants')
-      .select('id, role')
+      .select('participant_id, participant_type, role')
       .eq('event_id', eventId)
-      .eq('user_id', user.id)
+      .eq('participant_id', user.id)
+      .eq('participant_type', 'Individual')
       .maybeSingle()
 
     const isAdmin = event.created_by === user.id || actorParticipant?.role === 'admin' || actorParticipant?.role === 'manager'
@@ -48,8 +49,9 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
 
     const { data: target } = await svc
       .from('event_participants')
-      .select('id, metadata')
-      .eq('id', participant_id)
+      .select('participant_id, participant_type, metadata')
+      .eq('participant_id', participant_id)
+      .eq('participant_type', 'Individual')
       .eq('event_id', eventId)
       .single()
 
@@ -66,14 +68,15 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
       .update({
         metadata: { ...(existingMetadata as any), hq_permissions: mergedPerms },
       })
-      .eq('id', participant_id)
-      .select('id, user_id, role, metadata')
+      .eq('participant_id', participant_id)
+      .eq('participant_type', 'Individual')
+      .select('participant_id, participant_type, role, metadata')
       .single()
 
     if (error) throw error
 
     try {
-      const targetUserId = updated.user_id
+      const targetUserId = updated.participant_id
       if (targetUserId) {
         const grantedNames = Object.entries(permissions)
           .filter(([, v]) => v === true)

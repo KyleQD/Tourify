@@ -1,9 +1,136 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
-// GET - Fetch conversations for the current user
+interface MessageContextResult {
+  tier: 'open' | 'request' | 'context'
+  context_type: string | null
+  context_id: string | null
+}
+
+class MessageRateLimitError extends Error {
+  retryAfterSeconds: number
+  constructor(retryAfterSeconds: number) {
+    super('Rate limit exceeded for message requests')
+    this.name = 'MessageRateLimitError'
+    this.retryAfterSeconds = retryAfterSeconds
+  }
+}
+
+const sendMessageSchema = z.object({
+  recipientId: z.string().uuid().optional(),
+  content: z.string().trim().max(2000).optional(),
+  threadId: z.string().uuid().optional(),
+  messageType: z.string().max(40).optional(),
+  metadata: z.record(z.unknown()).optional(),
+  taskCard: z
+    .object({
+      title: z.string().min(1).max(200),
+      description: z.string().max(1000).optional(),
+      action_url: z.string().min(1).max(2000),
+      action_label: z.string().max(80).optional(),
+      is_sensitive: z.boolean().optional(),
+    })
+    .optional(),
+})
+
+async function getViewerRoleBlockedState(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  userId: string,
+) {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', userId)
+    .maybeSingle()
+
+  return profile?.role === 'viewer'
+}
+
+async function resolveMessageContext(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  senderId: string,
+  recipientId: string
+): Promise<MessageContextResult> {
+  const { data, error } = await supabase.rpc('resolve_message_context', {
+    sender: senderId,
+    recipient: recipientId,
+  })
+
+  if (error || !Array.isArray(data) || data.length === 0) {
+    return { tier: 'request', context_type: null, context_id: null }
+  }
+
+  const result = data[0] as MessageContextResult
+  if (!result?.tier) {
+    return { tier: 'request', context_type: null, context_id: null }
+  }
+
+  return result
+}
+
+async function enforceRequestRateLimit(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  senderId: string,
+  recipientId: string
+) {
+  const now = new Date()
+  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+
+  const { data: existing, error } = await supabase
+    .from('dm_request_rate_limits')
+    .select('request_count, window_started_at')
+    .eq('sender_id', senderId)
+    .eq('recipient_id', recipientId)
+    .maybeSingle()
+
+  if (error) throw error
+
+  if (!existing) {
+    await supabase
+      .from('dm_request_rate_limits')
+      .insert({
+        sender_id: senderId,
+        recipient_id: recipientId,
+        request_count: 1,
+        window_started_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+    return
+  }
+
+  const startedAt = new Date(existing.window_started_at)
+  if (startedAt < windowStart) {
+    await supabase
+      .from('dm_request_rate_limits')
+      .update({
+        request_count: 1,
+        window_started_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq('sender_id', senderId)
+      .eq('recipient_id', recipientId)
+    return
+  }
+
+  if (existing.request_count >= 3) {
+    const elapsed = Math.floor((now.getTime() - startedAt.getTime()) / 1000)
+    const retryAfterSeconds = Math.max(60, 24 * 60 * 60 - elapsed)
+    throw new MessageRateLimitError(retryAfterSeconds)
+  }
+
+  await supabase
+    .from('dm_request_rate_limits')
+    .update({
+      request_count: existing.request_count + 1,
+      updated_at: now.toISOString(),
+    })
+    .eq('sender_id', senderId)
+    .eq('recipient_id', recipientId)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
@@ -15,6 +142,7 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get('conversationId')
+    const selectedTab = searchParams.get('tab')
     const threadId = searchParams.get('threadId')
 
     if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
@@ -57,8 +185,24 @@ export async function GET(request: NextRequest) {
     }
 
     if (conversationId) {
-      // Fetch messages for a specific conversation
-      const { data: messages, error } = await supabase
+      const { data: conversation, error: conversationError } = await supabase
+        .from('conversations')
+        .select('participant_1, participant_2')
+        .eq('id', conversationId)
+        .single()
+
+      if (conversationError || !conversation) {
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+      }
+
+      const isParticipant = conversation.participant_1 === user.id || conversation.participant_2 === user.id
+      if (!isParticipant) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+      const rawLimit = Number(searchParams.get('limit') ?? '50')
+      const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 100)
+      const before = searchParams.get('before')
+
+      let messagesQuery = supabase
         .from('messages')
         .select(`
           id,
@@ -73,61 +217,81 @@ export async function GET(request: NextRequest) {
           )
         `)
         .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      if (before) messagesQuery = messagesQuery.lt('created_at', before)
+
+      const { data, error } = await messagesQuery
 
       if (error) {
         console.error('Error fetching messages:', error)
         return NextResponse.json({ error: 'Failed to fetch messages' }, { status: 500 })
       }
 
-      return NextResponse.json({ messages })
-    } else {
-      // Fetch all conversations for the user
-      const { data: conversations, error } = await supabase
-        .from('conversations')
-        .select(`
-          id,
-          created_at,
-          updated_at,
-          participant_1,
-          participant_2,
-          last_message_id,
-          participant_1_profile:profiles!participant_1 (
-            id,
-            username,
-            full_name,
-            avatar_url
-          ),
-          participant_2_profile:profiles!participant_2 (
-            id,
-            username,
-            full_name,
-            avatar_url
-          ),
-          last_message:messages!last_message_id (
-            id,
-            content,
-            created_at,
-            sender_id
-          )
-        `)
-        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-        .order('updated_at', { ascending: false })
+      const messages = (data || []).slice().reverse()
+      const nextCursor = data && data.length === limit ? data[data.length - 1].created_at : null
 
-      if (error) {
-        console.error('Error fetching conversations:', error)
-        return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 })
-      }
-
-      return NextResponse.json({ conversations })
+      return NextResponse.json({ messages, nextCursor })
     }
+
+    let query = supabase
+      .from('conversations')
+      .select(`
+        id,
+        created_at,
+        updated_at,
+        participant_1,
+        participant_2,
+        trust_tier,
+        context_type,
+        context_id,
+        accepted_at,
+        accepted_by,
+        last_message_id,
+        participant_1_profile:profiles!participant_1 (
+          id,
+          username,
+          full_name,
+          avatar_url
+        ),
+        participant_2_profile:profiles!participant_2 (
+          id,
+          username,
+          full_name,
+          avatar_url
+        ),
+        last_message:messages!last_message_id (
+          id,
+          content,
+          created_at,
+          sender_id
+        )
+      `)
+      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+
+    if (selectedTab === 'primary') query = query.eq('trust_tier', 'open')
+    if (selectedTab === 'requests') query = query.eq('trust_tier', 'request').is('accepted_at', null)
+    if (selectedTab === 'work') query = query.in('context_type', ['event_team', 'venue_staff', 'job_application', 'workflow'])
+
+    const { data: conversations, error } = await query.order('updated_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching conversations:', error)
+      return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 })
+    }
+
+    const isViewerBlocked = await getViewerRoleBlockedState(supabase, user.id)
+
+    return NextResponse.json({
+      conversations,
+      viewer: { role: isViewerBlocked ? 'viewer' : 'member', canSend: !isViewerBlocked },
+    })
   } catch (error) {
     console.error('Messages API error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-// POST - Send a new message
 export async function POST(request: NextRequest) {
   try {
     const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
@@ -137,7 +301,19 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceRoleClient()
-    const { recipientId, content, threadId, messageType, metadata, taskCard } = await request.json()
+    const isViewerBlocked = await getViewerRoleBlockedState(supabase, user.id)
+    if (isViewerBlocked)
+      return NextResponse.json({ error: 'Messaging is unavailable for viewer accounts' }, { status: 403 })
+
+    const rawBody = await request.json().catch(() => null)
+    const parsedBody = sendMessageSchema.safeParse(rawBody)
+    if (!parsedBody.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: parsedBody.error.flatten() },
+        { status: 400 },
+      )
+    }
+    const { recipientId, content, threadId, messageType, metadata, taskCard } = parsedBody.data
 
     if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
       const canWriteThread = await hasWorkflowThreadPermission({
@@ -232,19 +408,27 @@ export async function POST(request: NextRequest) {
     // Find or create conversation
     let { data: conversation, error: conversationError } = await supabase
       .from('conversations')
-      .select('id')
+      .select('id, participant_1, participant_2, trust_tier, accepted_at, context_type, context_id')
       .or(`and(participant_1.eq.${user.id},participant_2.eq.${recipientId}),and(participant_1.eq.${recipientId},participant_2.eq.${user.id})`)
       .single()
 
     if (conversationError && conversationError.code === 'PGRST116') {
-      // Conversation doesn't exist, create it
+      const resolvedContext = await resolveMessageContext(supabase, user.id, recipientId)
+      if (resolvedContext.tier === 'request')
+        await enforceRequestRateLimit(supabase, user.id, recipientId)
+
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
         .insert({
           participant_1: user.id,
-          participant_2: recipientId
+          participant_2: recipientId,
+          trust_tier: resolvedContext.tier,
+          context_type: resolvedContext.context_type,
+          context_id: resolvedContext.context_id,
+          accepted_at: resolvedContext.tier === 'request' ? null : new Date().toISOString(),
+          accepted_by: resolvedContext.tier === 'request' ? null : user.id
         })
-        .select('id')
+        .select('id, participant_1, participant_2, trust_tier, accepted_at, context_type, context_id')
         .single()
 
       if (createError || !newConversation) {
@@ -260,6 +444,32 @@ export async function POST(request: NextRequest) {
 
     if (!conversation) {
       return NextResponse.json({ error: 'Failed to find or create conversation' }, { status: 500 })
+    }
+
+    const isParticipant = conversation.participant_1 === user.id || conversation.participant_2 === user.id
+    if (!isParticipant)
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    if (conversation.trust_tier === 'request' && !conversation.accepted_at) {
+      const { data: existingRequestMessages, error: requestMessagesError } = await supabase
+        .from('messages')
+        .select('id, sender_id')
+        .eq('conversation_id', conversation.id)
+        .order('created_at', { ascending: true })
+
+      if (requestMessagesError) {
+        console.error('Error validating request conversation:', requestMessagesError)
+        return NextResponse.json({ error: 'Failed to validate request conversation' }, { status: 500 })
+      }
+
+      if (existingRequestMessages && existingRequestMessages.length > 0) {
+        const firstSenderId = existingRequestMessages[0].sender_id
+        if (firstSenderId !== user.id) {
+          return NextResponse.json({ error: 'Accept this request before replying' }, { status: 403 })
+        }
+
+        return NextResponse.json({ error: 'Only one intro message is allowed until accepted' }, { status: 403 })
+      }
     }
 
     const { data: message, error: messageError } = await supabase
@@ -303,6 +513,15 @@ export async function POST(request: NextRequest) {
       conversationId: conversation.id 
     })
   } catch (error) {
+    if (error instanceof MessageRateLimitError) {
+      return NextResponse.json(
+        {
+          error: 'You have hit the message request limit for this user. Try again later.',
+          retryAfterSeconds: error.retryAfterSeconds,
+        },
+        { status: 429, headers: { 'Retry-After': String(error.retryAfterSeconds) } },
+      )
+    }
     console.error('Send message API error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

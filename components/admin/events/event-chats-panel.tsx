@@ -1,11 +1,14 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, MessageCircle, Send } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { supabase } from "@/lib/supabase"
+import { formatDistanceToNow } from "date-fns"
 
 interface EventChatsPanelProps {
   eventId: string
@@ -20,9 +23,16 @@ interface GroupRow {
 
 interface MessageRow {
   id: string
+  group_id: string
   content: string
   sender_id: string
   created_at: string
+}
+
+interface SenderProfile {
+  id: string
+  full_name: string | null
+  avatar_url: string | null
 }
 
 export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
@@ -34,6 +44,46 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
   const [msgLoading, setMsgLoading] = useState(false)
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
+  const [senders, setSenders] = useState<Map<string, SenderProfile>>(new Map())
+  const sendersRef = useRef(senders)
+  sendersRef.current = senders
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const ensureSenderProfile = useCallback(async (senderId: string) => {
+    if (sendersRef.current.has(senderId)) return
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, avatar_url")
+      .eq("id", senderId)
+      .maybeSingle()
+    if (!data) return
+    setSenders((prev) => {
+      if (prev.has(senderId)) return prev
+      const next = new Map(prev)
+      next.set(senderId, { id: data.id, full_name: data.full_name, avatar_url: data.avatar_url })
+      return next
+    })
+  }, [])
+
+  const hydrateSenders = useCallback(
+    async (rows: MessageRow[]) => {
+      const unique = Array.from(new Set(rows.map((row) => row.sender_id))).filter(
+        (id) => !sendersRef.current.has(id),
+      )
+      if (unique.length === 0) return
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, avatar_url")
+        .in("id", unique)
+      if (!data) return
+      setSenders((prev) => {
+        const next = new Map(prev)
+        data.forEach((row: SenderProfile) => next.set(row.id, row))
+        return next
+      })
+    },
+    [],
+  )
 
   const loadGroups = useCallback(async () => {
     setLoading(true)
@@ -62,18 +112,20 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
       try {
         const res = await fetch(
           `/api/admin/events/${eventId}/group-chats?messages=true&groupId=${encodeURIComponent(groupId)}&limit=80`,
-          { credentials: "include" }
+          { credentials: "include" },
         )
         const json = await res.json()
         if (!res.ok) throw new Error(json.error || "Failed to load messages")
-        setMessages((json.messages || []) as MessageRow[])
+        const list = (json.messages || []) as MessageRow[]
+        setMessages(list)
+        await hydrateSenders(list)
       } catch {
         setMessages([])
       } finally {
         setMsgLoading(false)
       }
     },
-    [eventId]
+    [eventId, hydrateSenders],
   )
 
   useEffect(() => {
@@ -83,6 +135,44 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
   useEffect(() => {
     if (selectedId) void loadMessages(selectedId)
   }, [selectedId, loadMessages])
+
+  useEffect(() => {
+    if (!eventId) return
+    // Single user-scoped channel per event covers all of its groups; route messages
+    // into the open chat client-side rather than tearing down + re-subscribing each
+    // time the user switches groups.
+    const channel = supabase
+      .channel(`event-${eventId}-group-messages`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "event_group_messages",
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          const incoming = payload.new as MessageRow
+          setMessages((prev) => {
+            if (incoming.group_id !== selectedId) return prev
+            if (prev.some((message) => message.id === incoming.id)) return prev
+            return [...prev, incoming]
+          })
+          if (!sendersRef.current.has(incoming.sender_id)) {
+            void ensureSenderProfile(incoming.sender_id)
+          }
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [eventId, selectedId, ensureSenderProfile])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
 
   async function handleSend() {
     const gid = selectedId
@@ -99,7 +189,12 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
       const json = await res.json()
       if (!res.ok) throw new Error(json.error || "Send failed")
       setDraft("")
-      await loadMessages(gid)
+      if (json.message) {
+        setMessages((prev) => {
+          if (prev.some((message) => message.id === json.message.id)) return prev
+          return [...prev, json.message as MessageRow]
+        })
+      }
     } catch (e) {
       toast({
         title: "Message not sent",
@@ -110,6 +205,8 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
       setSending(false)
     }
   }
+
+  const renderedMessages = useMemo(() => messages, [messages])
 
   if (loading) {
     return (
@@ -136,17 +233,19 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
           <CardTitle className="text-sm text-slate-200">Groups</CardTitle>
         </CardHeader>
         <CardContent className="space-y-1">
-          {groups.map((g) => (
+          {groups.map((group) => (
             <button
-              key={g.id}
+              key={group.id}
               type="button"
-              onClick={() => setSelectedId(g.id)}
+              onClick={() => setSelectedId(group.id)}
               className={`w-full rounded-md px-3 py-2 text-left text-sm transition-colors ${
-                selectedId === g.id ? "bg-purple-600/30 text-white" : "text-slate-300 hover:bg-slate-800"
+                selectedId === group.id ? "bg-purple-600/30 text-white" : "text-slate-300 hover:bg-slate-800"
               }`}
             >
-              <span className="font-medium">{g.name}</span>
-              {g.group_type ? <span className="ml-2 text-xs text-slate-500 capitalize">{g.group_type}</span> : null}
+              <span className="font-medium">{group.name}</span>
+              {group.group_type ? (
+                <span className="ml-2 text-xs text-slate-500 capitalize">{group.group_type}</span>
+              ) : null}
             </button>
           ))}
         </CardContent>
@@ -161,16 +260,35 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
               <div className="flex justify-center py-8 text-slate-500">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
-            ) : messages.length === 0 ? (
+            ) : renderedMessages.length === 0 ? (
               <p className="text-center text-sm text-slate-500 py-8">No messages yet. Say hello.</p>
             ) : (
-              messages.map((m) => (
-                <div key={m.id} className="rounded-md bg-slate-900/80 px-3 py-2 text-sm">
-                  <p className="text-xs text-slate-500">{new Date(m.created_at).toLocaleString()}</p>
-                  <p className="text-slate-200 whitespace-pre-wrap">{m.content}</p>
-                </div>
-              ))
+              renderedMessages.map((message) => {
+                const sender = senders.get(message.sender_id)
+                const displayName =
+                  sender?.full_name?.trim() || `User ${message.sender_id.slice(0, 6)}`
+                return (
+                  <div key={message.id} className="flex items-start gap-2 rounded-md bg-slate-900/80 px-3 py-2">
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={sender?.avatar_url ?? ""} />
+                      <AvatarFallback className="bg-slate-700 text-slate-200 text-[10px]">
+                        {displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-medium text-slate-200">{displayName}</span>
+                        <span className="text-[11px] text-slate-500">
+                          {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-200 whitespace-pre-wrap break-words">{message.content}</p>
+                    </div>
+                  </div>
+                )
+              })
             )}
+            <div ref={messagesEndRef} />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <Textarea

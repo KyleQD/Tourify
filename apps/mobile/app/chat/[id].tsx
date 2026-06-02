@@ -13,6 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/auth-provider"
+import { apiRequest, ApiError } from "@/lib/api/client"
 
 interface Message {
   id: string
@@ -20,7 +21,8 @@ interface Message {
   sender_id: string
   content: string
   created_at: string
-  read: boolean
+  is_read: boolean
+  read_at: string | null
 }
 
 export default function ChatScreen() {
@@ -34,6 +36,7 @@ export default function ChatScreen() {
   const [draft, setDraft] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [participantName, setParticipantName] = useState("Chat")
+  const [recipientId, setRecipientId] = useState<string | null>(null)
   const flatListRef = useRef<FlatList>(null)
 
   const loadMessages = useCallback(async () => {
@@ -72,6 +75,7 @@ export default function ChatScreen() {
       const isParticipant1 = data.participant_1 === userId
       const otherProfile = isParticipant1 ? (data as any).profiles_2 : (data as any).profiles
       setParticipantName(otherProfile?.full_name ?? "Chat")
+      setRecipientId(isParticipant1 ? data.participant_2 : data.participant_1)
     }
     void loadParticipant()
   }, [conversationId, userId])
@@ -85,10 +89,10 @@ export default function ChatScreen() {
     if (!conversationId || !userId) return
     void supabase
       .from("messages")
-      .update({ read: true })
+      .update({ is_read: true, read_at: new Date().toISOString() })
       .eq("conversation_id", conversationId)
       .neq("sender_id", userId)
-      .eq("read", false)
+      .eq("is_read", false)
   }, [conversationId, userId])
 
   useEffect(() => {
@@ -110,7 +114,7 @@ export default function ChatScreen() {
           if (newMsg.sender_id !== userId) {
             void supabase
               .from("messages")
-              .update({ read: true })
+              .update({ is_read: true, read_at: new Date().toISOString() })
               .eq("id", newMsg.id)
           }
         }
@@ -124,20 +128,23 @@ export default function ChatScreen() {
 
   async function handleSend() {
     const trimmed = draft.trim()
-    if (!trimmed || !userId || !conversationId || isSending) return
+    if (!trimmed || !userId || !conversationId || !recipientId || isSending) return
 
     setIsSending(true)
     setDraft("")
 
     try {
-      const { error } = await supabase.from("messages").insert({
-        conversation_id: conversationId,
-        sender_id: userId,
-        content: trimmed
+      await apiRequest("/api/messages", {
+        method: "POST",
+        body: JSON.stringify({ recipientId, content: trimmed }),
       })
-      if (error) throw error
-    } catch {
+    } catch (error) {
       setDraft(trimmed)
+      if (error instanceof ApiError) {
+        console.warn("[chat] send failed:", error.status, error.message)
+      } else {
+        console.warn("[chat] send failed:", error)
+      }
     } finally {
       setIsSending(false)
     }

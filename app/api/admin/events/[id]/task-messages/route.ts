@@ -254,7 +254,8 @@ async function getParticipantRole(svc: any, eventId: string, userId: string) {
     .from('event_participants')
     .select('role')
     .eq('event_id', eventId)
-    .eq('user_id', userId)
+    .eq('participant_id', userId)
+    .eq('participant_type', 'Individual')
     .maybeSingle()
   return data
 }

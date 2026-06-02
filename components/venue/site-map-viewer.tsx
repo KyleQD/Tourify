@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Loader2, Map } from "lucide-react"
-import { SimCitySiteMapViewer } from "@/components/admin/logistics/site-map-builder/simcity-site-map-viewer"
+import { SiteMapEditor } from "@/components/admin/logistics/site-map/site-map-editor"
 
 interface VenueSiteMapViewerProps {
   siteMapId: string
@@ -89,7 +89,7 @@ export function VenueSiteMapViewer({ siteMapId, siteMapName, canEdit = false, on
   }
 
   return (
-    <SimCitySiteMapViewer
+    <SiteMapEditor
       siteMap={siteMap}
       onClose={onBack}
       isReadOnly={!canEdit}

@@ -443,7 +443,7 @@ export class EnhancedStaffManagementService {
           .from('notifications')
           .insert([{
             user_id: recipientId,
-            type: 'staff_message',
+            type: 'team_communication',
             title: message.subject,
             content: message.content,
             metadata: { priority: message.priority, message_type: message.type }

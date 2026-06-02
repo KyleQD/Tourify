@@ -100,6 +100,85 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
   const subscriptionsRef = useRef<RealtimeChannel[]>([])
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>()
 
+  // Stable key derived from `channelIds` so effect deps don't churn on each render
+  // when the caller passes a freshly-constructed array (very common in admin UIs).
+  const channelIdsKey = channelIds.join(',')
+
+  const hydrateInitialState = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const [messagesResult, announcementsResult, channelsResult] = await Promise.all([
+        channelIds.length > 0
+          ? supabase
+            .from('messages')
+            .select(`
+              id,
+              conversation_id,
+              sender_id,
+              content,
+              message_type,
+              is_read,
+              read_at,
+              created_at,
+              updated_at,
+              sender:profiles!sender_id (
+                id,
+                username,
+                full_name,
+                avatar_url
+              )
+            `)
+            .in('conversation_id', channelIds)
+            .order('created_at', { ascending: false })
+            .limit(100)
+          : Promise.resolve({ data: [], error: null } as any),
+        (() => {
+          let query = supabase
+            .from('team_communications')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100)
+          if (venueId) query = query.eq('venue_id', venueId)
+          return query
+        })(),
+        (() => {
+          let query = supabase
+            .from('communication_channels')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(100)
+          if (venueId) query = query.eq('venue_id', venueId)
+          return query
+        })()
+      ])
+
+      if (messagesResult.error) throw messagesResult.error
+      if (announcementsResult.error) throw announcementsResult.error
+
+      const fallbackChannels = channelsResult.error
+        ? await supabase.from('communication_channels').select('*').order('created_at', { ascending: false }).limit(100)
+        : channelsResult
+
+      setState((prev) => ({
+        ...prev,
+        messages: messagesResult.data || [],
+        announcements: (announcementsResult.data || []).filter((announcement: Announcement) => {
+          if (venueId && announcement.venue_id !== venueId) return false
+          const recipients = Array.isArray(announcement.recipients) ? announcement.recipients : []
+          return recipients.length === 0 || recipients.includes(user.id) || announcement.sender_id === user.id
+        }),
+        channels: (fallbackChannels.data || []) as Channel[],
+        lastUpdate: new Date()
+      }))
+    } catch (err) {
+      console.error('Error hydrating communications state:', err)
+    }
+    // `channelIdsKey` mirrors `channelIds` for dependency stability.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelIdsKey, venueId])
+
   // Initialize Supabase client
   // Using imported supabase instance
 
@@ -125,7 +204,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
       // Subscribe to messages in specified conversations
       if (channelIds.length > 0) {
         const messagesChannel = supabase
-          .channel('messages')
+          .channel(`rtc-messages-${user.id}-${channelIdsKey || 'none'}`)
           .on(
             'postgres_changes',
             {
@@ -185,7 +264,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
 
       // Subscribe to team_communications (announcements)
       const announcementsChannel = supabase
-        .channel('announcements')
+        .channel(`rtc-announcements-${user.id}-${venueId || 'global'}`)
         .on(
           'postgres_changes',
           {
@@ -225,7 +304,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
 
       // Subscribe to channels
       const channelsChannel = supabase
-        .channel('channels')
+        .channel(`rtc-channels-${user.id}-${venueId || 'global'}`)
         .on(
           'postgres_changes',
           {
@@ -266,7 +345,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
       // Set up presence tracking if enabled
       if (enablePresence) {
         const presenceChannel = supabase
-          .channel('presence', {
+          .channel(`rtc-presence-${venueId || 'global'}`, {
             config: {
               presence: {
                 key: user.id
@@ -325,7 +404,10 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
         }, 5000)
       }
     }
-  }, [channelIds, tourId, eventId, venueId, enablePresence, autoReconnect])
+    // `channelIdsKey` mirrors `channelIds` for dependency stability; tourId/eventId
+    // are accepted for parity with the public API but not currently used in setup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelIdsKey, tourId, eventId, venueId, enablePresence, autoReconnect])
 
   // =============================================================================
   // EFFECT HOOKS
@@ -333,7 +415,9 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
 
   useEffect(() => {
     setIsLoading(true)
-    setupSubscriptions().finally(() => setIsLoading(false))
+    hydrateInitialState()
+      .then(() => setupSubscriptions())
+      .finally(() => setIsLoading(false))
 
     return () => {
       // Cleanup subscriptions
@@ -346,7 +430,7 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
         clearTimeout(reconnectTimeoutRef.current)
       }
     }
-  }, [setupSubscriptions])
+  }, [hydrateInitialState, setupSubscriptions])
 
   // =============================================================================
   // ACTION METHODS
@@ -360,41 +444,36 @@ export function useRealTimeCommunications(options: UseRealTimeCommunicationsOpti
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('User not authenticated')
 
-      const { data, error: insertError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          content: content.trim(),
-          message_type: options.messageType || 'text'
-        })
-        .select(`
-          id,
-          content,
-          sender_id,
-          conversation_id,
-          is_read,
-          created_at,
-          sender:profiles!sender_id (
-            id,
-            username,
-            full_name,
-            avatar_url
-          )
-        `)
-        .single()
-
-      if (insertError) throw new Error(insertError.message)
-
-      await supabase
+      const { data: conversation, error: conversationError } = await supabase
         .from('conversations')
-        .update({
-          last_message_id: data.id,
-          updated_at: new Date().toISOString()
-        })
+        .select('participant_1, participant_2')
         .eq('id', conversationId)
+        .maybeSingle()
 
-      return data
+      if (conversationError) throw new Error(conversationError.message)
+      if (!conversation) throw new Error('Conversation not found')
+
+      const recipientId =
+        conversation.participant_1 === user.id ? conversation.participant_2 : conversation.participant_1
+
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientId,
+          content: content.trim(),
+          messageType: options.messageType,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}))
+        throw new Error(errorBody.error || `Send failed (${response.status})`)
+      }
+
+      const result = await response.json()
+      return result.message
     } catch (err) {
       console.error('Error sending message:', err)
       throw err

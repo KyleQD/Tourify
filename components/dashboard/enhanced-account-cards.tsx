@@ -61,7 +61,9 @@ export function EnhancedAccountCards() {
         ])
         
                 const cards: AccountCard[] = accounts.map(account => {
-          const isCurrent = currentAccount?.profile_id === account.profile_id
+          const isCurrent =
+            currentAccount?.profile_id === account.profile_id &&
+            currentAccount?.account_type === account.account_type
           const metrics = accountMetrics.find(m => m.accountId === account.profile_id)
           const urgentCount = metrics?.urgentCount || 0
 

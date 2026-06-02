@@ -19,8 +19,7 @@ import { useTravelCoordination } from "@/hooks/use-travel-coordination"
 import { TravelCoordinationHub } from "@/components/admin/travel-coordination-hub"
 import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
 import { LogisticsCollaboration } from "@/components/admin/logistics-collaboration"
-import { SiteMapManager } from "@/components/admin/logistics/site-map-manager"
-import { SiteMapManagerEnhanced } from "@/components/admin/logistics/site-map-manager-enhanced"
+import { SiteMapManager } from "@/components/admin/logistics/site-map/site-map-manager"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/contexts/auth-context"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
@@ -680,7 +679,7 @@ export default function LogisticsPage() {
 
         <TabsContent value="site-maps" className="mt-0">
           <div className="space-y-6">
-            <SiteMapManagerEnhanced
+            <SiteMapManager
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
             />

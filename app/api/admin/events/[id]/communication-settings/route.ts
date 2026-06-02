@@ -47,9 +47,10 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
 
     const { data: participant } = await svc
       .from('event_participants')
-      .select('id, role')
+      .select('participant_id, participant_type, role')
       .eq('event_id', eventId)
-      .eq('user_id', user.id)
+      .eq('participant_id', user.id)
+      .eq('participant_type', 'Individual')
       .maybeSingle()
 
     if (!participant && !eventOwner) {

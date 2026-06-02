@@ -1,5 +1,14 @@
 # Notification System Audit & Scalability Analysis
 
+## Update (May 2026)
+
+The following audit gaps are now addressed in code:
+
+- DM notifications are emitted from a database trigger (`messages` -> `notifications`) with trust-tier-aware type selection.
+- Event group message fan-out now emits `group_message` notifications.
+- Legacy duplicate notification bell components were consolidated to the enhanced notification center.
+- Message links from notifications route into conversation-aware deep links (`/messages?conversation=...`).
+
 ## Executive Summary
 
 After deep analysis of the Tourify notification system, I've identified critical gaps and scalability issues that prevent proper user engagement notifications. The system is fragmented across multiple implementations with missing automatic triggers for social interactions.

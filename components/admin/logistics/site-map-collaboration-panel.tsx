@@ -17,12 +17,15 @@ import {
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type { ElementStatus } from "@/types/site-map"
+import { useSiteMapRealtime } from "@/hooks/use-site-map-realtime"
 
 interface CollabPanelProps {
   siteMapId: string
+  eventId?: string
   isReadOnly?: boolean
   onNoteClick?: (x: number, y: number) => void
   selectedElementId?: string | null
+  selectedElementPosition?: { x: number; y: number } | null
 }
 
 interface ActivityItem {
@@ -62,7 +65,14 @@ const NOTE_TYPE_CONFIG = {
   resolved: { label: 'Resolved', color: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/30' },
 }
 
-export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, selectedElementId }: CollabPanelProps) {
+export function SiteMapCollaborationPanel({
+  siteMapId,
+  eventId,
+  isReadOnly,
+  onNoteClick,
+  selectedElementId,
+  selectedElementPosition,
+}: CollabPanelProps) {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('notes')
   const [notes, setNotes] = useState<ActivityItem[]>([])
@@ -76,8 +86,8 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [tasks, setTasks] = useState<any[]>([])
   const [showTaskForm, setShowTaskForm] = useState(false)
-  const pollRef = useRef<NodeJS.Timeout | null>(null)
   const notesEndRef = useRef<HTMLDivElement>(null)
+  const { presenceCount, activityVersion, tasksVersion } = useSiteMapRealtime({ siteMapId })
 
   const loadNotes = useCallback(async () => {
     try {
@@ -122,19 +132,24 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
     registerPresence()
   }, [siteMapId])
 
-  // Load data and set up polling
+  // Load data once on mount
   useEffect(() => {
     setIsLoading(true)
     Promise.all([loadNotes(), loadActivity(), loadTasks()]).finally(() => setIsLoading(false))
-
-    pollRef.current = setInterval(() => {
-      loadNotes()
-      loadActivity()
-      loadTasks()
-    }, 15000)
-
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
   }, [loadNotes, loadActivity, loadTasks])
+
+  // React to realtime activity updates
+  useEffect(() => {
+    if (activityVersion === 0) return
+    void loadNotes()
+    void loadActivity()
+  }, [activityVersion, loadNotes, loadActivity])
+
+  // React to realtime task updates
+  useEffect(() => {
+    if (tasksVersion === 0) return
+    void loadTasks()
+  }, [tasksVersion, loadTasks])
 
   // Derive viewers from recent presence logs
   useEffect(() => {
@@ -170,8 +185,8 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
           content: newNote.trim(),
           noteType,
           elementId: selectedElementId || undefined,
-          x: 0,
-          y: 0
+          x: selectedElementPosition?.x ?? 0,
+          y: selectedElementPosition?.y ?? 0
         })
       })
       const data = await resp.json()
@@ -207,7 +222,14 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
     } catch {}
   }
 
-  const createTask = async (title: string, description: string, priority: string, assignedTo?: string, assignedToName?: string) => {
+  const createTask = async (
+    title: string,
+    description: string,
+    priority: string,
+    assignedTo?: string,
+    assignedToName?: string,
+    dueDate?: string
+  ) => {
     try {
       const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
         method: 'POST',
@@ -220,6 +242,7 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
           priority,
           assignedTo,
           assignedToName,
+          dueDate,
           elementId: selectedElementId || undefined
         })
       })
@@ -307,6 +330,8 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
     }
   }
 
+  const onlineCount = Math.max(viewers.length, presenceCount)
+
   if (isCollapsed) {
     return (
       <div className="w-12 border-l border-slate-700/30 bg-slate-900/60 flex flex-col items-center py-4 gap-3">
@@ -323,10 +348,10 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
           <Activity className="h-4 w-4 text-slate-400" />
           <AlertTriangle className="h-4 w-4 text-amber-400" />
         </div>
-        {viewers.length > 0 && (
+        {onlineCount > 0 && (
           <div className="mt-auto flex flex-col items-center gap-1">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-            <span className="text-[10px] text-slate-500">{viewers.length}</span>
+            <span className="text-[10px] text-slate-500">{onlineCount}</span>
           </div>
         )}
       </div>
@@ -339,10 +364,10 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
       <div className="p-3 border-b border-slate-700/30 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-white">Collaboration</span>
-          {viewers.length > 0 && (
+          {onlineCount > 0 && (
             <Badge className="bg-green-500/20 text-green-300 border-green-500/30 text-[10px] px-1.5 py-0">
               <div className="w-1.5 h-1.5 bg-green-400 rounded-full mr-1 animate-pulse" />
-              {viewers.length} online
+              {onlineCount} online
             </Badge>
           )}
         </div>
@@ -605,6 +630,7 @@ export function SiteMapCollaborationPanel({ siteMapId, isReadOnly, onNoteClick, 
               onCancel={() => setShowTaskForm(false)}
               siteMapId={siteMapId}
               elementId={selectedElementId}
+              eventId={eventId}
             />
           )}
         </TabsContent>
@@ -728,15 +754,16 @@ function IssueReporter({ onSubmit }: { onSubmit: (title: string, severity: strin
   )
 }
 
-function TaskCreator({ onSubmit, onCancel, siteMapId, elementId }: {
-  onSubmit: (title: string, description: string, priority: string, assignedTo?: string, assignedToName?: string) => void
+function TaskCreator({ onSubmit, onCancel, eventId, elementId }: {
+  onSubmit: (title: string, description: string, priority: string, assignedTo?: string, assignedToName?: string, dueDate?: string) => void
   onCancel: () => void
-  siteMapId: string
+  eventId?: string
   elementId?: string | null
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
+  const [dueDate, setDueDate] = useState('')
   const [assigneeSearch, setAssigneeSearch] = useState('')
   const [assigneeResults, setAssigneeResults] = useState<any[]>([])
   const [selectedAssignee, setSelectedAssignee] = useState<{ id: string; name: string } | null>(null)
@@ -747,9 +774,24 @@ function TaskCreator({ onSubmit, onCancel, siteMapId, elementId }: {
     const timer = setTimeout(async () => {
       setIsSearching(true)
       try {
-        const resp = await fetch(`/api/social/suggested?search=${encodeURIComponent(assigneeSearch)}&limit=5`, { credentials: 'include' })
-        const data = await resp.json()
-        setAssigneeResults(data.data || data.profiles || [])
+        if (eventId) {
+          const staffResp = await fetch(`/api/events/${eventId}/staff`, { credentials: 'include' })
+          const staffData = await staffResp.json()
+          const roster = (staffData.availableMembers || []).filter((member: any) => {
+            const searchable = `${member.name || ''} ${member.email || ''}`.toLowerCase()
+            return searchable.includes(assigneeSearch.toLowerCase())
+          })
+          setAssigneeResults(roster.slice(0, 8).map((member: any) => ({
+            id: member.id,
+            full_name: member.name,
+            username: member.name,
+            avatar_url: null,
+          })))
+        } else {
+          const resp = await fetch(`/api/social/suggested?search=${encodeURIComponent(assigneeSearch)}&limit=5`, { credentials: 'include' })
+          const data = await resp.json()
+          setAssigneeResults(data.data || data.profiles || [])
+        }
       } catch {
         setAssigneeResults([])
       } finally {
@@ -761,7 +803,7 @@ function TaskCreator({ onSubmit, onCancel, siteMapId, elementId }: {
 
   const submit = () => {
     if (!title.trim()) return
-    onSubmit(title.trim(), description.trim(), priority, selectedAssignee?.id, selectedAssignee?.name)
+    onSubmit(title.trim(), description.trim(), priority, selectedAssignee?.id, selectedAssignee?.name, dueDate || undefined)
   }
 
   return (
@@ -801,6 +843,12 @@ function TaskCreator({ onSubmit, onCancel, siteMapId, elementId }: {
           </SelectContent>
         </Select>
       </div>
+      <Input
+        type="datetime-local"
+        value={dueDate}
+        onChange={(e) => setDueDate(e.target.value)}
+        className="text-xs h-7 bg-slate-800/50 border-slate-700/50 text-white"
+      />
 
       {/* Assignee search */}
       <div className="space-y-1">

@@ -41,7 +41,7 @@ import { AccountSwitcher } from "@/components/account-switcher"
 import { TourifyLogo } from "@/components/tourify-logo"
 import { supabase } from "@/lib/supabase"
 import { motion } from "framer-motion"
-import { WorkingNotificationBell } from "@/components/working-notification-bell"
+import { EnhancedNotificationCenter } from "@/components/notifications/enhanced-notification-center"
 import { CompactAccountSwitcher } from "@/components/compact-account-switcher"
 import { EnhancedAccountSearch } from "@/components/search/enhanced-account-search"
 import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
@@ -254,7 +254,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
               </div>
 
               {/* Notifications */}
-              <WorkingNotificationBell />
+              <EnhancedNotificationCenter />
 
               {/* Friend Search */}
               <Button

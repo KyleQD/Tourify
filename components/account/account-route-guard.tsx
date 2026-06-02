@@ -15,7 +15,7 @@ import {
 export function AccountRouteGuard() {
   const pathname = usePathname()
   const router = useRouter()
-  const { currentAccount, isLoading } = useMultiAccount()
+  const { currentAccount, accounts, switchAccount, isLoading } = useMultiAccount()
 
   useEffect(() => {
     if (isLoading || !currentAccount) return
@@ -24,10 +24,19 @@ export function AccountRouteGuard() {
     if (!required) return
 
     if (currentAccount.account_type !== required) {
+      const targetAccount = accounts.find(
+        acc => acc.account_type === required && acc.is_active
+      )
+
+      if (targetAccount) {
+        switchAccount(targetAccount.profile_id, targetAccount.account_type)
+        return
+      }
+
       const next = getDashboardPathForAccountType(currentAccount.account_type)
       router.replace(next)
     }
-  }, [pathname, currentAccount, isLoading, router])
+  }, [pathname, currentAccount, accounts, switchAccount, isLoading, router])
 
   return null
 }

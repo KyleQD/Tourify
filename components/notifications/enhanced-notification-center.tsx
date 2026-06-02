@@ -64,8 +64,8 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
-  const [accountFilter, setAccountFilter] = useState<string>("all")
-  const [availableAccounts, setAvailableAccounts] = useState<Array<{ id: string; label: string }>>([])
+  // NOTE: account-scoped filtering is intentionally disabled — the `account_id` column
+  // doesn't exist on the `notifications` table yet, so the previous filter was a no-op.
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -109,15 +109,6 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       setNotifications(data || [])
       setUnreadCount(data?.filter(n => !n.is_read).length || 0)
 
-      // Load account filters if columns exist (best-effort)
-      try {
-        const accounts: Array<{ id: string; label: string }> = []
-        const { data: ownedArtists } = await supabase.from('artist_profiles').select('id, stage_name')
-        if (ownedArtists) ownedArtists.forEach(a => accounts.push({ id: String(a.id), label: a.stage_name || `Artist ${a.id}` }))
-        const { data: ownedVenues } = await supabase.from('venue_profiles').select('id, name')
-        if (ownedVenues) ownedVenues.forEach(v => accounts.push({ id: String(v.id), label: v.name || `Venue ${v.id}` }))
-        setAvailableAccounts(accounts)
-      } catch (_) {}
     } catch (error) {
       console.error("Error fetching notifications:", error)
       toast.error("Failed to fetch notifications")
@@ -136,17 +127,15 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       if (!session?.user?.id) return
 
       const channel = supabase
-        .channel('notifications')
-        .on('postgres_changes', { 
-          event: '*', 
-          schema: 'public', 
-          table: 'notifications'
-             }, (payload: any) => {
-               // Only handle notifications for the current user
-               if (payload.new && payload.new.user_id === session.user.id) {
-                 fetchNotifications()
-               }
-             })
+        .channel(`notifications-${session.user.id}`)
+        .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${session.user.id}`,
+        }, () => {
+          fetchNotifications()
+        })
         .subscribe()
 
       return channel
@@ -241,13 +230,17 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
     const matchesSearch = notification.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          notification.content.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesType = filterType === "all" || notification.type === filterType
-    const matchesTab = activeTab === "all" || 
+    const matchesTab = activeTab === "all" ||
                       (activeTab === "unread" && !notification.is_read) ||
                       (activeTab === "read" && notification.is_read)
-    const matchesAccount = accountFilter === 'all' || (notification as any).account_id === accountFilter
-    
-    return matchesSearch && matchesType && matchesTab && matchesAccount
+
+    return matchesSearch && matchesType && matchesTab
   })
+
+  // Counts must be computed from the full notification set, not the search/type-filtered
+  // view, so tab badges remain stable while the user types in the search box.
+  const totalUnreadCount = notifications.filter((notification) => !notification.is_read).length
+  const totalReadCount = notifications.length - totalUnreadCount
 
   // Group notifications by date
   const groupedNotifications = filteredNotifications.reduce((groups, notification) => {
@@ -267,10 +260,13 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
   // Get notification link
   const getNotificationLink = (notification: Notification) => {
     if (notification.metadata?.link) return notification.metadata.link
+    const conversationId = notification.metadata?.conversation_id
     
     switch (notification.type) {
       case 'message':
-        return `/messages/${notification.related_user?.id}`
+      case 'message_request':
+        if (conversationId) return `/messages?conversation=${conversationId}`
+        return '/messages'
       case 'booking_request':
         return `/bookings/requests`
       case 'event_invite':
@@ -376,23 +372,13 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
                       <option value="comment">Comments</option>
                       <option value="follow">Follows</option>
                       <option value="message">Messages</option>
+                      <option value="message_request">Message requests</option>
+                      <option value="group_message">Group messages</option>
+                      <option value="mention">Mentions</option>
+                      <option value="job_application">Applications</option>
                       <option value="booking_request">Bookings</option>
                       <option value="system_alert">System</option>
                     </select>
-
-                    {/* Account filter */}
-                    {availableAccounts.length > 0 && (
-                      <select
-                        value={accountFilter}
-                        onChange={(e) => setAccountFilter(e.target.value)}
-                        className="text-sm border-0 bg-transparent focus:outline-none text-slate-300"
-                      >
-                        <option value="all">All Accounts</option>
-                        {availableAccounts.map(acc => (
-                          <option key={acc.id} value={acc.id}>{acc.label}</option>
-                        ))}
-                      </select>
-                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -401,13 +387,13 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                   <TabsList className="grid w-full grid-cols-3 bg-slate-800/50 border border-slate-700/50">
                     <TabsTrigger value="all" className="text-xs text-slate-300 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30">
-                      All ({filteredNotifications.length})
+                      All ({notifications.length})
                     </TabsTrigger>
                     <TabsTrigger value="unread" className="text-xs text-slate-300 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30">
-                      Unread ({filteredNotifications.filter(n => !n.is_read).length})
+                      Unread ({totalUnreadCount})
                     </TabsTrigger>
                     <TabsTrigger value="read" className="text-xs text-slate-300 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300 data-[state=active]:border-purple-500/30">
-                      Read ({filteredNotifications.filter(n => n.is_read).length})
+                      Read ({totalReadCount})
                     </TabsTrigger>
                   </TabsList>
 

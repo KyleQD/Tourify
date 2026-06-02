@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { CANNED_ELEMENTS, getElementById, type CannedElement } from "@/lib/data/canned-elements"
 import { SiteMapShareDialog } from "../site-map-share-dialog"
 import { SiteMapCollaborationPanel } from "../site-map-collaboration-panel"
+import { useSiteMapRealtime } from "@/hooks/use-site-map-realtime"
 
 interface SiteMap {
   id: string
@@ -30,6 +31,8 @@ interface SiteMap {
   height: number
   created_at: string
   status: string
+  backgroundImageUrl?: string
+  background_image_url?: string
   backgroundColor?: string
   gridEnabled?: boolean
   gridSize?: number
@@ -85,6 +88,22 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('dark')
   const [showCollabPanel, setShowCollabPanel] = useState(true)
   const [elementStatuses, setElementStatuses] = useState<Record<string, string>>({})
+  const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
+  const { activityVersion } = useSiteMapRealtime({ siteMapId: siteMap.id })
+
+  useEffect(() => {
+    const backgroundUrl = siteMap.backgroundImageUrl || siteMap.background_image_url
+    if (!backgroundUrl) {
+      setBackgroundImage(null)
+      return
+    }
+
+    const image = new window.Image()
+    image.crossOrigin = 'anonymous'
+    image.src = backgroundUrl
+    image.onload = () => setBackgroundImage(image)
+    image.onerror = () => setBackgroundImage(null)
+  }, [siteMap.backgroundImageUrl, siteMap.background_image_url])
 
   // Load element statuses from activity log
   useEffect(() => {
@@ -105,9 +124,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       } catch {}
     }
     loadStatuses()
-    const interval = setInterval(loadStatuses, 20000)
-    return () => clearInterval(interval)
-  }, [siteMap.id])
+  }, [siteMap.id, activityVersion])
 
   // Undo/Redo history
   const [history, setHistory] = useState<SiteMapElement[][]>([])
@@ -152,6 +169,11 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const [isSpaceHeld, setIsSpaceHeld] = useState(false)
 
+  const createElementId = useCallback(() => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+    return `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  }, [])
+
   // Keyboard shortcuts
   useEffect(() => {
     function handleKeyboard(e: KeyboardEvent) {
@@ -168,7 +190,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         e.preventDefault()
         const el = elements.find(el => el.id === selectedElement)
         if (el) {
-          const dup = { ...el, id: `element_${Date.now()}`, x: el.x + 20, y: el.y + 20 }
+          const dup = { ...el, id: createElementId(), x: el.x + 20, y: el.y + 20 }
           updateElements(prev => [...prev, dup])
           setSelectedElement(dup.id)
         }
@@ -195,7 +217,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     window.addEventListener('keydown', handleKeyboard)
     window.addEventListener('keyup', handleKeyUp)
     return () => { window.removeEventListener('keydown', handleKeyboard); window.removeEventListener('keyup', handleKeyUp) }
-  }, [isReadOnly, undo, redo, selectedElement, updateElements, elements])
+  }, [isReadOnly, undo, redo, selectedElement, updateElements, elements, createElementId])
 
   // Save to API
   const saveToAPI = useCallback(async () => {
@@ -203,6 +225,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     setIsSaving(true)
     try {
       const elementsPayload = elements.map(el => ({
+        id: el.id,
         name: el.label,
         elementType: el.type as any,
         x: el.x,
@@ -221,7 +244,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ elements: elementsPayload, replaceAll: true })
+        body: JSON.stringify({ elements: elementsPayload, upsert: true, sync: true })
       })
 
       setHasUnsavedChanges(false)
@@ -232,6 +255,14 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       setIsSaving(false)
     }
   }, [elements, siteMap, onSave, isReadOnly])
+
+  useEffect(() => {
+    if (isReadOnly || !hasUnsavedChanges) return
+    const timer = window.setTimeout(() => {
+      void saveToAPI()
+    }, 3000)
+    return () => window.clearTimeout(timer)
+  }, [hasUnsavedChanges, isReadOnly, saveToAPI])
 
   // Fit to content
   const fitToContent = useCallback(() => {
@@ -271,11 +302,15 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     if (!ctx) return
 
     // Background
-    const gradient = ctx.createLinearGradient(0, 0, siteMap.width, siteMap.height)
-    gradient.addColorStop(0, canvasTheme === 'light' ? '#f8fafc' : '#0f172a')
-    gradient.addColorStop(1, canvasTheme === 'light' ? '#e2e8f0' : '#1e293b')
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, siteMap.width, siteMap.height)
+    if (backgroundImage) {
+      ctx.drawImage(backgroundImage, 0, 0, siteMap.width, siteMap.height)
+    } else {
+      const gradient = ctx.createLinearGradient(0, 0, siteMap.width, siteMap.height)
+      gradient.addColorStop(0, canvasTheme === 'light' ? '#f8fafc' : '#0f172a')
+      gradient.addColorStop(1, canvasTheme === 'light' ? '#e2e8f0' : '#1e293b')
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, siteMap.width, siteMap.height)
+    }
 
     // Draw elements
     elements.forEach(element => {
@@ -287,7 +322,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     link.download = `${siteMap.name.replace(/\s+/g, '_')}_sitemap.png`
     link.href = dataURL
     link.click()
-  }, [siteMap.name, siteMap.width, siteMap.height, elements, canvasTheme])
+  }, [siteMap.name, siteMap.width, siteMap.height, elements, canvasTheme, backgroundImage])
 
   // Export as JSON
   const exportAsJSON = useCallback(() => {
@@ -303,6 +338,26 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     link.click()
     URL.revokeObjectURL(link.href)
   }, [siteMap, elements])
+
+  const exportAsPDF = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const imageDataUrl = canvas.toDataURL('image/png')
+    const popup = window.open('', '_blank', 'width=1200,height=900')
+    if (!popup) return
+    popup.document.write(`
+      <html>
+        <head><title>${siteMap.name} - Site Map</title></head>
+        <body style="margin:0;padding:20px;background:#0f172a;color:white;font-family:Inter,system-ui,sans-serif;">
+          <h2 style="margin:0 0 12px 0;">${siteMap.name}</h2>
+          <p style="margin:0 0 16px 0;color:#94a3b8;">${siteMap.width} x ${siteMap.height}</p>
+          <img src="${imageDataUrl}" style="width:100%;border:1px solid #334155;border-radius:8px;" />
+          <script>window.onload = () => window.print()</script>
+        </body>
+      </html>
+    `)
+    popup.document.close()
+  }, [siteMap.height, siteMap.name, siteMap.width])
 
   // Grid utility functions
   const snapToGridPosition = useCallback((x: number, y: number) => {
@@ -407,16 +462,20 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     ctx.translate(pan.x, pan.y)
     ctx.scale(zoom, zoom)
 
-    const gradient = ctx.createLinearGradient(0, 0, siteMap.width, siteMap.height)
-    if (canvasTheme === 'light') {
-      gradient.addColorStop(0, '#f8fafc')
-      gradient.addColorStop(1, '#e2e8f0')
+    if (backgroundImage) {
+      ctx.drawImage(backgroundImage, 0, 0, siteMap.width, siteMap.height)
     } else {
-      gradient.addColorStop(0, '#0f172a')
-      gradient.addColorStop(1, '#1e293b')
+      const gradient = ctx.createLinearGradient(0, 0, siteMap.width, siteMap.height)
+      if (canvasTheme === 'light') {
+        gradient.addColorStop(0, '#f8fafc')
+        gradient.addColorStop(1, '#e2e8f0')
+      } else {
+        gradient.addColorStop(0, '#0f172a')
+        gradient.addColorStop(1, '#1e293b')
+      }
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, siteMap.width, siteMap.height)
     }
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, siteMap.width, siteMap.height)
 
     // Draw grid
     if (showGrid) {
@@ -508,7 +567,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     }
 
     ctx.restore()
-  }, [siteMap, elements, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses])
+  }, [siteMap, elements, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses, backgroundImage])
 
   const drawElementSymbol = (ctx: CanvasRenderingContext2D, type: string, w: number, h: number, color: string) => {
     const cx = w / 2
@@ -868,7 +927,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
 
       if (isValid) {
         const newElement: SiteMapElement = {
-          id: `element_${Date.now()}`,
+          id: createElementId(),
           type: selectedElementForPlacement.id,
           x: finalPosition.x,
           y: finalPosition.y,
@@ -948,11 +1007,11 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   const duplicateElement = useCallback((elementId: string) => {
     const el = elements.find(e => e.id === elementId)
     if (!el) return
-    const dup = { ...el, id: `element_${Date.now()}`, x: el.x + gridSize, y: el.y + gridSize }
+    const dup = { ...el, id: createElementId(), x: el.x + gridSize, y: el.y + gridSize }
     updateElements(prev => [...prev, dup])
     setSelectedElement(dup.id)
     setContextMenu(null)
-  }, [elements, updateElements, gridSize])
+  }, [elements, updateElements, gridSize, createElementId])
 
   const deleteElement = useCallback((elementId: string) => {
     updateElements(prev => prev.filter(el => el.id !== elementId))
@@ -1213,6 +1272,18 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                   onMouseMove={handleCanvasMouseMove}
                   onMouseLeave={() => { setIsPanning(false); if (isDragging) { setIsDragging(false); pushHistory(elements) } }}
                   onContextMenu={handleContextMenu}
+                  onTouchStart={(event) => {
+                    const touch = event.touches[0]
+                    if (!touch) return
+                    setIsPanning(true)
+                    setPanStart({ x: touch.clientX - pan.x, y: touch.clientY - pan.y })
+                  }}
+                  onTouchMove={(event) => {
+                    const touch = event.touches[0]
+                    if (!touch || !isPanning) return
+                    setPan({ x: touch.clientX - panStart.x, y: touch.clientY - panStart.y })
+                  }}
+                  onTouchEnd={() => setIsPanning(false)}
                   onWheel={(e) => {
                     e.preventDefault()
                     const rect = canvasRef.current!.getBoundingClientRect()
@@ -1227,6 +1298,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                     setZoom(newZoom)
                   }}
                   style={{
+                    touchAction: 'none',
                     cursor: isPanning || isSpaceHeld || selectedTool === 'pan'
                       ? (isPanning ? 'grabbing' : 'grab')
                       : isDragging ? 'move'
@@ -1303,8 +1375,14 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
           {showCollabPanel && (
             <SiteMapCollaborationPanel
               siteMapId={siteMap.id}
+              eventId={eventId}
               isReadOnly={isReadOnly}
               selectedElementId={selectedElement}
+              selectedElementPosition={selectedElement ? (() => {
+                const element = elements.find((item) => item.id === selectedElement)
+                if (!element) return null
+                return { x: element.x, y: element.y }
+              })() : null}
               onNoteClick={(x, y) => {
                 setPan({ x: -x * zoom + 400, y: -y * zoom + 300 })
               }}
@@ -1360,6 +1438,9 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
             </Button>
             <Button size="sm" variant="ghost" onClick={exportAsJSON} className="h-6 px-1.5 text-[10px] text-slate-400 hover:text-white" title="Export JSON">
               <Download className="h-3 w-3 mr-0.5" />JSON
+            </Button>
+            <Button size="sm" variant="ghost" onClick={exportAsPDF} className="h-6 px-1.5 text-[10px] text-slate-400 hover:text-white" title="Export PDF">
+              <Download className="h-3 w-3 mr-0.5" />PDF
             </Button>
             {!isReadOnly && (
               <>

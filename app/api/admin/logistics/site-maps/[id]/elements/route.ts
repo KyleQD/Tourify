@@ -42,7 +42,71 @@ export async function POST(
     const { id } = await params
 
     const body = await request.json()
+
+    // Batch upsert mode for canvas sync/autosave
+    if (Array.isArray(body.elements)) {
+      const incomingElements = body.elements as any[]
+      const incomingIds = incomingElements.map((element) => element.id).filter(Boolean)
+
+      const rows = incomingElements.map((element) => ({
+        id: element.id,
+        site_map_id: id,
+        name: element.name || element.label || `element_${Date.now()}`,
+        element_type: element.elementType || element.type || 'custom',
+        x: element.x ?? 0,
+        y: element.y ?? 0,
+        width: element.width ?? 0,
+        height: element.height ?? 0,
+        rotation: element.rotation ?? 0,
+        color: element.color || element.fill || '#3b82f6',
+        stroke_color: element.strokeColor || element.stroke || '#1e40af',
+        stroke_width: element.strokeWidth ?? 1,
+        opacity: element.opacity ?? 1,
+        properties: element.properties || element.data || {},
+      }))
+
+      if (rows.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('site_map_elements')
+          .upsert(rows, { onConflict: 'id' })
+
+        if (upsertError) {
+          console.error('Error upserting elements:', upsertError)
+          return NextResponse.json({ error: 'Failed to save elements' }, { status: 500 })
+        }
+      }
+
+      if (body.sync === true) {
+        const existingQuery = supabase
+          .from('site_map_elements')
+          .select('id')
+          .eq('site_map_id', id)
+
+        const { data: existing } = await existingQuery
+        const idsToDelete = (existing || [])
+          .map((row) => row.id)
+          .filter((existingId) => !incomingIds.includes(existingId))
+
+        if (idsToDelete.length > 0) {
+          await supabase.from('site_map_elements').delete().in('id', idsToDelete)
+        }
+      }
+
+      const { data: savedElements, error: savedError } = await supabase
+        .from('site_map_elements')
+        .select('*')
+        .eq('site_map_id', id)
+        .order('created_at', { ascending: true })
+
+      if (savedError) {
+        console.error('Error fetching saved elements:', savedError)
+        return NextResponse.json({ error: 'Failed to fetch saved elements' }, { status: 500 })
+      }
+
+      return NextResponse.json({ success: true, data: savedElements || [] })
+    }
     const { 
+      id: elementId,
       type,
       layerId,
       x,
@@ -79,6 +143,7 @@ export async function POST(
     const { data: element, error } = await supabase
       .from('site_map_elements')
       .insert({
+        ...(elementId ? { id: elementId } : {}),
         site_map_id: id,
         name: name || `${elementType}_${Date.now()}`,
         element_type: elementType,

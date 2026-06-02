@@ -185,7 +185,8 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       })))
       
       setAccounts(userAccounts)
-      setActiveSession(body.activeSession ?? null)
+      const session = body.activeSession ?? null
+      setActiveSession(session)
       
       const currentActiveId = activeAccount?.profile_id
       const currentActiveType = activeAccount?.account_type
@@ -194,6 +195,13 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       if (currentActiveId && currentActiveType) {
         newActiveAccount = userAccounts.find(acc => 
           acc.profile_id === currentActiveId && acc.account_type === currentActiveType
+        ) ?? null
+      }
+      
+      if (!newActiveAccount && session) {
+        newActiveAccount = userAccounts.find(acc =>
+          acc.profile_id === session.active_profile_id &&
+          acc.account_type === session.active_account_type
         ) ?? null
       }
       

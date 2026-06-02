@@ -59,6 +59,7 @@ export function SiteMapShareDialog({
   const [isSearching, setIsSearching] = useState(false)
   const [selectedPermission, setSelectedPermission] = useState<'view' | 'edit' | 'admin'>('view')
   const [venueUser, setVenueUser] = useState<any>(null)
+  const [publicLink, setPublicLink] = useState('')
 
   const loadCollaborators = useCallback(async () => {
     setIsLoading(true)
@@ -166,6 +167,26 @@ export function SiteMapShareDialog({
     return 'view'
   }
 
+  const generatePublicLink = async () => {
+    try {
+      const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/public-link`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      const data = await resp.json()
+      if (!data.success) {
+        toast({ title: 'Error', description: data.error || 'Failed to generate link', variant: 'destructive' })
+        return
+      }
+      const link = `${window.location.origin}/site-maps/shared/${data.data.token}`
+      setPublicLink(link)
+      await navigator.clipboard.writeText(link)
+      toast({ title: 'Public link copied', description: 'Read-only link copied to clipboard' })
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' })
+    }
+  }
+
   const permissionBadge = (level: string) => {
     const styles = {
       admin: 'bg-red-500/20 text-red-300 border-red-500/30',
@@ -197,6 +218,33 @@ export function SiteMapShareDialog({
               Share with Event Venue ({venueUser.name})
             </Button>
           )}
+
+          {/* Search to add */}
+          <div className="space-y-2">
+            <Label className="text-slate-300">Public read-only link</Label>
+            <div className="flex gap-2">
+              <Button
+                onClick={generatePublicLink}
+                disabled={isSharing}
+                variant="outline"
+                className="border-slate-600 text-slate-300"
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Generate Link
+              </Button>
+              {publicLink && (
+                <Button
+                  onClick={() => navigator.clipboard.writeText(publicLink)}
+                  variant="ghost"
+                  className="text-slate-300"
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  Copy
+                </Button>
+              )}
+            </div>
+            {publicLink && <p className="text-xs text-slate-500 break-all">{publicLink}</p>}
+          </div>
 
           {/* Search to add */}
           <div className="space-y-2">

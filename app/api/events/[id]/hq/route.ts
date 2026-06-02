@@ -47,9 +47,10 @@ async function resolveUserRole(svc: any, eventId: string, userId: string) {
 
   const { data: participant } = await svc
     .from('event_participants')
-    .select('id, role, status, metadata')
+    .select('participant_id, participant_type, role, status, metadata')
     .eq('event_id', eventId)
-    .eq('user_id', userId)
+    .eq('participant_id', userId)
+    .eq('participant_type', 'Individual')
     .maybeSingle()
 
   if (participant) {
@@ -149,7 +150,7 @@ export const GET = withAuth(async (request: NextRequest, { user }) => {
       ),
       safeQuery(
         svc.from('event_participants')
-          .select('id, user_id, role, status, metadata, profiles:user_id(id, full_name, email, avatar_url, username)')
+          .select('participant_id, participant_type, role, status, metadata, created_at')
           .eq('event_id', eventId)
           .order('created_at', { ascending: true })
           .limit(100)

@@ -19,9 +19,10 @@ async function checkEditPermission(svc: any, eventId: string, userId: string, pe
 
   const { data: participant } = await svc
     .from('event_participants')
-    .select('id, role, metadata')
+    .select('participant_id, participant_type, role, metadata')
     .eq('event_id', eventId)
-    .eq('user_id', userId)
+    .eq('participant_id', userId)
+    .eq('participant_type', 'Individual')
     .maybeSingle()
 
   if (!participant) return { allowed: false }

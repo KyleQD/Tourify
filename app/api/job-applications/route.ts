@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 /** List current user's staffing job applications (public board / job_posting_templates flow). */
 export async function GET(request: NextRequest) {
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     // Get job posting to extract venue_id and applicant info
     const { data: jobPosting, error: jobError } = await supabase
       .from('job_posting_templates')
-      .select('venue_id, title, department, position, applications_count')
+      .select('venue_id, title, department, position, applications_count, created_by, allow_applicant_messages')
       .eq('id', job_posting_id)
       .eq('status', 'published')
       .single()
@@ -151,6 +152,44 @@ export async function POST(request: NextRequest) {
 
     // Increment application count on job posting using RPC-safe approach
     await supabase.rpc('increment_applications_count', { p_job_id: job_posting_id })
+
+    if (jobPosting.allow_applicant_messages && jobPosting.created_by && jobPosting.created_by !== user.id) {
+      const serviceRoleSupabase = createServiceRoleClient()
+
+      const { data: existingConversation } = await serviceRoleSupabase
+        .from('conversations')
+        .select('id')
+        .or(`and(participant_1.eq.${user.id},participant_2.eq.${jobPosting.created_by}),and(participant_1.eq.${jobPosting.created_by},participant_2.eq.${user.id})`)
+        .maybeSingle()
+
+      if (!existingConversation) {
+        await serviceRoleSupabase
+          .from('conversations')
+          .insert({
+            participant_1: user.id,
+            participant_2: jobPosting.created_by,
+            trust_tier: 'context',
+            context_type: 'job_application',
+            context_id: application.id,
+            accepted_at: new Date().toISOString(),
+            accepted_by: user.id,
+          })
+      }
+
+      await serviceRoleSupabase
+        .from('notifications')
+        .insert({
+          user_id: jobPosting.created_by,
+          related_user_id: user.id,
+          type: 'job_application',
+          title: `New application for ${jobPosting.title}`,
+          content: `${applicantName} applied and can be messaged directly.`,
+          metadata: {
+            job_posting_id,
+            application_id: application.id,
+          },
+        })
+    }
 
     await recordAchievementMetricEvent({
       supabase,

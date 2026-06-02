@@ -289,6 +289,12 @@ async function checkEventOwnership(svc: any, eventId: string, userId: string): P
 }
 
 async function getParticipantRole(svc: any, eventId: string, userId: string) {
-  const { data } = await svc.from('event_participants').select('role').eq('event_id', eventId).eq('user_id', userId).maybeSingle()
+  const { data } = await svc
+    .from('event_participants')
+    .select('role')
+    .eq('event_id', eventId)
+    .eq('participant_id', userId)
+    .eq('participant_type', 'Individual')
+    .maybeSingle()
   return data
 }

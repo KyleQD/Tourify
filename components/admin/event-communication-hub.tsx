@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -25,6 +25,7 @@ import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import { EventTaskMessages } from "@/components/admin/event-task-messages"
 import { EventSecureUploads } from "@/components/admin/event-secure-uploads"
+import { supabase } from "@/lib/supabase"
 import {
   Megaphone,
   MessageSquare,
@@ -562,7 +563,43 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [senderProfiles, setSenderProfiles] = useState<Map<string, { id: string; full_name: string | null; avatar_url: string | null }>>(new Map())
+  const senderProfilesRef = useRef(senderProfiles)
+  senderProfilesRef.current = senderProfiles
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const ensureSenderProfile = useCallback(async (senderId: string) => {
+    if (senderProfilesRef.current.has(senderId)) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .eq('id', senderId)
+      .maybeSingle()
+    if (!data) return
+    setSenderProfiles((prev) => {
+      if (prev.has(senderId)) return prev
+      const next = new Map(prev)
+      next.set(senderId, { id: data.id, full_name: data.full_name, avatar_url: data.avatar_url })
+      return next
+    })
+  }, [])
+
+  const hydrateSenderProfiles = useCallback(async (rows: GroupMessage[]) => {
+    const unique = Array.from(new Set(rows.map((row) => row.sender_id))).filter(
+      (id) => !senderProfilesRef.current.has(id),
+    )
+    if (unique.length === 0) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', unique)
+    if (!data) return
+    setSenderProfiles((prev) => {
+      const next = new Map(prev)
+      data.forEach((row: any) => next.set(row.id, row))
+      return next
+    })
+  }, [])
 
   const [newGroup, setNewGroup] = useState({
     name: '',
@@ -589,19 +626,49 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
       setMessagesLoading(true)
       const res = await fetch(`/api/admin/events/${eventId}/group-chats?groupId=${groupId}&messages=true`, buildFetchInit())
       const data = await res.json()
-      if (data.success) setMessages(data.messages || [])
+      if (data.success) {
+        const list = (data.messages || []) as GroupMessage[]
+        setMessages(list)
+        await hydrateSenderProfiles(list)
+      }
     } catch { /* */ } finally {
       setMessagesLoading(false)
     }
-  }, [eventId])
+  }, [eventId, hydrateSenderProfiles])
 
   useEffect(() => {
-    if (selectedGroup) {
-      void fetchMessages(selectedGroup.id)
-      const interval = setInterval(() => fetchMessages(selectedGroup.id), 10000)
-      return () => clearInterval(interval)
-    }
+    if (selectedGroup) void fetchMessages(selectedGroup.id)
   }, [selectedGroup, fetchMessages])
+
+  useEffect(() => {
+    // One event-scoped channel handles every group; messages route into the open
+    // pane client-side rather than re-subscribing on every group switch.
+    const channel = supabase
+      .channel(`event-${eventId}-group-messages-hub`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_group_messages',
+          filter: `event_id=eq.${eventId}`,
+        },
+        (payload) => {
+          const incoming = payload.new as GroupMessage
+          setMessages((prev) => {
+            if (!selectedGroup || incoming.group_id !== selectedGroup.id) return prev
+            if (prev.some((message) => message.id === incoming.id)) return prev
+            return [...prev, incoming]
+          })
+          void ensureSenderProfile(incoming.sender_id)
+        },
+      )
+      .subscribe()
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [eventId, selectedGroup, ensureSenderProfile])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -633,18 +700,29 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
 
   async function handleSendMessage() {
     if (!messageInput.trim() || !selectedGroup) return
+    const pending = messageInput.trim()
     setSending(true)
+    setMessageInput('')
     try {
       const res = await fetch(`/api/admin/events/${eventId}/group-chats`, buildFetchInit({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ group_id: selectedGroup.id, content: messageInput }),
+        body: JSON.stringify({ group_id: selectedGroup.id, content: pending }),
       }))
-      if (!res.ok) throw new Error()
-      setMessageInput('')
-      await fetchMessages(selectedGroup.id)
-    } catch {
-      toast.error('Failed to send message')
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}))
+        throw new Error(error.error || 'Failed to send')
+      }
+      const data = await res.json().catch(() => ({}))
+      if (data?.message) {
+        setMessages((prev) => {
+          if (prev.some((message) => message.id === data.message.id)) return prev
+          return [...prev, data.message as GroupMessage]
+        })
+      }
+    } catch (error) {
+      setMessageInput(pending)
+      toast.error(error instanceof Error ? error.message : 'Failed to send message')
     } finally {
       setSending(false)
     }
@@ -694,24 +772,29 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {messages.map((msg) => (
-                    <div key={msg.id} className="flex items-start gap-2">
-                      <Avatar className="h-7 w-7 flex-shrink-0">
-                        <AvatarFallback className="bg-slate-700 text-slate-300 text-xs">
-                          {msg.sender_id.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-slate-300">{msg.sender_id.slice(0, 8)}</span>
-                          <span className="text-xs text-slate-500">
-                            {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                          </span>
+                  {messages.map((msg) => {
+                    const sender = senderProfiles.get(msg.sender_id)
+                    const displayName = sender?.full_name?.trim() || `User ${msg.sender_id.slice(0, 6)}`
+                    return (
+                      <div key={msg.id} className="flex items-start gap-2">
+                        <Avatar className="h-7 w-7 flex-shrink-0">
+                          <AvatarImage src={sender?.avatar_url || ''} alt={displayName} />
+                          <AvatarFallback className="bg-slate-700 text-slate-300 text-xs">
+                            {displayName.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-slate-300">{displayName}</span>
+                            <span className="text-xs text-slate-500">
+                              {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white mt-0.5 whitespace-pre-wrap break-words">{msg.content}</p>
                         </div>
-                        <p className="text-sm text-white mt-0.5">{msg.content}</p>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                   <div ref={messagesEndRef} />
                 </div>
               )}

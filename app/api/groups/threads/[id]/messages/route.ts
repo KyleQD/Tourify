@@ -1,0 +1,174 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+
+const threadIdSchema = z.string().uuid({ message: 'Invalid thread id' })
+const messageBodySchema = z.object({
+  content: z.string().trim().min(1).max(2000),
+  message_type: z.string().max(40).optional(),
+})
+
+const listQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  before: z.string().datetime().optional(),
+})
+
+function getThreadIdFromPath(request: NextRequest) {
+  const parts = request.nextUrl.pathname.split('/')
+  return parts[parts.length - 2]
+}
+
+async function ensureMembership(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  threadId: string,
+  userId: string,
+) {
+  const { data } = await supabase
+    .from('thread_members')
+    .select('thread_id, role')
+    .eq('thread_id', threadId)
+    .eq('user_id', userId)
+    .is('left_at', null)
+    .maybeSingle()
+
+  return data
+}
+
+function extractMentionUsernames(content: string): string[] {
+  const mentionRegex = /@([a-zA-Z0-9_]+)/g
+  const matches = new Set<string>()
+  let match = mentionRegex.exec(content)
+  while (match) {
+    matches.add(match[1])
+    match = mentionRegex.exec(content)
+  }
+  return Array.from(matches)
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const rawThreadId = getThreadIdFromPath(request)
+    const parsedId = threadIdSchema.safeParse(rawThreadId)
+    if (!parsedId.success)
+      return NextResponse.json({ error: 'Invalid thread id' }, { status: 400 })
+
+    const supabase = createServiceRoleClient()
+    const membership = await ensureMembership(supabase, parsedId.data, user.id)
+    if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const parsedQuery = listQuerySchema.safeParse({
+      limit: request.nextUrl.searchParams.get('limit') ?? undefined,
+      before: request.nextUrl.searchParams.get('before') ?? undefined,
+    })
+    if (!parsedQuery.success)
+      return NextResponse.json({ error: 'Invalid query', details: parsedQuery.error.flatten() }, { status: 400 })
+    const { limit, before } = parsedQuery.data
+
+    let query = supabase
+      .from('group_messages')
+      .select(`
+        id,
+        thread_id,
+        sender_id,
+        content,
+        message_type,
+        mentions,
+        read_by,
+        created_at,
+        sender:profiles!sender_id(id, username, full_name, avatar_url)
+      `)
+      .eq('thread_id', parsedId.data)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (before) query = query.lt('created_at', before)
+
+    const { data, error } = await query
+    if (error) return NextResponse.json({ error: 'Failed to load messages' }, { status: 500 })
+
+    const messages = (data || []).slice().reverse()
+    const nextCursor = data && data.length === limit ? data[data.length - 1].created_at : null
+
+    return NextResponse.json({ messages, nextCursor })
+  } catch (error) {
+    console.error('Group thread messages GET error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const rawThreadId = getThreadIdFromPath(request)
+    const parsedId = threadIdSchema.safeParse(rawThreadId)
+    if (!parsedId.success)
+      return NextResponse.json({ error: 'Invalid thread id' }, { status: 400 })
+
+    const supabase = createServiceRoleClient()
+    const membership = await ensureMembership(supabase, parsedId.data, user.id)
+    if (!membership) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+    const rawBody = await request.json().catch(() => null)
+    const parsedBody = messageBodySchema.safeParse(rawBody)
+    if (!parsedBody.success)
+      return NextResponse.json(
+        { error: 'Invalid request body', details: parsedBody.error.flatten() },
+        { status: 400 },
+      )
+
+    const { content, message_type } = parsedBody.data
+    const usernames = extractMentionUsernames(content)
+    let mentionIds: string[] = []
+    if (usernames.length > 0) {
+      const { data: mentionProfiles } = await supabase
+        .from('profiles')
+        .select('id, username')
+        .in('username', usernames)
+
+      const candidateIds = (mentionProfiles || []).map((profile) => profile.id)
+      if (candidateIds.length > 0) {
+        const { data: membersOfThread } = await supabase
+          .from('thread_members')
+          .select('user_id')
+          .eq('thread_id', parsedId.data)
+          .is('left_at', null)
+          .in('user_id', candidateIds)
+        mentionIds = (membersOfThread || []).map((row) => row.user_id)
+      }
+    }
+
+    const { data, error } = await supabase
+      .from('group_messages')
+      .insert({
+        thread_id: parsedId.data,
+        sender_id: user.id,
+        content,
+        message_type: message_type || 'text',
+        mentions: mentionIds,
+      })
+      .select(`
+        id,
+        thread_id,
+        sender_id,
+        content,
+        message_type,
+        mentions,
+        read_by,
+        created_at,
+        sender:profiles!sender_id(id, username, full_name, avatar_url)
+      `)
+      .single()
+
+    if (error || !data) return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
+
+    return NextResponse.json({ success: true, message: data })
+  } catch (error) {
+    console.error('Group thread messages POST error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
