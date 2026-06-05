@@ -1,7 +1,11 @@
 "use client"
 
 import { useCallback, useState, useEffect, useMemo } from 'react'
-import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings } from "lucide-react"
+import { BarChart3, Download, LineChart, Ticket, TrendingUp, Share2, DollarSign, Target, Settings, Tag, RotateCcw, Plus, Edit, Trash2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { toast as sonnerToast } from "sonner"
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminStatCard } from "../components/admin-stat-card"
@@ -268,26 +272,30 @@ export default function TicketingPage() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm grid w-full grid-cols-5">
-          <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
-            <BarChart3 className="h-4 w-4" />
-            Overview
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm flex flex-wrap gap-0.5">
+          <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <BarChart3 className="h-4 w-4" />Overview
           </TabsTrigger>
-          <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
-            <Target className="h-4 w-4" />
-            Campaigns
+          <TabsTrigger value="ticket-types" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Ticket className="h-4 w-4" />Ticket Types
           </TabsTrigger>
-          <TabsTrigger value="sharing" className="flex items-center gap-2">
-            <Share2 className="h-4 w-4" />
-            Sharing
+          <TabsTrigger value="promo-codes" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Tag className="h-4 w-4" />Promo Codes
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
-            <TrendingUp className="h-4 w-4" />
-            Analytics
+          <TabsTrigger value="refunds" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <RotateCcw className="h-4 w-4" />Refunds
           </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">
-            <Settings className="h-4 w-4" />
-            Settings
+          <TabsTrigger value="campaigns" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Target className="h-4 w-4" />Campaigns
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <TrendingUp className="h-4 w-4" />Analytics
+          </TabsTrigger>
+          <TabsTrigger value="sharing" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Share2 className="h-4 w-4" />Sharing
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white rounded-sm text-sm">
+            <Settings className="h-4 w-4" />Settings
           </TabsTrigger>
         </TabsList>
 
@@ -438,12 +446,15 @@ export default function TicketingPage() {
                             <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                               Status
                             </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50 bg-slate-900/20">
                           {sales.length === 0 ? (
                             <tr>
-                              <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                              <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                                 No transactions found
                               </td>
                             </tr>
@@ -452,12 +463,14 @@ export default function TicketingPage() {
                               <TransactionRow
                                 key={sale.id}
                                 id={sale.order_number}
+                                saleId={sale.id}
                                 customer={sale.customer_name}
                                 event={getSaleEventTitle(sale)}
                                 ticketType={sale.ticket_type?.name || 'Unknown Type'}
                                 amount={formatCurrency(sale.total_amount)}
                                 date={formatSafeDate(sale.purchase_date)}
                                 status={sale.payment_status}
+                                onRefundSuccess={() => { void fetchTicketingData() }}
                               />
                             ))
                           )}
@@ -686,22 +699,44 @@ export default function TicketingPage() {
                   <p className="text-sm font-medium text-slate-200">Auto-generate ticket codes</p>
                   <p className="text-xs text-slate-400">Automatically generate unique codes for new ticket types</p>
                 </div>
-                <Button variant="outline" size="sm">Configure</Button>
+                <Button variant="outline" size="sm" onClick={() => sonnerToast.info('Ticket code settings are configured per event — open an event to edit.')}>Configure</Button>
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-200">Email notifications</p>
                   <p className="text-xs text-slate-400">Send email confirmations for ticket purchases</p>
                 </div>
-                <Button variant="outline" size="sm">Configure</Button>
+                <Button variant="outline" size="sm" onClick={() => sonnerToast.info('Email notification settings are managed under Organization Settings.')}>Configure</Button>
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-slate-200">Social sharing tracking</p>
                   <p className="text-xs text-slate-400">Track social media shares and conversions</p>
                 </div>
-                <Button variant="outline" size="sm">Configure</Button>
+                <Button variant="outline" size="sm" onClick={() => sonnerToast.info('Social tracking is configured in the Sharing tab — select an event first.')}>Configure</Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Ticket Types Tab */}
+        <TabsContent value="ticket-types" className="space-y-6">
+          <TicketTypesCRUD events={events} selectedEvent={selectedEvent} onEventChange={setSelectedEvent} />
+        </TabsContent>
+
+        {/* Promo Codes Tab */}
+        <TabsContent value="promo-codes" className="space-y-6">
+          <PromoCodesPanel events={events} selectedEvent={selectedEvent} />
+        </TabsContent>
+
+        {/* Refunds Tab */}
+        <TabsContent value="refunds" className="space-y-6">
+          <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white text-base">Refunded Tickets</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RefundsList selectedEvent={selectedEvent} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -710,6 +745,217 @@ export default function TicketingPage() {
   )
 }
 
+function TicketTypesCRUD({ events, selectedEvent, onEventChange }: { events: any[]; selectedEvent: string; onEventChange: (v: string) => void }) {
+  const [types, setTypes] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showDialog, setShowDialog] = useState(false)
+  const [editingType, setEditingType] = useState<any>(null)
+  const [form, setForm] = useState({ name: '', price: '', quantity_available: '', category: 'general', is_active: true })
+
+  const fetchTypes = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ type: 'ticket_types' })
+      if (selectedEvent && selectedEvent !== 'all') params.set('event_id', selectedEvent)
+      const res = await fetch(`/api/admin/ticketing/enhanced?${params}`, { credentials: 'include' })
+      if (res.ok) { const d = await res.json(); setTypes(d.ticket_types || d.data || []) }
+    } finally { setLoading(false) }
+  }, [selectedEvent])
+
+  useEffect(() => { void fetchTypes() }, [fetchTypes])
+
+  function openCreate() {
+    setEditingType(null)
+    setForm({ name: '', price: '', quantity_available: '', category: 'general', is_active: true })
+    setShowDialog(true)
+  }
+  function openEdit(t: any) {
+    setEditingType(t)
+    setForm({ name: t.name, price: String(t.price), quantity_available: String(t.quantity_available), category: t.category || 'general', is_active: t.is_active })
+    setShowDialog(true)
+  }
+
+  async function save() {
+    const body = editingType
+      ? { action: 'update_ticket_type', id: editingType.id, ...form, price: Number(form.price), quantity_available: Number(form.quantity_available) }
+      : { action: 'create_ticket_type', event_id: selectedEvent !== 'all' ? selectedEvent : undefined, ...form, price: Number(form.price), quantity_available: Number(form.quantity_available) }
+    const res = await fetch('/api/admin/ticketing/enhanced', { method: editingType ? 'PATCH' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    if (res.ok) { sonnerToast.success(editingType ? 'Updated' : 'Created'); setShowDialog(false); void fetchTypes() }
+    else { sonnerToast.error('Failed to save') }
+  }
+
+  async function toggleActive(t: any) {
+    await fetch('/api/admin/ticketing/enhanced', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_ticket_type', id: t.id, is_active: !t.is_active }) })
+    void fetchTypes()
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Select value={selectedEvent} onValueChange={onEventChange}>
+          <SelectTrigger className="w-48 bg-slate-800/50 border-slate-700/50 text-white text-sm h-8">
+            <SelectValue placeholder="All Events" />
+          </SelectTrigger>
+          <SelectContent className="bg-slate-900 border-slate-700 text-white">
+            <SelectItem value="all">All Events</SelectItem>
+            {events.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button size="sm" onClick={openCreate} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8">
+          <Plus className="h-3.5 w-3.5 mr-1.5" />Add Type
+        </Button>
+      </div>
+      {types.length === 0 ? (
+        <Card className="rounded-sm bg-slate-900/60 border-slate-700/50"><CardContent className="text-center py-10"><p className="text-slate-400">No ticket types. Add one above.</p></CardContent></Card>
+      ) : (
+        <div className="space-y-2">
+          {types.map((t: any) => (
+            <Card key={t.id} className="rounded-sm bg-slate-900/60 border-slate-700/50">
+              <CardContent className="flex items-center justify-between py-3 px-4">
+                <div>
+                  <p className="text-white text-sm font-medium">{t.name}</p>
+                  <p className="text-slate-400 text-xs">${t.price} · {t.quantity_sold}/{t.quantity_available} sold · {t.category}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge className={t.is_active ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'}>{t.is_active ? 'Active' : 'Paused'}</Badge>
+                  <button onClick={() => openEdit(t)} className="text-slate-400 hover:text-white p-1"><Edit className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => toggleActive(t)} className="text-slate-400 hover:text-yellow-400 p-1" title={t.is_active ? 'Pause' : 'Activate'}>⏸</button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700">
+          <DialogHeader><DialogTitle className="text-white">{editingType ? 'Edit' : 'Add'} Ticket Type</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-slate-300">Name</Label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-slate-300">Price ($)</Label><Input type="number" value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+              <div><Label className="text-slate-300">Quantity</Label><Input type="number" value={form.quantity_available} onChange={e => setForm(p => ({ ...p, quantity_available: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+            </div>
+            <div><Label className="text-slate-300">Category</Label>
+              <Select value={form.category} onValueChange={v => setForm(p => ({ ...p, category: v }))}>
+                <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                  {['general','vip','premium','early_bird','student','backstage','group'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+            <Button onClick={save} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">Save</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+function PromoCodesPanel({ events, selectedEvent }: { events: any[]; selectedEvent: string }) {
+  const [codes, setCodes] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [showDialog, setShowDialog] = useState(false)
+  const [form, setForm] = useState({ code: '', discount_type: 'percentage', discount_value: '', max_uses: '', expires_at: '' })
+
+  const fetchCodes = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ type: 'promo_codes' })
+      if (selectedEvent && selectedEvent !== 'all') params.set('event_id', selectedEvent)
+      const res = await fetch(`/api/admin/ticketing/enhanced?${params}`, { credentials: 'include' })
+      if (res.ok) { const d = await res.json(); setCodes(d.promo_codes || d.data || []) }
+    } finally { setLoading(false) }
+  }, [selectedEvent])
+
+  useEffect(() => { void fetchCodes() }, [fetchCodes])
+
+  async function createCode() {
+    if (!form.code.trim()) { sonnerToast.error('Code is required'); return }
+    const res = await fetch('/api/admin/ticketing/enhanced', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create_promo_code', event_id: selectedEvent !== 'all' ? selectedEvent : undefined, ...form, discount_value: Number(form.discount_value), max_uses: form.max_uses ? Number(form.max_uses) : null }) })
+    if (res.ok) { sonnerToast.success('Promo code created'); setShowDialog(false); setForm({ code: '', discount_type: 'percentage', discount_value: '', max_uses: '', expires_at: '' }); void fetchCodes() }
+    else { sonnerToast.error('Failed to create') }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Dialog open={showDialog} onOpenChange={setShowDialog}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8"><Plus className="h-3.5 w-3.5 mr-1.5" />Create Promo Code</Button>
+          </DialogTrigger>
+          <DialogContent className="bg-slate-900 border-slate-700">
+            <DialogHeader><DialogTitle className="text-white">Create Promo Code</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><Label className="text-slate-300">Code *</Label><Input value={form.code} onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="SUMMER20" className="bg-slate-800/50 border-slate-700/50 text-white font-mono" /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-slate-300">Type</Label>
+                  <Select value={form.discount_type} onValueChange={v => setForm(p => ({ ...p, discount_type: v }))}>
+                    <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent className="bg-slate-900 border-slate-700 text-white"><SelectItem value="percentage">Percentage</SelectItem><SelectItem value="fixed">Fixed ($)</SelectItem></SelectContent>
+                  </Select>
+                </div>
+                <div><Label className="text-slate-300">Discount {form.discount_type === 'percentage' ? '%' : '$'}</Label><Input type="number" value={form.discount_value} onChange={e => setForm(p => ({ ...p, discount_value: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label className="text-slate-300">Max Uses</Label><Input type="number" value={form.max_uses} onChange={e => setForm(p => ({ ...p, max_uses: e.target.value }))} placeholder="Unlimited" className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+                <div><Label className="text-slate-300">Expires At</Label><Input type="date" value={form.expires_at} onChange={e => setForm(p => ({ ...p, expires_at: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+              <Button onClick={createCode} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">Create</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+      {codes.length === 0 ? (
+        <Card className="rounded-sm bg-slate-900/60 border-slate-700/50"><CardContent className="text-center py-10"><p className="text-slate-400">No promo codes yet.</p></CardContent></Card>
+      ) : (
+        <div className="space-y-2">
+          {codes.map((c: any) => (
+            <Card key={c.id} className="rounded-sm bg-slate-900/60 border-slate-700/50">
+              <CardContent className="flex items-center justify-between py-3 px-4">
+                <div><p className="text-white font-mono font-bold text-sm">{c.code}</p><p className="text-slate-400 text-xs">{c.discount_value}{c.discount_type === 'percentage' ? '%' : '$'} off · {c.current_uses || 0}/{c.max_uses || '∞'} uses</p></div>
+                <Badge className={c.is_active !== false ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400'}>{c.is_active !== false ? 'Active' : 'Disabled'}</Badge>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RefundsList({ selectedEvent }: { selectedEvent: string }) {
+  const [refunds, setRefunds] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const params = new URLSearchParams({ type: 'sales' })
+    if (selectedEvent && selectedEvent !== 'all') params.set('event_id', selectedEvent)
+    fetch(`/api/admin/ticketing/enhanced?${params}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { sales: [] })
+      .then(d => setRefunds((d.sales || d.data || []).filter((s: any) => s.payment_status === 'refunded')))
+      .finally(() => setLoading(false))
+  }, [selectedEvent])
+
+  if (loading) return <p className="text-slate-400 text-sm text-center py-8">Loading refunds...</p>
+  if (refunds.length === 0) return <p className="text-slate-400 text-sm text-center py-8">No refunded tickets.</p>
+  return (
+    <div className="space-y-2">
+      {refunds.map((s: any) => (
+        <div key={s.id} className="flex items-center justify-between p-3 bg-slate-800/30 rounded-sm">
+          <div><p className="text-white text-sm">{s.buyer_name || 'Unknown'}</p><p className="text-slate-400 text-xs">{s.buyer_email}</p></div>
+          <div className="text-right"><p className="text-white text-sm font-medium">${s.total_amount}</p><Badge className="bg-red-500/20 text-red-400 text-xs">Refunded</Badge></div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
 function TicketSalesChart({ sales }: { sales: any[] }) {
   const chartData = useMemo(() => {
@@ -800,18 +1046,23 @@ function TicketTypeItem({ name, price, sold, total, percentage, soldOut, categor
 
 interface TransactionRowProps {
   id: string
+  saleId?: string
   customer: string
   event: string
   ticketType: string
   amount: string
   date: string
   status: string
+  onRefundSuccess?: () => void
 }
 
-function TransactionRow({ id, customer, event, ticketType, amount, date, status }: TransactionRowProps) {
+function TransactionRow({ id, saleId, customer, event, ticketType, amount, date, status, onRefundSuccess }: TransactionRowProps) {
+  const [refunding, setRefunding] = useState(false)
+
   const getStatusBadge = () => {
     switch (status) {
       case "paid":
+      case "completed":
         return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Completed</Badge>
       case "refunded":
         return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">Refunded</Badge>
@@ -822,6 +1073,32 @@ function TransactionRow({ id, customer, event, ticketType, amount, date, status 
     }
   }
 
+  async function handleRefund() {
+    if (!saleId || !confirm('Issue a refund for this sale?')) return
+    setRefunding(true)
+    try {
+      const res = await fetch('/api/admin/ticketing/refund', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sale_id: saleId, reason: 'Admin-issued refund' }),
+      })
+      if (!res.ok) {
+        const d = await res.json()
+        sonnerToast.error(d.error || 'Refund failed')
+      } else {
+        sonnerToast.success('Refund issued successfully')
+        onRefundSuccess?.()
+      }
+    } catch {
+      sonnerToast.error('Refund request failed')
+    } finally {
+      setRefunding(false)
+    }
+  }
+
+  const canRefund = saleId && (status === 'paid' || status === 'completed')
+
   return (
     <tr className="hover:bg-slate-800/30">
       <td className="px-4 py-3 text-slate-300">{id}</td>
@@ -831,6 +1108,19 @@ function TransactionRow({ id, customer, event, ticketType, amount, date, status 
       <td className="px-4 py-3 text-slate-300">{amount}</td>
       <td className="px-4 py-3 text-slate-400">{date}</td>
       <td className="px-4 py-3">{getStatusBadge()}</td>
+      <td className="px-4 py-3">
+        {canRefund && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleRefund}
+            disabled={refunding}
+            className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 h-6 px-2"
+          >
+            {refunding ? '...' : 'Refund'}
+          </Button>
+        )}
+      </td>
     </tr>
   )
 }

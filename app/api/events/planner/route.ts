@@ -1,5 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { buildUniqueEventSlug } from '../_lib/events-v2-admin'
+
+async function resolveOrgId(
+  supabase: { from: (t: string) => any },
+  userId: string,
+  tourId?: string | null,
+): Promise<string | null> {
+  if (tourId) {
+    const { data: tour } = await supabase
+      .from('tours')
+      .select('org_id')
+      .eq('id', tourId)
+      .maybeSingle()
+    if (tour?.org_id) return tour.org_id as string
+  }
+  const { data: membership } = await supabase
+    .from('org_members')
+    .select('org_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  return membership?.org_id ?? null
+}
+
+function combineDateTimeToIso(date?: string, time?: string): string {
+  if (!date?.trim()) return new Date().toISOString()
+  const t = (time?.trim() || '00:00').slice(0, 5)
+  const ms = Date.parse(`${date.trim()}T${t}:00`)
+  if (Number.isNaN(ms)) return new Date().toISOString()
+  return new Date(ms).toISOString()
+}
 
 export async function GET(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
@@ -7,21 +38,29 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url)
-    const startDate = searchParams.get('start_date')
-    const endDate = searchParams.get('end_date')
-    const status = searchParams.get('status')
+    const eventId = searchParams.get('id')
 
-    let query = auth.supabase
-      .from('events')
-      .select('*')
-      .eq('user_id', auth.user.id)
-      .order('date', { ascending: true })
+    if (eventId) {
+      const { data, error } = await auth.supabase
+        .from('events_v2')
+        .select('*')
+        .eq('id', eventId)
+        .eq('created_by', auth.user.id)
+        .maybeSingle()
 
-    if (startDate) query = query.gte('date', startDate)
-    if (endDate) query = query.lte('date', endDate)
-    if (status) query = query.eq('status', status)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      if (!data) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
+      return NextResponse.json({ event: data })
+    }
 
-    const { data, error } = await query.limit(200)
+    // Return draft events for resume list
+    const { data, error } = await auth.supabase
+      .from('events_v2')
+      .select('id, title, status, start_at, settings, updated_at')
+      .eq('created_by', auth.user.id)
+      .eq('status', 'inquiry')
+      .order('updated_at', { ascending: false })
+      .limit(20)
 
     if (error) {
       console.error('[Event Planner] GET error:', error)
@@ -41,32 +80,89 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { action, event_id, ...eventData } = body
+    const { action, event_id, ...plannerData } = body
 
+    // Legacy: action=publish goes to the dedicated publish route
     if (action === 'publish') {
-      if (!event_id) {
-        return NextResponse.json({ error: 'event_id is required for publish' }, { status: 400 })
-      }
+      return NextResponse.json(
+        { error: 'Use POST /api/events/planner/publish to publish events' },
+        { status: 400 },
+      )
+    }
 
+    const orgId = await resolveOrgId(auth.supabase, auth.user.id, plannerData.tour_id)
+    if (!orgId) {
+      return NextResponse.json(
+        { error: 'No organization found for user. Please set up your organizer account first.' },
+        { status: 400 },
+      )
+    }
+
+    const title = (plannerData.name || plannerData.title || '').trim()
+    if (!title) {
+      return NextResponse.json({ error: 'Event name is required' }, { status: 400 })
+    }
+
+    const firstVenue = Array.isArray(plannerData.venues) ? plannerData.venues[0] : null
+    const startAt = combineDateTimeToIso(
+      firstVenue?.selectedDate,
+      firstVenue?.selectedTime,
+    )
+    const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
+    const capacity = firstVenue?.capacity ? Number(firstVenue.capacity) : null
+
+    // If event_id provided, update the existing draft
+    if (event_id) {
       const { data, error } = await auth.supabase
-        .from('events')
-        .update({ status: 'published', published_at: new Date().toISOString() })
+        .from('events_v2')
+        .update({
+          title,
+          start_at: startAt,
+          end_at: endAt,
+          capacity,
+          settings: {
+            ...plannerData,
+            _planner_draft: true,
+            venue_label: firstVenue?.name ?? '',
+            description: plannerData.description ?? '',
+          },
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', event_id)
-        .eq('user_id', auth.user.id)
+        .eq('created_by', auth.user.id)
         .select()
         .single()
 
       if (error) {
-        console.error('[Event Planner] publish error:', error)
+        console.error('[Event Planner] update error:', error)
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      return NextResponse.json({ event: data, message: 'Event published' })
+      return NextResponse.json({ event: data })
     }
 
+    // Create new draft event
+    const slug = await buildUniqueEventSlug(auth.supabase as any, orgId, title)
+
     const { data, error } = await auth.supabase
-      .from('events')
-      .insert({ ...eventData, user_id: auth.user.id })
+      .from('events_v2')
+      .insert({
+        org_id: orgId,
+        title,
+        slug,
+        status: 'inquiry',
+        start_at: startAt,
+        end_at: endAt,
+        capacity,
+        timezone: 'UTC',
+        created_by: auth.user.id,
+        settings: {
+          ...plannerData,
+          _planner_draft: true,
+          venue_label: firstVenue?.name ?? '',
+          description: plannerData.description ?? '',
+        },
+      })
       .select()
       .single()
 

@@ -94,6 +94,8 @@ import { AdminSurfaceCard } from "../../components/admin-surface-card"
 import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
 import { AdminSurfaceSelectTrigger, AdminSurfaceTabsList, AdminSurfaceTabsTrigger } from "../../components/admin-surface-controls"
 import { AdminPageActionsRow } from "../../components/admin-page-actions-row"
+import { TourCalendarSync } from "@/components/admin/tour-calendar-sync"
+import { TourFinanceManager } from "@/components/admin/tour-finance-manager"
 
 interface Tour {
   id: string
@@ -997,7 +999,9 @@ export default function TourManagementPage() {
             <AdminSurfaceTabsTrigger value="team">Team ({members.length})</AdminSurfaceTabsTrigger>
             <AdminSurfaceTabsTrigger value="vendors">Vendors ({vendors.length})</AdminSurfaceTabsTrigger>
             <AdminSurfaceTabsTrigger value="jobs">Jobs</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="ticketing">Ticketing</AdminSurfaceTabsTrigger>
             <AdminSurfaceTabsTrigger value="finances">Finances</AdminSurfaceTabsTrigger>
+            <AdminSurfaceTabsTrigger value="calendar-sync">Calendar Sync</AdminSurfaceTabsTrigger>
             <AdminSurfaceTabsTrigger value="logistics">Logistics</AdminSurfaceTabsTrigger>
           </AdminSurfaceTabsList>
 
@@ -1236,51 +1240,47 @@ export default function TourManagementPage() {
           </TabsContent>
 
           {/* Finances Tab */}
-          <TabsContent value="finances" className="space-y-6">
+          {/* Ticketing Tab */}
+          <TabsContent value="ticketing" className="space-y-6">
             <AdminSurfaceCard>
               <CardHeader>
-                <CardTitle className="text-white">Financial Overview</CardTitle>
+                <CardTitle className="text-white">Tour Ticket Sales</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-green-400">{formatSafeCurrency(safeTour.actual_revenue)}</h3>
-                    <p className="text-slate-400">Total Revenue</p>
+                <p className="text-slate-400 text-sm mb-4">Aggregate ticket sales across all events in this tour.</p>
+                {events.length === 0 ? (
+                  <p className="text-slate-500 text-sm">No events linked to this tour yet.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {events.map((ev: any) => (
+                      <div key={ev.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                        <div>
+                          <p className="text-white text-sm font-medium">{ev.name || ev.title}</p>
+                          <p className="text-slate-400 text-xs">{ev.event_date || ev.start_at ? new Date(ev.event_date || ev.start_at).toLocaleDateString() : '—'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-white text-sm">{ev.tickets_sold || 0} sold</p>
+                          <p className="text-slate-400 text-xs">{formatSafeCurrency(ev.actual_revenue || 0)}</p>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="border-t border-slate-700 pt-3 flex justify-between">
+                      <span className="text-slate-300 text-sm font-medium">Tour Total</span>
+                      <span className="text-white text-sm font-bold">{formatSafeCurrency(safeTour.actual_revenue)}</span>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-red-400">{formatSafeCurrency(safeTour.expenses)}</h3>
-                    <p className="text-slate-400">Total Expenses</p>
-                  </div>
-                  <div className="text-center">
-                    <h3 className={`text-2xl font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {formatSafeCurrency(profit)}
-                    </h3>
-                    <p className="text-slate-400">Net Profit</p>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </AdminSurfaceCard>
+          </TabsContent>
 
-            {tourFinances.length > 0 && (
-              <AdminSurfaceCard>
-                <CardHeader>
-                  <CardTitle className="text-white">Recent Transactions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  {tourFinances.slice(0, 10).map((tx: any) => (
-                    <div key={tx.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-xl backdrop-blur-sm">
-                      <div>
-                        <p className="text-sm font-medium text-white">{tx.description || tx.category}</p>
-                        <p className="text-xs text-slate-400">{formatSafeDate(tx.created_at)}</p>
-                      </div>
-                      <span className={`text-sm font-semibold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
-                        {tx.type === 'income' ? '+' : '-'}{formatSafeCurrency(Number(tx.amount)).replace("$", "")}
-                      </span>
-                    </div>
-                  ))}
-                </CardContent>
-              </AdminSurfaceCard>
-            )}
+          {/* Calendar Sync Tab */}
+          <TabsContent value="calendar-sync" className="space-y-6">
+            <TourCalendarSync tourId={tourId} tourName={safeTour.name} />
+          </TabsContent>
+
+          <TabsContent value="finances" className="space-y-6">
+            <TourFinanceManager tourId={tourId} />
           </TabsContent>
 
           {/* Logistics Tab */}
@@ -1472,41 +1472,22 @@ export default function TourManagementPage() {
                   <Label htmlFor="finances" className="text-slate-300">Financial Data</Label>
                 </div>
               </div>
-              <TooltipProvider>
-                <div className="flex space-x-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="flex-1">
-                        <Button disabled className="w-full bg-blue-600/50 hover:bg-blue-600/50">
-                          <Download className="mr-2 h-4 w-4" />
-                          Export as PDF
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>Export coming soon</TooltipContent>
-                  </Tooltip>
+              <div className="flex space-x-2">
+                  <Button
+                    className="flex-1 bg-purple-600 hover:bg-purple-700"
+                    onClick={() => { window.location.href = `/api/admin/tours/${tourId}/export?format=pdf`; setShowExportDialog(false) }}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    HTML Report
+                  </Button>
                   <Button
                     className="flex-1 bg-green-600 hover:bg-green-700"
-                    onClick={() => {
-                      const lines = [`Tour: ${safeTour.name}`, `Status: ${safeTour.status}`, `Start: ${safeTour.start_date}`, `End: ${safeTour.end_date}`, '']
-                      lines.push('Events:')
-                      events.forEach((e: any) => lines.push(`  ${e.name || e.title || 'Event'} - ${e.event_date || e.start_at || ''}`))
-                      lines.push('', 'Team:')
-                      members.forEach((m: any) => lines.push(`  ${m.name} (${m.role})`))
-                      lines.push('', 'Vendors:')
-                      vendors.forEach((v: any) => lines.push(`  ${v.name} - ${v.service_type || v.type || 'Vendor'}`))
-                      const blob = new Blob([lines.join('\n')], { type: 'text/csv' })
-                      const u = URL.createObjectURL(blob)
-                      const a = document.createElement('a'); a.href = u; a.download = `tour-${tourId}.csv`; a.click()
-                      URL.revokeObjectURL(u)
-                      setShowExportDialog(false)
-                    }}
+                    onClick={() => { window.location.href = `/api/admin/tours/${tourId}/export?format=csv`; setShowExportDialog(false) }}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Export as CSV
                   </Button>
                 </div>
-              </TooltipProvider>
             </div>
           </DialogContent>
         </Dialog>

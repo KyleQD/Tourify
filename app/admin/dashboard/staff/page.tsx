@@ -3,7 +3,13 @@
 // Prevent prerendering since this page requires MultiAccountProvider context
 export const dynamic = 'force-dynamic'
 
-import { useCallback, useState, useEffect } from "react"
+import { useCallback, useState, useEffect, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
+import { AdminFilterBar } from "../components/admin-filter-bar"
+import { StaffRosterPanel } from "@/components/admin/staff-roster-panel"
+import { StaffSchedulingTab } from "@/components/admin/staff-scheduling-tab"
+import { StaffAnalyticsPanel } from "@/components/admin/staff-analytics-panel"
+import { StaffCommunicationsTab } from "@/components/admin/staff-communications-tab"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -165,8 +171,15 @@ interface VettingSummary {
 
 export default function StaffPage() {
   const [isLoading, setIsLoading] = useState(true)
+  const [staffSearchTerm, setStaffSearchTerm] = useState('')
+  const [staffStatusFilter, setStaffStatusFilter] = useState('all')
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState('overview')
+  const searchParamsHook = useSearchParams()
+  const initialTab = useMemo(() => {
+    const t = searchParamsHook.get('tab')
+    return ['overview','neural-command','job-postings','applications','onboarding','team-management','scheduling','communications','analytics','permissions'].includes(t || '') ? t! : 'overview'
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [applications, setApplications] = useState<any[]>([])
   const [jobPostings, setJobPostings] = useState<any[]>([])
@@ -832,6 +845,21 @@ export default function StaffPage() {
           </div>
         )}
 
+        {/* Search & Filter Bar */}
+        <AdminFilterBar
+          searchPlaceholder="Search staff by name, role, or email..."
+          searchValue={staffSearchTerm}
+          onSearchChange={setStaffSearchTerm}
+          statusOptions={[
+            { value: "all", label: "All Status" },
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+            { value: "pending", label: "Pending" },
+          ]}
+          statusValue={staffStatusFilter}
+          onStatusChange={setStaffStatusFilter}
+        />
+
         {/* Enhanced Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm grid grid-cols-8 w-full max-w-4xl mx-auto">
@@ -868,7 +896,13 @@ export default function StaffPage() {
             <TabsTrigger value="team-management" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4" />
-                <span>Team</span>
+                <span>Roster</span>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="scheduling" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
+              <div className="flex items-center space-x-2">
+                <Calendar className="h-4 w-4" />
+                <span>Scheduling</span>
               </div>
             </TabsTrigger>
             <TabsTrigger value="communications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">
@@ -1071,6 +1105,11 @@ export default function StaffPage() {
             )}
           </TabsContent>
 
+          {/* Staff Roster Tab */}
+          <TabsContent value="team-management" className="space-y-6">
+            <StaffRosterPanel />
+          </TabsContent>
+
           {/* Other tabs with placeholder content */}
           <TabsContent value="neural-command" className="space-y-6">
             <div className="flex justify-between items-center">
@@ -1260,84 +1299,21 @@ export default function StaffPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="team-management" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-green-500 to-emerald-500 rounded-sm shadow-lg">
-                    <Users className="h-6 w-6 text-white" />
-                  </div>
-                  Enhanced Team Management
-                </h2>
-                <p className="text-slate-400 text-sm">Manage your team, schedules, and performance metrics</p>
-              </div>
-            </div>
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <EnhancedTeamManagement
-                  staffMembers={staffMembers}
-                  onboardingCandidates={onboardingCandidates}
-                  communications={communications}
-                  onUpdateStaffStatus={handleUpdateStaffStatus}
-                  onAssignShift={handleAssignShift}
-                  onAssignZone={handleAssignZone}
-                  onSendMessage={handleSendTeamMessage}
-                  onExportTeamData={handleExportTeamData}
-                  venueId={venueId}
-                />
-              </CardContent>
-            </Card>
+          {/* Scheduling Tab */}
+          <TabsContent value="scheduling" className="space-y-6">
+            <StaffSchedulingTab venueId={venueId} />
+          </TabsContent>
+
+          {/* duplicate removed — roster is now at line above */}
+          <TabsContent value="__unused_team__" className="hidden">
           </TabsContent>
 
           <TabsContent value="communications" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-sm shadow-lg">
-                    <MessageSquare className="h-6 w-6 text-white" />
-                  </div>
-                  Team Communications
-                </h2>
-                <p className="text-slate-400 text-sm">Enhanced communication and messaging features</p>
-              </div>
-            </div>
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-              <CardContent className="p-8">
-                <div className="text-center space-y-4">
-                  <div className="p-4 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-full shadow-lg w-20 h-20 mx-auto flex items-center justify-center">
-                    <MessageSquare className="h-10 w-10 text-blue-400" />
-                  </div>
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-semibold text-white">Team Communications</h3>
-                    <p className="text-slate-400">Direct messaging, group channels, and announcement broadcasts for your team are in development. Use the Messages section for current team communication.</p>
-                  </div>
-                  <div className="flex justify-center space-x-4 pt-4">
-                    <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Real-time Chat</Badge>
-                    <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30">Notifications</Badge>
-                    <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Team Updates</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <StaffCommunicationsTab venueId={venueId} />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <div className="space-y-1">
-                <h2 className="text-2xl font-bold text-white flex items-center gap-3">
-                  <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-sm shadow-lg">
-                    <BarChart3 className="h-6 w-6 text-white" />
-                  </div>
-                  Enhanced Analytics Dashboard
-                </h2>
-                <p className="text-slate-400 text-sm">Comprehensive analytics and insights for your team</p>
-              </div>
-            </div>
-            <Card className="rounded-sm bg-slate-900/60 border-slate-700/50 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <EnhancedAnalyticsDashboard venueId={venueId} />
-              </CardContent>
-            </Card>
+            <StaffAnalyticsPanel venueId={venueId} />
           </TabsContent>
 
           {/* Permissions Tab */}

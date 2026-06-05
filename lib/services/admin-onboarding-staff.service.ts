@@ -458,22 +458,10 @@ export class AdminOnboardingStaffService {
       } catch (apiErr: any) {
         console.warn('⚠️ [Admin Onboarding Staff Service] API route failed, attempting fallback or mock:', apiErr?.message)
 
-        // Fallback: if table exists, last resort attempt direct insert; else return mock
+        // Direct DB fallback when API route fails
         const tableExists = await checkTableExists('job_posting_templates')
         if (!tableExists) {
-          const mockData: JobPostingTemplate = {
-            id: `mock-job-${Date.now()}`,
-            venue_id: venueId,
-            created_by: user.id,
-            ...validatedData,
-            status: 'published',
-            applications_count: 0,
-            views_count: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-          console.log('✅ [Admin Onboarding Staff Service] Returning mock data due to missing table:', mockData)
-          return mockData
+          throw new Error('Job postings table not available. Please apply pending database migrations.')
         }
 
         const { data: jobPosting, error: jobError } = await supabase
@@ -514,7 +502,7 @@ export class AdminOnboardingStaffService {
       const tableExists = await checkTableExists('job_posting_templates')
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] job_posting_templates table does not exist, returning fallback data')
-        return getFallbackData('job_postings', venueId) as JobPostingTemplate[]
+        throw new Error("Failed to load job postings from database")
       }
 
       let query = supabase
@@ -535,7 +523,7 @@ export class AdminOnboardingStaffService {
       return data || []
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job postings, returning fallback:', error)
-      return getFallbackData('job_postings', venueId) as JobPostingTemplate[]
+      throw new Error("Failed to load job postings from database")
     }
   }
 
@@ -595,7 +583,7 @@ export class AdminOnboardingStaffService {
       const tableExists = await checkTableExists('job_applications')
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] job_applications table does not exist, returning fallback data')
-        return getFallbackData('applications', venueId) as JobApplication[]
+        throw new Error("Failed to load applications from database")
       }
 
       const { data, error } = await supabase
@@ -641,7 +629,7 @@ export class AdminOnboardingStaffService {
       })
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job applications, returning fallback:', error)
-      return getFallbackData('applications', venueId) as JobApplication[]
+      throw new Error("Failed to load applications from database")
     }
   }
 
@@ -717,23 +705,7 @@ export class AdminOnboardingStaffService {
 
       const tableExists = await checkTableExists('onboarding_workflows')
       if (!tableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] onboarding_workflows table does not exist, returning mock data')
-        return {
-          id: `mock-workflow-${Date.now()}`,
-          venue_id: venueId,
-          created_by: user.id,
-          ...validatedData,
-          is_default: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          steps: validatedData.steps.map((step, index) => ({
-            id: `mock-step-${index}-${Date.now()}`,
-            workflow_id: `mock-workflow-${Date.now()}`,
-            ...step,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }))
-        }
+        throw new Error('Onboarding workflows table not available. Please apply pending database migrations.')
       }
 
       // Create workflow
@@ -811,7 +783,7 @@ export class AdminOnboardingStaffService {
       const tableExists = await checkTableExists('staff_onboarding_candidates')
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] staff_onboarding_candidates table does not exist, returning fallback data')
-        return getFallbackData('candidates', venueId) as OnboardingCandidate[]
+        throw new Error("Failed to load onboarding candidates from database")
       }
 
       const { data, error } = await supabase
@@ -826,13 +798,13 @@ export class AdminOnboardingStaffService {
 
       if (error) {
         console.warn('⚠️ [Admin Onboarding Staff Service] Database error, returning fallback data:', error)
-        return getFallbackData('candidates', venueId) as OnboardingCandidate[]
+        throw new Error("Failed to load onboarding candidates from database")
       }
       
       return data || []
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching onboarding candidates, returning fallback:', error)
-      return getFallbackData('candidates', venueId) as OnboardingCandidate[]
+      throw new Error("Failed to load onboarding candidates from database")
     }
   }
 
@@ -1089,7 +1061,7 @@ export class AdminOnboardingStaffService {
       const tableExists = await checkTableExists('staff_members')
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] staff_members table does not exist, returning fallback data')
-        return getFallbackData('staff_members', venueId) as StaffMember[]
+        throw new Error("Failed to load staff members from database")
       }
 
       const { data, error } = await supabase
@@ -1104,7 +1076,7 @@ export class AdminOnboardingStaffService {
       console.error('❌ [Admin Onboarding Staff Service] Error fetching staff members:', error)
       // Return fallback data instead of throwing
       console.warn('⚠️ [Admin Onboarding Staff Service] Returning fallback data due to error')
-      return getFallbackData('staff_members', venueId) as StaffMember[]
+      throw new Error("Failed to load staff members from database")
     }
   }
 
@@ -1278,7 +1250,7 @@ export class AdminOnboardingStaffService {
 
       if (!onboardingTableExists || !jobPostingsTableExists || !staffTableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] Some tables do not exist, returning fallback stats')
-        return getFallbackData('dashboard_stats', venueId) as any
+        throw new Error("Failed to load data from database")
       }
 
       // Get onboarding stats
@@ -1347,7 +1319,7 @@ export class AdminOnboardingStaffService {
       }
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching dashboard stats, returning fallback:', error)
-      return getFallbackData('dashboard_stats', venueId) as any
+      throw new Error("Failed to load data from database")
     }
   }
 
@@ -1824,7 +1796,7 @@ export class AdminOnboardingStaffService {
       const tableExists = await checkTableExists('staff_shifts')
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] staff_shifts table does not exist, returning fallback data')
-        return getFallbackData('shifts', venueId) as StaffShift[]
+        throw new Error("Failed to load shifts from database")
       }
 
       let query = supabase
@@ -1846,7 +1818,7 @@ export class AdminOnboardingStaffService {
       return data || []
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching staff shifts, returning fallback:', error)
-      return getFallbackData('shifts', venueId) as StaffShift[]
+      throw new Error("Failed to load shifts from database")
     }
   }
 
@@ -1881,12 +1853,12 @@ export class AdminOnboardingStaffService {
       if (filters?.status) params.set('status', filters.status)
 
       const res = await fetch(`/api/admin/staffing/zones?${params.toString()}`, { cache: 'no-store' })
-      if (!res.ok) return getFallbackData('zones', venueId) as StaffZone[]
+      if (!res.ok) throw new Error("Failed to load zones from database")
       const payload = await res.json()
       return (payload?.data as StaffZone[]) ?? []
     } catch (error) {
       console.error('❌ [Admin Onboarding Staff Service] Error fetching staff zones:', error)
-      return getFallbackData('zones', venueId) as StaffZone[]
+      throw new Error("Failed to load zones from database")
     }
   }
 
@@ -1921,12 +1893,12 @@ export class AdminOnboardingStaffService {
       if (filters?.date_to) params.set('date_to', filters.date_to)
 
       const res = await fetch(`/api/admin/staffing/performance?${params.toString()}`, { cache: 'no-store' })
-      if (!res.ok) return getFallbackData('performance_metrics', venueId) as StaffPerformanceMetrics[]
+      if (!res.ok) throw new Error("Failed to load performance metrics from database")
       const payload = await res.json()
       return (payload?.data as StaffPerformanceMetrics[]) ?? []
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching performance metrics, returning fallback:', error)
-      return getFallbackData('performance_metrics', venueId) as StaffPerformanceMetrics[]
+      throw new Error("Failed to load performance metrics from database")
     }
   }
 
@@ -2030,7 +2002,7 @@ export class AdminOnboardingStaffService {
       }
     } catch (error) {
       console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching enhanced dashboard stats, returning fallback:', error)
-      return getFallbackData('dashboard_stats', venueId) as any
+      throw new Error("Failed to load data from database")
     }
   }
 

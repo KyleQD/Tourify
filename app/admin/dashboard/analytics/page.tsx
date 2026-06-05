@@ -1,6 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState, useMemo } from "react"
+import { useCallback, useEffect, useRef, useState, useMemo } from "react"
+import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -123,12 +124,26 @@ function ChartPlaceholderCard({ title }: { title: string }) {
   )
 }
 
+interface LiveFeedItem {
+  id: string
+  type: string
+  message: string
+  timestamp: string
+}
+
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [transactions, setTransactions] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
+  const [dateFrom, setDateFrom] = useState<string>("")
+  const [dateTo, setDateTo] = useState<string>("")
+  const [topArtists, setTopArtists] = useState<Array<{ name: string; count: number }>>([])
+  const [topEvents, setTopEvents] = useState<Array<{ name: string; revenue: number; tickets: number }>>([])
+  const [isExporting, setIsExporting] = useState(false)
+  const [liveFeed, setLiveFeed] = useState<LiveFeedItem[]>([])
+  const realtimeChannel = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   function buildNoStoreInit(): RequestInit {
     return {
@@ -142,14 +157,42 @@ export default function AnalyticsPage() {
     }
   }
 
+  async function handleExportCsv() {
+    setIsExporting(true)
+    try {
+      const params = new URLSearchParams({ format: 'csv' })
+      if (dateFrom) params.set('from', dateFrom)
+      if (dateTo) params.set('to', dateTo)
+      const res = await fetch(`/api/admin/analytics/export?${params}`, buildNoStoreInit())
+      if (!res.ok) throw new Error('Export failed')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `analytics-export-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err: any) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
   const fetchStats = useCallback(async () => {
     setIsLoading(true)
     setError(null)
     try {
-      const [statsRes, finRes, eventsRes] = await Promise.allSettled([
-        fetch("/api/admin/dashboard/stats", buildNoStoreInit()).then(r => r.json()),
-        fetch("/api/admin/finances?type=overview", buildNoStoreInit()).then(r => r.json()),
+      const params = new URLSearchParams()
+      if (dateFrom) params.set('from', dateFrom)
+      if (dateTo) params.set('to', dateTo)
+      const paramStr = params.toString() ? `?${params}` : ''
+      const [statsRes, finRes, eventsRes, topRes] = await Promise.allSettled([
+        fetch(`/api/admin/dashboard/stats${paramStr}`, buildNoStoreInit()).then(r => r.json()),
+        fetch(`/api/admin/finances?type=overview${paramStr ? `&${params}` : ''}`, buildNoStoreInit()).then(r => r.json()),
         fetch("/api/admin/events", buildNoStoreInit()).then(r => r.json()),
+        fetch(`/api/admin/analytics/top-performers${paramStr}`, buildNoStoreInit()).then(r => r.ok ? r.json() : { artists: [], events: [] }),
       ])
 
       if (statsRes.status === 'fulfilled' && statsRes.value.success) {
@@ -165,13 +208,18 @@ export default function AnalyticsPage() {
       if (eventsRes.status === 'fulfilled') {
         setEvents(eventsRes.value.events || [])
       }
+
+      if (topRes.status === 'fulfilled') {
+        setTopArtists(topRes.value.artists || [])
+        setTopEvents(topRes.value.events || [])
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong")
       setStats(EMPTY_STATS)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [dateFrom, dateTo])
 
   const revenueChartData = useMemo(() => {
     const grouped: Record<string, { month: string; income: number; expenses: number }> = {}
@@ -198,6 +246,41 @@ export default function AnalyticsPage() {
     void fetchStats()
   }, [fetchStats])
 
+  // Realtime subscription for live activity feed
+  useEffect(() => {
+    const channel = supabase
+      .channel('analytics-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_sales' }, (payload) => {
+        const sale = payload.new as any
+        const item: LiveFeedItem = {
+          id: `sale-${sale.id}`,
+          type: 'ticket_sale',
+          message: `New ticket sale · ${sale.buyer_name || 'Guest'} · $${Number(sale.total_amount || 0).toFixed(2)}`,
+          timestamp: sale.created_at || new Date().toISOString(),
+        }
+        setLiveFeed((prev) => [item, ...prev].slice(0, 50))
+        // Refresh aggregate stats
+        void fetchStats()
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'financial_transactions' }, (payload) => {
+        const tx = payload.new as any
+        const item: LiveFeedItem = {
+          id: `tx-${tx.id}`,
+          type: tx.type || 'transaction',
+          message: `${tx.type === 'income' ? '💰' : '💸'} ${tx.description || tx.category} · $${Number(tx.amount || 0).toFixed(2)}`,
+          timestamp: tx.created_at || new Date().toISOString(),
+        }
+        setLiveFeed((prev) => [item, ...prev].slice(0, 50))
+      })
+      .subscribe()
+
+    realtimeChannel.current = channel
+
+    return () => {
+      void supabase.removeChannel(channel)
+    }
+  }, [fetchStats])
+
   const s = stats ?? EMPTY_STATS
 
   return (
@@ -222,26 +305,55 @@ export default function AnalyticsPage() {
             </Button>
             <Button
               type="button"
-              disabled
-              className="border-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/20 transition-all duration-300 opacity-50"
+              disabled={isExporting}
+              onClick={() => void handleExportCsv()}
+              className="border-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/20 transition-all duration-300"
             >
               <Download className="mr-2 h-4 w-4" />
-              Export Report
+              {isExporting ? "Exporting..." : "Export CSV"}
             </Button>
           </>
         }
       />
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge
-          variant="secondary"
-          className="border-slate-600 bg-slate-800/80 text-slate-300"
-        >
-          All time
-        </Badge>
-        {error ? (
-          <span className="text-sm text-amber-400/90">{error}</span>
-        ) : null}
-      </div>
+      {/* Date range picker */}
+      <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+        <CardContent className="p-4 flex flex-wrap items-center gap-4">
+          <span className="text-slate-400 text-sm shrink-0">Date range:</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={e => setDateFrom(e.target.value)}
+              className="bg-slate-800/50 border border-slate-700/50 text-white text-sm rounded px-2 py-1 h-8"
+            />
+            <span className="text-slate-500 text-sm">to</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={e => setDateTo(e.target.value)}
+              className="bg-slate-800/50 border border-slate-700/50 text-white text-sm rounded px-2 py-1 h-8"
+            />
+          </div>
+          <Button
+            size="sm"
+            onClick={() => void fetchStats()}
+            disabled={isLoading}
+            className="bg-purple-600 hover:bg-purple-700 text-white h-8 px-3 text-sm"
+          >
+            Apply
+          </Button>
+          {(dateFrom || dateTo) && (
+            <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white h-8 px-2 text-sm"
+              onClick={() => { setDateFrom(""); setDateTo(""); }}>
+              Clear
+            </Button>
+          )}
+          <Badge variant="secondary" className="border-slate-600 bg-slate-800/80 text-slate-300 ml-auto">
+            {dateFrom || dateTo ? `${dateFrom || 'Start'} → ${dateTo || 'Now'}` : 'All time'}
+          </Badge>
+          {error && <span className="text-sm text-amber-400/90">{error}</span>}
+        </CardContent>
+      </Card>
 
       <Card className="rounded-sm border-emerald-500/30 bg-emerald-500/5 backdrop-blur-sm">
         <CardHeader className="pb-2">
@@ -268,7 +380,7 @@ export default function AnalyticsPage() {
         </div>
 
         <Tabs defaultValue="performance" className="w-full">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5 bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
+          <TabsList className="grid w-full max-w-4xl grid-cols-6 bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
             <TabsTrigger
               value="performance"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
@@ -292,6 +404,12 @@ export default function AnalyticsPage() {
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
             >
               Trends
+            </TabsTrigger>
+            <TabsTrigger
+              value="top-performers"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm"
+            >
+              Top
             </TabsTrigger>
             <TabsTrigger
               value="real-time"
@@ -566,6 +684,74 @@ export default function AnalyticsPage() {
             </div>
           </TabsContent>
 
+          <TabsContent value="top-performers" className="space-y-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-white">
+                    <Award className="mr-2 h-5 w-5 text-yellow-400" />
+                    Top Artists by Bookings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {topArtists.length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">No artist data available.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {topArtists.slice(0, 10).map((a, idx) => (
+                        <div key={a.name} className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-5 text-right">{idx + 1}</span>
+                          <div className="flex-1">
+                            <div className="flex justify-between mb-0.5">
+                              <span className="text-sm text-white truncate">{a.name}</span>
+                              <span className="text-sm text-slate-400 shrink-0 ml-2">{a.count} bookings</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-slate-700">
+                              <div className="h-1.5 rounded-full bg-yellow-500"
+                                style={{ width: `${topArtists[0]?.count ? Math.round((a.count / topArtists[0].count) * 100) : 0}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-white">
+                    <Sparkles className="mr-2 h-5 w-5 text-purple-400" />
+                    Top Events by Tickets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {topEvents.length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">No event data available.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {topEvents.slice(0, 10).map((e, idx) => (
+                        <div key={e.name} className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-5 text-right">{idx + 1}</span>
+                          <div className="flex-1">
+                            <div className="flex justify-between mb-0.5">
+                              <span className="text-sm text-white truncate">{e.name}</span>
+                              <span className="text-sm text-slate-400 shrink-0 ml-2">{e.tickets} tickets</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-slate-700">
+                              <div className="h-1.5 rounded-full bg-purple-500"
+                                style={{ width: `${topEvents[0]?.tickets ? Math.round((e.tickets / topEvents[0].tickets) * 100) : 0}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="real-time" className="space-y-6">
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
               <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
@@ -606,15 +792,29 @@ export default function AnalyticsPage() {
 
             <Card className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="flex items-center text-white">
-                  <Radio className="mr-2 h-5 w-5 text-red-400" />
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Radio className="h-5 w-5 text-red-400 animate-pulse" />
                   Live activity feed
+                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 text-xs ml-auto">LIVE</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex min-h-[120px] items-center justify-center rounded-sm border border-dashed border-slate-700/60 bg-slate-950/40 px-4 py-8 text-center text-sm text-slate-400">
-                  Real-time activity is not connected yet.
-                </div>
+                {liveFeed.length === 0 ? (
+                  <div className="flex min-h-[120px] items-center justify-center rounded-sm border border-dashed border-slate-700/60 bg-slate-950/40 px-4 py-8 text-center text-sm text-slate-400">
+                    Waiting for live events… activity will appear here in real time.
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {liveFeed.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between py-2 px-3 rounded-sm bg-slate-800/40 text-sm">
+                        <span className="text-slate-200">{item.message}</span>
+                        <span className="text-xs text-slate-500 ml-4 shrink-0">
+                          {new Date(item.timestamp).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

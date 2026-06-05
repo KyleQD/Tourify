@@ -26,6 +26,10 @@
     "lint": "next lint",
     "verify:ci": "npm run lint && npm test && NODE_OPTIONS='--max-old-space-size=4096' next build",
     "test": "jest",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
     "test:mobile-redirect": "npx tsx scripts/test-mobile-redirect.ts",
     "test:auth-redirects": "npx tsx scripts/test-auth-callback-redirects.ts",
     "test:venue-ops": "npx tsx scripts/test-venue-ops.ts",
@@ -153,6 +157,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@types/jest": "^29.5.14",
@@ -163,6 +168,7 @@
     "@types/react-dom": "^18.2.0",
     "@types/uuid": "^10.0.0",
     "@typescript-eslint/eslint-plugin": "^8.58.1",
+    "@vitest/coverage-v8": "^4.1.8",
     "chalk": "^5.4.1",
     "eslint": "^9.21.0",
     "eslint-config-next": "^15.5.14",
@@ -174,6 +180,7 @@
     "tailwindcss": "^3.4.17",
     "ts-jest": "^29.4.9",
     "tsx": "^4.20.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.8"
   }
 }

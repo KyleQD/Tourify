@@ -26,7 +26,21 @@ import {
   Clock,
   AlertTriangle,
   Loader2,
+  CheckCircle,
+  Handshake,
+  Edit,
+  Trash2,
 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminPageSkeleton } from "../components/admin-page-skeleton"
@@ -107,8 +121,25 @@ export default function FinancesPage() {
   const [overview, setOverview] = useState<FinancialOverview | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
+  const [settlements, setSettlements] = useState<any[]>([])
   const [addingTx, setAddingTx] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
+  const [showSettlementDialog, setShowSettlementDialog] = useState(false)
+  const [settlementForm, setSettlementForm] = useState({
+    event_id: '', total_gross_revenue: '', total_expenses: '',
+    artist_payout: '', venue_payout: '', deal_type: 'guarantee', notes: '',
+  })
+  const [addingSettlement, setAddingSettlement] = useState(false)
+
+  // Edit/delete transaction state
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
+  const [showEditDialog, setShowEditDialog] = useState(false)
+  const [deleteTxId, setDeleteTxId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ type: 'expense' as 'income'|'expense', category: '', amount: '', description: '', vendor_name: '', payment_status: 'pending' })
+
+  // Event/tour scope selector
+  const [scopeEventId, setScopeEventId] = useState('')
+  const [scopeTourId, setScopeTourId] = useState('')
 
   const [newTx, setNewTx] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -128,6 +159,12 @@ export default function FinancesPage() {
       setOverview(data.overview)
       setTransactions(data.recentTransactions || [])
       setBudgets(data.budgets || [])
+
+      // Fetch settlements
+      fetch('/api/admin/finances/settlements', buildNoStoreInit())
+        .then(r => r.ok ? r.json() : { settlements: [] })
+        .then(d => setSettlements(d.settlements || []))
+        .catch(() => {})
     } catch {
       toast.error('Failed to load financial data')
     } finally {
@@ -172,29 +209,68 @@ export default function FinancesPage() {
 
   const [showBudgetDialog, setShowBudgetDialog] = useState(false)
   const [addingBudget, setAddingBudget] = useState(false)
-  const [newBudget, setNewBudget] = useState({ category: 'production', allocated_amount: '', notes: '' })
+  const [newBudget, setNewBudget] = useState({ category: 'production', allocated_amount: '', notes: '', event_id: '', tour_id: '' })
 
   async function handleAddBudget() {
     if (!newBudget.allocated_amount || Number(newBudget.allocated_amount) <= 0) {
       toast.error('Please enter a valid amount')
       return
     }
+    if (!newBudget.event_id && !newBudget.tour_id) {
+      toast.error('Budget must be linked to an event or tour')
+      return
+    }
     setAddingBudget(true)
     try {
       const res = await fetch('/api/admin/finances', buildNoStoreInit({
         method: 'POST',
-        body: JSON.stringify({ action: 'create_budget', category: newBudget.category, allocated_amount: Number(newBudget.allocated_amount), notes: newBudget.notes || undefined }),
+        body: JSON.stringify({
+          action: 'create_budget',
+          category: newBudget.category,
+          allocated_amount: Number(newBudget.allocated_amount),
+          notes: newBudget.notes || undefined,
+          event_id: newBudget.event_id || undefined,
+          tour_id: newBudget.tour_id || undefined,
+        }),
       }))
       if (!res.ok) throw new Error('Failed')
       toast.success('Budget created')
       setShowBudgetDialog(false)
-      setNewBudget({ category: 'production', allocated_amount: '', notes: '' })
+      setNewBudget({ category: 'production', allocated_amount: '', notes: '', event_id: '', tour_id: '' })
       fetchData()
     } catch {
       toast.error('Failed to create budget')
     } finally {
       setAddingBudget(false)
     }
+  }
+
+  function openEditTx(tx: Transaction) {
+    setEditingTx(tx)
+    setEditForm({ type: tx.type as 'income' | 'expense', category: tx.category, amount: String(tx.amount), description: tx.description || '', vendor_name: tx.vendor_name || '', payment_status: tx.payment_status })
+    setShowEditDialog(true)
+  }
+
+  async function handleEditTx() {
+    if (!editingTx) return
+    try {
+      const res = await fetch('/api/admin/finances', buildNoStoreInit({ method: 'PATCH', body: JSON.stringify({ id: editingTx.id, table: 'transaction', ...editForm, amount: Number(editForm.amount) }) }))
+      if (!res.ok) throw new Error(await res.text())
+      toast.success('Transaction updated')
+      setShowEditDialog(false)
+      fetchData()
+    } catch (err: any) { toast.error(err.message || 'Failed to update') }
+  }
+
+  async function handleDeleteTx() {
+    if (!deleteTxId) return
+    try {
+      const res = await fetch(`/api/admin/finances?id=${deleteTxId}`, buildNoStoreInit({ method: 'DELETE' }))
+      if (!res.ok) throw new Error(await res.text())
+      toast.success('Transaction deleted')
+      setDeleteTxId(null)
+      fetchData()
+    } catch (err: any) { toast.error(err.message || 'Failed to delete'); setDeleteTxId(null) }
   }
 
   function handleExportCSV() {
@@ -336,9 +412,10 @@ export default function FinancesPage() {
       </div>
 
       <Tabs defaultValue="transactions" className="w-full">
-        <TabsList className="flex w-full max-w-3xl overflow-x-auto bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
+        <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
           <TabsTrigger value="transactions" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Transactions</TabsTrigger>
           <TabsTrigger value="budgets" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Budgets</TabsTrigger>
+          <TabsTrigger value="settlements" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Settlements</TabsTrigger>
           <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm">Summary</TabsTrigger>
         </TabsList>
 
@@ -368,11 +445,13 @@ export default function FinancesPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <Badge className={statusColor(tx.payment_status)}>{tx.payment_status}</Badge>
                       <span className={`text-sm font-semibold ${tx.type === 'income' ? 'text-green-400' : 'text-red-400'}`}>
                         {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
                       </span>
+                      <button onClick={() => openEditTx(tx)} className="text-slate-500 hover:text-white p-1" aria-label="Edit"><Edit className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => setDeleteTxId(tx.id)} className="text-slate-500 hover:text-red-400 p-1" aria-label="Delete"><Trash2 className="h-3.5 w-3.5" /></button>
                     </div>
                   </CardContent>
                 </Card>
@@ -407,10 +486,23 @@ export default function FinancesPage() {
                     <Label className="text-slate-300">Allocated Amount</Label>
                     <Input type="number" step="0.01" placeholder="0.00" value={newBudget.allocated_amount} onChange={(e) => setNewBudget(p => ({ ...p, allocated_amount: e.target.value }))} className="border-slate-700 bg-slate-800" />
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-slate-300">Event ID <span className="text-red-400">*</span></Label>
+                      <Input placeholder="Event UUID" value={newBudget.event_id} onChange={(e) => setNewBudget(p => ({ ...p, event_id: e.target.value, tour_id: '' }))} className="border-slate-700 bg-slate-800 text-white text-xs" />
+                    </div>
+                    <div>
+                      <Label className="text-slate-300">Tour ID <span className="text-slate-500">(or)</span></Label>
+                      <Input placeholder="Tour UUID" value={newBudget.tour_id} onChange={(e) => setNewBudget(p => ({ ...p, tour_id: e.target.value, event_id: '' }))} className="border-slate-700 bg-slate-800 text-white text-xs" />
+                    </div>
+                  </div>
                   <div>
                     <Label className="text-slate-300">Notes</Label>
                     <Input placeholder="Optional notes" value={newBudget.notes} onChange={(e) => setNewBudget(p => ({ ...p, notes: e.target.value }))} className="border-slate-700 bg-slate-800" />
                   </div>
+                  {!newBudget.event_id && !newBudget.tour_id && (
+                    <p className="text-xs text-red-400">Budget must be linked to an event or tour</p>
+                  )}
                   <Button onClick={handleAddBudget} disabled={addingBudget} className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/20 transition-all duration-300">
                     {addingBudget ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
                     Create Budget
@@ -524,7 +616,196 @@ export default function FinancesPage() {
             </Card>
           </div>
         </TabsContent>
+
+        {/* Settlements Tab */}
+        <TabsContent value="settlements" className="space-y-4 pt-4">
+          <div className="flex items-center justify-between">
+            <p className="text-slate-400 text-sm">{settlements.length} settlement{settlements.length !== 1 ? 's' : ''}</p>
+            <Dialog open={showSettlementDialog} onOpenChange={setShowSettlementDialog}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8">
+                  <Plus className="h-3.5 w-3.5 mr-1.5" />
+                  New Settlement
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="bg-slate-900 border-slate-700 sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="text-white">Create Settlement</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-300">Event ID</Label>
+                    <Input value={settlementForm.event_id} onChange={e => setSettlementForm(p => ({ ...p, event_id: e.target.value }))} placeholder="Event UUID (optional)" className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-300">Gross Revenue ($)</Label>
+                      <Input type="number" value={settlementForm.total_gross_revenue} onChange={e => setSettlementForm(p => ({ ...p, total_gross_revenue: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-300">Total Expenses ($)</Label>
+                      <Input type="number" value={settlementForm.total_expenses} onChange={e => setSettlementForm(p => ({ ...p, total_expenses: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-300">Artist Payout ($)</Label>
+                      <Input type="number" value={settlementForm.artist_payout} onChange={e => setSettlementForm(p => ({ ...p, artist_payout: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-slate-300">Venue Payout ($)</Label>
+                      <Input type="number" value={settlementForm.venue_payout} onChange={e => setSettlementForm(p => ({ ...p, venue_payout: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-300">Deal Type</Label>
+                    <Select value={settlementForm.deal_type} onValueChange={v => setSettlementForm(p => ({ ...p, deal_type: v }))}>
+                      <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                        <SelectItem value="guarantee">Guarantee</SelectItem>
+                        <SelectItem value="vs_door">VS Door</SelectItem>
+                        <SelectItem value="percentage">Percentage</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => setShowSettlementDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+                    <Button
+                      onClick={async () => {
+                        setAddingSettlement(true)
+                        try {
+                          const res = await fetch('/api/admin/finances/settlements', buildNoStoreInit({
+                            method: 'POST',
+                            body: JSON.stringify({
+                              event_id: settlementForm.event_id || null,
+                              total_gross_revenue: Number(settlementForm.total_gross_revenue) || 0,
+                              total_expenses: Number(settlementForm.total_expenses) || 0,
+                              artist_payout: Number(settlementForm.artist_payout) || 0,
+                              venue_payout: Number(settlementForm.venue_payout) || 0,
+                              deal_type: settlementForm.deal_type as any,
+                              notes: settlementForm.notes,
+                            }),
+                          }))
+                          if (!res.ok) throw new Error(await res.text())
+                          toast.success('Settlement created')
+                          setShowSettlementDialog(false)
+                          fetchData()
+                        } catch (err: any) {
+                          toast.error(err.message || 'Failed to create settlement')
+                        } finally {
+                          setAddingSettlement(false)
+                        }
+                      }}
+                      disabled={addingSettlement}
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
+                    >
+                      {addingSettlement ? 'Creating...' : 'Create Settlement'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {settlements.length === 0 ? (
+            <AdminEmptyState
+              icon={DollarSign}
+              title="No settlements yet"
+              description="Settlements reconcile event revenue and payouts. Create one after an event completes."
+            />
+          ) : (
+            <div className="space-y-2">
+              {settlements.map((s: any) => (
+                <Card key={s.id} className="rounded-sm border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div>
+                      <p className="text-white text-sm font-medium">
+                        {s.event_id ? `Event ${s.event_id.slice(0, 8)}…` : s.tour_id ? `Tour ${s.tour_id.slice(0, 8)}…` : 'Settlement'}
+                      </p>
+                      <p className="text-slate-400 text-xs">{formatCurrency(s.total_gross_revenue)} gross · {formatCurrency(s.total_expenses)} expenses</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-white font-semibold text-sm">{formatCurrency(s.net_profit || 0)} net</span>
+                      <Badge className={s.status === 'paid' ? 'bg-green-500/20 text-green-400' : s.status === 'finalized' ? 'bg-blue-500/20 text-blue-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                        {s.status}
+                      </Badge>
+                      {s.status !== 'paid' && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs border-slate-700 text-slate-300"
+                          onClick={async () => {
+                            const newStatus = s.status === 'draft' ? 'finalized' : 'paid'
+                            await fetch('/api/admin/finances/settlements', buildNoStoreInit({ method: 'PATCH', body: JSON.stringify({ id: s.id, status: newStatus }) }))
+                            fetchData()
+                          }}
+                        >
+                          {s.status === 'draft' ? 'Finalize' : 'Mark Paid'}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Edit Transaction Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700 sm:max-w-md">
+          <DialogHeader><DialogTitle className="text-white">Edit Transaction</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-300">Type</Label>
+                <Select value={editForm.type} onValueChange={(v) => setEditForm(p => ({ ...p, type: v as 'income'|'expense' }))}>
+                  <SelectTrigger className="border-slate-700 bg-slate-800"><SelectValue /></SelectTrigger>
+                  <SelectContent className="border-slate-700 bg-slate-800"><SelectItem value="income">Income</SelectItem><SelectItem value="expense">Expense</SelectItem></SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-slate-300">Amount</Label>
+                <Input type="number" step="0.01" value={editForm.amount} onChange={e => setEditForm(p => ({ ...p, amount: e.target.value }))} className="border-slate-700 bg-slate-800 text-white" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-slate-300">Description</Label>
+              <Input value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} className="border-slate-700 bg-slate-800 text-white" />
+            </div>
+            <div>
+              <Label className="text-slate-300">Vendor</Label>
+              <Input value={editForm.vendor_name} onChange={e => setEditForm(p => ({ ...p, vendor_name: e.target.value }))} className="border-slate-700 bg-slate-800 text-white" />
+            </div>
+            <div>
+              <Label className="text-slate-300">Status</Label>
+              <Select value={editForm.payment_status} onValueChange={(v) => setEditForm(p => ({ ...p, payment_status: v }))}>
+                <SelectTrigger className="border-slate-700 bg-slate-800"><SelectValue /></SelectTrigger>
+                <SelectContent className="border-slate-700 bg-slate-800"><SelectItem value="pending">Pending</SelectItem><SelectItem value="paid">Paid</SelectItem><SelectItem value="overdue">Overdue</SelectItem></SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowEditDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+            <Button onClick={handleEditTx} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">Save Changes</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteTxId} onOpenChange={() => setDeleteTxId(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Transaction?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">This cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 text-slate-300">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTx} className="bg-red-600 hover:bg-red-700 text-white border-0">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

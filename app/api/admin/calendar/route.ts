@@ -259,7 +259,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Admin Calendar API] POST request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {

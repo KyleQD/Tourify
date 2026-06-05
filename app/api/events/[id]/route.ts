@@ -75,12 +75,34 @@ export async function GET(
   const { id } = await context.params
   return withAuth(async (_request, { user, supabase }) => {
     try {
-      const { data: row, error } = await supabase
+      // Try fetching as owner first
+      let { data: row, error } = await supabase
         .from('events_v2')
         .select(selectFields)
         .eq('id', id)
         .eq('created_by', user.id)
         .maybeSingle()
+
+      // If not found as owner, check if user is an org member with access (admin/organizer)
+      if (!row && !error) {
+        const orgMemberResult = await supabase
+          .from('org_members')
+          .select('org_id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle()
+
+        if (orgMemberResult.data?.org_id) {
+          const adminResult = await supabase
+            .from('events_v2')
+            .select(selectFields)
+            .eq('id', id)
+            .eq('org_id', orgMemberResult.data.org_id)
+            .maybeSingle()
+          row = adminResult.data
+          error = adminResult.error
+        }
+      }
 
       if (error) {
         console.error('[events/:id GET] query failed:', error)

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { logAuditEvent } from '@/lib/audit'
 
 const createTransactionSchema = z.object({
   event_id: z.string().uuid().optional(),
@@ -25,20 +26,26 @@ const createBudgetSchema = z.object({
   notes: z.string().optional(),
 })
 
+async function resolveOrgId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('org_members')
+    .select('org_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+  return data?.org_id ?? null
+}
+
 export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'overview'
     const eventId = searchParams.get('event_id')
     const tourId = searchParams.get('tour_id')
+    const fromDate = searchParams.get('from')
+    const toDate = searchParams.get('to')
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('current_entity_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    const orgId = profile?.current_entity_id
+    const orgId = await resolveOrgId(supabase, user.id)
 
     if (type === 'overview') {
       const [txResult, budgetResult] = await Promise.allSettled([
@@ -47,6 +54,8 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
           if (orgId) q = q.eq('org_id', orgId)
           if (eventId) q = q.eq('event_id', eventId)
           if (tourId) q = q.eq('tour_id', tourId)
+          if (fromDate) q = q.gte('created_at', `${fromDate}T00:00:00Z`)
+          if (toDate) q = q.lte('created_at', `${toDate}T23:59:59Z`)
           return q.order('created_at', { ascending: false }).limit(100)
         })(),
         (() => {
@@ -144,15 +153,12 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     const body = await request.json()
     const { action, ...data } = body
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('current_entity_id')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    const orgId = profile?.current_entity_id
+    const orgId = await resolveOrgId(supabase, user.id)
     if (!orgId) {
-      return NextResponse.json({ error: 'No organization context found' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'No organization found. Please set up your organizer account first.' },
+        { status: 400 },
+      )
     }
 
     if (action === 'create_transaction') {
@@ -172,6 +178,8 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
         console.error('[Admin Finances API] Create transaction error:', error)
         return NextResponse.json({ error: 'Failed to create transaction' }, { status: 500 })
       }
+
+      await logAuditEvent({ actorId: user.id, orgId, action: 'create', entityType: 'transaction', entityId: tx.id, newValues: { type: validated.type, amount: validated.amount, category: validated.category } })
 
       return NextResponse.json({ success: true, transaction: tx })
     }
@@ -236,6 +244,29 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
     return NextResponse.json({ success: true, data })
   } catch (error) {
     console.error('[Admin Finances API] Error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+})
+
+export const DELETE = withAdminAuth(async (request: NextRequest, { supabase }) => {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+    const { error } = await supabase
+      .from('financial_transactions')
+      .delete()
+      .eq('id', id)
+
+    if (error) {
+      console.error('[Admin Finances API] Delete error:', error)
+      return NextResponse.json({ error: 'Failed to delete transaction' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('[Admin Finances API] Delete error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 })

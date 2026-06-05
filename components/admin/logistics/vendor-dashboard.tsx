@@ -89,93 +89,30 @@ export function VendorDashboard({ vendorId, siteMapId }: VendorDashboardProps) {
   const loadDashboardData = async () => {
     setIsLoading(true)
     try {
-      // Mock data - replace with actual API calls
-      const mockStats: DashboardStats = {
-        totalEvents: 24,
-        activeEquipment: 156,
-        completedSetups: 18,
-        revenueThisMonth: 45750,
-        pendingTasks: 12,
-        equipmentUtilization: 87.5,
-        averageSetupTime: 4.2,
-        customerSatisfaction: 4.8
+      // Call the real vendor dashboard API
+      const params = new URLSearchParams()
+      if (vendorId) params.set('vendor_id', vendorId)
+      if (siteMapId) params.set('site_map_id', siteMapId)
+      params.set('period', selectedPeriod)
+
+      const res = await fetch(`/api/admin/logistics/vendor/dashboard?${params}`, { credentials: 'include' })
+      if (res.ok) {
+        const d = await res.json()
+        if (d.stats) setStats(d.stats)
+        if (d.equipment) setEquipmentStatus(d.equipment)
+        if (d.workflows) setActiveWorkflows(d.workflows)
+        setIsLoading(false)
+        return
       }
 
-      const mockEquipment: EquipmentStatus[] = [
-        {
-          id: '1',
-          name: 'Main Stage Speaker System',
-          category: 'Sound',
-          status: 'in_use',
-          location: 'Coachella Valley',
-          lastUsed: '2 hours ago',
-          utilizationRate: 95
-        },
-        {
-          id: '2',
-          name: 'LED Stage Lighting',
-          category: 'Lighting',
-          status: 'available',
-          location: 'Warehouse A',
-          lastUsed: '1 day ago',
-          utilizationRate: 78
-        },
-        {
-          id: '3',
-          name: 'Generator 500kW',
-          category: 'Power',
-          status: 'maintenance',
-          location: 'Service Center',
-          lastUsed: '3 days ago',
-          utilizationRate: 82
-        },
-        {
-          id: '4',
-          name: 'Bell Tent Set (50 units)',
-          category: 'Tent',
-          status: 'available',
-          location: 'Storage Facility',
-          lastUsed: '1 week ago',
-          utilizationRate: 65
-        }
-      ]
-
-      const mockWorkflows: SetupWorkflow[] = [
-        {
-          id: '1',
-          name: 'Coachella Main Stage Setup',
-          event: 'Coachella 2024',
-          status: 'in_progress',
-          progress: 75,
-          teamSize: 12,
-          estimatedCompletion: '2 hours',
-          equipmentCount: 45
-        },
-        {
-          id: '2',
-          name: 'Glamping Village Setup',
-          event: 'Burning Man 2024',
-          status: 'planned',
-          progress: 0,
-          teamSize: 8,
-          estimatedCompletion: '6 hours',
-          equipmentCount: 120
-        },
-        {
-          id: '3',
-          name: 'VIP Tent Installation',
-          event: 'Tomorrowland 2024',
-          status: 'completed',
-          progress: 100,
-          teamSize: 6,
-          estimatedCompletion: 'Completed',
-          equipmentCount: 25
-        }
-      ]
-
-      setStats(mockStats)
-      setEquipmentStatus(mockEquipment)
-      setActiveWorkflows(mockWorkflows)
+      // API unavailable — show empty state
+      setStats({
+        totalEvents: 0, activeEquipment: 0, completedSetups: 0,
+        revenueThisMonth: 0, pendingTasks: 0, equipmentUtilization: 0,
+        averageSetupTime: 0, customerSatisfaction: 0
+      })
+      setEquipmentStatus([])
+      setActiveWorkflows([])
     } catch (error) {
       console.error('Error loading dashboard data:', error)
       toast({

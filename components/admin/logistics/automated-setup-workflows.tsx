@@ -78,6 +78,16 @@ interface WorkflowExecution {
 }
 
 export function AutomatedSetupWorkflows({ vendorId, siteMapId }: AutomatedSetupWorkflowsProps) {
+  // Automated workflow engine requires backend task runner integration — coming in a future phase
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+      <div className="h-14 w-14 rounded-sm bg-slate-800/80 border border-slate-700/50 flex items-center justify-center">
+        <Play className="h-7 w-7 text-slate-400" />
+      </div>
+      <h3 className="text-white font-medium">Automated Setup Workflows</h3>
+      <p className="text-slate-500 text-sm max-w-xs">Workflow automation requires a backend task runner. This feature will be available in a future phase.</p>
+    </div>
+  )
   const { toast } = useToast()
   const [workflows, setWorkflows] = useState<EquipmentSetupWorkflow[]>([])
   const [workflowTemplates, setWorkflowTemplates] = useState<WorkflowTemplate[]>([])

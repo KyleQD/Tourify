@@ -12,7 +12,7 @@ function createServiceClient() {
 const createGroupSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
-  member_ids: z.array(z.string().uuid()).min(1),
+  member_ids: z.array(z.string().uuid()).default([]),
   group_type: z.enum(['general', 'staff', 'crew', 'vendors', 'management', 'custom']).default('general'),
 })
 
@@ -169,9 +169,33 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .eq('participant_type', 'Individual')
       .maybeSingle()
 
-    const isAdmin = !!eventOwner || participant?.role === 'admin' || participant?.role === 'manager'
-
     const allMemberIds = [...new Set([...validated.member_ids, user.id])]
+
+    const { data: eventParticipants } = await svc
+      .from('event_participants')
+      .select('participant_id')
+      .eq('event_id', eventId)
+      .eq('participant_type', 'Individual')
+
+    const participantIds = new Set(
+      (eventParticipants || []).map((row: { participant_id: string }) => row.participant_id),
+    )
+    if (eventOwner) participantIds.add(user.id)
+
+    const invalidMembers = validated.member_ids.filter((id) => !participantIds.has(id))
+    if (invalidMembers.length > 0) {
+      for (const memberId of invalidMembers) {
+        await svc.from('event_participants').upsert(
+          {
+            event_id: eventId,
+            participant_id: memberId,
+            participant_type: 'Individual',
+            role: 'staff',
+          },
+          { onConflict: 'event_id,participant_type,participant_id' },
+        )
+      }
+    }
 
     const { data: group, error } = await svc
       .from('event_group_chats')

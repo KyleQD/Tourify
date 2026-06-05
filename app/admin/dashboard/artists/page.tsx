@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -82,7 +84,7 @@ interface Artist {
   bio?: string
   genres: string[]
   status: 'active' | 'inactive' | 'pending' | 'verified'
-  tier: 'emerging' | 'established' | 'headliner' | 'legend'
+  tier: 'emerging' | 'rising' | 'established' | 'headliner' | 'legend'
   location?: string
   social_links: {
     website?: string
@@ -135,32 +137,32 @@ interface Performance {
   feedback?: string
 }
 
-function mapProfileToArtist(p: any): Artist {
+function mapApiArtist(p: any): Artist {
   return {
     id: p.id,
-    name: p.full_name || p.username || 'Unknown',
-    stage_name: p.artist_name || p.display_name,
+    name: p.name || 'Unknown',
+    stage_name: p.name,
     email: p.email || '',
-    phone: p.phone || undefined,
+    phone: undefined,
     avatar_url: p.avatar_url || undefined,
     bio: p.bio || undefined,
     genres: p.genres || [],
-    status: 'active',
-    tier: 'emerging',
+    status: p.is_verified ? 'verified' : 'active',
+    tier: (p.tier as Artist['tier']) || 'emerging',
     location: p.location || undefined,
     social_links: p.social_links || {},
     stats: {
-      total_bookings: 0,
-      completed_events: 0,
+      total_bookings: p.event_count ?? 0,
+      completed_events: p.event_count ?? 0,
       total_revenue: 0,
       average_rating: 0,
-      followers: p.stats?.followers ?? p.follower_count ?? 0,
-      monthly_listeners: 0
+      followers: p.follower_count ?? 0,
+      monthly_listeners: 0,
     },
-    upcoming_events: 0,
+    upcoming_events: p.upcoming_event_count ?? 0,
     joined_date: p.created_at || new Date().toISOString(),
-    verification_status: p.verified ? 'verified' : 'unverified',
-    contract_status: 'none'
+    verification_status: p.is_verified ? 'verified' : 'unverified',
+    contract_status: 'none',
   }
 }
 
@@ -182,11 +184,11 @@ export default function ArtistsPage() {
   useEffect(() => {
     async function fetchArtists() {
       try {
-        const res = await fetch('/api/search?q=&type=artists&limit=50', buildNoStoreInit())
+        const res = await fetch('/api/admin/artists?include=metrics&limit=100', buildNoStoreInit())
         if (res.ok) {
           const data = await res.json()
-          const list = data.results?.artists ?? []
-          setArtists(list.map(mapProfileToArtist))
+          const list: any[] = data.artists ?? []
+          setArtists(list.map(mapApiArtist))
         }
       } catch (err) {
         console.error('Failed to fetch artists:', err)
@@ -204,6 +206,51 @@ export default function ArtistsPage() {
   const [tierFilter, setTierFilter] = useState<string>("all")
   const [activeTab, setActiveTab] = useState("overview")
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const router = useRouter()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleCsvImport(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setIsImporting(true)
+    try {
+      const text = await file.text()
+      const lines = text.trim().split('\n')
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase())
+      const rows = lines.slice(1).map(line => {
+        const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+        return Object.fromEntries(headers.map((h, i) => [h, vals[i] || '']))
+      })
+      let created = 0, failed = 0
+      for (const row of rows) {
+        const name = row['name'] || row['artist name'] || row['artist_name']
+        const email = row['email']
+        const genre = row['genre'] || row['genres'] || ''
+        const bio = row['bio'] || ''
+        if (!name || !email) { failed++; continue }
+        const res = await fetch('/api/admin/artists', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, email, genre, bio }),
+        })
+        if (res.ok) created++; else failed++
+      }
+      toast.success(`Import complete: ${created} created, ${failed} failed`)
+      // Refresh list
+      const res2 = await fetch('/api/admin/artists?include=metrics&limit=100', buildNoStoreInit())
+      if (res2.ok) {
+        const data = await res2.json()
+        setArtists((data.artists ?? []).map(mapApiArtist))
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Import failed')
+    } finally {
+      setIsImporting(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   // Filter artists based on search and filters
   useEffect(() => {
@@ -291,17 +338,28 @@ export default function ArtistsPage() {
             <>
               <Button
                 type="button"
-                disabled
-                title="Artist creation is not available in admin yet"
-                className="bg-gradient-to-r from-purple-600/50 to-blue-600/50 text-white border-0 opacity-60 cursor-not-allowed"
+                onClick={() => router.push('/admin/dashboard/artists/new')}
+                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Artist
               </Button>
-              <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800 backdrop-blur-sm transition-all duration-200">
+              <Button
+                variant="outline"
+                disabled={isImporting}
+                onClick={() => fileInputRef.current?.click()}
+                className="border-slate-700 text-slate-300 hover:bg-slate-800 backdrop-blur-sm transition-all duration-200"
+              >
                 <Upload className="h-4 w-4 mr-2" />
-                Import
+                {isImporting ? 'Importing...' : 'Import CSV'}
               </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={handleCsvImport}
+              />
             </>
           }
         />

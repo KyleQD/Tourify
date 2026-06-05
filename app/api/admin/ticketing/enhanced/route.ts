@@ -68,7 +68,6 @@ const analyticsRequestSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Enhanced Admin Ticketing API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -142,7 +141,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Enhanced Admin Ticketing API] POST request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -203,7 +201,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create ticket type' }, { status: 500 })
       }
 
-      console.log('[Enhanced Admin Ticketing API] Successfully created ticket type:', ticketType.id)
       return NextResponse.json({ ticket_type: ticketType }, { status: 201 })
 
     } else if (action === 'create_campaign') {
@@ -232,7 +229,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 })
       }
 
-      console.log('[Enhanced Admin Ticketing API] Successfully created campaign:', campaign.id)
       return NextResponse.json({ campaign }, { status: 201 })
 
     } else if (action === 'create_promo_code') {
@@ -272,7 +268,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to create promo code' }, { status: 500 })
       }
 
-      console.log('[Enhanced Admin Ticketing API] Successfully created promo code:', promoCode.id)
       return NextResponse.json({ promo_code: promoCode }, { status: 201 })
 
     } else if (action === 'generate_referral_codes') {

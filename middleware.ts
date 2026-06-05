@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
-import { profileIndicatesAdminAccess } from '@/lib/auth/admin-profile-gates'
+import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 
 export async function middleware(request: NextRequest) {
@@ -84,20 +84,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (user && pathname.startsWith('/admin')) {
+  if (user && (pathname.startsWith('/admin') || pathname.startsWith('/api/admin'))) {
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, account_type, account_settings, is_admin')
-        .eq('id', user.id)
-        .single()
-
-      if (!profileIndicatesAdminAccess(profile)) {
+      const hasAdminAccess = await userHasAdminSurfaceAccess(supabase as never, user.id)
+      if (!hasAdminAccess) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch {
-      // On error, allow through -- individual API routes have their own guards
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
+  }
+
+  // Block unauthenticated access to /api/admin routes entirely
+  if (!user && pathname.startsWith('/api/admin')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   if (user && pathnameRequiresArtistAccount(pathname)) {

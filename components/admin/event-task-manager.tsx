@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -37,6 +37,20 @@ import {
   Tag
 } from "lucide-react"
 import { format } from "date-fns"
+import { toast } from "sonner"
+
+interface ApiTask {
+  id: string
+  title: string
+  description?: string | null
+  status: 'todo' | 'doing' | 'done' | 'blocked'
+  priority: 'low' | 'medium' | 'high' | 'critical'
+  due_at?: string | null
+  assignee_id?: string | null
+  labels?: string[] | null
+  created_at?: string
+  updated_at?: string
+}
 
 interface Task {
   id: string
@@ -51,13 +65,134 @@ interface Task {
   updated_at?: string
 }
 
-interface EventTaskManagerProps {
-  eventId: string
-  tasks: Task[]
-  onTasksUpdate: (tasks: Task[]) => void
+interface EventParticipant {
+  participant_id: string
+  role?: string | null
+  display_name?: string
+  avatar_url?: string | null
 }
 
-export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskManagerProps) {
+interface EventTaskManagerProps {
+  eventId: string
+  tasks?: Task[]
+  onTasksUpdate?: (tasks: Task[]) => void
+}
+
+function mapApiStatusToUi(status: ApiTask['status']): Task['status'] {
+  switch (status) {
+    case 'doing': return 'in_progress'
+    case 'done': return 'completed'
+    case 'blocked': return 'cancelled'
+    default: return 'not_started'
+  }
+}
+
+function mapUiStatusToApi(status: Task['status']): ApiTask['status'] {
+  switch (status) {
+    case 'in_progress': return 'doing'
+    case 'completed': return 'done'
+    case 'cancelled': return 'blocked'
+    default: return 'todo'
+  }
+}
+
+function mapApiTaskToUi(task: ApiTask): Task {
+  return {
+    id: task.id,
+    name: task.title,
+    description: task.description || undefined,
+    status: mapApiStatusToUi(task.status),
+    priority: task.priority === 'critical' ? 'high' : task.priority,
+    due_date: task.due_at ? task.due_at.slice(0, 10) : undefined,
+    assigned_to: task.assignee_id || undefined,
+    category: (task.labels?.[0] as Task['category']) || 'logistics',
+    created_at: task.created_at,
+    updated_at: task.updated_at,
+  }
+}
+
+function buildApiPayload(formData: {
+  name: string
+  description: string
+  status: Task['status']
+  priority: Task['priority']
+  due_date: string
+  assigned_to: string
+  category: Task['category']
+}) {
+  return {
+    title: formData.name,
+    description: formData.description || undefined,
+    status: mapUiStatusToApi(formData.status),
+    priority: formData.priority,
+    due_at: formData.due_date ? new Date(formData.due_date).toISOString() : undefined,
+    assignee_id: formData.assigned_to || undefined,
+    labels: [formData.category],
+  }
+}
+
+async function notifyAssignee(eventId: string, assigneeId: string, taskTitle: string) {
+  await fetch('/api/admin/notifications', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      user_id: assigneeId,
+      title: 'Task assigned',
+      content: `You have been assigned: ${taskTitle}`,
+      type: 'task_assignment',
+      link: `/admin/dashboard/events/${eventId}/hq`,
+      related_content_id: eventId,
+      related_content_type: 'event',
+    }),
+  })
+}
+
+export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate }: EventTaskManagerProps) {
+  const [internalTasks, setInternalTasks] = useState<Task[]>([])
+  const [participants, setParticipants] = useState<EventParticipant[]>([])
+  const tasks = externalTasks ?? internalTasks
+
+  const updateTasks = useCallback((next: Task[]) => {
+    if (onTasksUpdate) onTasksUpdate(next)
+    else setInternalTasks(next)
+  }, [onTasksUpdate])
+
+  const fetchTasks = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/events/${eventId}/tasks`, { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      const mapped = (data.tasks || []).map((task: ApiTask) => mapApiTaskToUi(task))
+      updateTasks(mapped)
+    } catch {
+      /* silent */
+    }
+  }, [eventId, updateTasks])
+
+  const fetchParticipants = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/participants?role=staff`, { credentials: 'include' })
+      if (!res.ok) return
+      const data = await res.json()
+      setParticipants(data.participants || [])
+    } catch {
+      /* silent */
+    }
+  }, [eventId])
+
+  useEffect(() => {
+    if (!externalTasks) void fetchTasks()
+    void fetchParticipants()
+  }, [externalTasks, fetchTasks, fetchParticipants])
+
+  const assigneeNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const participant of participants) {
+      map.set(participant.participant_id, participant.display_name || participant.participant_id.slice(0, 8))
+    }
+    return map
+  }, [participants])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -149,39 +284,49 @@ export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskMan
   }
 
   const handleSaveTask = async () => {
+    if (!formData.name.trim()) {
+      toast.error('Task name is required')
+      return
+    }
+
     try {
-      const taskData = {
-        ...formData,
-        event_id: eventId
-      }
+      const payload = buildApiPayload(formData)
+      const previousAssignee = selectedTask?.assigned_to
 
       if (selectedTask) {
-        // Update existing task
         const response = await fetch(`/api/events/${eventId}/tasks/${selectedTask.id}`, {
           method: 'PATCH',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(taskData)
+          body: JSON.stringify(payload),
         })
 
         if (!response.ok) throw new Error('Failed to update task')
 
         const updatedTask = await response.json()
-        const updatedTasks = tasks.map(task => 
-          task.id === selectedTask.id ? updatedTask.task : task
-        )
-        onTasksUpdate(updatedTasks)
+        const mapped = mapApiTaskToUi(updatedTask.task as ApiTask)
+        updateTasks(tasks.map(task => task.id === selectedTask.id ? mapped : task))
+
+        if (mapped.assigned_to && mapped.assigned_to !== previousAssignee) {
+          await notifyAssignee(eventId, mapped.assigned_to, mapped.name)
+        }
       } else {
-        // Create new task
         const response = await fetch(`/api/events/${eventId}/tasks`, {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(taskData)
+          body: JSON.stringify(payload),
         })
 
         if (!response.ok) throw new Error('Failed to create task')
 
         const newTask = await response.json()
-        onTasksUpdate([...tasks, newTask.task])
+        const mapped = mapApiTaskToUi(newTask.task as ApiTask)
+        updateTasks([...tasks, mapped])
+
+        if (mapped.assigned_to) {
+          await notifyAssignee(eventId, mapped.assigned_to, mapped.name)
+        }
       }
 
       setIsCreateDialogOpen(false)
@@ -189,6 +334,7 @@ export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskMan
       setSelectedTask(null)
     } catch (error) {
       console.error('Error saving task:', error)
+      toast.error('Failed to save task')
     }
   }
 
@@ -203,7 +349,7 @@ export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskMan
       if (!response.ok) throw new Error('Failed to delete task')
 
       const updatedTasks = tasks.filter(task => task.id !== selectedTask.id)
-      onTasksUpdate(updatedTasks)
+      updateTasks(updatedTasks)
       setIsDeleteDialogOpen(false)
       setSelectedTask(null)
     } catch (error) {
@@ -215,17 +361,16 @@ export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskMan
     try {
       const response = await fetch(`/api/events/${eventId}/tasks/${taskId}`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: mapUiStatusToApi(newStatus) }),
       })
 
       if (!response.ok) throw new Error('Failed to update task status')
 
       const updatedTask = await response.json()
-      const updatedTasks = tasks.map(task => 
-        task.id === taskId ? updatedTask.task : task
-      )
-      onTasksUpdate(updatedTasks)
+      const mapped = mapApiTaskToUi(updatedTask.task as ApiTask)
+      updateTasks(tasks.map(task => task.id === taskId ? mapped : task))
     } catch (error) {
       console.error('Error updating task status:', error)
     }
@@ -401,7 +546,7 @@ export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskMan
                       {task.assigned_to && (
                         <div className="flex items-center">
                           <User className="h-4 w-4 mr-1" />
-                          {task.assigned_to}
+                          {assigneeNameById.get(task.assigned_to) || task.assigned_to.slice(0, 8)}
                         </div>
                       )}
                     </div>
@@ -538,12 +683,25 @@ export function EventTaskManager({ eventId, tasks, onTasksUpdate }: EventTaskMan
             
             <div>
               <Label className="text-slate-400">Assigned To</Label>
-              <Input
-                value={formData.assigned_to}
-                onChange={(e) => setFormData({ ...formData, assigned_to: e.target.value })}
-                placeholder="Enter assignee name or email"
-                className="mt-1 bg-slate-700 border-slate-600"
-              />
+              <Select
+                value={formData.assigned_to || "unassigned"}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, assigned_to: value === "unassigned" ? "" : value })
+                }
+              >
+                <SelectTrigger className="mt-1 bg-slate-700 border-slate-600">
+                  <SelectValue placeholder="Select team member" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-700 border-slate-600">
+                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                  {participants.map((participant) => (
+                    <SelectItem key={participant.participant_id} value={participant.participant_id}>
+                      {participant.display_name || participant.participant_id.slice(0, 8)}
+                      {participant.role ? ` (${participant.role})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           

@@ -1,122 +1,151 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { AdminOnboardingStaffService } from '@/lib/services/admin-onboarding-staff.service'
-import type { TeamCommunication } from '@/types/admin-onboarding'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 
-function hasSyntheticRecords(records: Array<{ id?: string }>) {
-  return records.some((record) => {
-    const id = typeof record?.id === 'string' ? record.id : ''
-    return id.startsWith('mock-') || id.startsWith('fallback-')
-  })
+async function resolveOrgId(supabase: any, userId: string): Promise<string | null> {
+  const { data } = await supabase.from('org_members').select('org_id').eq('user_id', userId).limit(1).maybeSingle()
+  return data?.org_id ?? null
 }
 
-export async function GET(request: NextRequest) {
-  return withAdminAuth(async (req) => {
-    const { searchParams } = new URL(req.url)
-    const venueId = searchParams.get('venue_id')
-    const type = searchParams.get('type') // 'members' or 'communications'
+export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  const { searchParams } = new URL(request.url)
+  const entityType = searchParams.get('entity_type')
+  const entityId = searchParams.get('entity_id')
+  const venueId = searchParams.get('venue_id')
+  const search = searchParams.get('search') || ''
+  const status = searchParams.get('status')
+  const role = searchParams.get('role')
+  const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 200)
+  const offset = parseInt(searchParams.get('offset') || '0', 10)
 
-    if (!venueId) {
-      return NextResponse.json(
-        { success: false, error: 'Venue ID is required' },
-        { status: 400 }
-      )
-    }
+  try {
+    // Build query from unified view
+    let query = supabase
+      .from('staff_members')
+      .select('id, user_id, full_name, email, phone, role, status, entity_type, entity_id, venue_id, created_at', { count: 'exact' })
+      .order('full_name', { ascending: true })
+      .range(offset, offset + limit - 1)
 
-    let data
-    if (type === 'communications') {
-      data = await AdminOnboardingStaffService.getTeamCommunications(venueId)
+    // Scope by entity
+    if (entityType && entityId) {
+      query = query.eq('entity_type', entityType).eq('entity_id', entityId)
+    } else if (venueId) {
+      query = query.eq('venue_id', venueId)
     } else {
-      data = await AdminOnboardingStaffService.getStaffMembers(venueId)
+      // Default: scope to org members' venues/entities via org_members
+      const orgId = await resolveOrgId(supabase, user.id)
+      if (orgId) {
+        // Get all venues and events for this org
+        const [venueRes, eventRes] = await Promise.allSettled([
+          supabase.from('venue_profiles').select('id').eq('user_id', user.id),
+          supabase.from('events_v2').select('id').eq('org_id', orgId).limit(50),
+        ])
+        const venueIds = venueRes.status === 'fulfilled' ? (venueRes.value.data || []).map((v: any) => v.id) : []
+        const eventIds = eventRes.status === 'fulfilled' ? (eventRes.value.data || []).map((e: any) => e.id) : []
+
+        if (venueIds.length > 0 || eventIds.length > 0) {
+          const filters: string[] = []
+          if (venueIds.length > 0) filters.push(`venue_id.in.(${venueIds.join(',')})`)
+          if (eventIds.length > 0) filters.push(`entity_id.in.(${eventIds.join(',')})`)
+          query = query.or(filters.join(','))
+        }
+      }
     }
-    if (Array.isArray(data) && hasSyntheticRecords(data as Array<{ id?: string }>)) {
-      return NextResponse.json(
-        { success: false, error: 'Live staff data unavailable' },
-        { status: 503 }
-      )
+
+    if (entityType && !entityId) query = query.eq('entity_type', entityType)
+    if (status) query = query.eq('status', status)
+    if (role) query = query.eq('role', role)
+    if (search) {
+      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%`)
     }
 
-    return NextResponse.json({
-      success: true,
-      data,
-      type: type || 'members'
-    })
-  })(request)
-}
+    const { data, error, count } = await query
 
-const MESSAGE_TYPES: TeamCommunication['message_type'][] = [
-  'announcement',
-  'schedule',
-  'training',
-  'emergency',
-  'general',
-  'performance',
-  'compliance',
-]
+    if (error) {
+      // Fallback if unified view columns don't exist yet
+      if (error.code === '42703' || error.code === '42P01') {
+        return NextResponse.json({ success: true, data: [], total: 0 })
+      }
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
 
-function normalizeTeamMessageType(value: unknown): TeamCommunication['message_type'] {
-  if (typeof value === 'string' && MESSAGE_TYPES.includes(value as TeamCommunication['message_type'])) {
-    return value as TeamCommunication['message_type']
+    return NextResponse.json({ success: true, data: data || [], total: count || 0 })
+  } catch (err: any) {
+    console.error('[Staff API] GET error:', err)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
   }
-  return 'general'
-}
+})
 
-export async function POST(request: NextRequest) {
-  return withAdminAuth(async (req) => {
-    const body = await req.json()
-    const { venue_id } = body
+export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  const body = await request.json()
+  const { action } = body
 
-    if (!venue_id) {
-      return NextResponse.json(
-        { success: false, error: 'Venue ID is required' },
-        { status: 400 }
-      )
-    }
-
-    if (body.action === 'update_status') {
+  try {
+    if (action === 'update_status') {
       const { staff_id, status } = body
-      if (!staff_id || !status) {
-        return NextResponse.json(
-          { success: false, error: 'staff_id and status are required' },
-          { status: 400 }
-        )
-      }
-      const updated = await AdminOnboardingStaffService.updateStaffMemberStatus(
-        venue_id,
-        staff_id,
-        status
-      )
-      return NextResponse.json({ success: true, data: updated })
+      if (!staff_id || !status) return NextResponse.json({ error: 'staff_id and status required' }, { status: 400 })
+
+      const { data, error } = await supabase
+        .from('staff_members')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', staff_id)
+        .select()
+        .single()
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true, data })
     }
 
-    if (body.type === 'communication') {
-      const { message, recipients, message_type: rawMessageType } = body
-      const communication = await AdminOnboardingStaffService.sendTeamCommunication(venue_id, {
-        recipients: Array.isArray(recipients) ? recipients : [],
-        subject: 'Team message',
-        content: typeof message === 'string' ? message : '',
-        message_type: normalizeTeamMessageType(rawMessageType),
-        priority: 'normal',
-      })
-      return NextResponse.json({ success: true, data: communication })
+    if (action === 'add_member') {
+      const { user_id, role, entity_type, entity_id, venue_id, full_name, email } = body
+
+      const { data, error } = await supabase
+        .from('staff_members')
+        .insert({
+          user_id,
+          role,
+          entity_type: entity_type || 'org',
+          entity_id: entity_id || null,
+          venue_id: venue_id || null,
+          full_name,
+          email,
+          status: 'active',
+          created_by: user.id,
+        })
+        .select()
+        .single()
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true, data })
     }
 
-    const communicationData = { ...body } as Record<string, unknown>
-    delete communicationData.venue_id
-    const communication = await AdminOnboardingStaffService.sendTeamCommunication(
-      venue_id,
-      communicationData as {
-        recipients: string[]
-        subject: string
-        content: string
-        message_type: TeamCommunication['message_type']
-        priority: TeamCommunication['priority']
-      }
-    )
+    return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
+  } catch (err: any) {
+    console.error('[Staff API] POST error:', err)
+    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })
+  }
+})
 
-    return NextResponse.json({
-      success: true,
-      data: communication
-    })
-  })(request)
-} 
+export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) => {
+  const { id, ...updates } = await request.json()
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const { data, error } = await supabase
+    .from('staff_members')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true, data })
+})
+
+export const DELETE = withAdminAuth(async (request: NextRequest, { supabase }) => {
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
+
+  const { error } = await supabase.from('staff_members').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
+})

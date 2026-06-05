@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
+import { checkAdminPermissions } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
@@ -19,12 +20,20 @@ class MessageRateLimitError extends Error {
   }
 }
 
+const attachmentSchema = z.object({
+  url: z.string().url(),
+  name: z.string().min(1),
+  type: z.enum(['image', 'file', 'audio']),
+  size: z.number().int().nonnegative(),
+})
+
 const sendMessageSchema = z.object({
   recipientId: z.string().uuid().optional(),
   content: z.string().trim().max(2000).optional(),
   threadId: z.string().uuid().optional(),
   messageType: z.string().max(40).optional(),
   metadata: z.record(z.unknown()).optional(),
+  attachments: z.array(attachmentSchema).default([]),
   taskCard: z
     .object({
       title: z.string().min(1).max(200),
@@ -54,6 +63,33 @@ async function resolveMessageContext(
   senderId: string,
   recipientId: string
 ): Promise<MessageContextResult> {
+  const isAdmin = await checkAdminPermissions({ id: senderId })
+  if (isAdmin) {
+    const { data: sharedStaff } = await supabase
+      .from('staff_members')
+      .select('id')
+      .eq('user_id', recipientId)
+      .eq('status', 'active')
+      .limit(1)
+      .maybeSingle()
+
+    if (sharedStaff) {
+      return { tier: 'open', context_type: 'org_staff', context_id: null }
+    }
+
+    const { data: sharedEvent } = await supabase
+      .from('event_participants')
+      .select('event_id')
+      .eq('participant_id', recipientId)
+      .eq('participant_type', 'Individual')
+      .limit(1)
+      .maybeSingle()
+
+    if (sharedEvent) {
+      return { tier: 'open', context_type: 'event_team', context_id: sharedEvent.event_id }
+    }
+  }
+
   const { data, error } = await supabase.rpc('resolve_message_context', {
     sender: senderId,
     recipient: recipientId,
@@ -207,6 +243,7 @@ export async function GET(request: NextRequest) {
         .select(`
           id,
           content,
+          attachments,
           sender_id,
           created_at,
           sender:profiles!sender_id (
@@ -313,7 +350,7 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
-    const { recipientId, content, threadId, messageType, metadata, taskCard } = parsedBody.data
+    const { recipientId, content, threadId, messageType, metadata, taskCard, attachments } = parsedBody.data
 
     if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
       const canWriteThread = await hasWorkflowThreadPermission({
@@ -393,9 +430,9 @@ export async function POST(request: NextRequest) {
       })}]`
     }
 
-    if (!recipientId || !messageContent) {
+    if (!recipientId || (!messageContent && attachments.length === 0)) {
       return NextResponse.json({ 
-        error: 'Recipient ID and message content are required' 
+        error: 'Recipient ID and message content or attachments are required' 
       }, { status: 400 })
     }
 
@@ -477,7 +514,8 @@ export async function POST(request: NextRequest) {
       .insert({
         conversation_id: conversation.id,
         sender_id: user.id,
-        content: messageContent
+        content: messageContent || '(attachment)',
+        attachments,
       })
       .select(`
         id,

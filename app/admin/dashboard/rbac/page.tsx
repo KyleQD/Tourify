@@ -45,6 +45,8 @@ import {
   Music
 } from 'lucide-react'
 import { PERMISSIONS } from '@/types/rbac'
+import { PermissionsMatrix } from '@/components/admin/permissions-matrix'
+import { RbacRoleAssignment } from '@/components/admin/rbac-role-assignment'
 import type { 
   SystemRole, 
   Permission, 
@@ -346,6 +348,19 @@ export default function RBACManagementPage() {
 
         {/* Permissions Tab */}
         <TabsContent value="permissions" className="space-y-6">
+          {/* Live permission matrix */}
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                <Shield className="h-4 w-4 text-purple-400" />
+                Role × Permission Matrix
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PermissionsMatrix />
+            </CardContent>
+          </Card>
+
           {Object.entries(permissionsByCategory).map(([category, categoryPermissions]) => {
             const IconComponent = CATEGORY_ICONS[category as keyof typeof CATEGORY_ICONS] || Shield
             

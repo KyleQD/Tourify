@@ -15,28 +15,37 @@ import {
 export function AccountRouteGuard() {
   const pathname = usePathname()
   const router = useRouter()
-  const { currentAccount, accounts, switchAccount, isLoading } = useMultiAccount()
+  const { currentAccount, accounts, switchAccount, isLoading, hasAccountType } = useMultiAccount()
 
   useEffect(() => {
-    if (isLoading || !currentAccount) return
+    let cancelled = false
 
-    const required = getRequiredAccountTypeForPathname(pathname)
-    if (!required) return
+    async function syncRouteAccount() {
+      if (isLoading || !currentAccount || accounts.length === 0) return
 
-    if (currentAccount.account_type !== required) {
+      const required = getRequiredAccountTypeForPathname(pathname)
+      if (!required) return
+      if (currentAccount.account_type === required) return
+
       const targetAccount = accounts.find(
         acc => acc.account_type === required && acc.is_active
       )
 
       if (targetAccount) {
-        switchAccount(targetAccount.profile_id, targetAccount.account_type)
+        await switchAccount(targetAccount.profile_id, targetAccount.account_type)
         return
       }
 
-      const next = getDashboardPathForAccountType(currentAccount.account_type)
-      router.replace(next)
+      if (!hasAccountType(required) && !cancelled) {
+        router.replace(getDashboardPathForAccountType(currentAccount.account_type))
+      }
     }
-  }, [pathname, currentAccount, accounts, switchAccount, isLoading, router])
+
+    syncRouteAccount()
+    return () => {
+      cancelled = true
+    }
+  }, [pathname, currentAccount, accounts, switchAccount, isLoading, hasAccountType, router])
 
   return null
 }

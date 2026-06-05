@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Map, Loader2, Copy, Trash2 } from 'lucide-react'
+import { Plus, Map, Loader2, Copy, Trash2, Upload, Download } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useSiteMaps } from '@/hooks/use-site-maps'
 import { SiteMapEditor } from './site-map-editor'
@@ -18,6 +18,7 @@ import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 interface SiteMapManagerProps {
   eventId?: string
   tourId?: string
+  compact?: boolean
 }
 
 interface CreateForm {
@@ -146,6 +147,44 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
       return
     }
 
+    // Copy all elements from source map to the new map
+    try {
+      const elemsResp = await fetch(
+        `/api/admin/logistics/site-maps/${siteMap.id}/elements`,
+        { credentials: 'include' },
+      )
+      if (elemsResp.ok) {
+        const elemsData = await elemsResp.json()
+        const elements: any[] = elemsData?.data ?? []
+        if (elements.length > 0) {
+          await Promise.all(
+            elements.map((el: any) =>
+              fetch(`/api/admin/logistics/site-maps/${created.id}/elements`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  element_type: el.element_type,
+                  name: el.name,
+                  x: el.x,
+                  y: el.y,
+                  width: el.width,
+                  height: el.height,
+                  rotation: el.rotation,
+                  color: el.color,
+                  stroke_color: el.stroke_color,
+                  stroke_width: el.stroke_width,
+                  properties: el.properties,
+                }),
+              }),
+            ),
+          )
+        }
+      }
+    } catch (err) {
+      console.warn('[SiteMapManager] Could not copy elements during duplicate:', err)
+    }
+
     toast({ title: 'Site map duplicated' })
     await refreshSiteMaps()
   }
@@ -191,6 +230,42 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
           <h2 className="text-2xl font-semibold text-white">Site Maps</h2>
           <p className="text-sm text-slate-400">Create, edit, and collaborate on event layouts</p>
         </div>
+        <div className="flex items-center gap-2">
+          {/* Import button */}
+          <label className="cursor-pointer">
+            <input
+              type="file"
+              accept=".json,.sitemapjson"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                try {
+                  const text = await file.text()
+                  const importData = JSON.parse(text)
+                  const res = await fetch('/api/admin/logistics/site-maps/import', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ importData, eventId, tourId }),
+                  })
+                  if (res.ok) {
+                    toast({ title: 'Site map imported successfully' })
+                    await refreshSiteMaps()
+                  } else {
+                    toast({ title: 'Import failed', variant: 'destructive' })
+                  }
+                } catch {
+                  toast({ title: 'Invalid file format', variant: 'destructive' })
+                }
+                e.target.value = ''
+              }}
+            />
+            <Button variant="outline" className="border-slate-700 text-slate-300" asChild>
+              <span><Upload className="h-4 w-4 mr-2" />Import</span>
+            </Button>
+          </label>
+
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
@@ -306,6 +381,7 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
             </div>
           </DialogContent>
         </Dialog>
+        </div>{/* end button group */}
       </div>
 
       {loading ? (
@@ -340,8 +416,26 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
                     <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void handleDuplicateSiteMap(siteMap) }}>
                       <Copy className="h-4 w-4" />
                     </Button>
+                    <Button
+                      size="sm" variant="ghost"
+                      onClick={async (event) => {
+                        event.stopPropagation()
+                        try {
+                          const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/export`, { credentials: 'include' })
+                          if (res.ok) {
+                            const data = await res.json()
+                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                            const url = URL.createObjectURL(blob)
+                            const a = document.createElement('a'); a.href = url; a.download = `${siteMap.name.replace(/\s+/g, '-')}.sitemapjson`; a.click()
+                            URL.revokeObjectURL(url)
+                          }
+                        } catch { toast({ title: 'Export failed', variant: 'destructive' }) }
+                      }}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void handleSaveTemplate(siteMap) }}>
-                      Save as Template
+                      Template
                     </Button>
                     <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void handleDeleteSiteMap(siteMap.id) }}>
                       <Trash2 className="h-4 w-4" />

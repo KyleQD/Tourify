@@ -12,6 +12,50 @@ export interface AdminUser {
 }
 
 /**
+ * Server/middleware check: profile row OR organizer_accounts / account_relationships.
+ * Aligns with checkIsAdmin() — middleware must not only inspect profiles.account_settings.
+ */
+export async function userHasAdminSurfaceAccess(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseClient: any,
+  userId: string
+): Promise<boolean> {
+  try {
+    const { data: profile, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('role, account_type, account_settings, is_admin')
+      .eq('id', userId)
+      .single()
+
+    if (!profileError && profileIndicatesAdminAccess(profile as Parameters<typeof profileIndicatesAdminAccess>[0])) {
+      return true
+    }
+
+    const { data: organizerRow, error: orgErr } = await supabaseClient
+      .from('organizer_accounts')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle()
+
+    if (organizerRow?.id && !orgErr) return true
+
+    const { data: adminRel, error: relErr } = await supabaseClient
+      .from('account_relationships')
+      .select('id')
+      .eq('owner_user_id', userId)
+      .eq('account_type', 'admin')
+      .limit(1)
+      .maybeSingle()
+
+    return Boolean(adminRel?.id && !relErr)
+  } catch {
+    return false
+  }
+}
+
+/**
  * Check if the current user has admin access through multi-account system or organizer data
  * This is the main function that determines admin access
  */

@@ -41,7 +41,9 @@ export function EnhancedAccountStatusBar() {
   useEffect(() => {
     const loadAccountStatuses = () => {
       const statuses: AccountStatus[] = accounts.map(account => {
-        const isCurrent = currentAccount?.profile_id === account.profile_id
+        const isCurrent =
+          currentAccount?.profile_id === account.profile_id &&
+          currentAccount?.account_type === account.account_type
         const urgentCount = Math.floor(Math.random() * 3) // Mock data
         const totalUpdates = Math.floor(Math.random() * 10) + urgentCount
         

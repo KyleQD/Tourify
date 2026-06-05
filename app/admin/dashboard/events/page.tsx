@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CreateEventForm } from "@/components/admin/create-event-form"
+import { AdminFilterBar } from "../components/admin-filter-bar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { motion, AnimatePresence } from "framer-motion"
@@ -400,46 +399,42 @@ export default function EventsPage() {
         </div>
 
         {/* Filters and Search */}
-        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input
-                placeholder="Search events..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 bg-slate-800/50 border-slate-700/50 text-white w-64"
-              />
-            </div>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-40 bg-slate-800/50 border-slate-700/50 text-white">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="scheduled">Scheduled</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-                <SelectItem value="postponed">Postponed</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center space-x-2">
+        <AdminFilterBar
+          searchPlaceholder="Search events..."
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusOptions={[
+            { value: "all", label: "All Status" },
+            { value: "scheduled", label: "Scheduled" },
+            { value: "confirmed", label: "Confirmed" },
+            { value: "in_progress", label: "In Progress" },
+            { value: "completed", label: "Completed" },
+            { value: "cancelled", label: "Cancelled" },
+            { value: "postponed", label: "Postponed" },
+          ]}
+          statusValue={filterStatus}
+          onStatusChange={setFilterStatus}
+          viewMode={viewMode === "calendar" ? "grid" : viewMode}
+          onViewModeChange={(m) => setViewMode(m)}
+          actions={
             <Button
               variant="outline"
               size="sm"
-              className="border-slate-700 text-slate-300 hover:bg-slate-800/80 backdrop-blur-sm transition-all duration-200"
+              className="border-slate-700 text-slate-300 hover:bg-slate-800/80 h-9"
               onClick={() => {
-                const csv = ['Name,Date,Venue,Status,Capacity,Tickets Sold']
-                  .concat(filteredEvents.map(e => `"${e.name}","${e.event_date || ''}","${e.venue_name || ''}","${e.status}","${e.capacity || 0}","${e.tickets_sold || 0}"`))
-                  .join('\n')
-                const blob = new Blob([csv], { type: 'text/csv' })
+                const csv = ["Name,Date,Venue,Status,Capacity,Tickets Sold"]
+                  .concat(
+                    filteredEvents.map(
+                      (e) =>
+                        `"${e.name}","${e.event_date || ""}","${e.venue_name || ""}","${e.status}","${e.capacity || 0}","${e.tickets_sold || 0}"`,
+                    ),
+                  )
+                  .join("\n")
+                const blob = new Blob([csv], { type: "text/csv" })
                 const url = URL.createObjectURL(blob)
-                const a = document.createElement('a')
+                const a = document.createElement("a")
                 a.href = url
-                a.download = `events-export-${new Date().toISOString().split('T')[0]}.csv`
+                a.download = `events-export-${new Date().toISOString().split("T")[0]}.csv`
                 a.click()
                 URL.revokeObjectURL(url)
               }}
@@ -447,8 +442,8 @@ export default function EventsPage() {
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-          </div>
-        </div>
+          }
+        />
 
         {/* Create Event Form Modal */}
         <AnimatePresence>

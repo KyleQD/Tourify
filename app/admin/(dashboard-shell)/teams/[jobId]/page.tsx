@@ -138,39 +138,31 @@ export default function TeamManagementPage() {
 
   async function handleUpdateMemberStatus(memberId: string, status: string) {
     try {
-      // This would typically update the staff member status
-      // For now, we'll just show a toast
-      toast({
-        title: 'Status Updated',
-        description: `Team member status updated to ${status}.`,
+      const res = await fetch('/api/admin/staff', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_status', staff_id: memberId, status }),
       })
-      loadTeamData() // Refresh data
-    } catch (error) {
-      console.error('Error updating member status:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to update member status. Please try again.',
-        variant: 'destructive'
-      })
+      if (!res.ok) throw new Error(await res.text())
+      toast({ title: 'Status Updated', description: `Team member status updated to ${status}.` })
+      loadTeamData()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to update member status.', variant: 'destructive' })
     }
   }
 
   async function handleRemoveMember(memberId: string) {
     try {
-      // This would typically remove the member from the team
-      // For now, we'll just show a toast
-      toast({
-        title: 'Member Removed',
-        description: 'Team member has been removed from the team.',
+      const res = await fetch(`/api/admin/staff?id=${memberId}`, {
+        method: 'DELETE',
+        credentials: 'include',
       })
-      loadTeamData() // Refresh data
-    } catch (error) {
-      console.error('Error removing member:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to remove member. Please try again.',
-        variant: 'destructive'
-      })
+      if (!res.ok) throw new Error(await res.text())
+      toast({ title: 'Member Removed', description: 'Team member has been removed from the team.' })
+      loadTeamData()
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Failed to remove member.', variant: 'destructive' })
     }
   }
 

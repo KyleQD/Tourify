@@ -409,26 +409,46 @@ export class AccountManagementService {
     profileId: string,
     accountType: ProfileType
   ): Promise<boolean> {
+    const persistSessionDirect = async (): Promise<void> => {
+      const usesProfileRow = accountType === 'general' || profileId === userId
+      const sessionProfileId = usesProfileRow ? profileId : userId
+      const sessionData = usesProfileRow ? {} : { account_profile_id: profileId }
+
+      const { error } = await supabase.from('user_sessions').upsert(
+        {
+          user_id: userId,
+          active_profile_id: sessionProfileId,
+          active_account_type: accountType,
+          session_data: sessionData,
+          last_activity: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
+
+      if (error) {
+        console.warn('[Account Management] Direct session upsert failed:', error.message)
+      }
+    }
+
     try {
-      // Try using the RPC function first (if migration has been applied)
       try {
-        const { data, error } = await supabase.rpc('switch_active_account', {
+        const { error } = await supabase.rpc('switch_active_account', {
           user_id: userId,
           profile_id: profileId,
-          account_type: accountType
+          account_type: accountType,
         })
 
         if (error) throw error
-        return data
-      } catch (rpcError: any) {
-        // If RPC function doesn't exist, just return true (no session management available)
-        console.log('Switch account RPC function not available, returning success')
-        return true
+      } catch (rpcError: unknown) {
+        console.log('[Account Management] RPC switch failed, trying direct session upsert:', rpcError)
+        await persistSessionDirect()
       }
     } catch (error) {
-      console.error('Error switching account:', error)
-      return false
+      console.warn('[Account Management] Session persist failed (non-fatal):', error)
     }
+
+    // Client-side account mode is authoritative; session persistence is best-effort.
+    return true
   }
 
   // Create artist account

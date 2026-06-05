@@ -156,7 +156,9 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
         user_id: recipientId,
         type: 'task_assigned',
         title: `Task: ${validated.title}`,
-        message: `${senderName} assigned you a task${sensitive ? ' (contains sensitive material)' : ''}`,
+        content: `${senderName} assigned you a task${sensitive ? ' (contains sensitive material)' : ''}`,
+        related_content_id: eventId,
+        related_content_type: 'event',
         metadata: {
           event_id: eventId,
           task_id: taskMsg.id,
@@ -165,7 +167,7 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
           is_sensitive: sensitive,
           priority: validated.priority,
         },
-        read: false,
+        is_read: false,
       })
     }
 

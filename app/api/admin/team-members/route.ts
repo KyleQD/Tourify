@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { authenticateApiRequest, checkAdminPermissions, withAdminAuth } from '@/lib/auth/api-auth'
 
-export async function GET(request: NextRequest) {
-  const auth = await authenticateApiRequest(request)
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export const GET = withAdminAuth(async (request: NextRequest, { supabase: _supabase, user: _user }) => {
+  const auth = { supabase: _supabase, user: _user }
 
   try {
     const { searchParams } = new URL(request.url)
@@ -51,7 +50,7 @@ export async function GET(request: NextRequest) {
     console.error('[Team Members] GET exception:', error)
     return NextResponse.json({ error: 'Failed to fetch team members' }, { status: 500 })
   }
-}
+})
 
 export async function PATCH(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
@@ -100,6 +99,8 @@ export async function PATCH(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const body = await request.json()
@@ -153,6 +154,8 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
     const { searchParams } = new URL(request.url)

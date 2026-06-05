@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, useCallback } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   Calendar, 
@@ -343,8 +343,11 @@ interface EventPlannerData {
 
 export default function EventPlannerPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const [draftEventId, setDraftEventId] = useState<string | null>(null)
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null)
   const [eventData, setEventData] = useState<EventPlannerData>({
     // Default values
     name: "",
@@ -406,20 +409,60 @@ export default function EventPlannerPage() {
     setEventData(prev => ({ ...prev, ...updates }))
   }
 
+  // Load draft from URL ?draft=<event_id> on mount
+  useEffect(() => {
+    const draftId = searchParams.get('draft')
+    if (!draftId) return
+    setIsLoading(true)
+    setDraftLoadError(null)
+    fetch(`/api/events/planner?id=${draftId}`, buildNoStoreInit())
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Draft not found')
+        const data = await res.json()
+        const event = data.event
+        if (!event) throw new Error('Draft not found')
+        setDraftEventId(draftId)
+        // Restore planner data from the event's settings jsonb
+        const settings = event.settings || {}
+        if (settings.name || event.title) {
+          setEventData(prev => ({
+            ...prev,
+            ...settings,
+            name: settings.name || event.title || prev.name,
+          }))
+        }
+      })
+      .catch((err) => {
+        setDraftLoadError(err.message)
+      })
+      .finally(() => setIsLoading(false))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSave = async () => {
     setIsLoading(true)
     try {
-      // Save event data to API
+      const body = draftEventId
+        ? { ...eventData, event_id: draftEventId }
+        : eventData
+
       const response = await fetch('/api/events/planner', buildNoStoreInit({
         method: 'POST',
-        body: JSON.stringify(eventData),
+        body: JSON.stringify(body),
       }))
       
       if (!response.ok) throw new Error('Failed to save event')
       
+      const data = await response.json()
+      // Track the draft ID returned from the API for subsequent saves
+      if (data.event?.id && !draftEventId) {
+        setDraftEventId(data.event.id)
+        // Update URL to allow resume without losing state
+        router.replace(`?draft=${data.event.id}`, { scroll: false })
+      }
+      
       toast({
         title: "Event Saved",
-        description: "Your event has been saved successfully.",
+        description: "Your event has been saved as a draft.",
       })
     } catch (error) {
       toast({
@@ -445,26 +488,68 @@ export default function EventPlannerPage() {
   }
 
   const handlePublish = async () => {
+    // Validate required fields before publishing
+    const missingItems: string[] = []
+    if (!eventData.name?.trim()) missingItems.push('Event name')
+    if (!eventData.venues?.length) missingItems.push('Venue')
+    if (!eventData.ticketTypes?.length) missingItems.push('At least one ticket type')
+    if (!eventData.venues?.[0]?.selectedDate) missingItems.push('Event date')
+
+    if (missingItems.length > 0) {
+      toast({
+        title: "Cannot publish yet",
+        description: `Missing: ${missingItems.join(', ')}`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
     try {
-      // Publish event
+      const body = {
+        ...eventData,
+        ...(draftEventId ? { event_id: draftEventId } : {}),
+        publishStatus: "published",
+      }
+
       const response = await fetch('/api/events/planner/publish', buildNoStoreInit({
         method: 'POST',
-        body: JSON.stringify({ ...eventData, publishStatus: "published" }),
+        body: JSON.stringify(body),
       }))
       
-      if (!response.ok) throw new Error('Failed to publish event')
-      
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        const missingFromServer: string[] = errData.missingItems || []
+        if (missingFromServer.length > 0) {
+          toast({
+            title: "Cannot publish yet",
+            description: `Missing: ${missingFromServer.join(', ')}`,
+            variant: "destructive",
+          })
+          return
+        }
+        throw new Error(errData.error || 'Failed to publish event')
+      }
+
+      const data = await response.json()
+      const publishedEventId = data.event?.id || data.event_id
+
       updateEventData({ publishStatus: "published" })
       
       toast({
-        title: "🚀 Event Published!",
-        description: "Your event is now live and accessible to your audience.",
+        title: "Event Published!",
+        description: "Your event is now live.",
       })
-    } catch (error) {
+
+      if (publishedEventId) {
+        router.push(`/admin/dashboard/events/${publishedEventId}?published=1`)
+      } else {
+        router.push('/admin/dashboard/events')
+      }
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to publish event. Please try again.",
+        description: error.message || "Failed to publish event. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -474,6 +559,19 @@ export default function EventPlannerPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20">
+      {/* Draft load error banner */}
+      {draftLoadError && (
+        <div className="bg-red-950/40 border-b border-red-700/40 px-6 py-2 text-sm text-red-300 text-center">
+          Could not load draft: {draftLoadError}. Starting fresh.
+        </div>
+      )}
+      {/* Draft resume banner */}
+      {draftEventId && (
+        <div className="bg-purple-950/40 border-b border-purple-700/30 px-6 py-2 text-sm text-purple-300 text-center flex items-center justify-center gap-2">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Resuming draft — changes auto-saved as you progress
+        </div>
+      )}
       {/* Header */}
       <div className="border-b border-slate-800/50 bg-slate-900/30 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-4">
@@ -901,24 +999,23 @@ function VenueScheduleStep({ eventData, updateEventData }: {
   const [isLoadingVenues, setIsLoadingVenues] = useState(false)
   const [venueSearchQuery, setVenueSearchQuery] = useState("")
 
-  // Fetch real venues from database
+  // Fetch real venues from the admin venues endpoint
   const fetchVenues = async (searchQuery?: string) => {
     setIsLoadingVenues(true)
     try {
       const params = new URLSearchParams()
-      if (searchQuery) params.append('query', searchQuery)
+      if (searchQuery) params.append('search', searchQuery)
       params.append('limit', '50')
       
-      const response = await fetch(`/api/venues?${params.toString()}`, buildNoStoreInit())
+      // Use admin endpoint (upgraded in Phase 1 to support search param)
+      const response = await fetch(`/api/admin/venues?${params.toString()}`, buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setVenues(data.venues || [])
       } else {
-        console.error('Failed to fetch venues:', response.statusText)
         setVenues([])
       }
-    } catch (error) {
-      console.error('Error fetching venues:', error)
+    } catch {
       setVenues([])
     } finally {
       setIsLoadingVenues(false)
@@ -939,20 +1036,21 @@ function VenueScheduleStep({ eventData, updateEventData }: {
   }, [venueSearchQuery])
 
   const addVenue = (venue: any) => {
+    // Admin venues API returns: { id, name, city, state, capacity }
     const newVenue = {
       id: venue.id,
-      name: venue.venue_name,
-      address: `${venue.address || ''} ${venue.city || ''} ${venue.state || ''}`.trim(),
+      name: venue.name || venue.venue_name || '',
+      address: [venue.city, venue.state].filter(Boolean).join(', '),
       capacity: venue.capacity || 0,
       selectedDate: "",
       selectedTime: "",
       bookingStatus: "inquiry",
       contact: {
-        name: venue.contact_info?.manager_name || "Contact Venue",
-        email: venue.contact_info?.email || venue.contact_info?.booking_email || "",
-        phone: venue.contact_info?.phone || ""
+        name: venue.contact_name || "Contact Venue",
+        email: venue.contact_email || "",
+        phone: venue.contact_phone || ""
       },
-      venueData: venue // Store full venue data
+      venueData: venue
     }
     
     updateEventData({

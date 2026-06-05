@@ -74,7 +74,7 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
   try {
     const supabase = createServiceClient()
 
-    const [orgResult, profileResult] = await Promise.allSettled([
+    const [orgResult, profileResult, relationshipResult] = await Promise.allSettled([
       supabase
         .from('organizer_accounts')
         .select('id')
@@ -88,13 +88,22 @@ export async function checkAdminPermissions(user: any, opts?: { tourId?: string 
         .eq('id', user.id)
         .limit(1)
         .maybeSingle(),
+      // Check account_relationships — users granted admin via this path must also pass
+      supabase
+        .from('account_relationships')
+        .select('type')
+        .eq('user_id', user.id)
+        .eq('type', 'admin')
+        .limit(1)
+        .maybeSingle(),
     ])
 
     const organizerAccount = orgResult.status === 'fulfilled' ? orgResult.value.data : null
     const adminProfile = profileResult.status === 'fulfilled' ? profileResult.value.data : null
+    const adminRelationship = relationshipResult.status === 'fulfilled' ? relationshipResult.value.data : null
 
     const hasOrganizerAccess = Boolean(
-      organizerAccount || profileIndicatesAdminAccess(adminProfile),
+      organizerAccount || profileIndicatesAdminAccess(adminProfile) || adminRelationship,
     )
     if (!hasOrganizerAccess) return false
 

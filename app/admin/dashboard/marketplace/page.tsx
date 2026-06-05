@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
-import { ShieldCheck, RefreshCw } from "lucide-react"
+import { ShieldCheck, RefreshCw, ShoppingBag, DollarSign, ExternalLink } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
 import { extractApiError } from "@/lib/api/extract-error"
 
@@ -111,17 +112,44 @@ export default function AdminMarketplaceModerationPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="h-6 w-6 text-purple-400" />
+          <ShoppingBag className="h-6 w-6 text-purple-400" />
           <div>
-            <h1 className="text-2xl font-bold text-white">Marketplace Moderation</h1>
-            <p className="text-sm text-slate-300">Review reports, enforce policy, and resolve creator commerce disputes.</p>
+            <h1 className="text-2xl font-bold text-white">Marketplace</h1>
+            <p className="text-sm text-slate-300">Orders, moderation, and payouts.</p>
           </div>
         </div>
-        <Button variant="outline" onClick={() => void loadQueue()} disabled={loading}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Refresh
-        </Button>
       </div>
+
+      <Tabs defaultValue="orders">
+        <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm">
+          <TabsTrigger value="orders" className="data-[state=active]:bg-purple-600/80 data-[state=active]:text-white rounded-sm text-sm flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4" />Orders
+          </TabsTrigger>
+          <TabsTrigger value="moderation" className="data-[state=active]:bg-purple-600/80 data-[state=active]:text-white rounded-sm text-sm flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />Moderation
+          </TabsTrigger>
+          <TabsTrigger value="payouts" className="data-[state=active]:bg-purple-600/80 data-[state=active]:text-white rounded-sm text-sm flex items-center gap-2">
+            <DollarSign className="h-4 w-4" />Payouts
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders" className="space-y-4 pt-4">
+          <MarketplaceOrdersList />
+        </TabsContent>
+
+        <TabsContent value="moderation" className="space-y-6 pt-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-5 w-5 text-purple-400" />
+              <div>
+                <h2 className="text-lg font-semibold text-white">Moderation Queue</h2>
+                <p className="text-xs text-slate-400">Review reports and resolve disputes.</p>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => void loadQueue()} disabled={loading}>
+              <RefreshCw className="mr-2 h-4 w-4" />Refresh
+            </Button>
+          </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Open" value={openCount} />
@@ -292,6 +320,100 @@ export default function AdminMarketplaceModerationPage() {
           </Button>
         </div>
       </div>
+        </TabsContent>
+
+        {/* Payouts Tab */}
+        <TabsContent value="payouts" className="space-y-4 pt-4">
+          <MarketplacePayoutsList />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+function MarketplaceOrdersList() {
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/marketplace/orders?limit=50', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { orders: [] })
+      .then(d => setOrders(d.orders || []))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div className="text-center py-8 text-slate-400">Loading orders...</div>
+  if (orders.length === 0) return <div className="text-center py-8 text-slate-400">No orders yet.</div>
+
+  return (
+    <div className="space-y-2">
+      {orders.map((o: any) => (
+        <Card key={o.id} className="border-slate-700/50 bg-slate-900/50">
+          <CardContent className="flex items-center justify-between py-3 px-4">
+            <div>
+              <p className="text-white text-sm font-medium">{o.buyer_name || o.buyer_email || 'Unknown buyer'}</p>
+              <p className="text-slate-400 text-xs">{o.item_count} item{o.item_count !== 1 ? 's' : ''} · {new Date(o.created_at).toLocaleDateString()}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-white text-sm font-semibold">${Number(o.total_amount || 0).toFixed(2)}</span>
+              <Badge className={o.payment_status === 'paid' ? 'bg-green-500/20 text-green-400' : o.payment_status === 'refunded' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                {o.payment_status}
+              </Badge>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400" asChild>
+                <a href={`/admin/dashboard/marketplace/orders/${o.id}`}><ExternalLink className="h-3.5 w-3.5" /></a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+function MarketplacePayoutsList() {
+  const [payouts, setPayouts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/admin/finances?type=overview', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : { transactions: [] })
+      .then(d => {
+        const all: any[] = d.transactions || []
+        setPayouts(all.filter((t: any) => t.category === 'payout' || t.type === 'payout'))
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <div className="text-center py-8 text-slate-400">Loading payouts...</div>
+
+  if (payouts.length === 0) {
+    return (
+      <div className="text-center py-12 space-y-3">
+        <DollarSign className="h-10 w-10 text-slate-600 mx-auto" />
+        <p className="text-slate-400">No payouts recorded yet.</p>
+        <p className="text-xs text-slate-500">Payouts will appear here as transactions are processed with category &quot;payout&quot;.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-2">
+      {payouts.map((p: any) => (
+        <Card key={p.id} className="border-slate-700/50 bg-slate-900/50">
+          <CardContent className="flex items-center justify-between py-3 px-4">
+            <div>
+              <p className="text-white text-sm font-medium">{p.description || p.vendor_name || 'Payout'}</p>
+              <p className="text-slate-400 text-xs">{p.created_at ? new Date(p.created_at).toLocaleDateString() : ''}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-white text-sm font-semibold">${Number(p.amount || 0).toFixed(2)}</span>
+              <Badge className={p.payment_status === 'paid' ? 'bg-green-500/20 text-green-400' : p.payment_status === 'overdue' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}>
+                {p.payment_status || 'pending'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   )
 }

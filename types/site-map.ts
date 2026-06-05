@@ -31,6 +31,8 @@ export interface SiteMap {
   createdAt: string
   updatedAt: string
   createdBy?: string
+  created_at?: string
+  updated_at?: string
   
   // Related data (populated by API)
   zones?: SiteMapZone[]
@@ -233,6 +235,10 @@ export interface CreateSiteMapRequest {
   width?: number
   height?: number
   scale?: number
+  scaleUnit?: 'feet' | 'meters'
+  pixelsPerUnit?: number | string
+  templateId?: string
+  backgroundImageUrl?: string
   backgroundColor?: string
   gridEnabled?: boolean
   gridSize?: number

@@ -6,16 +6,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  Building2, 
-  Route, 
-  Plus, 
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Building2,
+  Route,
+  Plus,
   Trash2,
   Search,
-  Loader2
+  Loader2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeNumber } from "@/lib/format/number-format"
@@ -56,28 +58,34 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
     }
   }
 
-  // Fetch real venues from database
+  // Fetch real venues from admin endpoint
   const fetchVenues = async (searchQuery?: string) => {
     setIsLoadingVenues(true)
     try {
       const params = new URLSearchParams()
-      if (searchQuery) params.append('query', searchQuery)
+      if (searchQuery) params.append('search', searchQuery)
       params.append('limit', '50')
-      
-      const response = await fetch(`/api/venues?${params.toString()}`, buildNoStoreInit())
+
+      const response = await fetch(`/api/admin/venues?${params.toString()}`, buildNoStoreInit())
       if (response.ok) {
         const data = await response.json()
         setVenues(data.venues || [])
       } else {
-        console.error('Failed to fetch venues:', response.statusText)
         setVenues([])
       }
-    } catch (error) {
-      console.error('Error fetching venues:', error)
+    } catch {
       setVenues([])
     } finally {
       setIsLoadingVenues(false)
     }
+  }
+
+  const moveStop = (index: number, direction: 'up' | 'down') => {
+    const route = [...tourData.route]
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (targetIndex < 0 || targetIndex >= route.length) return
+    ;[route[index], route[targetIndex]] = [route[targetIndex], route[index]]
+    updateTourData({ route })
   }
 
   // Load venues on component mount
@@ -117,9 +125,9 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
 
   const handleVenueSelect = (venue: any) => {
     setNewRouteItem({
+      ...newRouteItem,
       city: venue.city || "",
-      venue: venue.venue_name,
-      date: newRouteItem.date
+      venue: venue.name || venue.venue_name || "",
     })
     setShowVenueBrowser(false)
   }
@@ -220,56 +228,82 @@ export function RoutingDatesStep({ tourData, updateTourData }: RoutingDatesStepP
           </Button>
         </Card>
 
-        {/* Route List */}
-        <div className="space-y-3">
-          {tourData.route.map((item, index) => (
-            <Card key={index} className="p-4 bg-slate-900/30 border-slate-700">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-purple-500/20 border border-purple-500/40">
-                    <span className="text-sm font-medium text-purple-400">{index + 1}</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <MapPin className="w-4 h-4 text-slate-400" />
-                      <span className="font-medium text-white">{item.city}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Building2 className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{item.venue}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <Clock className="w-4 h-4 text-slate-400" />
-                      <span className="text-slate-300">{formatSafeDate(item.date)}</span>
-                    </div>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveRouteItem(index)}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          ))}
-        </div>
-
-        {/* Route Map Placeholder */}
+        {/* Route List — sortable via up/down buttons */}
         {tourData.route.length > 0 && (
-          <Card className="p-6 bg-slate-900/30 border-slate-700">
-            <div className="flex items-center space-x-2 mb-4">
-              <MapPin className="w-5 h-5 text-purple-400" />
-              <h4 className="text-white font-medium">Tour Route Map</h4>
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500">{tourData.route.length} stop{tourData.route.length !== 1 ? 's' : ''} — drag to reorder using ↑↓ buttons</p>
+            {tourData.route.map((item, index) => (
+              <Card key={index} className="p-4 bg-slate-900/30 border-slate-700">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Reorder buttons */}
+                  <div className="flex flex-col gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => moveStop(index, 'up')}
+                      disabled={index === 0}
+                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                      aria-label="Move up"
+                    >
+                      <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveStop(index, 'down')}
+                      disabled={index === tourData.route.length - 1}
+                      className="p-0.5 text-slate-500 hover:text-white disabled:opacity-30"
+                      aria-label="Move down"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-purple-500/20 border border-purple-500/40 shrink-0">
+                    <span className="text-xs font-medium text-purple-400">{index + 1}</span>
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="font-medium text-white truncate">{item.city}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="text-slate-300 text-sm truncate">{item.venue}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="text-slate-400 text-xs">{formatSafeDate(item.date)}</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveRouteItem(index)}
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0 shrink-0"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Route summary map (static visual) */}
+        {tourData.route.length > 1 && (
+          <Card className="p-4 bg-slate-900/30 border-slate-700">
+            <div className="flex items-center gap-2 mb-3">
+              <MapPin className="w-4 h-4 text-purple-400" />
+              <h4 className="text-white text-sm font-medium">Route Overview</h4>
             </div>
-            <div className="h-64 bg-slate-800/50 rounded-lg border border-slate-700 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-12 h-12 text-slate-500 mx-auto mb-2" />
-                <p className="text-slate-400">Interactive map visualization</p>
-                <p className="text-slate-500 text-sm">Would show route between {tourData.route.length} venues</p>
-              </div>
+            <div className="flex items-center gap-1 flex-wrap">
+              {tourData.route.map((item, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  <span className="text-xs bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full">{item.city || item.venue}</span>
+                  {i < tourData.route.length - 1 && <span className="text-slate-600 text-xs">→</span>}
+                </span>
+              ))}
             </div>
           </Card>
         )}

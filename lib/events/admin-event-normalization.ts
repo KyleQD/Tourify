@@ -110,3 +110,5 @@ export function isUpcomingAdminEvent(input: { status?: string; event_date?: stri
   startOfToday.setHours(0, 0, 0, 0)
   return eventDate >= startOfToday
 }
+
+export { formatSafeCurrency } from "@/lib/format/number-format"

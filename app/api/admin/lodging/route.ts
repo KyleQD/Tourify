@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
 
 function ok(data: unknown) {
   return NextResponse.json({ success: true, data })
@@ -16,6 +16,8 @@ function err(message: string, status = 400) {
 async function requireAuth(request: NextRequest) {
   const auth = await authenticateApiRequest(request)
   if (!auth) return { auth: null as never, denied: err('Unauthorized', 401) }
+  const isAdmin = await checkAdminPermissions(auth.user)
+  if (!isAdmin) return { auth: null as never, denied: err('Forbidden', 403) }
   return { auth, denied: null }
 }
 

@@ -17,20 +17,20 @@ async function hasVenueAccess() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { allowed: false, reason: "unauthenticated" as const }
 
-  const [{ data: venueProfile }, { data: accountProfile }] = await Promise.all([
+  const [{ data: venueRows }, { data: accountProfile }] = await Promise.all([
     supabase
       .from("venue_profiles")
       .select("id")
       .or(`user_id.eq.${user.id},main_profile_id.eq.${user.id}`)
-      .limit(1)
-      .maybeSingle(),
+      .limit(1),
     supabase
       .from("profiles")
       .select("account_type")
-      .or(`user_id.eq.${user.id},id.eq.${user.id}`)
-      .limit(1)
+      .eq("id", user.id)
       .maybeSingle(),
   ])
+
+  const venueProfile = venueRows?.[0]
 
   if (venueProfile?.id) return { allowed: true as const }
   if (accountProfile?.account_type === "venue") return { allowed: true as const }

@@ -11,11 +11,9 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      console.log('[Site Maps API] No user found in session')
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
     
-    console.log('[Site Maps API] User authenticated:', user.id)
 
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('eventId')
@@ -69,7 +67,6 @@ export async function GET(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('[Site Maps API] Successfully fetched site maps:', data?.length || 0)
 
     return NextResponse.json({ 
       success: true, 
@@ -91,11 +88,9 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) {
-      console.log('[Site Maps API] No user found in session')
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
     
-    console.log('[Site Maps API] User authenticated:', user.id)
 
     // Handle both FormData and JSON requests
     let body: CreateSiteMapRequest
@@ -107,16 +102,6 @@ export async function POST(request: NextRequest) {
       // Handle FormData
       const formData = await request.formData()
       const backgroundImage = formData.get('backgroundImage')
-      console.log('[Site Maps API] FormData received:', {
-        name: formData.get('name'),
-        description: formData.get('description'),
-        environment: formData.get('environment'),
-        width: formData.get('width'),
-        height: formData.get('height'),
-        eventId: formData.get('eventId'),
-        tourId: formData.get('tourId'),
-        hasBackgroundImage: backgroundImage instanceof File
-      })
 
       if (backgroundImage instanceof File && backgroundImage.size > 0) {
         const fileExtension = backgroundImage.name.split('.').pop() || 'png'
@@ -149,7 +134,7 @@ export async function POST(request: NextRequest) {
         width: parseInt(formData.get('width') as string) || 1000,
         height: parseInt(formData.get('height') as string) || 1000,
         scale: parseFloat(formData.get('scale') as string) || 1.0,
-        scaleUnit: formData.get('scaleUnit') as string || 'meters',
+        scaleUnit: (formData.get('scaleUnit') as 'feet' | 'meters' | null) || 'meters',
         templateId: formData.get('templateId') as string || undefined,
         backgroundColor: formData.get('backgroundColor') as string || '#f8f9fa',
         gridEnabled: formData.get('gridEnabled') === 'true',
@@ -220,7 +205,6 @@ export async function POST(request: NextRequest) {
         created_by: user.id
     }
 
-    console.log('[Site Maps API] Inserting site map with payload:', payload)
     
     // Use the authenticated client
     const { data, error } = await supabase
@@ -247,7 +231,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
     
-    console.log('[Site Maps API] Site map created successfully:', data.id)
 
     // Seed elements from selected template (if provided)
     if ((body as any).templateId && (body as any).templateId !== 'blank') {

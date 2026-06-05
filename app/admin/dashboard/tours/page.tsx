@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
+import { AdminFilterBar } from "../components/admin-filter-bar"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/hooks/use-toast"
 import {
   Users,
@@ -80,6 +80,7 @@ export default function ToursPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [filterStatus, setFilterStatus] = useState('all')
+  const [searchTerm, setSearchTerm] = useState('')
   const [tours, setTours] = useState<Tour[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [fetchError, setFetchError] = useState<string | null>(null)
@@ -227,9 +228,13 @@ export default function ToursPage() {
     )
   }
 
-  const filteredTours = tours.filter(
-    (tour) => filterStatus === 'all' || tour.status === filterStatus
-  )
+  const filteredTours = tours.filter((tour) => {
+    const matchesStatus = filterStatus === 'all' || tour.status === filterStatus
+    const matchesSearch = !searchTerm ||
+      (tour.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (tour.artist || '').toLowerCase().includes(searchTerm.toLowerCase())
+    return matchesStatus && matchesSearch
+  })
 
   const TourCard = ({ tour }: { tour: any }) => {
     // Safely extract values with fallbacks
@@ -346,26 +351,13 @@ export default function ToursPage() {
           subtitle="Plan, coordinate, and track all your tour operations"
           icon={Globe}
           actions={
-            <>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="w-40 bg-slate-800/50 border-slate-700/50 text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="planning">Planning</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                onClick={() => router.push("/admin/dashboard/tours/planner")}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-lg shadow-purple-500/20 transition-all duration-300"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Create Tour
-              </Button>
-            </>
+            <Button
+              onClick={() => router.push("/admin/dashboard/tours/planner")}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 shadow-lg shadow-purple-500/20 transition-all duration-300"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create Tour
+            </Button>
           }
         />
 
@@ -408,6 +400,21 @@ export default function ToursPage() {
             isLoading={isLoading}
           />
         </div>
+
+        {/* Filters and Search */}
+        <AdminFilterBar
+          searchPlaceholder="Search tours..."
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusOptions={[
+            { value: "all", label: "All Status" },
+            { value: "planning", label: "Planning" },
+            { value: "active", label: "Active" },
+            { value: "completed", label: "Completed" },
+          ]}
+          statusValue={filterStatus}
+          onStatusChange={setFilterStatus}
+        />
 
         {/* Loading State */}
         {isLoading ? (

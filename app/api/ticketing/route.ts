@@ -9,9 +9,11 @@ const stripe = getStripeOrNull()
 const purchaseTicketSchema = z.object({
   ticket_type_id: z.string().uuid('Invalid ticket type ID'),
   event_id: z.string().uuid('Invalid event ID'),
-  customer_email: z.string().email('Invalid customer email'),
-  customer_name: z.string().min(1, 'Customer name is required'),
-  customer_phone: z.string().optional(),
+  buyer_email: z.string().email('Invalid buyer email'),
+  buyer_name: z.string().min(1, 'Buyer name is required'),
+  // Accept legacy field names from older UI
+  customer_email: z.string().email().optional(),
+  customer_name: z.string().optional(),
   quantity: z.number().int().min(1, 'Quantity must be at least 1'),
   payment_method: z.enum(['stripe', 'paypal']).default('stripe'),
   metadata: z.record(z.any()).optional()
@@ -43,11 +45,11 @@ export async function GET(request: NextRequest) {
         .from('ticket_types')
         .select(`
           *,
-          events:event_id (
+          event:event_id (
             id,
             title,
-            date,
-            location
+            start_at,
+            end_at
           )
         `)
         .eq('id', ticket_type_id)
@@ -73,7 +75,7 @@ export async function GET(request: NextRequest) {
           sale_start: ticketType.sale_start,
           sale_end: ticketType.sale_end
         },
-        event: ticketType.events
+        event: ticketType.event
       })
 
     } else if (action === 'event_tickets') {
@@ -86,11 +88,11 @@ export async function GET(request: NextRequest) {
         .from('ticket_types')
         .select(`
           *,
-          events:event_id (
+          event:event_id (
             id,
             title,
-            date,
-            location
+            start_at,
+            end_at
           )
         `)
         .eq('event_id', event_id)
@@ -149,13 +151,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Not enough tickets available' }, { status: 400 })
       }
 
+      // Coerce legacy customer_* fields to buyer_*
+      const buyerEmail = validatedData.buyer_email || validatedData.customer_email || ''
+      const buyerName = validatedData.buyer_name || validatedData.customer_name || ''
+
       // Check max per customer limit
       if (ticketType.max_per_customer) {
         const { data: existingSales } = await supabase
           .from('ticket_sales')
           .select('quantity')
           .eq('ticket_type_id', validatedData.ticket_type_id)
-          .eq('customer_email', validatedData.customer_email)
+          .eq('buyer_email', buyerEmail)
           .neq('payment_status', 'refunded')
 
         const existingQuantity = existingSales?.reduce((sum: number, sale: any) => sum + sale.quantity, 0) || 0
@@ -166,18 +172,22 @@ export async function POST(request: NextRequest) {
 
       // Calculate total amount
       const total_amount = ticketType.price * validatedData.quantity
-      const fees = total_amount * 0.03 // 3% processing fee
       const order_number = `TKT${Date.now()}${Math.floor(Math.random() * 1000)}`
 
-      // Create pending sale record
+      // Create pending sale record using canonical column names
       const { data: sale, error: saleError } = await supabase
         .from('ticket_sales')
         .insert({
-          ...validatedData,
+          ticket_type_id: validatedData.ticket_type_id,
+          event_id: validatedData.event_id,
+          buyer_email: buyerEmail,
+          buyer_name: buyerName,
+          quantity: validatedData.quantity,
+          unit_price: ticketType.price,
           total_amount,
-          fees,
-          order_number,
-          payment_status: 'pending'
+          payment_method: validatedData.payment_method,
+          payment_status: 'pending',
+          metadata: { order_number, ...(validatedData.metadata ?? {}) },
         })
         .select('*')
         .single()
@@ -209,13 +219,13 @@ export async function POST(request: NextRequest) {
         ],
         mode: 'payment',
         success_url: `${process.env.NEXT_PUBLIC_APP_URL}/tickets/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/tickets/cancel?order_number=${order_number}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/tickets/cancel?order=${order_number}`,
         metadata: {
           sale_id: sale.id,
           order_number,
           ticket_type_id: validatedData.ticket_type_id,
           event_id: validatedData.event_id,
-          customer_email: validatedData.customer_email
+          buyer_email: buyerEmail,
         },
       })
 

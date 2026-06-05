@@ -754,11 +754,12 @@ function IssueReporter({ onSubmit }: { onSubmit: (title: string, severity: strin
   )
 }
 
-function TaskCreator({ onSubmit, onCancel, eventId, elementId }: {
+function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
   onSubmit: (title: string, description: string, priority: string, assignedTo?: string, assignedToName?: string, dueDate?: string) => void
   onCancel: () => void
   eventId?: string
   elementId?: string | null
+  siteMapId?: string
 }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')

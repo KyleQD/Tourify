@@ -105,6 +105,27 @@ async function resolveUserRole(svc: any, eventId: string, userId: string) {
     return { event, role: staffShift.role || 'staff', permissions: VIEWER_PERMISSIONS }
   }
 
+  // Last resort: check if user is an org member for this event's org (admin access)
+  const { data: orgMember } = await svc
+    .from('org_members')
+    .select('org_id, role')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle()
+
+  if (orgMember?.org_id) {
+    const { data: orgEvent } = await svc
+      .from('events_v2')
+      .select('id')
+      .eq('id', eventId)
+      .eq('org_id', orgMember.org_id)
+      .maybeSingle()
+
+    if (orgEvent) {
+      return { event, role: 'admin' as const, permissions: ADMIN_PERMISSIONS }
+    }
+  }
+
   return { event: null, role: null, permissions: VIEWER_PERMISSIONS }
 }
 

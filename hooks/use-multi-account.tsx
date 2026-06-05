@@ -6,6 +6,52 @@ import { useAuth } from '@/contexts/auth-context'
 import { AccountManagementService, UserAccount, ActiveSession } from '@/lib/services/account-management.service'
 
 const ACCOUNTS_FETCH_TIMEOUT_MS = 22_000
+const ACTIVE_ACCOUNT_STORAGE_KEY = 'tourify.active-account'
+
+interface StoredActiveAccount {
+  userId: string
+  profileId: string
+  accountType: string
+}
+
+function readStoredActiveAccount(userId: string): StoredActiveAccount | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_ACCOUNT_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as StoredActiveAccount
+    if (parsed.userId !== userId) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeStoredActiveAccount(userId: string, profileId: string, accountType: string) {
+  if (typeof window === 'undefined') return
+  try {
+    sessionStorage.setItem(
+      ACTIVE_ACCOUNT_STORAGE_KEY,
+      JSON.stringify({ userId, profileId, accountType })
+    )
+  } catch {
+    // ignore storage quota errors
+  }
+}
+
+function findAccountInList(
+  userAccounts: UserAccount[],
+  profileId: string,
+  accountType: string
+): UserAccount | null {
+  return (
+    userAccounts.find(
+      acc => acc.profile_id === profileId && acc.account_type === accountType
+    ) ??
+    userAccounts.find(acc => acc.account_type === accountType && acc.is_active) ??
+    null
+  )
+}
 
 function fallbackGeneralAccounts(user: User): UserAccount[] {
   const handle = user.email?.split('@')[0] || `user-${user.id.slice(0, 8)}`
@@ -35,6 +81,38 @@ function fallbackGeneralAccounts(user: User): UserAccount[] {
       is_active: true,
     },
   ]
+}
+
+function resolveAccountFromSession(
+  userAccounts: UserAccount[],
+  session: ActiveSession,
+  userId: string
+): UserAccount | null {
+  const directMatch = userAccounts.find(
+    acc =>
+      acc.profile_id === session.active_profile_id &&
+      acc.account_type === session.active_account_type
+  )
+  if (directMatch) return directMatch
+
+  const sessionAccountId = session.session_data?.account_profile_id as string | undefined
+  if (sessionAccountId) {
+    const subAccountMatch = userAccounts.find(
+      acc =>
+        acc.profile_id === sessionAccountId &&
+        acc.account_type === session.active_account_type
+    )
+    if (subAccountMatch) return subAccountMatch
+  }
+
+  if (session.active_account_type !== 'general' && session.active_profile_id === userId) {
+    return (
+      userAccounts.find(acc => acc.account_type === session.active_account_type && acc.is_active) ??
+      null
+    )
+  }
+
+  return null
 }
 
 interface MultiAccountContextType {
@@ -199,10 +277,18 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       }
       
       if (!newActiveAccount && session) {
-        newActiveAccount = userAccounts.find(acc =>
-          acc.profile_id === session.active_profile_id &&
-          acc.account_type === session.active_account_type
-        ) ?? null
+        newActiveAccount = resolveAccountFromSession(userAccounts, session, user.id)
+      }
+
+      if (!newActiveAccount) {
+        const stored = readStoredActiveAccount(user.id)
+        if (stored) {
+          newActiveAccount = findAccountInList(
+            userAccounts,
+            stored.profileId,
+            stored.accountType
+          )
+        }
       }
       
       if (!newActiveAccount) {
@@ -235,9 +321,8 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       
       setError(errorMessage)
 
-      const fb = fallbackGeneralAccounts(user)
-      setAccounts(fb)
-      setActiveAccount(fb[0] ?? null)
+      setAccounts(prev => (prev.length > 0 ? prev : fallbackGeneralAccounts(user)))
+      setActiveAccount(prev => prev ?? fallbackGeneralAccounts(user)[0] ?? null)
       setActiveSession(null)
     } finally {
       setIsLoading(false)
@@ -247,33 +332,34 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
   const switchAccount = async (profileId: string, accountType: string): Promise<boolean> => {
     if (!user?.id) return false
 
-    try {
-      setError(null)
-      const success = await AccountManagementService.switchAccount(user.id, profileId, accountType as any)
-      
-      if (success) {
-        const targetAccount = accounts.find(acc => 
-          acc.profile_id === profileId && acc.account_type === accountType
-        )
-        if (targetAccount) {
-          setActiveAccount(targetAccount)
-        }
-        
-        // Refresh session (gracefully handle if session tables don't exist)
+    const targetAccount = findAccountInList(accounts, profileId, accountType)
+    if (!targetAccount) {
+      setError(`No active ${accountType} account found`)
+      return false
+    }
+
+    setError(null)
+    setActiveAccount(targetAccount)
+    writeStoredActiveAccount(user.id, targetAccount.profile_id, targetAccount.account_type)
+
+    void AccountManagementService.switchAccount(
+      user.id,
+      targetAccount.profile_id,
+      targetAccount.account_type as Parameters<typeof AccountManagementService.switchAccount>[2]
+    )
+      .then(async () => {
         try {
           const session = await AccountManagementService.getActiveSession(user.id)
           setActiveSession(session)
-        } catch (sessionError) {
-          console.log('Session management not available:', sessionError)
+        } catch {
+          // session table optional
         }
-      }
-      
-      return success
-    } catch (err) {
-      console.error('Error switching account:', err)
-      setError(err instanceof Error ? err.message : 'Failed to switch account')
-      return false
-    }
+      })
+      .catch(err => {
+        console.warn('[MultiAccount] Session persist failed (non-fatal):', err)
+      })
+
+    return true
   }
 
   // Check if user has a specific account type

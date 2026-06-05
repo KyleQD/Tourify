@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { Card } from '@/components/ui/card'
 import { Loader2, Shield, AlertTriangle } from 'lucide-react'
-import { EnhancedNotificationCenter } from '@/components/notifications/enhanced-notification-center'
 import { AccountRouteGuard } from '@/components/account/account-route-guard'
 import './globals.css'
 
@@ -71,9 +70,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="text-white">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded focus:bg-purple-600 focus:text-white focus:text-sm focus:font-medium focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       <AccountRouteGuard />
       {children}
-      <EnhancedNotificationCenter />
     </div>
   )
 } 

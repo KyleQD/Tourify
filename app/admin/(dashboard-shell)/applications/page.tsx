@@ -117,6 +117,11 @@ export default function ApplicationsPage() {
   const [auditSearchQuery, setAuditSearchQuery] = useState('')
   const [auditCurlAuthMode, setAuditCurlAuthMode] = useState<'bearer' | 'cookie'>('bearer')
   const [activeAuditPreset, setActiveAuditPreset] = useState<AuditPreset>('all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showBulkMessageDialog, setShowBulkMessageDialog] = useState(false)
+  const [bulkMessageSubject, setBulkMessageSubject] = useState('')
+  const [bulkMessageBody, setBulkMessageBody] = useState('')
+  const [sendingBulkMessage, setSendingBulkMessage] = useState(false)
   const { toast } = useToast()
   const { venue } = useCurrentVenueRoot()
 
@@ -642,6 +647,66 @@ export default function ApplicationsPage() {
   const uniqueJobs = Array.from(new Set(applications.map(app => app.job_posting_id)))
   const statusOptions = ['all', 'pending', 'reviewed', 'approved', 'rejected', 'shortlisted', 'withdrawn']
 
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filteredApplications.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredApplications.map(a => a.id)))
+    }
+  }
+
+  function exportSelected() {
+    const toExport = selectedIds.size > 0
+      ? filteredApplications.filter(a => selectedIds.has(a.id))
+      : filteredApplications
+    const rows = toExport.map(a => [
+      `"${a.applicant_name || ''}"`,
+      `"${a.applicant_email || ''}"`,
+      `"${a.job_posting?.title || ''}"`,
+      `"${a.status}"`,
+      `"${a.applied_at || ''}"`,
+      `"${(a as any).resume_url || ''}"`,
+    ].join(','))
+    const csv = ['Name,Email,Job Title,Status,Applied At,Resume URL', ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const el = document.createElement('a')
+    el.href = url
+    el.download = `applications-${new Date().toISOString().slice(0, 10)}.csv`
+    el.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function sendBulkMessage() {
+    if (!bulkMessageBody.trim()) return
+    const recipientIds = selectedIds.size > 0
+      ? filteredApplications.filter(a => selectedIds.has(a.id)).map(a => a.applicant_id).filter(Boolean)
+      : []
+    if (recipientIds.length === 0) { return }
+    setSendingBulkMessage(true)
+    try {
+      await fetch('/api/admin/messages/broadcast', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientGroup: 'custom', recipientIds, message: bulkMessageBody, subject: bulkMessageSubject }),
+      })
+      setShowBulkMessageDialog(false)
+      setBulkMessageSubject('')
+      setBulkMessageBody('')
+    } catch { /* non-fatal */ } finally {
+      setSendingBulkMessage(false)
+    }
+  }
+
   if (!venueId && !isLoading) {
     return (
       <div className="flex justify-center py-16">
@@ -699,13 +764,17 @@ export default function ApplicationsPage() {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">
+            <Button variant="outline" onClick={exportSelected}>
               <Download className="h-4 w-4 mr-2" />
-              Export
+              Export {selectedIds.size > 0 ? `(${selectedIds.size})` : 'All'}
             </Button>
-            <Button className="bg-purple-600 hover:bg-purple-700">
+            <Button
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkMessageDialog(true)}
+            >
               <Send className="h-4 w-4 mr-2" />
-              Send Bulk Message
+              Message Selected ({selectedIds.size})
             </Button>
           </div>
         </div>
@@ -753,6 +822,22 @@ export default function ApplicationsPage() {
         </div>
       </div>
 
+      {/* Bulk actions toolbar */}
+      {filteredApplications.length > 0 && (
+        <div className="px-6 py-3 border-b border-slate-700 flex items-center gap-3 bg-slate-800/30">
+          <input
+            type="checkbox"
+            checked={selectedIds.size === filteredApplications.length && filteredApplications.length > 0}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 accent-purple-500"
+            aria-label="Select all"
+          />
+          <span className="text-slate-400 text-sm">
+            {selectedIds.size > 0 ? `${selectedIds.size} selected` : `${filteredApplications.length} application${filteredApplications.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
+      )}
+
       {/* Applications List */}
       <div className="p-6">
         <div className="grid gap-4">
@@ -768,9 +853,18 @@ export default function ApplicationsPage() {
             />
           ) : (
             filteredApplications.map((application) => (
+              <div key={application.id} className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.has(application.id)}
+                  onChange={() => toggleSelect(application.id)}
+                  className="mt-5 w-4 h-4 accent-purple-500 shrink-0"
+                  onClick={e => e.stopPropagation()}
+                  aria-label={`Select ${application.applicant_name || application.applicant_email}`}
+                />
               <Card 
                 key={application.id} 
-                className={`bg-slate-800 border-slate-700 hover:border-slate-600 transition-colors cursor-pointer ${getPriorityColor(application)}`}
+                className={`bg-slate-800 border-slate-700 hover:border-slate-600 transition-colors cursor-pointer flex-1 ${getPriorityColor(application)}`}
                 onClick={() => {
                   setSelectedApplication(application)
                   setShowApplicationModal(true)
@@ -830,10 +924,38 @@ export default function ApplicationsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             ))
           )}
         </div>
       </div>
+
+      {/* Bulk Message Dialog */}
+      <Dialog open={showBulkMessageDialog} onOpenChange={setShowBulkMessageDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Send Bulk Message</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-slate-400 text-sm">Sending to {selectedIds.size} selected applicant{selectedIds.size !== 1 ? 's' : ''}.</p>
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Subject</Label>
+              <Input value={bulkMessageSubject} onChange={e => setBulkMessageSubject(e.target.value)} placeholder="Message subject..." className="bg-slate-800/50 border-slate-700/50 text-white" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-slate-300">Message *</Label>
+              <Textarea value={bulkMessageBody} onChange={e => setBulkMessageBody(e.target.value)} placeholder="Your message..." className="bg-slate-800/50 border-slate-700/50 text-white min-h-[100px]" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowBulkMessageDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+            <Button onClick={sendBulkMessage} disabled={sendingBulkMessage || !bulkMessageBody.trim()} className="bg-purple-600 hover:bg-purple-700 text-white">
+              <Send className="h-4 w-4 mr-2" />
+              {sendingBulkMessage ? 'Sending...' : 'Send Message'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Application Detail Modal */}
       <Dialog open={showApplicationModal} onOpenChange={setShowApplicationModal}>

@@ -87,62 +87,103 @@ export function EnhancedGlobalSearch({
 
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
-  // Mock search function - replace with real API
+  // Real search function — queries admin APIs in parallel
   const performSearch = useCallback(async (query: string): Promise<SearchCategory[]> => {
     if (!query.trim()) return []
 
     setIsSearching(true)
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 500))
 
+    try {
+      const q = encodeURIComponent(query)
+      const [toursRes, eventsRes, artistsRes, venuesRes] = await Promise.allSettled([
+        fetch(`/api/admin/tours?search=${q}&limit=5`, { credentials: 'include' }),
+        fetch(`/api/admin/events?search=${q}&limit=5`, { credentials: 'include' }),
+        fetch(`/api/search?q=${q}&type=artists&limit=5`, { credentials: 'include' }),
+        fetch(`/api/search?q=${q}&type=venues&limit=5`, { credentials: 'include' }),
+      ])
+
+      const tourItems: SearchResult[] = []
+      if (toursRes.status === 'fulfilled' && toursRes.value.ok) {
+        const d = await toursRes.value.json()
+        for (const t of d.tours || []) {
+          tourItems.push({
+            id: t.id,
+            type: 'tour',
+            title: t.name || t.title || 'Untitled Tour',
+            subtitle: t.artist_name || '',
+            url: `/admin/dashboard/tours/${t.id}`,
+            badge: t.status,
+            badgeColor: t.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-slate-500/20 text-slate-400',
+          })
+        }
+      }
+
+      const eventItems: SearchResult[] = []
+      if (eventsRes.status === 'fulfilled' && eventsRes.value.ok) {
+        const d = await eventsRes.value.json()
+        for (const e of d.events || []) {
+          eventItems.push({
+            id: e.id,
+            type: 'event',
+            title: e.name || e.title || 'Untitled Event',
+            subtitle: e.venue_name || '',
+            url: `/admin/dashboard/events/${e.id}`,
+            badge: e.status,
+            badgeColor: 'bg-blue-500/20 text-blue-400',
+          })
+        }
+      }
+
+      const artistItems: SearchResult[] = []
+      if (artistsRes.status === 'fulfilled' && artistsRes.value.ok) {
+        const d = await artistsRes.value.json()
+        for (const a of (d.results || d.artists || [])) {
+          artistItems.push({
+            id: a.id,
+            type: 'artist',
+            title: a.display_name || a.name || a.username || 'Unknown Artist',
+            subtitle: (a.genres || []).join(', ') || 'Artist',
+            url: `/admin/dashboard/artists/${a.id}`,
+            image: a.avatar_url,
+          })
+        }
+      }
+
+      const venueItems: SearchResult[] = []
+      if (venuesRes.status === 'fulfilled' && venuesRes.value.ok) {
+        const d = await venuesRes.value.json()
+        for (const v of (d.results || d.venues || [])) {
+          venueItems.push({
+            id: v.id,
+            type: 'venue',
+            title: v.venue_name || v.name || 'Unknown Venue',
+            subtitle: [v.city, v.state].filter(Boolean).join(', '),
+            url: `/admin/dashboard/venues/${v.id}`,
+          })
+        }
+      }
+
+      const categories: SearchCategory[] = []
+      if (tourItems.length) categories.push({ type: 'tour', label: 'Tours', icon: Globe, count: tourItems.length, results: tourItems })
+      if (eventItems.length) categories.push({ type: 'event', label: 'Events', icon: Calendar, count: eventItems.length, results: eventItems })
+      if (artistItems.length) categories.push({ type: 'artist', label: 'Artists', icon: Music, count: artistItems.length, results: artistItems })
+      if (venueItems.length) categories.push({ type: 'venue', label: 'Venues', icon: Building, count: venueItems.length, results: venueItems })
+
+      setIsSearching(false)
+      return categories
+    } catch {
+      setIsSearching(false)
+      return []
+    }
+
+    // Fallback empty (unreachable — real results returned above)
     const mockResults: SearchResult[] = [
-      // Tours
       {
-        id: "tour-1",
-        type: "tour",
-        title: "West Coast Summer Tour",
-        subtitle: "The Electric Waves • 12 events",
-        description: "Major summer tour covering California, Oregon, and Washington",
-        url: "/admin/dashboard/tours/tour-1",
-        badge: "Active",
-        badgeColor: "bg-green-500/20 text-green-400",
-        metadata: { revenue: 485000, progress: 42, status: "active" }
-      },
-      {
-        id: "tour-2",
-        type: "tour",
-        title: "European Festival Circuit",
-        subtitle: "Acoustic Soul • 8 events",
-        description: "European festival tour for summer 2025",
-        url: "/admin/dashboard/tours/tour-2",
-        badge: "Planning",
-        badgeColor: "bg-yellow-500/20 text-yellow-400",
-        metadata: { revenue: 0, progress: 15, status: "planning" }
-      },
-
-      // Events
-      {
-        id: "event-1",
+        id: "fallback",
         type: "event",
-        title: "Summer Music Festival",
-        subtitle: "Central Park • Today",
-        description: "Main summer festival event with The Electric Waves",
-        url: "/admin/dashboard/events/event-1",
-        badge: "Live",
-        badgeColor: "bg-red-500/20 text-red-400",
-        metadata: { capacity: 5000, ticketsSold: 4200, status: "live" }
-      },
-      {
-        id: "event-2",
-        type: "event",
-        title: "Indie Rock Night",
-        subtitle: "Madison Square Garden • Tomorrow",
-        description: "Intimate acoustic performance",
-        url: "/admin/dashboard/events/event-2",
-        badge: "Confirmed",
-        badgeColor: "bg-blue-500/20 text-blue-400",
-        metadata: { capacity: 8000, ticketsSold: 7200, status: "confirmed" }
+        title: "",
+        subtitle: "",
+        url: "/admin/dashboard/events",
       },
 
       // People

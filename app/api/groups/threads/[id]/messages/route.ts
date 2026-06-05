@@ -5,8 +5,16 @@ import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session
 
 const threadIdSchema = z.string().uuid({ message: 'Invalid thread id' })
 const messageBodySchema = z.object({
-  content: z.string().trim().min(1).max(2000),
+  content: z.string().trim().max(2000).optional(),
   message_type: z.string().max(40).optional(),
+  attachments: z.array(z.object({
+    url: z.string().url(),
+    name: z.string().min(1),
+    type: z.enum(['image', 'file', 'audio']),
+    size: z.number().int().nonnegative(),
+  })).default([]),
+}).refine((data) => Boolean(data.content?.trim()) || data.attachments.length > 0, {
+  message: 'Message content or attachments are required',
 })
 
 const listQuerySchema = z.object({
@@ -77,6 +85,7 @@ export async function GET(request: NextRequest) {
         content,
         message_type,
         mentions,
+        attachments,
         read_by,
         created_at,
         sender:profiles!sender_id(id, username, full_name, avatar_url)
@@ -121,8 +130,8 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
 
-    const { content, message_type } = parsedBody.data
-    const usernames = extractMentionUsernames(content)
+    const { content, message_type, attachments } = parsedBody.data
+    const usernames = extractMentionUsernames(content || '')
     let mentionIds: string[] = []
     if (usernames.length > 0) {
       const { data: mentionProfiles } = await supabase
@@ -147,9 +156,10 @@ export async function POST(request: NextRequest) {
       .insert({
         thread_id: parsedId.data,
         sender_id: user.id,
-        content,
+        content: content?.trim() || '(attachment)',
         message_type: message_type || 'text',
         mentions: mentionIds,
+        attachments,
       })
       .select(`
         id,
@@ -158,6 +168,7 @@ export async function POST(request: NextRequest) {
         content,
         message_type,
         mentions,
+        attachments,
         read_by,
         created_at,
         sender:profiles!sender_id(id, username, full_name, avatar_url)

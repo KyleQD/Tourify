@@ -88,6 +88,16 @@ interface Geofence {
 }
 
 export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipmentTrackerProps) {
+  // Real-time equipment tracking requires GPS hardware integration — coming in a future phase
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center space-y-3">
+      <div className="h-14 w-14 rounded-sm bg-slate-800/80 border border-slate-700/50 flex items-center justify-center">
+        <MapPin className="h-7 w-7 text-slate-400" />
+      </div>
+      <h3 className="text-white font-medium">Equipment Tracking</h3>
+      <p className="text-slate-500 text-sm max-w-xs">Real-time GPS equipment tracking requires hardware integration and will be available in a future phase.</p>
+    </div>
+  )
   const { toast } = useToast()
   const [trackingData, setTrackingData] = useState<EquipmentTrackingData[]>([])
   const [alerts, setAlerts] = useState<TrackingAlert[]>([])
@@ -592,8 +602,8 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                {getStatusIcon(selectedEquipment.status)}
-                {selectedEquipment.equipmentName}
+                {getStatusIcon(selectedEquipment!.status)}
+                {selectedEquipment!.equipmentName}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
@@ -603,15 +613,15 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span>Latitude:</span>
-                      <span>{selectedEquipment.latitude.toFixed(6)}</span>
+                      <span>{selectedEquipment!.latitude.toFixed(6)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Longitude:</span>
-                      <span>{selectedEquipment.longitude.toFixed(6)}</span>
+                      <span>{selectedEquipment!.longitude.toFixed(6)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Accuracy:</span>
-                      <span>±{selectedEquipment.accuracy}m</span>
+                      <span>±{selectedEquipment!.accuracy}m</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Last Update:</span>
@@ -621,7 +631,7 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
                         day: "numeric",
                         hour: "numeric",
                         minute: "2-digit",
-                      }).format(new Date(selectedEquipment.lastUpdate))}</span>
+                      }).format(new Date(selectedEquipment!.lastUpdate))}</span>
                     </div>
                   </div>
                 </div>
@@ -632,67 +642,67 @@ export function RealTimeEquipmentTracker({ vendorId, siteMapId }: RealTimeEquipm
                     <div className="flex justify-between">
                       <span>Battery Level:</span>
                       <span className="flex items-center gap-1">
-                        {getBatteryIcon(selectedEquipment.batteryLevel)}
-                        {selectedEquipment.batteryLevel}%
+                        {getBatteryIcon(selectedEquipment!.batteryLevel)}
+                        {selectedEquipment!.batteryLevel}%
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Signal Strength:</span>
                       <span className="flex items-center gap-1">
-                        {getSignalIcon(selectedEquipment.signalStrength, selectedEquipment.isOnline)}
-                        {selectedEquipment.signalStrength}/5
+                        {getSignalIcon(selectedEquipment!.signalStrength, selectedEquipment!.isOnline)}
+                        {selectedEquipment!.signalStrength}/5
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Status:</span>
-                      <Badge className={getStatusColor(selectedEquipment.status)}>
-                        {selectedEquipment.status}
+                      <Badge className={getStatusColor(selectedEquipment!.status)}>
+                        {selectedEquipment!.status}
                       </Badge>
                     </div>
                     <div className="flex justify-between">
                       <span>Online:</span>
-                      <Badge variant={selectedEquipment.isOnline ? "default" : "destructive"}>
-                        {selectedEquipment.isOnline ? "Yes" : "No"}
+                      <Badge variant={selectedEquipment!.isOnline ? "default" : "destructive"}>
+                        {selectedEquipment!.isOnline ? "Yes" : "No"}
                       </Badge>
                     </div>
                   </div>
                 </div>
               </div>
               
-              {selectedEquipment.temperature && (
+              {selectedEquipment!.temperature && (
                 <div>
                   <h4 className="font-medium mb-2">Environmental Data</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex justify-between">
                       <span>Temperature:</span>
-                      <span>{selectedEquipment.temperature}°C</span>
+                      <span>{selectedEquipment!.temperature}°C</span>
                     </div>
-                    {selectedEquipment.humidity && (
+                    {selectedEquipment!.humidity && (
                       <div className="flex justify-between">
                         <span>Humidity:</span>
-                        <span>{selectedEquipment.humidity}%</span>
+                        <span>{selectedEquipment!.humidity}%</span>
                       </div>
                     )}
                     <div className="flex justify-between">
                       <span>Vibration:</span>
-                      <span>{selectedEquipment.vibration ? "Detected" : "None"}</span>
+                      <span>{selectedEquipment!.vibration ? "Detected" : "None"}</span>
                     </div>
                   </div>
                 </div>
               )}
               
-              {selectedEquipment.speed && selectedEquipment.speed > 0 && (
+              {(selectedEquipment!.speed ?? 0) > 0 && (
                 <div>
                   <h4 className="font-medium mb-2">Movement Data</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex justify-between">
                       <span>Speed:</span>
-                      <span>{selectedEquipment.speed} km/h</span>
+                      <span>{selectedEquipment!.speed} km/h</span>
                     </div>
-                    {selectedEquipment.heading && (
+                    {selectedEquipment!.heading && (
                       <div className="flex justify-between">
                         <span>Heading:</span>
-                        <span>{selectedEquipment.heading}°</span>
+                        <span>{selectedEquipment!.heading}°</span>
                       </div>
                     )}
                   </div>

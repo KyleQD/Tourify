@@ -2,12 +2,18 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { Box, Download, FileText, Package, Plus, Search, Truck } from "lucide-react"
+import { Box, Download, FileText, Package, Plus, Search, Truck, Edit, Trash2, UserCheck } from "lucide-react"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { toast } from "sonner"
 
 const CATEGORY_TABS = ["all", "sound", "lighting", "stage", "other"] as const
 type CategoryTab = (typeof CATEGORY_TABS)[number]
@@ -42,30 +48,70 @@ export default function InventoryPage() {
   const [items, setItems] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [activeTab, setActiveTab] = useState<CategoryTab>("all")
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [editingItem, setEditingItem] = useState<any>(null)
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [itemForm, setItemForm] = useState({ title: '', type: 'sound', notes: '', status: 'available', quantity: '1' })
 
   function buildNoStoreInit(): RequestInit {
     return {
       credentials: 'include',
       cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
     }
   }
 
-  useEffect(() => {
-    async function fetchItems() {
-      try {
-        const res = await fetch('/api/admin/logistics/items', buildNoStoreInit())
-        if (res.ok) {
-          const data = await res.json()
-          setItems(data.items || data.data || [])
-        }
-      } catch { /* graceful fallback */ }
-    }
-    fetchItems()
+  const fetchItems = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/logistics/items', buildNoStoreInit())
+      if (res.ok) { const d = await res.json(); setItems(d.items || d.data || []) }
+    } catch {}
   }, [])
+
+  useEffect(() => { void fetchItems() }, [fetchItems])
+
+  function openCreate() {
+    setEditingItem(null)
+    setItemForm({ title: '', type: 'sound', notes: '', status: 'available', quantity: '1' })
+    setShowAddDialog(true)
+  }
+
+  function openEdit(item: any) {
+    setEditingItem(item)
+    setItemForm({ title: item.title || item.name || '', type: item.type || 'sound', notes: item.notes || item.description || '', status: item.status || 'available', quantity: String(item.quantity || 1) })
+    setShowAddDialog(true)
+  }
+
+  async function saveItem() {
+    if (!itemForm.title.trim()) { toast.error('Title required'); return }
+    setSaving(true)
+    try {
+      const method = editingItem ? 'PUT' : 'POST'
+      const url = editingItem
+        ? `/api/admin/logistics/items/${editingItem.id}`
+        : '/api/admin/logistics/items'
+      const body = editingItem
+        ? { title: itemForm.title, type: itemForm.type, notes: itemForm.notes, status: itemForm.status }
+        : { title: itemForm.title, type: itemForm.type, notes: itemForm.notes, status: itemForm.status }
+      const res = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      if (!res.ok) throw new Error(await res.text())
+      toast.success(editingItem ? 'Item updated' : 'Item added')
+      setShowAddDialog(false)
+      void fetchItems()
+    } catch (err: any) { toast.error(err.message || 'Failed') } finally { setSaving(false) }
+  }
+
+  async function deleteItem() {
+    if (!deleteItemId) return
+    try {
+      const res = await fetch(`/api/admin/logistics/items/${deleteItemId}`, { method: 'DELETE', credentials: 'include' })
+      if (!res.ok) throw new Error(await res.text())
+      toast.success('Item removed')
+      setDeleteItemId(null)
+      void fetchItems()
+    } catch (err: any) { toast.error(err.message || 'Failed'); setDeleteItemId(null) }
+  }
 
   const filteredItems = useMemo(() => {
     let result = items
@@ -124,10 +170,7 @@ export default function InventoryPage() {
         icon={Package}
         subtitle="Track and manage all equipment and supplies for your events"
         actions={
-          <Button
-            className="bg-purple-600 hover:bg-purple-700"
-            onClick={() => router.push("/admin/dashboard/logistics")}
-          >
+          <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0" onClick={openCreate}>
             <Plus className="h-4 w-4 mr-2" /> Add Item
           </Button>
         }
@@ -210,10 +253,13 @@ export default function InventoryPage() {
                         <td className="px-4 py-3">{getStatusBadge(item.status)}</td>
                         <td className="px-4 py-3 text-slate-300">{item.notes || item.description || "—"}</td>
                         <td className="px-4 py-3">
-                          <div className="flex space-x-2">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                              <FileText className="h-4 w-4 text-slate-400" />
-                            </Button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => openEdit(item)} className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-white rounded">
+                              <Edit className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => setDeleteItemId(item.id)} className="h-7 w-7 flex items-center justify-center text-slate-400 hover:text-red-400 rounded">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -225,6 +271,56 @@ export default function InventoryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="bg-slate-900 border-slate-700 sm:max-w-md">
+          <DialogHeader><DialogTitle className="text-white">{editingItem ? 'Edit Item' : 'Add Inventory Item'}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label className="text-slate-300">Name / Title *</Label><Input value={itemForm.title} onChange={e => setItemForm(p => ({ ...p, title: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label className="text-slate-300">Category</Label>
+                <Select value={itemForm.type} onValueChange={v => setItemForm(p => ({ ...p, type: v }))}>
+                  <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    {['sound','lighting','stage','power','catering','security','transport','other'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label className="text-slate-300">Status</Label>
+                <Select value={itemForm.status} onValueChange={v => setItemForm(p => ({ ...p, status: v }))}>
+                  <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent className="bg-slate-900 border-slate-700 text-white">
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="in_use">In Use</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="damaged">Damaged</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><Label className="text-slate-300">Notes / Location</Label><Textarea value={itemForm.notes} onChange={e => setItemForm(p => ({ ...p, notes: e.target.value }))} className="bg-slate-800/50 border-slate-700/50 text-white text-sm min-h-[60px]" /></div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowAddDialog(false)} className="border-slate-700 text-slate-300">Cancel</Button>
+            <Button onClick={saveItem} disabled={saving} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0">{saving ? 'Saving...' : editingItem ? 'Save' : 'Add Item'}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirm */}
+      <AlertDialog open={!!deleteItemId} onOpenChange={() => setDeleteItemId(null)}>
+        <AlertDialogContent className="bg-slate-900 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Item?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">This will remove the item from inventory.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 text-slate-300">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteItem} className="bg-red-600 hover:bg-red-700 text-white border-0">Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

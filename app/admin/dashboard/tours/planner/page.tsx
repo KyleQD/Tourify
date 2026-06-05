@@ -1,7 +1,7 @@
 "use client"
 
-import React, { useState } from "react"
-import { useRouter } from "next/navigation"
+import React, { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -220,8 +220,11 @@ const steps = [
 
 export default function TourPlannerPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [draftTourId, setDraftTourId] = useState<string | null>(null)
+  const [draftLoadError, setDraftLoadError] = useState<string | null>(null)
   const [tourData, setTourData] = useState<TourData>({
     name: "",
     description: "",
@@ -347,9 +350,11 @@ export default function TourPlannerPage() {
         }
       }
 
+      const bodyWithDraft = { ...apiData, ...(draftTourId ? { tourId: draftTourId } : {}) }
+
       const response = await fetch('/api/tours/planner', buildNoStoreInit({
         method: 'POST',
-        body: JSON.stringify(apiData),
+        body: JSON.stringify(bodyWithDraft),
       }))
 
       if (!response.ok) {
@@ -358,14 +363,18 @@ export default function TourPlannerPage() {
       }
 
       const result = await response.json()
-      
+      const publishedId = result.tour?.id || result.id
+
       toast({
-        title: "🚀 Tour Published Successfully!",
+        title: "Tour Published Successfully!",
         description: `"${tourData.name}" is now live and ready to go!`,
       })
 
-      // Redirect to tours page after successful publication
-      router.push('/admin/dashboard/tours?published=true')
+      if (publishedId) {
+        router.push(`/admin/dashboard/tours/${publishedId}?published=1`)
+      } else {
+        router.push('/admin/dashboard/tours?published=true')
+      }
 
     } catch (error) {
       console.error('Error publishing tour:', error)
@@ -379,10 +388,76 @@ export default function TourPlannerPage() {
     }
   }
 
+  // Load draft from ?draft=<tour_id> URL param on mount
+  useEffect(() => {
+    const draftId = searchParams.get('draft')
+    if (!draftId) return
+    fetch(`/api/tours/${draftId}`, { credentials: 'include', cache: 'no-store' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Draft not found')
+        const data = await res.json()
+        const tour = data.tour || data
+        if (!tour?.id) throw new Error('Draft not found')
+        setDraftTourId(draftId)
+        // Hydrate form from tour row
+        setTourData((prev) => ({
+          ...prev,
+          name: tour.name || tour.title || prev.name,
+          description: tour.description || prev.description,
+          mainArtist: tour.main_artist || tour.artist_name || prev.mainArtist,
+          genre: tour.genre || prev.genre,
+          coverImage: tour.cover_image_url || prev.coverImage,
+          startDate: tour.start_date || prev.startDate,
+          endDate: tour.end_date || prev.endDate,
+          route: Array.isArray(tour.routing) ? tour.routing : prev.route,
+        }))
+      })
+      .catch((err) => setDraftLoadError(err.message))
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Save draft to the tours API
+  const handleSaveDraft = async () => {
+    try {
+      const body = {
+        step1: { name: tourData.name, description: tourData.description, mainArtist: tourData.mainArtist, genre: tourData.genre, coverImage: tourData.coverImage },
+        step2: { startDate: tourData.startDate, endDate: tourData.endDate, route: tourData.route },
+        step3: { events: tourData.events },
+        step4: { artists: tourData.artists, crew: tourData.crew },
+        step5: { transportation: tourData.transportation, accommodation: tourData.accommodation, equipment: tourData.equipment },
+        step6: { ticketTypes: tourData.ticketTypes, budget: tourData.budget, sponsors: tourData.sponsors },
+        status: 'draft',
+        ...(draftTourId ? { tourId: draftTourId } : {}),
+      }
+      const res = await fetch('/api/tours/planner', buildNoStoreInit({ method: 'POST', body: JSON.stringify(body) }))
+      if (res.ok) {
+        const data = await res.json()
+        const newId = data.tour?.id || data.id
+        if (newId && !draftTourId) {
+          setDraftTourId(newId)
+          router.replace(`?draft=${newId}`, { scroll: false })
+        }
+      }
+    } catch {
+      // Non-fatal — draft save is best-effort
+    }
+  }
+
   const CurrentStepComponent = steps[currentStep - 1].component
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
+      {/* Draft banners */}
+      {draftLoadError && (
+        <div className="bg-red-950/40 border-b border-red-700/40 px-6 py-2 text-sm text-red-300 text-center">
+          Could not load draft: {draftLoadError}. Starting fresh.
+        </div>
+      )}
+      {draftTourId && (
+        <div className="bg-purple-950/40 border-b border-purple-700/30 px-6 py-2 text-sm text-purple-300 text-center flex items-center justify-center gap-2">
+          <CheckCircle className="h-3.5 w-3.5" />
+          Resuming draft — auto-saved as you progress
+        </div>
+      )}
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">

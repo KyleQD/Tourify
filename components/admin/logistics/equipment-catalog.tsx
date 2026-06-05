@@ -113,7 +113,19 @@ export function EquipmentCatalog({
   const loadEquipmentCatalog = async () => {
     setIsLoading(true)
     try {
-      // For now, create mock data based on EQUIPMENT_SYMBOLS
+      // Try real API first
+      const res = await fetch('/api/admin/logistics/equipment/catalog', { credentials: 'include' })
+      if (res.ok) {
+        const d = await res.json()
+        const items = d.catalog || d.data || d.items || []
+        if (items.length > 0) {
+          setEquipmentCatalog(items)
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Fallback to EQUIPMENT_SYMBOLS for display until catalog is seeded
       const mockCatalog: EquipmentCatalog[] = EQUIPMENT_SYMBOLS.map(symbol => ({
         id: symbol.id,
         name: symbol.name,

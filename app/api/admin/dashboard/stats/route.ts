@@ -1,8 +1,31 @@
 import { NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export const GET = withAdminAuth(async (_request, { supabase }) => {
+const emptyStats = {
+  totalTours: 0, activeTours: 0, totalEvents: 0, upcomingEvents: 0,
+  totalArtists: 0, totalVenues: 0, totalRevenue: 0, monthlyRevenue: 0,
+  ticketsSold: 0, totalCapacity: 0, staffMembers: 0,
+  completedTasks: 0, pendingTasks: 0, averageRating: 0,
+  totalTravelGroups: 0, totalTravelers: 0, confirmedTravelers: 0,
+  coordinationCompletionRate: 0, fullyCoordinatedGroups: 0,
+  ticketRevenue: 0, approvedVenueBookings: 0, pendingVenueBookings: 0,
+  activeTransportation: 0, completedTransportation: 0,
+  logisticsCompletionRate: 0, totalLodgingBookings: 0,
+  activeLodgingBookings: 0, totalRentalAgreements: 0, activeRentalAgreements: 0,
+}
+
+export const GET = withAdminAuth(async (_request, { user, supabase }) => {
   try {
+    // Resolve the calling user's org to scope all queries
+    const { data: orgMember } = await supabase
+      .from('org_members')
+      .select('org_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .maybeSingle()
+
+    const orgId = orgMember?.org_id
+
     const [
       toursResult,
       eventsV2Result,
@@ -18,19 +41,25 @@ export const GET = withAdminAuth(async (_request, { supabase }) => {
       lodgingBookingsResult,
       rentalAgreementsResult,
     ] = await Promise.allSettled([
-      supabase.from('tours').select('id, status, revenue'),
-      supabase.from('events_v2').select('id, status, start_at, capacity'),
-      supabase.from('events').select('id, status, start_date, capacity'),
-      supabase.from('staff_members').select('id'),
-      supabase.from('logistics_tasks').select('id, status, type'),
-      supabase.from('ticket_sales').select('id, quantity, total_amount'),
-      supabase.from('venue_booking_requests').select('id, status'),
+      orgId
+        ? supabase.from('tours').select('id, status, revenue').eq('org_id', orgId).limit(500)
+        : supabase.from('tours').select('id, status, revenue').limit(500),
+      orgId
+        ? supabase.from('events_v2').select('id, status, start_at, capacity').eq('org_id', orgId).limit(500)
+        : supabase.from('events_v2').select('id, status, start_at, capacity').limit(500),
+      supabase.from('events').select('id, status, start_date, capacity').limit(200),
+      supabase.from('staff_members').select('id').limit(500),
+      supabase.from('logistics_tasks').select('id, status, type').limit(500),
+      supabase.from('ticket_sales').select('id, quantity, total_amount').limit(1000),
+      supabase.from('venue_booking_requests').select('id, status').limit(200),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'artist'),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'venue'),
-      supabase.from('financial_transactions').select('amount, type').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()),
-      supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members'),
-      supabase.from('lodging_bookings').select('id, status, total_amount'),
-      supabase.from('rental_agreements').select('id, status, total_amount'),
+      orgId
+        ? supabase.from('financial_transactions').select('amount, type').eq('org_id', orgId).gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()).limit(1000)
+        : supabase.from('financial_transactions').select('amount, type').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()).limit(1000),
+      supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members').limit(200),
+      supabase.from('lodging_bookings').select('id, status, total_amount').limit(200),
+      supabase.from('rental_agreements').select('id, status, total_amount').limit(200),
     ])
 
     const tours = toursResult.status === 'fulfilled' ? (toursResult.value.data || []) : []
@@ -77,53 +106,46 @@ export const GET = withAdminAuth(async (_request, { supabase }) => {
     const confirmedTravelers = travelGroups.reduce((sum: number, g: any) => sum + (Number(g.confirmed_members) || 0), 0)
     const fullyCoordinated = travelGroups.filter((g: any) => g.coordination_status === 'complete').length
 
-    const stats = {
-      totalTours: tours.length,
-      activeTours,
-      totalEvents: events.length,
-      upcomingEvents,
-      totalArtists,
-      totalVenues,
-      totalRevenue,
-      monthlyRevenue,
-      ticketsSold: ticketsSold + approvedVenueBookings,
-      totalCapacity,
-      staffMembers: staff.length,
-      completedTasks: completedLogistics,
-      pendingTasks: logistics.length - completedLogistics + pendingVenueBookings,
-      averageRating: 0,
-      totalTravelGroups: travelGroups.length,
-      totalTravelers,
-      confirmedTravelers,
-      coordinationCompletionRate: travelGroups.length > 0 ? Math.round((fullyCoordinated / travelGroups.length) * 100) : (logistics.length > 0 ? Math.round((completedLogistics / logistics.length) * 100) : 0),
-      fullyCoordinatedGroups: fullyCoordinated,
-      ticketRevenue: tickets.reduce((sum: number, t: any) => sum + (Number(t.total_amount) || 0), 0),
-      approvedVenueBookings,
-      pendingVenueBookings,
-      activeTransportation: activeTransport,
-      completedTransportation: completedTransport,
-      logisticsCompletionRate: logistics.length > 0 ? Math.round((completedLogistics / logistics.length) * 100) : 0,
-      totalLodgingBookings: lodgingBookings.length,
-      activeLodgingBookings: lodgingBookings.filter((b: any) => b.status === 'confirmed' || b.status === 'checked_in').length,
-      totalRentalAgreements: rentalAgreements.length,
-      activeRentalAgreements: rentalAgreements.filter((r: any) => r.status === 'active').length,
-    }
-
-    return NextResponse.json({ success: true, stats })
+    return NextResponse.json({
+      success: true,
+      stats: {
+        totalTours: tours.length,
+        activeTours,
+        totalEvents: events.length,
+        upcomingEvents,
+        totalArtists,
+        totalVenues,
+        totalRevenue,
+        monthlyRevenue,
+        ticketsSold: ticketsSold + approvedVenueBookings,
+        totalCapacity,
+        staffMembers: staff.length,
+        completedTasks: completedLogistics,
+        pendingTasks: logistics.length - completedLogistics + pendingVenueBookings,
+        averageRating: 0,
+        totalTravelGroups: travelGroups.length,
+        totalTravelers,
+        confirmedTravelers,
+        coordinationCompletionRate: travelGroups.length > 0
+          ? Math.round((fullyCoordinated / travelGroups.length) * 100)
+          : logistics.length > 0
+            ? Math.round((completedLogistics / logistics.length) * 100)
+            : 0,
+        fullyCoordinatedGroups: fullyCoordinated,
+        ticketRevenue: tickets.reduce((sum: number, t: any) => sum + (Number(t.total_amount) || 0), 0),
+        approvedVenueBookings,
+        pendingVenueBookings,
+        activeTransportation: activeTransport,
+        completedTransportation: completedTransport,
+        logisticsCompletionRate: logistics.length > 0 ? Math.round((completedLogistics / logistics.length) * 100) : 0,
+        totalLodgingBookings: lodgingBookings.length,
+        activeLodgingBookings: lodgingBookings.filter((b: any) => b.status === 'confirmed' || b.status === 'checked_in').length,
+        totalRentalAgreements: rentalAgreements.length,
+        activeRentalAgreements: rentalAgreements.filter((r: any) => r.status === 'active').length,
+      },
+    })
   } catch (error) {
     console.error('[Dashboard Stats API] Error:', error)
-    const emptyStats = {
-      totalTours: 0, activeTours: 0, totalEvents: 0, upcomingEvents: 0,
-      totalArtists: 0, totalVenues: 0, totalRevenue: 0, monthlyRevenue: 0,
-      ticketsSold: 0, totalCapacity: 0, staffMembers: 0,
-      completedTasks: 0, pendingTasks: 0, averageRating: 0,
-      totalTravelGroups: 0, totalTravelers: 0, confirmedTravelers: 0,
-      coordinationCompletionRate: 0, fullyCoordinatedGroups: 0,
-      ticketRevenue: 0, approvedVenueBookings: 0, pendingVenueBookings: 0,
-      activeTransportation: 0, completedTransportation: 0,
-      logisticsCompletionRate: 0, totalLodgingBookings: 0,
-      activeLodgingBookings: 0, totalRentalAgreements: 0, activeRentalAgreements: 0,
-    }
     return NextResponse.json({ success: true, stats: emptyStats })
   }
 })

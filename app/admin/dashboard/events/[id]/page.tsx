@@ -114,6 +114,10 @@ import {
   normalizeAdminEvent,
 } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
+import { EventTicketManager } from "@/components/admin/event-ticket-manager"
+import { EventFinanceManager } from "@/components/admin/event-finance-manager"
+import { TravelCoordinationHub } from "@/components/admin/travel-coordination-hub"
 
 interface Event {
   id: string
@@ -413,6 +417,11 @@ export default function EventManagementPage() {
   const [expenses, setExpenses] = useState<any[]>([])
   const [notifications, setNotifications] = useState<any[]>([])
 
+  // Analytics state
+  const [analyticsData, setAnalyticsData] = useState<any>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsRange, setAnalyticsRange] = useState('30d')
+
   // Fetch event data
   useEffect(() => {
     const fetchEventData = async () => {
@@ -482,7 +491,18 @@ export default function EventManagementPage() {
           setTicketSales([])
         }
 
-        setNotifications([])
+        // Fetch event-scoped notifications
+        fetch(`/api/admin/notifications?event_id=${eventId}&limit=10`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+          .then(async (res) => {
+            if (res.ok) {
+              const d = await res.json()
+              setNotifications(d.notifications || [])
+            }
+          })
+          .catch(() => {})
         
       } catch (error) {
         console.error('Error fetching event data:', error)
@@ -497,20 +517,34 @@ export default function EventManagementPage() {
     }
   }, [eventId])
 
-  // Quick action handlers
+  // Fetch analytics when tab becomes active or range changes
+  useEffect(() => {
+    if (activeTab !== 'analytics' || !eventId) return
+    setAnalyticsLoading(true)
+    fetch(`/api/admin/events/${eventId}/analytics?range=${analyticsRange}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    })
+      .then(async (res) => {
+        if (res.ok) setAnalyticsData(await res.json())
+      })
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false))
+  }, [activeTab, analyticsRange, eventId])
+
+  // Quick action handlers — navigate to the relevant tab where the full UI lives
   const handleAddTask = () => {
     setActiveTab('tasks')
-    setShowAddTaskDialog(true)
+    // EventTaskManager on the tasks tab has its own add-task button
   }
 
   const handleManageStaff = () => {
     setActiveTab('staff')
-    setShowAddStaffDialog(true)
+    // Staff tab has full team management UI
   }
 
   const handleAddVendor = () => {
     setActiveTab('vendors')
-    setShowAddVendorDialog(true)
   }
 
   const handleViewTickets = () => {
@@ -719,6 +753,14 @@ export default function EventManagementPage() {
               <Zap className="mr-2 h-4 w-4" />
               Event HQ
             </Button>
+            <Button
+              variant="outline"
+              className="border-green-700/50 text-green-400 hover:bg-green-950/30"
+              onClick={() => window.open(`/admin/dashboard/events/${eventId}/check-in`, '_blank')}
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Check-In
+            </Button>
             <Button variant="outline" className="border-slate-700 text-slate-300" onClick={handleShare}>
               <Share2 className="mr-2 h-4 w-4" />
               Share
@@ -823,6 +865,9 @@ export default function EventManagementPage() {
             <TabsTrigger value="site-map" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Site Map</TabsTrigger>
             <TabsTrigger value="communications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Communications</TabsTrigger>
             <TabsTrigger value="incidents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Incidents</TabsTrigger>
+            <TabsTrigger value="advancing" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Advancing</TabsTrigger>
+            <TabsTrigger value="day-sheet" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Day Sheet</TabsTrigger>
+            <TabsTrigger value="travel" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Travel</TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Analytics</TabsTrigger>
             <TabsTrigger value="locations" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Locations</TabsTrigger>
             <TabsTrigger value="participants" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Participants</TabsTrigger>
@@ -951,6 +996,49 @@ export default function EventManagementPage() {
                     </Select>
                   </CardContent>
                 </Card>
+
+                {/* Notifications Panel */}
+                <Card className="bg-slate-900/50 border-slate-700/50">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-sm flex items-center gap-2">
+                        <Bell className="h-4 w-4 text-purple-400" />
+                        Notifications
+                        {notifications.filter((n: any) => !n.is_read).length > 0 && (
+                          <span className="bg-purple-600/30 text-purple-400 text-xs px-1.5 py-0.5 rounded-full">
+                            {notifications.filter((n: any) => !n.is_read).length}
+                          </span>
+                        )}
+                      </CardTitle>
+                      {notifications.some((n: any) => !n.is_read) && (
+                        <button
+                          className="text-xs text-slate-400 hover:text-white transition-colors"
+                          onClick={async () => {
+                            await fetch(`/api/admin/notifications?markAllRead=true&event_id=${eventId}`, { method: 'PATCH', credentials: 'include' })
+                            setNotifications(prev => prev.map((n: any) => ({ ...n, is_read: true })))
+                          }}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-2 max-h-48 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="text-slate-500 text-xs text-center py-4">No notifications for this event.</p>
+                    ) : (
+                      notifications.slice(0, 8).map((n: any) => (
+                        <div key={n.id} className={`flex items-start gap-2 p-2 rounded-sm text-xs ${n.is_read ? 'opacity-60' : 'bg-purple-950/20 border border-purple-800/20'}`}>
+                          <div className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${n.is_read ? 'bg-slate-600' : 'bg-purple-400'}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-slate-200 font-medium truncate">{n.title}</p>
+                            <p className="text-slate-400 truncate">{n.content}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             </div>
           </TabsContent>
@@ -1004,52 +1092,12 @@ export default function EventManagementPage() {
 
           {/* Tickets Tab */}
           <TabsContent value="tickets" className="space-y-6">
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Ticket Sales</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white">{formatSafeNumber(event.tickets_sold)}</h3>
-                    <p className="text-slate-400">Tickets Sold</p>
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white">{formatSafeCurrency(event.actual_revenue)}</h3>
-                    <p className="text-slate-400">Total Revenue</p>
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-white">{ticketSalesPercentage.toFixed(1)}%</h3>
-                    <p className="text-slate-400">Capacity Filled</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <EventTicketManager eventId={eventId} />
           </TabsContent>
 
           {/* Finances Tab */}
           <TabsContent value="finances" className="space-y-6">
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Financial Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-green-400">{formatSafeCurrency(event.actual_revenue)}</h3>
-                    <p className="text-slate-400">Revenue</p>
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-red-400">{formatSafeCurrency(event.expenses)}</h3>
-                    <p className="text-slate-400">Expenses</p>
-                  </div>
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-blue-400">{formatSafeCurrency(event.actual_revenue - event.expenses)}</h3>
-                    <p className="text-slate-400">Profit</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <EventFinanceManager eventId={eventId} />
           </TabsContent>
 
           {/* Logistics Tab */}
@@ -1111,20 +1159,148 @@ export default function EventManagementPage() {
             <EventCommunicationHub eventId={eventId} eventName={event.name} />
           </TabsContent>
 
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Event Analytics</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-12">
-                  <BarChart3 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">Analytics Coming Soon</h3>
-                  <p className="text-slate-400">Detailed analytics and reporting features will be available soon.</p>
-                </div>
+          {/* Advancing Tab */}
+          <TabsContent value="advancing" className="space-y-6">
+            <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+              <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
+                <p className="text-slate-300">Fill in the technical rider, hospitality, contacts, and settlement for this show.</p>
+                <Button
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
+                  onClick={() => router.push(`/admin/dashboard/events/${eventId}/advancing`)}
+                >
+                  Open Advancing Workspace
+                </Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Day Sheet Tab */}
+          <TabsContent value="day-sheet" className="space-y-6">
+            <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+              <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
+                <p className="text-slate-300">Auto-generate and distribute the day sheet for this show.</p>
+                <Button
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
+                  onClick={() => router.push(`/admin/dashboard/events/${eventId}/day-sheet`)}
+                >
+                  Open Day Sheet
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Travel Tab */}
+          <TabsContent value="travel" className="space-y-6">
+            <TravelCoordinationHub eventId={eventId} />
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
+            {/* Range selector */}
+            <div className="flex items-center gap-2">
+              {(['7d','30d','90d','all'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setAnalyticsRange(r)}
+                  className={`px-3 py-1 rounded-sm text-sm border transition-all ${
+                    analyticsRange === r
+                      ? 'bg-purple-600/20 border-purple-500/50 text-purple-400'
+                      : 'border-slate-700/50 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {r === 'all' ? 'All Time' : `Last ${r.replace('d',' days')}`}
+                </button>
+              ))}
+            </div>
+
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <RefreshCw className="h-6 w-6 animate-spin text-purple-400" />
+              </div>
+            ) : !analyticsData ? (
+              <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                <CardContent className="text-center py-12">
+                  <BarChart3 className="h-10 w-10 text-slate-400 mx-auto mb-3" />
+                  <p className="text-slate-400">No analytics data yet. Sell tickets to see data here.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {/* KPI Cards */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-slate-400 text-xs mb-1">Tickets Sold</p>
+                      <p className="text-2xl font-bold text-white">{formatSafeNumber(analyticsData.totalTicketsSold)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-slate-400 text-xs mb-1">Revenue</p>
+                      <p className="text-2xl font-bold text-green-400">{formatSafeCurrency(analyticsData.revenueVsExpenses?.revenue || 0)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-slate-400 text-xs mb-1">Expenses</p>
+                      <p className="text-2xl font-bold text-red-400">{formatSafeCurrency(analyticsData.revenueVsExpenses?.expenses || 0)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                    <CardContent className="p-4 text-center">
+                      <p className="text-slate-400 text-xs mb-1">Capacity %</p>
+                      <p className="text-2xl font-bold text-blue-400">{((analyticsData.conversionRate || 0) * 100).toFixed(1)}%</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Sales over time */}
+                {analyticsData.ticketSalesOverTime?.length > 0 && (
+                  <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white text-sm">Ticket Sales Over Time</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <AreaChart data={analyticsData.ticketSalesOverTime}>
+                          <defs>
+                            <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#9333ea" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#9333ea" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                          <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }} />
+                          <Area type="monotone" dataKey="count" stroke="#9333ea" fill="url(#salesGrad)" name="Tickets" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Sales by tier */}
+                {analyticsData.salesByTier?.length > 0 && (
+                  <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-white text-sm">Sales by Ticket Type</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={analyticsData.salesByTier}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                          <XAxis dataKey="tier" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                          <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                          <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #475569', color: '#f1f5f9' }} />
+                          <Bar dataKey="sold" fill="#3b82f6" name="Sold" radius={[4,4,0,0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
           </TabsContent>
 
           {/* Locations Tab */}
@@ -1317,37 +1493,38 @@ export default function EventManagementPage() {
               Export event information in various formats.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="border-slate-600 text-slate-300 h-20 flex flex-col items-center justify-center">
-                <FileText className="h-6 w-6 mb-2" />
-                PDF Report
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="border-slate-600 text-slate-300 h-20 flex flex-col items-center justify-center hover:border-purple-500/50 hover:text-white"
+                onClick={() => { window.location.href = `/api/admin/events/${eventId}/export?format=pdf`; setShowExportDialog(false) }}
+              >
+                <FileText className="h-6 w-6 mb-2 text-purple-400" />
+                <span className="text-sm">HTML Report</span>
               </Button>
-              <Button variant="outline" className="border-slate-600 text-slate-300 h-20 flex flex-col items-center justify-center">
-                <BarChart3 className="h-6 w-6 mb-2" />
-                Excel Data
-              </Button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <Button variant="outline" className="border-slate-600 text-slate-300 h-20 flex flex-col items-center justify-center">
-                <Calendar className="h-6 w-6 mb-2" />
-                Calendar Event
-              </Button>
-              <Button variant="outline" className="border-slate-600 text-slate-300 h-20 flex flex-col items-center justify-center">
-                <Users className="h-6 w-6 mb-2" />
-                Staff List
+              <Button
+                variant="outline"
+                className="border-slate-600 text-slate-300 h-20 flex flex-col items-center justify-center hover:border-green-500/50 hover:text-white"
+                onClick={() => { window.location.href = `/api/admin/events/${eventId}/export?format=csv`; setShowExportDialog(false) }}
+              >
+                <Download className="h-6 w-6 mb-2 text-green-400" />
+                <span className="text-sm">CSV Attendees</span>
               </Button>
             </div>
+            <Button
+              variant="outline"
+              className="w-full border-slate-600 text-slate-300 h-16 flex flex-col items-center justify-center hover:border-blue-500/50 hover:text-white"
+              onClick={() => { window.location.href = `/api/admin/events/${eventId}/export?format=ical`; setShowExportDialog(false) }}
+            >
+              <Calendar className="h-5 w-5 mb-1 text-blue-400" />
+              <span className="text-sm">Add to Calendar (.ics)</span>
+            </Button>
+            <p className="text-xs text-slate-500 text-center">CSV includes all ticket purchasers. iCal adds load-in, sound check, doors, and show to your calendar.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowExportDialog(false)} className="border-slate-600 text-slate-300">
-              Cancel
-            </Button>
-            <Button onClick={() => {
-              toast.success("Event data exported successfully")
-              setShowExportDialog(false)
-            }} className="bg-purple-600 hover:bg-purple-700">
-              Export All
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1394,10 +1571,10 @@ export default function EventManagementPage() {
               Close
             </Button>
             <Button onClick={() => {
-              toast.success("Ticket data updated")
               setShowTicketsDialog(false)
+              setActiveTab('tickets')
             }} className="bg-purple-600 hover:bg-purple-700">
-              Update Sales
+              Manage Tickets
             </Button>
           </DialogFooter>
         </DialogContent>

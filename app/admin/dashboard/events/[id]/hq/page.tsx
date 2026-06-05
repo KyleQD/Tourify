@@ -21,6 +21,8 @@ import {
   Music, Shield, Star, Send, Bell, Eye, MessageCircle,
 } from "lucide-react"
 import { EventChatsPanel } from "@/components/admin/events/event-chats-panel"
+import { EventTaskManager } from "@/components/admin/event-task-manager"
+import { EventSecureUploads } from "@/components/admin/event-secure-uploads"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -141,7 +143,7 @@ export default function EventHQPage() {
 
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab === "bulletin" || tab === "resources" || tab === "calendar" || tab === "team" || tab === "tasks" || tab === "chats")
+    if (tab === "bulletin" || tab === "resources" || tab === "calendar" || tab === "team" || tab === "tasks" || tab === "documents" || tab === "chats")
       setActiveTab(tab)
   }, [searchParams])
 
@@ -360,13 +362,14 @@ export default function EventHQPage() {
 
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-800 border-slate-700 grid w-full grid-cols-6">
-          <TabsTrigger value="bulletin"><Megaphone className="h-4 w-4 mr-1" />Bulletin</TabsTrigger>
-          <TabsTrigger value="resources"><FileText className="h-4 w-4 mr-1" />Resources</TabsTrigger>
-          <TabsTrigger value="calendar"><Calendar className="h-4 w-4 mr-1" />Calendar</TabsTrigger>
-          <TabsTrigger value="team"><Users className="h-4 w-4 mr-1" />Team</TabsTrigger>
-          <TabsTrigger value="tasks"><CheckCircle className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
-          <TabsTrigger value="chats"><MessageCircle className="h-4 w-4 mr-1" />Chats</TabsTrigger>
+        <TabsList className="bg-slate-800 border-slate-700 flex flex-wrap gap-0.5 h-auto p-1">
+          <TabsTrigger value="bulletin" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><Megaphone className="h-4 w-4 mr-1" />Bulletin</TabsTrigger>
+          <TabsTrigger value="resources" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><FileText className="h-4 w-4 mr-1" />Resources</TabsTrigger>
+          <TabsTrigger value="calendar" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><Calendar className="h-4 w-4 mr-1" />Calendar</TabsTrigger>
+          <TabsTrigger value="team" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><Users className="h-4 w-4 mr-1" />Team</TabsTrigger>
+          <TabsTrigger value="tasks" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><CheckCircle className="h-4 w-4 mr-1" />Tasks</TabsTrigger>
+          <TabsTrigger value="documents" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><FileText className="h-4 w-4 mr-1" />Documents</TabsTrigger>
+          <TabsTrigger value="chats" className="data-[state=active]:bg-purple-600/20 data-[state=active]:text-purple-400 rounded-sm text-sm"><MessageCircle className="h-4 w-4 mr-1" />Chats</TabsTrigger>
         </TabsList>
 
         {/* BULLETIN BOARD TAB */}
@@ -581,27 +584,11 @@ export default function EventHQPage() {
 
         {/* TASKS TAB */}
         <TabsContent value="tasks" className="mt-6 space-y-4">
-          {tasks.length === 0 ? (
-            <div className="text-center py-12"><CheckCircle className="h-10 w-10 text-slate-600 mx-auto mb-3" /><p className="text-slate-400">No tasks yet.</p></div>
-          ) : (
-            <div className="space-y-2">
-              {tasks.map((task: any) => (
-                <Card key={task.id} className="bg-slate-900 border-slate-700">
-                  <CardContent className="p-3 flex items-center gap-3">
-                    <div className={cn("w-5 h-5 rounded border-2 flex items-center justify-center shrink-0",
-                      task.status === "completed" ? "bg-green-600 border-green-600" : "border-slate-500")}>
-                      {task.status === "completed" && <CheckCircle className="h-3 w-3 text-white" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={cn("text-sm font-medium", task.status === "completed" ? "text-slate-500 line-through" : "text-white")}>{task.title || task.name}</p>
-                      {task.due_date && <p className="text-xs text-slate-500">Due: {formatSafeDate(task.due_date)}</p>}
-                    </div>
-                    <Badge variant="outline" className="text-xs border-slate-600 capitalize">{task.status || "pending"}</Badge>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          <EventTaskManager eventId={eventId} />
+        </TabsContent>
+
+        <TabsContent value="documents" className="mt-6 space-y-4">
+          <EventSecureUploads eventId={eventId} isAdmin={isAdmin} />
         </TabsContent>
 
         <TabsContent value="chats" className="mt-6 space-y-4">

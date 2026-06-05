@@ -3,6 +3,8 @@ import { Suspense } from "react"
 import { OptimizedSidebar } from "./optimized-sidebar"
 import { Breadcrumbs } from "./breadcrumbs"
 import { AdminDashboardProvider } from "../contexts/admin-dashboard-context"
+import { EnhancedNotificationCenter } from "@/components/notifications/enhanced-notification-center"
+import { EnhancedGlobalSearch } from "@/components/admin/enhanced-global-search"
 
 function AdminSidebarFallback() {
   return (
@@ -31,10 +33,21 @@ export function AdminDashboardShell({ children }: { children: React.ReactNode })
         <Suspense fallback={<AdminSidebarFallback />}>
           <OptimizedSidebar />
         </Suspense>
-        <div className="flex-1 flex flex-col relative z-10">
-          <main className="flex-1 overflow-auto">
+        <div className="flex-1 flex flex-col relative z-10 min-w-0">
+          {/* Top bar: breadcrumbs + notification bell */}
+          <header className="border-b border-slate-800/50 bg-slate-950/60 backdrop-blur-sm px-4 sm:px-6 py-2.5 flex items-center justify-between shrink-0">
+            <Breadcrumbs />
+            <div className="flex items-center gap-2 shrink-0 ml-4">
+              <Suspense>
+                <EnhancedGlobalSearch />
+              </Suspense>
+              <Suspense>
+                <EnhancedNotificationCenter />
+              </Suspense>
+            </div>
+          </header>
+          <main id="main-content" className="flex-1 overflow-auto">
             <div className="p-4 sm:p-6">
-              <Breadcrumbs />
               {children}
             </div>
           </main>

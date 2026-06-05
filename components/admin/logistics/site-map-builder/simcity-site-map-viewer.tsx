@@ -91,6 +91,95 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
   const { activityVersion } = useSiteMapRealtime({ siteMapId: siteMap.id })
 
+  // ─── Zones, Tents, Layers state ───────────────────────────────────────────
+  const [zones, setZones] = useState<any[]>([])
+  const [tents, setTents] = useState<any[]>([])
+  const [layers, setLayers] = useState<any[]>([])
+  const [zoneForm, setZoneForm] = useState({ name: '', color: '#9333ea', capacity: '' })
+  const [tentForm, setTentForm] = useState({ name: '', type: 'tent', width_ft: '', depth_ft: '', capacity: '' })
+  const [layerForm, setLayerForm] = useState({ name: '', color: '#3b82f6' })
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null)
+  const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set())
+
+  // Load zones, tents, layers
+  useEffect(() => {
+    const id = siteMap.id
+    Promise.allSettled([
+      fetch(`/api/admin/logistics/site-maps/${id}/zones`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/admin/logistics/site-maps/${id}/tents`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/admin/logistics/site-maps/layers?site_map_id=${id}`, { credentials: 'include' }).then(r => r.json()),
+    ]).then(([zr, tr, lr]) => {
+      if (zr.status === 'fulfilled') setZones((zr.value as any).data || (zr.value as any).zones || [])
+      if (tr.status === 'fulfilled') setTents((tr.value as any).data || (tr.value as any).tents || [])
+      if (lr.status === 'fulfilled') {
+        const list = (lr.value as any).data || (lr.value as any).layers || []
+        setLayers(list)
+        if (list.length > 0 && !activeLayerId) setActiveLayerId(list[0].id)
+      }
+    })
+  }, [siteMap.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function addZone() {
+    if (!zoneForm.name.trim()) return
+    const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: zoneForm.name, color: zoneForm.color, capacity: zoneForm.capacity ? Number(zoneForm.capacity) : null, metadata: {} }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setZones(prev => [...prev, d.data || d.zone || {}])
+      setZoneForm({ name: '', color: '#9333ea', capacity: '' })
+    }
+  }
+
+  async function deleteZone(zoneId: string) {
+    await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${zoneId}`, { method: 'DELETE', credentials: 'include' })
+    setZones(prev => prev.filter(z => z.id !== zoneId))
+  }
+
+  async function addTent() {
+    if (!tentForm.name.trim()) return
+    const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: tentForm.name, type: tentForm.type, width_ft: tentForm.width_ft ? Number(tentForm.width_ft) : null, depth_ft: tentForm.depth_ft ? Number(tentForm.depth_ft) : null, capacity: tentForm.capacity ? Number(tentForm.capacity) : null, position_x: 100, position_y: 100 }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      setTents(prev => [...prev, d.data || d.tent || {}])
+      setTentForm({ name: '', type: 'tent', width_ft: '', depth_ft: '', capacity: '' })
+    }
+  }
+
+  async function deleteTent(tentId: string) {
+    await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${tentId}`, { method: 'DELETE', credentials: 'include' })
+    setTents(prev => prev.filter(t => t.id !== tentId))
+  }
+
+  async function addLayer() {
+    if (!layerForm.name.trim()) return
+    const res = await fetch(`/api/admin/logistics/site-maps/layers`, {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ site_map_id: siteMap.id, name: layerForm.name, color: layerForm.color, order: layers.length }),
+    })
+    if (res.ok) {
+      const d = await res.json()
+      const newLayer = d.data || d.layer || {}
+      setLayers(prev => [...prev, newLayer])
+      setLayerForm({ name: '', color: '#3b82f6' })
+    }
+  }
+
+  function toggleLayerVisibility(layerId: string) {
+    setHiddenLayers(prev => {
+      const next = new Set(prev)
+      next.has(layerId) ? next.delete(layerId) : next.add(layerId)
+      return next
+    })
+  }
+
   useEffect(() => {
     const backgroundUrl = siteMap.backgroundImageUrl || siteMap.background_image_url
     if (!backgroundUrl) {
@@ -406,13 +495,17 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     )
   }, [elements, siteMap.width, siteMap.height])
 
-  // Load elements from API (falls back to demo elements)
+  // Load elements from API — show empty state instead of demo data on failure
   useEffect(() => {
     async function loadElements() {
       try {
         const resp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, { credentials: 'include' })
+        if (!resp.ok) {
+          // Leave elements as empty array — canvas will show empty state
+          return
+        }
         const data = await resp.json()
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        if (data.success && Array.isArray(data.data)) {
           const mapped: SiteMapElement[] = data.data.map((el: any) => ({
             id: el.id,
             type: el.element_type || el.elementType || 'custom',
@@ -430,18 +523,12 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
           setElements(mapped)
           setHistory([mapped])
           setHistoryIndex(0)
-          return
         }
+        // If data.data is empty array, elements stays [] — canvas shows empty state hint
       } catch {
-        // API unavailable, use demo data
+        // Network error — leave elements as empty, do not inject demo data
+        console.warn('[SiteMapViewer] Failed to load elements — showing empty canvas')
       }
-      const demo: SiteMapElement[] = [
-        { id: '1', type: 'stage', x: 200, y: 150, width: 300, height: 200, rotation: 0, fill: 'rgba(147, 51, 234, 0.3)', stroke: '#9333ea', strokeWidth: 2, label: 'Main Stage' },
-        { id: '2', type: 'tent', x: 50, y: 100, width: 120, height: 80, rotation: 0, fill: 'rgba(59, 130, 246, 0.3)', stroke: '#3b82f6', strokeWidth: 2, label: 'VIP Tent' }
-      ]
-      setElements(demo)
-      setHistory([demo])
-      setHistoryIndex(0)
     }
     loadElements()
   }, [siteMap.id])
@@ -1125,16 +1212,25 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
           {/* Left Sidebar */}
           {!isReadOnly && <div className="w-72 border-r border-slate-700/30 bg-slate-900/40 backdrop-blur-2xl flex flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-              <div className="px-3 py-2 border-b border-slate-700/30">
-                <TabsList className="grid w-full grid-cols-3 bg-slate-800/60 border border-slate-700/40 rounded-lg p-0.5 h-8">
-                  <TabsTrigger value="elements" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md text-xs font-medium h-7">
-                    <Square className="h-3 w-3 mr-1" />Elements
+              <div className="px-2 py-2 border-b border-slate-700/30">
+                <TabsList className="flex flex-wrap gap-0.5 bg-slate-800/60 border border-slate-700/40 rounded-lg p-0.5 h-auto">
+                  <TabsTrigger value="elements" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
+                    <Square className="h-2.5 w-2.5 mr-0.5" />Elem
                   </TabsTrigger>
-                  <TabsTrigger value="tools" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md text-xs font-medium h-7">
-                    <Settings className="h-3 w-3 mr-1" />Tools
+                  <TabsTrigger value="tools" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
+                    <Settings className="h-2.5 w-2.5 mr-0.5" />Tools
                   </TabsTrigger>
-                  <TabsTrigger value="inspect" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-500 data-[state=active]:to-blue-500 data-[state=active]:text-white rounded-md text-xs font-medium h-7">
-                    <Eye className="h-3 w-3 mr-1" />Inspect
+                  <TabsTrigger value="inspect" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
+                    <Eye className="h-2.5 w-2.5 mr-0.5" />Inspect
+                  </TabsTrigger>
+                  <TabsTrigger value="zones" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
+                    <MapPin className="h-2.5 w-2.5 mr-0.5" />Zones
+                  </TabsTrigger>
+                  <TabsTrigger value="tents" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
+                    <Building className="h-2.5 w-2.5 mr-0.5" />Struct
+                  </TabsTrigger>
+                  <TabsTrigger value="layers" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
+                    <Layers className="h-2.5 w-2.5 mr-0.5" />Layers
                   </TabsTrigger>
                 </TabsList>
               </div>
@@ -1154,6 +1250,107 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                     }}
                     onDelete={(id) => { deleteElement(id) }}
                   />
+                </TabsContent>
+
+                {/* Zones Panel */}
+                <TabsContent value="zones" className="h-full mt-0 p-2 overflow-y-auto">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Add Zone</p>
+                      <input value={zoneForm.name} onChange={e => setZoneForm(p => ({ ...p, name: e.target.value }))} placeholder="Zone name..." className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
+                      <div className="flex gap-1.5">
+                        <input type="color" value={zoneForm.color} onChange={e => setZoneForm(p => ({ ...p, color: e.target.value }))} className="h-7 w-10 rounded border-0 bg-transparent cursor-pointer" />
+                        <input type="number" value={zoneForm.capacity} onChange={e => setZoneForm(p => ({ ...p, capacity: e.target.value }))} placeholder="Capacity" className="flex-1 h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
+                      </div>
+                      <button onClick={addZone} className="w-full h-7 text-xs bg-purple-600/80 hover:bg-purple-600 text-white rounded font-medium">+ Add Zone</button>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{zones.length} Zones</p>
+                      {zones.map((z: any) => (
+                        <div key={z.id} className="flex items-center gap-2 p-1.5 bg-slate-800/30 rounded text-xs">
+                          <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: z.color || '#9333ea' }} />
+                          <span className="text-slate-200 flex-1 truncate">{z.name}</span>
+                          {z.capacity && <span className="text-slate-500 text-[10px]">{z.capacity}</span>}
+                          <button onClick={() => deleteZone(z.id)} className="text-slate-500 hover:text-red-400 shrink-0">×</button>
+                        </div>
+                      ))}
+                      {zones.length === 0 && <p className="text-slate-600 text-[10px] text-center py-4">No zones yet.</p>}
+                    </div>
+                    {zones.length > 0 && (
+                      <div className="text-[10px] text-slate-500 border-t border-slate-700/30 pt-2">
+                        Total capacity: {zones.reduce((s: number, z: any) => s + (Number(z.capacity) || 0), 0)}
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* Structures/Tents Panel */}
+                <TabsContent value="tents" className="h-full mt-0 p-2 overflow-y-auto">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Add Structure</p>
+                      <input value={tentForm.name} onChange={e => setTentForm(p => ({ ...p, name: e.target.value }))} placeholder="Structure name..." className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
+                      <select value={tentForm.type} onChange={e => setTentForm(p => ({ ...p, type: e.target.value }))} className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2">
+                        {['tent','stage','booth','trailer','building'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <div className="grid grid-cols-3 gap-1">
+                        <input type="number" value={tentForm.width_ft} onChange={e => setTentForm(p => ({ ...p, width_ft: e.target.value }))} placeholder="W (ft)" className="h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-1.5" />
+                        <input type="number" value={tentForm.depth_ft} onChange={e => setTentForm(p => ({ ...p, depth_ft: e.target.value }))} placeholder="D (ft)" className="h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-1.5" />
+                        <input type="number" value={tentForm.capacity} onChange={e => setTentForm(p => ({ ...p, capacity: e.target.value }))} placeholder="Cap" className="h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-1.5" />
+                      </div>
+                      <button onClick={addTent} className="w-full h-7 text-xs bg-blue-600/80 hover:bg-blue-600 text-white rounded font-medium">+ Add Structure</button>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{tents.length} Structures</p>
+                      {tents.map((t: any) => (
+                        <div key={t.id} className="flex items-center gap-2 p-1.5 bg-slate-800/30 rounded text-xs">
+                          <Building className="h-3 w-3 text-blue-400 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-slate-200 truncate">{t.name}</p>
+                            <p className="text-slate-500 text-[10px] capitalize">{t.type} {t.width_ft ? `${t.width_ft}×${t.depth_ft}ft` : ''}</p>
+                          </div>
+                          <button onClick={() => deleteTent(t.id)} className="text-slate-500 hover:text-red-400 shrink-0">×</button>
+                        </div>
+                      ))}
+                      {tents.length === 0 && <p className="text-slate-600 text-[10px] text-center py-4">No structures yet.</p>}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Layers Panel */}
+                <TabsContent value="layers" className="h-full mt-0 p-2 overflow-y-auto">
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Add Layer</p>
+                      <input value={layerForm.name} onChange={e => setLayerForm(p => ({ ...p, name: e.target.value }))} placeholder="Layer name..." className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
+                      <div className="flex gap-1.5">
+                        <input type="color" value={layerForm.color} onChange={e => setLayerForm(p => ({ ...p, color: e.target.value }))} className="h-7 w-10 rounded border-0 bg-transparent cursor-pointer" />
+                        <button onClick={addLayer} className="flex-1 h-7 text-xs bg-cyan-600/80 hover:bg-cyan-600 text-white rounded font-medium">+ Add Layer</button>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{layers.length} Layers</p>
+                      {layers.map((l: any) => (
+                        <div
+                          key={l.id}
+                          className={`flex items-center gap-2 p-1.5 rounded text-xs cursor-pointer transition-colors ${activeLayerId === l.id ? 'bg-slate-700/50 border border-slate-500/30' : 'bg-slate-800/30 hover:bg-slate-800/50'}`}
+                          onClick={() => setActiveLayerId(l.id)}
+                        >
+                          <div className="w-3 h-3 rounded shrink-0" style={{ backgroundColor: l.color || '#3b82f6' }} />
+                          <span className="text-slate-200 flex-1 truncate">{l.name}</span>
+                          {activeLayerId === l.id && <span className="text-[9px] text-purple-400 shrink-0">active</span>}
+                          <button
+                            onClick={e => { e.stopPropagation(); toggleLayerVisibility(l.id) }}
+                            className={`shrink-0 ${hiddenLayers.has(l.id) ? 'text-slate-600' : 'text-slate-400 hover:text-white'}`}
+                            title={hiddenLayers.has(l.id) ? 'Show layer' : 'Hide layer'}
+                          >
+                            {hiddenLayers.has(l.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </button>
+                        </div>
+                      ))}
+                      {layers.length === 0 && <p className="text-slate-600 text-[10px] text-center py-4">No layers yet.</p>}
+                    </div>
+                  </div>
                 </TabsContent>
               </div>
             </Tabs>

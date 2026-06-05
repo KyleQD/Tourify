@@ -1,5 +1,8 @@
-// This would typically use the Slack Web API client
-// In a real implementation, you would use @slack/web-api package
+/**
+ * Slack integration service.
+ * Wire this up by setting SLACK_BOT_TOKEN and SLACK_APP_ID in your environment,
+ * then replace the stub implementations with real Slack API calls via @slack/web-api.
+ */
 
 export interface SlackChannel {
   id: string
@@ -25,97 +28,53 @@ export interface SlackNotificationConfig {
   }
 }
 
-// Mock data for demonstration purposes
-const mockWorkspaces: SlackWorkspace[] = [
-  {
-    id: "W1234567",
-    name: "Tourify Team",
-    isConnected: true,
-    channels: [
-      { id: "C1234567", name: "general" },
-      { id: "C2345678", name: "events" },
-      { id: "C3456789", name: "marketing" },
-    ],
-  },
-  {
-    id: "W7654321",
-    name: "Event Partners",
-    isConnected: false,
-    channels: [],
-  },
-]
-
-const mockConfigurations: SlackNotificationConfig[] = [
-  {
-    eventId: "evt-001",
-    channelId: "C2345678",
-    notifications: {
-      taskCreated: true,
-      taskCompleted: true,
-      taskAssigned: false,
-      eventUpdates: true,
-      budgetAlerts: false,
-    },
-  },
-]
+const isConfigured = !!(
+  typeof process !== 'undefined' &&
+  process.env.SLACK_BOT_TOKEN &&
+  process.env.SLACK_APP_ID
+)
 
 export const SlackService = {
-  // Get connected workspaces
+  isConfigured,
+
   getWorkspaces: async (): Promise<SlackWorkspace[]> => {
-    // In a real implementation, this would call the Slack API
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(mockWorkspaces), 500)
-    })
+    if (!isConfigured) return []
+    // TODO: call Slack API — GET https://slack.com/api/auth.teams.list
+    return []
   },
 
-  // Get channels for a workspace
-  getChannels: async (workspaceId: string): Promise<SlackChannel[]> => {
-    // In a real implementation, this would call the Slack API
-    const workspace = mockWorkspaces.find((w) => w.id === workspaceId)
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(workspace?.channels || []), 500)
-    })
+  getChannels: async (_workspaceId: string): Promise<SlackChannel[]> => {
+    if (!isConfigured) return []
+    // TODO: call Slack API — GET https://slack.com/api/conversations.list
+    return []
   },
 
-  // Connect a new workspace
-  connectWorkspace: async (_code: string): Promise<SlackWorkspace> => {
-    // In a real implementation, this would exchange the code for a token
-    // and then fetch the workspace details
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(mockWorkspaces[0]), 1000)
-    })
+  connectWorkspace: async (_code: string): Promise<SlackWorkspace | null> => {
+    if (!isConfigured) return null
+    // TODO: exchange OAuth code for token via https://slack.com/api/oauth.v2.access
+    return null
   },
 
-  // Disconnect a workspace
   disconnectWorkspace: async (_workspaceId: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(true), 500)
-    })
+    return false
   },
 
-  // Get notification configuration for an event
-  getNotificationConfig: async (eventId: string): Promise<SlackNotificationConfig | null> => {
-    const config = mockConfigurations.find((c) => c.eventId === eventId)
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(config || null), 300)
-    })
+  getNotificationConfig: async (_eventId: string): Promise<SlackNotificationConfig | null> => {
+    return null
   },
 
-  // Save notification configuration
   saveNotificationConfig: async (_config: SlackNotificationConfig): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(true), 500)
-    })
+    if (!isConfigured) return false
+    // TODO: persist to database and configure Slack webhook
+    return false
   },
 
-  // Send a message to a Slack channel
   sendMessage: async (_channelId: string, _message: string): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setTimeout(() => resolve(true), 500)
-    })
+    if (!isConfigured) return false
+    // TODO: call Slack API — POST https://slack.com/api/chat.postMessage
+    return false
   },
 
-  // Send a task notification
   sendTaskNotification: async (
     channelId: string,
     taskName: string,

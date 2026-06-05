@@ -563,13 +563,13 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [messageInput, setMessageInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [senderProfiles, setSenderProfiles] = useState<Map<string, { id: string; full_name: string | null; avatar_url: string | null }>>(new Map())
+  const [senderProfiles, setSenderProfiles] = useState<Record<string, { id: string; full_name: string | null; avatar_url: string | null }>>({})
   const senderProfilesRef = useRef(senderProfiles)
   senderProfilesRef.current = senderProfiles
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const ensureSenderProfile = useCallback(async (senderId: string) => {
-    if (senderProfilesRef.current.has(senderId)) return
+    if (senderProfilesRef.current[senderId]) return
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url')
@@ -577,16 +577,14 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
       .maybeSingle()
     if (!data) return
     setSenderProfiles((prev) => {
-      if (prev.has(senderId)) return prev
-      const next = new Map(prev)
-      next.set(senderId, { id: data.id, full_name: data.full_name, avatar_url: data.avatar_url })
-      return next
+      if (prev[senderId]) return prev
+      return { ...prev, [senderId]: { id: data.id, full_name: data.full_name, avatar_url: data.avatar_url } }
     })
   }, [])
 
   const hydrateSenderProfiles = useCallback(async (rows: GroupMessage[]) => {
     const unique = Array.from(new Set(rows.map((row) => row.sender_id))).filter(
-      (id) => !senderProfilesRef.current.has(id),
+      (id) => !senderProfilesRef.current[id],
     )
     if (unique.length === 0) return
     const { data } = await supabase
@@ -595,8 +593,8 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
       .in('id', unique)
     if (!data) return
     setSenderProfiles((prev) => {
-      const next = new Map(prev)
-      data.forEach((row: any) => next.set(row.id, row))
+      const next = { ...prev }
+      data.forEach((row: any) => { next[row.id] = row })
       return next
     })
   }, [])
@@ -607,6 +605,23 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
     group_type: 'general',
     member_ids: [] as string[],
   })
+  const [eventParticipants, setEventParticipants] = useState<Array<{
+    participant_id: string
+    role?: string | null
+    display_name?: string
+    avatar_url?: string | null
+  }>>([])
+
+  useEffect(() => {
+    async function loadParticipants() {
+      try {
+        const res = await fetch(`/api/admin/events/${eventId}/participants?role=staff`, buildFetchInit())
+        const data = await res.json()
+        if (res.ok) setEventParticipants(data.participants || [])
+      } catch { /* silent */ }
+    }
+    void loadParticipants()
+  }, [eventId])
 
   const fetchGroups = useCallback(async () => {
     try {
@@ -686,13 +701,14 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newGroup),
       }))
-      if (!res.ok) throw new Error('Failed to create group')
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || data.details?.member_ids?.[0] || 'Failed to create group')
       toast.success('Group created')
       setShowCreate(false)
       setNewGroup({ name: '', description: '', group_type: 'general', member_ids: [] })
       await fetchGroups()
-    } catch {
-      toast.error('Failed to create group')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create group')
     } finally {
       setCreating(false)
     }
@@ -773,7 +789,7 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
               ) : (
                 <div className="space-y-3">
                   {messages.map((msg) => {
-                    const sender = senderProfiles.get(msg.sender_id)
+                    const sender = senderProfiles[msg.sender_id]
                     const displayName = sender?.full_name?.trim() || `User ${msg.sender_id.slice(0, 6)}`
                     return (
                       <div key={msg.id} className="flex items-start gap-2">
@@ -923,6 +939,45 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="text-slate-300">Members</Label>
+              <div className="mt-2 max-h-40 overflow-y-auto space-y-1 rounded-md border border-slate-700 bg-slate-900/50 p-2">
+                {eventParticipants.length === 0 ? (
+                  <p className="text-xs text-slate-500 py-2">No staff participants found for this event.</p>
+                ) : (
+                  eventParticipants.map((participant) => {
+                    const checked = newGroup.member_ids.includes(participant.participant_id)
+                    return (
+                      <label
+                        key={participant.participant_id}
+                        className="flex items-center gap-2 rounded px-2 py-1.5 text-sm text-slate-300 hover:bg-slate-800 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setNewGroup((prev) => ({
+                              ...prev,
+                              member_ids: e.target.checked
+                                ? [...prev.member_ids, participant.participant_id]
+                                : prev.member_ids.filter((id) => id !== participant.participant_id),
+                            }))
+                          }}
+                          className="rounded border-slate-600"
+                        />
+                        <span className="truncate">{participant.display_name || participant.participant_id.slice(0, 8)}</span>
+                        {participant.role ? (
+                          <Badge variant="secondary" className="ml-auto text-[10px]">{participant.role}</Badge>
+                        ) : null}
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Select team members to add. You are added automatically as the creator.
+              </p>
             </div>
           </div>
           <DialogFooter>

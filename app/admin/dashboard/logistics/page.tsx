@@ -126,6 +126,18 @@ export default function LogisticsPage() {
     groupsLoading: travelGroupsLoading,
   } = useTravelCoordination()
 
+  // Fetch real metrics from API
+  const [apiMetrics, setApiMetrics] = useState<any>(null)
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (selectedEvent) params.set('eventId', selectedEvent)
+    if (selectedTour) params.set('tourId', selectedTour)
+    fetch(`/api/admin/logistics/metrics?${params}`, { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setApiMetrics(d.metrics || d))
+      .catch(() => {})
+  }, [selectedEvent, selectedTour])
+
   // Calculate status metrics
   const calculateStatusMetrics = () => {
     // Default metrics object with all required properties
@@ -194,8 +206,12 @@ export default function LogisticsPage() {
         lodging: { percentage: lodgingPercentage, items: activeLodgingBookings, completed: activeLodgingBookings, status: lodgingStatus, revenue: totalLodgingRevenue },
         travelCoordination: { percentage: travelCoordinationPercentage, items: totalTravelGroups, completed: fullyCoordinatedGroups, status: travelCoordinationStatus, travelers: totalTravelers },
         accommodations: { percentage: lodgingPercentage, items: activeLodgingBookings, completed: activeLodgingBookings, status: lodgingStatus },
-        catering: { percentage: 0, items: 0, completed: 0, status: 'Not Started' },
-        communication: { percentage: 0, items: 0, completed: 0, status: 'Not Started' }
+        catering: apiMetrics?.catering
+          ? { percentage: apiMetrics.catering.percentage || 0, items: apiMetrics.catering.items || 0, completed: apiMetrics.catering.completed || 0, status: apiMetrics.catering.status || 'Not Started' }
+          : { percentage: 0, items: 0, completed: 0, status: 'Not Started' },
+        communication: apiMetrics?.communication
+          ? { percentage: apiMetrics.communication.percentage || 0, items: apiMetrics.communication.items || 0, completed: apiMetrics.communication.completed || 0, status: apiMetrics.communication.status || 'Not Started' }
+          : { percentage: 0, items: 0, completed: 0, status: 'Not Started' }
       }
     } catch (error) {
       console.error('Error calculating metrics:', error)
