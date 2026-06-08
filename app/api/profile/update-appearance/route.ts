@@ -15,14 +15,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const { user, supabase } = auth
-    console.log('✅ Successfully authenticated user for appearance update:', user.id)
 
     // Get the request body
     const body = await request.json()
     const { profileColors, selectedTheme, darkMode, animations, glowEffects, profileImages } = body
 
-    console.log('Updating appearance settings for user:', user.id)
-    console.log('Settings to update:', { profileColors, selectedTheme, darkMode, animations, glowEffects, profileImages })
 
     // Validate the input data
     if (!profileColors || !selectedTheme) {
@@ -55,7 +52,6 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    console.log('Existing profile found:', existingProfile)
 
     // Get existing metadata or create empty object
     const existingMetadata = existingProfile.metadata || {}
@@ -79,7 +75,6 @@ export async function PUT(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
-    console.log('Attempting to update with data:', updateData)
 
     const { data, error } = await supabase
       .from('profiles')
@@ -101,7 +96,6 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    console.log('Appearance settings updated successfully:', data)
 
     return NextResponse.json({
       success: true,

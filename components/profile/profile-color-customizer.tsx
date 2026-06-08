@@ -213,12 +213,21 @@ export function ProfileColorCustomizer({
   const onSubmit = async (data: ColorCustomizationValues) => {
     try {
       setIsLoading(true)
-      
-      // TODO: Save to database
-      console.log('Saving color customization:', data)
-      
+
+      const response = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ color_scheme: data }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error || 'Failed to save colors')
+      }
+
       onColorsChange?.(data)
-      
+
       toast({
         title: "Colors Updated",
         description: "Your profile colors have been saved successfully!",

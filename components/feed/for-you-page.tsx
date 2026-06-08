@@ -40,11 +40,51 @@ import { ThreadComposerV2 } from '@/components/forums/thread-composer-v2'
 import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
 import { FeedVideoPlayer } from '@/components/feed/feed-video-player'
 import { StartConversationButton } from '@/components/feed/start-conversation-button'
+import { FeedService, type ExtendedPost } from '@/lib/services/feed.service'
 
+function EmptyFeedState({ tab }: { tab: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <p className="text-gray-400 text-sm">No {tab} content yet.</p>
+      <p className="text-gray-500 text-xs mt-1">Check back soon or explore other tabs.</p>
+    </div>
+  )
+}
+
+function mapPostToContentItem(post: ExtendedPost): ContentItem {
+  return {
+    id: post.id,
+    type: 'social',
+    title: post.content?.slice(0, 100) || 'Post',
+    description: post.content || undefined,
+    author: post.profiles
+      ? {
+          id: post.user_id,
+          name: post.profiles.full_name || post.profiles.username || 'User',
+          username: post.profiles.username || 'user',
+          avatar_url: post.profiles.avatar_url || undefined,
+          is_verified: post.profiles.is_verified || false
+        }
+      : undefined,
+    cover_image: post.post_media?.[0]?.thumbnail_url || post.post_media?.[0]?.url || undefined,
+    created_at: post.created_at,
+    engagement: {
+      likes: post.likes_count || 0,
+      views: 0,
+      shares: post.shares_count || 0,
+      comments: post.comments_count || 0
+    },
+    metadata: {
+      tags: post.hashtags_data?.map(h => h.name) || post.hashtags || []
+    },
+    is_liked: post.is_liked,
+    is_following: post.is_following
+  }
+}
 
 interface ContentItem {
   id: string
-  type: 'music' | 'event' | 'video' | 'tour' | 'news' | 'blog' | 'forum'
+  type: 'music' | 'event' | 'video' | 'tour' | 'news' | 'blog' | 'forum' | 'social'
   title: string
   description?: string
   author?: {
@@ -87,31 +127,7 @@ interface ContentItem {
 }
 
 export function ForYouPage() {
-  const [content, setContent] = useState<ContentItem[]>([
-    // Add a hardcoded blog post for testing
-    {
-      id: 'test-blog-1',
-      type: 'blog',
-      title: 'The Future of Independent Music',
-      description: 'Exploring how independent artists are reshaping the music industry through digital platforms and direct fan engagement.',
-      author: {
-        id: 'test-author-1',
-        name: 'Sarah Johnson',
-        username: 'sarahjohnson',
-        avatar_url: 'https://dummyimage.com/150x150/8b5cf6/ffffff?text=SJ',
-        is_verified: false
-      },
-      cover_image: 'https://dummyimage.com/800x400/8b5cf6/ffffff?text=The+Future+of+Independent+Music',
-      created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-      engagement: { likes: 89, views: 1247, shares: 45, comments: 23 },
-      metadata: {
-        url: '/blog/the-future-of-independent-music',
-        tags: ['Independent Music', 'Digital Age', 'Music Industry']
-        // reading_time: 14
-      },
-      relevance_score: 0.95
-    }
-  ])
+  const [content, setContent] = useState<ContentItem[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -202,6 +218,7 @@ export function ForYouPage() {
 
   const contentTypes = [
     { value: 'all', label: 'All', icon: Sparkles },
+    { value: 'social', label: 'Social', icon: Users },
     { value: 'music', label: 'Music', icon: Music2 },
     { value: 'videos', label: 'Videos', icon: Video },
     { value: 'news', label: 'News', icon: FileText },
@@ -303,11 +320,6 @@ export function ForYouPage() {
           console.log('[NewsFeed] Hybrid content created with RSS news:', hybridContent.length, 'total items')
         }
         
-        // Ensure we always have some content
-        if (hybridContent.length === 0) {
-          hybridContent = generateMockContent()
-        }
-        
         setContent(hybridContent)
       } else if (activeTab === 'music') {
         // Fetch music tracks
@@ -360,6 +372,10 @@ export function ForYouPage() {
         const response = await fetch(`/api/forums/threads?${params}`)
         const data = await response.json()
         setContent(data.threads || [])
+      } else if (activeTab === 'social') {
+        const feedService = new FeedService()
+        const { data } = await feedService.getFeed(0, 20)
+        setContent((data || []).map(mapPostToContentItem))
       } else {
         // For other tabs, use the existing API
         const response = await fetch(`/api/feed/for-you?${params}`)
@@ -368,361 +384,12 @@ export function ForYouPage() {
       }
     } catch (error) {
       console.error('Error loading content:', error)
-      setContent(generateMockContent())
+      setContent([])
     } finally {
       setLoading(false)
     }
   }
 
-  const generateMockContent = (): ContentItem[] => {
-    return [
-      // Add a hardcoded blog post for testing
-      {
-        id: 'test-blog-1',
-        type: 'blog',
-        title: 'The Future of Independent Music',
-        description: 'Exploring how independent artists are reshaping the music industry through digital platforms and direct fan engagement.',
-        author: {
-          id: 'test-author-1',
-          name: 'Sarah Johnson',
-          username: 'sarahjohnson',
-          avatar_url: 'https://dummyimage.com/150x150/8b5cf6/ffffff?text=SJ',
-          is_verified: false
-        },
-        cover_image: 'https://dummyimage.com/800x400/8b5cf6/ffffff?text=The+Future+of+Independent+Music',
-        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 89, views: 1247, shares: 45, comments: 23 },
-        metadata: {
-          url: '/blog/the-future-of-independent-music',
-          tags: ['Independent Music', 'Digital Age', 'Music Industry'],
-          // reading_time: 14
-        },
-        relevance_score: 0.95
-      },
-      {
-        id: '1',
-        type: 'music',
-        title: 'Midnight Dreams - New Single',
-        description: 'Fresh indie rock vibes with haunting vocals and atmospheric production that will transport you to another dimension.',
-        author: {
-          id: '1',
-          name: 'Luna Echo',
-          username: 'lunaecho',
-          avatar_url: getPlaceholderImage('music', 40, 40),
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 400),
-        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { genre: 'Indie Rock', duration: 180 },
-        relevance_score: 0.95
-      },
-      {
-        id: '2',
-        type: 'event',
-        title: 'Summer Music Festival 2024',
-        description: 'Join us for an incredible day of live music featuring top indie artists from around the country. Food trucks, craft beer, and amazing vibes!',
-        author: {
-          id: '2',
-          name: 'Central Park Arena',
-          username: 'centralparkarena',
-          avatar_url: getPlaceholderImage('event', 40, 40),
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('event', 400, 300),
-        created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { date: '2024-07-15', location: 'Central Park Arena', venue: 'Central Park Arena', capacity: 5000, ticket_price: 75 },
-        relevance_score: 0.88
-      },
-      {
-        id: '3',
-        type: 'video',
-        title: 'Behind the Scenes: Studio Session',
-        description: 'Exclusive look at the recording process for our latest album. See how the magic happens in the studio.',
-        author: {
-          id: '3',
-          name: 'The Midnight Collective',
-          username: 'midnightcollective',
-          avatar_url: getPlaceholderImage('video', 40, 40),
-          is_verified: false
-        },
-        cover_image: getPlaceholderImage('video', 400, 225),
-        created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { duration: 480 },
-        relevance_score: 0.92
-      },
-      {
-        id: '4',
-        type: 'tour',
-        title: 'Luna Echo World Tour 2024',
-        description: 'Luna Echo embarks on their first world tour, bringing their ethereal sound to fans across the globe.',
-        author: {
-          id: '4',
-          name: 'Echo & The Bunnymen',
-          username: 'echoandbunnymen',
-          avatar_url: getPlaceholderImage('tour', 40, 40),
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('tour', 400, 300),
-        created_at: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { date: '2024-06-01', location: 'Worldwide' },
-        relevance_score: 0.87
-      },
-      {
-        id: '5',
-        type: 'news',
-        title: 'New Album Release: Industry Insights',
-        description: 'Breaking news in the music industry as top artists announce groundbreaking new albums and innovative collaborations.',
-        author: {
-          id: '5',
-          name: 'Music Industry Weekly',
-          username: 'musicindustryweekly',
-          avatar_url: getPlaceholderImage('news', 40, 40),
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('news', 400, 250),
-        created_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { tags: ['#MusicIndustry', '#NewReleases'] },
-        relevance_score: 0.85
-      },
-      {
-        id: '6',
-        type: 'blog',
-        title: 'The Future of Independent Music',
-        description: 'Exploring how independent artists are reshaping the music industry through digital platforms and direct fan engagement.',
-        author: {
-          id: '6',
-          name: 'Sarah Johnson',
-          username: 'sarahjohnson',
-          avatar_url: getPlaceholderImage('blog', 40, 40),
-          is_verified: false
-        },
-        cover_image: getPlaceholderImage('blog', 400, 250),
-        created_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { tags: ['#IndependentMusic', '#DigitalAge'] },
-        relevance_score: 0.83
-      },
-      // Additional RSS-style news items for testing
-      {
-        id: 'rss_1',
-        type: 'news',
-        title: 'Anti-Flag\'s Justin Sane Ordered to Pay Nearly $2 Million in Damages',
-        description: 'A federal judge handed down a default judgment after the punk singer never acknowledged the sexual assault lawsuit filed against him.',
-        author: {
-          id: 'rss_pitchfork',
-          name: 'Matthew Strauss',
-          username: 'pitchfork',
-          avatar_url: 'https://dummyimage.com/40x40/ef4444/ffffff?text=P',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('news', 400, 250),
-        created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: 'https://pitchfork.com/news/anti-flags-justin-sane-ordered-to-pay-nearly-2-million-in-damages-in-sexual-assault-lawsuit',
-          tags: ['News', 'Pitchfork', 'Legal']
-        },
-        relevance_score: 0.8
-      },
-      {
-        id: 'rss_2',
-        type: 'news',
-        title: 'King Gizzard & the Lizard Wizard Leave Spotify',
-        description: 'The Australian band opposes military investments made by Daniel Ek, following in the footsteps of Deerhoof and Xiu Xiu.',
-        author: {
-          id: 'rss_pitchfork',
-          name: 'Matthew Strauss',
-          username: 'pitchfork',
-          avatar_url: 'https://dummyimage.com/40x40/ef4444/ffffff?text=P',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('news', 400, 250),
-        created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: 'https://pitchfork.com/news/king-gizzard-and-the-lizard-wizard-leave-spotify',
-          tags: ['News', 'Pitchfork', 'Streaming']
-        },
-        relevance_score: 0.85
-      },
-      {
-        id: 'rss_3',
-        type: 'news',
-        title: 'Amaarae Shares Video for New Song "Girlie-Pop!": Watch',
-        description: 'The Ghanaian American singer releases a new music video showcasing her unique blend of Afropop and alternative sounds.',
-        author: {
-          id: 'rss_pitchfork',
-          name: 'Jazz Monroe',
-          username: 'pitchfork',
-          avatar_url: 'https://dummyimage.com/40x40/ef4444/ffffff?text=P',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('news', 400, 250),
-        created_at: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: 'https://pitchfork.com/news/amaarae-shares-video-for-new-song-girlie-pop-watch',
-          tags: ['News', 'Pitchfork', 'New Music']
-        },
-        relevance_score: 0.9
-      },
-      // Additional genre-specific content
-      {
-        id: 'indie_1',
-        type: 'news',
-        title: 'Indie Rock Revolution: New Bands Shaping the Scene',
-        description: 'Discover the latest wave of independent artists who are redefining the indie rock landscape with innovative sounds and DIY ethics.',
-        author: {
-          id: 'stereogum',
-          name: 'Stereogum',
-          username: 'stereogum',
-          avatar_url: 'https://dummyimage.com/40x40/10b981/ffffff?text=S',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Indie Music', 'Rock', 'New Artists']
-        },
-        relevance_score: 0.95
-      },
-      {
-        id: 'hiphop_1',
-        type: 'news',
-        title: 'Hip-Hop\'s Evolution: From the Streets to Global Dominance',
-        description: 'Exploring how hip-hop culture continues to influence music, fashion, and society worldwide.',
-        author: {
-          id: 'complex',
-          name: 'Complex',
-          username: 'complex',
-          avatar_url: 'https://dummyimage.com/40x40/f59e0b/ffffff?text=C',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Hip-Hop', 'Culture', 'Music History']
-        },
-        relevance_score: 0.92
-      },
-      {
-        id: 'electronic_1',
-        type: 'news',
-        title: 'Electronic Music Festival Season: What to Expect in 2024',
-        description: 'A comprehensive guide to the biggest electronic music festivals and events happening around the world this year.',
-        author: {
-          id: 'resident_advisor',
-          name: 'Resident Advisor',
-          username: 'residentadvisor',
-          avatar_url: 'https://dummyimage.com/40x40/3b82f6/ffffff?text=R',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 7 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Electronic Music', 'Festivals', 'Events']
-        },
-        relevance_score: 0.88
-      },
-      {
-        id: 'metal_1',
-        type: 'news',
-        title: 'Metal Scene Report: Underground Bands Breaking Through',
-        description: 'Discover the most promising underground metal bands that are pushing the boundaries of the genre.',
-        author: {
-          id: 'metal_injection',
-          name: 'Metal Injection',
-          username: 'metalinjection',
-          avatar_url: 'https://dummyimage.com/40x40/64748b/ffffff?text=M',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 9 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Metal Music', 'Underground', 'New Bands']
-        },
-        relevance_score: 0.85
-      },
-      {
-        id: 'jazz_1',
-        type: 'news',
-        title: 'Jazz Fusion: Modern Artists Bridging Traditional and Contemporary',
-        description: 'Meet the jazz musicians who are creating innovative sounds by blending traditional jazz with modern influences.',
-        author: {
-          id: 'jazz_times',
-          name: 'JazzTimes',
-          username: 'jazztimes',
-          avatar_url: 'https://dummyimage.com/40x40/8b5cf6/ffffff?text=J',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 11 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Jazz Music', 'Fusion', 'Modern Jazz']
-        },
-        relevance_score: 0.87
-      },
-      {
-        id: 'underground_1',
-        type: 'news',
-        title: 'Underground Scene Explosion: DIY Venues and Independent Artists',
-        description: 'The underground music scene is thriving with DIY venues, independent labels, and artists creating innovative sounds outside the mainstream.',
-        author: {
-          id: 'tiny_mix_tapes',
-          name: 'Tiny Mix Tapes',
-          username: 'tinymixtapes',
-          avatar_url: 'https://dummyimage.com/40x40/7c3aed/ffffff?text=T',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 13 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Underground Music', 'DIY', 'Independent']
-        },
-        relevance_score: 0.92
-      },
-      {
-        id: 'local_1',
-        type: 'news',
-        title: 'Local Music Scenes: Community-Driven Music Movements',
-        description: 'How local music scenes are fostering community connections and supporting emerging artists in cities across the country.',
-        author: {
-          id: 'chicago_reader',
-          name: 'Chicago Reader',
-          username: 'chicagoreader',
-          avatar_url: 'https://dummyimage.com/40x40/059669/ffffff?text=C',
-          is_verified: true
-        },
-        cover_image: getPlaceholderImage('music', 400, 250),
-        created_at: new Date(Date.now() - 15 * 60 * 60 * 1000).toISOString(),
-        engagement: { likes: 0, views: 0, shares: 0, comments: 0 },
-        metadata: { 
-          url: '#',
-          tags: ['Local Music', 'Community', 'Emerging Artists']
-        },
-        relevance_score: 0.85
-      }
-    ]
-  }
-
-  // Positive sentiment scoring system
   const calculatePositiveScore = (text: string): number => {
     const positiveWords = [
       'awesome', 'amazing', 'incredible', 'fantastic', 'brilliant', 'outstanding',
@@ -1291,6 +958,8 @@ export function ForYouPage() {
                     </div>
                   ))}
                 </div>
+              ) : content.length === 0 ? (
+                <EmptyFeedState tab={activeTab} />
               ) : filteredContent.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredContent.map((item, index) => (

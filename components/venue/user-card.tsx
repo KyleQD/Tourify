@@ -7,7 +7,7 @@ import type { User } from "@/lib/venue/types"
 import { MapPin, UserPlus, MessageCircle, UserCheck, UserX } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useAuth } from "@/contexts/auth-context"
 
 interface UserCardProps {

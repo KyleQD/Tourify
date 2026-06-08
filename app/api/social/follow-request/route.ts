@@ -141,7 +141,6 @@ export async function POST(request: NextRequest) {
         // Don't fail the follow request if notification creation fails
         // Log the error but continue
       } else {
-        console.log('Follow request notification created successfully')
       }
 
       return NextResponse.json({ 

@@ -19,7 +19,6 @@ export async function GET(
       return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
     }
 
-    console.log('💬 Fetching comments for post:', postId)
 
     // Try a simple query first without joins
     let comments: any[] = []
@@ -43,7 +42,6 @@ export async function GET(
         
         // If table doesn't exist, return empty comments
         if (error.code === 'PGRST106' || error.message?.includes('does not exist')) {
-          console.log('📝 post_comments table does not exist, returning empty comments')
           return NextResponse.json({
             comments: [],
             total: 0,
@@ -56,7 +54,6 @@ export async function GET(
         throw error
       }
 
-      console.log('✅ Simple query succeeded, got', comments.length, 'comments')
     } catch (simpleError) {
       console.error('❌ Simple query error:', simpleError)
       return NextResponse.json({ 
@@ -95,7 +92,6 @@ export async function GET(
           }
         }
       } catch (profileError) {
-        console.log('⚠️ Could not fetch profile for user:', comment.user_id, profileError)
       }
 
       transformedComments.push({
@@ -107,7 +103,6 @@ export async function GET(
       })
     }
 
-    console.log('💬 Retrieved and transformed comments:', transformedComments.length)
 
     return NextResponse.json({
       comments: transformedComments,
@@ -152,7 +147,6 @@ export async function POST(
       return NextResponse.json({ error: 'Comment content is required' }, { status: 400 })
     }
 
-    console.log('💬 Adding comment to post:', { postId, userId: user.id, content: content.substring(0, 50) + '...' })
 
     // Add comment
     const { data: comment, error: commentError } = await supabase
@@ -177,7 +171,6 @@ export async function POST(
       }, { status: 500 })
     }
 
-    console.log('✅ Comment added successfully:', comment.id)
 
     // Get user profile separately
     let userInfo = {
@@ -205,7 +198,6 @@ export async function POST(
         }
       }
     } catch (profileError) {
-      console.log('⚠️ Could not fetch profile for user:', user.id, profileError)
     }
 
     const transformedComment = {
@@ -241,7 +233,6 @@ export async function POST(
       }
     }
 
-    console.log('✅ Successfully added comment')
 
     const { data: postRow } = await supabase
       .from('posts')

@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
 
     const { user, supabase } = authResult
 
-    console.log('🔍 Friend search for:', user.id, 'query:', query)
 
     // Get user's current connections to avoid showing them
     const { data: currentConnections } = await supabase
@@ -183,7 +182,6 @@ export async function GET(request: NextRequest) {
       return 0
     })
 
-    console.log('✅ Found', enrichedUsers.length, 'friend search results')
 
     return NextResponse.json({
       users: enrichedUsers,

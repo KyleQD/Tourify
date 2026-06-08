@@ -9,7 +9,6 @@ const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Ticketing Webhook] Processing webhook')
 
     if (!stripe || !endpointSecret) {
       console.error('[Ticketing Webhook] Stripe not configured')
@@ -41,7 +40,6 @@ export async function POST(request: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session
 
         if (session.payment_status === 'paid') {
-          console.log('[Ticketing Webhook] Payment completed for session:', session.id)
 
           const { sale_id } = session.metadata || {}
 
@@ -108,7 +106,6 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            console.log('[Ticketing Webhook] Successfully processed sale:', sale_id)
           }
         }
         break
@@ -116,13 +113,11 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
-        console.log('[Ticketing Webhook] Payment intent succeeded:', paymentIntent.id)
         break
       }
 
       case 'payment_intent.payment_failed': {
         const failedPayment = event.data.object as Stripe.PaymentIntent
-        console.log('[Ticketing Webhook] Payment failed:', failedPayment.id)
 
         await supabase
           .from('ticket_sales')
@@ -136,7 +131,6 @@ export async function POST(request: NextRequest) {
 
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
-        console.log('[Ticketing Webhook] Charge refunded:', charge.id)
 
         // Fetch sale first to decrement quantity_sold
         const { data: sale } = await supabase
@@ -174,7 +168,6 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log('[Ticketing Webhook] Unhandled event type:', event.type)
     }
 
     return NextResponse.json({ received: true })

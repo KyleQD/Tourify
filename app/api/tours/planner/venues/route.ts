@@ -3,7 +3,6 @@ import { withAdminAuth } from '@/lib/auth/api-auth'
 
 export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
-    console.log('[Tour Planner Venues API] GET request started')
 
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('query') || ''

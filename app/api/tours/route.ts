@@ -16,14 +16,12 @@ const createTourSchema = z.object({
 
 export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
-    console.log('[Tours API] GET request started')
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    console.log('[Tours API] Fetching tours for user:', user.id)
 
     // Build query to fetch tours
     let query = supabase
@@ -43,7 +41,6 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
       console.error('[Tours API] Error fetching tours:', toursError)
       // Return empty array instead of error if table doesn't exist
       if (toursError.code === '42P01') {
-        console.log('[Tours API] Tours table does not exist, returning empty array')
         return NextResponse.json({ 
           success: true, 
           tours: [],
@@ -97,7 +94,6 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
       events: eventsByTour.get(tour.id) || [],
     }))
 
-    console.log('[Tours API] Successfully fetched tours:', toursWithEvents.length)
 
     return NextResponse.json({ 
       success: true, 
@@ -117,12 +113,10 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
 
 export const POST = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
-    console.log('[Tours API] POST request started')
 
     const body = await request.json()
     const validatedData = createTourSchema.parse(body)
 
-    console.log('[Tours API] Creating tour with data:', validatedData)
 
     // Create the tour
     const tourData = {
@@ -143,7 +137,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
       return NextResponse.json({ error: 'Failed to create tour' }, { status: 500 })
     }
 
-    console.log('[Tours API] Tour created successfully:', tour.id)
 
     // Create a default event linked via tour_events for immediate calendar visibility
     let createdDefaultEvent = false

@@ -418,7 +418,6 @@ export function PlatformSyncProvider({
             table: tableName
           },
           (payload) => {
-            console.log(`Real-time update for ${tableName}:`, payload)
             
             // Update local state based on the change
             if (tableName === 'tours') refreshTours()

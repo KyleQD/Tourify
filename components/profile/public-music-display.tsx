@@ -15,6 +15,7 @@ import {
   Headphones
 } from "lucide-react"
 import { toast } from "sonner"
+import { ComingSoonBanner } from "@/components/ui/coming-soon-banner"
 
 interface Track {
   id: string
@@ -45,6 +46,7 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, compact = f
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showPlaybackBanner, setShowPlaybackBanner] = useState(false)
 
   useEffect(() => {
     fetchMusic()
@@ -95,11 +97,10 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, compact = f
   const handlePlayTrack = (trackId: string) => {
     if (currentlyPlaying === trackId) {
       setCurrentlyPlaying(null)
-      // Stop playback
+      setShowPlaybackBanner(false)
     } else {
       setCurrentlyPlaying(trackId)
-      // Start playback (placeholder for actual audio implementation)
-      toast.info('Audio playback coming soon!')
+      setShowPlaybackBanner(true)
     }
   }
 
@@ -158,6 +159,14 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, compact = f
     )
   }
 
+  const playbackBanner = showPlaybackBanner ? (
+    <ComingSoonBanner
+      title="In-app audio playback coming soon"
+      description="Use the streaming links on each track until native playback is available."
+      className="mb-4"
+    />
+  ) : null
+
   if (compact) {
     return (
       <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl">
@@ -168,6 +177,7 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, compact = f
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {playbackBanner}
           <div className="space-y-3">
             {tracks.slice(0, 3).map((track) => (
               <div key={track.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-colors group">
@@ -249,6 +259,7 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, compact = f
 
   return (
     <div className="space-y-6">
+      {playbackBanner}
       {/* Featured Track */}
       {featuredTrack && (
         <Card className="bg-gradient-to-br from-purple-900/40 to-pink-900/40 backdrop-blur-xl border border-purple-500/30 rounded-3xl overflow-hidden">

@@ -16,7 +16,6 @@ export async function POST(request: NextRequest) {
 
     const { user, supabase } = authResult
 
-    console.log('Setting up storage bucket for user:', user.id)
 
     // Create the storage bucket
     const { data: bucketData, error: bucketError } = await supabase.storage.createBucket('profile-images', {
@@ -29,7 +28,6 @@ export async function POST(request: NextRequest) {
       console.error('Bucket creation error:', bucketError)
       // If bucket already exists, that's fine
       if (bucketError.message.includes('already exists')) {
-        console.log('Bucket already exists, continuing...')
       } else {
         return NextResponse.json(
           { success: false, error: `Failed to create bucket: ${bucketError.message}` },
@@ -37,7 +35,6 @@ export async function POST(request: NextRequest) {
         )
       }
     } else {
-      console.log('Bucket created successfully:', bucketData)
     }
 
     // Set up storage policies using SQL
@@ -96,10 +93,8 @@ export async function POST(request: NextRequest) {
       if (directPolicyError) {
         console.error('Direct policy creation error:', directPolicyError)
       } else {
-        console.log('Storage policies created successfully')
       }
     } else {
-      console.log('Storage policies created successfully')
     }
 
     // Add header_url column to profiles table if it doesn't exist

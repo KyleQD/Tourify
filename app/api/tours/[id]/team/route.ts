@@ -25,7 +25,6 @@ export async function GET(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Team API] GET request for tour team:', id)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -43,7 +42,6 @@ export async function GET(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Team API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -59,7 +57,6 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch team members' }, { status: 500 })
     }
 
-    console.log('[Tour Team API] Successfully fetched team members:', teamMembers?.length || 0)
 
       return NextResponse.json({ 
         success: true, 
@@ -83,7 +80,6 @@ export async function POST(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Team API] POST request for tour team member:', id)
 
     const body = await request.json()
     const validatedData = createTeamMemberSchema.parse(body)
@@ -104,7 +100,6 @@ export async function POST(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Team API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -128,7 +123,6 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to create team member' }, { status: 500 })
     }
 
-    console.log('[Tour Team API] Successfully created team member:', teamMember.id)
 
     if (isWorkflowEnabled()) {
       try {

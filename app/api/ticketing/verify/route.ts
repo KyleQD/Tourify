@@ -6,7 +6,6 @@ const stripe = getStripeOrNull()
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Ticket Verification API] GET request started')
     
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('session_id')
@@ -85,7 +84,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('[Ticket Verification API] Successfully verified purchase:', sale_id)
     return NextResponse.json({ purchase })
 
   } catch (error) {

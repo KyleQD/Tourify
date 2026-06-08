@@ -1,3 +1,9 @@
+/**
+ * CANONICAL notification implementation. All notification operations go through this class.
+ * Delivery channels: Resend (email), Twilio (SMS), Expo (push) via notification-delivery.ts.
+ * Client-side: use hooks/use-notifications.ts (direct Supabase + realtime).
+ * Server-side: use this class or /api/notifications.
+ */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'

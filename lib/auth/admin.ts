@@ -61,11 +61,9 @@ export async function userHasAdminSurfaceAccess(
  */
 export async function checkIsAdmin(): Promise<AdminUser | null> {
   try {
-    const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
 
-    if (sessionError || !session?.user) return null
-
-    const user = session.user
+    if (userError || !user) return null
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')

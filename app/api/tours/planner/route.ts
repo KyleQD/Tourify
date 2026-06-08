@@ -103,7 +103,6 @@ const completeTourDataSchema = z.object({
 
 export const POST = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
-    console.log('[Tour Planner API] POST request started')
 
     const body = await request.json()
     const validatedData = completeTourDataSchema.parse(body)
@@ -415,7 +414,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
       }
     }
 
-    console.log('[Tour Planner API] Successfully created tour with all components:', tour.id)
     
     return NextResponse.json({
       tour: {
@@ -447,7 +445,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
 
 export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
   try {
-    console.log('[Tour Planner API] GET request started')
 
     const { searchParams } = new URL(request.url)
     const tourId = searchParams.get('tour_id')

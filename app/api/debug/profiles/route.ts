@@ -6,7 +6,6 @@ export async function GET(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
     const supabase = await createClient()
-    console.log('🔍 Debug: Fetching all profiles...')
 
     // Get all profiles to see what data we have
     const { data: profiles, error } = await supabase
@@ -35,7 +34,6 @@ export async function GET(request: NextRequest) {
       created_at: profile.created_at
     }))
 
-    console.log('✅ Found', profiles?.length || 0, 'profiles')
 
     return NextResponse.json({ 
       profiles: profilesWithDetails,

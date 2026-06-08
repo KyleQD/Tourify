@@ -46,7 +46,6 @@ export async function GET(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Jobs API] GET request for tour jobs:', id)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -64,7 +63,6 @@ export async function GET(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Jobs API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -80,7 +78,6 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 })
     }
 
-    console.log('[Tour Jobs API] Successfully fetched jobs:', jobs?.length || 0)
 
       return NextResponse.json({ 
         success: true, 
@@ -104,7 +101,6 @@ export async function POST(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Jobs API] POST request for tour job:', id)
 
     const body = await request.json()
     const validatedData = createTourJobSchema.parse(body)
@@ -125,7 +121,6 @@ export async function POST(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Jobs API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -150,7 +145,6 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
     }
 
-    console.log('[Tour Jobs API] Successfully created job:', job.id)
 
     // Also post to the main job board for broader visibility
     try {
@@ -172,12 +166,9 @@ export async function POST(
       })
 
       if (mainJobResponse.ok) {
-        console.log('[Tour Jobs API] Successfully posted to main job board')
       } else {
-        console.log('[Tour Jobs API] Failed to post to main job board, but tour job was created')
       }
     } catch (error) {
-      console.log('[Tour Jobs API] Error posting to main job board:', error)
       // Don't fail the request if posting to main job board fails
     }
 

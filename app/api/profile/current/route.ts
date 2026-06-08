@@ -3,7 +3,6 @@ import { ProductionAuthService } from '@/lib/auth/production-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Profile Current API] GET request started')
     
     const authResult = await ProductionAuthService.authenticateRequest(request)
     if ('error' in authResult) {
@@ -12,7 +11,6 @@ export async function GET(request: NextRequest) {
 
     const { user, supabase } = authResult
 
-    console.log('[Profile Current API] User authenticated:', user.id)
 
     // Get the user's profile with the correct field names
     const { data: profile, error: profileError } = await supabase
@@ -45,14 +43,12 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      console.log('[Profile Current API] Profile not found for user:', user.id)
       return NextResponse.json(
         { error: 'Profile not found' },
         { status: 404 }
       )
     }
 
-    console.log('[Profile Current API] Profile found:', profile.username)
 
     // Get stats based on available data
     let stats = {
@@ -79,7 +75,6 @@ export async function GET(request: NextRequest) {
         stats.posts = postCount
       }
     } catch (error) {
-      console.log('[Profile Current API] Posts table not available, using profile data')
     }
 
     // Get like count (sum of likes on posts) if posts table exists
@@ -91,7 +86,6 @@ export async function GET(request: NextRequest) {
 
       stats.likes = posts?.reduce((sum: number, post: any) => sum + (post.likes_count || 0), 0) || 0
     } catch (error) {
-      console.log('[Profile Current API] Could not fetch likes data')
     }
 
     // Get view count (mock data for now)
@@ -129,7 +123,6 @@ export async function GET(request: NextRequest) {
       updated_at: profile.updated_at
     }
 
-    console.log('[Profile Current API] Returning profile with stats')
 
     // Fetch portfolio data for the current user
     let portfolio: any[] = []
@@ -141,9 +134,7 @@ export async function GET(request: NextRequest) {
         .order('created_at', { ascending: false })
       
       portfolio = portfolioRows || []
-      console.log('[Profile Current API] Found portfolio items:', portfolio.length)
     } catch (error) {
-      console.log('[Profile Current API] Could not fetch portfolio data:', error)
     }
 
     return NextResponse.json({ profile: profileWithStats, portfolio })

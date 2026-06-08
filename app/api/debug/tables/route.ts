@@ -7,7 +7,6 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServiceRoleClient()
 
-    console.log('🔍 Checking database tables...')
 
     // Check if post_comments table exists
     const { data: commentsTest, error: commentsError } = await supabase
@@ -63,8 +62,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    console.log('📊 Table test results:', tableTests)
-    console.log('🏗️ post_comments structure:', commentsStructure)
 
     return NextResponse.json({
       message: 'Database table check complete',

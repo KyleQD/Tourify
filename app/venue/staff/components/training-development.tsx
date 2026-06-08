@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
+import { ComingSoonBanner } from "@/components/ui/coming-soon-banner"
 import {
   BookOpen,
   Award,
@@ -129,6 +130,11 @@ export default function TrainingDevelopment() {
           Add Training
         </Button>
       </div>
+
+      <ComingSoonBanner
+        title="Training platform coming soon"
+        description="Course enrollment, certification tracking, and staff progress analytics are being built out. Sample data is shown below for preview."
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

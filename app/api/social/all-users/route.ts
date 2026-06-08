@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
     const offset = parseInt(searchParams.get('offset') || '0')
 
-    console.log('🔍 Getting all users for:', user.id, 'limit:', limit, 'offset:', offset)
 
     // Get all users except current user
     const { data: usersData, error: usersError } = await supabase
@@ -43,7 +42,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
 
-    console.log('📋 Raw users found:', usersData?.length || 0)
 
     // Transform the data
     const transformedUsers = usersData?.map((profile: any) => {
@@ -69,7 +67,6 @@ export async function GET(request: NextRequest) {
       }
     }).filter(Boolean) || [] // Remove nulls
 
-    console.log('✅ Returning', transformedUsers.length, 'users')
 
     return NextResponse.json({ 
       users: transformedUsers,

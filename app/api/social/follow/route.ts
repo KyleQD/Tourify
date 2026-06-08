@@ -120,7 +120,6 @@ export async function GET(request: NextRequest) {
         .single()
 
       if (error && error.code !== 'PGRST116') {
-        console.log('Error checking follow status:', error)
       }
 
       return NextResponse.json({ isFollowing: !!data })

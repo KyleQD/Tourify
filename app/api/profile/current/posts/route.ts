@@ -3,7 +3,6 @@ import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Profile Posts API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -12,7 +11,6 @@ export async function GET(request: NextRequest) {
 
     const { user, supabase } = authResult
 
-    console.log('[Profile Posts API] User authenticated:', user.id)
 
     // Get the user's posts
     const { data: posts, error: postsError } = await supabase
@@ -37,7 +35,6 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log('[Profile Posts API] Found posts:', posts?.length || 0)
 
     return NextResponse.json({ posts: posts || [] })
   } catch (error) {

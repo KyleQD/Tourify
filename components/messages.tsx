@@ -67,8 +67,8 @@ export default function Messages() {
   }, [selectedConversation])
 
   const fetchConversations = async () => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
     const { data, error } = await supabase
       .from("messages")
@@ -78,7 +78,7 @@ export default function Messages() {
         receiver:profiles(full_name, avatar_url),
         job:staff_jobs(title)
       `)
-      .or(`sender_id.eq.${session.user.id},receiver_id.eq.${session.user.id}`)
+      .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`)
       .order("created_at", { ascending: false })
 
     if (error) {
@@ -89,8 +89,8 @@ export default function Messages() {
     // Group messages by conversation
     const conversationMap = new Map<string, Conversation>()
     data?.forEach((message) => {
-      const otherUserId = message.sender_id === session.user.id ? message.receiver_id : message.sender_id
-      const otherUser = message.sender_id === session.user.id ? message.receiver : message.sender
+      const otherUserId = message.sender_id === user.id ? message.receiver_id : message.sender_id
+      const otherUser = message.sender_id === user.id ? message.receiver : message.sender
 
       if (!conversationMap.has(otherUserId)) {
         conversationMap.set(otherUserId, {
@@ -98,12 +98,12 @@ export default function Messages() {
           full_name: otherUser.full_name,
           avatar_url: otherUser.avatar_url,
           last_message: message.content,
-          unread_count: message.receiver_id === session.user.id && !message.read ? 1 : 0,
+          unread_count: message.receiver_id === user.id && !message.read ? 1 : 0,
           job_title: message.job?.title
         })
       } else {
         const conversation = conversationMap.get(otherUserId)!
-        if (message.receiver_id === session.user.id && !message.read) {
+        if (message.receiver_id === user.id && !message.read) {
           conversation.unread_count++
         }
       }
@@ -113,8 +113,8 @@ export default function Messages() {
   }
 
   const fetchMessages = async (userId: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
     const { data, error } = await supabase
       .from("messages")
@@ -124,7 +124,7 @@ export default function Messages() {
         receiver:profiles(full_name, avatar_url),
         job:staff_jobs(title)
       `)
-      .or(`and(sender_id.eq.${session.user.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${session.user.id})`)
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${userId}),and(sender_id.eq.${userId},receiver_id.eq.${user.id})`)
       .order("created_at", { ascending: true })
 
     if (error) {
@@ -137,13 +137,13 @@ export default function Messages() {
   }
 
   const markMessagesAsRead = async (userId: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
     const { error } = await supabase
       .from("messages")
       .update({ read: true })
-      .eq("receiver_id", session.user.id)
+      .eq("receiver_id", user.id)
       .eq("sender_id", userId)
       .eq("read", false)
 
@@ -158,13 +158,13 @@ export default function Messages() {
   const sendMessage = async () => {
     if (!selectedConversation || !newMessage.trim()) return
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
     const { error } = await supabase
       .from("messages")
       .insert([{
-        sender_id: session.user.id,
+        sender_id: user.id,
         receiver_id: selectedConversation,
         content: newMessage.trim(),
         read: false

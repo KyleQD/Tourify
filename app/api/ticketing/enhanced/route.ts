@@ -56,7 +56,6 @@ const validatePromoCodeSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Enhanced Ticketing API] GET request started')
     
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
@@ -243,7 +242,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Enhanced Ticketing API] POST request started')
     
     const body = await request.json()
     const { action, ...data } = body
@@ -427,7 +425,6 @@ export async function POST(request: NextRequest) {
           cancel_url: `${origin}/tickets/purchase?event_id=${validatedData.event_id}&cancelled=true`,
         })
 
-        console.log('[Enhanced Ticketing API] Stripe Checkout session created:', session.id)
         return NextResponse.json({
           sale,
           order_number: orderNumber,
@@ -439,7 +436,6 @@ export async function POST(request: NextRequest) {
       }
 
       // Free ticket or dev mode without Stripe — mark as paid directly
-      console.log('[Enhanced Ticketing API] Successfully created ticket sale:', sale.id)
       return NextResponse.json({ 
         sale,
         order_number: orderNumber,

@@ -1,3 +1,5 @@
+// PUBLIC ROUTE: Intentionally unauthenticated — serves storefront/discovery to anonymous users.
+// Do not add auth checks here. RLS on underlying tables restricts to published listings only.
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"

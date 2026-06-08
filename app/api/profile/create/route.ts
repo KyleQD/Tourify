@@ -3,7 +3,6 @@ import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Profile Create API] POST request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -11,7 +10,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { user, supabase } = authResult
-    console.log('[Profile Create API] User authenticated:', user.id)
 
     // Check if profile already exists
     const { data: existingProfile } = await supabase
@@ -21,7 +19,6 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingProfile) {
-      console.log('[Profile Create API] Profile already exists for user:', user.id)
       return NextResponse.json({ 
         success: true, 
         message: 'Profile already exists',
@@ -90,7 +87,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('[Profile Create API] Profile created successfully:', newProfile.username)
 
     return NextResponse.json({ 
       success: true, 

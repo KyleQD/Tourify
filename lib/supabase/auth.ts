@@ -1,32 +1,11 @@
-import { NextAuthOptions, getServerSession } from "next-auth"
-
 /**
- * @deprecated Tourify auth runtime is now Supabase-only.
- * This legacy NextAuth export is intentionally isolated to prevent
- * split auth behavior if old endpoints import it.
+ * @deprecated Tourify auth runtime is Supabase-only. NextAuth has been removed.
+ * Disabled API routes under app/api/_disabled/ may still reference authOptions — do not use in active code.
  */
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   providers: [],
-  callbacks: {
-    async signIn() {
-      return false
-    },
-    async session({ session }) {
-      if (session.user) {
-        ;(session.user as any).isPro = false
-      }
-      return session
-    },
-  },
-  pages: {
-    signIn: "/login",
-    error: "/auth/error",
-  },
-  session: {
-    strategy: "jwt",
-  },
-}
+} as const
 
 export async function getSession() {
-  return await getServerSession(authOptions)
-} 
+  return null
+}

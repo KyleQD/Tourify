@@ -3,7 +3,6 @@ import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Settings Profile API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -12,7 +11,6 @@ export async function GET(request: NextRequest) {
 
     const { user, supabase } = authResult
 
-    console.log('[Settings Profile API] User authenticated:', user.id)
 
     // Get the user's profile
     const { data: profile, error: profileError } = await supabase
@@ -34,14 +32,12 @@ export async function GET(request: NextRequest) {
       .single()
 
     if (profileError || !profile) {
-      console.log('[Settings Profile API] Profile not found for user:', user.id)
       return NextResponse.json(
         { error: 'Profile not found' },
         { status: 404 }
       )
     }
 
-    console.log('[Settings Profile API] Profile found:', profile.username)
 
     return NextResponse.json({ profile })
   } catch (error) {
@@ -55,7 +51,6 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    console.log('[Settings Profile API] PUT request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -65,7 +60,6 @@ export async function PUT(request: NextRequest) {
     const { user, supabase } = authResult
     const body = await request.json()
 
-    console.log('[Settings Profile API] Updating profile for user:', user.id)
 
     const inPersonConnectSettings = {
       ...(body.profile_data?.in_person_connect || {}),
@@ -131,7 +125,6 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    console.log('[Settings Profile API] Profile updated successfully')
 
     return NextResponse.json({ profile })
   } catch (error) {

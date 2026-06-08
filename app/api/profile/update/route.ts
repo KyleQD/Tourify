@@ -28,7 +28,6 @@ export async function PUT(request: NextRequest) {
     }
 
     const { user, supabase } = auth
-    console.log('✅ Successfully authenticated user:', user.id)
 
     // Parse and validate request body
     const body = await request.json()
@@ -169,7 +168,6 @@ export async function PUT(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Successfully updated profile for user:', user.id)
 
     // Return updated profile data
     return NextResponse.json({

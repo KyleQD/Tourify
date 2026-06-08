@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Search, Filter, X } from "lucide-react"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useDebounce } from "@/hooks/use-debounce"
 import type { User } from "@/types/user"
 // Mock functions for search service

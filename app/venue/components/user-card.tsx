@@ -7,7 +7,7 @@ import type { User } from "@/types/user"
 import { MapPin, UserPlus, MessageCircle, UserCheck, UserX } from "lucide-react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useAuth } from "../../context/auth-context"
 
 interface UserCardProps {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isAuthorizedInternalRequest } from '@/lib/auth/route-guards'
 
 interface HealthCheck {
   status: 'healthy' | 'degraded' | 'unhealthy'
@@ -27,6 +28,14 @@ interface ServiceStatus {
 const startTime = Date.now()
 
 export async function GET(request: NextRequest) {
+  const isInternal = isAuthorizedInternalRequest(request)
+  if (!isInternal) {
+    return NextResponse.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+    })
+  }
+
   const supabase = await createClient()
   const healthCheck: HealthCheck = {
     status: 'healthy',
@@ -131,7 +140,7 @@ async function checkSupabase(supabase: Awaited<ReturnType<typeof createClient>>)
   try {
     const start = Date.now()
     
-    const { data, error } = await supabase.auth.getSession()
+    const { error } = await supabase.auth.getUser()
 
     const responseTime = Date.now() - start
 
@@ -159,7 +168,7 @@ async function checkSupabase(supabase: Awaited<ReturnType<typeof createClient>>)
 export async function HEAD(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { error } = await supabase.auth.getSession()
+    const { error } = await supabase.auth.getUser()
     
     if (error) {
       return new NextResponse(null, { status: 503 })

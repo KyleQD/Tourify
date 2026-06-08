@@ -13,7 +13,6 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceRoleClient()
 
-    console.log('🔍 Getting suggested users for:', user.id)
 
     // Get the URL parameters
     const { searchParams } = new URL(request.url)
@@ -26,7 +25,6 @@ export async function GET(request: NextRequest) {
       .eq('follower_id', user.id)
 
     const followingIds = followingData?.map((f: any) => f.following_id) || []
-    console.log('👥 User is already following:', followingIds.length, 'users')
 
     // Build the query for suggested users
     let query = supabase
@@ -50,7 +48,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch suggested users' }, { status: 500 })
     }
 
-    console.log('📋 Raw suggested users found:', suggestedData?.length || 0)
 
     // Transform and filter the data
     const transformedUsers = suggestedData?.map((profile: any) => {
@@ -75,7 +72,6 @@ export async function GET(request: NextRequest) {
       }
     }).filter(Boolean).slice(0, limit) || [] // Remove nulls and limit results
 
-    console.log('✅ Returning', transformedUsers.length, 'suggested users')
 
     return NextResponse.json({ 
       users: transformedUsers,

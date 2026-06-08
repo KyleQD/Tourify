@@ -134,6 +134,7 @@ export function SlackIntegration({ eventId, eventName }: SlackIntegrationProps) 
     setIsConnecting(true)
     try {
       const workspace = await SlackService.connectWorkspace(connectCode)
+      if (!workspace) return
       setWorkspaces([...workspaces, workspace])
       setSelectedWorkspace(workspace.id)
       setConnectDialogOpen(false)

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { UserCard } from "../user-card"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAuth } from "@/contexts/auth-context"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { Sparkles, RefreshCw } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 

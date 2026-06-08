@@ -17,7 +17,6 @@ export async function GET(
       return NextResponse.json({ error: 'Post ID is required' }, { status: 400 })
     }
 
-    console.log('👍 Checking like status for post:', postId)
 
     // Get total likes count
     const { count: totalLikes } = await supabase
@@ -38,7 +37,6 @@ export async function GET(
       isLiked = !!userLike
     }
 
-    console.log('👍 Like status:', { totalLikes, isLiked, userId: user?.id })
 
     return NextResponse.json({
       likes_count: totalLikes || 0,
@@ -70,7 +68,6 @@ export async function POST(
     }
 
     const { action } = await request.json()
-    console.log('👍 Processing like action:', { action, postId, userId: user.id })
 
     // Check if user has already liked the post
     const { data: existingLike } = await supabase
@@ -117,7 +114,6 @@ export async function POST(
         })
       }
 
-      console.log('✅ Successfully liked post')
       return NextResponse.json({ success: true, action: 'liked' })
 
     } else if (action === 'unlike') {
@@ -139,7 +135,6 @@ export async function POST(
 
       // Likes count is derived from post_likes; no direct counter update needed
 
-      console.log('✅ Successfully unliked post')
       return NextResponse.json({ success: true, action: 'unliked' })
 
     } else {

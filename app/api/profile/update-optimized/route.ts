@@ -95,11 +95,9 @@ export async function PUT(request: NextRequest) {
     }
 
     const { user, supabase } = auth
-    console.log('✅ Successfully authenticated user:', user.id)
 
     // Parse and validate request body
     const body = await request.json()
-    console.log('📥 Request body:', body)
     
     const validationResult = updateProfileSchema.safeParse(body)
     
@@ -242,7 +240,6 @@ export async function PUT(request: NextRequest) {
       delete profileUpdate.profile_experience
     }
 
-    console.log('🔄 Updating profile with data:', profileUpdate)
 
     // Perform the optimized update using direct column access
     const { data: updatedProfile, error: updateError } = await supabase
@@ -308,7 +305,6 @@ export async function PUT(request: NextRequest) {
     }
 
     const processingTime = Date.now() - startTime
-    console.log(`✅ Successfully updated profile for user: ${user.id} in ${processingTime}ms`)
 
     // Return optimized profile response
     const response = {

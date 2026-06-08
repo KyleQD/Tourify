@@ -9,8 +9,11 @@ export async function GET(req: Request) {
   if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 })
 
   const supabase = await createClient()
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return NextResponse.redirect(url.origin + '/login')
+
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return NextResponse.redirect(url.origin + '/login')
+  if (!session?.access_token) return NextResponse.redirect(url.origin + '/login')
 
   const fnUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/functions/v1/social-oauth`
   const res = await fetch(fnUrl, {

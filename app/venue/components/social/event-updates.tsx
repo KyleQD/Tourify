@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useAuth } from "../../../context/auth-context"
 import { format, formatDistanceToNow, isAfter, parseISO, isBefore } from "date-fns"
 import {

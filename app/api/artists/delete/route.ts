@@ -61,7 +61,6 @@ export async function DELETE(request: NextRequest) {
         .eq('account_type', 'artist')
     } catch (cleanupError) {
       // Non-critical cleanup errors - artist is already deleted
-      console.log('Cleanup warning (non-critical):', cleanupError)
     }
 
     return NextResponse.json({ 

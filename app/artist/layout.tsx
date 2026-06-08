@@ -6,13 +6,11 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { MobileArtistNav } from "@/components/artist/mobile-artist-nav"
 import { ArtistProvider } from "@/contexts/artist-context"
-import { useRouteAccountSync } from "@/hooks/use-route-account-sync"
+import { AccountRouteGuard } from "@/components/account/account-route-guard"
 import { pathnameRequiresArtistAccount } from "@/lib/artist/protected-routes"
 
 function ArtistLayoutContent({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  // Automatically sync account with route
-  const { isCorrectAccount } = useRouteAccountSync()
   
   // Check if this is a public artist profile (e.g., /artist/felix)
   // Exclude known dashboard routes
@@ -27,6 +25,7 @@ function ArtistLayoutContent({ children }: { children: ReactNode }) {
   // For dashboard pages, show full layout with sidebar
   return (
     <SidebarProvider>
+      <AccountRouteGuard />
       <div className="flex min-h-screen w-full bg-gradient-to-br from-black via-slate-950 to-black">
         {/* Hide the sidebar on small screens; keep desktop unchanged */}
         <div className="hidden md:block"><AppSidebar /></div>
@@ -39,14 +38,6 @@ function ArtistLayoutContent({ children }: { children: ReactNode }) {
             className="h-full overflow-auto p-4 lg:p-8 artist-content relative z-10 touch-pan-y focus-within:pb-24"
             style={{ WebkitOverflowScrolling: 'touch' }}
           >
-            {/* Show warning if not in correct account mode */}
-            {!isCorrectAccount && (
-              <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
-                <p className="text-yellow-400 text-sm">
-                  ⚠️ You're viewing artist pages but not in artist mode. Switch to your artist account for the full experience.
-                </p>
-              </div>
-            )}
             {children}
           </div>
           {/* Mobile bottom navigation for artist pages */}

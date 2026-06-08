@@ -3,7 +3,6 @@ import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-au
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Admin Error Reporting API] POST request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -21,12 +20,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { error, component, timestamp, userAgent } = body
 
-    console.log('[Admin Error Reporting] Error reported:', {
-      error,
-      component,
-      timestamp,
-      user: user.email
-    })
 
     // For now, just log the error. In the future, this could store to database
     return NextResponse.json({

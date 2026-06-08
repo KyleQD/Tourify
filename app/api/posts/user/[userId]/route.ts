@@ -6,7 +6,6 @@ export async function GET(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    console.log('[User Posts API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {
@@ -16,7 +15,6 @@ export async function GET(
     const { supabase } = authResult
     const { userId } = await params
 
-    console.log('[User Posts API] Fetching posts for user:', userId)
 
     // Get the user's posts with profile data
     const { data: posts, error: postsError } = await supabase
@@ -55,7 +53,6 @@ export async function GET(
       )
     }
 
-    console.log('[User Posts API] Found posts:', posts?.length || 0)
 
     return NextResponse.json({ posts: posts || [] })
   } catch (error) {

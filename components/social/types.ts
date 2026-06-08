@@ -23,11 +23,35 @@ export interface Post {
     image: string
   }
   eventDetails?: {
-    id: string
+    id?: string
     title: string
     date: string
     location: string
+    time?: string
+    description?: string
+    ticketUrl?: string
+    image?: string
   }
+  pollOptions?: {
+    id: string
+    text: string
+    votes: number
+  }[]
+  pollDuration?: string
+  tags?: string[]
+  media_urls?: string[]
+  post_media?: {
+    type: "image" | "video"
+    url: string
+    alt_text?: string
+    thumbnail_url?: string
+  }[]
+  media_items?: {
+    type: "image" | "video"
+    url: string
+    alt_text?: string
+    thumbnail_url?: string
+  }[]
   poll?: {
     question: string
     options: {

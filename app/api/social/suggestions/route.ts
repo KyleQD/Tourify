@@ -25,11 +25,9 @@ export async function GET(request: NextRequest) {
       max_followers: parseInt(searchParams.get('max_followers') || '1000000')
     }
 
-    console.log('🔍 Getting friend suggestions for:', user.id, 'with params:', params)
 
     const result = await friendSuggestionService.getSuggestions(user.id, params)
 
-    console.log('✅ Returning', result.suggestions.length, 'suggestions using', result.algorithm_used, 'algorithm')
 
     return NextResponse.json(result)
 

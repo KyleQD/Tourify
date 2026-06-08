@@ -1,12 +1,39 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
+import { z } from 'zod'
 import type { User } from '@supabase/supabase-js'
 import { useAuth } from '@/contexts/auth-context'
 import { AccountManagementService, UserAccount, ActiveSession } from '@/lib/services/account-management.service'
 
 const ACCOUNTS_FETCH_TIMEOUT_MS = 22_000
 const ACTIVE_ACCOUNT_STORAGE_KEY = 'tourify.active-account'
+
+export const ArtistAccountSchema = z.object({
+  artist_name: z.string().min(1, 'Artist name is required').max(100),
+  bio: z.string().max(500).optional(),
+  genres: z.array(z.string()).optional(),
+  social_links: z.record(z.string()).optional(),
+})
+
+export const VenueAccountSchema = z.object({
+  venue_name: z.string().min(1, 'Venue name is required').max(100),
+  description: z.string().max(1000).optional(),
+  address: z.string().optional(),
+  capacity: z.number().positive().optional(),
+  venue_types: z.array(z.string()).optional(),
+  contact_info: z.record(z.unknown()).optional(),
+  social_links: z.record(z.string()).optional(),
+})
+
+export const OrganizerAccountSchema = z.object({
+  organization_name: z.string().min(1, 'Organization name is required').max(100),
+  description: z.string().max(1000).optional(),
+  organization_type: z.string().min(1),
+  contact_info: z.record(z.unknown()).optional(),
+  social_links: z.record(z.string()).optional(),
+  specialties: z.array(z.string()).optional(),
+})
 
 interface StoredActiveAccount {
   userId: string
@@ -212,7 +239,6 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       setIsLoading(true)
       setError(null)
       
-      console.log('🔄 [MultiAccount] Refreshing accounts for user:', user.id)
 
       // One same-origin request (server runs Supabase) avoids many parallel browser→Supabase calls
       // that can stall under Safari / strict privacy or flaky networks.
@@ -255,12 +281,6 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
 
       const userAccounts = body.accounts
 
-      console.log('📋 [MultiAccount] Received accounts from API:', userAccounts.length)
-      console.log('📋 [MultiAccount] Account details:', userAccounts.map(acc => ({
-        type: acc.account_type,
-        id: acc.profile_id,
-        name: acc.profile_data?.organization_name || acc.profile_data?.artist_name || acc.profile_data?.venue_name || acc.profile_data?.display_name || acc.profile_data?.full_name || 'General'
-      })))
       
       setAccounts(userAccounts)
       const session = body.activeSession ?? null
@@ -298,9 +318,6 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       
       setActiveAccount(newActiveAccount)
       
-      console.log('✅ [MultiAccount] Active account set to:', newActiveAccount?.account_type || 'none')
-      console.log('✅ [MultiAccount] Admin accounts found:', userAccounts.filter(acc => acc.account_type === 'admin').length)
-      console.log('✅ [MultiAccount] Account refresh completed successfully')
       
     } catch (err: any) {
       console.error('Error fetching accounts:', err)
@@ -380,35 +397,32 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     try {
       setIsLoading(true)
       setError(null)
-      
-      console.log('Creating artist account for user:', user.id)
-      console.log('Artist data:', data)
-      
-      const accountId = await AccountManagementService.createArtistAccount(user.id, data)
-      console.log('Artist account created successfully:', accountId)
-      
-      await refreshAccounts()
-      return accountId
-    } catch (err) {
-      console.error('Error creating artist account:', err)
-      
-      let errorMessage = 'Failed to create artist account'
-      
-      if (err instanceof Error) {
-        // Provide more specific error messages based on the error
-        if (err.message.includes('not authenticated')) {
-          errorMessage = 'You must be logged in to create an artist account'
-        } else if (err.message.includes('artist_profiles table does not exist')) {
-          errorMessage = 'Database setup incomplete. Please apply the SQL migration in your Supabase dashboard.'
-        } else if (err.message.includes('permission')) {
-          errorMessage = 'You do not have permission to create artist accounts'
-        } else if (err.message.includes('duplicate')) {
-          errorMessage = 'An artist with this name already exists'
-        } else {
-          errorMessage = err.message
-        }
+      const parsed = ArtistAccountSchema.parse(data)
+
+      const response = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_artist', ...parsed }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
-      
+
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || 'Failed to create artist account')
+
+      await refreshAccounts()
+      return result.artistId
+    } catch (err) {
+      const errorMessage =
+        err instanceof z.ZodError
+          ? err.errors.map(e => e.message).join(', ')
+          : err instanceof Error
+            ? err.message
+            : 'Failed to create artist account'
+
       setError(errorMessage)
       throw new Error(errorMessage)
     } finally {
@@ -430,35 +444,32 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     try {
       setIsLoading(true)
       setError(null)
-      
-      console.log('Creating venue account for user:', user.id)
-      console.log('Venue data:', data)
-      
-      const accountId = await AccountManagementService.createVenueAccount(user.id, data)
-      console.log('Venue account created successfully:', accountId)
-      
-      await refreshAccounts()
-      return accountId
-    } catch (err) {
-      console.error('Error creating venue account:', err)
-      
-      let errorMessage = 'Failed to create venue account'
-      
-      if (err instanceof Error) {
-        // Provide more specific error messages based on the error
-        if (err.message.includes('not authenticated')) {
-          errorMessage = 'You must be logged in to create a venue account'
-        } else if (err.message.includes('venue_profiles table does not exist')) {
-          errorMessage = 'Database setup incomplete. Please apply the SQL migration in your Supabase dashboard.'
-        } else if (err.message.includes('permission')) {
-          errorMessage = 'You do not have permission to create venue accounts'
-        } else if (err.message.includes('duplicate')) {
-          errorMessage = 'A venue with this name already exists'
-        } else {
-          errorMessage = err.message
-        }
+      const parsed = VenueAccountSchema.parse(data)
+
+      const response = await fetch('/api/accounts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_venue', ...parsed }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
-      
+
+      const result = await response.json()
+      if (!result.success) throw new Error(result.error || 'Failed to create venue account')
+
+      await refreshAccounts()
+      return result.venueId
+    } catch (err) {
+      const errorMessage =
+        err instanceof z.ZodError
+          ? err.errors.map(e => e.message).join(', ')
+          : err instanceof Error
+            ? err.message
+            : 'Failed to create venue account'
+
       setError(errorMessage)
       throw new Error(errorMessage)
     } finally {
@@ -479,20 +490,12 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     try {
       setIsLoading(true)
       setError(null)
-      
-      console.log('🏗️ [MultiAccount] Creating organizer account for user:', user.id)
-      console.log('🏗️ [MultiAccount] Organizer data:', data)
-      
-      // Create organizer account via API route (server-side with proper authentication)
+      const parsed = OrganizerAccountSchema.parse(data)
+
       const response = await fetch('/api/accounts', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'create_organizer',
-          ...data
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_organizer', ...parsed }),
       })
 
       if (!response.ok) {
@@ -505,41 +508,16 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
         throw new Error(result.error || 'Failed to create organizer account')
       }
 
-      const accountId = result.organizerId
-      console.log('✅ [MultiAccount] Organizer account created successfully:', accountId)
-      
-      // Force a small delay before refreshing to ensure database consistency
-      console.log('⏳ [MultiAccount] Waiting 500ms before refreshing accounts...')
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      console.log('🔄 [MultiAccount] Refreshing accounts after organizer creation...')
       await refreshAccounts()
-      
-      return accountId
+      return result.organizerId
     } catch (err: any) {
-      console.error('❌ [MultiAccount] Error creating organizer account:', {
-        message: err?.message || 'Unknown error',
-        code: err?.code,
-        details: err?.details,
-        stack: err?.stack
-      })
-      
-      let errorMessage = 'Failed to create organizer account'
-      
-      if (err instanceof Error) {
-        if (err.message.includes('Unauthorized')) {
-          errorMessage = 'You must be logged in to create an organizer account'
-        } else if (err.message.includes('permission')) {
-          errorMessage = 'You do not have permission to create organizer accounts'
-        } else if (err.message.includes('duplicate')) {
-          errorMessage = 'An organization with this name already exists'
-        } else if (err.message.includes('HTTP 500')) {
-          errorMessage = 'Server error. Please try again in a few moments.'
-        } else {
-          errorMessage = err.message || 'Unknown error occurred'
-        }
-      }
-      
+      const errorMessage =
+        err instanceof z.ZodError
+          ? err.errors.map(e => e.message).join(', ')
+          : err instanceof Error
+            ? err.message
+            : 'Failed to create organizer account'
+
       setError(errorMessage)
       throw new Error(errorMessage)
     } finally {
@@ -557,24 +535,47 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     }
   }, [user?.id])
 
-  const contextValue: MultiAccountContextType = {
-    accounts,
-    activeAccount,
-    activeSession,
-    isLoading,
-    error,
-    switchAccount,
-    createArtistAccount,
-    createVenueAccount,
-    createOrganizerAccount,
-    refreshAccounts,
-    hasAccountType,
-    currentAccount: activeAccount, // Alias for compatibility
-    userAccounts: accounts // Alias for compatibility
-  }
+  const contextValue = useMemo<MultiAccountContextType>(
+    () => ({
+      accounts,
+      activeAccount,
+      activeSession,
+      isLoading,
+      error,
+      switchAccount,
+      createArtistAccount,
+      createVenueAccount,
+      createOrganizerAccount,
+      refreshAccounts,
+      hasAccountType,
+      currentAccount: activeAccount,
+      userAccounts: accounts,
+    }),
+    [
+      accounts,
+      activeAccount,
+      activeSession,
+      isLoading,
+      error,
+      switchAccount,
+      createArtistAccount,
+      createVenueAccount,
+      createOrganizerAccount,
+      refreshAccounts,
+      hasAccountType,
+    ]
+  )
 
   return (
     <MultiAccountContext.Provider value={contextValue}>
+      {error ? (
+        <div
+          role="alert"
+          className="fixed top-0 left-0 right-0 z-[9999] bg-red-950/95 border-b border-red-800 px-4 py-2 text-sm text-red-100 text-center"
+        >
+          {error}
+        </div>
+      ) : null}
       {children}
     </MultiAccountContext.Provider>
   )

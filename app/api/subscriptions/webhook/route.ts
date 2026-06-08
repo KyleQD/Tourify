@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`[Subscription Webhook] Unhandled event type: ${event.type}`)
     }
 
     return NextResponse.json({ received: true })

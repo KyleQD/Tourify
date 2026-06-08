@@ -22,7 +22,6 @@ export async function GET(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Vendors API] GET request for tour vendors:', id)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -40,7 +39,6 @@ export async function GET(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Vendors API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -56,7 +54,6 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch vendors' }, { status: 500 })
     }
 
-    console.log('[Tour Vendors API] Successfully fetched vendors:', vendors?.length || 0)
 
       return NextResponse.json({ 
         success: true, 
@@ -80,7 +77,6 @@ export async function POST(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Vendors API] POST request for tour vendor:', id)
 
     const body = await request.json()
     const validatedData = createVendorSchema.parse(body)
@@ -101,7 +97,6 @@ export async function POST(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Vendors API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -125,7 +120,6 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to create vendor' }, { status: 500 })
     }
 
-    console.log('[Tour Vendors API] Successfully created vendor:', vendor.id)
 
       return NextResponse.json({ 
         success: true, 

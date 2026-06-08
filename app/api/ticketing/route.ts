@@ -26,7 +26,6 @@ const checkAvailabilitySchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Public Ticketing API] GET request started')
     
     const { searchParams } = new URL(request.url)
     const action = searchParams.get('action')
@@ -124,7 +123,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('[Public Ticketing API] POST request started')
     
     const body = await request.json()
     const { action, ...data } = body

@@ -1,14 +1,9 @@
 "use client"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import { SocialProvider } from "./context/social-context"
+import { SocialProvider } from "@/contexts/social-context"
 import { ProfileProvider } from "./context/profile-context"
-import { useRouteAccountSync } from "@/hooks/use-route-account-sync"
-
-function VenueRouteAccountSync({ children }: { children: React.ReactNode }) {
-  useRouteAccountSync()
-  return <>{children}</>
-}
+import { AccountRouteGuard } from "@/components/account/account-route-guard"
 
 export function VenueProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -20,9 +15,8 @@ export function VenueProviders({ children }: { children: React.ReactNode }) {
     >
       <SocialProvider>
         <ProfileProvider>
-          <VenueRouteAccountSync>
-            {children}
-          </VenueRouteAccountSync>
+          <AccountRouteGuard />
+          {children}
         </ProfileProvider>
       </SocialProvider>
     </ThemeProvider>

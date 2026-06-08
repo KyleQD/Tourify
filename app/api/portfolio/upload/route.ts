@@ -21,7 +21,6 @@ export async function POST(request: NextRequest) {
     // All accounts are treated as pro during beta — no upload limits enforced
 
     // Storage bucket must be provisioned through setup/migrations, not user uploads
-    console.log('Checking for portfolio storage bucket...')
     const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
     
     if (bucketsError) {
@@ -43,7 +42,6 @@ export async function POST(request: NextRequest) {
     const path = `${user.id}/${fileName}`
     const buffer = Buffer.from(await file.arrayBuffer())
 
-    console.log('Uploading file:', { path, size: file.size, type: file.type })
 
     const { error: uploadError } = await supabase.storage
       .from('portfolio')
@@ -62,7 +60,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { data: { publicUrl } } = supabase.storage.from('portfolio').getPublicUrl(path)
-    console.log('Upload successful, public URL:', publicUrl)
 
     return NextResponse.json({ url: publicUrl })
   } catch (error) {

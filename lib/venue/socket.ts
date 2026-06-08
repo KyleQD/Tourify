@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/context/auth"
 import { useToast } from "@/hooks/use-toast"
 import { getSocketInstance, SOCKET_EVENTS } from "./socket-service"
-import { useSocial } from "@/context/social"
+import { useSocial } from "@/contexts/social-context"
 
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false)

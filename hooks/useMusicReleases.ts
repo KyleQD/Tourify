@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useSocial } from "@/contexts/social"
+import { useSocial } from "@/contexts/social-context"
 import { MusicRelease } from "@/types/social"
 
 interface UseMusicReleasesProps {

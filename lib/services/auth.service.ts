@@ -343,6 +343,9 @@ export class AuthService {
    */
   static async getCurrentSession() {
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError || !user) return null
+
       const { data: { session }, error } = await supabase.auth.getSession()
       
       if (error) {

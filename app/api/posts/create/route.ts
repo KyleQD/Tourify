@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 // Helper function to get account type from route context
 function getAccountTypeFromRoute(routeContext: string): string {
@@ -28,11 +27,6 @@ async function getAccountInfoFromRoute(
     // Determine account type from route
     const accountType = getAccountTypeFromRoute(routeContext)
     
-    console.log('🔍 Getting account info from route:', { 
-      userId, 
-      routeContext, 
-      detectedAccountType: accountType 
-    })
 
     let accountInfo: any = null
     let profileId: string = userId
@@ -54,9 +48,7 @@ async function getAccountInfoFromRoute(
           account_type: 'artist'
         }
         profileId = artistData.id
-        console.log('✅ Found artist profile:', artistData.artist_name)
       } else {
-        console.log('❌ Artist profile not found:', artistError?.message)
         return null
       }
     } else {
@@ -76,9 +68,7 @@ async function getAccountInfoFromRoute(
           account_type: 'primary'
         }
         profileId = profileData.id
-        console.log('✅ Found primary profile:', profileData.full_name)
       } else {
-        console.log('❌ Primary profile not found:', profileError?.message)
         return null
       }
     }
@@ -97,15 +87,13 @@ async function getAccountInfoFromRoute(
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('📝 Posts API called - using route-based account detection...')
-    
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-    if (!user) {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { user, supabase } = auth
     const userId = user.id
-    console.log('✅ Successfully authenticated user:', userId)
 
     const body = await request.json()
     const { 
@@ -124,17 +112,6 @@ export async function POST(request: NextRequest) {
     const cleanHashtags = Array.isArray(hashtags) ? hashtags : []
     const cleanMediaUrls = Array.isArray(media_urls) ? media_urls : []
 
-    console.log('📨 Request data:', {
-      content: content?.substring(0, 50) + '...',
-      type,
-      visibility,
-      location,
-      hashtags: cleanHashtags.length,
-      media_urls: cleanMediaUrls.length,
-      route_context,
-      posted_as,
-      userId
-    })
 
     if (!content?.trim()) {
       return NextResponse.json({ 
@@ -142,14 +119,11 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const supabase = createServiceRoleClient()
-
     // Get account info using route-based detection
     let accountResult = await getAccountInfoFromRoute(supabase, userId, route_context)
     
     // Fallback to explicit posted_as if route detection fails
     if (!accountResult && posted_as) {
-      console.log('🔄 Route detection failed, trying explicit posted_as:', posted_as)
       // Try direct query fallback
       try {
         if (posted_as === 'artist') {
@@ -196,7 +170,6 @@ export async function POST(request: NextRequest) {
           }
         }
       } catch (fallbackError) {
-        console.log('❌ Fallback query failed:', fallbackError)
       }
     }
     
@@ -227,18 +200,6 @@ export async function POST(request: NextRequest) {
       account_avatar_url: accountInfo.avatar_url
     }
 
-    console.log('💾 Inserting post with route-based account context:', {
-      user_id: userId,
-      route_context: route_context,
-      detected_account_type: accountType,
-      posted_as_profile_id: profileId,
-      account_display_name: accountInfo.display_name,
-      content_preview: content.substring(0, 50) + '...',
-      type,
-      visibility,
-      media_urls_count: cleanMediaUrls.length,
-      hashtags_count: cleanHashtags.length
-    })
     
     const { data: post, error: postError } = await supabase
       .from('posts')
@@ -253,18 +214,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Successfully created post:', post.id)
-    console.log('🎉 Post created with route-based account context:', {
-      postId: post.id,
-      routeContext: route_context,
-      accountType: accountType,
-      profileId: profileId,
-      displayName: accountInfo.display_name,
-      hasMediaUrls: !!post.media_urls?.length,
-      hasHashtags: !!post.hashtags?.length,
-      visibility: post.visibility,
-      type: post.type
-    })
 
     if (visibility === 'public') {
       await achievementEngine.recordMetricEvent({

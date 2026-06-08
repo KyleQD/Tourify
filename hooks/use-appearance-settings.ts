@@ -112,14 +112,6 @@ export function useAppearanceSettings() {
     }
 
     try {
-      console.log('Saving appearance settings for user:', user.id)
-      console.log('Settings to save:', {
-        profileColors: settings.profileColors,
-        selectedTheme: settings.selectedTheme,
-        darkMode: settings.darkMode,
-        animations: settings.animations,
-        glowEffects: settings.glowEffects
-      })
 
       // Use the new API endpoint to bypass RLS issues
       const response = await fetch('/api/profile/update-appearance', {
@@ -146,7 +138,6 @@ export function useAppearanceSettings() {
         return { success: false, error: result.error || `HTTP ${response.status}: Failed to save settings` }
       }
 
-      console.log('Appearance settings saved successfully via API:', result)
       return { success: true, data: result.data }
     } catch (error) {
       console.error('Error saving appearance settings:', error)

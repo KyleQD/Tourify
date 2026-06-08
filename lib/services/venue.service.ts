@@ -14,7 +14,11 @@ import type {
 } from '@/types/database.types'
 
 class VenueService {
-  private supabase = supabase
+  private supabase
+
+  constructor(client: typeof supabase = supabase) {
+    this.supabase = client
+  }
   private cache = new Map<string, { data: any; timestamp: number }>()
   private readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
 
@@ -890,5 +894,6 @@ class VenueService {
 }
 
 // Export singleton instance
+export { VenueService }
 export const venueService = new VenueService()
 export default venueService 

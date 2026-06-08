@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,20 +51,95 @@ export default function ProjectWorkspaceDashboard({
   const [activeTab, setActiveTab] = useState('overview')
   const [selectedFile, setSelectedFile] = useState<ProjectFile | null>(null)
   const [isPlaying, setIsPlaying] = useState<string | null>(null)
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [isCreatingTask, setIsCreatingTask] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadProject()
   }, [projectId])
+
+  useEffect(() => {
+    if (activeTab === 'files') {
+      loadProjectFiles()
+    }
+  }, [activeTab, projectId, userId])
 
   const loadProject = async () => {
     setIsLoading(true)
     try {
       const data = await ProjectWorkspaceService.getProject(projectId, userId)
       setProject(data)
+      setProjectFiles(data?.files || [])
     } catch (error) {
       console.error('Error loading project:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const loadProjectFiles = async () => {
+    try {
+      const files = await ProjectWorkspaceService.getProjectFiles(projectId, userId)
+      setProjectFiles(files)
+    } catch (error) {
+      console.error('Error loading project files:', error)
+    }
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      await ProjectWorkspaceService.uploadProjectFile(
+        projectId,
+        file,
+        { file_type: 'demo', folder: 'general' },
+        userId
+      )
+      await loadProjectFiles()
+      await loadProject()
+    } catch (error) {
+      console.error('Error uploading file:', error)
+    } finally {
+      setIsUploading(false)
+      event.target.value = ''
+    }
+  }
+
+  const handleCreateTask = async () => {
+    const title = window.prompt('Task title')
+    if (!title?.trim()) return
+
+    setIsCreatingTask(true)
+    try {
+      await ProjectWorkspaceService.createTask(
+        projectId,
+        { title: title.trim(), type: 'general', priority: 'medium' },
+        userId
+      )
+      await loadProject()
+    } catch (error) {
+      console.error('Error creating task:', error)
+    } finally {
+      setIsCreatingTask(false)
+    }
+  }
+
+  const handleTaskStatusToggle = async (task: ProjectTask) => {
+    const nextStatus = task.status === 'completed' ? 'todo' : 'completed'
+    try {
+      await ProjectWorkspaceService.updateTaskStatus(task.id, nextStatus, userId)
+      await loadProject()
+    } catch (error) {
+      console.error('Error updating task status:', error)
     }
   }
 
@@ -406,17 +481,46 @@ export default function ProjectWorkspaceDashboard({
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-white">Project Files</CardTitle>
-                  <Button>
+                  <Button onClick={handleUploadClick} disabled={isUploading}>
                     <Upload className="h-4 w-4 mr-2" />
-                    Upload Files
+                    {isUploading ? 'Uploading...' : 'Upload Files'}
                   </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileSelected}
+                  />
                 </div>
               </CardHeader>
               <CardContent>
-                {/* File grid would go here */}
-                <div className="text-center py-12">
-                  <p className="text-slate-400">File management interface coming soon...</p>
-                </div>
+                {projectFiles.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {projectFiles.map(file => {
+                      const FileIcon = getFileIcon(file.mime_type)
+                      return (
+                        <div key={file.id} className="flex items-center gap-3 rounded-xl border border-slate-700/50 p-4">
+                          <FileIcon className="h-5 w-5 text-purple-400" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-white truncate">{file.file_name}</p>
+                            <p className="text-xs text-slate-400">{file.file_type} · v{file.version_number}</p>
+                          </div>
+                          <Button variant="ghost" size="icon" onClick={() => setSelectedFile(file)}>
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400">No files uploaded yet.</p>
+                    <Button className="mt-4" variant="outline" onClick={handleUploadClick}>
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload First File
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -426,17 +530,56 @@ export default function ProjectWorkspaceDashboard({
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-white">Project Tasks</CardTitle>
-                  <Button>
+                  <Button onClick={handleCreateTask} disabled={isCreatingTask}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Create Task
+                    {isCreatingTask ? 'Creating...' : 'Create Task'}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Task board would go here */}
-                <div className="text-center py-12">
-                  <p className="text-slate-400">Task management interface coming soon...</p>
-                </div>
+                {project.tasks && project.tasks.length > 0 ? (
+                  <div className="space-y-3">
+                    {project.tasks.map(task => (
+                      <div key={task.id} className="flex items-start justify-between rounded-xl border border-slate-700/50 p-4">
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleTaskStatusToggle(task)}
+                            className={cn(
+                              "mt-1 h-3 w-3 rounded-full shrink-0",
+                              task.status === 'completed' ? 'bg-green-500' :
+                              task.status === 'in_progress' ? 'bg-yellow-500' :
+                              'bg-slate-400'
+                            )}
+                            aria-label={`Mark ${task.title} as ${task.status === 'completed' ? 'incomplete' : 'complete'}`}
+                          />
+                          <div>
+                            <p className="font-medium text-white">{task.title}</p>
+                            {task.description && (
+                              <p className="mt-1 text-sm text-slate-400">{task.description}</p>
+                            )}
+                            <p className={`mt-2 text-xs ${getPriorityColor(task.priority)}`}>
+                              {task.priority} · {task.status}
+                            </p>
+                          </div>
+                        </div>
+                        {task.due_date && (
+                          <span className="text-xs text-slate-500">
+                            Due {format(new Date(task.due_date), 'MMM d')}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400">No active tasks yet.</p>
+                    <Button className="mt-4" variant="outline" onClick={handleCreateTask}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create First Task
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -453,10 +596,29 @@ export default function ProjectWorkspaceDashboard({
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Collaborator management would go here */}
-                <div className="text-center py-12">
-                  <p className="text-slate-400">Collaborator management interface coming soon...</p>
-                </div>
+                {project.collaborators && project.collaborators.length > 0 ? (
+                  <div className="space-y-3">
+                    {project.collaborators.map(collaborator => (
+                      <div key={collaborator.id} className="flex items-center justify-between rounded-xl border border-slate-700/50 p-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={collaborator.user_avatar} />
+                            <AvatarFallback>{collaborator.user_name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-medium text-white">{collaborator.user_name}</p>
+                            <p className="text-xs text-slate-400 capitalize">{collaborator.role}</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary">{collaborator.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400">No collaborators yet.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -467,10 +629,30 @@ export default function ProjectWorkspaceDashboard({
                 <CardTitle className="text-white">Project Activity</CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Activity feed would go here */}
-                <div className="text-center py-12">
-                  <p className="text-slate-400">Activity feed interface coming soon...</p>
-                </div>
+                {project.recent_activity && project.recent_activity.length > 0 ? (
+                  <div className="space-y-4">
+                    {project.recent_activity.map(activity => (
+                      <div key={activity.id} className="flex items-start gap-3 border-b border-slate-700/30 pb-4 last:border-0">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={activity.user_avatar} />
+                          <AvatarFallback>{activity.user_name?.[0]?.toUpperCase() || 'U'}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm text-slate-300">
+                            <span className="font-medium">{activity.user_name}</span> {activity.description}
+                          </p>
+                          <p className="text-xs text-slate-500">
+                            {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-slate-400">No activity recorded yet.</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

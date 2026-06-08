@@ -24,7 +24,6 @@ export async function GET(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour API] GET request for tour:', id)
 
     // Fetch tour
     const { data: tour, error: tourError } = await supabase
@@ -43,7 +42,6 @@ export async function GET(
 
     // Check if user owns this tour
     if (tour.user_id !== user.id) {
-      console.log('[Tour API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -100,7 +98,6 @@ export async function GET(
       expenses: totalExpenses
     }
 
-    console.log('[Tour API] Successfully fetched tour:', id)
 
       return NextResponse.json(tourWithCalculations)
 
@@ -120,7 +117,6 @@ export async function PATCH(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour API] PATCH request for tour:', id)
 
     const body = await request.json()
     const validatedData = updateTourSchema.parse(body)
@@ -141,7 +137,6 @@ export async function PATCH(
     }
 
     if (existingTour.user_id !== user.id) {
-      console.log('[Tour API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -161,7 +156,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update tour' }, { status: 500 })
     }
 
-    console.log('[Tour API] Successfully updated tour:', id)
 
       return NextResponse.json(updatedTour)
 
@@ -187,7 +181,6 @@ export async function DELETE(
   const { id } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour API] DELETE request for tour:', id)
 
     // Verify the user owns this tour
     const { data: existingTour, error: fetchError } = await supabase
@@ -205,7 +198,6 @@ export async function DELETE(
     }
 
     if (existingTour.user_id !== user.id) {
-      console.log('[Tour API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -237,7 +229,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete tour' }, { status: 500 })
     }
 
-    console.log('[Tour API] Successfully deleted tour:', id)
 
       return NextResponse.json({ 
         success: true, 

@@ -1,9 +1,11 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
 import type { Event } from "@/app/types/events.types"
 
 interface DeleteEventDialogProps {
@@ -14,23 +16,34 @@ interface DeleteEventDialogProps {
 }
 
 export function DeleteEventDialog({ open, onOpenChange, event, redirectAfterDelete = false }: DeleteEventDialogProps) {
+  const router = useRouter()
   const [isDeleting, setIsDeleting] = useState(false)
 
   const handleDelete = async () => {
     setIsDeleting(true)
     try {
-      // Mock delete operation - in a real app this would call an API
-      console.log("Deleting event:", event.id)
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
-      
+      const response = await fetch(`/api/events/${event.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error || "Failed to delete event")
+      }
+
+      toast.success("Event deleted successfully")
+
       if (redirectAfterDelete) {
-        // Redirect to events list
-        window.location.href = "/venue/events"
+        router.push("/venue/events")
+        router.refresh()
       } else {
         onOpenChange(false)
+        router.refresh()
       }
     } catch (error) {
       console.error("Error deleting event:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to delete event")
     } finally {
       setIsDeleting(false)
     }

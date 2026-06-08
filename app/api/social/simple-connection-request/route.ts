@@ -21,7 +21,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot send request to yourself' }, { status: 400 })
     }
 
-    console.log('📤 Sending simple connection request from:', user.id, 'to:', target_user_id)
 
     // Check if already following
     const { data: existingFollow } = await supabase
@@ -51,7 +50,6 @@ export async function POST(request: NextRequest) {
 
     if (requestError) {
       // If follow_requests table doesn't exist, create direct follow
-      console.log('Follow requests table not available, creating direct follow')
       
       const { data: followData, error: followError } = await supabase
         .from('follows')
@@ -70,7 +68,6 @@ export async function POST(request: NextRequest) {
         }, { status: 500 })
       }
 
-      console.log('✅ Direct follow created successfully')
       return NextResponse.json({ 
         success: true,
         message: 'Now following this user',
@@ -78,7 +75,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    console.log('✅ Connection request sent successfully')
     return NextResponse.json({ 
       success: true,
       message: 'Connection request sent successfully',

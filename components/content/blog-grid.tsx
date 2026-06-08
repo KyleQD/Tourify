@@ -1,5 +1,13 @@
 "use client"
 
+import { ComingSoonBanner } from "@/components/ui/coming-soon-banner"
+
 export default function BlogGrid() {
-  return <div className="text-gray-400">Blog posts grid coming soon...</div>
+  return (
+    <ComingSoonBanner
+      title="Blog posts coming soon"
+      description="Curated artist stories and industry insights will appear here in a future release."
+      className="text-gray-400"
+    />
+  )
 } 

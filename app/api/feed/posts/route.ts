@@ -3,7 +3,6 @@ import { authenticateApiRequest } from '@/lib/auth/api-auth'
 
 export async function GET(request: NextRequest) {
   try {
-    console.log('[Feed Posts API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     const { searchParams } = new URL(request.url)
@@ -16,15 +15,12 @@ export async function GET(request: NextRequest) {
     let supabase
     if (authResult) {
       supabase = authResult.supabase
-      console.log('[Feed Posts API] Using authenticated client')
     } else {
       // For public feed viewing, we can use a service client
       const { createClient } = await import('@/lib/supabase/server')
       supabase = await createClient()
-      console.log('[Feed Posts API] Using service client for public access')
     }
 
-    console.log('[Feed Posts API] Fetching posts with type:', type, 'limit:', limit, 'offset:', offset)
     
     // Get all user accounts for multi-account feed
     let userAccountIds: string[] = []
@@ -37,14 +33,11 @@ export async function GET(request: NextRequest) {
           .eq('user_id', authResult.user.id)
         
         if (accountsError) {
-          console.log('[Feed Posts API] user_accounts table not available, skipping multi-account feature:', accountsError.message)
           // Continue without multi-account support
         } else if (accounts) {
           userAccountIds = accounts.map((acc: any) => acc.profile_id)
-          console.log('[Feed Posts API] Found user accounts:', userAccountIds.length)
         }
       } catch (error) {
-        console.log('[Feed Posts API] user_accounts table not available, skipping multi-account feature')
         // Continue without multi-account support
       }
     }
@@ -102,7 +95,6 @@ export async function GET(request: NextRequest) {
       
       // Handle following feed - only show posts from users the current user follows
       if (type === 'following' && authResult?.user) {
-        console.log('[Feed Posts API] Fetching following feed for user:', authResult.user.id)
         
         // Get the list of users the current user follows
         const { data: followingData, error: followingError } = await supabase
@@ -122,14 +114,11 @@ export async function GET(request: NextRequest) {
           const followingIds = followingData.map((f: { following_id: string }) => f.following_id)
           // Include posts from followed users AND user's own accounts
           const allFollowingIds = Array.from(new Set([...followingIds, ...userAccountIds]))
-          console.log('[Feed Posts API] User follows', followingIds.length, 'users, has', userAccountIds.length, 'accounts')
           baseQuery = baseQuery.in('user_id', allFollowingIds)
         } else if (userAccountIds.length > 0) {
           // If not following anyone but has other accounts, show posts from own accounts
-          console.log('[Feed Posts API] User has', userAccountIds.length, 'accounts but follows no one')
           baseQuery = baseQuery.in('user_id', userAccountIds)
         } else {
-          console.log('[Feed Posts API] User follows no one and has no other accounts, returning empty feed with message')
           return NextResponse.json({
             success: true,
             data: [],
@@ -151,7 +140,6 @@ export async function GET(request: NextRequest) {
       }
 
       const posts = basePosts || []
-      console.log('[Feed Posts API] Found posts:', posts.length)
 
       // Enrich with profile data in a separate, RLS-safe query
       const userIds = Array.from(new Set(posts.map((p: any) => p.user_id).filter(Boolean)))
@@ -231,19 +219,9 @@ export async function POST(request: NextRequest) {
     const { user, supabase } = authResult
     const body = await request.json()
 
-    console.log('[Feed Posts API] POST body (sanitized):', {
-      hasContent: Boolean(body.content?.trim?.()),
-      contentLength: typeof body.content === 'string' ? body.content.length : 0,
-      type: body.type,
-      visibility: body.visibility,
-      mediaUrlsCount: Array.isArray(body.media_urls) ? body.media_urls.length : 0,
-      accountId: body.accountId ?? null,
-      hasFollowingIds: Boolean(body.following_ids)
-    })
 
     // Handle network posts request
     if (body.following_ids) {
-      console.log('[Feed Posts API] Fetching network posts for following IDs:', body.following_ids.length)
       
       const { data: posts, error: postsError } = await supabase
         .from('posts')
@@ -286,7 +264,6 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      console.log('[Feed Posts API] Found network posts:', posts?.length || 0)
       return NextResponse.json({ success: true, data: posts || [], error: null })
     }
 

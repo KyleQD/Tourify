@@ -1,4 +1,1 @@
-"use client"
-export function DeleteEventDialog(props: any) {
-  return null // TODO: Implement dialog
-}
+export { DeleteEventDialog } from '@/components/venue/venue/delete-event-dialog'

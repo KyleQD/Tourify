@@ -76,7 +76,6 @@ export function useVenue(venueId?: string, options: UseVenueOptions = {}): UseVe
 
     try {
       // TODO: Implement updateVenueStats method in VenueService
-      console.log('updateVenueStats not implemented yet', stats)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update venue stats')
     }
@@ -155,7 +154,6 @@ export function useCurrentVenue(): UseVenueReturn {
 
     try {
       // TODO: Implement updateVenueStats method in VenueService
-      console.log('updateVenueStats not implemented yet', stats)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update venue stats')
     }

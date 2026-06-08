@@ -259,7 +259,6 @@ export function useEPKSync(): UseEPKSyncReturn {
       if (hasUpdates) {
         const success = await updateProfile(profileUpdates)
         if (success) {
-          console.log('Profile synced successfully from EPK changes')
         } else {
           console.warn('Failed to sync profile from EPK changes')
         }
@@ -347,7 +346,6 @@ export function useEPKSync(): UseEPKSyncReturn {
       // Apply updates if any
       if (hasUpdates) {
         updateEPKData(updates)
-        console.log('EPK synced with profile changes')
       }
     } catch (error) {
       console.error('Error syncing EPK with profile:', error)

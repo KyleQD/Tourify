@@ -79,7 +79,6 @@ export async function GET(request: NextRequest) {
           .range(offset, offset + limit - 1)
 
         if (!accountsError && accounts && accounts.length > 0) {
-          console.log(`Found ${accounts.length} accounts in unified accounts table`)
           
           // Categorize accounts by type
           accounts.forEach(account => {
@@ -127,10 +126,8 @@ export async function GET(request: NextRequest) {
             }
           })
         } else {
-          console.log('No accounts found in unified accounts table, falling back to profiles table')
         }
       } catch (accountsError) {
-        console.log('Unified accounts table not available, falling back to profiles table:', accountsError)
       }
 
       // Fallback: Search in profiles table (legacy structure)
@@ -385,15 +382,164 @@ export async function GET(request: NextRequest) {
         .slice(0, limit)
     }
 
-    // Search music releases - TODO: Implement when music_releases table is ready
-    // if (type === 'all' || type === 'music') {
-    //   results.music = []
-    // }
+    // Search music releases
+    if (type === 'all' || type === 'music') {
+      const cleanedQuery = query.replace(/[\\%_]/g, '').trim()
 
-    // Search posts - TODO: Implement when posts table structure is ready
-    // if (type === 'all' || type === 'posts') {
-    //   results.posts = []
-    // }
+      let musicQuery = supabase
+        .from('music_releases')
+        .select('id, title, artist_name, release_type, release_date, cover_art_url, genre, description, artist_id')
+        .order('release_date', { ascending: false })
+
+      if (cleanedQuery) {
+        musicQuery = musicQuery.or(
+          [
+            `title.wfts.${cleanedQuery}`,
+            `artist_name.wfts.${cleanedQuery}`,
+            `description.wfts.${cleanedQuery}`,
+          ].join(',')
+        )
+      }
+
+      let { data: musicRows, error: musicError } = await musicQuery.range(offset, offset + limit - 1)
+
+      if (musicError && cleanedQuery) {
+        let ilikeMusicQuery = supabase
+          .from('music_releases')
+          .select('id, title, artist_name, release_type, release_date, cover_art_url, genre, description, artist_id')
+          .order('release_date', { ascending: false })
+          .or(`title.ilike.%${cleanedQuery}%,artist_name.ilike.%${cleanedQuery}%,description.ilike.%${cleanedQuery}%`)
+
+        const ilikeResult = await ilikeMusicQuery.range(offset, offset + limit - 1)
+        musicRows = ilikeResult.data
+        musicError = ilikeResult.error
+      }
+
+      if (!musicError && musicRows) {
+        results.music = musicRows.map((row: any) => ({
+          id: row.id,
+          title: row.title,
+          artist_name: row.artist_name,
+          type: row.release_type,
+          release_date: row.release_date,
+          cover_art_url: row.cover_art_url,
+          genre: row.genre,
+          description: row.description,
+          artist_id: row.artist_id,
+        }))
+      } else if (musicError) {
+        let fallbackQuery = supabase
+          .from('artist_music')
+          .select('id, title, artist_id, genre, description, cover_url, created_at, is_public')
+          .eq('is_public', true)
+          .order('created_at', { ascending: false })
+
+        if (cleanedQuery) {
+          fallbackQuery = fallbackQuery.textSearch('title', cleanedQuery, { type: 'websearch', config: 'english' })
+        }
+
+        const { data: artistMusic, error: artistMusicError } = await fallbackQuery.range(offset, offset + limit - 1)
+
+        if (artistMusicError && cleanedQuery) {
+          const ilikeFallback = await supabase
+            .from('artist_music')
+            .select('id, title, artist_id, genre, description, cover_url, created_at, is_public')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .or(`title.ilike.%${cleanedQuery}%,description.ilike.%${cleanedQuery}%`)
+            .range(offset, offset + limit - 1)
+
+          results.music = (ilikeFallback.data || []).map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            artist_id: row.artist_id,
+            genre: row.genre,
+            description: row.description,
+            cover_art_url: row.cover_url,
+            release_date: row.created_at,
+          }))
+        } else {
+          results.music = (artistMusic || []).map((row: any) => ({
+            id: row.id,
+            title: row.title,
+            artist_id: row.artist_id,
+            genre: row.genre,
+            description: row.description,
+            cover_art_url: row.cover_url,
+            release_date: row.created_at,
+          }))
+        }
+      }
+    }
+
+    // Search posts
+    if (type === 'all' || type === 'posts') {
+      const cleanedQuery = query.replace(/[\\%_]/g, '').trim()
+
+      let postsQuery = supabase
+        .from('posts')
+        .select(`
+          id,
+          user_id,
+          content,
+          type,
+          visibility,
+          created_at,
+          profiles (
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('visibility', 'public')
+        .order('created_at', { ascending: false })
+
+      if (cleanedQuery) {
+        postsQuery = postsQuery.textSearch('content', cleanedQuery, { type: 'websearch', config: 'english' })
+      }
+
+      let { data: postRows, error: postsError } = await postsQuery.range(offset, offset + limit - 1)
+
+      if (postsError && cleanedQuery) {
+        const ilikePostsResult = await supabase
+          .from('posts')
+          .select(`
+            id,
+            user_id,
+            content,
+            type,
+            visibility,
+            created_at,
+            profiles (
+              username,
+              full_name,
+              avatar_url
+            )
+          `)
+          .eq('visibility', 'public')
+          .order('created_at', { ascending: false })
+          .ilike('content', `%${cleanedQuery}%`)
+          .range(offset, offset + limit - 1)
+
+        postRows = ilikePostsResult.data
+        postsError = ilikePostsResult.error
+      }
+      if (!postsError && postRows) {
+        results.posts = postRows.map((post: any) => ({
+          id: post.id,
+          user_id: post.user_id,
+          content: post.content,
+          type: post.type,
+          visibility: post.visibility,
+          created_at: post.created_at,
+          author: {
+            username: post.profiles?.username,
+            full_name: post.profiles?.full_name,
+            avatar_url: post.profiles?.avatar_url,
+          },
+        }))
+      }
+    }
 
     // Calculate total results
     results.total = results.artists.length + results.venues.length + 

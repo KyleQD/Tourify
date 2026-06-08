@@ -48,8 +48,10 @@ export class SessionManagementService {
   // Initialize session with options
   public async initializeSession(options: SessionOptions = {}): Promise<void> {
     try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (!user || userError) return
+
       const { data: { session } } = await supabase.auth.getSession()
-      
       if (!session) return
 
       const deviceInfo = this.detectDeviceInfo(options.deviceInfo?.userAgent)
@@ -58,7 +60,7 @@ export class SessionManagementService {
       await supabase
         .from('user_sessions')
         .upsert({
-          user_id: session.user.id,
+          user_id: user.id,
           access_token_hash: this.hashToken(session.access_token),
           refresh_token_hash: this.hashToken(session.refresh_token),
           device_info: deviceInfo,
@@ -104,15 +106,14 @@ export class SessionManagementService {
   // Update session activity
   public async updateActivity(): Promise<void> {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      
-      if (!session) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
       // Update last activity timestamp
       await supabase
         .from('user_sessions')
         .update({ last_activity: new Date().toISOString() })
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
 
       // Update localStorage for "remember me" sessions
@@ -235,8 +236,10 @@ export class SessionManagementService {
   // Check session validity
   public async isSessionValid(): Promise<boolean> {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return false
+
       const { data: { session } } = await supabase.auth.getSession()
-      
       if (!session) return false
 
       // Check if session exists in our records and is active.
@@ -244,7 +247,7 @@ export class SessionManagementService {
       const { data, error } = await supabase
         .from('user_sessions')
         .select('expires_at, is_active')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .eq('access_token_hash', this.hashToken(session.access_token))
         .eq('is_active', true)
         .limit(1)
@@ -273,12 +276,12 @@ export class SessionManagementService {
   // Secure logout with cleanup
   public async secureLogout(revokeAllSessions: boolean = false): Promise<void> {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: { user } } = await supabase.auth.getUser()
       
-      if (session) {
+      if (user) {
         if (revokeAllSessions) {
           // Revoke all user sessions
-          await this.revokeOtherSessions(session.user.id)
+          await this.revokeOtherSessions(user.id)
         }
         
         // Revoke current session

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
-import { checkAdminPermissions } from '@/lib/auth/api-auth'
+import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 interface MessageContextResult {
   tier: 'open' | 'request' | 'context'
@@ -169,12 +168,12 @@ async function enforceRequestRateLimit(
 
 export async function GET(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-    
-    if (!user) {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { user } = auth
     const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get('conversationId')
@@ -331,12 +330,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-    
-    if (!user) {
+    const auth = await authenticateApiRequest(request)
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { user } = auth
     const supabase = createServiceRoleClient()
     const isViewerBlocked = await getViewerRoleBlockedState(supabase, user.id)
     if (isViewerBlocked)

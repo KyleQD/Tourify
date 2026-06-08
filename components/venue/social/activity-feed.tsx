@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useAuth } from "@/contexts/auth-context"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { formatDistanceToNow } from "date-fns"

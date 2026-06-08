@@ -33,8 +33,20 @@ export async function middleware(request: NextRequest) {
     '/artist',
     '/business',
     '/venue',
-    '/debug',
-    '/migrations',
+    '/marketplace',
+    '/groups',
+    '/notifications',
+    '/tickets',
+    '/calendar',
+    '/collaboration',
+    '/contracts',
+    '/friends',
+    '/achievements',
+    '/advance',
+    '/epk',
+    '/organization',
+    '/orgs',
+    '/jobs',
   ]
 
   const productionBlockedPrefixes = ['/debug', '/migrations/sql']

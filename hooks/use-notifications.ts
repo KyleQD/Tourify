@@ -51,8 +51,8 @@ export function useNotifications() {
   }) => {
     try {
       setIsLoading(true)
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
       let query = supabase
         .from("notifications")
@@ -65,7 +65,7 @@ export function useNotifications() {
             avatar_url
           )
         `)
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
 
       if (options?.unreadOnly) {
@@ -104,13 +104,13 @@ export function useNotifications() {
   // Fetch preferences
   const fetchPreferences = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
 
       const { data, error } = await supabase
         .from('notification_preferences')
         .select('*')
-        .eq('user_id', session.user.id)
+        .eq('user_id', user.id)
         .single()
 
       if (error && error.code !== 'PGRST116') {
@@ -173,8 +173,8 @@ export function useNotifications() {
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return false
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return false
 
       const { error } = await supabase
         .from("notifications")
@@ -182,7 +182,7 @@ export function useNotifications() {
           is_read: true,
           read_at: new Date().toISOString()
         })
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .eq("is_read", false)
 
       if (error) {
@@ -239,8 +239,8 @@ export function useNotifications() {
   // Update preferences
   const updatePreferences = useCallback(async (newPreferences: Partial<NotificationPreferences>) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
         toast.error('You must be logged in to save preferences')
         return false
       }
@@ -248,7 +248,7 @@ export function useNotifications() {
       const { error } = await supabase
         .from('notification_preferences')
         .upsert({
-          user_id: session.user.id,
+          user_id: user.id,
           email_enabled: newPreferences.emailEnabled,
           push_enabled: newPreferences.pushEnabled,
           sms_enabled: newPreferences.smsEnabled,
@@ -316,8 +316,8 @@ export function useNotifications() {
       }
 
       // Add to local state if it's for the current user
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session && notificationData.userId === session.user.id) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && notificationData.userId === user.id) {
         setNotifications(prev => [data, ...prev])
         if (!data.is_read) {
           setUnreadCount(prev => prev + 1)
@@ -335,13 +335,13 @@ export function useNotifications() {
   // Get unread count
   const getUnreadCount = useCallback(async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return 0
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return 0
 
       const { count, error } = await supabase
         .from("notifications")
         .select('*', { count: 'exact', head: true })
-        .eq("user_id", session.user.id)
+        .eq("user_id", user.id)
         .eq("is_read", false)
 
       if (error) {
@@ -371,9 +371,9 @@ export function useNotifications() {
         // Handle real-time updates
         if (payload.eventType === 'INSERT') {
           const newNotification = payload.new as any
-          const { data: { session } } = await supabase.auth.getSession()
+          const { data: { user } } = await supabase.auth.getUser()
           
-          if (session && newNotification.user_id === session.user.id) {
+          if (user && newNotification.user_id === user.id) {
             setNotifications(prev => [newNotification as Notification, ...prev])
             if (!newNotification.is_read) {
               setUnreadCount(prev => prev + 1)

@@ -36,8 +36,10 @@ export function AccountRouteGuard() {
         return
       }
 
-      if (!hasAccountType(required) && !cancelled) {
-        router.replace(getDashboardPathForAccountType(currentAccount.account_type))
+      if (!hasAccountType(required)) {
+        if (!cancelled) {
+          router.replace(getDashboardPathForAccountType(currentAccount.account_type))
+        }
       }
     }
 

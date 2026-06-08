@@ -5,26 +5,17 @@ import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/ro
 export async function GET(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
-    console.log('=== AUTH DEBUG START ===')
     
     // Check cookies
     const cookies = request.cookies.getAll()
-    console.log('Available cookies:', cookies.map(c => `${c.name}: ${c.value.substring(0, 50)}...`))
     
     // Try to create Supabase client
     const supabase = await createClient()
-    console.log('Supabase client created successfully')
     
     // Check user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser()
-    console.log('Auth result:', { user: !!user, error: authError?.message })
     
     if (user) {
-      console.log('User details:', {
-        id: user.id,
-        email: user.email,
-        created_at: user.created_at
-      })
     }
     
     // Test database connection
@@ -33,10 +24,6 @@ export async function GET(request: NextRequest) {
       .select('id, username')
       .limit(1)
     
-    console.log('Database test:', { 
-      hasProfile: !!profile, 
-      error: profileError?.message 
-    })
     
     return NextResponse.json({
       success: true,

@@ -32,6 +32,9 @@ export default function TicketSuccessPage() {
   const sessionId = searchParams.get('session_id')
   const [purchase, setPurchase] = useState<TicketPurchase | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isDownloading, setIsDownloading] = useState(false)
+  const [isSendingEmail, setIsSendingEmail] = useState(false)
+  const [emailMessage, setEmailMessage] = useState<string | null>(null)
 
   useEffect(() => {
     if (sessionId) {
@@ -54,14 +57,53 @@ export default function TicketSuccessPage() {
     }
   }
 
-  const downloadTickets = () => {
-    // TODO: Generate and download PDF tickets
-    console.log('Downloading tickets...')
+  const downloadTickets = async () => {
+    if (!sessionId || isDownloading) return
+    setIsDownloading(true)
+    try {
+      const response = await fetch(
+        `/api/ticketing/delivery?session_id=${encodeURIComponent(sessionId)}`,
+        { credentials: 'include' }
+      )
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to download tickets')
+      }
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `tickets-${purchase?.order_number || sessionId}.txt`
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading tickets:', error)
+      alert(error instanceof Error ? error.message : 'Failed to download tickets')
+    } finally {
+      setIsDownloading(false)
+    }
   }
 
-  const sendEmailTickets = () => {
-    // TODO: Send tickets via email
-    console.log('Sending tickets via email...')
+  const sendEmailTickets = async () => {
+    if (!sessionId || isSendingEmail) return
+    setIsSendingEmail(true)
+    setEmailMessage(null)
+    try {
+      const response = await fetch('/api/ticketing/delivery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ session_id: sessionId }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error || 'Failed to send tickets')
+      setEmailMessage(data.message || 'Tickets sent successfully')
+    } catch (error) {
+      console.error('Error sending tickets via email:', error)
+      setEmailMessage(error instanceof Error ? error.message : 'Failed to send tickets')
+    } finally {
+      setIsSendingEmail(false)
+    }
   }
 
   if (loading) {
@@ -176,20 +218,25 @@ export default function TicketSuccessPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <Button
             onClick={downloadTickets}
+            disabled={isDownloading}
             className="bg-purple-600 hover:bg-purple-700 text-white"
           >
             <Download className="mr-2 h-4 w-4" />
-            Download Tickets
+            {isDownloading ? 'Downloading...' : 'Download Tickets'}
           </Button>
           <Button
             onClick={sendEmailTickets}
+            disabled={isSendingEmail}
             variant="outline"
             className="border-slate-700 text-slate-300 hover:bg-slate-700"
           >
             <Mail className="mr-2 h-4 w-4" />
-            Email Tickets
+            {isSendingEmail ? 'Sending...' : 'Email Tickets'}
           </Button>
         </div>
+        {emailMessage && (
+          <p className="text-sm text-slate-400 text-center mb-6">{emailMessage}</p>
+        )}
 
         {/* Additional Information */}
         <Card className="bg-slate-800 border-slate-700">

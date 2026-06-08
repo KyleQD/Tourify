@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/context/auth"
-import { useSocial } from "@/context/social"
+import { useSocial } from "@/contexts/social-context"
 import { useToast } from "@/hooks/venue/use-toast"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
@@ -44,57 +44,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { formatDistanceToNow } from "date-fns"
 import { useRouter } from "next/navigation"
-
-interface Post {
-  id: string
-  userId: string
-  content: string
-  timestamp: string
-  likes: string[]
-  comments: number
-  shares: number
-  media?: {
-    type: "image" | "video"
-    url: string
-  }[]
-  visibility: "public" | "private" | "followers"
-  location?: string
-  linkPreview?: {
-    url: string
-    title: string
-    description: string
-    image: string
-  }
-  eventDetails?: {
-    title: string
-    date: string
-    time: string
-    location: string
-    description: string
-    ticketUrl: string
-    image: string
-  }
-  pollOptions?: {
-    id: string
-    text: string
-    votes: number
-  }[]
-  pollDuration?: string
-  tags?: string[]
-  media_urls?: string[]
-  post_media?: {
-    type: "image" | "video"
-    url: string
-    alt_text?: string
-    thumbnail_url?: string
-  }[]
-  media_items?: {
-    type: "image" | "video"
-    url: string
-    alt_text?: string
-    thumbnail_url?: string
-  }[]
-}
+import type { Post } from "@/components/social/types"
 
 interface User {
   id: string

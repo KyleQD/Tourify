@@ -459,13 +459,13 @@ export class AccountManagementService {
       bio?: string
       genres?: string[]
       social_links?: any
-    }
+    },
+    authenticatedSupabase?: any
   ): Promise<string> {
     try {
-      console.log('Creating artist account for user:', userId, 'with data:', artistData)
+      const clientToUse = authenticatedSupabase || supabase
       
-      // Use direct table insert (RPC function has bugs)
-      const { data: artistProfile, error: artistError } = await supabase
+      const { data: artistProfile, error: artistError } = await clientToUse
         .from('artist_profiles')
         .insert({
           user_id: userId,
@@ -498,8 +498,7 @@ export class AccountManagementService {
         // If it's a duplicate key error, the account already exists
         if (artistError.code === '23505') {
           console.log('Artist account already exists for this user')
-          // Try to get the existing account
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile } = await clientToUse
             .from('artist_profiles')
             .select('id')
             .eq('user_id', userId)
@@ -532,10 +531,11 @@ export class AccountManagementService {
       venue_types?: string[]
       contact_info?: any
       social_links?: any
-    }
+    },
+    authenticatedSupabase?: any
   ): Promise<string> {
     try {
-      console.log('Creating venue account for user:', userId, 'with data:', venueData)
+      const clientToUse = authenticatedSupabase || supabase
       
       // Use direct table insert (RPC function has bugs)
 
@@ -550,7 +550,7 @@ export class AccountManagementService {
         for (let i = 0; i < 25; i++) {
           const candidate = i === 0 ? baseForSlug : `${baseForSlug}-${i}`
 
-          const { data: existing } = await supabase
+          const { data: existing } = await clientToUse
             .from('venue_profiles')
             .select('id')
             .eq('url_slug', candidate)
@@ -564,7 +564,7 @@ export class AccountManagementService {
 
       const urlSlug = await generateUniqueUrlSlug()
 
-const { data: venueProfile, error: venueError } = await supabase
+const { data: venueProfile, error: venueError } = await clientToUse
         .from('venue_profiles')
         .insert({
           user_id: userId,
@@ -602,7 +602,7 @@ const { data: venueProfile, error: venueError } = await supabase
         if (venueError.code === '23505') {
           console.log('Venue account already exists for this user')
           // Try to get the existing account
-          const { data: existingProfile } = await supabase
+          const { data: existingProfile } = await clientToUse
             .from('venue_profiles')
             .select('id')
             .eq('user_id', userId)

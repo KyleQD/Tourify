@@ -12,7 +12,6 @@ export async function POST(request: NextRequest) {
     }
 
     const { user, supabase } = auth
-    console.log('✅ Successfully authenticated user:', user.id)
 
     // Get the form data
     const formData = await request.formData()
@@ -96,7 +95,6 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Successfully uploaded avatar:', filename)
 
     return NextResponse.json({
       success: true,
@@ -123,7 +121,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     const { user, supabase } = auth
-    console.log('✅ Successfully authenticated user:', user.id)
 
     // Get current profile to check for existing avatar
     const { data: profile } = await supabase
@@ -163,7 +160,6 @@ export async function DELETE(request: NextRequest) {
       }, { status: 500 })
     }
 
-    console.log('✅ Successfully removed avatar for user:', user.id)
 
     return NextResponse.json({
       success: true,

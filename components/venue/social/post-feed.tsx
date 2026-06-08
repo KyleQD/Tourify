@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useAuth } from "@/contexts/auth-context"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PostItem } from "./post-item"
@@ -43,7 +43,7 @@ export function PostFeed({ userId, filter = "all", showPostCreator = true }: Pos
         filtered = filtered.filter((post) => post.userId !== currentUser.id)
       } else if (activeFilter === "trending") {
         // Sort by engagement (likes + comments)
-        filtered = filtered.sort((a, b) => b.likes.length + b.comments.length - (a.likes.length + a.comments.length))
+        filtered = filtered.sort((a, b) => b.likes.length + b.comments - (a.likes.length + a.comments))
       }
 
       // Sort by timestamp (newest first)

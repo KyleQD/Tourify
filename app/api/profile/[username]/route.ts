@@ -10,18 +10,15 @@ export async function GET(
     const authResult = await ProductionAuthService.authenticateRequest(request)
     const username = decodeURIComponent(params.username)
 
-    console.log('[Profile Username API] Fetching profile for username:', username)
 
     // Use the authenticated supabase client if available, otherwise create a service client
     let supabase
     if (!('error' in authResult)) {
       supabase = authResult.supabase
-      console.log('[Profile Username API] Using authenticated client')
     } else {
       // For public profile viewing, we can use a service client
       const { createClient } = await import('@/lib/supabase/server')
       supabase = await createClient()
-      console.log('[Profile Username API] Using service client for public access')
     }
 
     // First, try to find the profile by username in the main profiles table
@@ -84,7 +81,6 @@ export async function GET(
         .single())
 
       if (profileError || !profile) {
-        console.log('[Profile Username API] Profile not found for param:', username)
         return NextResponse.json(
           { error: 'Profile not found' },
           { status: 404 }
@@ -92,7 +88,6 @@ export async function GET(
       }
     }
 
-    console.log('[Profile Username API] Found profile via', lookupMethod, 'param:', username, '-> username:', profile.username)
 
     // Initialize stats with default values
     let stats = {
@@ -121,7 +116,6 @@ export async function GET(
           stats.posts = postCount
         }
       } catch (error) {
-        console.log('[Profile Username API] Posts table not available, using profile data')
       }
 
       // Get like count (sum of likes on posts) if posts table exists
@@ -133,7 +127,6 @@ export async function GET(
 
         stats.likes = posts?.reduce((sum: number, post: any) => sum + (post.likes_count || 0), 0) || 0
       } catch (error) {
-        console.log('[Profile Username API] Could not fetch likes data')
       }
 
       // Get view count (mock data for now)
@@ -336,7 +329,6 @@ export async function GET(
       updated_at: profile.updated_at
     }
 
-    console.log('[Profile Username API] Returning profile with content')
 
     return NextResponse.json({ 
       profile: profileWithStats, 

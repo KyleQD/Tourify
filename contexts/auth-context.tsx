@@ -56,49 +56,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null)
   const router = useRouter()
   /**
-   * `onAuthStateChange` (e.g. INITIAL_SESSION) can hydrate session before `getSession()`
-   * finishes or if `getSession()` times out on slow / strict browsers (Safari Private).
+   * `onAuthStateChange` (e.g. INITIAL_SESSION) can hydrate session before `getUser()`
+   * finishes or if `getUser()` times out on slow / strict browsers (Safari Private).
    * Never wipe listener-hydrated auth in that case.
    */
   const authListenerHydratedRef = useRef(false)
 
   const runInitialSessionCheck = useCallback(async () => {
     const started = typeof performance !== 'undefined' ? performance.now() : 0
-    authDevLog('[Auth] Checking initial session...')
+    authDevLog('[Auth] Checking initial auth...')
     try {
       // No artificial timeout: real accounts must not fail a slow cold refresh / Safari.
       // `onAuthStateChange` + `authListenerHydratedRef` handle races if this is slow.
-      const { data: { session: nextSession }, error } = await supabase.auth.getSession()
+      const { data: { user: nextUser }, error } = await supabase.auth.getUser()
 
       if (error) {
-        console.error('[Auth] Session check error:', error)
+        console.error('[Auth] Auth check error:', error)
         if (authListenerHydratedRef.current) {
           console.warn(
-            '[Auth] getSession reported error but listener already hydrated; keeping session:',
+            '[Auth] getUser reported error but listener already hydrated; keeping auth state:',
             error.message,
           )
           setAuthError(null)
         } else {
           setAuthError(error.message)
-          setSession(null)
           setUser(null)
         }
       } else {
         setAuthError(null)
         authDevLog(
-          '[Auth] Initial session:',
-          nextSession ? `User ${nextSession.user?.id}` : 'No session',
+          '[Auth] Initial auth:',
+          nextUser ? `User ${nextUser.id}` : 'No user',
           `(${(performance.now() - started).toFixed(0)}ms)`,
         )
-        setSession(nextSession)
-        setUser(nextSession?.user ?? null)
-        if (nextSession) authListenerHydratedRef.current = true
+        setUser(nextUser)
+        if (nextUser) authListenerHydratedRef.current = true
       }
     } catch (error) {
-      console.error('[Auth] Session check failed:', error)
+      console.error('[Auth] Auth check failed:', error)
       if (authListenerHydratedRef.current) {
         console.warn(
-          '[Auth] getSession failed or timed out but listener already hydrated session; keeping user',
+          '[Auth] getUser failed or timed out but listener already hydrated session; keeping user',
         )
         setAuthError(null)
       } else {
@@ -107,7 +105,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? error.message
             : 'Unable to verify your session. Try refreshing the page.',
         )
-        setSession(null)
         setUser(null)
       }
     } finally {
@@ -122,8 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [runInitialSessionCheck])
 
   useEffect(() => {
-    // Register listener before getSession so INITIAL_SESSION can hydrate the UI
-    // (and authListenerHydratedRef) before a slow or timing-out getSession completes.
+    // Register listener before getUser so INITIAL_SESSION can hydrate the UI
+    // (and authListenerHydratedRef) before a slow or timing-out getUser completes.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -134,8 +131,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null)
       if (session) setAuthError(null)
 
-      // Unblock the app as soon as the listener reports state — `getSession()` can lag
-      // or hit our timeout while INITIAL_SESSION / SIGNED_IN already applied the session.
+      // Unblock the app as soon as the listener reports state — `getUser()` can lag
+      // while INITIAL_SESSION / SIGNED_IN already applied the session.
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || session) {
         setLoading(false)
       }

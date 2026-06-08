@@ -20,7 +20,6 @@ export async function GET(
   const { id, memberId } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Team Member API] GET request for team member:', memberId)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -38,7 +37,6 @@ export async function GET(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Team Member API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -58,7 +56,6 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch team member' }, { status: 500 })
     }
 
-    console.log('[Tour Team Member API] Successfully fetched team member:', memberId)
 
       return NextResponse.json({ 
         success: true, 
@@ -82,7 +79,6 @@ export async function PATCH(
   const { id, memberId } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Team Member API] PATCH request for team member:', memberId)
 
     const body = await request.json()
     const validatedData = updateTeamMemberSchema.parse(body)
@@ -103,7 +99,6 @@ export async function PATCH(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Team Member API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -127,7 +122,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update team member' }, { status: 500 })
     }
 
-    console.log('[Tour Team Member API] Successfully updated team member:', memberId)
 
       return NextResponse.json({ 
         success: true, 
@@ -157,7 +151,6 @@ export async function DELETE(
   const { id, memberId } = await params
   return withAdminAuth(async (_request, { user, supabase }) => {
     try {
-      console.log('[Tour Team Member API] DELETE request for team member:', memberId)
 
     // Verify the user owns this tour
     const { data: tour, error: tourError } = await supabase
@@ -175,7 +168,6 @@ export async function DELETE(
     }
 
     if (tour.user_id !== user.id) {
-      console.log('[Tour Team Member API] User does not have access to this tour')
       return NextResponse.json({ error: 'Access denied' }, { status: 403 })
     }
 
@@ -191,7 +183,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Failed to delete team member' }, { status: 500 })
     }
 
-    console.log('[Tour Team Member API] Successfully deleted team member:', memberId)
 
       return NextResponse.json({ 
         success: true, 

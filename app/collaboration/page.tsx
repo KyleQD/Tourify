@@ -12,10 +12,10 @@ import {
   Settings,
   ArrowRight,
   TrendingUp,
-  Clock,
   Star
 } from 'lucide-react'
 import Link from 'next/link'
+import { ComingSoonBanner } from '@/components/ui/coming-soon-banner'
 
 export default async function CollaborationOverviewPage() {
   const supabase = await createClient()
@@ -214,10 +214,10 @@ export default async function CollaborationOverviewPage() {
                   <Badge variant="secondary">Live Sessions</Badge>
                   <Badge variant="secondary">Voice Notes</Badge>
                 </div>
-                <Button variant="outline" className="w-full" disabled>
-                  <Clock className="h-4 w-4 mr-2" />
-                  Coming Soon
-                </Button>
+                <ComingSoonBanner
+                  title="Creative tools coming soon"
+                  description="Audio players, timeline comments, live sessions, and voice notes are under active development."
+                />
               </div>
             </CardContent>
           </Card>

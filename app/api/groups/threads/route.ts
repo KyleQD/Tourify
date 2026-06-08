@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 const listQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
@@ -18,8 +18,9 @@ const createThreadSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await authenticateApiRequest(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { user } = auth
 
     const parsedQuery = listQuerySchema.safeParse({
       limit: request.nextUrl.searchParams.get('limit') ?? undefined,
@@ -82,8 +83,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const auth = await authenticateApiRequest(request)
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const { user } = auth
 
     const rawBody = await request.json().catch(() => null)
     const parsedBody = createThreadSchema.safeParse(rawBody)

@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log('Uploading profile image:', { type, fileName: file.name, size: file.size })
 
     // Validate file type
     const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp']
@@ -93,7 +92,6 @@ export async function POST(request: NextRequest) {
       .from('profile-images')
       .getPublicUrl(filePath)
 
-    console.log('Upload successful:', publicUrl)
 
     // First, try updating the specific column
     const updateData = type === 'avatar' 
@@ -110,7 +108,6 @@ export async function POST(request: NextRequest) {
       
       // If cover_image column doesn't exist (older env), try using metadata approach
       if (type === 'header') {
-        console.log('Trying metadata approach for header_url...')
         
         // Get existing profile data
         const { data: existingProfile } = await supabase
@@ -139,8 +136,6 @@ export async function POST(request: NextRequest) {
             { status: 500 }
           )
         } else {
-          console.log('Profile updated successfully using metadata approach')
-          console.log('Header URL saved to metadata:', publicUrl)
           // Best-effort: try to set cover_image in case migration ran after first attempt
           await supabase
             .from('profiles')

@@ -24,7 +24,7 @@ import {
   LinkIcon,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
-import { useSocial } from "@/context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { useToast } from "@/hooks/use-toast"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { LinkPreview } from "@/components/ui/link-preview"

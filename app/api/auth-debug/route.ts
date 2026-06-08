@@ -7,19 +7,19 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
     
-    // Get the session from the server side
+    // Verify user server-side; read session only for token expiry metadata
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     const { data: { session }, error: sessionError } = await supabase.auth.getSession()
     
     let onboardingData = null
     let onboardingError = null
     
-    // If there's a session, check the onboarding status
-    if (session?.user?.id) {
+    if (user?.id) {
       try {
         const { data, error } = await supabase
           .from('onboarding')
           .select('*')
-          .eq('user_id', session.user.id)
+          .eq('user_id', user.id)
           .maybeSingle()
         
         onboardingData = data
@@ -38,13 +38,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       timestamp: new Date().toISOString(),
       auth: {
-        loggedIn: !!session,
-        userId: session?.user?.id || null,
-        userEmail: session?.user?.email || null,
-        userPhone: session?.user?.phone || null,
-        userProviders: session?.user?.app_metadata?.providers || [],
-        emailConfirmed: session?.user?.email_confirmed_at ? true : false,
-        lastSignIn: session?.user?.last_sign_in_at || null,
+        loggedIn: !!user,
+        userId: user?.id || null,
+        userEmail: user?.email || null,
+        userPhone: user?.phone || null,
+        userProviders: user?.app_metadata?.providers || [],
+        emailConfirmed: user?.email_confirmed_at ? true : false,
+        lastSignIn: user?.last_sign_in_at || null,
         tokenExpiry: tokenExpiry ? new Date(tokenExpiry * 1000).toISOString() : null,
         tokenIsExpired: isExpired,
       },
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
         exists: !!onboardingData,
         completed: onboardingData?.completed === true
       },
-      error: sessionError?.message || null,
+      error: userError?.message || sessionError?.message || null,
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL || 'not-set'
     })
   } catch (error) {

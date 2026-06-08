@@ -9,18 +9,15 @@ export async function GET(
     const authResult = await authenticateApiRequest(request)
     const artistName = decodeURIComponent(params.artistName)
 
-    console.log('[Artist API] Fetching artist profile for artist name:', artistName)
 
     // Use the authenticated supabase client if available, otherwise create a service client
     let supabase
     if (authResult) {
       supabase = authResult.supabase
-      console.log('[Artist API] Using authenticated client')
     } else {
       // For public profile viewing, we can use a service client
       const { createClient } = await import('@/lib/supabase/server')
       supabase = await createClient()
-      console.log('[Artist API] Using service client for public access')
     }
 
     // Look up artist profile by artist name (not username)
@@ -43,14 +40,12 @@ export async function GET(
       .single()
 
     if (artistError || !artistProfile) {
-      console.log('[Artist API] Artist profile not found for artist name:', artistName)
       return NextResponse.json(
         { error: 'Artist profile not found' },
         { status: 404 }
       )
     }
 
-    console.log('[Artist API] Found artist profile:', artistProfile.artist_name)
 
     // Get the main profile for this artist
     const { data: mainProfile, error: profileError } = await supabase
@@ -74,7 +69,6 @@ export async function GET(
       .single()
 
     if (profileError || !mainProfile) {
-      console.log('[Artist API] Main profile not found for user:', artistProfile.user_id)
       return NextResponse.json(
         { error: 'Profile not found' },
         { status: 404 }
@@ -106,7 +100,6 @@ export async function GET(
         stats.posts = postCount
       }
     } catch (error) {
-      console.log('[Artist API] Posts table not available, using profile data')
     }
 
     // Get like count (sum of likes on posts) if posts table exists
@@ -118,7 +111,6 @@ export async function GET(
 
       stats.likes = posts?.reduce((sum: number, post: any) => sum + (post.likes_count || 0), 0) || 0
     } catch (error) {
-      console.log('[Artist API] Could not fetch likes data')
     }
 
     // Load public content: portfolio (music/video preferred), experiences, certifications, top skills
@@ -176,7 +168,6 @@ export async function GET(
       updated_at: artistProfile.updated_at
     }
 
-    console.log('[Artist API] Returning artist profile with stats')
 
     return NextResponse.json({ profile: profileWithStats, portfolio, experiences, certifications, top_skills: topSkills })
   } catch (error) {

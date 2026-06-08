@@ -53,7 +53,6 @@ async function runEventReminders() {
 
     const events = [...legacyEvents, ...canonicalEvents]
     
-    console.log(`Found ${events?.length || 0} events needing reminders`)
     
     // Process reminders here (implement your reminder logic)
     // This could include sending emails, push notifications, etc.

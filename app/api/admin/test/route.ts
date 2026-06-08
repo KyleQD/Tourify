@@ -5,7 +5,6 @@ import { isAuthorizedInternalRequest, unauthorizedResponse } from '@/lib/auth/ro
 export async function GET(request: NextRequest) {
   if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
   try {
-    console.log('[Admin Test API] GET request started')
     
     const authResult = await authenticateApiRequest(request)
     if (!authResult) {

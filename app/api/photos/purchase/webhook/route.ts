@@ -76,7 +76,6 @@ export async function POST(request: NextRequest) {
               )
             }
 
-            console.log('[Photo Purchase] Successfully completed:', purchase_id)
           }
         }
         break
@@ -84,13 +83,11 @@ export async function POST(request: NextRequest) {
 
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
-        console.log('[Photo Purchase] Payment succeeded:', paymentIntent.id)
         break
       }
 
       case 'payment_intent.payment_failed': {
         const failedPayment = event.data.object as Stripe.PaymentIntent
-        console.log('[Photo Purchase] Payment failed:', failedPayment.id)
 
         // Update purchase status to failed
         const { error: updateError } = await supabase
@@ -109,7 +106,6 @@ export async function POST(request: NextRequest) {
 
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
-        console.log('[Photo Purchase] Refund processed:', charge.id)
 
         // Update purchase status to refunded
         const { error: updateError } = await supabase
@@ -127,7 +123,6 @@ export async function POST(request: NextRequest) {
       }
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
     }
 
     return NextResponse.json({ received: true })

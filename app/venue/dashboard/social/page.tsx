@@ -4,7 +4,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useAuth } from "../../context/auth-context"
-import { useSocial } from "../../context/social-context"
+import { useSocial } from "@/contexts/social-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 // import { EnhancedPostFeed } from "@/app/venue/components/social/enhanced-post-feed"
 // import { ActivityFeed } from "@/app/venue/components/social/activity-feed"

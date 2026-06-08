@@ -2,7 +2,7 @@
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider } from "@/context/auth"
-import { SocialProvider } from "@/context/social"
+import { SocialProvider } from "@/contexts/social-context"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
