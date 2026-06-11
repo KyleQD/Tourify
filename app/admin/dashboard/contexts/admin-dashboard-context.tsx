@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useCurrentVenue } from '@/hooks/use-venue'
+import { isOrganizationType } from '@/lib/accounts/account-types'
 
 interface AdminDashboardContextType {
   venueId: string | undefined
@@ -23,7 +24,7 @@ export function AdminDashboardProvider({ children }: { children: ReactNode }) {
     venueId: venue?.id,
     accountId: currentAccount?.profile_id,
     accountType: currentAccount?.account_type,
-    isAdmin: currentAccount?.account_type === 'admin',
+    isAdmin: isOrganizationType(currentAccount?.account_type),
     isLoading: accountLoading || venueLoading,
     displayName: currentAccount?.profile_data?.display_name
       || currentAccount?.profile_data?.organization_name

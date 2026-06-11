@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2, Briefcase } from 'lucide-react'
+import { ChevronDown, Plus, User, Music, Building, Shield, Crown, Loader2, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -16,31 +16,56 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { useMultiAccount, useAccountSwitching } from '@/hooks/use-multi-account'
 import { useRouter } from 'next/navigation'
-import { ProfileType } from '@/lib/services/account-management.service'
-import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
+import type { ProfileType } from '@/lib/accounts/account-types'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
 
-const accountTypeIcons = {
-  general: User,
-  artist: Music,
-  venue: Building,
-  admin: Shield,
-  staff: Briefcase
+const accountTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  general:      User,
+  artist:       Music,
+  service:      Briefcase,
+  venue:        Building,
+  organization: Shield,
+  admin:        Shield,   // legacy alias
+  staff:        Briefcase, // deprecated
 }
 
-const accountTypeColors = {
-  general: 'bg-blue-500',
-  artist: 'bg-purple-500',
-  venue: 'bg-green-500',
-  admin: 'bg-red-500',
-  staff: 'bg-indigo-500'
+const accountTypeColors: Record<string, string> = {
+  general:      'bg-blue-500',
+  artist:       'bg-purple-500',
+  service:      'bg-pink-500',
+  venue:        'bg-green-500',
+  organization: 'bg-red-500',
+  admin:        'bg-red-500',   // legacy alias
+  staff:        'bg-indigo-500', // deprecated
 }
 
-const accountTypeLabels = {
-  general: 'Personal',
-  artist: 'Artist',
-  venue: 'Venue',
-  admin: 'Organizer',
-  staff: 'Staff'
+const accountTypeLabels: Record<string, string> = {
+  general:      'Personal',
+  artist:       'Artist',
+  service:      'Service Provider',
+  venue:        'Venue',
+  organization: 'Organization',
+  admin:        'Organization', // legacy alias
+  staff:        'Staff',        // deprecated
+}
+
+function getAccountTypeLabel(type: string): string {
+  return accountTypeLabels[normalizeAccountType(type)] ?? type
+}
+function getAccountTypeIcon(type: string): React.ComponentType<{ className?: string }> {
+  return accountTypeIcons[normalizeAccountType(type)] ?? User
+}
+function getAccountTypeColor(type: string): string {
+  return accountTypeColors[normalizeAccountType(type)] ?? 'bg-slate-500'
+}
+
+function getAccountDisplayName(account: { account_type: string; profile_data?: any }): string {
+  const pd = account.profile_data ?? {}
+  const norm = normalizeAccountType(account.account_type)
+  if (norm === 'artist' || norm === 'service') return pd.artist_name || 'Artist Account'
+  if (norm === 'venue') return pd.venue_name || 'Venue Account'
+  if (norm === 'organization') return pd.organization_name || pd.admin_name || 'Organization'
+  return pd.full_name || 'Personal Account'
 }
 
 interface CompactAccountSwitcherProps {
@@ -51,26 +76,22 @@ interface CompactAccountSwitcherProps {
 export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: CompactAccountSwitcherProps) {
   const router = useRouter()
   const { currentAccount, userAccounts, refreshAccounts } = useMultiAccount()
-  const { switchAccount, isLoading } = useAccountSwitching()
+  const { switchAccountAndNavigate, isLoading } = useAccountSwitching()
   const [isSwitching, setIsSwitching] = useState(false)
 
   const handleAccountSwitch = async (profileId: string, accountType: ProfileType) => {
     setIsSwitching(true)
-    
+
     try {
       if (onAccountSwitch) {
         await onAccountSwitch(profileId, accountType)
       } else {
-        await switchAccount(profileId, accountType)
-
-        const targetRoute = getDashboardPathForAccountType(accountType)
-
-        await router.prefetch(targetRoute)
-        await new Promise(resolve => setTimeout(resolve, 100))
-        router.replace(targetRoute)
+        await switchAccountAndNavigate(profileId, accountType)
       }
     } catch (error) {
       console.error('Failed to switch account:', error)
+      const { navigateToAccountDashboard } = await import('@/lib/navigation/navigate-to-account-dashboard')
+      navigateToAccountDashboard(accountType)
     } finally {
       setIsSwitching(false)
     }
@@ -84,24 +105,9 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
     return null
   }
 
-  const IconComponent = accountTypeIcons[currentAccount.account_type]
-  const accountColor = accountTypeColors[currentAccount.account_type]
-
-  // Get display name for current account
-  const getDisplayName = () => {
-    switch (currentAccount.account_type) {
-      case 'artist':
-        return currentAccount.profile_data?.artist_name || 'Artist'
-      case 'venue':
-        return currentAccount.profile_data?.venue_name || 'Venue'
-      case 'admin':
-        return currentAccount.profile_data?.organization_name || 'Organizer'
-      case 'staff':
-        return currentAccount.profile_data?.venue_profiles?.venue_name || currentAccount.profile_data?.role || 'Staff'
-      default:
-        return currentAccount.profile_data?.full_name || 'Personal'
-    }
-  }
+  const IconComponent = getAccountTypeIcon(currentAccount.account_type)
+  const accountColor = getAccountTypeColor(currentAccount.account_type)
+  const displayName = getAccountDisplayName(currentAccount)
 
   return (
     <div className={className}>
@@ -124,23 +130,23 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                     )}
                   </AvatarFallback>
                 </Avatar>
-                {currentAccount.account_type === 'admin' && (
+                {(currentAccount.account_type === 'admin' || currentAccount.account_type === 'organization') && (
                   <Crown className="absolute -top-1 -right-1 h-2 w-2 text-yellow-400" />
                 )}
               </div>
               
               <span
                 className="text-sm font-medium text-white truncate min-w-0 max-w-[7rem] sm:max-w-[11rem] md:max-w-[14rem]"
-                title={getDisplayName()}
+                title={displayName}
               >
-                {getDisplayName()}
+                {displayName}
               </span>
               
               <Badge 
                 variant="secondary" 
                 className={`${accountColor} text-white text-xs px-1.5 py-0.5`}
               >
-                {accountTypeLabels[currentAccount.account_type]}
+                {getAccountTypeLabel(currentAccount.account_type)}
               </Badge>
               
               <ChevronDown className="h-3 w-3 text-slate-400" />
@@ -158,8 +164,8 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
           <DropdownMenuSeparator className="bg-slate-700" />
           
           <DropdownMenuGroup>
-            {userAccounts.map((account) => {
-              const Icon = accountTypeIcons[account.account_type]
+            {userAccounts.filter(acc => acc.account_type !== 'staff').map((account) => {
+              const Icon = getAccountTypeIcon(account.account_type)
               const isActive = account.profile_id === currentAccount.profile_id && 
                              account.account_type === currentAccount.account_type
               
@@ -171,13 +177,18 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                       ? 'bg-purple-500/20 border border-purple-500/30' 
                       : 'hover:bg-slate-800 border border-transparent'
                   }`}
-                  onClick={() => !isActive && !isSwitching && handleAccountSwitch(account.profile_id, account.account_type)}
+                  onSelect={event => {
+                    event.preventDefault()
+                    if (!isActive && !isSwitching) {
+                      void handleAccountSwitch(account.profile_id, account.account_type)
+                    }
+                  }}
                   disabled={isActive || isSwitching}
                 >
                   <div className="relative">
                     <Avatar className="h-8 w-8 border border-slate-600">
                       <AvatarImage src={account.profile_data?.avatar_url} />
-                      <AvatarFallback className={`${accountTypeColors[account.account_type]} text-white`}>
+                      <AvatarFallback className={`${getAccountTypeColor(account.account_type)} text-white`}>
                         {isSwitching && isActive ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
@@ -185,30 +196,21 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                         )}
                       </AvatarFallback>
                     </Avatar>
-                    {account.account_type === 'admin' && (
+                    {(account.account_type === 'admin' || account.account_type === 'organization') && (
                       <Crown className="absolute -top-1 -right-1 h-2 w-2 text-yellow-400" />
                     )}
                   </div>
                   
                   <div className="flex-1">
                     <div className="text-sm font-medium text-white">
-                      {account.account_type === 'artist' 
-                        ? (account.profile_data?.artist_name || 'Artist Account')
-                        : account.account_type === 'venue'
-                        ? (account.profile_data?.venue_name || 'Venue Account')
-                        : account.account_type === 'admin'
-                        ? (account.profile_data?.organization_name || 'Organizer Account')
-                        : account.account_type === 'staff'
-                        ? (account.profile_data?.venue_profiles?.venue_name || account.profile_data?.role || 'Staff Account')
-                        : (account.profile_data?.full_name || 'Personal Account')
-                      }
+                      {getAccountDisplayName(account)}
                     </div>
                     <div className="flex items-center space-x-2 mt-1">
                       <Badge 
                         variant="secondary" 
-                        className={`${accountTypeColors[account.account_type]} text-white text-xs`}
+                        className={`${getAccountTypeColor(account.account_type)} text-white text-xs`}
                       >
-                        {accountTypeLabels[account.account_type]}
+                        {getAccountTypeLabel(account.account_type)}
                       </Badge>
                     </div>
                   </div>

@@ -9,14 +9,8 @@ async function verifyProfileOwnership(
   profileId: string,
   accountType: string
 ): Promise<boolean> {
-  if (accountType === 'general' || accountType === 'admin') {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', profileId)
-      .eq('id', userId)
-      .maybeSingle()
-    return Boolean(data)
+  if (accountType === 'general') {
+    return profileId === userId
   }
 
   if (accountType === 'artist') {
@@ -40,8 +34,41 @@ async function verifyProfileOwnership(
   }
 
   if (accountType === 'admin') {
-    const { data } = await supabase
+    const { data: organizerRow } = await supabase
       .from('organizer_accounts')
+      .select('id')
+      .eq('id', profileId)
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (organizerRow) return true
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('account_settings')
+      .eq('id', userId)
+      .maybeSingle()
+
+    const settings = profile?.account_settings as {
+      organizer_accounts?: Array<{ id?: string }>
+      organizer_data?: { organization_name?: string }
+    } | null
+
+    if (Array.isArray(settings?.organizer_accounts)) {
+      if (settings.organizer_accounts.some(org => org.id === profileId)) return true
+    }
+
+    const orgName = settings?.organizer_data?.organization_name
+    if (orgName) {
+      const legacyId = `${userId}-organizer-${orgName.toLowerCase().replace(/\s+/g, '-')}`
+      if (profileId === legacyId) return true
+    }
+
+    return false
+  }
+
+  if (accountType === 'staff') {
+    const { data } = await supabase
+      .from('venue_team_members')
       .select('id')
       .eq('id', profileId)
       .eq('user_id', userId)

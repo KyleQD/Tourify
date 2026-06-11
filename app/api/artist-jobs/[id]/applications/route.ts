@@ -156,19 +156,11 @@ export async function POST(
   { params }: any
 ) {
   try {
-    const supabase = await createClient()
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Authentication required'
-        },
-        { status: 401 }
-      )
-    }
+    const { resolveActingContext } = await import('@/lib/auth/acting-context')
+
+    const ctx = await resolveActingContext(request as any)
+    if (ctx instanceof NextResponse) return ctx
+    const { userId, accountType, profileId, supabase } = ctx
 
     const applicationData: CreateApplicationFormData = await request.json()
     
@@ -186,11 +178,16 @@ export async function POST(
       )
     }
 
-    const application = await ArtistJobsService.applyToJob(applicationData, user.id, supabase as any)
+    // Set artist_profile_id when acting as artist or service persona
+    if ((accountType === 'artist' || accountType === 'service') && profileId) {
+      (applicationData as any).artist_profile_id = profileId
+    }
+
+    const application = await ArtistJobsService.applyToJob(applicationData, userId, supabase as any)
 
     await writeArtistHiringAuditEvent({
       supabase,
-      actorUserId: user.id,
+      actorUserId: userId,
       applicationId: application.id,
       jobId: params.id,
       applicationType: 'job',

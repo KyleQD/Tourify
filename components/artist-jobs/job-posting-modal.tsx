@@ -36,6 +36,7 @@ import {
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { 
   CreateJobFormData, 
   ArtistJobCategory,
@@ -86,6 +87,7 @@ const stepVariants = {
 
 export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: JobPostingModalProps) {
   const { toast } = useToast()
+  const { actingHeaders } = useActingContext()
   const [currentStep, setCurrentStep] = useState(1)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<CreateJobFormData>({
@@ -269,6 +271,7 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...actingHeaders,
         },
         credentials: 'include',
         body: JSON.stringify(submitData),

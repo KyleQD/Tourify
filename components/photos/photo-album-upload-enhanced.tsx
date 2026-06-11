@@ -18,6 +18,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { uploadPhoto, uploadPhotosBatch, type AccountType } from '@/lib/utils/photo-upload'
 import { useToast } from '@/hooks/use-toast'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 interface PhotoAlbumUploadProps {
   accountType: AccountType
@@ -69,6 +70,7 @@ export function PhotoAlbumUploadEnhanced({
   const [licenseType, setLicenseType] = useState<string>('personal')
   
   const { toast } = useToast()
+  const { actingHeaders } = useActingContext()
   const gradientClass = roleColors[accountType]
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -97,7 +99,8 @@ export function PhotoAlbumUploadEnhanced({
 
       const response = await fetch('/api/feed/posts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
+        credentials: 'include',
         body: JSON.stringify({
           content: feedCaption || `Shared ${photoUrls.length} new photo${photoUrls.length > 1 ? 's' : ''}`,
           type: 'media',

@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { toast } from 'sonner'
 
 interface PostCreatorProps {
@@ -46,6 +47,7 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const { user, loading } = useAuth()
+  const { actingHeaders } = useActingContext()
   const createPost = async (postData: {
     content: string
     visibility: string
@@ -76,8 +78,9 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...actingHeaders,
       },
-      credentials: 'include', // This ensures cookies are sent
+      credentials: 'include',
       body: JSON.stringify(requestBody),
     })
 

@@ -1,4 +1,4 @@
-import type { ProfileType } from '@/lib/services/account-management.service'
+import type { ProfileType } from '@/lib/accounts/account-types'
 
 /**
  * Canonical "home" route for each account mode. Use after account switches and for
@@ -7,13 +7,15 @@ import type { ProfileType } from '@/lib/services/account-management.service'
 export function getDashboardPathForAccountType(accountType: ProfileType | string | undefined): string {
   switch (accountType) {
     case 'artist':
+    case 'service':
       return '/artist'
     case 'venue':
       return '/venue/dashboard'
-    case 'admin':
+    case 'organization':
+    case 'admin': // legacy alias
       return '/admin/dashboard'
-    case 'staff':
-      return '/venue/staff'
+    case 'staff': // deprecated — redirects to general until Work Mode
+      return '/dashboard'
     case 'general':
     default:
       return '/dashboard'
@@ -25,7 +27,7 @@ export function getDashboardPathForAccountType(accountType: ProfileType | string
  * Returns null when we should not auto-redirect (unknown sections, public pages handled elsewhere).
  */
 export function getRequiredAccountTypeForPathname(pathname: string): ProfileType | null {
-  if (pathname.startsWith('/admin')) return 'admin'
+  if (pathname.startsWith('/admin')) return 'organization'
   if (pathname.startsWith('/venue')) return 'venue'
   if (pathname.startsWith('/artist')) return 'artist'
   return null

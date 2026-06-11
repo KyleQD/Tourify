@@ -96,7 +96,10 @@ const notificationDataSchema = z.object({
   relatedContentId: z.string().optional(),
   relatedContentType: z.string().optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
-  expiresAt: z.string().optional()
+  expiresAt: z.string().optional(),
+  /** Acting-entity target — used to scope notifications to a specific profile */
+  targetProfileId: z.string().uuid().optional(),
+  targetAccountType: z.enum(['general', 'artist', 'service', 'venue', 'organization']).optional(),
 })
 
 const batchNotificationDataSchema = z.array(notificationDataSchema)
@@ -138,7 +141,9 @@ export class OptimizedNotificationService {
           related_content_type: validatedData.relatedContentType,
           priority: validatedData.priority || 'normal',
           expires_at: validatedData.expiresAt,
-          is_read: false
+          is_read: false,
+          target_profile_id: validatedData.targetProfileId ?? null,
+          target_account_type: validatedData.targetAccountType ?? null,
         })
         .select()
         .single()

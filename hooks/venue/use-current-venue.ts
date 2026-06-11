@@ -1,30 +1,40 @@
-import { useState, useEffect } from 'react'
+'use client'
 
-interface Venue {
+import { useMemo } from 'react'
+import { useMultiAccount } from '@/hooks/use-multi-account'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
+
+interface CurrentVenue {
   id: string
   venue_name: string
-  description?: string
-  user_id: string
+  description?: string | null
+  user_id?: string | null
 }
 
+/**
+ * Returns the currently active venue account from the multi-account context.
+ * This replaces the former placeholder implementation.
+ *
+ * Consumers should check `isLoading` before using `currentVenue`.
+ */
 export function useCurrentVenue() {
-  const [currentVenue, setCurrentVenue] = useState<Venue | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { currentAccount, accounts, isLoading } = useMultiAccount()
 
-  useEffect(() => {
-    // For now, return a placeholder venue
-    // In a real implementation, this would fetch from Supabase
-    setCurrentVenue({
-      id: 'venue-1',
-      venue_name: 'Sample Venue',
-      description: 'A sample venue for testing',
-      user_id: 'user-1'
-    })
-    setIsLoading(false)
-  }, [])
+  const currentVenue = useMemo<CurrentVenue | null>(() => {
+    // Prefer the actively selected account when it is a venue
+    if (currentAccount && normalizeAccountType(currentAccount.account_type) === 'venue') {
+      const pd = currentAccount.profile_data ?? {}
+      return {
+        id: currentAccount.profile_id,
+        venue_name: pd.venue_name ?? 'Venue',
+        description: pd.description ?? null,
+        user_id: pd.user_id ?? null,
+      }
+    }
 
-  return {
-    currentVenue,
-    isLoading
-  }
+    // No venue is active — return null so callers know to prompt a switch
+    return null
+  }, [currentAccount, accounts])
+
+  return { currentVenue, isLoading }
 } 

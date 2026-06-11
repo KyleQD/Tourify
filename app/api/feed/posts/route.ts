@@ -82,9 +82,15 @@ export async function GET(request: NextRequest) {
         .limit(limit)
         .range(offset, offset + limit - 1)
 
-      // Filter by user when explicitly requested
+      // Filter by user when explicitly requested.
+      // Support ?profile_id= to show only posts made by a specific entity account.
+      const profileIdFilter = searchParams.get('profile_id')
       if (type === 'user' && user_id) {
-        baseQuery = baseQuery.eq('user_id', user_id)
+        if (profileIdFilter) {
+          baseQuery = baseQuery.eq('posted_as_profile_id', profileIdFilter)
+        } else {
+          baseQuery = baseQuery.eq('user_id', user_id)
+        }
       } else if (type === 'all' && authResult?.user) {
         // For 'all' feed, include posts from all user accounts plus followed accounts
         const allUserIds = [authResult.user.id, ...userAccountIds]
@@ -267,7 +273,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, data: posts || [], error: null })
     }
 
-    // Handle post creation
+    // Handle post creation — resolve acting entity from session/headers
+    const { resolveActingContext } = await import('@/lib/auth/acting-context')
+    const actingCtx = await resolveActingContext(request)
+    if (actingCtx instanceof NextResponse) return actingCtx
+
+    const { userId: actingUserId, accountType, profileId } = actingCtx
+
     const {
       content,
       type = 'text',
@@ -275,19 +287,7 @@ export async function POST(request: NextRequest) {
       location,
       hashtags = [],
       media_urls = [],
-      accountId
     } = body
-
-    // Personal dashboard: accountId must match auth user (profile id === user id for primary account)
-    if (accountId !== undefined && accountId !== null && String(accountId).trim() !== '') {
-      if (String(accountId) !== user.id) {
-        console.warn('[Feed Posts API] accountId mismatch:', { accountId, userId: user.id })
-        return NextResponse.json(
-          { success: false, data: null, error: { code: 'account_mismatch', message: 'accountId does not match authenticated user' } },
-          { status: 403 }
-        )
-      }
-    }
 
     // Allow posts with either content or media
     if (!content?.trim() && (!media_urls || media_urls.length === 0)) {
@@ -297,15 +297,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create post data
     const postData = {
-      user_id: user.id,
+      user_id: actingUserId,
       content: content?.trim() || (media_urls && media_urls.length > 0 ? 'Shared a photo' : null),
       type: type || (media_urls && media_urls.length > 0 ? 'image' : 'text'),
       visibility,
       location,
       hashtags,
-      media_urls
+      media_urls,
+      // Acting-entity attribution
+      posted_as_type:       accountType,
+      posted_as_profile_id: profileId,
     }
 
     const { data: post, error } = await supabase
@@ -322,11 +324,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enrich with profile so dashboard feed links use real username (not /profile/user fallback)
     const { data: profileRow, error: profileError } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url, is_verified')
-      .eq('id', user.id)
+      .eq('id', actingUserId)
       .maybeSingle()
 
     if (profileError) {
@@ -340,12 +341,7 @@ export async function POST(request: NextRequest) {
           avatar_url: profileRow.avatar_url || '',
           is_verified: Boolean(profileRow.is_verified)
         }
-      : {
-          username: 'user',
-          full_name: 'User',
-          avatar_url: '',
-          is_verified: false
-        }
+      : { username: 'user', full_name: 'User', avatar_url: '', is_verified: false }
 
     const normalized = {
       ...post,

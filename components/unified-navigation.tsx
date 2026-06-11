@@ -43,6 +43,7 @@ import { supabase } from "@/lib/supabase"
 import { motion } from "framer-motion"
 import { EnhancedNotificationCenter } from "@/components/notifications/enhanced-notification-center"
 import { CompactAccountSwitcher } from "@/components/compact-account-switcher"
+import { WorkModeWidget } from "@/components/account/work-mode-widget"
 import { EnhancedAccountSearch } from "@/components/search/enhanced-account-search"
 import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 
@@ -55,7 +56,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
   const router = useRouter()
   const pathname = usePathname()
   const { user, signOut } = useAuth()
-  const { currentAccount, userAccounts, switchAccount } = useMultiAccount()
+  const { currentAccount, userAccounts, switchAccountAndNavigate } = useMultiAccount()
   const { navigateWithPreload, preloadRoutes, getAccountRoutes, isPreloading } = useRoutePreloader()
   const [notifications, setNotifications] = useState(0)
   const [isNavigating, setIsNavigating] = useState(false)
@@ -123,14 +124,9 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
   // Enhanced account switching with navigation
   const handleAccountSwitchAndNavigate = async (profileId: string, accountType: any) => {
     setIsNavigating(true)
-    
+
     try {
-      // Switch account first
-      await switchAccount(profileId, accountType)
-
-      const targetRoute = getDashboardPathForAccountType(accountType)
-
-      await handleNavigation(targetRoute)
+      await switchAccountAndNavigate(profileId, accountType)
     } catch (error) {
       console.error('Account switch navigation error:', error)
     } finally {
@@ -277,6 +273,9 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
                 <Plus className="h-4 w-4 mr-2" />
                 Create
               </Button>
+
+              {/* Work Mode Widget (shifts / employment assignments) */}
+              <WorkModeWidget />
 
               {/* Compact Account Switcher */}
               <CompactAccountSwitcher onAccountSwitch={handleAccountSwitchAndNavigate} />

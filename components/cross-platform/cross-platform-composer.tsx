@@ -2,7 +2,7 @@
 
 import { supabase } from '@/lib/supabase'
 import React, { useState, useEffect } from 'react'
-import { useEnhancedAccounts } from '@/hooks/use-enhanced-accounts'
+import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useCrossPlatformPosting, useContentSuggestions } from '@/hooks/use-cross-platform-posting'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,7 +47,7 @@ export function CrossPlatformComposer({
   preselectedAccounts = [] 
 }: CrossPlatformComposerProps) {
   // Hooks
-  const { accounts, currentAccount } = useEnhancedAccounts()
+  const { userAccounts: accounts, currentAccount } = useMultiAccount()
   const { 
     createCrossPlatformPost, 
     schedulePost, 
@@ -91,7 +91,7 @@ export function CrossPlatformComposer({
   // Auto-select user's accounts if none preselected
   useEffect(() => {
     if (preselectedAccounts.length === 0 && accounts.length > 0) {
-      setSelectedAccounts([accounts[0].id])
+      setSelectedAccounts([accounts[0].profile_id])
     }
   }, [accounts, preselectedAccounts])
 
@@ -155,7 +155,7 @@ export function CrossPlatformComposer({
         category: templateCategory,
         hashtagGroups: [hashtags],
         accountTypes: selectedAccounts.map(id => {
-          const account = accounts.find(a => a.id === id)
+          const account = accounts.find(a => a.profile_id === id)
           return account?.account_type || 'primary'
         })
       })
@@ -277,7 +277,7 @@ export function CrossPlatformComposer({
   const getCharacterLimit = () => {
     // Different platforms have different limits
     const hasTwitter = selectedAccounts.some(id => {
-      const account = accounts.find(a => a.id === id)
+      const account = accounts.find(a => a.profile_id === id)
       return account?.account_type === 'artist' // Simplified logic
     })
     return hasTwitter ? 280 : 500
@@ -528,42 +528,46 @@ export function CrossPlatformComposer({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                    selectedAccounts.includes(account.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                  onClick={() => toggleAccountSelection(account.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={account.avatar_url || ''} />
-                      <AvatarFallback>
-                        {account.display_name.charAt(0)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium truncate">{account.display_name}</p>
-                        {selectedAccounts.includes(account.id) && (
-                          <CheckCircle2 className="h-4 w-4 text-blue-500" />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {account.account_type}
-                        </Badge>
-                        <span className="text-xs text-gray-500">
-                          {account.follower_count} followers
-                        </span>
+              {accounts.map((account) => {
+                const displayName = account.profile_data?.artist_name
+                  ?? account.profile_data?.venue_name
+                  ?? account.profile_data?.organization_name
+                  ?? account.profile_data?.full_name
+                  ?? account.account_type
+                return (
+                  <div
+                    key={account.profile_id}
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      selectedAccounts.includes(account.profile_id)
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    onClick={() => toggleAccountSelection(account.profile_id)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={account.profile_data?.avatar_url || ''} />
+                        <AvatarFallback>
+                          {displayName.charAt(0)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium truncate">{displayName}</p>
+                          {selectedAccounts.includes(account.profile_id) && (
+                            <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {account.account_type}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             {selectedAccounts.length > 0 && (

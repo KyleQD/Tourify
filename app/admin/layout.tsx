@@ -9,6 +9,7 @@ import { useMultiAccount } from '@/hooks/use-multi-account'
 import { Card } from '@/components/ui/card'
 import { Loader2, Shield, AlertTriangle } from 'lucide-react'
 import { AccountRouteGuard } from '@/components/account/account-route-guard'
+import { isOrganizationType } from '@/lib/accounts/account-types'
 import './globals.css'
 
 interface AdminLayoutProps {
@@ -22,8 +23,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   useEffect(() => { setMounted(true) }, [])
 
-  const isInAdminContext = currentAccount?.account_type === 'admin'
-  const hasAdminAccounts = accounts?.some(acc => acc.account_type === 'admin') || false
+  const isInAdminContext = isOrganizationType(currentAccount?.account_type)
+  const hasAdminAccounts = accounts?.some(acc => isOrganizationType(acc.account_type)) || false
   const hasAdminAccess = isInAdminContext || hasAdminAccounts
 
   if (!mounted || isLoading) {

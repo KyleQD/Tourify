@@ -20,6 +20,7 @@ import { DashboardContractsCard } from '@/components/dashboard/dashboard-contrac
 import { getGeneralPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { DashboardService } from '@/lib/services/dashboard.service'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+import { toast } from 'sonner'
 import {
   User,
   Calendar,
@@ -103,6 +104,27 @@ export function DashboardPageClient() {
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isRetryingSession, setIsRetryingSession] = useState(false)
+
+  useEffect(() => {
+    const accessError = searchParams.get('error')
+    if (!accessError) return
+
+    const messages: Record<string, string> = {
+      'artist-account-required':
+        'Complete your artist profile setup to access artist tools.',
+      'venue-account-required':
+        'You need a venue account to access venue tools.',
+      'admin-access-required':
+        'Organizer access is required to open the admin dashboard.',
+    }
+
+    toast.error(messages[accessError] ?? 'You do not have access to that account area.')
+
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('error')
+    const nextQuery = nextParams.toString()
+    router.replace(nextQuery ? `/dashboard?${nextQuery}` : '/dashboard', { scroll: false })
+  }, [searchParams, router])
 
   const publicProfileRoute = useMemo(() => {
     const customUrl = userProfile?.custom_url

@@ -33,6 +33,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { AccountManagementService, UserAccount } from '@/lib/services/account-management.service'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
@@ -41,28 +42,44 @@ interface AccountManagementSettingsProps {
   activeTab?: string
 }
 
-const accountTypeIcons = {
-  general: User,
-  artist: Music,
-  venue: Building,
-  admin: Shield,
-  staff: Briefcase
+const accountTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+  general:      User,
+  artist:       Music,
+  service:      Briefcase,
+  venue:        Building,
+  organization: Shield,
+  admin:        Shield,   // legacy alias
+  staff:        Briefcase, // deprecated
 }
 
-const accountTypeColors = {
-  general: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
-  artist: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
-  venue: 'bg-green-500/20 text-green-300 border-green-500/30',
-  admin: 'bg-red-500/20 text-red-300 border-red-500/30',
-  staff: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+const accountTypeColors: Record<string, string> = {
+  general:      'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  artist:       'bg-purple-500/20 text-purple-300 border-purple-500/30',
+  service:      'bg-pink-500/20 text-pink-300 border-pink-500/30',
+  venue:        'bg-green-500/20 text-green-300 border-green-500/30',
+  organization: 'bg-red-500/20 text-red-300 border-red-500/30',
+  admin:        'bg-red-500/20 text-red-300 border-red-500/30',   // legacy alias
+  staff:        'bg-indigo-500/20 text-indigo-300 border-indigo-500/30', // deprecated
 }
 
-const accountTypeLabels = {
-  general: 'Personal',
-  artist: 'Artist',
-  venue: 'Venue',
-  admin: 'Organizer',
-  staff: 'Staff'
+const accountTypeLabels: Record<string, string> = {
+  general:      'Personal',
+  artist:       'Artist',
+  service:      'Service Provider',
+  venue:        'Venue',
+  organization: 'Organization',
+  admin:        'Organization', // legacy alias
+  staff:        'Staff',        // deprecated
+}
+
+function getTypeIcon(type: string): React.ComponentType<{ className?: string }> {
+  return accountTypeIcons[normalizeAccountType(type)] ?? User
+}
+function getTypeColor(type: string): string {
+  return accountTypeColors[normalizeAccountType(type)] ?? 'bg-slate-500/20 text-slate-300'
+}
+function getTypeLabel(type: string): string {
+  return accountTypeLabels[normalizeAccountType(type)] ?? type
 }
 
 export function AccountManagementSettings({ activeTab }: AccountManagementSettingsProps) {
@@ -433,7 +450,7 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
       {!isLoading && userAccounts.length > 0 && (
         <div className="space-y-4">
           {userAccounts.map((account) => {
-          const IconComponent = accountTypeIcons[account.account_type]
+          const IconComponent = getTypeIcon(account.account_type)
           const isCurrentAccount = currentAccount?.profile_id === account.profile_id && 
                                  currentAccount?.account_type === account.account_type
           const canDelete = canDeleteAccount(account)
@@ -452,7 +469,7 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
                     <div className="relative">
                       <Avatar className="h-12 w-12 border-2 border-white/10">
                         <AvatarImage src={account.profile_data?.avatar_url} />
-                        <AvatarFallback className={accountTypeColors[account.account_type]}>
+                        <AvatarFallback className={getTypeColor(account.account_type)}>
                           <IconComponent className="h-6 w-6" />
                         </AvatarFallback>
                       </Avatar>
@@ -474,10 +491,10 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
                       </div>
                       
                       <div className="flex items-center gap-2">
-                        <Badge className={accountTypeColors[account.account_type]}>
-                          {accountTypeLabels[account.account_type]}
+                        <Badge className={getTypeColor(account.account_type)}>
+                          {getTypeLabel(account.account_type)}
                         </Badge>
-                        {account.account_type === 'admin' && (
+                        {(account.account_type === 'admin' || account.account_type === 'organization') && (
                           <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
                             <Crown className="h-3 w-3 mr-1" />
                             Super
@@ -517,8 +534,8 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
                             <AlertDialogDescription className="text-gray-300">
                               <div>
                                 Are you sure you want to delete this{' '}
-                                <span className="font-semibold text-white">
-                                  {accountTypeLabels[account.account_type]}
+                                  <span className="font-semibold text-white">
+                                  {getTypeLabel(account.account_type)}
                                 </span>{' '}
                                 account? This action cannot be undone and will permanently remove:
                               </div>

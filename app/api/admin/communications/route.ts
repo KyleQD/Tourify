@@ -52,9 +52,26 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
 
 export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
   try {
+    const { resolveActingContext } = await import('@/lib/auth/acting-context')
     const svc = createServiceRoleClient()
     const body = await request.json()
     const validated = sendMessageSchema.parse(body)
+
+    // Resolve acting context to stamp sender_profile_id and validate venue ownership
+    const ctx = await resolveActingContext(request)
+    const actingProfileId = !(ctx instanceof NextResponse) ? ctx.profileId : user.id
+    const actingType = !(ctx instanceof NextResponse) ? ctx.accountType : 'general'
+
+    // If a venue_id is supplied, verify the acting user is actually operating as that venue or org
+    if (validated.venue_id && !(ctx instanceof NextResponse)) {
+      const allowedTypes: string[] = ['venue', 'organization']
+      if (!allowedTypes.includes(actingType)) {
+        return NextResponse.json(
+          { error: 'You must be acting as a venue or organization to send venue communications.' },
+          { status: 403 }
+        )
+      }
+    }
 
     const { data, error } = await svc
       .from('team_communications')

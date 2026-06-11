@@ -10,10 +10,12 @@ import { PhotoUpload } from '@/components/ui/photo-upload'
 import { Send, Globe, Users, Lock, Loader2 } from 'lucide-react'
 import { uploadFeedPhotos } from '@/lib/utils/feed-photo-upload'
 import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
 
 export function QuickPostCreator() {
   const { user } = useAuth()
+  const { actingHeaders } = useActingContext()
   const [content, setContent] = useState('')
   const [visibility, setVisibility] = useState('public')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,6 +112,7 @@ export function QuickPostCreator() {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...actingHeaders,
         },
         body: JSON.stringify(payload)
       })

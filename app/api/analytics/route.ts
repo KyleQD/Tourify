@@ -25,7 +25,19 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const effectiveAccountId = accountId || authedUser?.id || ''
+    // Resolve acting entity: prefer explicit accountId param (from entity dashboard),
+    // then fall back to user_sessions active profile, then auth user id (general).
+    let effectiveAccountId = accountId || authedUser?.id || ''
+    if (!accountId && authedUser?.id) {
+      const { data: session } = await supabase
+        .from('user_sessions')
+        .select('active_profile_id')
+        .eq('user_id', authedUser.id)
+        .maybeSingle()
+      if (session?.active_profile_id) {
+        effectiveAccountId = session.active_profile_id
+      }
+    }
 
     // Legacy events (organizer scoped)
     let legacyEventsQuery = supabase

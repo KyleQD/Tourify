@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Bell, Check, X, Settings, Filter, Search, MoreHorizontal, Heart, MessageSquare, User, AlertCircle, Calendar, Star, CheckCircle, Sparkles, TrendingUp, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,6 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
+import { useMultiAccount } from "@/hooks/use-multi-account"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
@@ -64,8 +65,7 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState<string>("all")
-  // NOTE: account-scoped filtering is intentionally disabled — the `account_id` column
-  // doesn't exist on the `notifications` table yet, so the previous filter was a no-op.
+  const { currentAccount } = useMultiAccount()
 
   // Fetch notifications
   const fetchNotifications = useCallback(async () => {
@@ -86,7 +86,7 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
         return
       }
 
-      const { data, error } = await supabase
+      let notifQuery = supabase
         .from("notifications")
         .select(`
           *,
@@ -100,6 +100,15 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
         .eq("user_id", session.user.id)
         .order("created_at", { ascending: false })
         .limit(100)
+
+      // When operating as a specific entity, show entity-targeted + general notifications
+      if (currentAccount && currentAccount.account_type !== 'general') {
+        notifQuery = notifQuery.or(
+          `target_profile_id.eq.${currentAccount.profile_id},target_profile_id.is.null`
+        )
+      }
+
+      const { data, error } = await notifQuery
 
       if (error) {
         toast.error("Failed to fetch notifications")

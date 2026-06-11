@@ -21,6 +21,7 @@ import {
 import { Database } from '@/lib/database.types'
 import { toast } from 'sonner'
 import { useRouteAccountContext } from '@/hooks/use-route-account-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 interface CompactPostCreatorProps {
   onPostCreated?: (post: any) => void
@@ -47,6 +48,7 @@ export function CompactPostCreator({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   // Use route-based account context detection
   const { accountType, routeContext, displayContext } = useRouteAccountContext()
+  const { actingHeaders } = useActingContext()
 
   // Auto-resize textarea
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -95,6 +97,7 @@ export function CompactPostCreator({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...actingHeaders,
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -103,9 +106,6 @@ export function CompactPostCreator({
           visibility,
           location: location || null,
           hashtags: hashtags.length > 0 ? hashtags : null,
-          // Use route-based account system
-          route_context: routeContext,
-          posted_as: accountType // Fallback for route-based detection
         }),
       })
 

@@ -1,7 +1,11 @@
 import { supabase } from '@/lib/supabase'
 import type { Database } from '@/lib/database.types'
 
-export type ProfileType = 'general' | 'artist' | 'venue' | 'admin' | 'staff'
+// Import for local use; re-export so existing consumers continue to work.
+import type { ProfileType } from '@/lib/accounts/account-types'
+import { normalizeAccountType, isOrganizationType } from '@/lib/accounts/account-types'
+export type { ProfileType } from '@/lib/accounts/account-types'
+export { normalizeAccountType, isOrganizationType } from '@/lib/accounts/account-types'
 
 export interface UserAccount {
   account_type: ProfileType
@@ -155,7 +159,7 @@ export class AccountManagementService {
         for (const organizerAccount of organizerAccounts) {
           console.log('➕ [Account Management] Adding organizer account:', organizerAccount.organization_name)
           accounts.push({
-            account_type: 'admin',
+            account_type: 'organization',
             profile_id: organizerAccount.id,
             profile_data: {
               ...organizerAccount,
@@ -183,12 +187,11 @@ export class AccountManagementService {
         console.log('📋 [Account Management] Found organizer data in profile settings (legacy format)')
         console.log('📋 [Account Management] Organizer data:', organizerData)
         
-        // Generate a profile ID for this organizer account
         const organizerProfileId = `${userId}-organizer-${organizerData.organization_name.toLowerCase().replace(/\s+/g, '-')}`
         
         console.log('➕ [Account Management] Adding organizer account (legacy):', organizerData.organization_name)
         accounts.push({
-          account_type: 'admin',
+          account_type: 'organization',
           profile_id: organizerProfileId,
           profile_data: {
             id: organizerProfileId,
@@ -236,13 +239,14 @@ export class AccountManagementService {
       try {
         if (artistProfiles && !artistError) {
           artistProfiles.forEach((artist: any) => {
+            const accountType = artist.persona_kind === 'service' ? 'service' : 'artist'
             accounts.push({
-              account_type: 'artist',
+              account_type: accountType,
               profile_id: artist.id,
               profile_data: {
                 ...artist,
                 display_name: artist.artist_name,
-                account_display_type: 'Artist'
+                account_display_type: accountType === 'service' ? 'Service Provider' : 'Artist',
               },
               permissions: {
                 can_post: true,
@@ -318,7 +322,7 @@ export class AccountManagementService {
           organizerAccountsTable.forEach((organizer: any) => {
             console.log('➕ [Account Management] Adding organizer account from table:', organizer.organization_name)
             accounts.push({
-              account_type: 'admin',
+              account_type: 'organization',
               profile_id: organizer.id,
               profile_data: {
                 id: organizer.id,
@@ -354,13 +358,64 @@ export class AccountManagementService {
         console.log('⚠️ [Account Management] Organizer accounts table not available:', organizerTableError)
       }
 
-      // DISABLED: Skip account relationships to avoid showing orphaned accounts
-      // Only show accounts that actually exist in their respective database tables
-      console.log('[Account Management] Skipping account_relationships table to prevent orphaned accounts')
+      // Re-enabled: Read account_relationships to surface delegated / multi-owner accounts.
+      // Orphan validation: only include rows whose owned_profile_id actually exists in the
+      // corresponding entity table (artist_profiles, venue_profiles, organizer_accounts).
+      // This prevents showing accounts that were deleted from the entity table but whose
+      // relationship row was not cleaned up.
+      try {
+        const { data: relationships, error: relError } = await clientToUse
+          .from('account_relationships')
+          .select('owned_profile_id, account_type, permissions, is_active')
+          .eq('owner_user_id', userId)
+          .eq('is_active', true)
 
-      // DISABLED: Skip localStorage fallbacks to avoid showing orphaned accounts
-      // Only show accounts that actually exist in their respective database tables
-      console.log('[Account Management] Skipping localStorage fallbacks to prevent orphaned accounts')
+        if (relError) {
+          console.warn('[Account Management] account_relationships unavailable (non-fatal):', relError.message)
+        } else if (relationships && relationships.length > 0) {
+          // Collect profile IDs already surfaced so we don't duplicate
+          const existingIds = new Set(accounts.map(a => a.profile_id))
+
+          for (const rel of relationships) {
+            if (existingIds.has(rel.owned_profile_id)) continue
+
+            const normType = normalizeAccountType(rel.account_type)
+            let entityRow: any = null
+
+            if (normType === 'artist' || normType === 'service') {
+              const { data } = await clientToUse
+                .from('artist_profiles').select('*').eq('id', rel.owned_profile_id).maybeSingle()
+              entityRow = data
+            } else if (normType === 'venue') {
+              const { data } = await clientToUse
+                .from('venue_profiles').select('*').eq('id', rel.owned_profile_id).maybeSingle()
+              entityRow = data
+            } else if (isOrganizationType(normType)) {
+              const { data } = await clientToUse
+                .from('organizer_accounts').select('*').eq('id', rel.owned_profile_id).maybeSingle()
+              entityRow = data
+            }
+
+            if (entityRow) {
+              accounts.push({
+                account_type: normType,
+                profile_id: rel.owned_profile_id,
+                profile_data: { ...entityRow, display_name: entityRow.artist_name ?? entityRow.venue_name ?? entityRow.organization_name },
+                permissions: rel.permissions ?? {
+                  can_post: true,
+                  can_manage_settings: false,
+                  can_view_analytics: false,
+                  can_manage_content: true,
+                },
+                is_active: true,
+              })
+              existingIds.add(rel.owned_profile_id)
+            }
+          }
+        }
+      } catch (relErr) {
+        console.warn('[Account Management] account_relationships read failed (non-fatal):', relErr)
+      }
 
       const uniqueAccounts = accounts.filter((account, index, list) => {
         const duplicateIndex = list.findIndex(candidate =>
@@ -410,16 +465,15 @@ export class AccountManagementService {
     accountType: ProfileType
   ): Promise<boolean> {
     const persistSessionDirect = async (): Promise<void> => {
-      const usesProfileRow = accountType === 'general' || profileId === userId
-      const sessionProfileId = usesProfileRow ? profileId : userId
-      const sessionData = usesProfileRow ? {} : { account_profile_id: profileId }
-
+      // Always store the entity UUID in active_profile_id (post-migration schema).
+      // Pre-migration rows stored userId here for non-general types; the migration
+      // back-fills those. New rows always use the real entity profileId.
       const { error } = await supabase.from('user_sessions').upsert(
         {
           user_id: userId,
-          active_profile_id: sessionProfileId,
+          active_profile_id: profileId,
           active_account_type: accountType,
-          session_data: sessionData,
+          session_data: {},
           last_activity: new Date().toISOString(),
         },
         { onConflict: 'user_id' }

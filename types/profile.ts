@@ -4,7 +4,9 @@ export type Profile = Database['public']['Tables']['profiles']['Row']
 export type ArtistProfile = Database['public']['Tables']['artist_profiles']['Row']
 export type VenueProfile = Database['public']['Tables']['venue_profiles']['Row']
 
-export type ProfileType = 'general' | 'artist' | 'venue'
+// Import for local use; re-export so existing consumers continue to work.
+import type { ProfileType } from '@/lib/accounts/account-types'
+export type { ProfileType } from '@/lib/accounts/account-types'
 
 export interface OnboardingSteps {
   general: {

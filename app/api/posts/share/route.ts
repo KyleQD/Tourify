@@ -1,13 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import type { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
+import { resolveActingContext, recordActingSnapshot } from '@/lib/auth/acting-context'
 
 export async function POST(request: NextRequest) {
   try {
-    const user = parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
+    const { userId, accountType, profileId, supabase } = ctx
 
     const body = await request.json()
     const {
@@ -16,7 +15,6 @@ export async function POST(request: NextRequest) {
       shared_content_id,
       content,
       visibility = 'public',
-      route_context = '/feed',
     } = body
 
     if (!shared_content_type || !shared_content_id) {
@@ -26,13 +24,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const supabase = createServiceRoleClient()
-
     const { data: profile } = await supabase
       .from('profiles')
       .select('id, full_name, username, avatar_url')
-      .eq('id', user.id)
-      .single()
+      .eq('id', userId)
+      .maybeSingle()
 
     const displayName = profile?.full_name || 'User'
     const username = profile?.username || 'user'
@@ -86,7 +82,7 @@ export async function POST(request: NextRequest) {
         .from('posts')
         .select('id, shares_count')
         .eq('id', shared_content_id)
-        .single()
+        .maybeSingle()
 
       if (existing) {
         await supabase
@@ -105,13 +101,13 @@ export async function POST(request: NextRequest) {
     const { data: post, error: postError } = await supabase
       .from('posts')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         content: postContent,
         type: 'share',
         visibility,
-        route_context,
-        posted_as_account_type: 'primary',
-        posted_as_profile_id: user.id,
+        // Acting-entity attribution
+        posted_as_type: accountType,
+        posted_as_profile_id: profileId,
         account_display_name: displayName,
         account_username: username,
         account_avatar_url: profile?.avatar_url || '',
@@ -127,6 +123,13 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    await recordActingSnapshot(ctx, {
+      action: 'post.share',
+      resourceType: 'post',
+      resourceId: post?.id,
+      metadata: { shared_content_type, shared_content_id },
+    })
 
     return NextResponse.json({
       success: true,

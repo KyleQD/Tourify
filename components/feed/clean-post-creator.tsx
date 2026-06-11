@@ -56,6 +56,7 @@ import {
 } from '@/lib/utils/enhanced-media-upload'
 import { useDragAndDrop } from '@/hooks/use-drag-and-drop'
 import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -94,6 +95,7 @@ export function CleanPostCreator({
   user: propUser
 }: CleanPostCreatorProps) {
   const { user: authUser } = useAuth()
+  const { actingHeaders } = useActingContext()
   const user = propUser || authUser
   const [postData, setPostData] = useState<PostData>({
     content: '',
@@ -294,6 +296,7 @@ export function CleanPostCreator({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...actingHeaders,
         },
         credentials: 'include',
         body: JSON.stringify(postPayload),

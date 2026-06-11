@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import dynamic from "next/dynamic"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/hooks/use-theme"
@@ -6,12 +7,20 @@ import { AuthProvider } from "@/contexts/auth-context"
 import { MandatoryTosGate } from "@/components/auth/mandatory-tos-gate"
 import { MultiAccountProvider } from "@/hooks/use-multi-account"
 import { JukeboxProvider } from "@/contexts/jukebox-context"
-import { Nav } from "@/components/nav"
-import { PersistentPlayerBar } from "@/components/jukebox/persistent-player-bar"
-import { FullPlayerView } from "@/components/jukebox/full-player-view"
-import { EducationRoot } from "@/components/product-education/education-root"
+import { ChunkLoadRecovery } from "@/components/chunk-load-recovery"
 import { Toaster } from "sonner"
 import { warnMissingEnv, warnProductionPublicSiteUrl } from "@/lib/utils/env-check"
+
+const Nav = dynamic(() => import("@/components/nav").then((mod) => ({ default: mod.Nav })))
+const PersistentPlayerBar = dynamic(() =>
+  import("@/components/jukebox/persistent-player-bar").then((mod) => ({ default: mod.PersistentPlayerBar }))
+)
+const FullPlayerView = dynamic(() =>
+  import("@/components/jukebox/full-player-view").then((mod) => ({ default: mod.FullPlayerView }))
+)
+const EducationRoot = dynamic(() =>
+  import("@/components/product-education/education-root").then((mod) => ({ default: mod.EducationRoot }))
+)
 
 const inter = Inter({ subsets: ["latin"] })
 const metadataBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live"
@@ -67,6 +76,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} min-h-screen bg-gradient-to-br from-indigo-950 to-slate-900 text-slate-100`}>
+        <ChunkLoadRecovery />
         <ThemeProvider defaultTheme="dark">
           <AuthProvider>
             <MandatoryTosGate />

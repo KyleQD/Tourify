@@ -10,6 +10,7 @@ function run() {
   assertEqual(normalizeVenueSlug("The Echo Lounge"), "the-echo-lounge", "normalize basic slug")
   assertEqual(normalizeVenueSlug("  Venue___2026 "), "venue-2026", "normalize punctuation")
   assertEqual(getLegacyVenueProfileRedirect("/venue/echolounge"), "/venues/echolounge", "redirect legacy route")
+  assertEqual(getLegacyVenueProfileRedirect("/venue/dashboard"), null, "keep venue account dashboard route")
   assertEqual(getLegacyVenueProfileRedirect("/venue"), null, "ignore venue root")
   assertEqual(getLegacyVenueProfileRedirect("/venue/bookings/open"), null, "ignore nested account routes")
 

@@ -164,18 +164,18 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
   const avatarInitial = getAvatarInitial()
 
   useEffect(() => {
-    // Wait for auth to finish loading before initializing
     if (!authLoading && authUser) {
       setUser(authUser)
       initializeUser()
     } else if (!authLoading && !authUser) {
-      // User is not authenticated
       setUser(null)
       setProfile(null)
       setPublicProfile(null)
       setIsLoading(false)
     }
-  }, [authUser, authLoading])
+    // Re-load when the active artist/service account changes so the correct profile is shown
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, authLoading, currentAccount?.profile_id])
 
   const loadPublicProfileIdentity = async (userId: string) => {
     const { data, error } = await supabase
@@ -208,13 +208,11 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true)
       
-      // Add timeout protection
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Initialization timeout')), 10000)
       )
       
       const initPromise = async () => {
-        // Ensure we have a valid session
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
         if (sessionError) {
           console.error('Session error during artist initialization:', sessionError)
@@ -227,20 +225,22 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         }
 
         if (authUser) {
-          // Try to get artist profile
-          await loadArtistProfile(authUser.id)
+          // Prefer the profile_id from the active artist account so multi-artist users
+          // load the correct profile instead of always getting the first one.
+          const activeArtistProfileId =
+            currentAccount?.account_type === 'artist' || currentAccount?.account_type === 'service'
+              ? currentAccount.profile_id
+              : null
+
+          await loadArtistProfile(authUser.id, activeArtistProfileId)
           await loadArtistStats(authUser.id)
-          
-          // Ensure artist account exists in multi-account system
           await ensureArtistAccountExists(authUser.id)
         }
       }
 
-      // Race between initialization and timeout
       await Promise.race([initPromise(), timeoutPromise])
     } catch (error) {
       console.error('Error initializing artist user:', error)
-      // Even on error, we should stop loading to prevent infinite loading states
     } finally {
       setIsLoading(false)
     }
@@ -279,37 +279,43 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const loadArtistProfile = async (userId: string): Promise<ArtistProfile | null> => {
+  const loadArtistProfile = async (userId: string, profileId?: string | null): Promise<ArtistProfile | null> => {
     try {
-      const { data, error } = await supabase
-        .from('artist_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single()
+      let query = supabase.from('artist_profiles').select('*')
+
+      if (profileId) {
+        // Precise lookup: use the profile_id from the active account context so that
+        // users with multiple artist profiles always load the correct one.
+        query = query.eq('id', profileId)
+      } else {
+        // Legacy path: filter by user_id when no specific profile is selected.
+        // If the user has multiple artist profiles this returns the most recently
+        // created one (safe default until the user explicitly switches).
+        query = query.eq('user_id', userId).order('created_at', { ascending: false }).limit(1)
+      }
+
+      const { data: rows, error } = await query
 
       if (error) {
         if (error.code === 'PGRST116') {
-          // No profile exists, create one automatically
           console.log('No artist profile found, creating one for user:', userId)
-          const createdProfile = await createArtistProfile(userId)
-          return createdProfile
-        } else {
-          throw error
+          return await createArtistProfile(userId)
         }
-      } else if (data) {
-        setProfile(data)
-        await loadPublicProfileIdentity(userId)
-        
-        // Check if artist_name is missing and try to sync it
-        if (!data.artist_name) {
-          console.log('Artist name is missing, attempting to sync from account data')
-          await syncArtistName()
-        }
-        
-        return data
+        throw error
       }
-      
-      return null
+
+      const data = Array.isArray(rows) ? rows[0] ?? null : rows
+      if (!data) return null
+
+      setProfile(data)
+      await loadPublicProfileIdentity(userId)
+
+      if (!data.artist_name) {
+        console.log('Artist name is missing, attempting to sync from account data')
+        await syncArtistName()
+      }
+
+      return data
     } catch (error) {
       console.error('Error loading artist profile:', error)
       setProfile(null)

@@ -134,14 +134,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    const { resolveActingContext } = await import('@/lib/auth/acting-context')
+    const { getPostedByType } = await import('@/lib/accounts/account-types')
 
-    if (authError || !user)
-      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
+    const { userId, accountType, profileId, supabase } = ctx
 
     const body = (await request.json()) as JsonRecord
     if (!body.title || !body.description || !body.category_id)
@@ -171,12 +169,16 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
 
+    // Derive the posted_by_type from the verified acting context
+    const resolvedPostedByType = getPostedByType(accountType)
+
     const insertPayload: JsonRecord = {
       title: body.title,
       description: body.description,
       category_id: categoryId,
-      posted_by: user.id,
-      posted_by_type: body.posted_by_type || 'artist',
+      posted_by: userId,
+      posted_by_type: resolvedPostedByType,
+      posted_by_profile_id: profileId,
       job_type: body.job_type || 'one_time',
       payment_type: body.payment_type || 'paid',
       payment_amount: body.payment_amount || null,
@@ -198,7 +200,7 @@ export async function POST(request: NextRequest) {
       age_requirement: body.age_requirement || null,
       benefits: body.benefits || [],
       special_requirements: body.special_requirements || null,
-      contact_email: body.contact_email || user.email || null,
+      contact_email: body.contact_email || null,
       contact_phone: body.contact_phone || null,
       external_link: body.external_link || null,
       priority: body.priority || 'normal',
@@ -213,6 +215,13 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) throw error
+
+    const { recordActingSnapshot } = await import('@/lib/auth/acting-context')
+    await recordActingSnapshot(ctx, {
+      action: 'job.create',
+      resourceType: 'artist_job',
+      resourceId: created?.id,
+    })
 
     return NextResponse.json({
       success: true,

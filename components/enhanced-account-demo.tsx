@@ -1,5 +1,11 @@
 'use client'
 
+/**
+ * @deprecated This demo component uses the legacy enhanced-accounts system.
+ * It is preserved for reference only. New code should use useMultiAccount from
+ * @/hooks/use-multi-account.
+ */
+
 import React, { useState } from 'react'
 import { 
   useEnhancedAccounts, 
@@ -9,7 +15,7 @@ import {
   useAccountAnalytics,
   useTrendingAccounts 
 } from '@/hooks/use-enhanced-accounts'
-import { Account } from '@/lib/services/enhanced-account.service'
+import type { Account } from '@/lib/services/enhanced-account.service'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

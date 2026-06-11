@@ -53,6 +53,7 @@ import {
   formatDuration
 } from '@/lib/utils/enhanced-media-upload'
 import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -85,6 +86,7 @@ export function RobustPostCreator({
   showAdvancedOptions = true
 }: RobustPostCreatorProps) {
   const { user } = useAuth()
+  const { actingHeaders } = useActingContext()
   const [postData, setPostData] = useState<PostData>({
     content: '',
     visibility: defaultVisibility,
@@ -245,6 +247,7 @@ export function RobustPostCreator({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...actingHeaders,
         },
         credentials: 'include',
         body: JSON.stringify(postPayload),

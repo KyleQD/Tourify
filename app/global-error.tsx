@@ -6,20 +6,36 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, ShieldAlert } from "lucide-react"
 import { isStorageSecurityError } from "@/lib/utils/is-storage-security-error"
+import { isChunkLoadError } from "@/lib/utils/is-chunk-load-error"
 
 export default function GlobalError({
   error,
   reset,
 }: {
   error: Error & { digest?: string }
-  reset: () => void
+  reset?: () => void
 }) {
   const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
+  const isChunkError = useMemo(() => isChunkLoadError(error), [error])
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a162f6'},body:JSON.stringify({sessionId:'a162f6',location:'global-error.tsx:mount',message:'GlobalError mounted',data:{resetType:typeof reset,isChunkError,errorName:error?.name,errorMessage:error?.message?.slice(0,200)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
+  }, [error, reset, isChunkError])
 
   useEffect(() => {
     if (isPrivacyError) return
     Sentry.captureException(error)
   }, [error, isPrivacyError])
+
+  function handleTryAgain() {
+    if (typeof reset === "function") {
+      reset()
+      return
+    }
+    window.location.reload()
+  }
 
   return (
     <html lang="en">
@@ -41,12 +57,18 @@ export default function GlobalError({
                 )}
               </div>
               <CardTitle className="text-2xl text-white">
-                {isPrivacyError ? "Browser privacy conflict" : "Something went wrong"}
+                {isPrivacyError
+                  ? "Browser privacy conflict"
+                  : isChunkError
+                    ? "Page update in progress"
+                    : "Something went wrong"}
               </CardTitle>
               <CardDescription className="text-slate-300">
                 {isPrivacyError
                   ? "Your browser's privacy settings are blocking features this page needs to load."
-                  : "We apologize for the inconvenience. Please try again."}
+                  : isChunkError
+                    ? "The app was updated while this tab was open. Reload to fetch the latest version."
+                    : "We apologize for the inconvenience. Please try again."}
               </CardDescription>
             </CardHeader>
             
@@ -73,9 +95,9 @@ export default function GlobalError({
                 <Button
                   variant="default"
                   className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500"
-                  onClick={() => reset()}
+                  onClick={handleTryAgain}
                 >
-                  Try again
+                  {isChunkError ? "Reload page" : "Try again"}
                 </Button>
                 <Button
                   variant="outline"

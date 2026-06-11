@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from 'react'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -77,6 +78,7 @@ export function MusicPost({
   onShare,
   className = ''
 }: MusicPostProps) {
+  const { actingHeaders } = useActingContext()
   const [isLiked, setIsLiked] = useState(false)
   const [likesCount, setLikesCount] = useState(0)
   const [commentsCount, setCommentsCount] = useState(0)
@@ -111,8 +113,9 @@ export function MusicPost({
     try {
       const response = await fetch('/api/posts/share', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ postId: post.id })
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
+        credentials: 'include',
+        body: JSON.stringify({ shared_content_type: 'post', shared_content_id: post.id })
       })
 
       if (response.ok) {

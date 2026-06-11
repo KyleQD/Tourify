@@ -1,10 +1,16 @@
 'use client'
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { z } from 'zod'
 import type { User } from '@supabase/supabase-js'
+import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
 import { AccountManagementService, UserAccount, ActiveSession } from '@/lib/services/account-management.service'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
+import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
+import { navigateToAccountDashboard } from '@/lib/navigation/navigate-to-account-dashboard'
+import { buildAccountScopedPath, readAccountFromSearch } from '@/lib/navigation/account-context-url'
 
 const ACCOUNTS_FETCH_TIMEOUT_MS = 22_000
 const ACTIVE_ACCOUNT_STORAGE_KEY = 'tourify.active-account'
@@ -66,18 +72,59 @@ function writeStoredActiveAccount(userId: string, profileId: string, accountType
   }
 }
 
+/**
+ * Strict lookup — returns the account that exactly matches both profile_id AND account_type.
+ * Never falls back to "first of type". Returns null if not found.
+ * Use this everywhere except initial session restore.
+ */
+export function findAccountStrict(
+  userAccounts: UserAccount[],
+  profileId: string,
+  accountType: string
+): UserAccount | null {
+  const normalizedType = normalizeAccountType(accountType)
+  return (
+    userAccounts.find(
+      acc =>
+        acc.profile_id === profileId &&
+        (acc.account_type === normalizedType || normalizeAccountType(acc.account_type) === normalizedType)
+    ) ?? null
+  )
+}
+
+/**
+ * Session-restore lookup — used only during initial account load.
+ * Falls back gracefully but never silently picks the wrong entity.
+ * If multiple accounts of the same type exist and the profile_id doesn't match any, returns null.
+ */
+function findAccountForSessionRestore(
+  userAccounts: UserAccount[],
+  profileId: string,
+  accountType: string,
+): UserAccount | null {
+  // 1. Exact match
+  const exact = findAccountStrict(userAccounts, profileId, accountType)
+  if (exact) return exact
+
+  const normalizedType = normalizeAccountType(accountType)
+
+  // 2. If exactly one account of this type exists, it must be the one
+  const ofType = userAccounts.filter(
+    acc => normalizeAccountType(acc.account_type) === normalizedType && acc.is_active
+  )
+  if (ofType.length === 1) return ofType[0]
+
+  // 3. Multiple accounts of same type, no id match — caller must show picker
+  return null
+}
+
+/** @deprecated use findAccountStrict — kept only for session-restore path inside this file */
 function findAccountInList(
   userAccounts: UserAccount[],
   profileId: string,
   accountType: string
 ): UserAccount | null {
-  return (
-    userAccounts.find(
-      acc => acc.profile_id === profileId && acc.account_type === accountType
-    ) ??
-    userAccounts.find(acc => acc.account_type === accountType && acc.is_active) ??
-    null
-  )
+  return findAccountStrict(userAccounts, profileId, accountType)
 }
 
 function fallbackGeneralAccounts(user: User): UserAccount[] {
@@ -115,30 +162,29 @@ function resolveAccountFromSession(
   session: ActiveSession,
   userId: string
 ): UserAccount | null {
-  const directMatch = userAccounts.find(
-    acc =>
-      acc.profile_id === session.active_profile_id &&
-      acc.account_type === session.active_account_type
+  // 1. Direct exact match (active_profile_id is the real entity UUID post P2.1 migration)
+  const directMatch = findAccountStrict(
+    userAccounts,
+    session.active_profile_id,
+    session.active_account_type
   )
   if (directMatch) return directMatch
 
-  const sessionAccountId = session.session_data?.account_profile_id as string | undefined
-  if (sessionAccountId) {
-    const subAccountMatch = userAccounts.find(
-      acc =>
-        acc.profile_id === sessionAccountId &&
-        acc.account_type === session.active_account_type
-    )
-    if (subAccountMatch) return subAccountMatch
+  // 2. Pre-P2.1 sessions store entity id in session_data.account_profile_id;
+  //    active_profile_id is userId in those rows.
+  const legacyEntityId = session.session_data?.account_profile_id as string | undefined
+  if (legacyEntityId) {
+    const legacyMatch = findAccountStrict(userAccounts, legacyEntityId, session.active_account_type)
+    if (legacyMatch) return legacyMatch
   }
 
-  if (session.active_account_type !== 'general' && session.active_profile_id === userId) {
-    return (
-      userAccounts.find(acc => acc.account_type === session.active_account_type && acc.is_active) ??
-      null
-    )
+  // 3. For general accounts, active_profile_id === userId — always resolves to one account
+  if (session.active_account_type === 'general') {
+    return findAccountStrict(userAccounts, userId, 'general')
   }
 
+  // 4. No safe match — do NOT fall back to first-of-type.
+  //    Caller will use the account picker or default to general.
   return null
 }
 
@@ -149,6 +195,7 @@ interface MultiAccountContextType {
   isLoading: boolean
   error: string | null
   switchAccount: (profileId: string, accountType: string) => Promise<boolean>
+  switchAccountAndNavigate: (profileId: string, accountType: string) => Promise<boolean>
   createArtistAccount: (data: any) => Promise<string>
   createVenueAccount: (data: any) => Promise<string>
   createOrganizerAccount: (data: any) => Promise<string>
@@ -169,8 +216,8 @@ export function useMultiAccount() {
 }
 
 export function useAccountSwitching() {
-  const { switchAccount, activeAccount, isLoading } = useMultiAccount()
-  return { switchAccount, activeAccount, isLoading }
+  const { switchAccount, switchAccountAndNavigate, activeAccount, isLoading } = useMultiAccount()
+  return { switchAccount, switchAccountAndNavigate, activeAccount, isLoading }
 }
 
 export function useAccountPermissions() {
@@ -226,22 +273,25 @@ interface MultiAccountProviderProps {
 
 export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
   const { user } = useAuth()
+  const router = useRouter()
   const [accounts, setAccounts] = useState<UserAccount[]>([])
   const [activeAccount, setActiveAccount] = useState<UserAccount | null>(null)
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const activeAccountRef = useRef<UserAccount | null>(null)
 
-  const refreshAccounts = async () => {
+  useEffect(() => {
+    activeAccountRef.current = activeAccount
+  }, [activeAccount])
+
+  const refreshAccounts = useCallback(async () => {
     if (!user?.id) return
 
     try {
       setIsLoading(true)
       setError(null)
-      
 
-      // One same-origin request (server runs Supabase) avoids many parallel browser→Supabase calls
-      // that can stall under Safari / strict privacy or flaky networks.
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), ACCOUNTS_FETCH_TIMEOUT_MS)
       let res: Response
@@ -281,21 +331,34 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
 
       const userAccounts = body.accounts
 
-      
       setAccounts(userAccounts)
       const session = body.activeSession ?? null
       setActiveSession(session)
-      
-      const currentActiveId = activeAccount?.profile_id
-      const currentActiveType = activeAccount?.account_type
-      
+
+      const currentActiveId = activeAccountRef.current?.profile_id
+      const currentActiveType = activeAccountRef.current?.account_type
+
       let newActiveAccount = null
       if (currentActiveId && currentActiveType) {
-        newActiveAccount = userAccounts.find(acc => 
-          acc.profile_id === currentActiveId && acc.account_type === currentActiveType
-        ) ?? null
+        newActiveAccount =
+          userAccounts.find(
+            acc =>
+              acc.profile_id === currentActiveId && acc.account_type === currentActiveType
+          ) ?? null
       }
-      
+
+      // Explicit ?account=<profileId> in the URL is the freshest, most authoritative
+      // signal — it is set by a just-completed account switch (and by deep links).
+      // It must win over the server session, which can be stale because the session
+      // upsert is sometimes cancelled by the full-page navigation that follows a switch.
+      if (!newActiveAccount && typeof window !== 'undefined') {
+        const accountParam = readAccountFromSearch(window.location.search)
+        if (accountParam) {
+          newActiveAccount =
+            userAccounts.find(acc => acc.profile_id === accountParam && acc.is_active) ?? null
+        }
+      }
+
       if (!newActiveAccount && session) {
         newActiveAccount = resolveAccountFromSession(userAccounts, session, user.id)
       }
@@ -310,18 +373,16 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
           )
         }
       }
-      
+
       if (!newActiveAccount) {
         const generalAccount = userAccounts.find(acc => acc.account_type === 'general')
         newActiveAccount = generalAccount || userAccounts[0] || null
       }
-      
+
       setActiveAccount(newActiveAccount)
-      
-      
     } catch (err: any) {
       console.error('Error fetching accounts:', err)
-      
+
       let errorMessage = 'Failed to fetch accounts'
       const isAbort = err?.name === 'AbortError'
       if (isAbort) {
@@ -335,7 +396,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
         else if (err.details) errorMessage = err.details
         else errorMessage = 'Account data unavailable. Please try refreshing the page.'
       }
-      
+
       setError(errorMessage)
 
       setAccounts(prev => (prev.length > 0 ? prev : fallbackGeneralAccounts(user)))
@@ -344,186 +405,241 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user])
 
-  const switchAccount = async (profileId: string, accountType: string): Promise<boolean> => {
-    if (!user?.id) return false
-
-    const targetAccount = findAccountInList(accounts, profileId, accountType)
-    if (!targetAccount) {
-      setError(`No active ${accountType} account found`)
-      return false
-    }
-
-    setError(null)
-    setActiveAccount(targetAccount)
-    writeStoredActiveAccount(user.id, targetAccount.profile_id, targetAccount.account_type)
-
-    void AccountManagementService.switchAccount(
-      user.id,
-      targetAccount.profile_id,
-      targetAccount.account_type as Parameters<typeof AccountManagementService.switchAccount>[2]
-    )
-      .then(async () => {
-        try {
-          const session = await AccountManagementService.getActiveSession(user.id)
-          setActiveSession(session)
-        } catch {
-          // session table optional
-        }
-      })
-      .catch(err => {
+  const persistActiveAccount = useCallback(
+    async (account: UserAccount): Promise<void> => {
+      if (!user?.id) return
+      try {
+        await AccountManagementService.switchAccount(
+          user.id,
+          account.profile_id,
+          account.account_type as Parameters<typeof AccountManagementService.switchAccount>[2]
+        )
+        const session = await AccountManagementService.getActiveSession(user.id)
+        setActiveSession(session)
+      } catch (err) {
         console.warn('[MultiAccount] Session persist failed (non-fatal):', err)
-      })
+      }
+    },
+    [user?.id]
+  )
 
-    return true
-  }
-
-  // Check if user has a specific account type
-  const hasAccountType = (accountType: string): boolean => {
-    return accounts.some(account => 
-      account.account_type === accountType && account.is_active
-    )
-  }
-
-  const createArtistAccount = async (data: {
-    artist_name: string
-    bio?: string
-    genres?: string[]
-    social_links?: any
-  }): Promise<string> => {
-    if (!user?.id) throw new Error('You must be logged in to create an artist account')
-
-    try {
-      setIsLoading(true)
+  const applyActiveAccount = useCallback(
+    (profileId: string, accountType: string): UserAccount | null => {
+      if (!user?.id) return null
+      const targetAccount = findAccountStrict(accounts, profileId, accountType)
+      if (!targetAccount) return null
       setError(null)
-      const parsed = ArtistAccountSchema.parse(data)
+      setActiveAccount(targetAccount)
+      writeStoredActiveAccount(user.id, targetAccount.profile_id, targetAccount.account_type)
+      return targetAccount
+    },
+    [user?.id, accounts]
+  )
 
-      const response = await fetch('/api/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_artist', ...parsed }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+  const switchAccount = useCallback(
+    async (profileId: string, accountType: string): Promise<boolean> => {
+      const targetAccount = applyActiveAccount(profileId, accountType)
+      if (!targetAccount) {
+        setError(`No account found with id ${profileId} and type ${accountType}`)
+        return false
       }
 
-      const result = await response.json()
-      if (!result.success) throw new Error(result.error || 'Failed to create artist account')
+      // Soft (in-app) switch: persist in the background so the UI stays snappy.
+      void persistActiveAccount(targetAccount)
+      return true
+    },
+    [applyActiveAccount, persistActiveAccount]
+  )
 
-      await refreshAccounts()
-      return result.artistId
-    } catch (err) {
-      const errorMessage =
-        err instanceof z.ZodError
-          ? err.errors.map(e => e.message).join(', ')
-          : err instanceof Error
-            ? err.message
-            : 'Failed to create artist account'
-
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const createVenueAccount = async (data: {
-    venue_name: string
-    description?: string
-    address?: string
-    capacity?: number
-    venue_types?: string[]
-    contact_info?: any
-    social_links?: any
-  }): Promise<string> => {
-    if (!user?.id) throw new Error('You must be logged in to create a venue account')
-
-    try {
-      setIsLoading(true)
-      setError(null)
-      const parsed = VenueAccountSchema.parse(data)
-
-      const response = await fetch('/api/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_venue', ...parsed }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `HTTP ${response.status}`)
+  const switchAccountAndNavigate = useCallback(
+    async (profileId: string, accountType: string): Promise<boolean> => {
+      const targetAccount = applyActiveAccount(profileId, accountType)
+      if (!targetAccount) {
+        toast.error(`Could not switch to your ${accountType} account`)
+        return false
       }
 
-      const result = await response.json()
-      if (!result.success) throw new Error(result.error || 'Failed to create venue account')
+      const resolvedType = targetAccount.account_type
+      const resolvedProfileId = targetAccount.profile_id
 
-      await refreshAccounts()
-      return result.venueId
-    } catch (err) {
-      const errorMessage =
-        err instanceof z.ZodError
-          ? err.errors.map(e => e.message).join(', ')
-          : err instanceof Error
-            ? err.message
-            : 'Failed to create venue account'
-
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const createOrganizerAccount = async (data: {
-    organization_name: string
-    description?: string
-    organization_type: string
-    contact_info?: any
-    social_links?: any
-    specialties?: string[]
-  }): Promise<string> => {
-    if (!user?.id) throw new Error('You must be logged in to create an organizer account')
-
-    try {
-      setIsLoading(true)
-      setError(null)
-      const parsed = OrganizerAccountSchema.parse(data)
-
-      const response = await fetch('/api/accounts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_organizer', ...parsed }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+      if (resolvedType === 'venue') {
+        const { venueService } = await import('@/lib/services/venue.service')
+        venueService.setCurrentVenueId(resolvedProfileId)
       }
 
-      const result = await response.json()
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create organizer account')
+      void router.prefetch(getDashboardPathForAccountType(resolvedType))
+
+      // Persist the session BEFORE the full-page navigation so the reloaded page
+      // resolves the correct entity server-side. Bounded so a slow/offline upsert
+      // never blocks navigation — the ?account= URL param + sessionStorage guarantee
+      // the client resolves correctly even if the upsert is cut short.
+      await Promise.race([
+        persistActiveAccount(targetAccount),
+        new Promise<void>(resolve => setTimeout(resolve, 1200)),
+      ])
+
+      navigateToAccountDashboard(resolvedType, resolvedProfileId)
+      return true
+    },
+    [applyActiveAccount, persistActiveAccount, router]
+  )
+
+  const hasAccountType = useCallback(
+    (accountType: string): boolean => {
+      return accounts.some(account => account.account_type === accountType && account.is_active)
+    },
+    [accounts]
+  )
+
+  const createArtistAccount = useCallback(
+    async (data: {
+      artist_name: string
+      bio?: string
+      genres?: string[]
+      social_links?: any
+    }): Promise<string> => {
+      if (!user?.id) throw new Error('You must be logged in to create an artist account')
+
+      try {
+        setIsLoading(true)
+        setError(null)
+        const parsed = ArtistAccountSchema.parse(data)
+
+        const response = await fetch('/api/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_artist', ...parsed }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || 'Failed to create artist account')
+
+        await refreshAccounts()
+        return result.artistId
+      } catch (err) {
+        const errorMessage =
+          err instanceof z.ZodError
+            ? err.errors.map(e => e.message).join(', ')
+            : err instanceof Error
+              ? err.message
+              : 'Failed to create artist account'
+
+        setError(errorMessage)
+        throw new Error(errorMessage)
+      } finally {
+        setIsLoading(false)
       }
+    },
+    [user?.id, refreshAccounts]
+  )
 
-      await refreshAccounts()
-      return result.organizerId
-    } catch (err: any) {
-      const errorMessage =
-        err instanceof z.ZodError
-          ? err.errors.map(e => e.message).join(', ')
-          : err instanceof Error
-            ? err.message
-            : 'Failed to create organizer account'
+  const createVenueAccount = useCallback(
+    async (data: {
+      venue_name: string
+      description?: string
+      address?: string
+      capacity?: number
+      venue_types?: string[]
+      contact_info?: any
+      social_links?: any
+    }): Promise<string> => {
+      if (!user?.id) throw new Error('You must be logged in to create a venue account')
 
-      setError(errorMessage)
-      throw new Error(errorMessage)
-    } finally {
-      setIsLoading(false)
-    }
-  }
+      try {
+        setIsLoading(true)
+        setError(null)
+        const parsed = VenueAccountSchema.parse(data)
+
+        const response = await fetch('/api/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_venue', ...parsed }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
+
+        const result = await response.json()
+        if (!result.success) throw new Error(result.error || 'Failed to create venue account')
+
+        await refreshAccounts()
+        return result.venueId
+      } catch (err) {
+        const errorMessage =
+          err instanceof z.ZodError
+            ? err.errors.map(e => e.message).join(', ')
+            : err instanceof Error
+              ? err.message
+              : 'Failed to create venue account'
+
+        setError(errorMessage)
+        throw new Error(errorMessage)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [user?.id, refreshAccounts]
+  )
+
+  const createOrganizerAccount = useCallback(
+    async (data: {
+      organization_name: string
+      description?: string
+      organization_type: string
+      contact_info?: any
+      social_links?: any
+      specialties?: string[]
+    }): Promise<string> => {
+      if (!user?.id) throw new Error('You must be logged in to create an organizer account')
+
+      try {
+        setIsLoading(true)
+        setError(null)
+        const parsed = OrganizerAccountSchema.parse(data)
+
+        const response = await fetch('/api/accounts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'create_organizer', ...parsed }),
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        const result = await response.json()
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to create organizer account')
+        }
+
+        await refreshAccounts()
+        return result.organizerId
+      } catch (err: any) {
+        const errorMessage =
+          err instanceof z.ZodError
+            ? err.errors.map(e => e.message).join(', ')
+            : err instanceof Error
+              ? err.message
+              : 'Failed to create organizer account'
+
+        setError(errorMessage)
+        throw new Error(errorMessage)
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [user?.id, refreshAccounts]
+  )
 
   useEffect(() => {
     if (user?.id) {
@@ -533,7 +649,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       setActiveAccount(null)
       setActiveSession(null)
     }
-  }, [user?.id])
+  }, [user?.id, refreshAccounts])
 
   const contextValue = useMemo<MultiAccountContextType>(
     () => ({
@@ -543,6 +659,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       isLoading,
       error,
       switchAccount,
+      switchAccountAndNavigate,
       createArtistAccount,
       createVenueAccount,
       createOrganizerAccount,
@@ -558,6 +675,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       isLoading,
       error,
       switchAccount,
+      switchAccountAndNavigate,
       createArtistAccount,
       createVenueAccount,
       createOrganizerAccount,

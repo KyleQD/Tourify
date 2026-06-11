@@ -5,8 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMultiAccount } from "@/hooks/use-multi-account"
-import { useRouter } from "next/navigation"
-import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
+import { normalizeAccountType } from "@/lib/accounts/account-types"
 import { toast } from "sonner"
 import {
   Music,
@@ -29,8 +28,7 @@ interface AccountCard {
 }
 
 export function EnhancedAccountCards() {
-  const { accounts, currentAccount, switchAccount } = useMultiAccount()
-  const router = useRouter()
+  const { accounts, currentAccount, switchAccountAndNavigate } = useMultiAccount()
   const [accountCards, setAccountCards] = useState<AccountCard[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSwitching, setIsSwitching] = useState(false)
@@ -69,7 +67,8 @@ export function EnhancedAccountCards() {
         const cards: AccountCard[] = accounts.map(account => {
           const isCurrent =
             currentAccount?.profile_id === account.profile_id &&
-            currentAccount?.account_type === account.account_type
+            normalizeAccountType(currentAccount?.account_type) ===
+              normalizeAccountType(account.account_type)
           const metrics = accountMetrics.find(
             (m: { accountId: string }) => m.accountId === account.profile_id
           )
@@ -93,12 +92,15 @@ export function EnhancedAccountCards() {
               account.profile_data?.venue_name ||
               account.profile_data?.name ||
               "Venue Account"
-          } else if (account.account_type === "admin") {
+          } else if (
+            account.account_type === "admin" ||
+            account.account_type === "organization"
+          ) {
             accountName =
               account.profile_data?.organization_name ||
               account.profile_data?.display_name ||
               account.profile_data?.name ||
-              "Admin Account"
+              "Organization Account"
           }
 
           return {
@@ -126,7 +128,8 @@ export function EnhancedAccountCards() {
             urgentCount: 0,
             isCurrent:
               currentAccount?.profile_id === account.profile_id &&
-              currentAccount?.account_type === account.account_type,
+              normalizeAccountType(currentAccount?.account_type) ===
+                normalizeAccountType(account.account_type),
             avatarUrl: account.profile_data?.avatar_url,
           }))
         )
@@ -147,6 +150,7 @@ export function EnhancedAccountCards() {
       case "venue":
         return Building
       case "admin":
+      case "organization":
         return Settings
       default:
         return User
@@ -160,6 +164,7 @@ export function EnhancedAccountCards() {
       case "venue":
         return "from-blue-500 to-cyan-500"
       case "admin":
+      case "organization":
         return "from-orange-500 to-red-500"
       default:
         return "from-gray-500 to-slate-500"
@@ -172,17 +177,9 @@ export function EnhancedAccountCards() {
     setIsSwitching(true)
 
     try {
-      const success = await switchAccount(card.accountId, card.accountType)
-
-      if (success) {
-        const targetRoute = getDashboardPathForAccountType(card.accountType)
-        router.replace(targetRoute)
-      } else {
-        toast.error("Failed to switch account")
-      }
+      await switchAccountAndNavigate(card.accountId, card.accountType)
     } catch (error) {
       console.error("Error switching account:", error)
-      toast.error("Error switching account")
     } finally {
       setIsSwitching(false)
     }

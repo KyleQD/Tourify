@@ -1,29 +1,42 @@
+import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { resolveActingContext, recordActingSnapshot } from '@/lib/auth/acting-context'
+import { getPostedByType } from '@/lib/accounts/account-types'
 
 export async function POST(
-  request: Request,
-  { params }: any
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const supabase = await createClient()
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
-    if (authError || !user) {
-      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
-    }
+    const { userId, accountType, profileId, supabase } = ctx
+    const { id } = await params
 
+    // Allow the original poster (by userId) or the entity that owns the job (by profileId)
     const { data: originalJob, error: fetchError } = await supabase
       .from('artist_jobs')
       .select('*')
-      .eq('id', params.id)
-      .eq('posted_by', user.id)
+      .eq('id', id)
       .single()
 
     if (fetchError || !originalJob) {
       return NextResponse.json(
-        { success: false, error: 'Job not found or you do not own this posting' },
+        { success: false, error: 'Job not found' },
         { status: 404 }
+      )
+    }
+
+    // Ownership check: the job must belong to the current user or the active entity
+    const ownsJob =
+      originalJob.posted_by === userId ||
+      originalJob.posted_by_profile_id === profileId
+
+    if (!ownsJob) {
+      return NextResponse.json(
+        { success: false, error: 'You do not own this job posting' },
+        { status: 403 }
       )
     }
 
@@ -48,6 +61,10 @@ export async function POST(
       views_count: 0,
       event_date: body.event_date || null,
       deadline: body.deadline || null,
+      // Attribution: stamp which entity is reposting
+      posted_by: userId,
+      posted_by_profile_id: profileId,
+      posted_by_type: getPostedByType(accountType),
     }
 
     const { data: newJob, error: insertError } = await supabase
@@ -57,6 +74,13 @@ export async function POST(
       .single()
 
     if (insertError) throw insertError
+
+    await recordActingSnapshot(ctx, {
+      action: 'job.repost',
+      resourceType: 'artist_job',
+      resourceId: newJob?.id,
+      metadata: { original_job_id: id },
+    })
 
     return NextResponse.json({
       success: true,

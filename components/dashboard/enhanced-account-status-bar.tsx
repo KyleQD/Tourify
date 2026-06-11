@@ -6,20 +6,18 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMultiAccount } from "@/hooks/use-multi-account"
-import { 
-  Music, 
-  Building, 
-  User, 
-  Settings, 
-  Bell, 
+import {
+  Music,
+  Building,
+  User,
+  Settings,
+  Bell,
   ChevronRight,
   AlertTriangle,
   CheckCircle,
   Clock,
-  Zap
+  Zap,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
-import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 
 interface AccountStatus {
   accountId: string
@@ -33,10 +31,9 @@ interface AccountStatus {
 }
 
 export function EnhancedAccountStatusBar() {
-  const { accounts, currentAccount, switchAccount } = useMultiAccount()
+  const { accounts, currentAccount, switchAccountAndNavigate } = useMultiAccount()
   const [accountStatuses, setAccountStatuses] = useState<AccountStatus[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
 
   useEffect(() => {
     const loadAccountStatuses = () => {
@@ -116,17 +113,12 @@ export function EnhancedAccountStatusBar() {
   }
 
   const handleAccountSwitch = async (account: AccountStatus) => {
-    if (!account.isCurrent) {
-      try {
-        const success = await switchAccount(account.accountId, account.accountType)
-        
-        if (success) {
-          const targetRoute = getDashboardPathForAccountType(account.accountType)
-          router.replace(targetRoute)
-        }
-      } catch (error) {
-        console.error('Error switching account:', error)
-      }
+    if (account.isCurrent) return
+
+    try {
+      await switchAccountAndNavigate(account.accountId, account.accountType)
+    } catch (error) {
+      console.error('Error switching account:', error)
     }
   }
 

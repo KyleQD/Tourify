@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 import {
   Briefcase, MapPin, DollarSign, Users, Star,
   CheckCircle, AlertCircle, Loader2, ArrowRight, Building,
@@ -32,6 +33,7 @@ export default function JobDetailPage() {
   const sourceParam = searchParams.get('source')
 
   const { user } = useAuth()
+  const { actingHeaders } = useActingContext()
   const [jobKind, setJobKind] = useState<JobKind>(null)
   const [venueJob, setVenueJob] = useState<JobPostingTemplate | null>(null)
   const [artistJob, setArtistJob] = useState<ArtistJob | null>(null)
@@ -150,7 +152,7 @@ export default function JobDetailPage() {
     try {
       const res = await fetch('/api/posts/share', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         credentials: 'include',
         body: JSON.stringify({
           shared_content_type: 'job_posting',
@@ -170,7 +172,7 @@ export default function JobDetailPage() {
     try {
       const res = await fetch('/api/posts/share', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         credentials: 'include',
         body: JSON.stringify({
           shared_content_type: 'job',

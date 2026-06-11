@@ -6,16 +6,26 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, ShieldAlert } from "lucide-react"
 import { isStorageSecurityError } from "@/lib/utils/is-storage-security-error"
+import { isChunkLoadError } from "@/lib/utils/is-chunk-load-error"
 
 export default function Error({
   error,
   reset,
 }: {
   error: Error & { digest?: string }
-  reset: () => void
+  reset?: () => void
 }) {
   const router = useRouter()
   const isPrivacyError = useMemo(() => isStorageSecurityError(error), [error])
+  const isChunkError = useMemo(() => isChunkLoadError(error), [error])
+
+  function handleTryAgain() {
+    if (typeof reset === "function") {
+      reset()
+      return
+    }
+    window.location.reload()
+  }
 
   useEffect(() => {
     console.error(error)
@@ -38,13 +48,19 @@ export default function Error({
               <AlertCircle className="h-5 w-5 text-rose-300" />
             )}
             <CardTitle className="text-slate-100">
-              {isPrivacyError ? "Browser privacy conflict" : "Something went wrong!"}
+              {isPrivacyError
+                ? "Browser privacy conflict"
+                : isChunkError
+                  ? "Page update in progress"
+                  : "Something went wrong!"}
             </CardTitle>
           </div>
           <CardDescription className="text-slate-300">
             {isPrivacyError
               ? "Your browser's privacy settings are blocking features this page needs to load."
-              : "We apologize for the inconvenience. Please try again."}
+              : isChunkError
+                ? "The app was updated while this tab was open. Reload to fetch the latest version."
+                : "We apologize for the inconvenience. Please try again."}
           </CardDescription>
         </CardHeader>
         <CardContent className="relative">
@@ -66,10 +82,10 @@ export default function Error({
         </CardContent>
         <CardFooter className="relative flex gap-2">
           <Button
-            onClick={reset}
+            onClick={handleTryAgain}
             className="flex-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-900/30 hover:from-violet-500 hover:to-fuchsia-500"
           >
-            Try again
+            {isChunkError ? "Reload page" : "Try again"}
           </Button>
           <Button
             variant="outline"

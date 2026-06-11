@@ -27,9 +27,31 @@ export async function POST(req: Request) {
 
     if (!allowed) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    // Create the canonical event_zone first, then attach the legacy staff_zone to it
+    // so new zones flow into the unified model (migration 20260610000200 backfills
+    // pre-existing rows; this keeps go-forward writes in sync).
+    let eventZoneId: string | null = null
+    try {
+      const { createEventZone } = await import('@/lib/zones/event-zones')
+      const zone = await createEventZone(supabase as any, {
+        eventId: input.event_id ?? null,
+        venueId: input.venue_id,
+        name: input.zone_name,
+        description: input.zone_description ?? null,
+        category: 'operations',
+        zoneType: input.zone_type,
+        capacity: input.capacity ?? null,
+        requiredStaffCount: input.required_staff_count,
+        supervisorId: input.supervisor_id ?? null,
+      })
+      eventZoneId = zone.id
+    } catch (zoneErr) {
+      console.warn('[staffing/zones] canonical event_zone create failed (non-fatal):', zoneErr)
+    }
+
     const { data, error } = await supabase
       .from('staff_zones')
-      .insert({ ...input, assigned_staff_count: 0, status: 'active' })
+      .insert({ ...input, assigned_staff_count: 0, status: 'active', event_zone_id: eventZoneId })
       .select()
       .single()
 

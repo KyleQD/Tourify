@@ -44,6 +44,7 @@ import { JobCardProps, ArtistJob } from '@/types/artist-jobs'
 import { formatDistanceToNow } from 'date-fns'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import { useToast } from '@/components/ui/use-toast'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 const categoryIcons = {
   'Music': Music,
@@ -128,6 +129,7 @@ export function JobCard({
   const [isSaved, setIsSaved] = useState(job.is_saved || false)
   const [isSharing, setIsSharing] = useState(false)
   const { toast } = useToast()
+  const { actingHeaders } = useActingContext()
 
   const handleSave = async () => {
     setIsLoading(true)
@@ -172,7 +174,8 @@ export function JobCard({
     try {
       const res = await fetch('/api/posts/share', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
+        credentials: 'include',
         body: JSON.stringify({
           shared_content_type: 'job',
           shared_content_id: job.id,

@@ -253,6 +253,45 @@ export async function PATCH(
             })
           }
         }
+
+        // Create employment_assignments row so Work Mode can be activated
+        if (candidate.user_id) {
+          const { data: existingAssignment } = await supabase
+            .from('employment_assignments')
+            .select('id')
+            .eq('user_id', candidate.user_id)
+            .eq('venue_id', candidate.venue_id || null)
+            .eq('status', 'confirmed')
+            .maybeSingle()
+
+          if (!existingAssignment) {
+            // Derive Work Mode permissions from the matching role template.
+            const { resolveWorkModeGrant } = await import('@/lib/staff/role-templates')
+            const templateKey = candidate.position
+              ? candidate.position.toLowerCase().trim().replace(/\s+/g, '-')
+              : null
+            const grant = await resolveWorkModeGrant(supabase, {
+              templateKey,
+              position: candidate.position,
+              department: candidate.department,
+              owner: candidate.venue_id
+                ? { entityType: 'venue', entityId: candidate.venue_id }
+                : null,
+            })
+
+            await supabase.from('employment_assignments').insert({
+              user_id: candidate.user_id,
+              venue_id: candidate.venue_id || null,
+              event_id: (currentApplication as any).event_id || null,
+              role_title: candidate.position || candidate.department || 'Staff',
+              department: candidate.department || null,
+              role_template_id: grant.roleTemplateId,
+              role_category: grant.roleCategory,
+              status: 'confirmed',
+              permissions: grant.permissions,
+            })
+          }
+        }
       } catch (onboardingError) {
         console.warn('⚠️ [Admin Application API] Onboarding bridge failed (non-blocking):', onboardingError)
       }
