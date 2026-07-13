@@ -7,7 +7,14 @@ import type {
 } from '@/lib/types/social'
 
 export class FriendSuggestionService {
-  private supabase = createServiceRoleClient()
+  private supabaseClient: ReturnType<typeof createServiceRoleClient> | null = null
+
+  private get supabase() {
+    if (!this.supabaseClient) {
+      this.supabaseClient = createServiceRoleClient()
+    }
+    return this.supabaseClient
+  }
 
   /**
    * Get friend suggestions using multiple algorithms
