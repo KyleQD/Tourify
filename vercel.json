@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "npm ci",
+  "installCommand": "npm ci --legacy-peer-deps",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
