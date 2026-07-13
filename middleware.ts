@@ -23,9 +23,6 @@ export async function middleware(request: NextRequest) {
     '/events',
     '/messages',
     '/analytics',
-    '/feed',
-    '/news',
-    '/community',
     '/music',
     '/connect',
     '/create',
@@ -50,7 +47,6 @@ export async function middleware(request: NextRequest) {
     '/epk',
     '/organization',
     '/orgs',
-    '/jobs',
   ]
 
   const isAuthRoute = authRoutes.includes(pathname)

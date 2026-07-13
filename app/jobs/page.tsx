@@ -35,7 +35,7 @@ export default function JobsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [jobs, setJobs] = useState<ArtistJob[]>([])
+  const [jobs, setJobs] = useState<any[]>([])
   const [collaborations, setCollaborations] = useState<ArtistJob[]>([])
   const [categories, setCategories] = useState<ArtistJobCategory[]>([])
   const [savedJobs, setSavedJobs] = useState<ArtistJob[]>([])
@@ -55,6 +55,8 @@ export default function JobsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [staffingJobs, setStaffingJobs] = useState<any[]>([])
+  const [artistJobCount, setArtistJobCount] = useState(0)
+  const [staffingJobCount, setStaffingJobCount] = useState(0)
   const isAdminAccount = currentAccount?.account_type === 'admin'
 
   useEffect(() => {
@@ -102,16 +104,40 @@ export default function JobsPage() {
     setIsLoading(true)
     try {
       const queryParams = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.set(key, Array.isArray(value) ? value.join(',') : value.toString())
-        }
-      })
-      const response = await fetch(`/api/artist-jobs?${queryParams}`)
+      queryParams.set('merge', '1')
+      queryParams.set('page', String(filters.page ?? 1))
+      queryParams.set('per_page', String(filters.per_page ?? 20))
+      if (filters.query) queryParams.set('query', String(filters.query))
+      const unifiedFilters = filters as JobSearchFilters & {
+        employment_type?: string
+        experience_level?: string
+        remote?: boolean
+        urgent?: boolean
+      }
+      if (unifiedFilters.employment_type) queryParams.set('employment_type', unifiedFilters.employment_type)
+      if (unifiedFilters.experience_level) queryParams.set('experience_level', unifiedFilters.experience_level)
+      if (typeof unifiedFilters.remote === 'boolean') queryParams.set('remote', String(unifiedFilters.remote))
+      if (unifiedFilters.urgent) queryParams.set('urgent', 'true')
+
+      const response = await fetch(`/api/jobs?${queryParams}`)
       const data = await response.json()
       if (data.success) {
-        setSearchResults(data.data)
-        setJobs(data.data.jobs)
+        const unifiedJobs = Array.isArray(data.data?.unified) ? data.data.unified : []
+        setJobs(unifiedJobs)
+        setArtistJobCount(Number(data.data?.artist_jobs_total ?? 0))
+        setStaffingJobCount(Number(data.data?.staff_postings_total ?? 0))
+        const totalCount = Number(data.data?.unified_total ?? unifiedJobs.length)
+        const currentPage = Number(data.data?.unified_page ?? filters.page ?? 1)
+        const perPage = Number(data.data?.unified_per_page ?? filters.per_page ?? 20)
+        setSearchResults({
+          jobs: [],
+          total_count: totalCount,
+          page: currentPage,
+          per_page: perPage,
+          total_pages: Math.max(1, Math.ceil(totalCount / perPage)),
+          has_next: currentPage * perPage < totalCount,
+          has_previous: currentPage > 1,
+        } as JobSearchResults)
       }
     } catch (error) {
       console.error('Error fetching jobs:', error)
@@ -187,6 +213,8 @@ export default function JobsPage() {
       const result = await response.json()
       if (result.success && Array.isArray(result.data?.unified)) {
         setStaffingJobs(result.data.unified)
+        setArtistJobCount(Number(result.data?.artist_jobs_total ?? artistJobCount))
+        setStaffingJobCount(Number(result.data?.staff_postings_total ?? staffingJobCount))
       } else if (result.success && Array.isArray(result.data?.staff_postings)) {
         const rows = result.data.staff_postings as Record<string, unknown>[]
         setStaffingJobs(
@@ -402,10 +430,10 @@ export default function JobsPage() {
   }
 
   const stats = [
-    { label: "Total Jobs", value: searchResults?.total_count || 0, icon: Briefcase, color: "from-blue-500 to-cyan-500" },
-    { label: "Collaborations", value: collaborations.length, icon: Users, color: "from-purple-500 to-blue-500" },
+    { label: "Total Jobs", value: searchResults?.total_count || jobs.length || staffingJobs.length, icon: Briefcase, color: "from-blue-500 to-cyan-500" },
+    { label: "Artist Jobs", value: artistJobCount || collaborations.length, icon: Users, color: "from-purple-500 to-blue-500" },
+    { label: "Venue Staffing", value: staffingJobCount || staffingJobs.length, icon: Building2, color: "from-cyan-500 to-emerald-500" },
     { label: "Featured", value: featuredJobs.length, icon: Star, color: "from-yellow-500 to-orange-500" },
-    { label: "Saved", value: savedJobs.length, icon: Bookmark, color: "from-purple-500 to-pink-500" },
   ]
 
   const staffingWorkflowLinks = [
@@ -770,7 +798,7 @@ export default function JobsPage() {
                         {getDisplayJobs().map((job, index) => (
                           <motion.div key={job.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.05 }}
                             whileHover={{ y: -4, transition: { type: "spring", stiffness: 400, damping: 17 } }}>
-                            {tabValue === 'staffing' ? (
+                            {tabValue === 'staffing' || (tabValue === 'all' && (job as any).source) ? (
                               <a href={getStaffingJobHref(job as any) || '#'} className="block">
                                 <SurfaceCard className="bg-slate-800/30 transition-all duration-300 hover:bg-slate-800/50">
                                   <CardHeader className="pb-2">

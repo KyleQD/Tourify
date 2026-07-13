@@ -23,9 +23,6 @@ export function ThemeProvider({
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a162f6'},body:JSON.stringify({sessionId:'a162f6',location:'use-theme.tsx:mount',message:'ThemeProvider hydrated — layout chunk loaded',data:{defaultTheme},timestamp:Date.now(),hypothesisId:'B-C'})}).catch(()=>{});
-    // #endregion
     setMounted(true)
     let savedTheme: Theme | null = null
     try {
@@ -83,4 +80,4 @@ export function useTheme() {
     throw new Error("useTheme must be used within a ThemeProvider")
   }
   return context
-} 
+}

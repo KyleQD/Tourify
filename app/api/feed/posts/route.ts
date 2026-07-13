@@ -247,14 +247,7 @@ export async function POST(request: NextRequest) {
           updated_at,
           user_id,
           account_username,
-          account_avatar_url,
-          profiles:user_id (
-            id,
-            username,
-            avatar_url,
-            full_name,
-            is_verified
-          )
+          account_avatar_url
         `)
         .in('user_id', body.following_ids)
         .eq('visibility', 'public') // Only show public posts
@@ -358,4 +351,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

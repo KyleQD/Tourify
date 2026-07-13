@@ -24,14 +24,7 @@ const POST_SELECT_COLUMNS = `
   content_ref_id,
   metadata,
   poll_ends_at,
-  poll_total_votes,
-  profiles:user_id (
-    id,
-    username,
-    full_name,
-    avatar_url,
-    is_verified
-  )
+  poll_total_votes
 `
 
 const POST_SELECT_COLUMNS_LEGACY = `
@@ -48,33 +41,7 @@ const POST_SELECT_COLUMNS_LEGACY = `
   type,
   visibility,
   location,
-  hashtags,
-  profiles:user_id (
-    id,
-    username,
-    full_name,
-    avatar_url,
-    is_verified
-  )
-`
-
-const POST_SELECT_COLUMNS_CORE_WITH_PROFILE = `
-  id,
-  user_id,
-  content,
-  media_urls,
-  likes_count,
-  comments_count,
-  shares_count,
-  created_at,
-  updated_at,
-  profiles:user_id (
-    id,
-    username,
-    full_name,
-    avatar_url,
-    is_verified
-  )
+  hashtags
 `
 
 const POST_SELECT_COLUMNS_CORE = `
@@ -118,13 +85,6 @@ export const FEED_POST_SELECT_VARIANTS: FeedPostSelectVariant[] = [
     supportsAccountAttribution: false,
     supportsPinnedOrder: true,
     supportsVisibility: true,
-  },
-  {
-    name: 'core_with_profile',
-    selectColumns: POST_SELECT_COLUMNS_CORE_WITH_PROFILE,
-    supportsAccountAttribution: false,
-    supportsPinnedOrder: false,
-    supportsVisibility: false,
   },
   {
     name: 'core',

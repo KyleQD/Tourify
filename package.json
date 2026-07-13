@@ -28,6 +28,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
+    "check:production-debug": "node scripts/check-production-debug-artifacts.mjs",
     "verify:ci": "npm run lint && npm run typecheck && npm test && npm run build:vercel",
     "test": "jest",
     "test:unit": "vitest run",

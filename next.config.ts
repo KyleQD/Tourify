@@ -24,9 +24,6 @@ const csp = [
     // Realtime uses wss:; `https:` alone does not permit WebSockets in strict browsers (e.g. Safari).
     supabaseHost ? `wss://${supabaseHost}` : undefined,
     '*.upstash.io',
-    // #region agent log (dev-only debug ingest allowance)
-    process.env.NODE_ENV !== 'production' ? 'http://127.0.0.1:7556' : undefined,
-    // #endregion
   ].filter(Boolean).join(' ')
 ].join('; ')
 
