@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 import type { UpdateZoneRequest } from '@/types/site-map'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; zoneId: string }> }) {
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id: siteMapId, zoneId } = await params
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
 
     const { data, error } = await supabase
       .from('site_map_zones')
@@ -49,14 +55,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id: siteMapId, zoneId } = await params
     const body: UpdateZoneRequest = await request.json()
 
-    // Check if user can edit this site map
-    const canEdit = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canEdit.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     // Get existing zone for logging
@@ -92,6 +94,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.notes !== undefined) updatePayload.notes = body.notes
     if (body.tags !== undefined) updatePayload.tags = body.tags
     if (body.status !== undefined) updatePayload.status = body.status
+    if ((body as any).leadUserId !== undefined || (body as any).lead_user_id !== undefined)
+      updatePayload.lead_user_id = (body as any).leadUserId ?? (body as any).lead_user_id
+    if ((body as any).assignedDepartment !== undefined || (body as any).assigned_department !== undefined)
+      updatePayload.assigned_department = (body as any).assignedDepartment ?? (body as any).assigned_department
 
     const { data, error } = await supabase
       .from('site_map_zones')
@@ -105,6 +111,62 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       .single()
 
     if (error) throw error
+
+    // Keep event_zones bridge + supervisor in sync when ownership/name changes
+    try {
+      const { data: siteMap } = await supabase
+        .from('site_maps')
+        .select('event_id')
+        .eq('id', siteMapId)
+        .maybeSingle()
+
+      if (siteMap?.event_id) {
+        const { resolveOrCreateEventZone, linkLegacyZone } = await import('@/lib/zones/event-zones')
+        const eventZone = await resolveOrCreateEventZone(supabase, {
+          eventId: siteMap.event_id,
+          name: data.name,
+          zoneType: data.zone_type,
+          capacity: data.capacity,
+          supervisorId: data.lead_user_id || null,
+          category: 'physical',
+        })
+        if (data.event_zone_id !== eventZone.id)
+          await linkLegacyZone(supabase, 'site_map_zones', data.id, eventZone.id)
+
+        if (data.lead_user_id || data.event_zone_id) {
+          await supabase
+            .from('event_zones')
+            .update({ supervisor_id: data.lead_user_id || null })
+            .eq('id', data.event_zone_id || eventZone.id)
+        }
+        data.event_zone_id = data.event_zone_id || eventZone.id
+      }
+    } catch (bridgeError) {
+      console.warn('[Site Map Zone API] event_zones bridge failed:', bridgeError)
+    }
+
+    if (data.event_zone_id || data.lead_user_id) {
+          try {
+            const { syncZoneOwnershipToRoster } = await import('@/lib/site-map/zone-roster-sync')
+            const { data: siteMapRow } = await supabase
+              .from('site_maps')
+              .select('event_id')
+              .eq('id', siteMapId)
+              .maybeSingle()
+            if (siteMapRow?.event_id) {
+              await syncZoneOwnershipToRoster({
+                supabase,
+                siteMapZoneId: data.id,
+                eventId: siteMapRow.event_id,
+                leadUserId: data.lead_user_id,
+                assignedDepartment: data.assigned_department,
+                actorUserId: user.id,
+              })
+            }
+          } catch (syncError) {
+            console.warn('[Site Map Zone API] roster sync failed:', syncError)
+          }
+        }
 
     // Log activity
     await supabase
@@ -141,14 +203,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { id: siteMapId, zoneId } = await params
 
-    // Check if user can edit this site map
-    const canEdit = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canEdit.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     // Get existing zone for logging

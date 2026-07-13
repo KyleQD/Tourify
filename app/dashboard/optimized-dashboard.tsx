@@ -212,7 +212,7 @@ export default function OptimizedDashboard() {
             {
               title: 'Create Post',
               description: 'Share your latest work',
-              href: '/feed',
+              href: '/community',
               icon: Plus,
               color: 'purple'
             },

@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runWorkflowAutomations } from '@/lib/workflows/automation'
-
-function isAuthorized(request: NextRequest) {
-  const expected = process.env.CRON_SECRET
-  if (!expected) return true
-  const header = request.headers.get('authorization')
-  return header === `Bearer ${expected}`
-}
+import { isAuthorizedCronRequest, unauthorizedResponse } from '@/lib/auth/route-guards'
 
 export async function GET(request: NextRequest) {
   if (process.env.FEATURE_UNIFIED_WORKFLOW_THREADS !== '1')
     return NextResponse.json({ success: true, skipped: true, reason: 'workflow_disabled' })
 
-  if (!isAuthorized(request))
-    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  if (!isAuthorizedCronRequest(request)) return unauthorizedResponse()
 
   try {
     const result = await runWorkflowAutomations()

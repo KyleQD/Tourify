@@ -892,10 +892,16 @@ export interface MapTaskAssignment {
   elementId: string
   elementType: 'zone' | 'tent' | 'element' | 'equipment_instance' | 'power_distribution'
   assignedUserId?: string
+  assignedTeamId?: string
+  assignedRole?: string
   taskType: string
   taskDescription?: string
   priority: number
   status: 'pending' | 'in_progress' | 'completed' | 'blocked' | 'cancelled'
+  dueDate?: string
+  coordinate?: { x: number; y: number }
+  checklist?: Array<{ id: string; label: string; completed: boolean }>
+  blockerReason?: string
   scheduledStartTime?: string
   scheduledEndTime?: string
   actualStartTime?: string
@@ -1013,6 +1019,8 @@ export interface CreateMapLayerRequest {
   color?: string
   opacity?: number
   zIndex?: number
+  isVisible?: boolean
+  isLocked?: boolean
 }
 
 export interface UpdateMapLayerRequest {
@@ -1037,9 +1045,15 @@ export interface CreateTaskAssignmentRequest {
   elementId: string
   elementType: MapTaskAssignment['elementType']
   assignedUserId?: string
+  assignedTeamId?: string
+  assignedRole?: string
   taskType: string
   taskDescription?: string
   priority?: number
+  dueDate?: string
+  coordinate?: { x: number; y: number }
+  checklist?: Array<{ id: string; label: string; completed: boolean }>
+  blockerReason?: string
   scheduledStartTime?: string
   scheduledEndTime?: string
 }
@@ -1071,6 +1085,31 @@ export interface CreateMapIssueRequest {
   assignedTo?: string
   photos?: string[]
   notes?: string
+}
+
+export interface PublicSiteMapResponse {
+  id: string
+  event_id?: string
+  tour_id?: string
+  name: string
+  description?: string
+  width: number
+  height: number
+  scale?: number
+  scale_unit?: string
+  background_image_url?: string
+  background_color?: string
+  grid_enabled?: boolean
+  grid_size?: number
+  status?: string
+  version?: number
+  elements: any[]
+  zones: any[]
+  tents: any[]
+  layers: any[]
+  measurements: any[]
+  readOnly: true
+  publicShare: true
 }
 
 export const EQUIPMENT_SYMBOLS: EquipmentSymbol[] = [
@@ -1225,10 +1264,15 @@ export interface SiteMapNote {
   y: number
   content: string
   element_id?: string
+  parentNoteId?: string
+  convertedTaskId?: string
+  priority?: 'low' | 'normal' | 'high' | 'critical'
   note_type: 'general' | 'warning' | 'question' | 'task' | 'resolved'
   is_resolved: boolean
   resolved_by?: string
   resolved_at?: string
+  resolvedBy?: string
+  resolvedAt?: string
   created_at: string
   updated_at: string
   user?: {

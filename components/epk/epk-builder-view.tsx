@@ -27,11 +27,13 @@ import {
   resolveEpkAppearanceForRender,
   type EpkAppearance,
 } from "@/lib/epk/epk-appearance"
-import { resolveEpkPreviewTemplateId } from "@/components/epk/epk-preview"
+import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
 import { epkFontClass } from "@/components/epk/epk-preview-fonts"
 import {
   createEpkRenderCtx,
   renderEpkSection,
+  EpkPageChrome,
+  contentMaxWidth,
 } from "@/components/epk/epk-template-variants"
 import { SortableEpkSection, SortableEpkSectionOverlay } from "@/components/epk/sortable-epk-section"
 import { EpkHiddenSectionsPanel } from "@/components/epk/epk-hidden-sections-panel"
@@ -370,7 +372,7 @@ export function EpkBuilderView({
               size="sm"
             >
               <X className="mr-2 h-4 w-4" />
-              Exit
+              Editor
             </Button>
           </div>
         </div>
@@ -391,24 +393,21 @@ export function EpkBuilderView({
               resolved.mergedTokens.page,
               fontClass,
               resolved.wrapperClassName,
-              skin === "modern" && "overflow-hidden"
+              (skin === "modern" ||
+                skin === "cinema" ||
+                skin === "luxe" ||
+                skin === "poster") &&
+                "overflow-hidden"
             )}
             style={resolved.rootStyle}
           >
-            {skin === "modern" && (
-              <>
-                <div
-                  className="pointer-events-none absolute inset-0 opacity-[0.35]"
-                  style={{
-                    backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
-                    backgroundSize: "48px 48px",
-                  }}
-                />
-                <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 rounded-full bg-indigo-600/25 blur-3xl" />
-                <div className="pointer-events-none absolute -right-24 bottom-32 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
-              </>
-            )}
-            <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+            <EpkPageChrome skin={skin} />
+            <div
+              className={cn(
+                "relative mx-auto px-4 pb-16 pt-10 sm:px-6 lg:px-8",
+                contentMaxWidth(skin, resolved.contentMaxWidthClass)
+              )}
+            >
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}

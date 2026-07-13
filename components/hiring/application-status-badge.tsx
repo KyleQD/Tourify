@@ -15,24 +15,24 @@ function getApplicationStatusConfig(status: string): ApplicationStatusConfig {
   const normalizedStatus = status.toLowerCase()
 
   if (normalizedStatus === "approved" || normalizedStatus === "accepted")
-    return { label: "Approved", className: "border-emerald-500/40 bg-emerald-700/70 text-emerald-100" }
+    return { label: "Approved", className: "border-emerald-500/30 bg-emerald-500/15 text-emerald-300" }
   if (normalizedStatus === "pending")
-    return { label: "Pending", className: "border-amber-500/40 bg-amber-700/70 text-amber-100" }
+    return { label: "Pending", className: "border-amber-500/30 bg-amber-500/15 text-amber-300" }
   if (normalizedStatus === "rejected")
-    return { label: "Rejected", className: "border-rose-500/40 bg-rose-700/70 text-rose-100" }
+    return { label: "Rejected", className: "border-rose-500/30 bg-rose-500/15 text-rose-300" }
   if (normalizedStatus === "reviewed")
-    return { label: "Reviewed", className: "border-blue-500/40 bg-blue-700/70 text-blue-100" }
+    return { label: "Reviewed", className: "border-blue-500/30 bg-blue-500/15 text-blue-300" }
   if (normalizedStatus === "shortlisted")
-    return { label: "Shortlisted", className: "border-purple-500/40 bg-purple-700/70 text-purple-100" }
+    return { label: "Shortlisted", className: "border-purple-500/30 bg-purple-500/15 text-purple-300" }
   if (normalizedStatus === "withdrawn")
-    return { label: "Withdrawn", className: "border-slate-500/40 bg-slate-700/70 text-slate-100" }
+    return { label: "Withdrawn", className: "border-slate-500/30 bg-slate-500/15 text-slate-300" }
   if (normalizedStatus === "contract_sent")
-    return { label: "Contract Sent", className: "border-indigo-500/40 bg-indigo-700/70 text-indigo-100" }
+    return { label: "Contract Sent", className: "border-indigo-500/30 bg-indigo-500/15 text-indigo-300" }
   if (normalizedStatus === "contract_signed")
-    return { label: "Contract Signed", className: "border-teal-500/40 bg-teal-700/70 text-teal-100" }
+    return { label: "Contract Signed", className: "border-teal-500/30 bg-teal-500/15 text-teal-300" }
   if (normalizedStatus.includes("onboarding"))
-    return { label: "Onboarding", className: "border-cyan-500/40 bg-cyan-700/70 text-cyan-100" }
-  return { label: "Pending", className: "border-amber-500/40 bg-amber-700/70 text-amber-100" }
+    return { label: "Onboarding", className: "border-cyan-500/30 bg-cyan-500/15 text-cyan-300" }
+  return { label: "Pending", className: "border-amber-500/30 bg-amber-500/15 text-amber-300" }
 }
 
 export function ApplicationStatusBadge({ status, className }: ApplicationStatusBadgeProps) {

@@ -148,7 +148,7 @@ export function EnhancedFriendSuggestions({
         </span>
         {suggestion.mutual_friends.slice(0, 2).map((friend, index) => (
           <Avatar key={friend.id} className="h-4 w-4">
-            <AvatarImage src={friend.avatar_url} alt={friend.full_name} />
+            <AvatarImage src={friend.avatar_url ?? undefined} alt={friend.full_name} />
             <AvatarFallback className="text-xs">
               {friend.full_name.split(' ').map(n => n[0]).join('')}
             </AvatarFallback>
@@ -169,7 +169,7 @@ export function EnhancedFriendSuggestions({
       <div key={suggestion.id} className="flex items-center justify-between p-3 rounded-lg border bg-card">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
           <Avatar className="h-12 w-12">
-            <AvatarImage src={suggestion.avatar_url} alt={suggestion.full_name} />
+            <AvatarImage src={suggestion.avatar_url ?? undefined} alt={suggestion.full_name} />
             <AvatarFallback>{renderAvatarFallback(suggestion.full_name)}</AvatarFallback>
           </Avatar>
           

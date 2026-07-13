@@ -9,12 +9,16 @@ const ARTIST_APP_SEGMENTS = new Set([
   'music',
   'content',
   'events',
+  'bookings',
   'profile',
   'settings',
   'business',
   'community',
   'features',
   'epk',
+  'store',
+  'tickets',
+  'merchandise',
 ])
 
 export function pathnameRequiresArtistAccount(pathname: string): boolean {

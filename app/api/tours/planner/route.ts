@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { AdminTourEventOperationsService } from '@/lib/admin/tour-event-operations.service'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 // Validation schemas for each step
 const tourInitiationSchema = z.object({
@@ -101,9 +103,9 @@ const completeTourDataSchema = z.object({
   step6: ticketingFinancialsSchema
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
+export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
   try {
-
+    const supabase = createServiceRoleClient()
     const body = await request.json()
     const validatedData = completeTourDataSchema.parse(body)
 
@@ -136,298 +138,61 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
       // This allows tours to be created even with date mismatches
     }
 
-    // Calculate total budget and expenses
-    const totalBudget = validatedData.step6.budget.total
-    const totalExpenses = validatedData.step6.budget.expenses.reduce((sum, exp) => sum + exp.amount, 0)
-    const transportationCost = validatedData.step5.transportation.cost || 0
-    const accommodationCost = validatedData.step5.accommodation.cost || 0
-    const equipmentCost = validatedData.step5.equipment.reduce((sum, eq) => sum + (eq.cost || 0), 0)
-    const totalLogisticsCost = transportationCost + accommodationCost + equipmentCost
-
-    // Create the tour
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .insert({
-        name: validatedData.step1.name,
-        description: validatedData.step1.description,
-        user_id: user.id, // Use user_id instead of artist_id
-        start_date: validatedData.step2.startDate,
-        end_date: validatedData.step2.endDate,
-        budget: totalBudget,
-        expenses: totalExpenses + totalLogisticsCost,
-        transportation: `${validatedData.step5.transportation.type}: ${validatedData.step5.transportation.details || 'No details'}`,
-        accommodation: `${validatedData.step5.accommodation.type}: ${validatedData.step5.accommodation.details || 'No details'}`,
-        equipment_requirements: validatedData.step5.equipment.map(eq => 
-          `${eq.name} (${eq.quantity})`
-        ).join(', '),
-        crew_size: validatedData.step4.crew.length,
-        status: 'planning',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+    const existingTourId = typeof body?.tourId === 'string' ? body.tourId : null
+    let tour
+    if (existingTourId) {
+      tour = await AdminTourEventOperationsService.updateTour({
+        supabase,
+        userId: user.id,
+        tourId: existingTourId,
+        input: {
+          name: validatedData.step1.name,
+          description: validatedData.step1.description,
+          main_artist: validatedData.step1.mainArtist,
+          genre: validatedData.step1.genre,
+          cover_image: validatedData.step1.coverImage,
+          start_date: validatedData.step2.startDate,
+          end_date: validatedData.step2.endDate,
+          budget: validatedData.step6.budget.total,
+          status: 'active',
+          settings: {
+            route: validatedData.step2.route,
+            artists: validatedData.step4.artists,
+            crew: validatedData.step4.crew,
+            transportation: validatedData.step5.transportation,
+            accommodation: validatedData.step5.accommodation,
+            equipment: validatedData.step5.equipment,
+            ticketTypes: validatedData.step6.ticketTypes,
+            sponsors: validatedData.step6.sponsors,
+            builder_mode: 'published',
+          },
+        },
       })
-      .select('*')
-      .single()
-
-    if (tourError) {
-      console.error('[Tour Planner API] Error creating tour:', tourError)
-      return NextResponse.json({ error: 'Failed to create tour' }, { status: 500 })
-    }
-
-    // Create events (prefer canonical events_v2 + tour_events links)
-    const events = []
-    let eventOrdinal = 0
-    for (const eventData of validatedData.step3.events) {
-      let eventCreated = false
-
-      if (tour.org_id) {
-        const baseSlug = eventData.name
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '')
-          .slice(0, 48)
-        const slug = `${baseSlug || 'tour-event'}-${Date.now().toString(36)}-${eventOrdinal}`
-        const startAt = eventData.time
-          ? new Date(`${eventData.date}T${eventData.time}`).toISOString()
-          : new Date(`${eventData.date}T19:00:00`).toISOString()
-        const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
-
-        const { data: eventV2, error: eventV2Error } = await supabase
-          .from('events_v2')
-          .insert({
-            org_id: tour.org_id,
-            venue_id: null,
-            title: eventData.name,
-            slug,
-            status: 'inquiry',
-            start_at: startAt,
-            end_at: endAt,
-            capacity: eventData.capacity || 0,
-            settings: {
-              description: eventData.description || '',
-              venue_label: eventData.venue,
-              planned_time: eventData.time || null,
-            },
-            created_by: user.id,
-          })
-          .select('id, title, status, start_at, settings, capacity')
-          .single()
-
-        if (!eventV2Error && eventV2?.id) {
-          const { error: linkError } = await supabase
-            .from('tour_events')
-            .insert({ tour_id: tour.id, event_id: eventV2.id, ordinal: eventOrdinal })
-
-          if (!linkError) {
-            const settings = eventV2.settings && typeof eventV2.settings === 'object'
-              ? (eventV2.settings as Record<string, unknown>)
-              : {}
-            events.push({
-              id: eventV2.id,
-              name: eventV2.title,
-              venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : eventData.venue,
-              event_date: eventV2.start_at ? String(eventV2.start_at).slice(0, 10) : eventData.date,
-              event_time: typeof settings.planned_time === 'string' ? settings.planned_time : eventData.time,
-              status: eventV2.status || 'scheduled',
-              capacity: eventV2.capacity || eventData.capacity || 0,
-              event_table: 'events_v2'
-            })
-            eventCreated = true
-            eventOrdinal += 1
-          }
-        } else {
-          console.error('[Tour Planner API] Error creating events_v2 event:', eventV2Error)
-        }
-      }
-
-      if (eventCreated) continue
-
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .insert({
-          tour_id: tour.id,
-          name: eventData.name,
-          description: eventData.description,
-          venue_name: eventData.venue,
-          event_date: eventData.date,
-          event_time: eventData.time,
-          capacity: eventData.capacity || 0,
-          status: 'scheduled',
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
-        .single()
-
-      if (eventError) {
-        console.error('[Tour Planner API] Error creating legacy event:', eventError)
-        // Continue with other events, don't fail the entire tour
-        continue
-      }
-
-      events.push({
-        ...event,
-        event_table: 'events'
+    } else {
+      tour = await AdminTourEventOperationsService.createTourFromPlanner({
+        supabase,
+        userId: user.id,
+        input: validatedData,
       })
-      eventOrdinal += 1
+      tour = await AdminTourEventOperationsService.publishTour({
+        supabase,
+        userId: user.id,
+        tourId: String((tour as any).id),
+      })
     }
 
-    // Create team members (artists and crew)
-    const teamMembers = []
-    
-    // Add artists
-    for (const artistData of validatedData.step4.artists) {
-      const { data: teamMember, error: teamError } = await supabase
-        .from('tour_team_members')
-        .insert({
-          tour_id: tour.id,
-          user_id: user.id, // Use the current user's ID as a placeholder
-          role: `Artist - ${artistData.role}`,
-          contact_email: `${artistData.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-          status: 'confirmed',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
-        .single()
-
-      if (!teamError) {
-        teamMembers.push(teamMember)
-      }
-    }
-
-    // Add crew members
-    for (const crewData of validatedData.step4.crew) {
-      const { data: teamMember, error: teamError } = await supabase
-        .from('tour_team_members')
-        .insert({
-          tour_id: tour.id,
-          user_id: user.id, // Use the current user's ID as a placeholder
-          role: `Crew - ${crewData.role}`,
-          contact_email: `${crewData.name.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-          status: 'confirmed',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
-        .single()
-
-      if (!teamError) {
-        teamMembers.push(teamMember)
-      }
-    }
-
-    // Create event expenses for logistics
-    const expenses = []
-    
-    // Add transportation expense
-    if (transportationCost > 0) {
-      const { data: expense, error: expenseError } = await supabase
-        .from('event_expenses')
-        .insert({
-          tour_id: tour.id,
-          category: 'Transportation',
-          description: `${validatedData.step5.transportation.type}: ${validatedData.step5.transportation.details || 'No details'}`,
-          amount: transportationCost,
-          vendor: 'Transportation Provider',
-          status: 'pending',
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
-        .single()
-
-      if (!expenseError) {
-        expenses.push(expense)
-      }
-    }
-
-    // Add accommodation expense
-    if (accommodationCost > 0) {
-      const { data: expense, error: expenseError } = await supabase
-        .from('event_expenses')
-        .insert({
-          tour_id: tour.id,
-          category: 'Accommodation',
-          description: `${validatedData.step5.accommodation.type}: ${validatedData.step5.accommodation.details || 'No details'}`,
-          amount: accommodationCost,
-          vendor: 'Accommodation Provider',
-          status: 'pending',
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
-        .single()
-
-      if (!expenseError) {
-        expenses.push(expense)
-      }
-    }
-
-    // Add equipment expenses
-    for (const equipment of validatedData.step5.equipment) {
-      if (equipment.cost && equipment.cost > 0) {
-        const { data: expense, error: expenseError } = await supabase
-          .from('event_expenses')
-          .insert({
-            tour_id: tour.id,
-            category: 'Equipment',
-            description: `${equipment.name} (${equipment.quantity})`,
-            amount: equipment.cost,
-            vendor: 'Equipment Provider',
-            status: 'pending',
-            created_by: user.id,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
-          .select('*')
-          .single()
-
-        if (!expenseError) {
-          expenses.push(expense)
-        }
-      }
-    }
-
-    // Add budget expenses
-    for (const budgetExpense of validatedData.step6.budget.expenses) {
-      const { data: expense, error: expenseError } = await supabase
-        .from('event_expenses')
-        .insert({
-          tour_id: tour.id,
-          category: budgetExpense.category,
-          description: budgetExpense.description || budgetExpense.category,
-          amount: budgetExpense.amount,
-          vendor: 'Various',
-          status: 'pending',
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('*')
-        .single()
-
-      if (!expenseError) {
-        expenses.push(expense)
-      }
-    }
-
-    
     return NextResponse.json({
       tour: {
         ...tour,
-        events,
-        team_members: teamMembers,
-        expenses,
         summary: {
-          total_events: events.length,
-          total_team_members: teamMembers.length,
-          total_expenses: expenses.length,
-          budget_utilization: totalBudget > 0 ? ((totalExpenses + totalLogisticsCost) / totalBudget) * 100 : 0
-        }
-      }
+          total_events: Array.isArray((tour as any).events) ? (tour as any).events.length : 0,
+          total_team_members: validatedData.step4.artists.length + validatedData.step4.crew.length,
+          total_expenses: validatedData.step6.budget.expenses.length + validatedData.step5.equipment.length,
+          budget_utilization: (tour as any).budget && (tour as any).expenses
+            ? (Number((tour as any).expenses) / Number((tour as any).budget)) * 100
+            : 0,
+        },
+      },
     }, { status: 201 })
 
   } catch (error) {
@@ -443,9 +208,9 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
   }
 })
 
-export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
   try {
-
+    const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const tourId = searchParams.get('tour_id')
 
@@ -466,7 +231,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { user, supabase }
         )
       `)
       .eq('id', tourId)
-      .eq('user_id', user.id)
+      .or(`user_id.eq.${user.id},created_by.eq.${user.id}`)
       .single()
 
     if (error) {

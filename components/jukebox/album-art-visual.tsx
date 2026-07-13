@@ -1,11 +1,12 @@
 "use client"
 
 import { motion } from "framer-motion"
-import { Music } from "lucide-react"
 import type { ArtVariant } from "@/lib/jukebox/visual-themes"
+import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 
 interface AlbumArtVisualProps {
   coverUrl?: string | null
+  trackId?: string
   variant: ArtVariant
   isPlaying: boolean
   size?: "sm" | "lg"
@@ -18,20 +19,19 @@ const sizeClasses = {
 
 export function AlbumArtVisual({
   coverUrl,
+  trackId,
   variant,
   isPlaying,
   size = "lg",
 }: AlbumArtVisualProps) {
-  const artContent = coverUrl ? (
-    <img
+  const artContent = (
+    <TrackCoverImage
       src={coverUrl}
-      alt=""
-      className="h-full w-full object-cover"
+      trackId={trackId}
+      className="h-full w-full"
+      iconClassName="h-16 w-16 text-white/60"
+      fallbackClassName="from-purple-600 via-pink-600 to-orange-500"
     />
-  ) : (
-    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-600 via-pink-600 to-orange-500">
-      <Music className="h-16 w-16 text-white/60" />
-    </div>
   )
 
   const baseClass = `${sizeClasses[size]} rounded-2xl overflow-hidden shadow-2xl`

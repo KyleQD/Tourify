@@ -328,6 +328,19 @@ class VenueService {
       const cached = this.getFromCache<VenueBookingRequest[]>(`bookings_${venueId}`)
       if (cached) return cached
 
+      if (typeof window !== 'undefined') {
+        const response = await fetch(`/api/venue/booking-requests?venue_id=${venueId}`, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        if (response.ok) {
+          const payload = await response.json()
+          const requests = Array.isArray(payload?.data) ? payload.data : []
+          this.setCache(`bookings_${venueId}`, requests)
+          return requests
+        }
+      }
+
       const { data, error } = await this.supabase
         .from('venue_booking_requests')
         .select('*')
@@ -372,6 +385,25 @@ class VenueService {
 
   async respondToBookingRequest(requestId: string, status: 'approved' | 'rejected', message?: string): Promise<boolean> {
     try {
+      if (typeof window !== 'undefined') {
+        const response = await fetch('/api/venue/booking-requests', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            requestId,
+            status,
+            responseMessage: message,
+          }),
+        })
+        if (response.ok) {
+          for (const [key] of this.cache) {
+            if (key.includes('bookings_')) this.cache.delete(key)
+          }
+          return true
+        }
+      }
+
       const { data, error } = await this.supabase
         .rpc('respond_to_booking_request', {
           p_request_id: requestId,

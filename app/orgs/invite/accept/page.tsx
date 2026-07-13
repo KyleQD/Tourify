@@ -14,10 +14,19 @@ export default function AcceptInvitePage() {
 
   function accept() {
     startTransition(async () => {
-      const res = await fetch('/api/orgs/invite/accept', { method: 'POST', body: JSON.stringify({ token }) })
+      const res = await fetch('/api/orgs/invite/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      })
       const json = await res.json()
-      if (json.ok) window.location.href = '/dashboard'
-      else setMsg(json.error || 'Failed to accept invite')
+      if (json.ok) {
+        const redirectTo =
+          typeof json.redirectTo === 'string' && json.redirectTo.startsWith('/')
+            ? json.redirectTo
+            : '/admin/dashboard'
+        window.location.href = redirectTo
+      } else setMsg(json.error || 'Failed to accept invite')
     })
   }
 

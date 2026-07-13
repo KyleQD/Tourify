@@ -6,9 +6,6 @@ import { isChunkLoadError } from '@/lib/utils/is-chunk-load-error'
 const RELOAD_GUARD_KEY = 'tourify.chunk-reload-guard'
 
 function maybeReloadOnce(source: string, detail: unknown) {
-  // #region agent log
-  fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a162f6'},body:JSON.stringify({sessionId:'a162f6',location:'chunk-load-recovery.tsx:maybeReloadOnce',message:'chunk load error detected',data:{source,detail:detail instanceof Error?{name:detail.name,message:detail.message}:String(detail)},timestamp:Date.now(),hypothesisId:'A-B-D'})}).catch(()=>{});
-  // #endregion
 
   try {
     if (sessionStorage.getItem(RELOAD_GUARD_KEY)) return

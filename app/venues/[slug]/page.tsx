@@ -47,9 +47,11 @@ import {
 } from 'lucide-react'
 import { toast } from "@/components/ui/use-toast"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { ProfilePosts } from "@/components/profile/profile-posts"
 
 interface VenueProfile {
   id: string
+  user_id?: string | null
   venue_name: string
   tagline?: string
   description?: string
@@ -375,10 +377,11 @@ export default function VenueProfilePage() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
             <Tabs defaultValue="overview" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-4 bg-gray-800">
+              <TabsList className="grid w-full grid-cols-5 bg-gray-800">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
                 <TabsTrigger value="events">Events</TabsTrigger>
                 <TabsTrigger value="amenities">Amenities</TabsTrigger>
+                <TabsTrigger value="posts">Posts</TabsTrigger>
                 <TabsTrigger value="contact">Contact</TabsTrigger>
               </TabsList>
 
@@ -505,6 +508,15 @@ export default function VenueProfilePage() {
                 )}
               </TabsContent>
 
+              <TabsContent value="posts" className="space-y-6">
+                <ProfilePosts
+                  profileId={venue.id}
+                  ownerUserId={venue.user_id || undefined}
+                  profileUsername={venue.url_slug || venue.venue_name}
+                  compact={false}
+                />
+              </TabsContent>
+
               <TabsContent value="contact" className="space-y-6">
                 <Card className="bg-gray-800 border-gray-700">
                   <CardHeader>
@@ -576,11 +588,22 @@ export default function VenueProfilePage() {
                 <CardTitle>Quick Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button className="w-full bg-gradient-to-r from-green-600 to-blue-600">
+                <Button
+                  className="w-full bg-gradient-to-r from-green-600 to-blue-600"
+                  onClick={() => router.push(`/venues/${venue.url_slug || params.slug}/booking-request`)}
+                >
                   <Calendar className="h-4 w-4 mr-2" />
                   Book This Venue
                 </Button>
-                <Button variant="outline" className="w-full border-gray-600">
+                <Button
+                  variant="outline"
+                  className="w-full border-gray-600"
+                  onClick={() => {
+                    const email = venue.contact_info?.booking_email || venue.contact_info?.email
+                    if (email) window.location.href = `mailto:${email}?subject=Venue inquiry: ${venue.venue_name}`
+                  }}
+                  disabled={!venue.contact_info?.booking_email && !venue.contact_info?.email}
+                >
                   <MessageCircle className="h-4 w-4 mr-2" />
                   Contact Venue
                 </Button>

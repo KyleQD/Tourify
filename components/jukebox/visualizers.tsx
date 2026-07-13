@@ -277,8 +277,8 @@ export const RetroJukeboxBg = memo(function RetroJukeboxBg({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
   const analyserRef = useRef<AnalyserNode | null>(null)
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null)
   const ctxRef = useRef<AudioContext | null>(null)
+  const streamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const dataRef = useRef<Uint8Array>(new Uint8Array(64))
 
   useEffect(() => {
@@ -287,32 +287,73 @@ export const RetroJukeboxBg = memo(function RetroJukeboxBg({
     const audio = getAudioElement()
     if (!audio) return
 
-    if (!ctxRef.current) {
-      try {
-        ctxRef.current = new AudioContext()
-      } catch {
-        return
+    let cancelled = false
+
+    async function setup() {
+      if (!ctxRef.current) {
+        try {
+          ctxRef.current = new AudioContext()
+        } catch {
+          return
+        }
+      }
+
+      const audioCtx = ctxRef.current
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume().catch(() => {})
+      }
+      if (cancelled) return
+
+      // Prefer captureStream so we never take ownership of the shared <audio> element
+      const captureStream = (
+        audio as HTMLAudioElement & {
+          captureStream?: () => MediaStream
+          mozCaptureStream?: () => MediaStream
+        }
+      ).captureStream?.() ||
+        (
+          audio as HTMLAudioElement & {
+            mozCaptureStream?: () => MediaStream
+          }
+        ).mozCaptureStream?.()
+
+      if (captureStream && !streamSourceRef.current) {
+        try {
+          const source = audioCtx.createMediaStreamSource(captureStream)
+          const analyser = audioCtx.createAnalyser()
+          analyser.fftSize = 128
+          analyser.smoothingTimeConstant = 0.8
+          source.connect(analyser)
+          // Do not connect to destination — element keeps playing normally
+          streamSourceRef.current = source
+          analyserRef.current = analyser
+          dataRef.current = new Uint8Array(analyser.frequencyBinCount)
+        } catch {
+          // fall through to silent visualizer
+        }
       }
     }
 
-    const audioCtx = ctxRef.current
-    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {})
+    setup()
 
-    if (!sourceRef.current) {
-      try {
-        sourceRef.current = audioCtx.createMediaElementSource(audio)
-        const analyser = audioCtx.createAnalyser()
-        analyser.fftSize = 128
-        analyser.smoothingTimeConstant = 0.8
-        sourceRef.current.connect(analyser)
-        analyser.connect(audioCtx.destination)
-        analyserRef.current = analyser
-        dataRef.current = new Uint8Array(analyser.frequencyBinCount)
-      } catch {
-        // source may already be connected
-      }
+    return () => {
+      cancelled = true
     }
   }, [isPlaying, getAudioElement])
+
+  useEffect(() => {
+    return () => {
+      try {
+        streamSourceRef.current?.disconnect()
+      } catch {}
+      streamSourceRef.current = null
+      analyserRef.current = null
+      if (ctxRef.current && ctxRef.current.state !== "closed") {
+        ctxRef.current.close().catch(() => {})
+      }
+      ctxRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -324,6 +365,7 @@ export const RetroJukeboxBg = memo(function RetroJukeboxBg({
       if (!canvas) return
       canvas.width = canvas.offsetWidth * window.devicePixelRatio
       canvas.height = canvas.offsetHeight * window.devicePixelRatio
+      ctx!.setTransform(1, 0, 0, 1, 0, 0)
       ctx!.scale(window.devicePixelRatio, window.devicePixelRatio)
     }
     resize()
@@ -357,7 +399,9 @@ export const RetroJukeboxBg = memo(function RetroJukeboxBg({
 
       for (let i = 0; i < barCount; i++) {
         const dataIdx = Math.floor((i / barCount) * freqData.length)
-        const val = isPlaying ? freqData[dataIdx] / 255 : 0.05 + Math.sin(Date.now() / 1000 + i) * 0.03
+        const val = isPlaying
+          ? (freqData[dataIdx] || 0) / 255
+          : 0.05 + Math.sin(Date.now() / 1000 + i) * 0.03
         const barH = Math.max(4, val * maxBarH)
         const x = startX + i * (barWidth + gap)
         const y = h * 0.72 - barH
@@ -387,7 +431,7 @@ export const RetroJukeboxBg = memo(function RetroJukeboxBg({
       ctx.shadowBlur = 0
 
       const energy = isPlaying
-        ? Array.from(freqData).reduce((s, v) => s + v, 0) / freqData.length / 255
+        ? Array.from(freqData).reduce((s, v) => s + v, 0) / Math.max(freqData.length, 1) / 255
         : 0
 
       const archCx = w / 2

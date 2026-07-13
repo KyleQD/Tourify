@@ -62,7 +62,7 @@ function toJukeboxTrack(track: ProfileTrack, artistName: string): JukeboxTrack {
     artist_name: artistName,
     artist_id: track.user_id,
     duration: track.duration ?? undefined,
-    file_url: track.file_url || "",
+    file_url: track.file_url || `/api/music/stream?trackId=${track.id}`,
     cover_art_url: track.cover_art_url ?? undefined,
     genre: track.genre ?? undefined,
   }
@@ -95,17 +95,15 @@ export function ProfileMusicShowcase({
           const json = await tracksRes.json()
           const feedContent = json.content || []
           setTracks(
-            feedContent
-              .filter((item: any) => item.metadata?.url)
-              .map((item: any) => ({
-                id: item.id,
-                title: item.title,
-                genre: item.metadata?.genre || null,
-                duration: item.metadata?.duration || null,
-                file_url: item.metadata?.url || null,
-                cover_art_url: item.cover_image || null,
-                user_id: item.author?.id || userId,
-              }))
+            feedContent.map((item: any) => ({
+              id: item.id,
+              title: item.title,
+              genre: item.metadata?.genre || null,
+              duration: item.metadata?.duration || null,
+              file_url: item.metadata?.url || `/api/music/stream?trackId=${item.id}`,
+              cover_art_url: item.cover_image || null,
+              user_id: item.author?.id || userId,
+            }))
           )
         }
         if (playlistsRes.ok) {
@@ -136,7 +134,7 @@ export function ProfileMusicShowcase({
 
   const handlePlay = useCallback(
     (track: ProfileTrack) => {
-      if (!jukebox || !track.file_url) return
+      if (!jukebox) return
       if (isTrackPlaying(track.id)) {
         jukebox.pause()
       } else {
@@ -148,27 +146,29 @@ export function ProfileMusicShowcase({
 
   const handlePlayAll = useCallback(() => {
     if (!jukebox) return
-    const playable = tracks.filter((t) => t.file_url)
-    if (playable.length === 0) return
-    jukebox.playPlaylist(playable.map((t) => toJukeboxTrack(t, displayName)))
-    toast.success(`Playing ${playable.length} tracks`)
+    if (tracks.length === 0) return
+    jukebox.playPlaylist(tracks.map((t) => toJukeboxTrack(t, displayName)))
+    toast.success(`Playing ${tracks.length} tracks`)
   }, [jukebox, tracks, displayName])
 
   const handlePlayPlaylist = useCallback(
     (playlist: ProfilePlaylist) => {
       if (!jukebox || !playlist.music_playlist_items?.length) return
       const playable = playlist.music_playlist_items
-        .filter((item) => item.artist_music?.file_url)
-        .map((item) => ({
-          id: item.artist_music!.id,
-          title: item.artist_music!.title,
-          artist_name: displayName,
-          artist_id: item.artist_music!.user_id,
-          duration: item.artist_music!.duration ?? undefined,
-          file_url: item.artist_music!.file_url!,
-          cover_art_url: item.artist_music!.cover_art_url ?? undefined,
-          genre: item.artist_music!.genre ?? undefined,
-        }))
+        .filter((item) => item.artist_music?.id || item.music_track_id)
+        .map((item) => {
+          const trackId = item.artist_music?.id || item.music_track_id
+          return {
+            id: trackId,
+            title: item.artist_music?.title || "Untitled",
+            artist_name: displayName,
+            artist_id: item.artist_music?.user_id,
+            duration: item.artist_music?.duration ?? undefined,
+            file_url: item.artist_music?.file_url || `/api/music/stream?trackId=${trackId}`,
+            cover_art_url: item.artist_music?.cover_art_url ?? undefined,
+            genre: item.artist_music?.genre ?? undefined,
+          }
+        })
       if (playable.length === 0) {
         toast.error("No playable tracks in this playlist")
         return
@@ -238,7 +238,7 @@ export function ProfileMusicShowcase({
         ) : activeView === "tracks" ? (
           <div className="space-y-3">
             {/* Play all bar */}
-            {tracks.filter((t) => t.file_url).length > 0 && jukebox && (
+            {tracks.length > 0 && jukebox && (
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
@@ -253,11 +253,10 @@ export function ProfileMusicShowcase({
                   size="sm"
                   className="rounded-full text-white/50 hover:text-white text-xs"
                   onClick={() => {
-                    const playable = tracks.filter((t) => t.file_url)
-                    playable.forEach((t) =>
+                    tracks.forEach((t) =>
                       jukebox.addToQueue(toJukeboxTrack(t, displayName))
                     )
-                    toast.success(`Added ${playable.length} to queue`)
+                    toast.success(`Added ${tracks.length} to queue`)
                   }}
                 >
                   <ListPlus className="h-3.5 w-3.5" />

@@ -10,7 +10,7 @@ export default function DashboardSettingsPage() {
       <AdminPageHeader
         icon={Settings}
         title="Settings"
-        subtitle="Account preferences, security, and organizer options for the active profile."
+        subtitle="Account preferences, security, and organization options for the active profile."
       />
       <AccountScopedSettings />
     </>

@@ -1,8 +1,11 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { redirect } from "next/navigation"
+import { AccountsSeed } from "@/components/account/accounts-seed"
+import { loadUserAccountsForSession } from "@/lib/accounts/server-load-accounts"
 import { VenueProviders } from "./providers"
 import { VenueRootChromeOffset } from "./components/venue-root-chrome-offset"
+import { VenueOperationsShell } from "./components/operations/venue-operations-shell"
 import { Toaster } from "@/components/ui/toaster"
 import { createClient } from "@/lib/supabase/server"
 
@@ -49,9 +52,16 @@ export default async function VenueLayout({
     redirect("/dashboard?error=venue-account-required")
   }
 
+  const loaded = await loadUserAccountsForSession()
+
   return (
     <VenueProviders>
-      <VenueRootChromeOffset>{children}</VenueRootChromeOffset>
+      {loaded ? (
+        <AccountsSeed accounts={loaded.accounts} activeSession={loaded.activeSession} />
+      ) : null}
+      <VenueRootChromeOffset>
+        <VenueOperationsShell>{children}</VenueOperationsShell>
+      </VenueRootChromeOffset>
       <Toaster />
     </VenueProviders>
   )

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { AdminPageHeader } from "../../../components/admin-page-header"
+import { OpsWorkspaceChrome } from "@/components/admin/operations/ops-workspace-chrome"
 import { toast } from "sonner"
 
 const STATUS_CONFIG = {
@@ -56,20 +56,19 @@ export default function AdvancingPage() {
   const [eventTitle, setEventTitle] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [advRes, eventRes] = await Promise.allSettled([
+      const [advRes, eventDetail] = await Promise.all([
         fetch(`/api/admin/events/${eventId}/advancing`, { credentials: 'include' }),
-        fetch(`/api/admin/events?id=${eventId}`, { credentials: 'include' }),
+        fetch(`/api/admin/events/${eventId}`, { credentials: 'include' }),
       ])
-      if (advRes.status === 'fulfilled' && advRes.value.ok) {
-        const d = await advRes.value.json()
+      if (advRes.ok) {
+        const d = await advRes.json()
         setAdv(d.advancing || {})
       }
-      // Try to get event title from events list
-      const eventDetail = await fetch(`/api/events/${eventId}`, { credentials: 'include' })
       if (eventDetail.ok) {
         const d = await eventDetail.json()
         setEventTitle(d.event?.name || d.event?.title || '')
@@ -116,6 +115,47 @@ export default function AdvancingPage() {
     toast.success('Marked as sent to venue')
   }
 
+  async function generateShareLink() {
+    const shareToken = adv.share_token || crypto.randomUUID()
+    const nextAdv = { ...adv, share_token: shareToken }
+    setAdv(nextAdv)
+    await fetch(`/api/admin/events/${eventId}/advancing`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextAdv),
+    })
+    toast.success('Share link ready')
+  }
+
+  async function publishToWorkMode() {
+    setPublishing(true)
+    try {
+      await save()
+      const res = await fetch(`/api/admin/events/${eventId}/work-mode`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          publication_type: 'advance',
+          title: eventTitle ? `Advance: ${eventTitle}` : 'Event advance',
+          payload: {
+            status: adv.status || 'pending',
+            share_token: adv.share_token || null,
+            venue_contact_name: adv.venue_contact_name || null,
+            venue_contact_email: adv.venue_contact_email || null,
+          },
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      toast.success('Advance published to Work Mode')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to publish')
+    } finally {
+      setPublishing(false)
+    }
+  }
+
   const statusConf = STATUS_CONFIG[adv.status as keyof typeof STATUS_CONFIG] || STATUS_CONFIG.pending
   const StatusIcon = statusConf.icon
 
@@ -123,12 +163,13 @@ export default function AdvancingPage() {
   const textareaCls = "bg-slate-800/50 border-slate-700/50 text-white text-sm min-h-[80px]"
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <AdminPageHeader
-        title="Advancing"
-        subtitle={eventTitle || `Event ${eventId.slice(0, 8)}`}
-        actions={
-          <div className="flex items-center gap-2">
+    <OpsWorkspaceChrome
+      eventId={eventId}
+      title="Advancing workspace"
+      description={eventTitle ? `Venue advance for ${eventTitle}` : "Collect riders, contacts, and tech specs for this show"}
+      badge={statusConf.label}
+      actions={
+          <div className="flex flex-wrap items-center gap-2">
             <Badge className={statusConf.color}>
               <StatusIcon className="h-3 w-3 mr-1" />
               {statusConf.label}
@@ -147,6 +188,12 @@ export default function AdvancingPage() {
               <Send className="h-3.5 w-3.5 mr-1.5" />
               Mark Sent
             </Button>
+            <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 h-8" onClick={generateShareLink}>
+              Share Link
+            </Button>
+            <Button variant="outline" size="sm" className="border-slate-700 text-slate-300 h-8" onClick={publishToWorkMode} disabled={publishing}>
+              {publishing ? 'Publishing...' : 'Publish to Work Mode'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -159,15 +206,10 @@ export default function AdvancingPage() {
             <Button size="sm" onClick={save} disabled={saving} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8">
               {saving ? 'Saving...' : 'Save'}
             </Button>
-            <Button variant="ghost" size="sm" className="text-slate-400" asChild>
-              <Link href={`/admin/dashboard/events/${eventId}`}>
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back
-              </Link>
-            </Button>
           </div>
-        }
-      />
+      }
+    >
+      <div className="mx-auto max-w-3xl space-y-6">
 
       {/* Share link */}
       {adv.share_token && (
@@ -339,6 +381,7 @@ export default function AdvancingPage() {
           {saving ? 'Saving...' : 'Save Advancing Document'}
         </Button>
       </div>
-    </div>
+      </div>
+    </OpsWorkspaceChrome>
   )
 }

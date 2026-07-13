@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Calendar } from "@/components/ui/calendar"
-import { Mail, Share2, BarChart2, Users, Calendar as CalendarIcon, Send } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Mail, Share2, BarChart2, Users, Calendar as CalendarIcon, Send, AlertTriangle } from "lucide-react"
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts"
+
+const SHOW_LEGACY_MOCK_MARKETING = process.env.NEXT_PUBLIC_ENABLE_LEGACY_MOCK_ANALYTICS === 'true'
 
 interface Campaign {
   id: string
@@ -75,6 +79,29 @@ export function MarketingHub() {
       ...post
     }
     setSocialPosts([...socialPosts, newPost])
+  }
+
+  if (!SHOW_LEGACY_MOCK_MARKETING) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Marketing Hub</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert>
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Mock social metrics disabled</AlertTitle>
+            <AlertDescription>
+              Cross-platform posting and real social analytics live in Content Hub. This legacy marketing
+              view used placeholder social charts.
+            </AlertDescription>
+          </Alert>
+          <Button asChild>
+            <Link href="/artist/content?tab=compose">Open Content Hub Compose</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (

@@ -13,6 +13,7 @@ import { LoadingSpinner } from "../components/loading-spinner"
 import { useToast } from "@/hooks/use-toast"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
+import { PollAnalyticsPanel } from "@/components/polls/poll-analytics-panel"
 import {
   BarChart2,
   Users,
@@ -654,6 +655,10 @@ export default function AnalyticsPage() {
                 </p>
               </CardContent>
             </Card>
+          </div>
+
+          <div className="mt-4">
+            <PollAnalyticsPanel />
           </div>
         </TabsContent>
 

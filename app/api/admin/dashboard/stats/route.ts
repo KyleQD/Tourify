@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { startRouteTiming } from '@/lib/observability/route-timing'
 
 const emptyStats = {
   totalTours: 0, activeTours: 0, totalEvents: 0, upcomingEvents: 0,
@@ -15,6 +16,7 @@ const emptyStats = {
 }
 
 export const GET = withAdminAuth(async (_request, { user, supabase }) => {
+  const endTiming = startRouteTiming('/api/admin/dashboard/stats')
   try {
     // Resolve the calling user's org to scope all queries
     const { data: orgMember } = await supabase
@@ -106,7 +108,7 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
     const confirmedTravelers = travelGroups.reduce((sum: number, g: any) => sum + (Number(g.confirmed_members) || 0), 0)
     const fullyCoordinated = travelGroups.filter((g: any) => g.coordination_status === 'complete').length
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       stats: {
         totalTours: tours.length,
@@ -144,7 +146,10 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
         activeRentalAgreements: rentalAgreements.filter((r: any) => r.status === 'active').length,
       },
     })
+    endTiming({ userId: user.id, queryCount: 13 })
+    return response
   } catch (error) {
+    endTiming({ userId: user.id, metadata: { error: true } })
     console.error('[Dashboard Stats API] Error:', error)
     return NextResponse.json({ success: true, stats: emptyStats })
   }

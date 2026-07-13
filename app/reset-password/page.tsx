@@ -20,18 +20,84 @@ export default function ResetPasswordPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
+  const [isSessionReady, setIsSessionReady] = useState(false)
+  const [isValidatingLink, setIsValidatingLink] = useState(true)
   const [error, setError] = useState<AuthErrorInfo | null>(null)
   const [countDown, setCountDown] = useState(5)
   const router = useRouter()
 
-  // Check if we have a valid reset token in the URL
+  // Accept both PKCE (?code=) and legacy hash (#access_token&type=recovery) reset links
   useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const accessToken = hashParams.get("access_token")
-    const type = hashParams.get("type")
-    
-    if (!accessToken || type !== "recovery") {
-      setError(mapAuthError("Invalid or expired reset link. Please request a new password reset."))
+    let isCancelled = false
+
+    async function establishRecoverySession() {
+      setIsValidatingLink(true)
+      setError(null)
+
+      try {
+        const searchParams = new URLSearchParams(window.location.search)
+        const code = searchParams.get("code")
+
+        if (code) {
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+          if (isCancelled) return
+
+          if (exchangeError || !data.session) {
+            setError(
+              mapAuthError(
+                exchangeError?.message ||
+                  "Invalid or expired reset link. Please request a new password reset."
+              )
+            )
+            setIsSessionReady(false)
+            return
+          }
+
+          // Remove one-time code from the URL after exchange
+          const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`
+          window.history.replaceState({}, document.title, cleanUrl)
+          setIsSessionReady(true)
+          return
+        }
+
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const accessToken = hashParams.get("access_token")
+        const type = hashParams.get("type")
+
+        if (accessToken && type === "recovery") {
+          const { data: sessionData } = await supabase.auth.getSession()
+          if (isCancelled) return
+
+          if (sessionData.session) {
+            setIsSessionReady(true)
+            return
+          }
+        }
+
+        const { data: existing } = await supabase.auth.getSession()
+        if (isCancelled) return
+
+        if (existing.session) {
+          setIsSessionReady(true)
+          return
+        }
+
+        setError(mapAuthError("Invalid or expired reset link. Please request a new password reset."))
+        setIsSessionReady(false)
+      } catch (err) {
+        if (isCancelled) return
+        setError(
+          mapAuthError(err instanceof Error ? err.message : "Invalid or expired reset link.")
+        )
+        setIsSessionReady(false)
+      } finally {
+        if (!isCancelled) setIsValidatingLink(false)
+      }
+    }
+
+    void establishRecoverySession()
+    return () => {
+      isCancelled = true
     }
   }, [])
 
@@ -54,14 +120,18 @@ export default function ResetPasswordPage() {
   }
 
   const handleContactSupport = () => {
-    window.open('mailto:support@tourify.com?subject=Password Reset Issue', '_blank')
+    window.open("mailto:support@tourify.com?subject=Password Reset Issue", "_blank")
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
 
-    // Client-side validation
+    if (!isSessionReady) {
+      setError(mapAuthError("Invalid or expired reset link. Please request a new password reset."))
+      return
+    }
+
     if (password !== confirmPassword) {
       setError(mapAuthError("Passwords don't match"))
       return
@@ -86,7 +156,7 @@ export default function ResetPasswordPage() {
         setIsSuccess(true)
       }
     } catch (error: any) {
-      const errorInfo = mapAuthError(error instanceof Error ? error : 'Failed to reset password')
+      const errorInfo = mapAuthError(error instanceof Error ? error : "Failed to reset password")
       setError(errorInfo)
     } finally {
       setIsLoading(false)
@@ -117,10 +187,17 @@ export default function ResetPasswordPage() {
             Choose a strong password for your account
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent>
+          {isValidatingLink && (
+            <div className="flex items-center justify-center gap-2 text-gray-300 py-6">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Validating reset link...
+            </div>
+          )}
+
           {/* Error Display */}
-          {error && (
+          {!isValidatingLink && error && (
             <AuthErrorDisplay
               error={error}
               onRetry={handleRetry}
@@ -129,7 +206,7 @@ export default function ResetPasswordPage() {
             />
           )}
 
-          {isSuccess ? (
+          {!isValidatingLink && isSuccess ? (
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-green-500/20 border border-green-500/50 backdrop-blur-sm">
                 <div className="flex items-center text-green-200">
@@ -142,7 +219,7 @@ export default function ResetPasswordPage() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="text-center text-sm text-gray-400">
                 <p>Redirecting to login page in {countDown} seconds...</p>
                 <Button
@@ -155,7 +232,9 @@ export default function ResetPasswordPage() {
                 </Button>
               </div>
             </div>
-          ) : (
+          ) : null}
+
+          {!isValidatingLink && !isSuccess && isSessionReady ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="password" className="text-white font-medium">
@@ -183,7 +262,7 @@ export default function ResetPasswordPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-white font-medium">
                   Confirm New Password
@@ -209,14 +288,14 @@ export default function ResetPasswordPage() {
                   </button>
                 </div>
               </div>
-              
+
               <div className="text-xs text-gray-400">
                 Password should be at least 6 characters long
               </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed" 
+
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold py-3 rounded-xl shadow-lg hover:shadow-purple-500/25 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -229,9 +308,9 @@ export default function ResetPasswordPage() {
                 )}
               </Button>
             </form>
-          )}
+          ) : null}
         </CardContent>
-        
+
         <CardFooter className="flex justify-center">
           <div className="text-sm text-gray-400 text-center">
             <Link href="/login" className="text-purple-400 hover:text-purple-300 underline">
@@ -243,4 +322,3 @@ export default function ResetPasswordPage() {
     </div>
   )
 }
-

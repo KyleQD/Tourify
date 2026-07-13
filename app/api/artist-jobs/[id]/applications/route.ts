@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { applyToArtistJob } from '@/lib/services/artist-jobs.server'
 import { ArtistJobsService } from '@/lib/services/artist-jobs.service'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 import { CreateApplicationFormData } from '@/types/artist-jobs'
@@ -116,9 +118,10 @@ async function writeArtistHiringAuditEvent(input: {
 
 export async function GET(
   request: Request,
-  { params }: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: jobId } = await params
     const supabase = await createClient()
     
     // Check authentication
@@ -133,7 +136,8 @@ export async function GET(
       )
     }
 
-    const applications = await ArtistJobsService.getJobApplications(params.id, user.id, supabase as any)
+    const serviceSupabase = createServiceRoleClient()
+    const applications = await ArtistJobsService.getJobApplications(jobId, user.id, serviceSupabase as any)
 
     return NextResponse.json({
       success: true,
@@ -153,19 +157,19 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: jobId } = await params
     const { resolveActingContext } = await import('@/lib/auth/acting-context')
 
     const ctx = await resolveActingContext(request as any)
     if (ctx instanceof NextResponse) return ctx
-    const { userId, accountType, profileId, supabase } = ctx
+    const { userId, accountType, profileId } = ctx
 
     const applicationData: CreateApplicationFormData = await request.json()
     
-    // Ensure job_id matches the route parameter
-    applicationData.job_id = params.id
+    applicationData.job_id = jobId
 
     // Validate required fields
     if (!applicationData.contact_email) {
@@ -183,13 +187,45 @@ export async function POST(
       (applicationData as any).artist_profile_id = profileId
     }
 
-    const application = await ArtistJobsService.applyToJob(applicationData, userId, supabase as any)
+    const serviceSupabase = createServiceRoleClient()
+
+    const { data: jobRow, error: jobError } = await serviceSupabase
+      .from('artist_jobs')
+      .select('id, status, posted_by, title')
+      .eq('id', jobId)
+      .maybeSingle()
+
+    if (jobError) throw jobError
+    if (!jobRow) {
+      return NextResponse.json({ success: false, error: 'This job posting no longer exists.' }, { status: 404 })
+    }
+    if (jobRow.status !== 'open') {
+      return NextResponse.json({ success: false, error: 'This job posting is not accepting applications.' }, { status: 409 })
+    }
+    if (jobRow.posted_by === userId) {
+      return NextResponse.json({ success: false, error: 'You cannot apply to your own job posting' }, { status: 400 })
+    }
+
+    const { data: existingApplication } = await serviceSupabase
+      .from('artist_job_applications')
+      .select('id')
+      .eq('job_id', jobId)
+      .eq('applicant_id', userId)
+      .maybeSingle()
+
+    if (existingApplication) {
+      return NextResponse.json({ success: false, error: 'You have already applied to this job' }, { status: 409 })
+    }
+
+
+    const application = await applyToArtistJob(applicationData, userId)
+
 
     await writeArtistHiringAuditEvent({
-      supabase,
+      supabase: serviceSupabase,
       actorUserId: userId,
       applicationId: application.id,
-      jobId: params.id,
+      jobId,
       applicationType: 'job',
       fromStatus: 'created',
       toStatus: application.status,
@@ -214,10 +250,12 @@ export async function POST(
 
 export async function PATCH(
   request: Request,
-  { params }: any
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: jobId } = await params
     const supabase = await createClient()
+    const serviceSupabase = createServiceRoleClient()
 
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -268,10 +306,10 @@ export async function PATCH(
       )
     }
 
-    const { data: jobOwnerRow, error: ownerError } = await supabase
+    const { data: jobOwnerRow, error: ownerError } = await serviceSupabase
       .from('artist_jobs')
       .select('id, posted_by, job_type, title')
-      .eq('id', params.id)
+      .eq('id', jobId)
       .single()
 
     if (ownerError || !jobOwnerRow) {
@@ -322,7 +360,7 @@ export async function PATCH(
         actorUserId: user.id,
         applicantUserId: updatedApplication.applicant_id,
         applicationId,
-        jobId: params.id,
+        jobId: jobId,
         jobTitle: jobOwnerRow.title,
         applicationType: 'collaboration',
         fromStatus: currentApplication.status,
@@ -339,7 +377,7 @@ export async function PATCH(
           eventSource: 'api_artist_jobs_application_patch',
           eventData: {
             application_id: updatedApplication.id,
-            job_id: params.id
+            job_id: jobId
           }
         })
       }
@@ -384,7 +422,7 @@ export async function PATCH(
       actorUserId: user.id,
       applicantUserId: currentApplication.applicant_id,
       applicationId,
-      jobId: params.id,
+      jobId,
       jobTitle: jobOwnerRow.title,
       applicationType: 'job',
       fromStatus: currentApplication.status,

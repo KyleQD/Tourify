@@ -118,8 +118,8 @@ export function useEnhancedSearch(): UseEnhancedSearchReturn {
         limit: '6' // Optimal for dropdown display
       })
       
-      // Use the working search API
-      const response = await fetch(`/api/search?${params}`)
+      // Prefer account-aware enhanced search (includes organizations + accountId)
+      const response = await fetch(`/api/search/enhanced?${params}`)
       
       if (!response.ok) {
         throw new Error('Search failed')
@@ -127,15 +127,27 @@ export function useEnhancedSearch(): UseEnhancedSearchReturn {
       
       const data: any = await response.json()
       
-      // Handle the search response format
       let allResults: SearchResult[] = []
       
-      if (data.results) {
-        // Combine all account types
+      if (Array.isArray(data.results)) {
+        allResults = data.results.map((row: any) => ({
+          id: String(row.id),
+          username: String(row.urlSlug || row.username || ''),
+          account_type: row.type === 'organization' ? 'organization' : row.type === 'venue' ? 'venue' : row.type === 'artist' ? 'artist' : 'general',
+          display_name: row.displayName,
+          avatar_url: row.avatar,
+          verified: row.verified,
+          bio: row.bio,
+          location: row.location,
+          accountId: row.accountId,
+          ownerUserId: row.ownerUserId,
+        }))
+      } else if (data.results) {
         allResults = [
           ...data.results.artists || [],
           ...data.results.venues || [],
-          ...data.results.users || []
+          ...data.results.users || [],
+          ...data.results.organizations || [],
         ]
       }
       

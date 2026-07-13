@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getStripeOrNull } from '@/lib/stripe'
+import { createPendingOrder } from '@/lib/ticketing/orders'
+import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
+import { finalizeInventory } from '@/lib/ticketing/inventory'
+import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
+import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
 
 const stripe = getStripeOrNull()
 
@@ -22,6 +27,7 @@ const purchaseTicketSchema = z.object({
   billing_address: z.record(z.any()).optional(),
   delivery_method: z.enum(['digital', 'email', 'sms', 'mail']).default('digital'),
   social_media_share: z.boolean().default(false),
+  terms_accepted: z.boolean().optional(),
   metadata: z.record(z.any()).optional()
 })
 
@@ -134,6 +140,12 @@ export async function GET(request: NextRequest) {
         }, {}) || {}
       }
 
+      const { data: ticketingConfig } = await supabase
+        .from('event_ticketing_config')
+        .select('refund_policy, terms_text, transfer_policy, resale_enabled')
+        .eq('event_id', event_id)
+        .maybeSingle()
+
       const ticketTypesWithAvailability = ticketTypes?.map(ticket => ({
         ...ticket,
         available: ticket.quantity_available - ticket.quantity_sold,
@@ -145,6 +157,14 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ 
         ticket_types: ticketTypesWithAvailability,
+        ticketing_config: ticketingConfig
+          ? {
+              refund_policy: ticketingConfig.refund_policy ?? null,
+              terms_text: ticketingConfig.terms_text ?? null,
+              transfer_policy: ticketingConfig.transfer_policy ?? null,
+              resale_enabled: ticketingConfig.resale_enabled ?? false,
+            }
+          : null,
         campaigns: campaigns || [],
         promo_codes: promoCodes || [],
         social_stats: socialStats
@@ -251,6 +271,62 @@ export async function POST(request: NextRequest) {
     if (action === 'purchase') {
       const validatedData = purchaseTicketSchema.parse(data)
 
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      const v2Enabled = isTicketingV2Enabled()
+      if (v2Enabled && !user) {
+        return NextResponse.json(
+          { error: 'Sign in required to purchase tickets', code: 'AUTH_REQUIRED' },
+          { status: 401 }
+        )
+      }
+
+      // Enforce ticketing config when present
+      const { data: ticketingConfig } = await supabase
+        .from('event_ticketing_config')
+        .select('*')
+        .eq('event_id', validatedData.event_id)
+        .maybeSingle()
+
+      if (ticketingConfig) {
+        if (!ticketingConfig.ticketing_enabled)
+          return NextResponse.json({ error: 'Ticketing is not enabled for this event' }, { status: 400 })
+
+        const now = Date.now()
+        if (ticketingConfig.sale_start && now < new Date(ticketingConfig.sale_start).getTime())
+          return NextResponse.json({ error: 'Ticket sales have not started yet' }, { status: 400 })
+        if (ticketingConfig.sale_end && now > new Date(ticketingConfig.sale_end).getTime())
+          return NextResponse.json({ error: 'Ticket sales have ended' }, { status: 400 })
+        if (ticketingConfig.max_per_order && validatedData.quantity > ticketingConfig.max_per_order)
+          return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_order} tickets per order` }, { status: 400 })
+
+        if (ticketingConfig.max_per_user && user?.id) {
+          const { data: prior } = await supabase
+            .from('ticket_sales')
+            .select('quantity')
+            .eq('event_id', validatedData.event_id)
+            .eq('buyer_user_id', user.id)
+            .in('payment_status', ['completed', 'pending'])
+          const priorQty = (prior || []).reduce((sum: number, row: any) => sum + (row.quantity || 0), 0)
+          if (priorQty + validatedData.quantity > ticketingConfig.max_per_user)
+            return NextResponse.json({ error: `Maximum ${ticketingConfig.max_per_user} tickets per account` }, { status: 400 })
+        }
+
+        if (!validatedData.terms_accepted) {
+          return NextResponse.json(
+            { error: 'You must accept the Ticket Buyer Terms and organizer terms before purchasing' },
+            { status: 400 }
+          )
+        }
+      } else if (!validatedData.terms_accepted) {
+        return NextResponse.json(
+          { error: 'You must accept the Ticket Buyer Terms before purchasing' },
+          { status: 400 }
+        )
+      }
+
       // Check ticket availability
       const { data: ticketType, error: ticketError } = await supabase
         .from('ticket_types')
@@ -263,12 +339,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Ticket type not found or inactive' }, { status: 404 })
       }
 
-      const remainingTickets = ticketType.quantity_available - ticketType.quantity_sold
+      const remainingTickets = ticketType.quantity_available - ticketType.quantity_sold - (ticketType.quantity_reserved || 0)
       if (validatedData.quantity > remainingTickets) {
         return NextResponse.json({ error: 'Not enough tickets available' }, { status: 400 })
       }
 
-      // Validate promo code if provided
+      // Validate promo code if provided (do NOT increment uses until payment)
       let promoCode = null
       let discountAmount = 0
       if (validatedData.promo_code) {
@@ -319,68 +395,60 @@ export async function POST(request: NextRequest) {
         discountAmount += referral.discount_amount
       }
 
-      // Calculate total amount
-      const baseAmount = ticketType.price * validatedData.quantity
-      const totalAmount = Math.max(0, baseAmount - discountAmount)
-      const fees = totalAmount * 0.03 // 3% processing fee
-      const orderNumber = `TKT${Date.now()}${Math.floor(Math.random() * 1000)}`
+      let orderId: string
+      let orderNumber: string
+      let fees: { buyerTotal: number; discountAmount: number; platformFeeAmount: number; processingFeeAmount: number; taxAmount: number; netAmount: number }
+      let reservationId: string | null = null
+      let v2 = v2Enabled
 
-      const isFreeTicket = totalAmount === 0
-      const useStripe = stripe && !isFreeTicket
-
-      // Create ticket sale with pending status when using Stripe
-      const { data: sale, error: saleError } = await supabase
-        .from('ticket_sales')
-        .insert({
-          ticket_type_id: validatedData.ticket_type_id,
-          event_id: validatedData.event_id,
-          customer_email: validatedData.customer_email,
-          customer_name: validatedData.customer_name,
-          customer_phone: validatedData.customer_phone,
+      try {
+        const pending = await createPendingOrder({
+          supabase: supabase as any,
+          ticketTypeId: validatedData.ticket_type_id,
+          eventId: validatedData.event_id,
           quantity: validatedData.quantity,
-          total_amount: totalAmount,
-          fees,
-          payment_status: useStripe ? 'pending' : 'paid',
-          payment_method: validatedData.payment_method || 'stripe',
-          transaction_id: validatedData.transaction_id,
-          order_number: orderNumber,
-          promo_code_id: promoCode?.id,
-          referral_id: referral?.id,
-          share_source: validatedData.share_source,
-          share_platform: validatedData.share_platform,
-          billing_address: validatedData.billing_address,
-          delivery_method: validatedData.delivery_method,
-          social_media_share: validatedData.social_media_share,
-          metadata: validatedData.metadata
+          unitPrice: Number(ticketType.price),
+          buyerUserId: user?.id ?? null,
+          buyerName: validatedData.customer_name,
+          buyerEmail: validatedData.customer_email,
+          promoCodeId: promoCode?.id ?? null,
+          discountAmount,
+          metadata: {
+            ...(validatedData.metadata || {}),
+            customer_phone: validatedData.customer_phone,
+            referral_id: referral?.id,
+            promo_code: promoCode?.code,
+            share_source: validatedData.share_source,
+            share_platform: validatedData.share_platform,
+            delivery_method: validatedData.delivery_method,
+            social_media_share: validatedData.social_media_share,
+            billing_address: validatedData.billing_address,
+            terms_accepted_at: new Date().toISOString(),
+            ticket_buyer_terms_version: '1.0',
+            organizer_terms_text: ticketingConfig?.terms_text ?? null,
+            organizer_refund_policy: ticketingConfig?.refund_policy ?? null,
+          },
         })
-        .select('*')
-        .single()
-
-      if (saleError) {
-        console.error('[Enhanced Ticketing API] Error creating sale:', saleError)
-        return NextResponse.json({ error: 'Failed to create ticket sale' }, { status: 500 })
+        orderId = pending.orderId
+        orderNumber = pending.orderNumber
+        fees = pending.fees
+        reservationId = pending.reservationId
+        v2 = pending.v2
+      } catch (err: any) {
+        console.error('[Enhanced Ticketing API] Error creating order:', err)
+        return NextResponse.json({ error: err?.message || 'Failed to create ticket sale' }, { status: 400 })
       }
 
-      // Update promo code usage
-      if (promoCode) {
-        await supabase
-          .from('promo_codes')
-          .update({ current_uses: promoCode.current_uses + 1 })
-          .eq('id', promoCode.id)
-      }
+      await emitTicketAnalyticsEvent({
+        supabase: supabase as any,
+        eventName: 'checkout_started',
+        eventId: validatedData.event_id,
+        ticketTypeId: validatedData.ticket_type_id,
+        orderId,
+        actorUserId: user?.id ?? null,
+        amounts: { quantity: validatedData.quantity, total: fees.buyerTotal },
+      })
 
-      // Update referral status
-      if (referral) {
-        await supabase
-          .from('ticket_referrals')
-          .update({ 
-            status: 'used',
-            used_at: new Date().toISOString()
-          })
-          .eq('id', referral.id)
-      }
-
-      // Track social share if provided
       if (validatedData.share_platform && validatedData.share_source) {
         await supabase
           .from('ticket_shares')
@@ -390,14 +458,23 @@ export async function POST(request: NextRequest) {
             platform: validatedData.share_platform,
             share_url: validatedData.share_source,
             conversion_count: 1,
-            revenue_generated: totalAmount
+            revenue_generated: fees.buyerTotal,
           })
       }
 
-      // Create Stripe Checkout session for paid tickets
+      const { data: sale } = await supabase
+        .from('ticket_sales')
+        .select('*')
+        .eq('id', orderId)
+        .single()
+
+      const isFreeTicket = fees.buyerTotal === 0
+      const useStripe = stripe && !isFreeTicket
+
       if (useStripe) {
         const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
+        // Single aggregated line item so discount + fees match server buyerTotal
         const session = await stripe.checkout.sessions.create({
           mode: 'payment',
           customer_email: validatedData.customer_email,
@@ -405,42 +482,105 @@ export async function POST(request: NextRequest) {
             {
               price_data: {
                 currency: 'usd',
-                unit_amount: Math.round((totalAmount / validatedData.quantity) * 100),
+                unit_amount: Math.round(fees.buyerTotal * 100),
                 product_data: {
-                  name: ticketType.name,
-                  description: ticketType.description || `Ticket for event`,
+                  name: `${ticketType.name} × ${validatedData.quantity}`,
+                  description: [
+                    ticketType.description || 'Event ticket',
+                    fees.discountAmount > 0 ? `Discount −$${fees.discountAmount.toFixed(2)}` : null,
+                    fees.platformFeeAmount > 0 ? `Platform fee $${fees.platformFeeAmount.toFixed(2)}` : null,
+                    fees.processingFeeAmount > 0 ? `Processing $${fees.processingFeeAmount.toFixed(2)}` : null,
+                  ].filter(Boolean).join(' · '),
                 },
               },
-              quantity: validatedData.quantity,
+              quantity: 1,
             },
           ],
           metadata: {
-            sale_id: sale.id,
-            user_id: validatedData.customer_email,
+            sale_id: orderId,
+            order_id: orderId,
+            user_id: user?.id || validatedData.customer_email,
             event_id: validatedData.event_id,
             ticket_type_id: validatedData.ticket_type_id,
             order_number: orderNumber,
+            buyer_total: String(fees.buyerTotal),
+            discount_amount: String(fees.discountAmount),
           },
-          success_url: `${origin}/tickets/confirmation?order=${orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${origin}/tickets/success?order=${orderNumber}&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${origin}/tickets/purchase?event_id=${validatedData.event_id}&cancelled=true`,
         })
+
+        if (v2) {
+          await supabase
+            .from('ticket_sales')
+            .update({
+              stripe_checkout_session_id: session.id,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', orderId)
+        }
 
         return NextResponse.json({
           sale,
           order_number: orderNumber,
           discount_applied: discountAmount > 0,
           discount_amount: discountAmount,
+          fee_breakdown: fees,
           checkout_url: session.url,
           checkout_session_id: session.id,
         }, { status: 201 })
       }
 
-      // Free ticket or dev mode without Stripe — mark as paid directly
-      return NextResponse.json({ 
+      // Free / complimentary path — issue immediately
+      await supabase
+        .from('ticket_sales')
+        .update({
+          payment_status: 'completed',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', orderId)
+
+      if (v2 && reservationId) {
+        try {
+          await finalizeInventory({ supabase: supabase as any, reservationId })
+        } catch {
+          // ignore if already finalized
+        }
+        await issueTicketsForOrder({
+          supabase: supabase as any,
+          orderId,
+          eventId: validatedData.event_id,
+          ticketTypeId: validatedData.ticket_type_id,
+          quantity: validatedData.quantity,
+          unitPrice: Number(ticketType.price),
+          ownerUserId: user?.id ?? null,
+          ownerEmail: validatedData.customer_email,
+          ownerName: validatedData.customer_name,
+          isComplimentary: true,
+          actorUserId: user?.id ?? null,
+        })
+      }
+
+      // Increment promo on successful free checkout only
+      if (promoCode) {
+        await supabase
+          .from('promo_codes')
+          .update({ current_uses: promoCode.current_uses + 1 })
+          .eq('id', promoCode.id)
+      }
+      if (referral) {
+        await supabase
+          .from('ticket_referrals')
+          .update({ status: 'used', used_at: new Date().toISOString() })
+          .eq('id', referral.id)
+      }
+
+      return NextResponse.json({
         sale,
         order_number: orderNumber,
         discount_applied: discountAmount > 0,
-        discount_amount: discountAmount
+        discount_amount: discountAmount,
+        fee_breakdown: fees,
       }, { status: 201 })
 
     } else if (action === 'share') {

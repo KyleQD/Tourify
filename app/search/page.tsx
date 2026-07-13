@@ -25,6 +25,9 @@ import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/contexts/auth-context"
+import { resolvePublicProfilePath } from "@/lib/utils/public-profile-routes"
+import { FollowFriendButton } from "@/components/social/follow-friend-button"
+import { isOrganizationType, normalizeAccountType } from "@/lib/accounts/account-types"
 
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -214,20 +217,39 @@ export default function SearchPage() {
     }
   }
 
-  const navigateToProfile = (username: string) => {
-    router.push(`/profile/${username}`)
+  const navigateToProfile = (profile: {
+    id?: string
+    username?: string
+    account_type?: string
+    type?: string
+    urlSlug?: string
+    url_slug?: string
+  }) => {
+    const accountType = normalizeAccountType(profile.account_type || profile.type)
+    const username = profile.urlSlug || profile.url_slug || profile.username
+    const path = resolvePublicProfilePath({
+      id: String(profile.id || ''),
+      username,
+      account_type: accountType,
+    })
+    router.push(path || `/profile/${profile.username}`)
   }
 
   const getDisplayName = (profile: any) => {
-    if (profile.account_type === 'artist') return profile.artist_name || profile.display_name
-    if (profile.account_type === 'venue') return profile.venue_name || profile.display_name
-    return profile.display_name || profile.name || profile.username
+    if (profile.account_type === 'artist' || profile.type === 'artist')
+      return profile.artist_name || profile.displayName || profile.display_name
+    if (profile.account_type === 'venue' || profile.type === 'venue')
+      return profile.venue_name || profile.displayName || profile.display_name
+    if (isOrganizationType(profile.account_type) || profile.type === 'organization')
+      return profile.displayName || profile.display_name || profile.organization_name || profile.username
+    return profile.display_name || profile.displayName || profile.name || profile.username
   }
 
   const getProfileGradient = (accountType: string) => {
-    switch (accountType) {
+    switch (normalizeAccountType(accountType)) {
       case 'artist': return 'from-purple-500 to-pink-500'
       case 'venue': return 'from-blue-500 to-cyan-500'
+      case 'organization': return 'from-amber-500 to-orange-500'
       default: return 'from-green-500 to-emerald-500'
     }
   }
@@ -263,7 +285,7 @@ export default function SearchPage() {
       >
         <Card 
           className="group relative bg-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/50 transition-all duration-300 overflow-hidden cursor-pointer"
-          onClick={() => navigateToProfile(user.username)}
+          onClick={() => navigateToProfile(user)}
         >
           <CardContent className="relative p-6">
             <div className="flex items-start space-x-4">
@@ -343,7 +365,7 @@ export default function SearchPage() {
       >
         <Card 
           className="group relative bg-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/50 transition-all duration-300 overflow-hidden cursor-pointer"
-          onClick={() => navigateToProfile(artist.username)}
+          onClick={() => navigateToProfile(artist)}
         >
           <CardContent className="relative p-6">
             <div className="flex items-start space-x-4">
@@ -433,7 +455,7 @@ export default function SearchPage() {
       >
         <Card 
           className="group relative bg-slate-900/50 border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/50 transition-all duration-300 overflow-hidden cursor-pointer"
-          onClick={() => navigateToProfile(venue.username)}
+          onClick={() => navigateToProfile(venue)}
         >
           <CardContent className="relative p-6">
             <div className="flex items-start space-x-4">

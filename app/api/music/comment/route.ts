@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
+import { isTrackPubliclyPlayable, recordMusicEvent, syncMusicStats } from '@/lib/music/music-access'
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Check if music exists and is public
     const { data: music, error: musicError } = await supabase
       .from('artist_music')
-      .select('id, is_public, user_id')
+      .select('id, is_public, is_visible, moderation_status, rights_confirmed, user_id')
       .eq('id', musicId)
       .single()
 
@@ -27,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Music not found' }, { status: 404 })
     }
 
-    if (!music.is_public && music.user_id !== user.id) {
+    if (music.user_id !== user.id && !isTrackPubliclyPlayable(music)) {
       return NextResponse.json({ error: 'Music is private' }, { status: 403 })
     }
 
@@ -68,6 +69,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create comment' }, { status: 500 })
     }
 
+    await recordMusicEvent({
+      supabase,
+      musicId,
+      artistUserId: music.user_id,
+      actorUserId: user.id,
+      eventType: 'comment',
+      source: 'api_music_comment',
+      metadata: { comment_id: comment.id, parent_comment_id: parentCommentId || null },
+    })
+    await syncMusicStats(supabase, musicId)
+
     return NextResponse.json({ 
       comment,
       message: 'Comment created successfully' 
@@ -94,7 +106,7 @@ export async function GET(request: NextRequest) {
     // Check if music exists and is public
     const { data: music, error: musicError } = await supabase
       .from('artist_music')
-      .select('id, is_public, user_id')
+      .select('id, is_public, is_visible, moderation_status, rights_confirmed, user_id')
       .eq('id', musicId)
       .single()
 
@@ -104,7 +116,7 @@ export async function GET(request: NextRequest) {
 
     // Get user session for checking if they can view private music
     const { data: { user } } = await supabase.auth.getUser()
-    if (!music.is_public && (!user || music.user_id !== user.id)) {
+    if ((!user || music.user_id !== user.id) && !isTrackPubliclyPlayable(music)) {
       return NextResponse.json({ error: 'Music is private' }, { status: 403 })
     }
 
@@ -166,4 +178,4 @@ export async function GET(request: NextRequest) {
     console.error('Error in music comments API:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}

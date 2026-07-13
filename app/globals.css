@@ -36,6 +36,66 @@
 }
 
 @layer components {
+  .staff-scheduling-prototype {
+    color-scheme: dark;
+    --background: 232 39% 10%;
+    --foreground: 270 50% 97%;
+    --card: 230 34% 13%;
+    --card-foreground: 270 50% 97%;
+    --popover: 230 34% 13%;
+    --popover-foreground: 270 50% 97%;
+    --primary: 279 87% 64%;
+    --primary-foreground: 270 50% 99%;
+    --secondary: 229 27% 21%;
+    --secondary-foreground: 270 50% 97%;
+    --muted: 229 27% 19%;
+    --muted-foreground: 260 16% 70%;
+    --accent: 275 41% 25%;
+    --accent-foreground: 270 50% 97%;
+    --border: 0 0% 100% / 0.1;
+    --input: 0 0% 100% / 0.14;
+    --ring: 279 87% 64%;
+    --destructive-foreground: 270 50% 99%;
+    --radius: 0.625rem;
+    --neon-purple-rgb: 180 92 255;
+    --neon-pink-rgb: 242 92 191;
+    --neon-cyan-rgb: 98 212 239;
+    --neon-amber-rgb: 247 200 79;
+    --neon-green-rgb: 91 234 155;
+    --neon-red-rgb: 242 96 114;
+    --neon-purple: rgb(var(--neon-purple-rgb));
+    --neon-pink: rgb(var(--neon-pink-rgb));
+    --neon-cyan: rgb(var(--neon-cyan-rgb));
+    --neon-amber: rgb(var(--neon-amber-rgb));
+    --neon-green: rgb(var(--neon-green-rgb));
+    --neon-red: rgb(var(--neon-red-rgb));
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-ring: hsl(var(--ring));
+    --color-neon-purple: rgb(var(--neon-purple-rgb));
+    --color-neon-pink: rgb(var(--neon-pink-rgb));
+    --color-neon-cyan: rgb(var(--neon-cyan-rgb));
+    --color-neon-amber: rgb(var(--neon-amber-rgb));
+    --color-neon-green: rgb(var(--neon-green-rgb));
+    --color-neon-red: rgb(var(--neon-red-rgb));
+    color: hsl(var(--foreground));
+    background: hsl(var(--background));
+  }
+
   .surface-hero {
     @apply rounded-3xl border border-white/10 bg-slate-900/60 backdrop-blur-xl;
   }

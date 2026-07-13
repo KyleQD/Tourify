@@ -17,7 +17,7 @@ import { normalizeAccountType } from '@/lib/accounts/account-types'
  *   })
  */
 export function useActingContext() {
-  const { currentAccount } = useMultiAccount()
+  const { currentAccount, isAccountsReady } = useMultiAccount()
 
   const actingHeaders = useMemo<Record<string, string>>(() => {
     if (!currentAccount) return {} as Record<string, string>
@@ -30,6 +30,8 @@ export function useActingContext() {
   return {
     /** The currently active account (alias for currentAccount). */
     actingAccount: currentAccount,
+    /** True when the active account has been resolved and headers are safe to send. */
+    isActingReady: isAccountsReady && Boolean(currentAccount),
     /** Ready-to-spread headers for fetch() calls. */
     actingHeaders,
     /** Shortcut: current account type (normalized). */

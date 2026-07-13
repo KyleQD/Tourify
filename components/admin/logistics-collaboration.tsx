@@ -24,7 +24,7 @@ interface LogisticsCollaborationProps {
   eventId?: string
   tourId?: string
   siteMapId?: string
-  teamMembers?: string[]
+  teamMembers?: Array<{ id: string; name: string }>
 }
 
 export function LogisticsCollaboration({
@@ -76,13 +76,17 @@ export function LogisticsCollaboration({
           content: newMessage.trim(),
           message_type: 'general',
           priority: 'normal',
-          type: 'logistics_update',
           ...(eventId ? { event_id: eventId } : {}),
           ...(tourId ? { tour_id: tourId } : {}),
-          recipients: teamMembers,
+          ...(siteMapId ? { site_map_id: siteMapId } : {}),
+          metadata: { type: 'logistics_update' },
+          recipients: teamMembers.map(member => member.id).filter(Boolean),
         }),
       })
-      if (!res.ok) throw new Error('Failed to send')
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error || 'Failed to send')
+      }
       setNewMessage('')
       void fetchMessages()
     } catch (err: any) {

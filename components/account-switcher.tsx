@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2, Briefcase } from 'lucide-react'
+import { ChevronDown, Plus, Settings, User, Music, Building, Shield, Crown, Loader2, Briefcase, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -17,8 +17,10 @@ import { Badge } from '@/components/ui/badge'
 import { useMultiAccount, useAccountSwitching } from '@/hooks/use-multi-account'
 import { useRouter } from 'next/navigation'
 import type { ProfileType } from '@/lib/accounts/account-types'
-import { normalizeAccountType } from '@/lib/accounts/account-types'
+import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
 import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
+import { getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
+import { organizationSubtypeLabel } from '@/lib/organizations/org-subtypes'
 
 const accountTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   general:      User,
@@ -97,8 +99,9 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
     }
   }
 
-  const handleCreateAccount = (type: 'artist' | 'venue' | 'admin') => {
-    router.push(`/create?type=${type}`)
+  const handleCreateAccount = (type: 'artist' | 'venue' | 'organization' | 'admin') => {
+    const queryType = type === 'admin' ? 'organization' : type
+    router.push(`/create?type=${queryType}`)
   }
 
   if (!currentAccount) {
@@ -207,20 +210,37 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                     <div className="text-sm font-medium text-white">
                       {getAccountDisplayName(account)}
                     </div>
-                    <div className="flex items-center space-x-2 mt-1">
+                    <div className="flex items-center space-x-2 mt-1 flex-wrap gap-y-1">
                       <Badge 
                         variant="secondary" 
                         className={`${getAccountTypeColor(account.account_type)} text-white text-xs`}
                       >
                         {getAccountTypeLabel(account.account_type)}
                       </Badge>
-                      {account.account_type === 'admin' && (
-                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-300 text-xs">
-                          <Crown className="h-3 w-3 mr-1" />
-                          Super
+                      {isOrganizationType(account.account_type) && account.profile_data?.subtype && (
+                        <Badge variant="secondary" className="bg-white/10 text-slate-300 text-xs">
+                          {organizationSubtypeLabel(account.profile_data.subtype)}
                         </Badge>
                       )}
+                      {isOrganizationType(account.account_type) && account.profile_data?.url_slug && (
+                        <span className="text-xs text-slate-400">@{account.profile_data.url_slug}</span>
+                      )}
                     </div>
+                    {isOrganizationType(account.account_type) &&
+                      getOrganizationPublicProfilePath(account.profile_data?.url_slug) && (
+                        <button
+                          type="button"
+                          className="mt-1 flex items-center gap-1 text-xs text-amber-300/90 hover:text-amber-200"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const path = getOrganizationPublicProfilePath(account.profile_data?.url_slug)
+                            if (path) router.push(path)
+                          }}
+                        >
+                          View public page
+                          <ExternalLink className="h-3 w-3" />
+                        </button>
+                      )}
                   </div>
                   
                   {isActive && (
@@ -268,14 +288,14 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
             
             <DropdownMenuItem
               className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer"
-              onClick={() => handleCreateAccount('admin')}
+              onClick={() => handleCreateAccount('organization')}
               disabled={isSwitching}
             >
               <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
                 <Plus className="h-4 w-4 text-amber-400" />
               </div>
               <div>
-                <div className="text-sm font-medium text-white">Create Organizer Account</div>
+                <div className="text-sm font-medium text-white">Create Organization Account</div>
                 <div className="text-xs text-slate-400">Manage events and tours professionally</div>
               </div>
             </DropdownMenuItem>
@@ -287,16 +307,16 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
             <DropdownMenuItem
               className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer"
               onClick={() => {
-                // Navigate to account-specific settings page
+                if (isOrganizationType(currentAccount.account_type)) {
+                  router.push('/admin/dashboard/settings')
+                  return
+                }
                 switch (currentAccount.account_type) {
                   case 'artist':
                     router.push('/artist/settings')
                     break
                   case 'venue':
                     router.push('/venue/settings')
-                    break
-                  case 'admin':
-                    router.push('/admin/settings')
                     break
                   case 'staff':
                     router.push('/venue/staff')

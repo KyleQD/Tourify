@@ -2,13 +2,14 @@ export interface User {
   id: string
   username: string
   full_name: string
-  avatar_url?: string
+  avatar_url?: string | null
   bio?: string
   location?: string
   is_verified?: boolean
   followers_count?: number
   following_count?: number
   created_at: string
+  account_type?: string | null
   metadata?: Record<string, any>
 }
 

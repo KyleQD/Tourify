@@ -33,6 +33,7 @@ import {
   Sparkles,
   Briefcase,
   HelpCircle,
+  MessageSquare,
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useProfile } from "@/hooks/use-profile"
@@ -47,6 +48,54 @@ import { MobileSearchModal } from "@/components/search/mobile-search-modal"
 import { useProductEducation } from "@/components/product-education/product-education-context"
 import { getDashboardPathForAccountType } from "@/lib/navigation/account-dashboard-routes"
 
+interface NavProfileSnapshot {
+  id?: string
+  full_name?: string | null
+  username?: string | null
+  avatar_url?: string | null
+}
+
+function resolveNavAvatarUrl(
+  primaryProfile: NavProfileSnapshot | null,
+  profileData: { profile?: { avatar_url?: string | null } | null },
+  user: { user_metadata?: Record<string, unknown> } | null,
+  currentAccount: { profile_data?: Record<string, unknown> } | null | undefined
+): string | undefined {
+  const metadata = user?.user_metadata as { avatar_url?: string } | undefined
+  const accountData = currentAccount?.profile_data as { avatar_url?: string } | undefined
+
+  return (
+    primaryProfile?.avatar_url ||
+    profileData.profile?.avatar_url ||
+    metadata?.avatar_url ||
+    accountData?.avatar_url ||
+    undefined
+  )
+}
+
+function resolveNavDisplayName(
+  primaryProfile: NavProfileSnapshot | null,
+  profileData: { profile?: { full_name?: string | null; profile_data?: { name?: string } | null } | null },
+  user: { email?: string | null; user_metadata?: Record<string, unknown> } | null,
+  currentAccount: { profile_data?: Record<string, unknown> } | null | undefined
+): string {
+  const metadata = user?.user_metadata as { full_name?: string; name?: string } | undefined
+  const accountData = currentAccount?.profile_data as { full_name?: string; display_name?: string } | undefined
+
+  return (
+    primaryProfile?.full_name ||
+    profileData.profile?.full_name ||
+    profileData.profile?.profile_data?.name ||
+    accountData?.full_name ||
+    accountData?.display_name ||
+    metadata?.full_name ||
+    metadata?.name ||
+    primaryProfile?.username ||
+    user?.email?.split("@")[0] ||
+    "User"
+  )
+}
+
 export function Nav() {
   const router = useRouter()
   const pathname = usePathname()
@@ -54,35 +103,107 @@ export function Nav() {
   const { profileData } = useProfile()
   const { currentAccount } = useMultiAccount()
   const [notifications, setNotifications] = useState(0)
-  const [primaryProfile, setPrimaryProfile] = useState<any>(null)
+  const [messagesUnread, setMessagesUnread] = useState(0)
+  const [primaryProfile, setPrimaryProfile] = useState<NavProfileSnapshot | null>(null)
   const [showMobileSearch, setShowMobileSearch] = useState(false)
   const { openHelp } = useProductEducation()
 
-  // Load primary profile data directly for nav display
+  // Load signed-in identity via cookie-authenticated API (does not wait on useAuth).
   useEffect(() => {
+    let cancelled = false
+
     async function loadPrimaryProfile() {
+      try {
+        const response = await fetch('/api/profile/current', {
+          credentials: 'same-origin',
+        })
+
+        if (response.status === 401) {
+          if (!cancelled) setPrimaryProfile(null)
+          return
+        }
+
+        if (!response.ok) return
+
+        const data = await response.json()
+        const profile = data?.profile
+        if (!profile || cancelled) return
+
+        setPrimaryProfile({
+          id: profile.id,
+          full_name: profile.profile_data?.name || profile.full_name || null,
+          username: profile.username || null,
+          avatar_url: profile.avatar_url || null,
+        })
+      } catch (error) {
+        console.error('Nav: Error loading primary profile:', error)
+      }
+    }
+
+    void loadPrimaryProfile()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Once useAuth hydrates, refresh from profiles as a secondary source.
+  useEffect(() => {
+    async function loadAuthProfile() {
       if (!user?.id) return
-      
+
       try {
         const { data: profile, error } = await supabase
           .from('profiles')
           .select('id, full_name, username, avatar_url, is_verified')
           .eq('id', user.id)
           .single()
-        
+
         if (!error && profile) {
-          console.log('✅ Nav: Loaded primary profile:', profile.full_name)
-          setPrimaryProfile(profile)
-        } else {
-          console.log('❌ Nav: Failed to load primary profile:', error)
+          setPrimaryProfile((prev) => ({
+            id: profile.id,
+            full_name: profile.full_name || prev?.full_name || null,
+            username: profile.username || prev?.username || null,
+            avatar_url: profile.avatar_url || prev?.avatar_url || null,
+          }))
         }
       } catch (error) {
-        console.error('Nav: Error loading primary profile:', error)
+        console.error('Nav: Error loading auth profile:', error)
       }
     }
-    
-    loadPrimaryProfile()
+
+    void loadAuthProfile()
   }, [user?.id])
+
+  // Poll the lightweight unread-messages count for the top-nav badge.
+  useEffect(() => {
+    const canPoll = Boolean(user?.id || primaryProfile?.id)
+    if (!canPoll) return
+
+    let cancelled = false
+    async function loadUnread() {
+      try {
+        const response = await fetch('/api/messages/unread-count', { credentials: 'include' })
+        if (!response.ok) return
+        const data = await response.json()
+        if (!cancelled) setMessagesUnread(Number(data.count) || 0)
+      } catch {
+        // Non-blocking: the badge simply stays hidden on failure.
+      }
+    }
+
+    loadUnread()
+    const onFocus = () => loadUnread()
+    window.addEventListener('focus', onFocus)
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [user?.id, primaryProfile?.id])
+
+  const navAvatarUrl = resolveNavAvatarUrl(primaryProfile, profileData, user, currentAccount)
+  const navDisplayName = resolveNavDisplayName(primaryProfile, profileData, user, currentAccount)
+  const navInitial = navDisplayName.charAt(0).toUpperCase()
 
   // Smart home navigation based on current account
   const getHomeRoute = () => getDashboardPathForAccountType(currentAccount?.account_type)
@@ -90,7 +211,12 @@ export function Nav() {
   // Smart home button click handler
   const handleHomeClick = () => {
     const homeRoute = getHomeRoute()
-    router.push(homeRoute)
+    try {
+      const navResult = router.push(homeRoute)
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error))
+      throw error
+    }
   }
 
   // Don't show nav on auth pages or onboarding
@@ -117,15 +243,15 @@ export function Nav() {
       <div className="relative container flex h-16 items-center justify-between">
         {/* Logo - Home Button */}
         <div 
-          className="flex items-center space-x-3 group hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+          className="flex shrink-0 items-center space-x-3 group hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
           onClick={handleHomeClick}
         >
-          <div className="relative">
+          <div className="relative shrink-0">
             <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl blur opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
             <TourifyLogo
               variant="white"
               size="xl"
-              className="h-12 w-auto relative z-10 group-hover:brightness-110 transition-all duration-300"
+              className="h-12 w-auto object-contain relative z-10 group-hover:brightness-110 transition-all duration-300"
             />
           </div>
         </div>
@@ -149,14 +275,14 @@ export function Nav() {
             variant="ghost" 
             size="sm" 
             className={`rounded-full transition-all duration-300 ${
-              pathname === '/feed' 
+              pathname === '/news'
                 ? 'bg-gradient-to-r from-pink-500 to-red-500 text-white shadow-lg' 
                 : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
             }`}
-            onClick={() => router.push('/feed')}
+            onClick={() => router.push('/news')}
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            Pulse
+            News
           </Button>
           <Button
             variant="ghost"
@@ -211,12 +337,16 @@ export function Nav() {
             type="button"
             variant="ghost"
             size="sm"
-            data-education-anchor="global-help"
-            onClick={() => openHelp()}
+            onClick={() => router.push('/messages')}
             className="relative p-2 hover:bg-slate-800/50 rounded-full"
-            aria-label="Open help"
+            aria-label="Open messages"
           >
-            <HelpCircle className="h-5 w-5 text-slate-300" />
+            <MessageSquare className="h-5 w-5 text-slate-300" />
+            {messagesUnread > 0 && (
+              <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-gradient-to-r from-purple-500 to-pink-500 border-0">
+                {messagesUnread > 99 ? '99+' : messagesUnread}
+              </Badge>
+            )}
           </Button>
 
           {/* Notifications */}
@@ -250,9 +380,9 @@ export function Nav() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-purple-400/30 hover:ring-purple-400/50 transition-all duration-300">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={primaryProfile?.avatar_url || ""} alt="Profile" />
+                  <AvatarImage src={navAvatarUrl} alt={navDisplayName} />
                   <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold">
-                    {primaryProfile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
+                    {navInitial}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full border-2 border-slate-900"></div>
@@ -265,14 +395,14 @@ export function Nav() {
               <DropdownMenuLabel className="space-y-1">
                 <div className="flex items-center space-x-2">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={primaryProfile?.avatar_url || ""} alt="Profile" />
+                    <AvatarImage src={navAvatarUrl} alt={navDisplayName} />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-sm">
-                      {primaryProfile?.full_name?.[0] || user?.email?.[0]?.toUpperCase() || "U"}
+                      {navInitial}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">
-                      {primaryProfile?.full_name || user?.email}
+                      {navDisplayName}
                     </p>
                     <p className="text-xs text-slate-400 truncate">
                       {user?.email}

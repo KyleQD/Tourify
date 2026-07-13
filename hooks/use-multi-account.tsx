@@ -6,12 +6,23 @@ import type { User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/auth-context'
+import { supabase } from '@/lib/supabase'
 import { AccountManagementService, UserAccount, ActiveSession } from '@/lib/services/account-management.service'
+import type { ProfileType } from '@/lib/accounts/account-types'
 import { normalizeAccountType } from '@/lib/accounts/account-types'
-import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
+import { getDashboardPathForAccountType, accountTypeMatchesSection } from '@/lib/navigation/account-dashboard-routes'
 import { navigateToAccountDashboard } from '@/lib/navigation/navigate-to-account-dashboard'
 import { buildAccountScopedPath, readAccountFromSearch } from '@/lib/navigation/account-context-url'
+import { OrganizerAccountSchema } from '@/lib/accounts/organization-account-schema'
 
+export { OrganizerAccountSchema, OrganizationAccountSchema } from '@/lib/accounts/organization-account-schema'
+
+function syncVenueScopeForAccount(account: UserAccount | null) {
+  if (account?.account_type !== 'venue' || !account.profile_id) return
+  void import('@/lib/services/venue.service').then(({ venueService }) => {
+    venueService.setCurrentVenueId(account.profile_id)
+  })
+}
 const ACCOUNTS_FETCH_TIMEOUT_MS = 22_000
 const ACTIVE_ACCOUNT_STORAGE_KEY = 'tourify.active-account'
 
@@ -30,15 +41,6 @@ export const VenueAccountSchema = z.object({
   venue_types: z.array(z.string()).optional(),
   contact_info: z.record(z.unknown()).optional(),
   social_links: z.record(z.string()).optional(),
-})
-
-export const OrganizerAccountSchema = z.object({
-  organization_name: z.string().min(1, 'Organization name is required').max(100),
-  description: z.string().max(1000).optional(),
-  organization_type: z.string().min(1),
-  contact_info: z.record(z.unknown()).optional(),
-  social_links: z.record(z.string()).optional(),
-  specialties: z.array(z.string()).optional(),
 })
 
 interface StoredActiveAccount {
@@ -90,6 +92,32 @@ export function findAccountStrict(
         (acc.account_type === normalizedType || normalizeAccountType(acc.account_type) === normalizedType)
     ) ?? null
   )
+}
+
+/** Lookup by profile_id with optional section filter; handles legacy truncated URL ids. */
+export function findAccountByProfileId(
+  userAccounts: UserAccount[],
+  profileId: string,
+  requiredType?: ProfileType | null
+): UserAccount | null {
+  if (!profileId) return null
+
+  let match = userAccounts.find(acc => acc.profile_id === profileId) ?? null
+
+  if (!match) {
+    match =
+      userAccounts.find(
+        acc =>
+          acc.profile_id.startsWith(profileId) ||
+          profileId.startsWith(acc.profile_id)
+      ) ?? null
+  }
+
+  if (!match) return null
+
+  if (requiredType && !accountTypeMatchesSection(match.account_type, requiredType)) return null
+
+  return match
 }
 
 /**
@@ -188,18 +216,72 @@ function resolveAccountFromSession(
   return null
 }
 
+function resolveActiveAccount(
+  userAccounts: UserAccount[],
+  userId: string,
+  session: ActiveSession | null,
+  currentActive: UserAccount | null
+): UserAccount | null {
+  // 1. URL ?account= wins on navigation/refresh (session ref is empty after full page load)
+  if (typeof window !== 'undefined') {
+    const accountParam = readAccountFromSearch(window.location.search)
+    if (accountParam) {
+      const byUrl =
+        findAccountByProfileId(userAccounts, accountParam) ??
+        userAccounts.find(acc => acc.profile_id === accountParam && acc.is_active) ??
+        null
+      if (byUrl) return byUrl
+    }
+  }
+
+  // 2. Keep in-memory active account if still valid
+  if (currentActive?.profile_id && currentActive?.account_type) {
+    const stillValid = userAccounts.find(
+      acc =>
+        acc.profile_id === currentActive.profile_id &&
+        acc.account_type === currentActive.account_type
+    )
+    if (stillValid) return stillValid
+  }
+
+  let newActiveAccount: UserAccount | null = null
+
+  if (session) {
+    newActiveAccount = resolveAccountFromSession(userAccounts, session, userId)
+  }
+
+  if (!newActiveAccount) {
+    const stored = readStoredActiveAccount(userId)
+    if (stored) {
+      newActiveAccount = findAccountInList(userAccounts, stored.profileId, stored.accountType)
+    }
+  }
+
+  if (!newActiveAccount) {
+    const generalAccount = userAccounts.find(acc => acc.account_type === 'general')
+    newActiveAccount = generalAccount || userAccounts[0] || null
+  }
+
+  return newActiveAccount
+}
+
 interface MultiAccountContextType {
   accounts: UserAccount[]
   activeAccount: UserAccount | null
   activeSession: ActiveSession | null
   isLoading: boolean
   error: string | null
+  /** True when the last accounts fetch failed/aborted (not a confirmed empty account list). */
+  accountsFetchFailed: boolean
   switchAccount: (profileId: string, accountType: string) => Promise<boolean>
   switchAccountAndNavigate: (profileId: string, accountType: string) => Promise<boolean>
   createArtistAccount: (data: any) => Promise<string>
   createVenueAccount: (data: any) => Promise<string>
   createOrganizerAccount: (data: any) => Promise<string>
   refreshAccounts: () => Promise<void>
+  hydrateFromServer: (accounts: UserAccount[], activeSession: ActiveSession | null) => void
+  /** True after server seed or first client accounts fetch attempt completes. */
+  isAccountsReady: boolean
   hasAccountType: (accountType: string) => boolean
   currentAccount: UserAccount | null
   userAccounts: UserAccount[]
@@ -271,29 +353,120 @@ interface MultiAccountProviderProps {
   children: React.ReactNode
 }
 
+function resolveOwnerUserId(
+  authUser: User | null | undefined,
+  userAccounts: UserAccount[],
+  ownerUserIdRef: React.MutableRefObject<string | null>
+): string | null {
+  if (authUser?.id) return authUser.id
+  if (ownerUserIdRef.current) return ownerUserIdRef.current
+  const general = userAccounts.find(acc => acc.account_type === 'general')
+  return general?.profile_id ?? userAccounts[0]?.profile_id ?? null
+}
+
 export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const router = useRouter()
   const [accounts, setAccounts] = useState<UserAccount[]>([])
   const [activeAccount, setActiveAccount] = useState<UserAccount | null>(null)
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [accountsFetchFailed, setAccountsFetchFailed] = useState(false)
+  const [isAccountsReady, setIsAccountsReady] = useState(false)
   const activeAccountRef = useRef<UserAccount | null>(null)
+  const userRef = useRef<User | null>(null)
+  const accountsRef = useRef<UserAccount[]>([])
+  const ownerUserIdRef = useRef<string | null>(null)
+  const hasServerSeedRef = useRef(false)
+  const accountsFetchControllerRef = useRef<AbortController | null>(null)
+  const accountsFetchAbortReasonRef = useRef<'timeout' | 'superseded' | null>(null)
 
   useEffect(() => {
     activeAccountRef.current = activeAccount
   }, [activeAccount])
 
+  useEffect(() => {
+    userRef.current = user
+    if (user?.id) ownerUserIdRef.current = user.id
+  }, [user])
+
+  useEffect(() => {
+    accountsRef.current = accounts
+  }, [accounts])
+
+  const hydrateFromServer = useCallback(
+    (userAccounts: UserAccount[], session: ActiveSession | null) => {
+      if (userAccounts.length === 0) return
+
+      const userId = resolveOwnerUserId(userRef.current, userAccounts, ownerUserIdRef)
+      if (!userId) return
+
+      hasServerSeedRef.current = true
+      ownerUserIdRef.current = userId
+      // Keep refs in sync immediately so the mount refetch effect can skip safely
+      // before the accounts→accountsRef sync effect runs.
+      accountsRef.current = userAccounts
+
+      // Supersede any in-flight client fetch once RSC seed arrives.
+      if (accountsFetchControllerRef.current) {
+        accountsFetchAbortReasonRef.current = 'superseded'
+        accountsFetchControllerRef.current.abort()
+        accountsFetchControllerRef.current = null
+      }
+
+      setAccounts(userAccounts)
+      setActiveSession(session)
+      setError(null)
+      setAccountsFetchFailed(false)
+      setIsLoading(false)
+
+      const resolved = resolveActiveAccount(
+        userAccounts,
+        userId,
+        session,
+        activeAccountRef.current
+      )
+      setActiveAccount(resolved)
+      activeAccountRef.current = resolved
+      if (resolved) {
+        writeStoredActiveAccount(userId, resolved.profile_id, resolved.account_type)
+        syncVenueScopeForAccount(resolved)
+      }
+      setIsAccountsReady(true)
+    },
+    []
+  )
+
   const refreshAccounts = useCallback(async () => {
-    if (!user?.id) return
+    let authUser = userRef.current
+    if (!authUser?.id) {
+      const { data: { session } } = await supabase.auth.getSession()
+      authUser = session?.user ?? null
+      if (authUser?.id) userRef.current = authUser
+    }
+
+    const userId = resolveOwnerUserId(authUser, accountsRef.current, ownerUserIdRef)
+    if (!userId) return
+
+    ownerUserIdRef.current = userId
+    const isBackgroundRefresh = accountsRef.current.length > 0
 
     try {
-      setIsLoading(true)
+      if (!isBackgroundRefresh) setIsLoading(true)
       setError(null)
 
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), ACCOUNTS_FETCH_TIMEOUT_MS)
+      accountsFetchControllerRef.current = controller
+      accountsFetchAbortReasonRef.current = null
+      const timeoutId = setTimeout(() => {
+        accountsFetchAbortReasonRef.current = 'timeout'
+        controller.abort(
+          typeof DOMException !== 'undefined'
+            ? new DOMException('Accounts fetch timed out', 'AbortError')
+            : undefined
+        )
+      }, ACCOUNTS_FETCH_TIMEOUT_MS)
       let res: Response
       try {
         res = await fetch(`/api/accounts?ts=${Date.now()}`, {
@@ -304,13 +477,17 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
         })
       } finally {
         clearTimeout(timeoutId)
+        if (accountsFetchControllerRef.current === controller)
+          accountsFetchControllerRef.current = null
       }
 
       if (res.status === 401) {
-        setAccounts([])
-        setActiveAccount(null)
-        setActiveSession(null)
+        if (accountsRef.current.length === 0) {
+          setActiveAccount(null)
+          setActiveSession(null)
+        }
         setError('Your session expired. Please sign in again.')
+        setAccountsFetchFailed(true)
         return
       }
 
@@ -334,60 +511,47 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       setAccounts(userAccounts)
       const session = body.activeSession ?? null
       setActiveSession(session)
+      setAccountsFetchFailed(false)
 
-      const currentActiveId = activeAccountRef.current?.profile_id
-      const currentActiveType = activeAccountRef.current?.account_type
-
-      let newActiveAccount = null
-      if (currentActiveId && currentActiveType) {
-        newActiveAccount =
-          userAccounts.find(
-            acc =>
-              acc.profile_id === currentActiveId && acc.account_type === currentActiveType
-          ) ?? null
+      const resolved = resolveActiveAccount(
+        userAccounts,
+        userId,
+        session,
+        activeAccountRef.current
+      )
+      if (
+        resolved &&
+        (resolved.profile_id !== activeAccountRef.current?.profile_id ||
+          resolved.account_type !== activeAccountRef.current?.account_type)
+      ) {
+        setActiveAccount(resolved)
+        writeStoredActiveAccount(userId, resolved.profile_id, resolved.account_type)
+        syncVenueScopeForAccount(resolved)
+      } else if (resolved && !activeAccountRef.current) {
+        setActiveAccount(resolved)
+        writeStoredActiveAccount(userId, resolved.profile_id, resolved.account_type)
+        syncVenueScopeForAccount(resolved)
       }
-
-      // Explicit ?account=<profileId> in the URL is the freshest, most authoritative
-      // signal — it is set by a just-completed account switch (and by deep links).
-      // It must win over the server session, which can be stale because the session
-      // upsert is sometimes cancelled by the full-page navigation that follows a switch.
-      if (!newActiveAccount && typeof window !== 'undefined') {
-        const accountParam = readAccountFromSearch(window.location.search)
-        if (accountParam) {
-          newActiveAccount =
-            userAccounts.find(acc => acc.profile_id === accountParam && acc.is_active) ?? null
-        }
-      }
-
-      if (!newActiveAccount && session) {
-        newActiveAccount = resolveAccountFromSession(userAccounts, session, user.id)
-      }
-
-      if (!newActiveAccount) {
-        const stored = readStoredActiveAccount(user.id)
-        if (stored) {
-          newActiveAccount = findAccountInList(
-            userAccounts,
-            stored.profileId,
-            stored.accountType
-          )
-        }
-      }
-
-      if (!newActiveAccount) {
-        const generalAccount = userAccounts.find(acc => acc.account_type === 'general')
-        newActiveAccount = generalAccount || userAccounts[0] || null
-      }
-
-      setActiveAccount(newActiveAccount)
     } catch (err: any) {
-      console.error('Error fetching accounts:', err)
+      const isAbort = err?.name === 'AbortError'
+      const abortReason = accountsFetchAbortReasonRef.current
+      const hasAccounts = accountsRef.current.length > 0
+      const isSoftAbort =
+        isAbort && (abortReason === 'superseded' || hasAccounts || hasServerSeedRef.current)
+
+      if (isSoftAbort) {
+        setError(null)
+        setAccountsFetchFailed(false)
+        return
+      }
+
+      if (!isAbort)
+        console.error('Error fetching accounts:', err)
 
       let errorMessage = 'Failed to fetch accounts'
-      const isAbort = err?.name === 'AbortError'
       if (isAbort) {
         errorMessage =
-          'Loading accounts timed out. You can refresh the page. A minimal profile is shown so you are not stuck on this screen.'
+          'Loading accounts timed out. You can refresh the page to try again.'
       } else if (err instanceof Error) {
         errorMessage = err.message
       } else if (err && typeof err === 'object') {
@@ -398,51 +562,72 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       }
 
       setError(errorMessage)
+      setAccountsFetchFailed(true)
 
-      setAccounts(prev => (prev.length > 0 ? prev : fallbackGeneralAccounts(user)))
-      setActiveAccount(prev => prev ?? fallbackGeneralAccounts(user)[0] ?? null)
+      // Preserve seeded/hydrated accounts. On abort, never inject a synthetic general
+      // account (that can eject users from /artist). For other failures with an empty
+      // list, allow a minimal general fallback so the shell is not blank.
+      if (!isAbort) {
+        const fallbackUser = authUser ?? userRef.current
+        if (fallbackUser) {
+          setAccounts(prev => (prev.length > 0 ? prev : fallbackGeneralAccounts(fallbackUser)))
+          setActiveAccount(prev => prev ?? fallbackGeneralAccounts(fallbackUser)[0] ?? null)
+        }
+      }
       setActiveSession(null)
     } finally {
       setIsLoading(false)
+      setIsAccountsReady(true)
     }
-  }, [user])
+  }, [user?.id])
 
   const persistActiveAccount = useCallback(
     async (account: UserAccount): Promise<void> => {
-      if (!user?.id) return
+      let ownerId = resolveOwnerUserId(userRef.current, accountsRef.current, ownerUserIdRef)
+      if (!ownerId) {
+        const { data: { session } } = await supabase.auth.getSession()
+        ownerId = session?.user?.id ?? ownerUserIdRef.current
+      }
+      if (!ownerId) return
+
       try {
         await AccountManagementService.switchAccount(
-          user.id,
+          ownerId,
           account.profile_id,
           account.account_type as Parameters<typeof AccountManagementService.switchAccount>[2]
         )
-        const session = await AccountManagementService.getActiveSession(user.id)
+        const session = await AccountManagementService.getActiveSession(ownerId)
         setActiveSession(session)
       } catch (err) {
         console.warn('[MultiAccount] Session persist failed (non-fatal):', err)
       }
     },
-    [user?.id]
+    []
   )
 
   const applyActiveAccount = useCallback(
     (profileId: string, accountType: string): UserAccount | null => {
-      if (!user?.id) return null
-      const targetAccount = findAccountStrict(accounts, profileId, accountType)
+      const ownerId = resolveOwnerUserId(userRef.current, accountsRef.current, ownerUserIdRef)
+      if (!ownerId) return null
+
+      const targetAccount =
+        findAccountStrict(accountsRef.current, profileId, accountType) ??
+        findAccountByProfileId(accountsRef.current, profileId, accountType as ProfileType)
       if (!targetAccount) return null
       setError(null)
       setActiveAccount(targetAccount)
-      writeStoredActiveAccount(user.id, targetAccount.profile_id, targetAccount.account_type)
+      writeStoredActiveAccount(ownerId, targetAccount.profile_id, targetAccount.account_type)
+      syncVenueScopeForAccount(targetAccount)
       return targetAccount
     },
-    [user?.id, accounts]
+    []
   )
 
   const switchAccount = useCallback(
     async (profileId: string, accountType: string): Promise<boolean> => {
       const targetAccount = applyActiveAccount(profileId, accountType)
       if (!targetAccount) {
-        setError(`No account found with id ${profileId} and type ${accountType}`)
+        console.warn(`[MultiAccount] No account found with id ${profileId} and type ${accountType}`)
         return false
       }
 
@@ -595,21 +780,28 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       organization_name: string
       description?: string
       organization_type: string
+      subtype?: string
+      url_slug?: string
       contact_info?: any
       social_links?: any
       specialties?: string[]
     }): Promise<string> => {
-      if (!user?.id) throw new Error('You must be logged in to create an organizer account')
+      if (!user?.id) throw new Error('You must be logged in to create an organization account')
 
       try {
         setIsLoading(true)
         setError(null)
         const parsed = OrganizerAccountSchema.parse(data)
+        const payload = {
+          ...parsed,
+          url_slug: parsed.url_slug || undefined,
+          subtype: parsed.subtype || parsed.organization_type,
+        }
 
         const response = await fetch('/api/accounts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'create_organizer', ...parsed }),
+          body: JSON.stringify({ action: 'create_organizer', ...payload }),
         })
 
         if (!response.ok) {
@@ -619,7 +811,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
 
         const result = await response.json()
         if (!result.success) {
-          throw new Error(result.error || 'Failed to create organizer account')
+          throw new Error(result.error || 'Failed to create organization account')
         }
 
         await refreshAccounts()
@@ -630,7 +822,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
             ? err.errors.map(e => e.message).join(', ')
             : err instanceof Error
               ? err.message
-              : 'Failed to create organizer account'
+              : 'Failed to create organization account'
 
         setError(errorMessage)
         throw new Error(errorMessage)
@@ -642,14 +834,25 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
   )
 
   useEffect(() => {
-    if (user?.id) {
-      refreshAccounts()
-    } else {
+    if (!user?.id && !ownerUserIdRef.current) return
+
+    // Skip the initial client refetch when RSC already seeded a non-empty account list.
+    // Mutations (create/switch/retry) still call refreshAccounts() explicitly.
+    if (hasServerSeedRef.current && accountsRef.current.length > 0) return
+
+    void refreshAccounts()
+  }, [user?.id, refreshAccounts])
+
+  useEffect(() => {
+    if (user?.id) return
+    if (!authLoading && !user && !hasServerSeedRef.current) {
       setAccounts([])
       setActiveAccount(null)
       setActiveSession(null)
+      ownerUserIdRef.current = null
+      setIsAccountsReady(true)
     }
-  }, [user?.id, refreshAccounts])
+  }, [user?.id, authLoading])
 
   const contextValue = useMemo<MultiAccountContextType>(
     () => ({
@@ -658,12 +861,15 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       activeSession,
       isLoading,
       error,
+      accountsFetchFailed,
       switchAccount,
       switchAccountAndNavigate,
       createArtistAccount,
       createVenueAccount,
       createOrganizerAccount,
       refreshAccounts,
+      hydrateFromServer,
+      isAccountsReady,
       hasAccountType,
       currentAccount: activeAccount,
       userAccounts: accounts,
@@ -674,12 +880,15 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       activeSession,
       isLoading,
       error,
+      accountsFetchFailed,
       switchAccount,
       switchAccountAndNavigate,
       createArtistAccount,
       createVenueAccount,
       createOrganizerAccount,
       refreshAccounts,
+      hydrateFromServer,
+      isAccountsReady,
       hasAccountType,
     ]
   )
@@ -689,9 +898,17 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       {error ? (
         <div
           role="alert"
-          className="fixed top-0 left-0 right-0 z-[9999] bg-red-950/95 border-b border-red-800 px-4 py-2 text-sm text-red-100 text-center"
+          className="fixed top-0 left-0 right-0 z-[9999] bg-red-950/95 border-b border-red-800 px-4 py-2 text-sm text-red-100 text-center flex items-center justify-center gap-3 flex-wrap"
         >
-          {error}
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void refreshAccounts()}
+            disabled={isLoading}
+            className="rounded-md border border-red-400/60 px-2.5 py-0.5 text-xs font-medium hover:bg-red-900/60 disabled:opacity-50"
+          >
+            {isLoading ? 'Retrying…' : 'Retry'}
+          </button>
         </div>
       ) : null}
       {children}

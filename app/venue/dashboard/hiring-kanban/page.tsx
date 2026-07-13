@@ -28,7 +28,7 @@ function VenueHiringKanbanPageContent() {
     if (!resolvedVenueId) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/applications?venue_id=${encodeURIComponent(resolvedVenueId)}`, {
+      const res = await fetch(`/api/venue/hiring/applications?venue_id=${encodeURIComponent(resolvedVenueId)}`, {
         credentials: "include",
       })
       const json = await res.json()
@@ -65,7 +65,7 @@ function VenueHiringKanbanPageContent() {
   async function moveApplication(applicationId: string, status: string) {
     if (!isJobApplicationStatus(status)) return
     try {
-      const res = await fetch(`/api/admin/applications/${applicationId}`, {
+      const res = await fetch(`/api/venue/hiring/applications/${applicationId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -16,7 +15,6 @@ import {
   MapPin, 
   Calendar, 
   Clock, 
-  DollarSign, 
   Eye, 
   Users, 
   Bookmark,
@@ -29,7 +27,6 @@ import {
   Star,
   Monitor,
   Share2,
-  Copy,
   RefreshCw,
   MoreHorizontal,
   PauseCircle,
@@ -39,6 +36,7 @@ import {
   Pencil,
   Send,
   Link2,
+  Briefcase,
 } from 'lucide-react'
 import { JobCardProps, ArtistJob } from '@/types/artist-jobs'
 import { formatDistanceToNow } from 'date-fns'
@@ -60,10 +58,10 @@ const categoryIcons = {
 }
 
 const paymentColors = {
-  'paid': 'bg-green-500/10 text-green-500 border-green-500/20',
-  'revenue_share': 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-  'exposure': 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
-  'unpaid': 'bg-gray-500/10 text-gray-500 border-gray-500/20'
+  'paid': 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300',
+  'revenue_share': 'border-cyan-500/30 bg-cyan-500/15 text-cyan-300',
+  'exposure': 'border-amber-500/30 bg-amber-500/15 text-amber-300',
+  'unpaid': 'border-slate-500/30 bg-slate-500/15 text-slate-400'
 }
 
 const paymentLabels = {
@@ -74,12 +72,15 @@ const paymentLabels = {
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
-  open: { label: 'Open', className: 'bg-green-600/20 text-green-400 border-green-600/30' },
-  paused: { label: 'Paused', className: 'bg-yellow-600/20 text-yellow-400 border-yellow-600/30' },
-  closed: { label: 'Closed', className: 'bg-red-600/20 text-red-400 border-red-600/30' },
-  filled: { label: 'Filled', className: 'bg-blue-600/20 text-blue-400 border-blue-600/30' },
-  draft: { label: 'Draft', className: 'bg-gray-600/20 text-gray-400 border-gray-600/30' },
+  open: { label: 'Open', className: 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300' },
+  paused: { label: 'Paused', className: 'border-amber-500/30 bg-amber-500/15 text-amber-300' },
+  closed: { label: 'Closed', className: 'border-red-500/30 bg-red-500/15 text-red-300' },
+  filled: { label: 'Filled', className: 'border-blue-500/30 bg-blue-500/15 text-blue-300' },
+  draft: { label: 'Draft', className: 'border-slate-500/30 bg-slate-500/15 text-slate-400' },
 }
+
+const glassMenuClass = 'border-white/10 bg-slate-900/90 text-slate-100 backdrop-blur-xl'
+const glassMenuItemClass = 'text-slate-200 focus:bg-white/10 focus:text-white'
 
 function formatPayment(job: ArtistJob): string {
   if (job.payment_type === 'paid' && job.payment_amount)
@@ -214,64 +215,67 @@ export function JobCard({
 
   const CategoryIcon = job.category?.icon ? categoryIcons[job.category.icon as keyof typeof categoryIcons] : Music
   const statusInfo = statusConfig[job.status] || statusConfig.open
+  const iconColor = job.category?.color || '#c084fc'
 
   return (
-    <Card className="group hover:shadow-lg transition-all duration-200 border-gray-800/50 bg-gray-900/50">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div 
-              className="p-2 rounded-lg"
-              style={{ backgroundColor: `${job.category?.color}20` }}
-            >
+    <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-purple-400/30 hover:bg-white/[0.065]">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+      <div className="p-5 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500/20 via-purple-500/20 to-cyan-400/20 ring-1 ring-white/10">
               {CategoryIcon && (
-                <CategoryIcon 
-                  className="w-4 h-4" 
-                  style={{ color: job.category?.color || '#8B5CF6' }}
+                <CategoryIcon
+                  className="h-4.5 w-4.5"
+                  style={{ color: iconColor }}
                 />
               )}
             </div>
-            <div>
-              <h3 className="font-semibold text-white group-hover:text-purple-400 transition-colors">
+            <div className="min-w-0">
+              <h3 className="truncate font-semibold text-white transition-colors group-hover:text-purple-200">
                 {job.title}
               </h3>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <Badge variant="outline" className={paymentColors[job.payment_type]}>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline" className={`text-xs ${paymentColors[job.payment_type]}`}>
                   {formatPayment(job)}
                 </Badge>
                 {isOwner && (
-                  <Badge variant="outline" className={statusInfo.className}>
+                  <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
                     {statusInfo.label}
                   </Badge>
                 )}
                 {job.priority === 'urgent' && (
-                  <Badge variant="destructive" className="text-xs">Urgent</Badge>
+                  <Badge className="border-red-500/30 bg-red-500/20 text-xs text-red-300">Urgent</Badge>
                 )}
                 {job.featured && (
-                  <Badge variant="secondary" className="text-xs">Featured</Badge>
+                  <Badge className="border-fuchsia-500/30 bg-fuchsia-500/20 text-xs text-fuchsia-200">
+                    <Star className="mr-1 h-3 w-3" />
+                    Featured
+                  </Badge>
                 )}
               </div>
             </div>
           </div>
           
-          <div className="flex items-center gap-1">
+          <div className="flex shrink-0 items-center gap-0.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white h-8 w-8 p-0">
-                  <Share2 className="w-4 h-4" />
+                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:bg-white/10 hover:text-white">
+                  <Share2 className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-                <DropdownMenuItem onClick={handleShareToFeed} disabled={isSharing} className="text-white hover:bg-slate-700">
-                  <Send className="w-4 h-4 mr-2" />
+              <DropdownMenuContent align="end" className={glassMenuClass}>
+                <DropdownMenuItem onClick={handleShareToFeed} disabled={isSharing} className={glassMenuItemClass}>
+                  <Send className="mr-2 h-4 w-4" />
                   Share to Feed
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleCopyLink} className="text-white hover:bg-slate-700">
-                  <Link2 className="w-4 h-4 mr-2" />
+                <DropdownMenuItem onClick={handleCopyLink} className={glassMenuItemClass}>
+                  <Link2 className="mr-2 h-4 w-4" />
                   Copy Link
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleNativeShare} className="text-white hover:bg-slate-700">
-                  <Share2 className="w-4 h-4 mr-2" />
+                <DropdownMenuItem onClick={handleNativeShare} className={glassMenuItemClass}>
+                  <Share2 className="mr-2 h-4 w-4" />
                   Share via...
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -282,59 +286,59 @@ export function JobCard({
               size="sm"
               onClick={handleSave}
               disabled={isLoading}
-              className="text-gray-400 hover:text-yellow-400 h-8 w-8 p-0"
+              className="h-8 w-8 p-0 text-slate-400 hover:bg-white/10 hover:text-amber-300"
             >
-              {isSaved ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+              {isSaved ? <BookmarkCheck className="h-4 w-4 text-amber-300" /> : <Bookmark className="h-4 w-4" />}
             </Button>
 
             {isOwner && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white h-8 w-8 p-0">
-                    <MoreHorizontal className="w-4 h-4" />
+                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-400 hover:bg-white/10 hover:text-white">
+                    <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                <DropdownMenuContent align="end" className={glassMenuClass}>
                   {onEdit && (
-                    <DropdownMenuItem onClick={() => onEdit(job)} className="text-white hover:bg-slate-700">
-                      <Pencil className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onEdit(job)} className={glassMenuItemClass}>
+                      <Pencil className="mr-2 h-4 w-4" />
                       Edit Posting
                     </DropdownMenuItem>
                   )}
                   {job.status === 'open' && onStatusChange && (
-                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'paused')} className="text-yellow-400 hover:bg-slate-700">
-                      <PauseCircle className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'paused')} className="text-amber-300 focus:bg-white/10 focus:text-amber-200">
+                      <PauseCircle className="mr-2 h-4 w-4" />
                       Pause Posting
                     </DropdownMenuItem>
                   )}
                   {job.status === 'paused' && onStatusChange && (
-                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'open')} className="text-green-400 hover:bg-slate-700">
-                      <PlayCircle className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'open')} className="text-emerald-300 focus:bg-white/10 focus:text-emerald-200">
+                      <PlayCircle className="mr-2 h-4 w-4" />
                       Reopen Posting
                     </DropdownMenuItem>
                   )}
                   {(job.status === 'open' || job.status === 'paused') && onStatusChange && (
-                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'filled')} className="text-blue-400 hover:bg-slate-700">
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'filled')} className="text-blue-300 focus:bg-white/10 focus:text-blue-200">
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
                       Mark as Filled
                     </DropdownMenuItem>
                   )}
                   {job.status !== 'closed' && onStatusChange && (
-                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'closed')} className="text-red-400 hover:bg-slate-700">
-                      <PauseCircle className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onStatusChange(job.id, 'closed')} className="text-red-300 focus:bg-white/10 focus:text-red-200">
+                      <PauseCircle className="mr-2 h-4 w-4" />
                       Close Posting
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuSeparator className="bg-slate-700" />
+                  <DropdownMenuSeparator className="bg-white/10" />
                   {(job.status === 'closed' || job.status === 'filled') && onRepost && (
-                    <DropdownMenuItem onClick={() => onRepost(job.id)} className="text-purple-400 hover:bg-slate-700">
-                      <RefreshCw className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onRepost(job.id)} className="text-purple-300 focus:bg-white/10 focus:text-purple-200">
+                      <RefreshCw className="mr-2 h-4 w-4" />
                       Repost Job
                     </DropdownMenuItem>
                   )}
                   {onDelete && (
-                    <DropdownMenuItem onClick={() => onDelete(job.id)} className="text-red-400 hover:bg-slate-700">
-                      <Trash2 className="w-4 h-4 mr-2" />
+                    <DropdownMenuItem onClick={() => onDelete(job.id)} className="text-red-300 focus:bg-white/10 focus:text-red-200">
+                      <Trash2 className="mr-2 h-4 w-4" />
                       Delete Posting
                     </DropdownMenuItem>
                   )}
@@ -344,164 +348,179 @@ export function JobCard({
             
             {showApplicationStatus && job.user_application && (
               <Badge 
-                variant={job.user_application.status === 'accepted' ? 'default' : 'secondary'}
-                className="text-xs"
+                variant="outline"
+                className="border-purple-500/30 bg-purple-500/15 text-xs capitalize text-purple-200"
               >
                 {job.user_application.status}
               </Badge>
             )}
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="pt-0">
-        <div className="space-y-3">
-          {!compact && (
-            <p className="text-sm text-gray-300 line-clamp-2">{job.description}</p>
+      <div className="space-y-3 px-5 pb-5">
+        {!compact && (
+          <p className="line-clamp-2 text-sm text-slate-400">{job.description}</p>
+        )}
+
+        {/* Primary meta: location, date, duration as icon+text */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-slate-300">
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-cyan-400/80" />
+            <span>{formatLocation(job)}</span>
+          </div>
+          {job.event_date && (
+            <div className="flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-purple-400/80" />
+              <span>{formatEventDate(job.event_date)}</span>
+            </div>
           )}
+          {job.duration_hours && (
+            <div className="flex items-center gap-1.5">
+              <Clock className="h-3.5 w-3.5 text-fuchsia-400/80" />
+              <span>{job.duration_hours}h</span>
+            </div>
+          )}
+          {job.category?.name && (
+            <div className="flex items-center gap-1.5">
+              <Briefcase className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-slate-400">{job.category.name}</span>
+            </div>
+          )}
+        </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-gray-500" />
-              <span>{formatLocation(job)}</span>
-            </div>
-            {job.event_date && (
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
-                <span>{formatEventDate(job.event_date)}</span>
-              </div>
+        {/* Secondary meta: quieter stats */}
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+          <span className="inline-flex items-center gap-1">
+            <Eye className="h-3 w-3" />
+            {job.views_count} views
+          </span>
+          {job.applications_count > 0 && (
+            <span className="inline-flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {job.applications_count} applicants
+            </span>
+          )}
+        </div>
+
+        {job.required_genres.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {job.required_genres.slice(0, 3).map((genre, index) => (
+              <span
+                key={index}
+                className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-slate-400"
+              >
+                {genre}
+              </span>
+            ))}
+            {job.required_genres.length > 3 && (
+              <span className="rounded-lg border border-white/10 bg-white/5 px-2 py-0.5 text-[11px] text-slate-500">
+                +{job.required_genres.length - 3} more
+              </span>
             )}
-            {job.duration_hours && (
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span>{job.duration_hours}h</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <Eye className="w-4 h-4 text-gray-500" />
-              <span>{job.views_count} views</span>
-            </div>
+          </div>
+        )}
+
+        {showApplicationStatus && job.hiring_milestones?.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {job.hiring_milestones.slice(0, 4).map((milestone) => (
+              <Badge
+                key={milestone.key}
+                variant="outline"
+                className={
+                  milestone.completed
+                    ? 'border-emerald-500/30 bg-emerald-500/15 text-emerald-300'
+                    : 'border-white/10 bg-white/5 text-slate-400'
+                }
+              >
+                {milestone.label}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+
+        <div className="flex items-center justify-between border-t border-white/10 pt-3">
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6 ring-1 ring-white/10">
+              <AvatarFallback className="bg-slate-800 text-xs text-slate-300">
+                {job.poster_name?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs text-slate-400">
+              {job.poster_name || 'Anonymous'}
+            </span>
+            <span className="text-xs text-slate-600">·</span>
+            <span className="text-xs text-slate-500">
+              {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
+            </span>
           </div>
 
-          {job.required_genres.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {job.required_genres.slice(0, 3).map((genre, index) => (
-                <Badge key={index} variant="outline" className="text-xs">
-                  {genre}
-                </Badge>
-              ))}
-              {job.required_genres.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{job.required_genres.length - 3} more
-                </Badge>
-              )}
-            </div>
+          {job.external_link && (
+            <Button variant="ghost" size="sm" asChild className="h-7 w-7 p-0 text-slate-400 hover:bg-white/10 hover:text-purple-300">
+              <a href={job.external_link} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-3.5 w-3.5" />
+              </a>
+            </Button>
           )}
+        </div>
 
-          {showApplicationStatus && job.hiring_milestones?.length ? (
-            <div className="flex flex-wrap gap-1">
-              {job.hiring_milestones.slice(0, 4).map((milestone) => (
-                <Badge
-                  key={milestone.key}
-                  variant={milestone.completed ? 'default' : 'outline'}
-                  className={milestone.completed ? 'bg-green-600 text-white' : 'text-gray-400'}
-                >
-                  {milestone.label}
-                </Badge>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="flex items-center justify-between pt-2 border-t border-gray-800">
-            <div className="flex items-center gap-2">
-              <Avatar className="w-6 h-6">
-                <AvatarFallback className="text-xs">
-                  {job.poster_name?.charAt(0).toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-xs text-gray-400">
-                {job.poster_name || 'Anonymous'}
-              </span>
-              <span className="text-xs text-gray-500">
-                {formatDistanceToNow(new Date(job.created_at), { addSuffix: true })}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pt-1">
+          {isOwner ? (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                onClick={() => {
+                  const url = `/jobs?tab=all&highlight=${job.id}`
+                  window.open(url, '_blank')
+                }}
+              >
+                <Eye className="mr-1.5 h-3.5 w-3.5" />
+                Preview
+              </Button>
               {job.applications_count > 0 && (
-                <div className="flex items-center gap-1 text-xs text-gray-400">
-                  <Users className="w-3 h-3" />
-                  {job.applications_count}
-                </div>
-              )}
-              {job.external_link && (
-                <Button variant="ghost" size="sm" asChild className="text-gray-400 hover:text-purple-400 h-6 w-6 p-0">
-                  <a href={job.external_link} target="_blank" rel="noopener noreferrer">
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 pt-2">
-            {isOwner ? (
-              <>
                 <Button
-                  variant="outline"
                   size="sm"
-                  className="flex-1 border-gray-700 text-gray-300 hover:bg-gray-800"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/20 hover:from-purple-500 hover:to-fuchsia-500"
                   onClick={() => {
-                    const url = `/jobs?tab=all&highlight=${job.id}`
-                    window.open(url, '_blank')
+                    window.location.href = `/jobs?tab=hiring&jobId=${job.id}`
                   }}
                 >
-                  <Eye className="w-3.5 h-3.5 mr-1.5" />
-                  Preview
+                  <Users className="mr-1.5 h-3.5 w-3.5" />
+                  {job.applications_count} Applicant{job.applications_count !== 1 ? 's' : ''}
                 </Button>
-                {job.applications_count > 0 && (
-                  <Button
-                    size="sm"
-                    className="flex-1 bg-purple-600 hover:bg-purple-700"
-                    onClick={() => {
-                      window.location.href = `/jobs?tab=hiring&jobId=${job.id}`
-                    }}
-                  >
-                    <Users className="w-3.5 h-3.5 mr-1.5" />
-                    {job.applications_count} Applicant{job.applications_count !== 1 ? 's' : ''}
-                  </Button>
-                )}
-                {(job.status === 'closed' || job.status === 'filled') && onRepost && (
-                  <Button
-                    size="sm"
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                    onClick={() => onRepost(job.id)}
-                  >
-                    <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
-                    Repost
-                  </Button>
-                )}
-              </>
-            ) : (
-              <>
+              )}
+              {(job.status === 'closed' || job.status === 'filled') && onRepost && (
                 <Button
-                  onClick={handleApply}
-                  disabled={isLoading || !!job.user_application}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
                   size="sm"
+                  className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/20 hover:from-purple-500 hover:to-pink-500"
+                  onClick={() => onRepost(job.id)}
                 >
-                  {job.user_application ? 'Applied' : 'Apply Now'}
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                  Repost
                 </Button>
-                {job.deadline && (
-                  <div className="text-xs text-gray-400">
-                    Deadline: {formatEventDate(job.deadline)}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+              )}
+            </>
+          ) : (
+            <>
+              <Button
+                onClick={handleApply}
+                disabled={isLoading || !!job.user_application}
+                className="flex-1 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white shadow-lg shadow-fuchsia-500/20 hover:from-purple-500 hover:to-fuchsia-500 disabled:opacity-50"
+                size="sm"
+              >
+                {job.user_application ? 'Applied' : 'Apply Now'}
+              </Button>
+              {job.deadline && (
+                <div className="text-xs text-slate-500">
+                  Deadline: {formatEventDate(job.deadline)}
+                </div>
+              )}
+            </>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

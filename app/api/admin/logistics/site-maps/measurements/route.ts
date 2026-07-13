@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { hasEntityPermission } from '@/lib/services/rbac'
+import { getSiteMapAccess, requireSiteMapAccess, siteMapError, siteMapSuccess } from '@/lib/site-map/access'
 import type { CreateMeasurementRequest } from '@/types/site-map'
 
 export async function GET(request: NextRequest) {
@@ -9,25 +9,20 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
     const { searchParams } = new URL(request.url)
-    const siteMapId = searchParams.get('siteMapId')
+    const siteMapId = searchParams.get('siteMapId') || searchParams.get('site_map_id')
 
     if (!siteMapId) {
-      return NextResponse.json({ error: 'Site map ID is required' }, { status: 400 })
+      return siteMapError('Site map ID is required', 400)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: siteMapId,
-      permission: 'read'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
     const { data: measurements, error } = await supabase
@@ -38,13 +33,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching measurements:', error)
-      return NextResponse.json({ error: 'Failed to fetch measurements' }, { status: 500 })
+      return siteMapError('Failed to fetch measurements')
     }
 
-    return NextResponse.json(measurements)
+    return siteMapSuccess(measurements || [])
   } catch (error) {
     console.error('Error in measurements GET:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
 }
 
@@ -54,41 +49,32 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
-    const body: CreateMeasurementRequest = await request.json()
-    const { 
-      siteMapId, 
-      measurementType, 
-      startX, 
-      startY, 
-      endX, 
-      endY, 
-      width, 
-      height, 
-      value, 
-      unit, 
-      label, 
-      color, 
-      complianceNotes 
-    } = body
+    const body = await request.json() as CreateMeasurementRequest & Record<string, any>
+    const siteMapId = body.siteMapId || body.site_map_id
+    const measurementType = body.measurementType || body.measurement_type
+    const startX = body.startX ?? body.start_x
+    const startY = body.startY ?? body.start_y
+    const endX = body.endX ?? body.end_x
+    const endY = body.endY ?? body.end_y
+    const width = body.width
+    const height = body.height
+    const value = body.value
+    const unit = body.unit
+    const label = body.label
+    const color = body.color
+    const complianceNotes = body.complianceNotes ?? body.compliance_notes
 
     if (!siteMapId || !measurementType || startX === undefined || startY === undefined) {
-      return NextResponse.json({ 
-        error: 'Site map ID, measurement type, and start coordinates are required' 
-      }, { status: 400 })
+      return siteMapError('Site map ID, measurement type, and start coordinates are required', 400)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: siteMapId,
-      permission: 'write'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
     const { data: measurement, error } = await supabase
@@ -114,12 +100,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating measurement:', error)
-      return NextResponse.json({ error: 'Failed to create measurement' }, { status: 500 })
+      return siteMapError('Failed to create measurement')
     }
 
-    return NextResponse.json(measurement, { status: 201 })
+    return siteMapSuccess(measurement, { status: 201 })
   } catch (error) {
     console.error('Error in measurements POST:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
 }

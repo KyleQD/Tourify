@@ -3,6 +3,7 @@ import { z } from "zod"
 import { achievementEngine } from "@/lib/services/achievement-engine.service"
 import { authenticateApiRequest } from "@/lib/auth/api-auth"
 import { createClient as createServerClient } from "@/lib/supabase/server"
+import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 // Validation schemas
 const bookingDetailsSchema = z.object({
@@ -68,6 +69,51 @@ function parseEventDurationMinutes(durationText?: string) {
   const endDate = Date.parse(`1970-01-01T${end}:00Z`)
   if (Number.isNaN(startDate) || Number.isNaN(endDate) || endDate <= startDate) return 120
   return Math.max(30, Math.round((endDate - startDate) / (1000 * 60)))
+}
+
+async function validateVenueAvailability(input: {
+  venueId: string
+  eventDate?: string
+  expectedAttendance?: number
+}) {
+  const service = createServiceRoleClient()
+  const { data: venue } = await service
+    .from("venue_profiles")
+    .select("id, capacity, capacity_total")
+    .eq("id", input.venueId)
+    .maybeSingle()
+
+  const capacity = Number((venue as any)?.capacity_total || (venue as any)?.capacity || 0)
+  if (capacity > 0 && input.expectedAttendance && input.expectedAttendance > capacity) {
+    return {
+      ok: false,
+      error: `Expected attendance exceeds this venue's listed capacity of ${capacity}.`,
+    }
+  }
+
+  if (input.eventDate) {
+    const start = new Date(input.eventDate)
+    if (!Number.isNaN(start.getTime())) {
+      const end = new Date(start)
+      end.setDate(end.getDate() + 1)
+      const { count } = await service
+        .from("venue_booking_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("venue_id", input.venueId)
+        .eq("status", "approved")
+        .gte("event_date", start.toISOString())
+        .lt("event_date", end.toISOString())
+
+      if ((count || 0) > 0) {
+        return {
+          ok: false,
+          error: "This date already has an approved booking. Choose another date or contact the venue.",
+        }
+      }
+    }
+  }
+
+  return { ok: true }
 }
 
 async function getManageableVenueIds(supabase: any, userId: string) {
@@ -228,6 +274,16 @@ export async function POST(req: NextRequest) {
 
     let venueBookingRequest: any = null
     if (validatedData.venueId) {
+      const eventDate = validatedData.eventDate || validatedData.bookingDetails.performanceDate
+      const availability = await validateVenueAvailability({
+        venueId: validatedData.venueId,
+        eventDate,
+        expectedAttendance: validatedData.expectedAttendance,
+      })
+      if (!availability.ok) {
+        return NextResponse.json({ error: availability.error }, { status: 409 })
+      }
+
       if (!requesterId || !requesterEmail) {
         return NextResponse.json(
           { error: "Authenticated requester and contact email are required for venue bookings" },
@@ -235,7 +291,6 @@ export async function POST(req: NextRequest) {
         )
       }
 
-      const eventDate = validatedData.eventDate || validatedData.bookingDetails.performanceDate
       const { data, error } = await supabase
         .from("venue_booking_requests")
         .insert({

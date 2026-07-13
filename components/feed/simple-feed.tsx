@@ -12,6 +12,7 @@ import { RefreshCw, Heart, MessageCircle, Share2, Clock, MapPin, Loader2 } from 
 import { formatDistanceToNow } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
+import { getAccountAuthor, getAccountAuthorPath } from '@/lib/accounts/account-author'
 import Link from 'next/link'
 
 interface Post {
@@ -26,6 +27,10 @@ interface Post {
   comments_count: number
   shares_count: number
   created_at: string
+  posted_as_profile_id?: string | null
+  posted_as_type?: string | null
+  account_username?: string | null
+  account_display_name?: string | null
   profiles?: {
     username: string | null
     full_name: string | null
@@ -35,10 +40,12 @@ interface Post {
   is_liked: boolean
 }
 
-// Helper function to generate profile URL based on username
-function getProfileUrl(username: string | null) {
-  if (!username) return '/profile/user'
-  return `/profile/${username}`
+function getProfileUrl(post: Pick<Post, 'profiles' | 'posted_as_profile_id' | 'posted_as_type' | 'account_username' | 'account_display_name'>) {
+  const author = getAccountAuthor({
+    ...post,
+    account_username: post.account_username || post.profiles?.username,
+  })
+  return getAccountAuthorPath(author) || `/profile/${author.username || 'user'}`
 }
 
 export function SimpleFeed() {
@@ -241,7 +248,7 @@ export function SimpleFeed() {
                 <Card className="overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
                   <CardHeader className="pb-3">
                     <div className="flex items-start gap-3">
-                      <Link href={getProfileUrl(post.profiles?.username || null)} className="flex-shrink-0">
+                      <Link href={getProfileUrl(post)} className="flex-shrink-0">
                         <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                           <AvatarImage src={post.profiles?.avatar_url || ''} />
                           <AvatarFallback>
@@ -252,13 +259,13 @@ export function SimpleFeed() {
                       
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <Link href={getProfileUrl(post.profiles?.username || null)} className="hover:underline">
+                          <Link href={getProfileUrl(post)} className="hover:underline">
                             <h4 className="font-semibold text-white">
                               {post.profiles?.full_name || post.profiles?.username || 'Anonymous'}
                             </h4>
                           </Link>
                           {post.profiles?.username && (
-                            <Link href={getProfileUrl(post.profiles?.username || null)} className="hover:underline">
+                            <Link href={getProfileUrl(post)} className="hover:underline">
                               <span className="text-slate-400">@{post.profiles.username}</span>
                             </Link>
                           )}

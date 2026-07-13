@@ -19,13 +19,24 @@ import { ShiftManagement } from '@/components/venue/staff/shift-management'
 import { ShiftTemplates } from '@/components/venue/staff/shift-templates'
 import { ShiftAnalytics } from '@/components/venue/staff/shift-analytics'
 import { ShiftRequests } from '@/components/venue/staff/shift-requests'
+import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { ensureVenueOperationalContext, getCurrentVenueContext } from '@/lib/venue/venue-access'
 
 interface SchedulingPageProps {
   searchParams: Promise<{ venueId?: string }>
 }
 
 export default async function SchedulingPage({ searchParams }: SchedulingPageProps) {
-  const { venueId } = await searchParams
+  const { venueId: queryVenueId } = await searchParams
+  let venueId = queryVenueId
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const venue = user?.id ? await getCurrentVenueContext(supabase as any, user.id, venueId) : null
+
+  if (!venueId) venueId = venue?.id
 
   if (!venueId) {
     return (
@@ -45,6 +56,47 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
       </div>
     )
   }
+
+  const service = createServiceRoleClient()
+  const mappedVenue = venue && user?.id ? await ensureVenueOperationalContext(service as any, venue, user.id) : null
+  const today = new Date()
+  const weekEnd = new Date()
+  weekEnd.setDate(today.getDate() + 7)
+
+  const shiftQuery = mappedVenue?.venuesV2Id
+    ? service
+        .from('staff_shifts')
+        .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
+        .or(`venue_id.eq.${venueId},adhoc_venue_id.eq.${mappedVenue.venuesV2Id}`)
+        .gte('shift_date', today.toISOString().slice(0, 10))
+        .lte('shift_date', weekEnd.toISOString().slice(0, 10))
+    : service
+        .from('staff_shifts')
+        .select('id, staff_member_id, status, shift_date, start_time, end_time', { count: 'exact' })
+        .eq('venue_id', venueId)
+        .gte('shift_date', today.toISOString().slice(0, 10))
+        .lte('shift_date', weekEnd.toISOString().slice(0, 10))
+
+  const [shiftResult, staffResult] = await Promise.all([
+    shiftQuery,
+    service
+      .from('staff_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('employer_entity_type', 'venue')
+      .eq('employer_entity_id', venueId)
+      .eq('status', 'active'),
+  ])
+
+  const shifts = shiftResult.data || []
+  const assignedShiftCount = shifts.filter((shift: any) => Boolean(shift.staff_member_id)).length
+  const completedShiftCount = shifts.filter((shift: any) => shift.status === 'completed').length
+  const totalScheduledHours = shifts.reduce((sum: number, shift: any) => {
+    const start = Date.parse(`1970-01-01T${shift.start_time || '00:00'}Z`)
+    const end = Date.parse(`1970-01-01T${shift.end_time || '00:00'}Z`)
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return sum
+    return sum + (end - start) / (1000 * 60 * 60)
+  }, 0)
+  const completionRate = shifts.length ? Math.round((completedShiftCount / shifts.length) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -80,7 +132,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               <Calendar className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Total Shifts</p>
-                <p className="text-2xl font-bold">24</p>
+                <p className="text-2xl font-bold">{shifts.length}</p>
               </div>
             </div>
           </CardContent>
@@ -91,7 +143,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               <Users className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Staff Assigned</p>
-                <p className="text-2xl font-bold">18</p>
+                <p className="text-2xl font-bold">{assignedShiftCount || staffResult.count || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -102,7 +154,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Hours This Week</p>
-                <p className="text-2xl font-bold">156</p>
+                <p className="text-2xl font-bold">{Math.round(totalScheduledHours)}</p>
               </div>
             </div>
           </CardContent>
@@ -113,7 +165,7 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Completion Rate</p>
-                <p className="text-2xl font-bold">94%</p>
+                <p className="text-2xl font-bold">{completionRate}%</p>
               </div>
             </div>
           </CardContent>

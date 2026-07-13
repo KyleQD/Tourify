@@ -59,7 +59,9 @@ export default function EventHQPage() {
   const [userRole, setUserRole] = useState<string>("staff")
   const [isAdmin, setIsAdmin] = useState(false)
   const [permissions, setPermissions] = useState({
+    can_view_resources: false,
     can_post_bulletins: false,
+    can_moderate_bulletins: false,
     can_add_resources: false,
     can_edit_calendar: false,
     can_manage_tasks: false,
@@ -74,7 +76,9 @@ export default function EventHQPage() {
   const [showPermissionsDialog, setShowPermissionsDialog] = useState(false)
   const [permTarget, setPermTarget] = useState<any>(null)
   const [permValues, setPermValues] = useState({
+    can_view_resources: false,
     can_post_bulletins: false,
+    can_moderate_bulletins: false,
     can_add_resources: false,
     can_edit_calendar: false,
     can_manage_tasks: false,
@@ -118,7 +122,9 @@ export default function EventHQPage() {
       setUserRole(data.userRole)
       setIsAdmin(data.isAdmin)
       setPermissions(data.permissions || {
+        can_view_resources: true,
         can_post_bulletins: data.isAdmin,
+        can_moderate_bulletins: data.isAdmin,
         can_add_resources: data.isAdmin,
         can_edit_calendar: data.isAdmin,
         can_manage_tasks: data.isAdmin,
@@ -225,6 +231,17 @@ export default function EventHQPage() {
     } catch { toast({ title: "Update failed", variant: "destructive" }) }
   }
 
+  async function handleModerateBulletin(id: string, moderationStatus: 'approved' | 'rejected') {
+    try {
+      await fetch(`/api/admin/events/${eventId}/communications`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ id, action: "moderate", moderation_status: moderationStatus }),
+      })
+      setBulletins(prev => prev.map(b => b.id === id ? { ...b, moderation_status: moderationStatus } : b))
+      toast({ title: moderationStatus === 'approved' ? "Bulletin approved" : "Bulletin rejected" })
+    } catch { toast({ title: "Moderation failed", variant: "destructive" }) }
+  }
+
   async function handleDeleteResource(id: string) {
     try {
       await fetch(`/api/events/${eventId}/hq/resources?id=${id}`, { method: "DELETE", credentials: "include" })
@@ -305,7 +322,7 @@ export default function EventHQPage() {
       <div className="rounded-xl border border-slate-700 bg-gradient-to-br from-slate-900 via-purple-950/30 to-slate-900 p-6">
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/dashboard/events/${eventId}`)} className="text-slate-400 hover:text-white">
-            <ArrowLeft className="h-4 w-4 mr-1" />Back to event
+            <ArrowLeft className="h-4 w-4 mr-1" />Back to event hub
           </Button>
           <Button variant="outline" size="sm" asChild className="border-cyan-600/50 text-cyan-200 hover:bg-cyan-950/40">
             <Link href={`/admin/dashboard/events/${eventId}/command-center`}>Command center</Link>
@@ -398,14 +415,28 @@ export default function EventHQPage() {
                           <p className="text-slate-300 text-sm whitespace-pre-wrap">{bulletin.content}</p>
                           <p className="text-slate-500 text-xs mt-2">{formatSafeDate(bulletin.created_at)}</p>
                         </div>
-                        {permissions.can_post_bulletins && (
+                        {(permissions.can_post_bulletins || permissions.can_moderate_bulletins) && (
                           <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400" onClick={() => handlePinBulletin(bulletin.id, bulletin.pinned)}>
-                              <Pin className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400" onClick={() => handleDeleteBulletin(bulletin.id)}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+                            {permissions.can_moderate_bulletins && (
+                              <>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-green-400" onClick={() => handleModerateBulletin(bulletin.id, 'approved')}>
+                                  Approve
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-amber-400" onClick={() => handleModerateBulletin(bulletin.id, 'rejected')}>
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            {permissions.can_post_bulletins && (
+                              <>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400" onClick={() => handlePinBulletin(bulletin.id, bulletin.pinned)}>
+                                  <Pin className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400" onClick={() => handleDeleteBulletin(bulletin.id)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
                       </div>
@@ -419,45 +450,51 @@ export default function EventHQPage() {
 
         {/* RESOURCES TAB */}
         <TabsContent value="resources" className="mt-6 space-y-4">
-          {permissions.can_add_resources && (
-            <div className="flex justify-end">
-              <Button onClick={() => setShowResourceDialog(true)} className="bg-purple-600 hover:bg-purple-700"><Plus className="h-4 w-4 mr-1" />Add Resource</Button>
-            </div>
-          )}
-          {resources.length === 0 ? (
-            <div className="text-center py-12"><FileText className="h-10 w-10 text-slate-600 mx-auto mb-3" /><p className="text-slate-400">No resources shared yet.</p></div>
+          {!permissions.can_view_resources && !isAdmin ? (
+            <div className="text-center py-12"><Shield className="h-10 w-10 text-slate-600 mx-auto mb-3" /><p className="text-slate-400">You do not have access to resources for this event.</p></div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {resources.map((resource: any) => {
-                const TypeIcon = RESOURCE_ICONS[resource.type] || FileText
-                return (
-                  <Card key={resource.id} className="bg-slate-900 border-slate-700 hover:border-slate-600 transition-colors">
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-purple-600/20 flex items-center justify-center shrink-0">
-                          <TypeIcon className="h-4 w-4 text-purple-400" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-medium truncate">{resource.title}</h4>
-                          {resource.category && <Badge variant="outline" className="text-xs mt-1 border-slate-600">{resource.category}</Badge>}
-                          {resource.url && (
-                            <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-400 hover:text-purple-300 mt-1 flex items-center gap-1 truncate">
-                              <ExternalLink className="h-3 w-3 shrink-0" />{resource.url}
-                            </a>
-                          )}
-                          {resource.content && <p className="text-slate-400 text-sm mt-1 line-clamp-2">{resource.content}</p>}
-                        </div>
-                        {permissions.can_add_resources && (
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 shrink-0" onClick={() => handleDeleteResource(resource.id)}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+            <>
+              {permissions.can_add_resources && (
+                <div className="flex justify-end">
+                  <Button onClick={() => setShowResourceDialog(true)} className="bg-purple-600 hover:bg-purple-700"><Plus className="h-4 w-4 mr-1" />Add Resource</Button>
+                </div>
+              )}
+              {resources.length === 0 ? (
+                <div className="text-center py-12"><FileText className="h-10 w-10 text-slate-600 mx-auto mb-3" /><p className="text-slate-400">No resources shared yet.</p></div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {resources.map((resource: any) => {
+                    const TypeIcon = RESOURCE_ICONS[resource.type] || FileText
+                    return (
+                      <Card key={resource.id} className="bg-slate-900 border-slate-700 hover:border-slate-600 transition-colors">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-purple-600/20 flex items-center justify-center shrink-0">
+                              <TypeIcon className="h-4 w-4 text-purple-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-white font-medium truncate">{resource.title}</h4>
+                              {resource.category && <Badge variant="outline" className="text-xs mt-1 border-slate-600">{resource.category}</Badge>}
+                              {resource.url && (
+                                <a href={resource.url} target="_blank" rel="noopener noreferrer" className="text-xs text-purple-400 hover:text-purple-300 mt-1 flex items-center gap-1 truncate">
+                                  <ExternalLink className="h-3 w-3 shrink-0" />{resource.url}
+                                </a>
+                              )}
+                              {resource.content && <p className="text-slate-400 text-sm mt-1 line-clamp-2">{resource.content}</p>}
+                            </div>
+                            {permissions.can_add_resources && (
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 shrink-0" onClick={() => handleDeleteResource(resource.id)}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
+            </>
           )}
         </TabsContent>
 
@@ -555,7 +592,9 @@ export default function EventHQPage() {
                           onClick={() => {
                             setPermTarget(member)
                             setPermValues({
+                              can_view_resources: memberPerms?.can_view_resources ?? true,
                               can_post_bulletins: memberPerms?.can_post_bulletins ?? false,
+                              can_moderate_bulletins: memberPerms?.can_moderate_bulletins ?? false,
                               can_add_resources: memberPerms?.can_add_resources ?? false,
                               can_edit_calendar: memberPerms?.can_edit_calendar ?? false,
                               can_manage_tasks: memberPerms?.can_manage_tasks ?? false,

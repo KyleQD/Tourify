@@ -22,6 +22,7 @@ import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { ApplicationStatusBadge } from "@/components/hiring/application-status-badge"
 import { useToast } from "@/components/ui/use-toast"
 import { TeamBadgeEndorsementPanel } from "@/components/achievements/team-badge-endorsement-panel"
+import { useCurrentVenue } from "@/hooks/use-venue"
 
 function employmentLabel(value: string) {
   return value.replace(/_/g, " ")
@@ -29,6 +30,8 @@ function employmentLabel(value: string) {
 
 export default function JobsPage() {
   const { toast } = useToast()
+  const { venue, loading: venueLoading } = useCurrentVenue()
+  const venueId = venue?.id ?? ""
   const [activeTab, setActiveTab] = useState("postings")
   const [jobs, setJobs] = useState<JobPostingTemplate[]>([])
   const [teamMembers, setTeamMembers] = useState<any[]>([])
@@ -44,12 +47,22 @@ export default function JobsPage() {
   }
 
   useEffect(() => {
+    if (venueLoading) return
+    if (!venueId) {
+      setIsLoading(false)
+      setDidFail(false)
+      setJobs([])
+      return
+    }
     let alive = true
     ;(async () => {
       setIsLoading(true)
       setDidFail(false)
       try {
-        const res = await fetch("/api/job-board", buildNoStoreInit())
+        const res = await fetch(
+          `/api/admin/job-postings?venue_id=${encodeURIComponent(venueId)}`,
+          buildNoStoreInit()
+        )
         const json = await res.json()
         if (!alive) return
         if (json.success && Array.isArray(json.data)) setJobs(json.data)
@@ -61,7 +74,7 @@ export default function JobsPage() {
       }
     })()
     return () => { alive = false }
-  }, [loadCounter])
+  }, [venueId, venueLoading, loadCounter])
 
   useEffect(() => {
     if (activeTab !== "team") return
@@ -96,6 +109,7 @@ export default function JobsPage() {
   }
 
   const handleCopyLink = (jobId: string) => {
+    // jobId is the job_posting_templates.id — matches /api/job-postings/[id]
     navigator.clipboard.writeText(`${window.location.origin}/jobs/${jobId}`)
     toast({ title: "Link copied" })
   }
@@ -104,7 +118,9 @@ export default function JobsPage() {
     setSelectedJobId(jobId)
     setActiveTab("hiring")
     try {
-      const res = await fetch(`/api/admin/applications?job_posting_id=${jobId}`, buildNoStoreInit())
+      const params = new URLSearchParams({ job_posting_id: jobId })
+      if (venueId) params.set("venue_id", venueId)
+      const res = await fetch(`/api/admin/applications?${params.toString()}`, buildNoStoreInit())
       const data = await res.json()
       setHiringApps(Array.isArray(data?.data) ? data.data : [])
     } catch { setHiringApps([]) }
@@ -192,10 +208,16 @@ export default function JobsPage() {
         </TabsList>
 
         <TabsContent value="postings" className="mt-6">
-          {isLoading ? (
+          {(isLoading || venueLoading) ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-900 text-slate-400">
               <Loader2 className="h-8 w-8 animate-spin text-purple-400" />
               <span className="text-sm">Loading postings...</span>
+            </div>
+          ) : !venueId ? (
+            <div className="flex min-h-[200px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 bg-slate-900/80 px-6 text-center">
+              <Briefcase className="h-10 w-10 text-slate-600" />
+              <p className="font-medium text-slate-300">No workspace selected</p>
+              <p className="text-sm text-slate-500">Select a venue to view its job postings.</p>
             </div>
           ) : didFail && jobs.length === 0 ? (
             <div className="flex min-h-[200px] flex-col items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-900 px-6 text-center">

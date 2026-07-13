@@ -1,5 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { getSiteMapAccess, requireSiteMapAccess, siteMapError, siteMapSuccess } from '@/lib/site-map/access'
 
 export async function POST(
   request: NextRequest,
@@ -9,32 +11,32 @@ export async function POST(
     const { id: siteMapId } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    if (!user) return siteMapError('Unauthorized', 401)
 
-    const { data: map } = await supabase
-      .from('site_maps')
-      .select('id, created_by')
-      .eq('id', siteMapId)
-      .single()
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'share')
+    if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
 
-    if (!map) return NextResponse.json({ error: 'Site map not found' }, { status: 404 })
-    if (map.created_by !== user.id) return NextResponse.json({ error: 'Only owner can create public link' }, { status: 403 })
+    const body = await request.json().catch(() => ({}))
+    const serviceSupabase = createServiceRoleClient()
 
     const token = crypto.randomUUID().replaceAll('-', '')
-    const { data, error } = await supabase
+    const { data, error } = await serviceSupabase
       .from('site_map_share_tokens')
       .insert({
         site_map_id: siteMapId,
         token,
         created_by: user.id,
+        expires_at: body.expiresAt || body.expires_at || null,
       })
       .select('token')
       .single()
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) return siteMapError(error.message)
 
-    return NextResponse.json({ success: true, data: { token: data.token } })
-  } catch {
-    return NextResponse.json({ error: 'Failed to create public link' }, { status: 500 })
+    return siteMapSuccess({ token: data.token })
+  } catch (error) {
+    console.error('Error creating public site map link:', error)
+    return siteMapError('Failed to create public link')
   }
 }

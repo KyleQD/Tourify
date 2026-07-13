@@ -65,9 +65,9 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url)
-    const venueId = url.searchParams.get('venueId')
+    const venueId = url.searchParams.get('venueId') || url.searchParams.get('venue_id')
     if (!venueId) return NextResponse.json({ error: 'venueId required' }, { status: 400 })
-    const eventId = url.searchParams.get('eventId') || undefined
+    const eventId = url.searchParams.get('eventId') || url.searchParams.get('event_id') || undefined
     const zoneType = url.searchParams.get('zone_type') || undefined
     const status = url.searchParams.get('status') || undefined
 

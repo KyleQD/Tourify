@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { resolveActingContext, recordActingSnapshot } from '@/lib/auth/acting-context'
 import { getPostedByType } from '@/lib/accounts/account-types'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 export async function POST(
   request: NextRequest,
@@ -31,7 +32,7 @@ export async function POST(
     // Ownership check: the job must belong to the current user or the active entity
     const ownsJob =
       originalJob.posted_by === userId ||
-      originalJob.posted_by_profile_id === profileId
+      originalJob.poster_profile_id === profileId
 
     if (!ownsJob) {
       return NextResponse.json(
@@ -63,11 +64,11 @@ export async function POST(
       deadline: body.deadline || null,
       // Attribution: stamp which entity is reposting
       posted_by: userId,
-      posted_by_profile_id: profileId,
+      poster_profile_id: profileId,
       posted_by_type: getPostedByType(accountType),
     }
 
-    const { data: newJob, error: insertError } = await supabase
+    const { data: newJob, error: insertError } = await createServiceRoleClient()
       .from('artist_jobs')
       .insert(repostData)
       .select('*, category:artist_job_categories(*)')

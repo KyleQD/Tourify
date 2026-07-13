@@ -1,276 +1,123 @@
 import { useCallback, useEffect, useState } from "react"
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  RefreshControl,
-  SafeAreaView,
-  Text,
-  TextInput,
-  View,
-} from "react-native"
-import { Ionicons } from "@expo/vector-icons"
-import { useAuth } from "@/lib/auth/auth-provider"
-import { supabase } from "@/lib/supabase"
-import { env } from "@/lib/config/env"
+import { Pressable, SafeAreaView, Text, View } from "react-native"
+import AsyncStorage from "@react-native-async-storage/async-storage"
+import { useAccountMode } from "@/hooks/use-account-mode"
+import { useUnreadNotifications } from "@/hooks/use-unread-notifications"
+import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { QuickPostComposer } from "@/components/dashboard/quick-post-composer"
+import { FeaturedStoryCarousel } from "@/components/dashboard/featured-story-carousel"
+import { WriteArticleCTA } from "@/components/dashboard/write-article-cta"
+import { FeedPostList } from "@/components/dashboard/feed-post-list"
+import { DiscoverPanel } from "@/components/dashboard/discover-panel"
+import { YourStuffPanel } from "@/components/dashboard/your-stuff-panel"
 
-interface Post {
-  id: string
-  user_id: string
-  content: string
-  media_url: string | null
-  created_at: string
-  author_name: string
-  author_avatar: string | null
-  like_count: number
-  comment_count: number
-  liked_by_me: boolean
-}
+type SubTab = "feed" | "discover" | "your-stuff"
+
+const SUBTAB_STORAGE_KEY = "tourify.feed-subtab"
+
+const subTabs: Array<{ value: SubTab; label: string }> = [
+  { value: "feed", label: "Feed" },
+  { value: "discover", label: "Discover" },
+  { value: "your-stuff", label: "Your Stuff" },
+]
 
 export default function FeedScreen() {
-  const { session } = useAuth()
-  const [posts, setPosts] = useState<Post[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isComposerOpen, setIsComposerOpen] = useState(false)
-  const [newPostContent, setNewPostContent] = useState("")
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const fetchPosts = useCallback(async () => {
-    if (!session?.access_token) return
-    try {
-      const res = await fetch(`${env.apiBaseUrl}/api/feed/posts`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      })
-      if (!res.ok) throw new Error(`Feed request failed (${res.status})`)
-      const data = await res.json()
-      setPosts(Array.isArray(data) ? data : data.posts ?? [])
-    } catch (error) {
-      Alert.alert("Failed to load feed", error instanceof Error ? error.message : "Please try again")
-    }
-  }, [session?.access_token])
+  const { isVenueMode } = useAccountMode()
+  const { unreadCount } = useUnreadNotifications("feed-subtab")
+  const [subTab, setSubTab] = useState<SubTab>("feed")
+  const [refreshSignal, setRefreshSignal] = useState(0)
 
   useEffect(() => {
-    setIsLoading(true)
-    fetchPosts().finally(() => setIsLoading(false))
-  }, [fetchPosts])
-
-  async function handleRefresh() {
-    setIsRefreshing(true)
-    await fetchPosts()
-    setIsRefreshing(false)
-  }
-
-  async function handleToggleLike(post: Post) {
-    if (!session?.user?.id) return
-
-    const wasLiked = post.liked_by_me
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === post.id
-          ? { ...p, liked_by_me: !wasLiked, like_count: p.like_count + (wasLiked ? -1 : 1) }
-          : p
-      )
-    )
-
-    try {
-      if (wasLiked) {
-        await supabase
-          .from("post_likes")
-          .delete()
-          .eq("post_id", post.id)
-          .eq("user_id", session.user.id)
-      } else {
-        await supabase
-          .from("post_likes")
-          .insert({ post_id: post.id, user_id: session.user.id })
-      }
-    } catch {
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id
-            ? { ...p, liked_by_me: wasLiked, like_count: p.like_count + (wasLiked ? 1 : -1) }
-            : p
-        )
-      )
-    }
-  }
-
-  async function handleCreatePost() {
-    const trimmed = newPostContent.trim()
-    if (!trimmed || !session?.user?.id) return
-
-    setIsSubmitting(true)
-    const { error } = await supabase.from("posts").insert({
-      user_id: session.user.id,
-      content: trimmed,
+    AsyncStorage.getItem(SUBTAB_STORAGE_KEY).then((stored) => {
+      if (stored === "feed" || stored === "discover" || stored === "your-stuff") setSubTab(stored)
     })
-    setIsSubmitting(false)
+  }, [])
 
-    if (error) {
-      Alert.alert("Post failed", error.message)
-      return
-    }
+  const handleSelectTab = useCallback((value: SubTab) => {
+    setSubTab(value)
+    void AsyncStorage.setItem(SUBTAB_STORAGE_KEY, value)
+  }, [])
 
-    setNewPostContent("")
-    setIsComposerOpen(false)
-    await fetchPosts()
-  }
-
-  function renderPost({ item }: { item: Post }) {
-    return (
-      <View style={{ borderBottomWidth: 1, borderColor: "#1e293b", padding: 16, gap: 10 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          {item.author_avatar ? (
-            <Image
-              source={{ uri: item.author_avatar }}
-              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#334155" }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                backgroundColor: "#334155",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="person" size={18} color="#94a3b8" />
-            </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#f1f5f9", fontWeight: "600", fontSize: 15 }}>
-              {item.author_name || "Anonymous"}
-            </Text>
-            <Text style={{ color: "#64748b", fontSize: 12 }}>
-              {new Date(item.created_at).toLocaleDateString()}
-            </Text>
-          </View>
-        </View>
-
-        <Text style={{ color: "#e2e8f0", fontSize: 15, lineHeight: 22 }}>{item.content}</Text>
-
-        {item.media_url ? (
-          <Image
-            source={{ uri: item.media_url }}
-            style={{ width: "100%", height: 200, borderRadius: 10, backgroundColor: "#1e293b" }}
-            resizeMode="cover"
-          />
-        ) : null}
-
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 20, marginTop: 4 }}>
-          <Pressable
-            onPress={() => handleToggleLike(item)}
-            style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
-          >
-            <Ionicons
-              name={item.liked_by_me ? "heart" : "heart-outline"}
-              size={20}
-              color={item.liked_by_me ? "#f43f5e" : "#94a3b8"}
-            />
-            <Text style={{ color: "#94a3b8", fontSize: 13 }}>{item.like_count}</Text>
-          </Pressable>
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-            <Ionicons name="chatbubble-outline" size={18} color="#94a3b8" />
-            <Text style={{ color: "#94a3b8", fontSize: 13 }}>{item.comment_count}</Text>
-          </View>
-        </View>
-      </View>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: "#020617", alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator size="large" color="#a855f7" />
-      </SafeAreaView>
-    )
-  }
+  const handlePosted = useCallback(() => {
+    setRefreshSignal((prev) => prev + 1)
+    setSubTab("feed")
+  }, [])
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#020617" }}>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16, paddingVertical: 12 }}>
-        <Text style={{ color: "#fff", fontSize: 24, fontWeight: "700" }}>Feed</Text>
-        <Pressable
-          onPress={() => setIsComposerOpen(true)}
-          style={{ backgroundColor: "#7c3aed", borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 6 }}
-        >
-          <Ionicons name="add" size={18} color="#fff" />
-          <Text style={{ color: "#fff", fontWeight: "600", fontSize: 14 }}>Post</Text>
-        </Pressable>
-      </View>
+      <DashboardHeader />
+      <QuickPostComposer onPosted={handlePosted} />
 
-      <FlatList
-        data={posts}
-        keyExtractor={(item) => item.id}
-        renderItem={renderPost}
-        refreshControl={
-          <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} tintColor="#a855f7" />
-        }
-        ListEmptyComponent={
-          <View style={{ padding: 32, alignItems: "center", gap: 12 }}>
-            <Ionicons name="newspaper-outline" size={48} color="#475569" />
-            <Text style={{ color: "#94a3b8", fontSize: 16, textAlign: "center" }}>
-              No posts yet. Be the first to share!
-            </Text>
-          </View>
-        }
-      />
-
-      <Modal visible={isComposerOpen} animationType="slide" transparent>
-        <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" }}>
-          <View style={{ backgroundColor: "#0f172a", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, gap: 16 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>New Post</Text>
-              <Pressable onPress={() => setIsComposerOpen(false)}>
-                <Ionicons name="close" size={24} color="#94a3b8" />
-              </Pressable>
-            </View>
-
-            <TextInput
-              value={newPostContent}
-              onChangeText={setNewPostContent}
-              placeholder="What's on your mind?"
-              placeholderTextColor="#64748b"
-              multiline
-              autoFocus
-              style={{
-                color: "#f1f5f9",
-                fontSize: 16,
-                minHeight: 120,
-                textAlignVertical: "top",
-                borderWidth: 1,
-                borderColor: "#334155",
-                borderRadius: 12,
-                padding: 12,
-              }}
-            />
-
+      <View
+        style={{
+          flexDirection: "row",
+          marginHorizontal: 16,
+          marginBottom: 8,
+          backgroundColor: "#0f172a",
+          borderRadius: 999,
+          padding: 4,
+        }}
+      >
+        {subTabs.map((tab) => {
+          const isActive = subTab === tab.value
+          const showBadge = tab.value === "your-stuff" && unreadCount > 0
+          return (
             <Pressable
-              onPress={handleCreatePost}
-              disabled={isSubmitting || !newPostContent.trim()}
+              key={tab.value}
+              onPress={() => handleSelectTab(tab.value)}
               style={{
-                backgroundColor: newPostContent.trim() ? "#7c3aed" : "#334155",
-                borderRadius: 12,
-                paddingVertical: 14,
+                flex: 1,
+                flexDirection: "row",
                 alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                paddingVertical: 8,
+                borderRadius: 999,
+                backgroundColor: isActive ? "#7c3aed" : "transparent",
               }}
             >
-              {isSubmitting ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>Publish</Text>
-              )}
+              <Text style={{ color: isActive ? "#fff" : "#94a3b8", fontWeight: "600", fontSize: 13 }}>
+                {tab.label}
+              </Text>
+              {showBadge ? (
+                <View
+                  style={{
+                    minWidth: 18,
+                    height: 18,
+                    borderRadius: 9,
+                    paddingHorizontal: 5,
+                    backgroundColor: "#f43f5e",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </Text>
+                </View>
+              ) : null}
             </Pressable>
-          </View>
-        </View>
-      </Modal>
+          )
+        })}
+      </View>
+
+      <View style={{ flex: 1 }}>
+        {subTab === "feed" ? (
+          <FeedPostList
+            type="following"
+            refreshSignal={refreshSignal}
+            emptyLabel="Follow creators to fill your feed, or explore Discover."
+            ListHeaderComponent={
+              <View>
+                {!isVenueMode ? <FeaturedStoryCarousel /> : null}
+                <WriteArticleCTA />
+              </View>
+            }
+          />
+        ) : null}
+        {subTab === "discover" ? <DiscoverPanel /> : null}
+        {subTab === "your-stuff" ? <YourStuffPanel refreshSignal={refreshSignal} /> : null}
+      </View>
     </SafeAreaView>
   )
 }

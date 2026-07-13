@@ -295,8 +295,21 @@ export interface LodgingUtilization {
 // MAIN LODGING HOOK
 // =============================================================================
 
-export function useLodging() {
+interface UseLodgingOptions {
+  event_id?: string
+  tour_id?: string
+  /** When set, only these slices load on mount (avoids N× full prefetch). */
+  fetchOnMount?: Array<'providers' | 'bookings' | 'analytics' | 'utilization'>
+}
+
+export function useLodging(options: UseLodgingOptions = {}) {
   const { toast } = useToast()
+  const { event_id, tour_id, fetchOnMount } = options
+  const mountSlices = fetchOnMount ?? ['providers', 'bookings', 'analytics', 'utilization']
+  const shouldFetchProviders = mountSlices.includes('providers')
+  const shouldFetchBookings = mountSlices.includes('bookings')
+  const shouldFetchAnalytics = mountSlices.includes('analytics')
+  const shouldFetchUtilization = mountSlices.includes('utilization')
   
   // State for different data types
   const [providers, setProviders] = useState<LodgingProvider[]>([])
@@ -651,6 +664,8 @@ export function useLodging() {
   const fetchAnalytics = useCallback(async (params?: {
     limit?: number
     offset?: number
+    event_id?: string
+    tour_id?: string
   }) => {
     setAnalyticsLoading(true)
     setAnalyticsError(null)
@@ -661,6 +676,9 @@ export function useLodging() {
         limit: params?.limit?.toString() || '50',
         offset: params?.offset?.toString() || '0'
       })
+
+      if (params?.event_id) searchParams.append('event_id', params.event_id)
+      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
 
       const response = await fetch(`/api/admin/lodging?${searchParams}`, {
         credentials: 'include',
@@ -860,7 +878,7 @@ export function useLodging() {
       })
 
       // Refresh bookings list
-      await fetchBookings()
+      await fetchBookings({ event_id, tour_id })
       return result.data
     } catch (error: any) {
       console.error('[useLodging] Error creating booking:', error)
@@ -871,7 +889,7 @@ export function useLodging() {
       })
       throw error
     }
-  }, [fetchBookings, toast])
+  }, [event_id, tour_id, fetchBookings, toast])
 
   const updateBooking = useCallback(async (id: string, bookingData: Partial<LodgingBooking>) => {
     try {
@@ -898,7 +916,7 @@ export function useLodging() {
       })
 
       // Refresh bookings list
-      await fetchBookings()
+      await fetchBookings({ event_id, tour_id })
       return result.data
     } catch (error: any) {
       console.error('[useLodging] Error updating booking:', error)
@@ -909,7 +927,7 @@ export function useLodging() {
       })
       throw error
     }
-  }, [fetchBookings, toast])
+  }, [event_id, tour_id, fetchBookings, toast])
 
   const deleteBooking = useCallback(async (id: string) => {
     try {
@@ -930,7 +948,7 @@ export function useLodging() {
       })
 
       // Refresh bookings list
-      await fetchBookings()
+      await fetchBookings({ event_id, tour_id })
     } catch (error: any) {
       console.error('[useLodging] Error deleting booking:', error)
       toast({
@@ -940,7 +958,7 @@ export function useLodging() {
       })
       throw error
     }
-  }, [fetchBookings, toast])
+  }, [event_id, tour_id, fetchBookings, toast])
 
   const createGuestAssignment = useCallback(async (assignmentData: Partial<LodgingGuestAssignment>) => {
     try {
@@ -1053,24 +1071,45 @@ export function useLodging() {
   // =============================================================================
 
   useEffect(() => {
-    // Load initial data
-    fetchProviders()
-    fetchBookings()
-    fetchAnalytics()
-    fetchUtilization()
-  }, [fetchProviders, fetchBookings, fetchAnalytics, fetchUtilization])
+    if (shouldFetchProviders) fetchProviders()
+    if (shouldFetchBookings) fetchBookings({ event_id, tour_id })
+    if (shouldFetchAnalytics) fetchAnalytics({ event_id, tour_id })
+    if (shouldFetchUtilization) fetchUtilization()
+  }, [
+    event_id,
+    tour_id,
+    shouldFetchProviders,
+    shouldFetchBookings,
+    shouldFetchAnalytics,
+    shouldFetchUtilization,
+    fetchProviders,
+    fetchBookings,
+    fetchAnalytics,
+    fetchUtilization,
+  ])
 
   // Auto-refresh data every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchProviders()
-      fetchBookings()
-      fetchAnalytics()
-      fetchUtilization()
+      if (shouldFetchProviders) fetchProviders()
+      if (shouldFetchBookings) fetchBookings({ event_id, tour_id })
+      if (shouldFetchAnalytics) fetchAnalytics({ event_id, tour_id })
+      if (shouldFetchUtilization) fetchUtilization()
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [fetchProviders, fetchBookings, fetchAnalytics, fetchUtilization])
+  }, [
+    event_id,
+    tour_id,
+    shouldFetchProviders,
+    shouldFetchBookings,
+    shouldFetchAnalytics,
+    shouldFetchUtilization,
+    fetchProviders,
+    fetchBookings,
+    fetchAnalytics,
+    fetchUtilization,
+  ])
 
   // =============================================================================
   // RETURN OBJECT
@@ -1139,26 +1178,38 @@ export function useLodging() {
 // =============================================================================
 
 export function useLodgingProviders() {
-  const { providers, providersLoading, providersError, fetchProviders, createProvider, updateProvider, deleteProvider } = useLodging()
+  const { providers, providersLoading, providersError, fetchProviders, createProvider, updateProvider, deleteProvider } = useLodging({
+    fetchOnMount: ['providers'],
+  })
   return { providers, loading: providersLoading, error: providersError, fetchProviders, createProvider, updateProvider, deleteProvider }
 }
 
-export function useLodgingBookings() {
-  const { bookings, bookingsLoading, bookingsError, fetchBookings, createBooking, updateBooking, deleteBooking } = useLodging()
+export function useLodgingBookings(options: UseLodgingOptions = {}) {
+  const { bookings, bookingsLoading, bookingsError, fetchBookings, createBooking, updateBooking, deleteBooking } = useLodging({
+    ...options,
+    fetchOnMount: options.fetchOnMount ?? ['bookings'],
+  })
   return { bookings, loading: bookingsLoading, error: bookingsError, fetchBookings, createBooking, updateBooking, deleteBooking }
 }
 
 export function useLodgingGuestAssignments() {
-  const { guestAssignments, guestAssignmentsLoading, guestAssignmentsError, fetchGuestAssignments, createGuestAssignment, updateGuestAssignment, deleteGuestAssignment } = useLodging()
+  const { guestAssignments, guestAssignmentsLoading, guestAssignmentsError, fetchGuestAssignments, createGuestAssignment, updateGuestAssignment, deleteGuestAssignment } = useLodging({
+    fetchOnMount: [],
+  })
   return { guestAssignments, loading: guestAssignmentsLoading, error: guestAssignmentsError, fetchGuestAssignments, createGuestAssignment, updateGuestAssignment, deleteGuestAssignment }
 }
 
-export function useLodgingAnalytics() {
-  const { analytics, analyticsLoading, analyticsError, fetchAnalytics } = useLodging()
+export function useLodgingAnalytics(options: UseLodgingOptions = {}) {
+  const { analytics, analyticsLoading, analyticsError, fetchAnalytics } = useLodging({
+    ...options,
+    fetchOnMount: options.fetchOnMount ?? ['analytics'],
+  })
   return { analytics, loading: analyticsLoading, error: analyticsError, fetchAnalytics }
 }
 
 export function useLodgingUtilization() {
-  const { utilization, utilizationLoading, utilizationError, fetchUtilization } = useLodging()
+  const { utilization, utilizationLoading, utilizationError, fetchUtilization } = useLodging({
+    fetchOnMount: ['utilization'],
+  })
   return { utilization, loading: utilizationLoading, error: utilizationError, fetchUtilization }
 } 

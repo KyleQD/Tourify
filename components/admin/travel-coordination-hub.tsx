@@ -107,7 +107,10 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
   } = useTravelCoordination()
 
   // Fetch lodging data for integration
-  const { bookings: lodgingBookings, loading: lodgingBookingsLoading } = useLodgingBookings()
+  const { bookings: lodgingBookings, loading: lodgingBookingsLoading, createBooking } = useLodgingBookings({
+    event_id: eventId,
+    tour_id: tourId,
+  })
 
   // Form states
   const [groupForm, setGroupForm] = useState({
@@ -222,6 +225,113 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
       })
     } catch (error) {
       console.error("Error auto-coordinating group:", error)
+    }
+  }
+
+  async function handleQuickCreateFlight() {
+    const flightNumber = window.prompt('Flight number')
+    if (!flightNumber?.trim()) return
+    const airline = window.prompt('Airline') || 'TBD'
+    const departureAirport = window.prompt('Departure airport') || 'TBD'
+    const arrivalAirport = window.prompt('Arrival airport') || 'TBD'
+    const departureTime = window.prompt('Departure time (ISO or local datetime)') || new Date().toISOString()
+    const arrivalTime = window.prompt('Arrival time (ISO or local datetime)') || departureTime
+
+    const response = await fetch('/api/admin/travel-coordination', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_flight',
+        flight_number: flightNumber.trim(),
+        airline,
+        departure_airport: departureAirport,
+        arrival_airport: arrivalAirport,
+        departure_time: new Date(departureTime).toISOString(),
+        arrival_time: new Date(arrivalTime).toISOString(),
+        event_id: eventId,
+        tour_id: tourId,
+      }),
+    })
+
+    if (!response.ok) {
+      toast({ title: 'Flight not created', description: 'Check the flight details and try again.', variant: 'destructive' })
+      return
+    }
+
+    await fetchFlights({ event_id: eventId, tour_id: tourId })
+  }
+
+  async function handleQuickCreateTransport() {
+    const pickupLocation = window.prompt('Pickup location')
+    if (!pickupLocation?.trim()) return
+    const dropoffLocation = window.prompt('Dropoff location') || pickupLocation
+    const pickupTime = window.prompt('Pickup time (ISO or local datetime)') || new Date().toISOString()
+    const dropoffTime = window.prompt('Estimated dropoff time (ISO or local datetime)') || pickupTime
+
+    const response = await fetch('/api/admin/travel-coordination', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_ground_transportation',
+        transport_type: 'van',
+        provider_name: window.prompt('Provider name') || 'TBD',
+        pickup_location: pickupLocation.trim(),
+        dropoff_location: dropoffLocation,
+        pickup_time: new Date(pickupTime).toISOString(),
+        estimated_dropoff_time: new Date(dropoffTime).toISOString(),
+        vehicle_capacity: Number(window.prompt('Vehicle capacity') || 0) || null,
+        event_id: eventId,
+        tour_id: tourId,
+      }),
+    })
+
+    if (!response.ok) {
+      toast({ title: 'Transport not created', description: 'Check the transport details and try again.', variant: 'destructive' })
+      return
+    }
+
+    await fetchTransportation({ event_id: eventId, tour_id: tourId })
+  }
+
+  async function handleQuickCreateHotelBooking() {
+    const providerId = window.prompt('Lodging provider ID')
+    const roomTypeId = window.prompt('Room type ID')
+    const primaryGuestName = window.prompt('Primary guest name')
+    if (!providerId || !roomTypeId || !primaryGuestName) return
+
+    const checkInDate = window.prompt('Check-in date (YYYY-MM-DD)') || new Date().toISOString().slice(0, 10)
+    const checkOutDate = window.prompt('Check-out date (YYYY-MM-DD)') || checkInDate
+    const ratePerNight = Number(window.prompt('Rate per night') || 0)
+    const roomsBooked = Number(window.prompt('Rooms booked') || 1)
+    const totalGuests = Number(window.prompt('Total guests') || roomsBooked)
+    const totalNights = Math.max(1, Math.ceil((new Date(checkOutDate).getTime() - new Date(checkInDate).getTime()) / 86_400_000))
+    const subtotal = ratePerNight * totalNights * roomsBooked
+
+    try {
+      await createBooking({
+        booking_number: `LB-${Date.now().toString(36).toUpperCase()}`,
+        provider_id: providerId,
+        room_type_id: roomTypeId,
+        primary_guest_name: primaryGuestName,
+        check_in_date: checkInDate,
+        check_out_date: checkOutDate,
+        rooms_booked: roomsBooked,
+        guests_per_room: Math.max(1, Math.ceil(totalGuests / roomsBooked)),
+        total_guests: totalGuests,
+        rate_per_night: ratePerNight,
+        total_nights: totalNights,
+        subtotal,
+        total_amount: subtotal,
+        status: 'pending',
+        payment_status: 'pending',
+        booking_source: 'direct',
+        event_id: eventId,
+        tour_id: tourId,
+      } as any)
+    } catch {
+      toast({ title: 'Hotel booking not created', description: 'Check the provider and room type IDs.', variant: 'destructive' })
     }
   }
 
@@ -791,10 +901,16 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
             {/* Flights */}
             <Card className="bg-slate-900/50 border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-slate-100 flex items-center gap-2">
-                  <Plane className="h-5 w-5" />
-                  Flight Coordination
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-100 flex items-center gap-2">
+                    <Plane className="h-5 w-5" />
+                    Flight Coordination
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={handleQuickCreateFlight}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {groupsLoading ? (
@@ -833,10 +949,16 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
             {/* Transportation */}
             <Card className="bg-slate-900/50 border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-slate-100 flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  Ground Transportation
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-100 flex items-center gap-2">
+                    <Truck className="h-5 w-5" />
+                    Ground Transportation
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={handleQuickCreateTransport}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {groupsLoading ? (
@@ -877,10 +999,16 @@ export function TravelCoordinationHub({ eventId, tourId }: TravelCoordinationHub
             {/* Hotels */}
             <Card className="bg-slate-900/50 border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-slate-100 flex items-center gap-2">
-                  <Building className="h-5 w-5" />
-                  Hotel Accommodations
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-slate-100 flex items-center gap-2">
+                    <Building className="h-5 w-5" />
+                    Hotel Accommodations
+                  </CardTitle>
+                  <Button variant="outline" size="sm" onClick={handleQuickCreateHotelBooking}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {lodgingBookingsLoading ? (

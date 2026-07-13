@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
-import { getStoragePathFromUrl } from "@/lib/marketplace/storage-path"
+import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
+import { enforceFeaturedRankCap } from "@/lib/marketplace/storefront-curation"
+import { getTrackFullStoragePath, getTrackPreviewStoragePath, getTrackStorageBucket } from "@/lib/music/music-access"
 
 const updateVariantSchema = z.object({
   id: z.string().uuid().optional(),
@@ -39,7 +41,7 @@ const updateListingSchema = z.object({
 
 export const dynamic = "force-dynamic"
 
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const supabase = await createClient()
     const { id } = await params
@@ -51,6 +53,16 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       .single()
 
     if (error || !data) return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+
+    if (data.status !== "published" || data.moderation_status !== "approved") {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user || user.id !== data.seller_user_id) {
+        return NextResponse.json({ error: "Listing not found" }, { status: 404 })
+      }
+    }
+
     return NextResponse.json({ data })
   } catch (error) {
     console.error("Unexpected listing GET error", error)
@@ -69,7 +81,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const { data: existing, error: existingError } = await supabase
       .from("marketplace_listings")
-      .select("id, seller_user_id, category, product_type, metadata")
+      .select("id, seller_user_id, category, product_type, status, base_price, metadata, rights_confirmed")
       .eq("id", id)
       .single()
 
@@ -88,22 +100,80 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const nextCategory = payload.category || existing.category
     const nextProductType = payload.productType || existing.product_type
     const shouldPublish = payload.status === "published"
-    if (shouldPublish && nextCategory === "music" && nextProductType === "digital_asset" && payload.rightsConfirmed === false) {
+    if (
+      shouldPublish
+      && nextCategory === "music"
+      && nextProductType === "digital_asset"
+      && payload.rightsConfirmed !== true
+      && existing.rights_confirmed !== true
+    ) {
       return jsonError({
         status: 400,
         code: "rights_confirmation_required",
         message: "Rights confirmation is required before publishing music listings",
       })
     }
+    if (shouldPublish) {
+      const { data: storefront } = await supabase
+        .from("marketplace_storefronts")
+        .select("accepted_seller_agreement_at")
+        .eq("seller_user_id", user.id)
+        .maybeSingle()
+
+      if (!storefront?.accepted_seller_agreement_at) {
+        return jsonError({
+          status: 403,
+          code: "seller_agreement_required",
+          message: "You must accept the Marketplace Seller Agreement before publishing listings.",
+        })
+      }
+
+      const existingVariants = payload.variants
+        ? []
+        : (await supabase
+            .from("marketplace_listing_variants")
+            .select("price")
+            .eq("listing_id", id)).data || []
+
+      if (isPaidListingUpdate({ payload, existing, existingVariants })) {
+        const payoutReadiness = await getSellerPayoutReadiness({ supabase, sellerUserId: user.id })
+        if (!payoutReadiness.ready) {
+          return jsonError({
+            status: 403,
+            code: "stripe_connect_required",
+            message: "Complete Stripe Connect before publishing paid marketplace listings.",
+            retryable: false,
+            issues: payoutReadiness,
+          })
+        }
+      }
+    }
 
     const trackIdProvided = payload.trackId !== undefined
     const nextTrackId = trackIdProvided ? payload.trackId : null
+
+    if (payload.featuredRank !== undefined) {
+      const featuredGate = await enforceFeaturedRankCap({
+        supabase,
+        sellerUserId: user.id,
+        listingId: id,
+        nextFeaturedRank: payload.featuredRank,
+      })
+      if (!featuredGate.ok) {
+        return jsonError({
+          status: 400,
+          code: "featured_cap_exceeded",
+          message: featuredGate.message,
+        })
+      }
+      payload.featuredRank = featuredGate.featuredRank
+    }
 
     let trackPatch: Record<string, unknown> = {}
     if (trackIdProvided && nextTrackId) {
       const { data: track, error: trackError } = await supabase
         .from("artist_music")
-        .select("id, user_id, file_url, cover_art_url")
+        .select("id, user_id, file_url, preview_file_url, storage_bucket, storage_path, preview_storage_bucket, preview_storage_path, cover_art_url")
         .eq("id", nextTrackId)
         .single()
 
@@ -119,7 +189,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           code: "forbidden_track_owner",
           message: "You can only attach your own tracks",
         })
-      const storagePath = getStoragePathFromUrl(track.file_url)
+      const assetPath = getTrackFullStoragePath(track)
+      const previewPath = getTrackPreviewStoragePath(track) || assetPath
 
       trackPatch = {
         music_track_id: nextTrackId,
@@ -128,12 +199,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           ...(existing.metadata && typeof existing.metadata === "object" ? existing.metadata : {}),
           ...(payload.metadata || {}),
           musicTrackId: nextTrackId,
-          assetUrl: track.file_url,
-          previewUrl: track.file_url,
-          assetBucket: storagePath?.bucket || null,
-          assetPath: storagePath?.path || null,
-          previewBucket: storagePath?.bucket || null,
-          previewPath: storagePath?.path || null,
+          assetUrl: null,
+          previewUrl: `/api/music/stream?trackId=${nextTrackId}`,
+          assetBucket: assetPath ? getTrackStorageBucket(track, "full") : null,
+          assetPath,
+          previewBucket: previewPath ? getTrackStorageBucket(track, previewPath === assetPath ? "full" : "preview") : null,
+          previewPath,
           coverArtUrl: track.cover_art_url,
           artistAttestedOwnership: payload.rightsConfirmed ?? false,
           licenseType: payload.licenseType || "personal_use",
@@ -217,6 +288,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       retryable: true,
     })
   }
+}
+
+function isPaidListingUpdate({
+  payload,
+  existing,
+  existingVariants,
+}: {
+  payload: z.infer<typeof updateListingSchema>
+  existing: { base_price: number | null }
+  existingVariants: Array<{ price: number | string | null }>
+}) {
+  const nextBasePrice = payload.basePrice !== undefined ? payload.basePrice : existing.base_price
+  if ((Number(nextBasePrice) || 0) > 0) return true
+  if (payload.variants) return payload.variants.some(variant => variant.price > 0)
+  return existingVariants.some(variant => (Number(variant.price) || 0) > 0)
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

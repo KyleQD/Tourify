@@ -10,8 +10,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Music, MapPin, Calendar, DollarSign, Users, Eye } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Music, MapPin, Calendar, DollarSign, Users, Eye, ExternalLink, FileText, Clipboard, Command } from "lucide-react"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import { formatSafeDate, mapAdminEventStatus, parseIsoDateParts } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 
@@ -27,7 +29,7 @@ interface Event {
   event_time?: string
   doors_open?: string
   duration_minutes?: number
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
+  status: 'draft' | 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
   capacity: number
   tickets_sold: number
   ticket_price?: number
@@ -94,6 +96,7 @@ interface TourEventManagerProps {
 }
 
 export function TourEventManager({ tourId, events, onEventsUpdate, initialEventId }: TourEventManagerProps) {
+  const router = useRouter()
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -105,6 +108,9 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
   const [venueQuery, setVenueQuery] = useState('')
   const [isVenueLoading, setIsVenueLoading] = useState(false)
   const [venueResults, setVenueResults] = useState<Array<{ id: string; name: string; city?: string; state?: string; capacity?: number; fullAddress?: string }>>([])
+  const [availableEvents, setAvailableEvents] = useState<Event[]>([])
+  const [selectedExistingEventId, setSelectedExistingEventId] = useState('')
+  const [isExistingEventsLoading, setIsExistingEventsLoading] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -216,8 +222,34 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
       const t = setTimeout(() => setHighlightEventId(null), 4000)
       return () => clearTimeout(t)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialEventId, events])
+
+  useEffect(() => {
+    if (!isAddDialogOpen) return
+    let cancelled = false
+
+    async function loadAvailableEvents() {
+      setIsExistingEventsLoading(true)
+      try {
+        const response = await fetch('/api/admin/events', { credentials: 'include', cache: 'no-store' })
+        const data = await response.json().catch(() => ({}))
+        const currentIds = new Set(events.map((event) => event.id))
+        const options = (data.events || [])
+          .filter((event: any) => event.id && !currentIds.has(event.id))
+          .map((event: any) => normalizeManagerEvent(event, tourId))
+        if (!cancelled) setAvailableEvents(options)
+      } catch {
+        if (!cancelled) setAvailableEvents([])
+      } finally {
+        if (!cancelled) setIsExistingEventsLoading(false)
+      }
+    }
+
+    void loadAvailableEvents()
+    return () => {
+      cancelled = true
+    }
+  }, [isAddDialogOpen, events, tourId])
 
   const searchVenues = async () => {
     if (!venueQuery || venueQuery.trim().length < 2) {
@@ -255,17 +287,45 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
     }))
   }
 
+  const handleAttachExistingEvent = async () => {
+    if (!selectedExistingEventId) return
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/admin/tours/${tourId}/events`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event_id: selectedExistingEventId,
+          ordinal: events.length,
+        }),
+      })
+      if (!response.ok) throw new Error('Failed to attach event')
+      const attachedEvent = availableEvents.find((event) => event.id === selectedExistingEventId)
+      if (attachedEvent) onEventsUpdate([...events, { ...attachedEvent, tour_id: tourId }])
+      setSelectedExistingEventId('')
+      setIsAddDialogOpen(false)
+      toast.success('Event attached to tour')
+    } catch (error) {
+      console.error('Error attaching event:', error)
+      toast.error('Failed to attach event')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   const handleSubmit = async (isEdit: boolean = false) => {
     setIsSubmitting(true)
     try {
-      const url = isEdit 
-        ? `/api/tours/${tourId}/events/${selectedEvent?.id}`
-        : `/api/tours/${tourId}/events`
+      const url = isEdit
+        ? `/api/admin/events/${selectedEvent?.id}`
+        : `/api/admin/tours/${tourId}/events`
       
       const method = isEdit ? 'PATCH' : 'POST'
       
       const response = await fetch(url, {
         method,
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
@@ -304,8 +364,9 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/tours/${tourId}/events/${selectedEvent.id}`, {
-        method: 'DELETE'
+      const response = await fetch(`/api/admin/tours/${tourId}/events?event_id=${encodeURIComponent(selectedEvent.id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       if (!response.ok) {
@@ -314,11 +375,11 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
 
       const updatedEvents = events.filter(event => event.id !== selectedEvent.id)
       onEventsUpdate(updatedEvents)
-      toast.success('Event deleted successfully')
+      toast.success('Event removed from this tour')
       setIsDeleteDialogOpen(false)
     } catch (error) {
       console.error('Error deleting event:', error)
-      toast.error('Failed to delete event')
+      toast.error('Failed to remove event from tour')
     } finally {
       setIsSubmitting(false)
     }
@@ -434,27 +495,65 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-col items-end gap-2">
                   <Badge className={getStatusColor(event.status)}>
                     {getStatusIcon(event.status)}
                     <span className="ml-1 capitalize">{event.status.replace('_', ' ')}</span>
                   </Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditEvent(event)}
-                    className="text-slate-400 hover:text-white"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteEvent(event)}
-                    className="text-red-400 hover:text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex flex-wrap justify-end gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-600 text-slate-300"
+                      onClick={() => router.push(`/admin/dashboard/events/${event.id}`)}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      Hub
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-600 text-slate-300"
+                      onClick={() => router.push(`/admin/dashboard/events/${event.id}/advancing`)}
+                    >
+                      <FileText className="h-3.5 w-3.5 mr-1" />
+                      Advance
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-600 text-slate-300"
+                      onClick={() => router.push(`/admin/dashboard/events/${event.id}/day-sheet`)}
+                    >
+                      <Clipboard className="h-3.5 w-3.5 mr-1" />
+                      Day sheet
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-slate-600 text-slate-300"
+                      onClick={() => router.push(`/admin/dashboard/events/${event.id}/hq`)}
+                    >
+                      <Command className="h-3.5 w-3.5 mr-1" />
+                      HQ
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditEvent(event)}
+                      className="text-slate-400 hover:text-white"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteEvent(event)}
+                      className="text-red-400 hover:text-red-300"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -488,6 +587,35 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
             <DialogTitle className="text-white">Add Event to Tour</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="rounded-md border border-slate-700 bg-slate-900/60 p-4">
+              <Label className="text-slate-300">Attach Existing Event</Label>
+              <div className="mt-2 flex gap-2">
+                <Select value={selectedExistingEventId} onValueChange={setSelectedExistingEventId}>
+                  <SelectTrigger className="bg-slate-700 border-slate-600 text-white">
+                    <SelectValue placeholder={isExistingEventsLoading ? 'Loading events...' : 'Choose an event'} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableEvents.map((event) => (
+                      <SelectItem key={event.id} value={event.id}>
+                        {event.name} {event.event_date ? `- ${formatSafeDate(event.event_date)}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  onClick={handleAttachExistingEvent}
+                  disabled={!selectedExistingEventId || isSubmitting}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Attach
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-slate-400">
+                This keeps the same event record and adds it to this tour.
+              </p>
+            </div>
+            <Separator className="bg-slate-700" />
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-slate-300">Event Name</Label>
@@ -825,13 +953,13 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Remove Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent className="bg-slate-800 border-slate-700">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Event</AlertDialogTitle>
+            <AlertDialogTitle className="text-white">Remove Event From Tour</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-300">
-              Are you sure you want to delete "{selectedEvent?.name}"? This action cannot be undone.
+              This removes {selectedEvent?.name} from this tour. The event record stays available in admin.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -841,7 +969,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
               disabled={isSubmitting}
               className="bg-red-600 hover:bg-red-700"
             >
-              {isSubmitting ? 'Deleting...' : 'Delete Event'}
+              {isSubmitting ? 'Removing...' : 'Remove From Tour'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

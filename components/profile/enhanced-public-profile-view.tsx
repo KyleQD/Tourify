@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { ProfilePosts } from "./profile-posts"
-import { MusicShowcase } from "./music-showcase"
 import { ProfileMusicShowcase } from "./profile-music-showcase"
 import { ProfileJukeboxWidget } from "./profile-jukebox-widget"
 import { useProfileColors } from "@/hooks/use-profile-colors"
 import { ProfileAchievementsSection } from "@/components/achievements/profile-achievements-section"
+import { FollowFriendButton } from "@/components/social/follow-friend-button"
 import {
   User,
   MapPin,
@@ -58,10 +58,13 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
 
 interface EnhancedPublicProfileProps {
   profile: {
     id: string
+    author_profile_id?: string | null
+    owner_user_id?: string | null
     username: string
     account_type: 'general' | 'artist' | 'venue' | 'organization'
     profile_data: any
@@ -317,50 +320,9 @@ export function EnhancedPublicProfileView({
         }
 
         if (profile.account_type === 'artist') {
-          const mockTracks: Track[] = [
-            {
-              id: "1",
-              title: "Midnight Dreams",
-              album: "Electric Nights",
-              duration: "3:45",
-              streams: 1250000,
-              release_date: "2023-11-15",
-              cover_art: "/track-1.jpg",
-              preview_url: "/preview-1.mp3",
-              spotify_url: "https://spotify.com/track/example"
-            },
-            {
-              id: "2",
-              title: "Neon Lights",
-              album: "Electric Nights",
-              duration: "4:12",
-              streams: 890000,
-              release_date: "2023-11-15",
-              cover_art: "/track-2.jpg",
-              preview_url: "/preview-2.mp3"
-            }
-          ]
-          
-          const mockShows: Show[] = [
-            {
-              id: "1",
-              date: "2024-03-15",
-              venue: "The Grand Hall",
-              city: "Los Angeles, CA",
-              status: "upcoming",
-              ticket_url: "https://tickets.com/show/1"
-            },
-            {
-              id: "2",
-              date: "2024-02-28",
-              venue: "Club Nova",
-              city: "San Francisco, CA",
-              status: "past"
-            }
-          ]
-          
-          setTracks(mockTracks)
-          setShows(mockShows)
+          // Artist music/shows live on the canonical /artist public page — do not mock them here.
+          setTracks([])
+          setShows([])
         } else {
           // General user data
           const mockSkills: Skill[] = [
@@ -505,6 +467,12 @@ export function EnhancedPublicProfileView({
     }
     return profile.profile_data?.title || 'Professional'
   }
+
+  const artistPublicPath = profile.account_type === 'artist'
+    ? getArtistPublicProfilePath(
+        profile.profile_data?.url_slug || profile.profile_data?.artist_name || profile.username
+      )
+    : null
 
   const creatorType = typeof profile.profile_data?.creator_type === "string"
     ? profile.profile_data.creator_type
@@ -654,15 +622,30 @@ export function EnhancedPublicProfileView({
               </div>
               
               <div className="flex flex-col gap-3">
+                {artistPublicPath && (
+                  <Button asChild className="bg-emerald-500 text-white hover:bg-emerald-400 font-semibold">
+                    <Link href={artistPublicPath}>
+                      <Music className="h-4 w-4 mr-2" />
+                      View Artist Page
+                    </Link>
+                  </Button>
+                )}
                 {!isOwnProfile && (
                   <>
-                    <Button 
-                      onClick={() => onFollow?.(profile.id)}
-                      className={`bg-white text-black hover:bg-white/90 font-semibold ${relationship === 'friends' ? 'opacity-90' : ''}`}
-                      disabled={relationship === 'pending' || relationship === 'following' || relationship === 'friends' || isChecking}
-                    >
-                      {relationship === 'friends' ? 'Friends' : relationship === 'following' ? 'Following' : relationship === 'pending' ? 'Pending Request' : 'Follow'}
-                    </Button>
+                    <FollowFriendButton
+                      kind={
+                        profile.account_type === 'artist' ||
+                        profile.account_type === 'venue' ||
+                        profile.account_type === 'organization'
+                          ? 'follow'
+                          : 'friend'
+                      }
+                      accountType={profile.account_type}
+                      targetUserId={profile.id}
+                      size="default"
+                      className="bg-white text-black hover:bg-white/90 font-semibold"
+                      initialRelationship={relationship}
+                    />
                     <Button 
                       onClick={() => onMessage?.(profile.id)}
                       variant="outline" 
@@ -996,7 +979,8 @@ export function EnhancedPublicProfileView({
                 </CardHeader>
                 <CardContent>
                   <ProfilePosts 
-                    profileId={profile.id}
+                    profileId={profile.author_profile_id || profile.id}
+                    ownerUserId={profile.owner_user_id || profile.id}
                     profileUsername={profile.username}
                     isOwnProfile={isOwnProfile}
                     compact={true}

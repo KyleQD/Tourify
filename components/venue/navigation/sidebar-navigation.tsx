@@ -172,7 +172,7 @@ export function SidebarNavigation() {
     },
     {
       title: "Merch",
-      href: "/merch",
+      href: "/venue/dashboard/store",
       icon: <ShoppingBag className="h-5 w-5" />,
       tooltip: "Manage your merchandise",
     },

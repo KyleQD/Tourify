@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
-import { profileIndicatesAdminAccess } from '@/lib/auth/admin-profile-gates'
+import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 function parseAuthFromRequestCookies(request: NextRequest) {
@@ -65,47 +65,17 @@ export async function authenticateApiRequest(request?: NextRequest): Promise<{ u
 }
 
 /**
- * Check if user has organizer permissions.
- * Verifies the user owns at least one admin/organizer profile.
- * When tourId is supplied, also checks tour ownership or confirmed team membership.
+ * Check if user has organizer / Admin Work Mode permissions.
+ * Uses the same surface gate as middleware (`userHasAdminSurfaceAccess`) so API and
+ * page access cannot drift. When tourId is supplied, also checks tour ownership or
+ * confirmed team membership.
  */
 export async function checkAdminPermissions(user: any, opts?: { tourId?: string }): Promise<boolean> {
   if (!user?.id) return false
   try {
     const supabase = createServiceClient()
-
-    const [orgResult, profileResult, relationshipResult] = await Promise.allSettled([
-      supabase
-        .from('organizer_accounts')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle(),
-      supabase
-        .from('profiles')
-        .select('id, account_type, role, account_settings, is_admin')
-        .eq('id', user.id)
-        .limit(1)
-        .maybeSingle(),
-      // Check account_relationships — users granted admin via this path must also pass
-      supabase
-        .from('account_relationships')
-        .select('type')
-        .eq('user_id', user.id)
-        .eq('type', 'admin')
-        .limit(1)
-        .maybeSingle(),
-    ])
-
-    const organizerAccount = orgResult.status === 'fulfilled' ? orgResult.value.data : null
-    const adminProfile = profileResult.status === 'fulfilled' ? profileResult.value.data : null
-    const adminRelationship = relationshipResult.status === 'fulfilled' ? relationshipResult.value.data : null
-
-    const hasOrganizerAccess = Boolean(
-      organizerAccount || profileIndicatesAdminAccess(adminProfile) || adminRelationship,
-    )
-    if (!hasOrganizerAccess) return false
+    const hasAdminAccess = await userHasAdminSurfaceAccess(supabase, user.id)
+    if (!hasAdminAccess) return false
 
     if (!opts?.tourId) return true
 

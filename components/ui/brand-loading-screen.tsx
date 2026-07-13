@@ -3,13 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
+import { TourifyLogo } from '@/components/tourify-logo'
 import { cn } from '@/lib/utils'
 
 type LoadingVariant = 'pulse' | 'rotate' | 'glow' | 'particles' | 'waves' | 'orbit' | 'breathe'
 
-// Canonical asset in public/ is SVG; avoid 404ing missing /images/*.png first.
-const DEFAULT_LOGO = '/tourify-logo-white.svg'
-const LEGACY_PNG_LOGO = '/images/tourify-logo-white.png'
+const FALLBACK_LOGO = '/tourify-logo-white.png'
 
 interface BrandLoadingScreenProps {
   message?: string
@@ -36,7 +35,7 @@ function loadingHeading(message: string) {
 }
 
 function uniqueLogoCandidates(logoSrc: string) {
-  return [...new Set([logoSrc, DEFAULT_LOGO, LEGACY_PNG_LOGO])].filter(Boolean)
+  return [...new Set([logoSrc, FALLBACK_LOGO, '/images/tourify-logo-white.png'])].filter(Boolean)
 }
 
 function LoadingContainer({ children, fullScreen }: LoadingContainerProps) {
@@ -67,17 +66,20 @@ function LoadingContainer({ children, fullScreen }: LoadingContainerProps) {
 
 export function BrandLoadingScreen({
   message = 'Loading',
-  subMessage = 'Preparing your Tourify experience',
+  subMessage,
   variant = 'glow',
   showProgress = false,
   progress = 0,
   fullScreen = true,
-  logoSrc = DEFAULT_LOGO,
+  logoSrc,
   primaryColor,
   secondaryColor,
   onComplete
 }: BrandLoadingScreenProps) {
-  const logoCandidates = useMemo(() => uniqueLogoCandidates(logoSrc), [logoSrc])
+  const logoCandidates = useMemo(
+    () => (logoSrc ? uniqueLogoCandidates(logoSrc) : []),
+    [logoSrc]
+  )
   const [logoAttempt, setLogoAttempt] = useState(0)
   const [simulatedProgress, setSimulatedProgress] = useState(0)
 
@@ -85,8 +87,9 @@ export function BrandLoadingScreen({
     setLogoAttempt(0)
   }, [logoSrc])
 
-  const displayLogoSrc =
-    logoCandidates[Math.min(logoAttempt, logoCandidates.length - 1)] ?? DEFAULT_LOGO
+  const displayLogoSrc = logoSrc
+    ? logoCandidates[Math.min(logoAttempt, logoCandidates.length - 1)] ?? FALLBACK_LOGO
+    : undefined
 
   useEffect(() => {
     if (!showProgress) return
@@ -151,24 +154,28 @@ export function BrandLoadingScreen({
         <div className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-violet-500/[0.14] via-transparent to-sky-500/[0.12] opacity-70 sm:rounded-3xl" />
 
         <div className="relative flex flex-col items-center gap-7 text-center">
-          <div className="relative flex h-[4.5rem] w-full max-w-[220px] items-center justify-center rounded-xl px-4 py-3 ring-1 ring-white/10 sm:h-[5rem] sm:max-w-[240px]">
-            <div
-              className={cn(
-                'absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500/10 via-transparent to-sky-500/10',
-                variant === 'pulse' && 'motion-safe:animate-pulse'
-              )}
-            />
-            {/* eslint-disable-next-line @next/next/no-img-element -- dynamic public paths + chained fallbacks */}
-            <img
-              src={displayLogoSrc}
-              alt="Tourify"
-              width={220}
-              height={72}
-              decoding="async"
-              fetchPriority={fullScreen ? 'high' : 'auto'}
-              onError={handleLogoError}
-              className="relative z-[1] h-12 w-auto max-w-full object-contain object-center drop-shadow-[0_0_20px_rgba(167,139,250,0.35)] sm:h-14"
-            />
+          <div className="relative flex w-full items-center justify-center">
+            {displayLogoSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element -- custom logo override paths
+              <img
+                src={displayLogoSrc}
+                alt="Tourify"
+                width={550}
+                height={180}
+                decoding="async"
+                fetchPriority={fullScreen ? 'high' : 'auto'}
+                onError={handleLogoError}
+                className="relative z-[1] h-[7.5rem] w-auto max-w-full object-contain object-center drop-shadow-[0_0_20px_rgba(167,139,250,0.35)] sm:h-[8.75rem]"
+              />
+            ) : (
+              <TourifyLogo
+                variant="white"
+                size="xl"
+                decoding="async"
+                fetchPriority={fullScreen ? 'high' : 'auto'}
+                className="relative z-[1] h-[7.5rem] w-auto max-w-full object-contain object-center drop-shadow-[0_0_20px_rgba(167,139,250,0.35)] sm:h-[8.75rem]"
+              />
+            )}
           </div>
 
           <div className="flex w-full flex-col items-center gap-3">
@@ -179,7 +186,9 @@ export function BrandLoadingScreen({
               />
               <p className="text-lg font-semibold tracking-tight text-white sm:text-xl">{heading}</p>
             </div>
-            <p className="max-w-[280px] text-sm leading-relaxed text-zinc-400 sm:max-w-xs">{subMessage}</p>
+            {subMessage ? (
+              <p className="max-w-[280px] text-sm leading-relaxed text-zinc-400 sm:max-w-xs">{subMessage}</p>
+            ) : null}
           </div>
 
           {showProgress ? (
@@ -204,7 +213,6 @@ export function BrandLoadingScreen({
             </div>
           )}
 
-          <span className="text-[0.65rem] font-medium uppercase tracking-[0.32em] text-zinc-500">Tourify</span>
         </div>
       </Card>
     </LoadingContainer>

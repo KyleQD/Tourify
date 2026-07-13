@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isArtistEventDiscoverable } from '@/lib/artist/artist-event-visibility'
 
 export async function GET(request: NextRequest) {
   try {
@@ -106,7 +107,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const legacyEvents = legacyResult.data || []
+    const legacyEvents = (legacyResult.data || []).filter(isArtistEventDiscoverable)
     const v2Events = v2Result.data || []
     const artistEvents = artistEventsResult.data || []
     const legacyIds = legacyEvents.map(event => event.id)

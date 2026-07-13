@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import {
+  assertAdminEventAccess,
+} from "@/lib/admin/admin-tour-event-access"
 
 function extractEventId(url: string): string | null {
   const segments = new URL(url).pathname.split('/')
@@ -7,9 +10,10 @@ function extractEventId(url: string): string | null {
   return idx >= 0 ? segments[idx + 1] : null
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   const eventId = extractEventId(request.url)
   if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
+  await assertAdminEventAccess({ supabase, userId: user.id, eventId })
 
   const [{ data: adv }, { data: event }] = await Promise.all([
     supabase.from('advancing_documents').select('*').eq('event_id', eventId).maybeSingle(),

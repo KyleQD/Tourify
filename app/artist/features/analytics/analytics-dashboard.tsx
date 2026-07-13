@@ -2,14 +2,18 @@
 
 import { supabase } from '@/lib/supabase'
 import React, { useState, useEffect } from "react"
+import Link from "next/link"
 import { useArtist } from "@/contexts/artist-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Music, Users, DollarSign, TrendingUp, MapPin, Clock, Heart, MessageSquare, ShoppingBag, Calendar } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Music, Users, DollarSign, TrendingUp, MapPin, Clock, Heart, MessageSquare, ShoppingBag, Calendar, AlertTriangle } from "lucide-react"
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts"
+
+const SHOW_LEGACY_MOCK_ANALYTICS = process.env.NEXT_PUBLIC_ENABLE_LEGACY_MOCK_ANALYTICS === 'true'
 
 interface AnalyticsData {
   streaming: {
@@ -76,10 +80,34 @@ export function AnalyticsDashboard() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    if (!SHOW_LEGACY_MOCK_ANALYTICS) return
     if (user) {
       loadAnalyticsData()
     }
   }, [user, timeRange])
+
+  if (!SHOW_LEGACY_MOCK_ANALYTICS) {
+    return (
+      <Card className="bg-slate-900/50 border-slate-700/50">
+        <CardHeader>
+          <CardTitle className="text-slate-200">Legacy analytics retired</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className="border-amber-500/30 bg-amber-500/10">
+            <AlertTriangle className="h-4 w-4 text-amber-300" />
+            <AlertTitle className="text-amber-200">Mock platform charts disabled</AlertTitle>
+            <AlertDescription className="text-slate-300">
+              Use Content Hub Analytics for Tourify + connected social metrics. This page used placeholder
+              platform data and is gated to avoid conflicting numbers.
+            </AlertDescription>
+          </Alert>
+          <Button asChild>
+            <Link href="/artist/content?tab=analytics">Open Content Hub Analytics</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
 
   const loadAnalyticsData = async () => {
     if (!user) return

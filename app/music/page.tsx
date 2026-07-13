@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Play, Pause } from "lucide-react"
+import { useJukeboxOptional } from "@/contexts/jukebox-context"
+import { toast } from "sonner"
 
 interface LibraryItem {
   id: string
@@ -20,6 +23,7 @@ interface LibraryItem {
     duration: number | null
     cover_art_url: string | null
     file_url: string | null
+    user_id?: string
   } | null
 }
 
@@ -38,6 +42,7 @@ interface Playlist {
 }
 
 export default function MusicPage() {
+  const jukebox = useJukeboxOptional()
   const [library, setLibrary] = useState<LibraryItem[]>([])
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("")
@@ -101,6 +106,7 @@ export default function MusicPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ musicId: trackId, createPost: true }),
     })
+    toast.success("Shared to feed")
   }
 
   async function sharePlaylist(playlistId: string) {
@@ -109,6 +115,32 @@ export default function MusicPage() {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playlistId, createPost: true }),
+    })
+    toast.success("Playlist shared")
+  }
+
+  function playLibraryTrack(item: LibraryItem) {
+    if (!jukebox || !item.artist_music?.id) {
+      toast.error("Music player is unavailable")
+      return
+    }
+
+    const trackId = item.artist_music.id
+    if (jukebox.state.currentTrack?.id === trackId && jukebox.state.isPlaying) {
+      jukebox.pause()
+      return
+    }
+
+    jukebox.play({
+      id: trackId,
+      title: item.artist_music.title || "Untitled",
+      artist_name: "Artist",
+      artist_id: item.artist_music.user_id || item.seller_user_id || undefined,
+      duration: item.artist_music.duration ?? undefined,
+      file_url: item.artist_music.file_url || `/api/music/stream?trackId=${trackId}`,
+      cover_art_url: item.artist_music.cover_art_url ?? undefined,
+      genre: item.artist_music.genre ?? undefined,
+      in_library: true,
     })
   }
 
@@ -122,7 +154,7 @@ export default function MusicPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Music Library</h1>
-          <p className="text-sm text-muted-foreground">Purchased tracks, playlists, and feed sharing</p>
+          <p className="text-sm text-muted-foreground">Saved tracks, purchases, playlists, and feed sharing</p>
         </div>
         <Badge variant="secondary">{library.length} tracks • {totalLibraryMinutes} min</Badge>
       </div>
@@ -130,38 +162,71 @@ export default function MusicPage() {
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Card>
           <CardHeader>
-            <CardTitle>Purchased tracks</CardTitle>
+              <CardTitle>Saved music</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {isLoading ? (
               <div className="text-sm text-muted-foreground">Loading music library...</div>
             ) : library.length === 0 ? (
-              <div className="text-sm text-muted-foreground">No purchased tracks yet.</div>
+              <div className="text-sm text-muted-foreground">No saved tracks yet.</div>
             ) : (
-              library.map(item => (
-                <div key={item.id} className="rounded-md border p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="font-medium">{item.artist_music?.title || "Untitled track"}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Seller {item.seller_user_id ? item.seller_user_id.slice(0, 8) : "unknown"}
-                        {item.artist_music?.genre ? ` • ${item.artist_music.genre}` : ""}
+              library.map(item => {
+                const trackId = item.artist_music?.id
+                const isCurrent =
+                  Boolean(trackId) &&
+                  jukebox?.state.currentTrack?.id === trackId
+                const isPlaying = Boolean(isCurrent && jukebox?.state.isPlaying)
+
+                return (
+                  <div key={item.id} className="rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-9 w-9 rounded-full shrink-0"
+                          onClick={() => playLibraryTrack(item)}
+                          disabled={!trackId}
+                        >
+                          {isPlaying ? (
+                            <Pause className="h-4 w-4" />
+                          ) : (
+                            <Play className="h-4 w-4 ml-0.5" />
+                          )}
+                        </Button>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{item.artist_music?.title || "Untitled track"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Seller {item.seller_user_id ? item.seller_user_id.slice(0, 8) : "unknown"}
+                            {item.artist_music?.genre ? ` • ${item.artist_music.genre}` : ""}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 flex-wrap justify-end">
+                        <Button size="sm" variant="outline" onClick={() => addTrackToPlaylist(item.music_track_id)}>
+                          Add to playlist
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => shareTrack(item.music_track_id)}>
+                          Share to feed
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            window.open(
+                              `/api/music/download?trackId=${encodeURIComponent(item.music_track_id)}`,
+                              "_blank",
+                              "noopener,noreferrer"
+                            )
+                          }}
+                        >
+                          Download
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => addTrackToPlaylist(item.music_track_id)}>
-                        Add to playlist
-                      </Button>
-                      <Button size="sm" onClick={() => shareTrack(item.music_track_id)}>
-                        Share to feed
-                      </Button>
-                    </div>
                   </div>
-                  {item.artist_music?.file_url ? (
-                    <audio className="mt-3 w-full" controls src={item.artist_music.file_url} />
-                  ) : null}
-                </div>
-              ))
+                )
+              })
             )}
           </CardContent>
         </Card>
@@ -213,7 +278,7 @@ export default function MusicPage() {
                   <div key={playlist.id} className="rounded-md border p-3">
                     <div className="font-medium">{playlist.title}</div>
                     <div className="text-xs text-muted-foreground">
-                      {playlist.visibility} • {playlist.music_playlist_items?.length || 0} tracks
+                      {playlist.music_playlist_items?.length || 0} tracks • {playlist.visibility}
                     </div>
                     <Button
                       className="mt-2"
@@ -221,7 +286,7 @@ export default function MusicPage() {
                       variant="outline"
                       onClick={() => sharePlaylist(playlist.id)}
                     >
-                      Share playlist to feed
+                      Share playlist
                     </Button>
                   </div>
                 ))

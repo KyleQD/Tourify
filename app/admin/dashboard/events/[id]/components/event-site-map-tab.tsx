@@ -69,7 +69,7 @@ export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setShowBuilder(true)}
+              onClick={() => { window.location.href = `/admin/dashboard/logistics?tab=site-maps&eventId=${eventId}` }}
               className="border-slate-600 text-slate-300 hover:bg-slate-700/50"
             >
               <ExternalLink className="h-4 w-4 mr-2" />
@@ -95,7 +95,7 @@ export function EventSiteMapTab({ eventId, eventName }: EventSiteMapTabProps) {
           </p>
         </div>
         <Button
-          onClick={() => setShowBuilder(true)}
+          onClick={() => { window.location.href = `/admin/dashboard/logistics?tab=site-maps&eventId=${eventId}` }}
           className="bg-gradient-to-r from-purple-500 to-blue-500 text-white"
         >
           <Plus className="h-4 w-4 mr-2" />

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { EnhancedSettingsLayout } from "@/components/settings/enhanced-settings-layout"
-import { AccountScopedSettings } from "@/components/settings/account-scoped-settings"
+import { ArtistSettingsClient } from "./artist-settings-client"
 
 // Prevent pre-rendering since this page requires providers
 export const dynamic = 'force-dynamic'
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function ArtistSettingsPage() {
   return (
     <EnhancedSettingsLayout>
-      <AccountScopedSettings />
+      <ArtistSettingsClient />
     </EnhancedSettingsLayout>
   )
 } 

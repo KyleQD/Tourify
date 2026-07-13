@@ -1,5 +1,7 @@
-import { EnhancedEventPage } from "@/components/events/enhanced-event-page"
+import { EnhancedEventPageLoader } from "@/components/events/enhanced-event-page-loader"
 import { createClient } from "@/lib/supabase/server"
+import { canNonOwnerViewArtistEvent } from "@/lib/artist/artist-event-visibility"
+import { enrichPublicEventPageData } from "@/lib/events/get-public-event-page"
 import { notFound } from "next/navigation"
 
 interface EventPageProps {
@@ -11,19 +13,17 @@ export default async function EventPage({ params }: EventPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Try by slug first
   let { data: event, error } = await supabase
-    .from('events')
-    .select('*')
-    .eq('slug', slug)
+    .from("events")
+    .select("*")
+    .eq("slug", slug)
     .single()
 
   if (error || !event) {
-    // Fallback: treat param as id
     const { data: byId, error: idErr } = await supabase
-      .from('events')
-      .select('*')
-      .eq('id', slug)
+      .from("events")
+      .select("*")
+      .eq("id", slug)
       .single()
 
     if (idErr || !byId) notFound()
@@ -31,7 +31,9 @@ export default async function EventPage({ params }: EventPageProps) {
   }
 
   const isOwner = !!user && event.artist_id === user.id
-  if (event.status !== "published" && !isOwner) notFound()
+  if (!isOwner && !canNonOwnerViewArtistEvent(event)) notFound()
 
-  return <EnhancedEventPage eventId={event.id} event={event} />
+  const enriched = await enrichPublicEventPageData({ supabase, event })
+
+  return <EnhancedEventPageLoader eventId={enriched.id} event={enriched} />
 }

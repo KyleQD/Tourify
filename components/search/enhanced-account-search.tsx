@@ -11,12 +11,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandList } from '@/components/ui/command'
 import { useEnhancedSearch } from '@/hooks/use-enhanced-search'
+import { resolvePublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { cn } from '@/lib/utils'
 
 interface SearchResult {
   id: string
   username: string
-  account_type: 'artist' | 'venue' | 'general'
+  account_type: 'artist' | 'venue' | 'general' | 'organization'
   profile_data?: any
   avatar_url?: string
   verified?: boolean
@@ -105,14 +106,11 @@ export function EnhancedAccountSearch({
   }
 
   const getProfilePath = (result: SearchResult): string => {
-    switch (result.account_type) {
-      case 'artist':
-        return `/profile/${result.username}`
-      case 'venue':
-        return `/profile/${result.username}`
-      default:
-        return `/profile/${result.username}`
-    }
+    return resolvePublicProfilePath({
+      id: result.id,
+      username: result.username,
+      account_type: result.account_type,
+    }) || `/profile/${result.username}`
   }
 
   const getAccountIcon = (accountType: string) => {
@@ -121,6 +119,10 @@ export function EnhancedAccountSearch({
         return <Music className="h-4 w-4 text-purple-500" />
       case 'venue':
         return <Building2 className="h-4 w-4 text-blue-500" />
+      case 'organization':
+      case 'organizer':
+      case 'admin':
+        return <Building2 className="h-4 w-4 text-amber-500" />
       default:
         return <User className="h-4 w-4 text-gray-500" />
     }
@@ -132,6 +134,10 @@ export function EnhancedAccountSearch({
         return 'Artist'
       case 'venue':
         return 'Venue'
+      case 'organization':
+      case 'organizer':
+      case 'admin':
+        return 'Organization'
       default:
         return 'User'
     }

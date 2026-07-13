@@ -1,4 +1,6 @@
 import Link from "next/link"
+
+import { AdminTourEventOperationsService } from "@/lib/admin/tour-event-operations.service"
 import { createClient } from "@/lib/supabase/server"
 import { StatusItem } from "./StatusItem"
 
@@ -14,28 +16,38 @@ async function ActiveEventsList() {
 
   try {
     const supabase = await createClient()
-    const { data } = await supabase
-      .from('events_v2')
-      .select('id, title, start_at, capacity')
-      .in('status', ['confirmed', 'published', 'active'])
-      .gte('start_at', new Date().toISOString())
-      .order('start_at', { ascending: true })
-      .limit(5)
-
-    if (data) {
-      events = data.map((ev: any) => ({
-        id: ev.id,
-        name: ev.title || 'Untitled Event',
-        ticketSalesPercentage: 0,
-        startDate: ev.start_at ? new Date(ev.start_at).toISOString().slice(0, 10) : '',
-      }))
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return <p className="text-xs text-slate-500">No upcoming events found.</p>
     }
+
+    const rows = await AdminTourEventOperationsService.listEvents({
+      supabase,
+      userId: user.id,
+      status: "all",
+    })
+
+    const now = Date.now()
+    events = (rows as Array<Record<string, unknown>>)
+      .filter((ev) => {
+        const start = typeof ev.event_date === "string" ? Date.parse(ev.event_date) : NaN
+        return Number.isFinite(start) && start >= now
+      })
+      .slice(0, 5)
+      .map((ev) => ({
+        id: String(ev.id),
+        name: String(ev.name || ev.title || "Untitled Event"),
+        ticketSalesPercentage: 0,
+        startDate:
+          typeof ev.event_date === "string" ? new Date(ev.event_date).toISOString().slice(0, 10) : "",
+      }))
   } catch {
     // Silently fail — dashboard widget should not block render
   }
 
-  if (events.length === 0)
-    return <p className="text-xs text-slate-500">No upcoming events found.</p>
+  if (events.length === 0) return <p className="text-xs text-slate-500">No upcoming events found.</p>
 
   const colors = ["purple", "pink", "blue", "green", "yellow"]
 

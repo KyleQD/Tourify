@@ -5,6 +5,7 @@ import { buildNewsFeed } from '@/lib/news/feed-service'
 import { getCachedTimeline, setCachedTimeline } from '@/lib/news/scale/timeline-cache'
 import { trackNewsFeedServed } from '@/lib/news/telemetry'
 import { createClient } from '@/lib/supabase/server'
+import type { NewsCategory } from '@/lib/news/types'
 
 function normalizeFacet(input: string | null) {
   if (input === 'following') return 'following'
@@ -15,12 +16,23 @@ function normalizeFacet(input: string | null) {
   return 'top'
 }
 
+function normalizeCategory(input: string | null): NewsCategory | undefined {
+  if (input === 'featured') return 'featured'
+  if (input === 'new-music') return 'new-music'
+  if (input === 'events') return 'events'
+  if (input === 'gossip') return 'gossip'
+  if (input === 'editorial') return 'editorial'
+  if (input === 'global') return 'global'
+  return undefined
+}
+
 export async function GET(request: NextRequest) {
   const startedAt = Date.now()
   const { searchParams } = request.nextUrl
   const rawLimit = Number(searchParams.get('limit') || '20')
   const limit = Number.isFinite(rawLimit) ? rawLimit : 20
   const facet = normalizeFacet(searchParams.get('facet'))
+  const category = normalizeCategory(searchParams.get('category'))
   const cursor = searchParams.get('cursor') || undefined
   const query = searchParams.get('query') || undefined
 
@@ -32,11 +44,12 @@ export async function GET(request: NextRequest) {
 
     let cacheHit = false
     if (shouldReadCache) {
-      const cached = getCachedTimeline({ userId, facet, query })
+      const cached = getCachedTimeline({ userId, facet, category, query })
       if (cached && cached.items.length > 0) {
         cacheHit = true
         trackNewsFeedServed({
           facet,
+          category,
           userId,
           itemCount: cached.items.length,
           latencyMs: Date.now() - startedAt,
@@ -49,6 +62,7 @@ export async function GET(request: NextRequest) {
           nextCursor: cached.nextCursor,
           meta: {
             facet,
+            category,
             sourceBreakdown: {},
             cache: 'hit'
           }
@@ -63,6 +77,7 @@ export async function GET(request: NextRequest) {
       limit,
       cursor,
       facet,
+      category,
       query
     })
 
@@ -70,6 +85,7 @@ export async function GET(request: NextRequest) {
       setCachedTimeline({
         userId,
         facet,
+        category,
         query,
         items: result.items,
         nextCursor: result.nextCursor
@@ -78,6 +94,7 @@ export async function GET(request: NextRequest) {
 
     trackNewsFeedServed({
       facet,
+      category,
       userId,
       itemCount: result.items.length,
       latencyMs: Date.now() - startedAt,
@@ -90,6 +107,7 @@ export async function GET(request: NextRequest) {
       nextCursor: result.nextCursor,
       meta: {
         facet,
+        category,
         sourceBreakdown: result.sourceBreakdown,
         cache: cacheHit ? 'hit' : 'miss'
       }

@@ -41,5 +41,29 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) =>
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  if (
+    table === 'artist_music' &&
+    (updatePayload.is_visible === false ||
+      updatePayload.moderation_status === 'flagged' ||
+      updatePayload.moderation_status === 'removed')
+  ) {
+    await Promise.allSettled([
+      supabase
+        .from('user_profile_featured_tracks')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('music_track_id', id),
+      supabase
+        .from('content_reports')
+        .update({
+          status: updatePayload.moderation_status === 'removed' ? 'resolved' : 'reviewed',
+          resolved_at: new Date().toISOString(),
+        })
+        .eq('content_type', 'music')
+        .eq('content_id', id)
+        .in('status', ['pending', 'reviewed']),
+    ])
+  }
+
   return NextResponse.json({ item: data })
 })

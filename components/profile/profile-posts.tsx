@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { supabase } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,7 +13,6 @@ import {
   MoreHorizontal,
   Send,
   Calendar,
-  Eye,
   Image as ImageIcon,
   Video,
   Music,
@@ -25,6 +23,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useAuth } from "@/contexts/auth-context"
+import { PollVoteCard } from "@/components/polls/poll-vote-card"
 
 interface Post {
   id: string
@@ -38,6 +37,7 @@ interface Post {
   created_at: string
   user_id: string
   is_liked?: boolean
+  poll?: any
   user?: {
     id: string
     username: string
@@ -64,6 +64,7 @@ interface Comment {
 interface ProfilePostsProps {
   profileId: string
   profileUsername: string
+  ownerUserId?: string | null
   isOwnProfile?: boolean
   compact?: boolean
   className?: string
@@ -72,6 +73,7 @@ interface ProfilePostsProps {
 export function ProfilePosts({ 
   profileId, 
   profileUsername, 
+  ownerUserId,
   isOwnProfile = false, 
   compact = false,
   className 
@@ -87,100 +89,60 @@ export function ProfilePosts({
 
   useEffect(() => {
     fetchPosts()
-  }, [profileId])
+  }, [profileId, ownerUserId, compact])
 
   const fetchPosts = async () => {
     try {
       setLoading(true)
-      
-      // Try to fetch posts with basic query first
-      let posts = null
-      let error = null
-      
-      try {
-        const result = await supabase
-          .from('posts')
-          .select(`
-            id,
-            user_id,
-            content,
-            type,
-            visibility,
-            likes_count,
-            comments_count,
-            shares_count,
-            created_at,
-            updated_at,
-            media_urls
-          `)
-          .eq('user_id', profileId)
-          .eq('visibility', 'public')
-          .order('created_at', { ascending: false })
-          .limit(compact ? 5 : 20)
-        
-        posts = result.data
-        error = result.error
-      } catch (initialError) {
-        console.log('Initial posts query failed, trying fallback:', initialError)
-        
-        // Fallback to even simpler query
-        try {
-          const result = await supabase
-            .from('posts')
-            .select('*')
-            .eq('user_id', profileId)
-            .order('created_at', { ascending: false })
-            .limit(compact ? 5 : 20)
-          
-          posts = result.data
-          error = result.error
-        } catch (fallbackError) {
-          console.error('Both posts queries failed:', fallbackError)
-          posts = []
-          error = fallbackError
-        }
+
+      const params = new URLSearchParams({
+        type: 'user',
+        profile_id: profileId,
+        limit: compact ? '5' : '20',
+      })
+      if (ownerUserId) {
+        params.set('user_id', ownerUserId)
       }
 
-      if (error) {
-        console.error('Error fetching posts:', error)
+      const response = await fetch(`/api/feed/posts?${params.toString()}`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        console.error('Error fetching profile posts:', response.status)
         setPosts([])
-      } else {
-        console.log(`✅ Loaded ${posts?.length || 0} posts for profile ${profileUsername}`)
-        
-        // Transform posts to match expected format
-        const transformedPosts = posts?.map((post: any) => {
-          // Safely extract media URL
-          let media_url = null
-          if (post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0) {
-            media_url = post.media_urls[0]
-          } else if (post.media_url) {
-            media_url = post.media_url
-          }
-
-          return {
-            id: post.id,
-            content: post.content || '',
-            type: post.type || post.post_type || 'text',
-            visibility: post.visibility || 'public',
-            media_url,
-            likes_count: post.likes_count || 0,
-            comments_count: post.comments_count || 0,
-            shares_count: post.shares_count || 0,
-            created_at: post.created_at,
-            user_id: post.user_id,
-            is_liked: false, // We'll check this separately if needed
-            user: {
-              id: profileId,
-              username: profileUsername,
-              full_name: profileUsername,
-              avatar_url: '',
-              is_verified: false
-            }
-          }
-        }) || []
-        
-        setPosts(transformedPosts)
+        return
       }
+
+      const result = await response.json()
+      const posts = result.data || result.posts || []
+
+      const transformedPosts = posts.map((post: any) => ({
+        id: post.id,
+        content: post.content || '',
+        type: post.type || post.post_type || 'text',
+        visibility: post.visibility || 'public',
+        media_url:
+          Array.isArray(post.media_urls) && post.media_urls.length > 0
+            ? post.media_urls[0]
+            : post.media_url || null,
+        likes_count: post.likes_count || 0,
+        comments_count: post.comments_count || 0,
+        shares_count: post.shares_count || 0,
+        created_at: post.created_at,
+        user_id: post.user_id,
+        is_liked: Boolean(post.is_liked),
+        poll: post.poll || null,
+        user: {
+          id: post.profiles?.id || profileId,
+          username: post.profiles?.username || profileUsername,
+          full_name: post.profiles?.full_name || profileUsername,
+          avatar_url: post.profiles?.avatar_url || '',
+          is_verified: Boolean(post.profiles?.is_verified),
+        },
+      }))
+
+      setPosts(transformedPosts)
     } catch (error) {
       console.error('Error in fetchPosts:', error)
       setPosts([])
@@ -423,11 +385,13 @@ export function ProfilePosts({
 
             {/* Post Content */}
             <div className="space-y-3">
-              {post.content && (
+              {post.type === 'poll' && post.poll ? (
+                <PollVoteCard postId={post.id} poll={post.poll} />
+              ) : post.content ? (
                 <p className="text-white/90 leading-relaxed">{post.content}</p>
-              )}
+              ) : null}
               
-              {post.media_url && (
+              {post.media_url && post.type !== 'poll' && (
                 <div className="rounded-xl overflow-hidden bg-white/5">
                   {post.type === 'image' && (
                     <img 
@@ -489,11 +453,6 @@ export function ProfilePosts({
                   {post.shares_count}
                 </Button>
               </div>
-
-              <span className="text-xs text-white/40">
-                <Eye className="h-3 w-3 inline mr-1" />
-                {Math.floor(Math.random() * 1000)} views
-              </span>
             </div>
 
             {/* Comments Section */}

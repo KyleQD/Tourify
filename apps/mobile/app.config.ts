@@ -59,6 +59,13 @@ const appConfig: ExpoConfig = {
     "expo-router",
     "expo-asset",
     [
+      "expo-audio",
+      {
+        enableBackgroundPlayback: true,
+        enableBackgroundRecording: false
+      }
+    ],
+    [
       "expo-location",
       {
         locationWhenInUsePermission: "Tourify uses your location to personalize discover results."

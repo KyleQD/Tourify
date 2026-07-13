@@ -40,7 +40,7 @@ export function VenueTeamAccessCard({ venueId }: VenueTeamAccessCardProps) {
     if (!venueId) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/team-members?venue_id=${encodeURIComponent(venueId)}`, {
+      const res = await fetch(`/api/venue/team?venue_id=${encodeURIComponent(venueId)}`, {
         credentials: "include",
       })
       const json = await res.json()
@@ -69,7 +69,7 @@ export function VenueTeamAccessCard({ venueId }: VenueTeamAccessCardProps) {
     }
     setSaving(true)
     try {
-      const res = await fetch("/api/admin/team-members", {
+      const res = await fetch("/api/venue/team", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +102,7 @@ export function VenueTeamAccessCard({ venueId }: VenueTeamAccessCardProps) {
     if (!confirm("Remove this venue team member?")) return
     setRemovingId(id)
     try {
-      const res = await fetch(`/api/admin/team-members?id=${encodeURIComponent(id)}`, {
+      const res = await fetch(`/api/venue/team?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
         credentials: "include",
       })

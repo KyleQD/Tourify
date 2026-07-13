@@ -1,5 +1,12 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
+import {
+  getTrackFullStoragePath,
+  getTrackStorageBucket,
+  isTrackPubliclyPlayable,
+  recordMusicEvent,
+  syncMusicStats,
+} from "@/lib/music/music-access"
 
 export const dynamic = "force-dynamic"
 
@@ -20,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const { data: track, error: trackError } = await supabase
       .from("artist_music")
-      .select("id, file_url, user_id, title, allow_downloads, stats")
+      .select("id, storage_bucket, storage_path, file_url, user_id, title, allow_downloads, is_public, is_visible, moderation_status, rights_confirmed, stats")
       .eq("id", trackId)
       .single()
 
@@ -31,6 +38,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Downloads are not enabled for this track" }, { status: 403 })
 
     const isOwner = user.id === track.user_id
+    if (!isOwner && !isTrackPubliclyPlayable(track))
+      return NextResponse.json({ error: "Track is not available" }, { status: 403 })
     if (!isOwner) {
       const { data: libraryEntry } = await supabase
         .from("user_music_library")
@@ -46,15 +55,12 @@ export async function GET(request: NextRequest) {
         )
     }
 
-    if (!track.file_url)
-      return NextResponse.json({ error: "No audio file available" }, { status: 404 })
-
-    const storagePath = extractStoragePath(track.file_url)
+    const storagePath = getTrackFullStoragePath(track)
     if (!storagePath)
       return NextResponse.json({ error: "Unable to resolve download" }, { status: 500 })
 
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from("artist-music")
+      .from(getTrackStorageBucket(track, "full"))
       .createSignedUrl(storagePath, 300, {
         download: `${sanitizeFilename(track.title)}.mp3`,
       })
@@ -62,11 +68,16 @@ export async function GET(request: NextRequest) {
     if (signedUrlError || !signedUrlData?.signedUrl)
       return NextResponse.json({ error: "Unable to generate download link" }, { status: 500 })
 
-    const currentStats = (track.stats && typeof track.stats === "object") ? track.stats as Record<string, number> : {}
-    await supabase
-      .from("artist_music")
-      .update({ stats: { ...currentStats, downloads: (currentStats.downloads || 0) + 1 } })
-      .eq("id", trackId)
+    await recordMusicEvent({
+      supabase,
+      musicId: trackId,
+      artistUserId: track.user_id,
+      actorUserId: user.id,
+      eventType: "download",
+      accessLevel: "full",
+      source: "api_music_download",
+    })
+    await syncMusicStats(supabase, trackId)
 
     return NextResponse.json({
       url: signedUrlData.signedUrl,
@@ -77,17 +88,6 @@ export async function GET(request: NextRequest) {
     console.error("Download API error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-}
-
-function extractStoragePath(fileUrl: string): string | null {
-  try {
-    const url = new URL(fileUrl)
-    const match = url.pathname.match(
-      /\/storage\/v1\/object\/(?:public|sign)\/artist-music\/(.+)/
-    )
-    if (match?.[1]) return decodeURIComponent(match[1])
-  } catch {}
-  return null
 }
 
 function sanitizeFilename(name: string): string {

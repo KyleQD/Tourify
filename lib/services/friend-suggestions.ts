@@ -130,7 +130,8 @@ export class FriendSuggestionService {
           is_verified,
           followers_count,
           following_count,
-          created_at
+          created_at,
+          account_type
         )
       `)
       .in('follower_id', await this.getUserFollowingIds(userId))
@@ -187,7 +188,8 @@ export class FriendSuggestionService {
         is_verified,
         followers_count,
         following_count,
-        created_at
+        created_at,
+        account_type
       `)
       .not('id', 'in', `(${excludedIds.join(',')})`)
       .not('username', 'is', null)
@@ -228,7 +230,8 @@ export class FriendSuggestionService {
         is_verified,
         followers_count,
         following_count,
-        created_at
+        created_at,
+        account_type
       `)
       .not('id', 'in', `(${excludedIds.join(',')})`)
       .not('username', 'is', null)
@@ -286,7 +289,8 @@ export class FriendSuggestionService {
         is_verified,
         followers_count,
         following_count,
-        created_at
+        created_at,
+        account_type
       `)
       .not('id', 'in', `(${excludedIds.join(',')})`)
       .not('username', 'is', null)

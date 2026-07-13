@@ -1,36 +1,21 @@
 "use client"
 
-import { useState, useTransition } from 'react'
-import { createOrganizationAction } from '@/app/orgs/_actions/org-actions'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
+/** Canonical org create lives at /create?type=organization (public brand + ops tenant). */
 export default function CreateOrgPage() {
-  const [name, setName] = useState("")
-  const [isPending, startTransition] = useTransition()
-  const [message, setMessage] = useState<string | null>(null)
+  const router = useRouter()
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setMessage(null)
-    startTransition(async () => {
-      const res = await createOrganizationAction({ name })
-      if (res.data?.ok) {
-        window.location.href = '/dashboard'
-      } else setMessage('Failed to create organization')
-    })
-  }
+  useEffect(() => {
+    router.replace('/create?type=organization')
+  }, [router])
 
   return (
-    <div className="max-w-md mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-semibold text-white">Create Organization</h1>
-      <form onSubmit={onSubmit} className="space-y-3">
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Organization name" />
-        <Button disabled={isPending || !name.trim()} type="submit">{isPending ? 'Creating…' : 'Create'}</Button>
-      </form>
-      {message && <div className="text-red-400 text-sm">{message}</div>}
+    <div className="flex min-h-[40vh] items-center justify-center p-6 text-white/80">
+      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+      Redirecting to organization setup…
     </div>
   )
 }
-
-

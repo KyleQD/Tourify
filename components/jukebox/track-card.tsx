@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -25,17 +25,36 @@ import {
   User,
   Plus,
   Flag,
+  BookmarkPlus,
+  BookmarkCheck,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useJukebox, type JukeboxTrack } from "@/contexts/jukebox-context"
 import {
-  toggleLike,
-  checkLikeStatus,
   addTrackToPlaylist,
+  addTrackToLibrary,
   shareTrack,
   type JukeboxPlaylist,
 } from "@/lib/services/jukebox.service"
+import { useTrackSocialState } from "@/components/jukebox/player-actions"
+import { setCachedSocialStatus } from "@/lib/jukebox/track-social-cache"
+import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 import { toast } from "sonner"
+
+function toastApiError(error: unknown, fallback: string) {
+  if (typeof error === "string" && error.trim()) {
+    toast.error(error)
+    return
+  }
+  if (error && typeof error === "object") {
+    const record = error as Record<string, unknown>
+    if (typeof record.message === "string" && record.message.trim()) {
+      toast.error(record.message)
+      return
+    }
+  }
+  toast.error(fallback)
+}
 
 interface TrackCardProps {
   track: JukeboxTrack
@@ -57,16 +76,17 @@ export function TrackCard({
   className,
 }: TrackCardProps) {
   const { state, play, pause, addToQueue } = useJukebox()
-  const [isLiked, setIsLiked] = useState(false)
-  const [isLikeLoading, setIsLikeLoading] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    checkLikeStatus(track.id).then((liked) => {
-      if (!cancelled) setIsLiked(liked)
-    })
-    return () => { cancelled = true }
-  }, [track.id])
+  const {
+    isLiked,
+    inLibrary,
+    isLikeLoading,
+    isLibraryLoading,
+    handleLike,
+    handleAddToLibrary,
+  } = useTrackSocialState({
+    trackId: track.id,
+    initialInLibrary: Boolean(track.in_library),
+  })
 
   const isCurrentTrack = state.currentTrack?.id === track.id
   const isPlaying = isCurrentTrack && state.isPlaying
@@ -83,28 +103,29 @@ export function TrackCard({
     else play(track)
   }, [isPlaying, play, pause, track])
 
-  const handleLike = useCallback(async () => {
-    if (isLikeLoading) return
-    setIsLikeLoading(true)
-    const result = await toggleLike(track.id)
-    if (result) {
-      setIsLiked(result.liked)
-      toast.success(result.liked ? "Added to likes" : "Removed from likes")
-    }
-    setIsLikeLoading(false)
-  }, [track.id, isLikeLoading])
-
   const handleAddToPlaylist = useCallback(
     async (playlistId: string) => {
+      if (!inLibrary) {
+        const libraryResult = await addTrackToLibrary(track.id)
+        if (!libraryResult.ok) {
+          toast.error(
+            typeof libraryResult.message === "string"
+              ? libraryResult.message
+              : "Track must be in your library to add to playlist"
+          )
+          return
+        }
+        setCachedSocialStatus(track.id, { inLibrary: true })
+      }
       const ok = await addTrackToPlaylist(playlistId, track.id)
       if (ok) {
         toast.success("Added to playlist")
         onPlaylistUpdated?.()
       } else {
-        toast.error("Track must be in your library to add to playlist")
+        toast.error("Failed to add to playlist")
       }
     },
-    [track.id, onPlaylistUpdated]
+    [track.id, onPlaylistUpdated, inLibrary]
   )
 
   const handleShare = useCallback(async () => {
@@ -143,17 +164,12 @@ export function TrackCard({
           </span>
         )}
 
-        {track.cover_art_url ? (
-          <img
-            src={track.cover_art_url}
-            alt=""
-            className="h-10 w-10 rounded object-cover flex-shrink-0"
-          />
-        ) : (
-          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded bg-gradient-to-br from-purple-600 to-pink-600">
-            <Play className="h-4 w-4 text-white" />
-          </div>
-        )}
+        <TrackCoverImage
+          src={track.cover_art_url}
+          trackId={track.id}
+          className="h-10 w-10 rounded"
+          iconClassName="h-4 w-4"
+        />
 
         <div className="flex-1 min-w-0">
           <p
@@ -208,17 +224,12 @@ export function TrackCard({
         onClick={handlePlayPause}
         className="relative flex-shrink-0"
       >
-        {track.cover_art_url ? (
-          <img
-            src={track.cover_art_url}
-            alt=""
-            className="h-14 w-14 rounded-lg object-cover"
-          />
-        ) : (
-          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-gradient-to-br from-purple-600 to-pink-600">
-            <Play className="h-6 w-6 text-white" />
-          </div>
-        )}
+        <TrackCoverImage
+          src={track.cover_art_url}
+          trackId={track.id}
+          className="h-14 w-14 rounded-lg"
+          iconClassName="h-6 w-6"
+        />
         <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
           {isPlaying ? (
             <Pause className="h-6 w-6 text-white" />
@@ -273,7 +284,22 @@ export function TrackCard({
           />
         </Button>
 
-        {track.listing_id && !track.in_library && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 w-8"
+          onClick={handleAddToLibrary}
+          disabled={isLibraryLoading || inLibrary}
+          aria-label={inLibrary ? "In library" : "Add to library"}
+        >
+          {inLibrary ? (
+            <BookmarkCheck className="h-4 w-4 text-purple-400" />
+          ) : (
+            <BookmarkPlus className="h-4 w-4 text-slate-400" />
+          )}
+        </Button>
+
+        {track.listing_id && !inLibrary && (
           <Button
             variant="ghost"
             size="sm"
@@ -286,7 +312,7 @@ export function TrackCard({
           </Button>
         )}
 
-        {track.in_library && track.allow_downloads && (
+        {inLibrary && track.allow_downloads && (
           <Button
             variant="ghost"
             size="sm"
@@ -299,7 +325,7 @@ export function TrackCard({
                 )
                 if (!res.ok) {
                   const body = await res.json()
-                  toast.error(body.error || "Download failed")
+                  toastApiError(body.error ?? body, "Download failed")
                   return
                 }
                 const { url } = await res.json()
@@ -324,6 +350,16 @@ export function TrackCard({
               <Plus className="mr-2 h-4 w-4" />
               Add to queue
             </DropdownMenuItem>
+
+            {!inLibrary ? (
+              <DropdownMenuItem
+                onClick={handleAddToLibrary}
+                disabled={isLibraryLoading}
+              >
+                <BookmarkPlus className="mr-2 h-4 w-4" />
+                Add to library
+              </DropdownMenuItem>
+            ) : null}
 
             {playlists.length > 0 && (
               <DropdownMenuSub>
@@ -377,8 +413,8 @@ export function TrackCard({
                     }),
                   })
                   const data = await res.json()
-                  if (res.ok) toast.success(data.message || "Report submitted")
-                  else toast.error(data.error || "Failed to submit report")
+                  if (res.ok) toast.success(typeof data.message === "string" ? data.message : "Report submitted")
+                  else toastApiError(data.error ?? data, "Failed to submit report")
                 } catch {
                   toast.error("Failed to submit report")
                 }

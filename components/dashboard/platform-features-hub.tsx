@@ -162,7 +162,7 @@ export function PlatformFeaturesHub() {
       description: 'Share and discover content',
       icon: Share2,
       category: 'social',
-      href: '/feed',
+      href: '/community',
       accountTypes: ['general', 'artist', 'venue'],
       isUsed: true,
       progress: 75

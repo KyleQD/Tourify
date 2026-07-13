@@ -1,28 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { buildUniqueEventSlug } from '../_lib/events-v2-admin'
-
-async function resolveOrgId(
-  supabase: { from: (t: string) => any },
-  userId: string,
-  tourId?: string | null,
-): Promise<string | null> {
-  if (tourId) {
-    const { data: tour } = await supabase
-      .from('tours')
-      .select('org_id')
-      .eq('id', tourId)
-      .maybeSingle()
-    if (tour?.org_id) return tour.org_id as string
-  }
-  const { data: membership } = await supabase
-    .from('org_members')
-    .select('org_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle()
-  return membership?.org_id ?? null
-}
+import { ensureAdminOrgScope, verifyEventsV2Row } from '../_lib/admin-event-persistence'
 
 function combineDateTimeToIso(date?: string, time?: string): string {
   if (!date?.trim()) return new Date().toISOString()
@@ -90,13 +69,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const orgId = await resolveOrgId(auth.supabase, auth.user.id, plannerData.tour_id)
-    if (!orgId) {
-      return NextResponse.json(
-        { error: 'No organization found for user. Please set up your organizer account first.' },
-        { status: 400 },
-      )
-    }
+    const orgId = await ensureAdminOrgScope(auth.supabase, auth.user.id, plannerData.tour_id)
 
     const title = (plannerData.name || plannerData.title || '').trim()
     if (!title) {
@@ -138,7 +111,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      return NextResponse.json({ event: data })
+      if (!data?.id) {
+        return NextResponse.json({ error: 'Failed to update verified planner draft' }, { status: 500 })
+      }
+
+      const verifiedEvent = await verifyEventsV2Row(auth.supabase, data.id, auth.user.id)
+      return NextResponse.json({ event: verifiedEvent })
     }
 
     // Create new draft event
@@ -171,9 +149,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    return NextResponse.json({ event: data }, { status: 201 })
+    if (!data?.id) {
+      return NextResponse.json({ error: 'Failed to create verified planner draft' }, { status: 500 })
+    }
+
+    const verifiedEvent = await verifyEventsV2Row(auth.supabase, data.id, auth.user.id)
+    return NextResponse.json({ event: verifiedEvent }, { status: 201 })
   } catch (error: any) {
     console.error('[Event Planner] POST exception:', error)
-    return NextResponse.json({ error: 'Failed to process event request' }, { status: 500 })
+    return NextResponse.json({ error: error.message || 'Failed to process event request' }, { status: 500 })
   }
 }

@@ -65,6 +65,7 @@ export class TicketingService {
     share_source?: string
     share_platform?: string
     social_media_share?: boolean
+    terms_accepted?: boolean
   }) {
     try {
       const response = await fetch('/api/ticketing/enhanced', {

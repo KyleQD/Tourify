@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 import type { CreateZoneRequest, UpdateZoneRequest } from '@/types/site-map'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id: siteMapId } = await params
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
 
     const { data, error } = await supabase
       .from('site_map_zones')
@@ -49,14 +55,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Name and zone type are required' }, { status: 400 })
     }
 
-    // Check if user can edit this site map
-    const canEdit = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canEdit.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     const payload = {
@@ -78,7 +80,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       internet_available: body.internetAvailable || false,
       description: body.description || null,
       notes: body.notes || null,
-      tags: body.tags || []
+      tags: body.tags || [],
+      lead_user_id: (body as any).leadUserId || (body as any).lead_user_id || null,
+      assigned_department: (body as any).assignedDepartment || (body as any).assigned_department || null,
     }
 
     const { data, error } = await supabase
@@ -91,6 +95,31 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       .single()
 
     if (error) throw error
+
+    // Bridge to canonical event_zones when map is event-scoped
+    try {
+      const { data: siteMap } = await supabase
+        .from('site_maps')
+        .select('event_id')
+        .eq('id', siteMapId)
+        .maybeSingle()
+
+      if (siteMap?.event_id) {
+        const { resolveOrCreateEventZone, linkLegacyZone } = await import('@/lib/zones/event-zones')
+        const eventZone = await resolveOrCreateEventZone(supabase, {
+          eventId: siteMap.event_id,
+          name: data.name,
+          zoneType: data.zone_type,
+          capacity: data.capacity,
+          supervisorId: data.lead_user_id || null,
+          category: 'physical',
+        })
+        await linkLegacyZone(supabase, 'site_map_zones', data.id, eventZone.id)
+        data.event_zone_id = eventZone.id
+      }
+    } catch (bridgeError) {
+      console.warn('[Site Map Zones API] event_zones bridge failed:', bridgeError)
+    }
 
     // Log activity
     await supabase

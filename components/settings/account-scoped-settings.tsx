@@ -1,6 +1,7 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -30,17 +31,30 @@ import { GeneralAccountSettings } from './general-account-settings'
 import { ArtistAccountSettings } from './artist-account-settings'
 import { VenueAccountSettings } from './venue-account-settings'
 import { AdminAccountSettings } from './admin-account-settings'
+import { OrganizationAccountSettings } from './organization-account-settings'
 import { AccountManagementSettings } from './account-management-settings'
+import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
+import {
+  accountTypeMatchesSection,
+  getRequiredAccountTypeForPathname,
+} from '@/lib/navigation/account-dashboard-routes'
 
 interface AccountScopedSettingsProps {
   className?: string
 }
 
 export function AccountScopedSettings({ className = '' }: AccountScopedSettingsProps) {
-  const { currentAccount, userAccounts, isLoading } = useMultiAccount()
+  const pathname = usePathname()
+  const { currentAccount, isLoading } = useMultiAccount()
   const [activeTab, setActiveTab] = useState('profile')
+  const requiredAccountType = getRequiredAccountTypeForPathname(pathname)
+  const isResolvingSectionAccount = Boolean(
+    requiredAccountType &&
+      currentAccount &&
+      !accountTypeMatchesSection(currentAccount.account_type, requiredAccountType)
+  )
 
-  if (isLoading) {
+  if (isLoading || isResolvingSectionAccount) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
@@ -61,39 +75,38 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
   }
 
   const getAccountIcon = (accountType: string) => {
+    if (isOrganizationType(accountType))
+      return <Shield className="h-5 w-5 text-amber-400" />
     switch (accountType) {
       case 'artist':
         return <Music className="h-5 w-5 text-purple-400" />
       case 'venue':
         return <Building className="h-5 w-5 text-green-400" />
-      case 'admin':
-        return <Shield className="h-5 w-5 text-red-400" />
       default:
         return <User className="h-5 w-5 text-blue-400" />
     }
   }
 
   const getAccountLabel = (accountType: string) => {
+    if (isOrganizationType(accountType)) return 'Organization Account'
     switch (accountType) {
       case 'artist':
         return 'Artist Account'
       case 'venue':
         return 'Venue Account'
-      case 'admin':
-        return 'Admin Account'
       default:
         return 'Personal Account'
     }
   }
 
   const getAccountColor = (accountType: string) => {
+    if (isOrganizationType(accountType))
+      return 'bg-amber-500/20 text-amber-300 border-amber-500/30'
     switch (accountType) {
       case 'artist':
         return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
       case 'venue':
         return 'bg-green-500/20 text-green-300 border-green-500/30'
-      case 'admin':
-        return 'bg-red-500/20 text-red-300 border-red-500/30'
       default:
         return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
     }
@@ -134,6 +147,24 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
     ]
 
     // Add account-specific tabs
+    if (isOrganizationType(accountType)) {
+      return [
+        ...baseTabs,
+        {
+          value: 'team',
+          label: 'Team',
+          icon: Users,
+          description: 'Tour managers & artist roster'
+        },
+        {
+          value: 'public',
+          label: 'Public page',
+          icon: Globe,
+          description: 'Visibility & public profile link'
+        }
+      ]
+    }
+
     switch (accountType) {
       case 'artist':
         return [
@@ -179,28 +210,6 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
             description: 'Payment methods & billing'
           }
         ]
-      case 'admin':
-        return [
-          ...baseTabs,
-          {
-            value: 'system',
-            label: 'System',
-            icon: Settings,
-            description: 'Platform administration'
-          },
-          {
-            value: 'moderation',
-            label: 'Moderation',
-            icon: Shield,
-            description: 'Content moderation tools'
-          },
-          {
-            value: 'analytics',
-            label: 'Analytics',
-            icon: Zap,
-            description: 'Platform analytics'
-          }
-        ]
       default:
         return baseTabs
     }
@@ -210,6 +219,10 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
     // Account Management is available for all account types
     if (tabValue === 'accounts') {
       return <AccountManagementSettings activeTab={tabValue} />
+    }
+
+    if (isOrganizationType(accountType)) {
+      return <OrganizationAccountSettings activeTab={tabValue} />
     }
     
     switch (accountType) {
@@ -225,6 +238,7 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
   }
 
   const settingsTabs = getSettingsTabs(currentAccount.account_type)
+  const displayType = normalizeAccountType(currentAccount.account_type)
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -241,18 +255,18 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
                   {getAccountLabel(currentAccount.account_type)} Settings
                 </h3>
                 <p className="text-gray-400 text-sm mt-1">
-                  Manage your {currentAccount.account_type} account preferences and configuration
+                  Manage your {displayType} account preferences and configuration
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Badge className={getAccountColor(currentAccount.account_type)}>
-                {currentAccount.account_type.charAt(0).toUpperCase() + currentAccount.account_type.slice(1)}
+                {displayType.charAt(0).toUpperCase() + displayType.slice(1)}
               </Badge>
-              {currentAccount.account_type === 'admin' && (
+              {isOrganizationType(currentAccount.account_type) && (
                 <Badge className="bg-yellow-500/20 text-yellow-300 border-yellow-500/30">
                   <Sparkles className="h-3 w-3 mr-1" />
-                  Privileged
+                  Work Mode
                 </Badge>
               )}
             </div>

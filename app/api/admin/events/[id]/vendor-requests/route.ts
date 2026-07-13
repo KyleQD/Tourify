@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import {
+  assertAdminEventAccess,
+} from "@/lib/admin/admin-tour-event-access"
 
 export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
@@ -7,6 +10,9 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     const parts = pathname.split('/')
     const idIndex = parts.findIndex(p => p === 'events') + 1
     const eventId = parts[idIndex]
+    if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
+    await assertAdminEventAccess({ supabase, userId: user.id, eventId })
+
     const isEntityRbacEnabled = process.env.FEATURE_ENTITY_RBAC === '1'
 
     if (isEntityRbacEnabled && eventId && user?.id) {

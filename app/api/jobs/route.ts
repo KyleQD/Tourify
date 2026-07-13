@@ -156,8 +156,13 @@ export async function GET(request: NextRequest) {
     if (mergeUnified) {
       const aItems = (artistJobs || []).map((r) => mapArtistJobToUnified(r))
       const vItems = (staffPostings || []).map((r) => mapVenueTemplateToUnified(r))
-      const merged = mergeUnifiedJobsByDate(aItems, vItems)
-      unified_total = merged.length
+      // Self-heal: never emit rows that can't resolve to a real detail route.
+      const merged = mergeUnifiedJobsByDate(aItems, vItems).filter(
+        (item) => Boolean(item.id) && Boolean(item.title)
+      )
+      // Real combined total from DB-level counts (not the capped in-memory window),
+      // so client pagination/has_next is accurate.
+      unified_total = (artistCount ?? 0) + (staffCount ?? 0)
       unified = merged.slice(from, to + 1)
     }
 

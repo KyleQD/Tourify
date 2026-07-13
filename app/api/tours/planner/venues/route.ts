@@ -60,48 +60,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     if (error) {
       console.error('[Tour Planner Venues API] Error fetching venues:', error)
       if (error.code === '42P01') {
-        // Table doesn't exist, return mock data
-        return NextResponse.json({
-          venues: [
-            {
-              id: 'venue-1',
-              venue_name: 'The Grand Theater',
-              description: 'Historic theater with excellent acoustics',
-              address: '123 Main St',
-              city: 'Los Angeles',
-              state: 'CA',
-              country: 'USA',
-              capacity: 2500,
-              venue_types: ['Theater', 'Concert Hall'],
-              contact_info: { email: 'booking@grandtheater.com', phone: '(555) 123-4567' }
-            },
-            {
-              id: 'venue-2',
-              venue_name: 'Riverside Amphitheater',
-              description: 'Outdoor amphitheater with scenic views',
-              address: '456 River Rd',
-              city: 'Austin',
-              state: 'TX',
-              country: 'USA',
-              capacity: 8000,
-              venue_types: ['Outdoor', 'Amphitheater'],
-              contact_info: { email: 'events@riverside.com', phone: '(555) 987-6543' }
-            },
-            {
-              id: 'venue-3',
-              venue_name: 'Downtown Arena',
-              description: 'Modern arena with state-of-the-art facilities',
-              address: '789 Arena Blvd',
-              city: 'Nashville',
-              state: 'TN',
-              country: 'USA',
-              capacity: 15000,
-              venue_types: ['Arena', 'Sports'],
-              contact_info: { email: 'bookings@downtownarena.com', phone: '(555) 456-7890' }
-            }
-          ],
-          total: 3
-        })
+        return NextResponse.json({ venues: [], total: 0, error: 'venue_profiles table unavailable' })
       }
       return NextResponse.json({ error: 'Failed to fetch venues' }, { status: 500 })
     }

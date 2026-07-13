@@ -140,7 +140,7 @@ export function TourifyHubPage() {
   const pulseTickerLoop = [...pulseTicker, ...pulseTicker]
   const heroSubtitle = useMemo(() => {
     if (appliedLocation) return `Connected live signals near ${appliedLocation}.`
-    return "One command center for Discover, Pulse, Events, Jobs, and your profile network."
+    return "One command center for Discover, News, Events, Jobs, and your profile network."
   }, [appliedLocation])
 
   if (loading) {
@@ -204,7 +204,7 @@ export function TourifyHubPage() {
                   <Link href="/discover">Features</Link>
                 </Button>
                 <Button asChild variant="ghost" className="text-slate-200 hover:bg-white/10 hover:text-white">
-                  <Link href="/feed">Pulse</Link>
+                  <Link href="/news">News</Link>
                 </Button>
                 <Button asChild className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/30">
                   <Link href="/login?tab=signup">Sign Up Free</Link>
@@ -248,7 +248,7 @@ export function TourifyHubPage() {
                 </Button>
               ) : (
                 <Button asChild variant="outline" className="border-white/20 bg-white/5 text-slate-100 hover:bg-white/10">
-                  <Link href="/feed">Open Pulse</Link>
+                  <Link href="/news">Open News</Link>
                 </Button>
               )}
             </div>
@@ -335,7 +335,7 @@ export function TourifyHubPage() {
           </section>
 
           <section className="space-y-4 xl:col-span-1">
-            <SectionTitle label="Pulse" href="/feed" />
+            <SectionTitle label="News" href="/news" />
             {(sectionData?.pulse || []).map((item, index) => (
               <SurfaceCard key={item.id} className="overflow-hidden" style={{ clipPath: SHARD_CLIP_PATHS[index % SHARD_CLIP_PATHS.length] }}>
                 <CardHeader className="pb-2">
@@ -357,7 +357,7 @@ export function TourifyHubPage() {
               </SurfaceCard>
             ))}
             {!isLoadingHub && !(sectionData?.pulse || []).length ? (
-              <EmptyShard message="No pulse stories loaded right now." />
+              <EmptyShard message="No news stories loaded right now." />
             ) : null}
           </section>
 
@@ -394,7 +394,7 @@ export function TourifyHubPage() {
         {!user ? (
           <div className="grid gap-4 md:grid-cols-3">
             <ConversionShard title="Go Live Fast" value="12 min" detail="Average setup from signup to complete 2026-ready profile." />
-            <ConversionShard title="Stay Visible" value="24/7" detail="Continuous Pulse and Discover signal updates." />
+            <ConversionShard title="Stay Visible" value="24/7" detail="Continuous News and Discover signal updates." />
             <ConversionShard title="Book Smarter" value="50K+" detail="Verified professionals and venues in the live network." />
           </div>
         ) : null}
@@ -441,7 +441,7 @@ export function TourifyHubPage() {
         ) : null}
 
         <div className="rounded-2xl border border-white/20 bg-white/10 px-4 py-3 text-center text-xs text-slate-300 backdrop-blur-2xl">
-          <span className="font-semibold text-white">2026 Tourify Live Network</span> — Freshly ranked signals from Discover, Pulse, and Jobs.
+          <span className="font-semibold text-white">2026 Tourify Live Network</span> - Freshly ranked signals from Discover, News, and Jobs.
         </div>
       </div>
 

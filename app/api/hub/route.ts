@@ -156,7 +156,7 @@ export async function GET(request: NextRequest) {
       jobs: openJobs.slice(0, 4),
       quickLinks: [
         { id: 'discover', label: 'Discover', href: '/discover' },
-        { id: 'pulse', label: 'Pulse', href: '/feed' },
+        { id: 'pulse', label: 'News', href: '/news' },
         { id: 'events', label: 'Events', href: '/events' },
         { id: 'jobs', label: 'Jobs', href: '/jobs' },
         { id: 'profile', label: 'Profile', href: '/profile' },

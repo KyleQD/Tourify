@@ -17,53 +17,22 @@ import { QuickPostCreator } from '@/components/dashboard/quick-post-creator'
 import { UnifiedActivityFeed } from '@/components/dashboard/unified-activity-feed'
 import { EnhancedQuickActions } from '@/components/dashboard/enhanced-quick-actions'
 import { DashboardContractsCard } from '@/components/dashboard/dashboard-contracts-card'
-import { getGeneralPublicProfilePath } from '@/lib/utils/public-profile-routes'
-import { DashboardService } from '@/lib/services/dashboard.service'
+import { DashboardUpcomingEventsCard } from '@/components/dashboard/dashboard-upcoming-events-card'
+import { JukeboxPlayer } from '@/components/dashboard/jukebox-player'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import { toast } from 'sonner'
 import {
   User,
-  Calendar,
   Award,
   Users,
   Star,
   CheckCircle,
   ExternalLink,
-  Share,
   Target,
   TrendingUp,
   Clock,
-  Eye,
-  Heart,
-  BarChart3,
-  ArrowRight,
-  Activity,
   ChevronRight,
-  Briefcase,
 } from 'lucide-react'
-
-interface DashboardData {
-  stats: {
-    likes: number
-    followers: number
-    shares: number
-    views: number
-  }
-  recentActivity: Array<{
-    id: string
-    type: string
-    description: string
-    timestamp: string
-    icon: any
-  }>
-  quickLinks: Array<{
-    title: string
-    description: string
-    href: string
-    icon: any
-    color: string
-  }>
-}
 
 interface UserProfile {
   id: string
@@ -93,17 +62,19 @@ interface UserProfile {
   updated_at: string
 }
 
-export function DashboardPageClient() {
+interface DashboardPageClientProps {
+  serverUserId?: string
+}
+
+export function DashboardPageClient({ serverUserId }: DashboardPageClientProps = {}) {
   const { user, loading, authError, retrySessionCheck } = useAuth()
   const { currentAccount } = useMultiAccount()
   const router = useRouter()
   const searchParams = useSearchParams()
   const isNewUser = searchParams.get('welcome') === 'true'
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
-  const [isLoadingData, setIsLoadingData] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [isRetryingSession, setIsRetryingSession] = useState(false)
+  const hasServerSession = Boolean(serverUserId)
 
   useEffect(() => {
     const accessError = searchParams.get('error')
@@ -183,7 +154,8 @@ export function DashboardPageClient() {
 
   // Fetch user profile function using optimized API
   const fetchUserProfile = async () => {
-    if (!user?.id) return
+    const userId = user?.id ?? serverUserId
+    if (!userId) return
 
     try {
       const response = await fetch('/api/profile/current')
@@ -218,21 +190,21 @@ export function DashboardPageClient() {
           
           setUserProfile(transformedProfile)
         } else {
-          const meta = user.user_metadata as { full_name?: string } | undefined
+          const meta = user?.user_metadata as { full_name?: string } | undefined
           setUserProfile({
-            id: user.id,
-            username: user.email?.split('@')[0] || 'user',
-            full_name: meta?.full_name || user.email?.split('@')[0] || 'Creator',
+            id: userId,
+            username: user?.email?.split('@')[0] || 'user',
+            full_name: meta?.full_name || user?.email?.split('@')[0] || 'Creator',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           } as UserProfile)
         }
       } else {
-        const meta = user.user_metadata as { full_name?: string } | undefined
+        const meta = user?.user_metadata as { full_name?: string } | undefined
         setUserProfile({
-          id: user.id,
-          username: user.email?.split('@')[0] || 'user',
-          full_name: meta?.full_name || user.email?.split('@')[0] || 'Creator',
+          id: userId,
+          username: user?.email?.split('@')[0] || 'user',
+          full_name: meta?.full_name || user?.email?.split('@')[0] || 'Creator',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         } as UserProfile)
@@ -248,204 +220,32 @@ export function DashboardPageClient() {
         console.error('Profile fetch error status:', err.status)
       }
       
-      const meta = user.user_metadata as { full_name?: string } | undefined
+      const meta = user?.user_metadata as { full_name?: string } | undefined
       setUserProfile({
-        id: user.id,
-        username: user.email?.split('@')[0] || 'user',
-        full_name: meta?.full_name || user.email?.split('@')[0] || 'Creator',
+        id: userId,
+        username: user?.email?.split('@')[0] || 'user',
+        full_name: meta?.full_name || user?.email?.split('@')[0] || 'Creator',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       } as UserProfile)
     }
   }
 
-  const dashboardUserId = user?.id
+  const dashboardUserId = user?.id ?? serverUserId
 
   useEffect(() => {
     if (loading) return
-    if (user) return
+    if (user || hasServerSession) return
     if (authError) return
     router.push('/login')
-  }, [loading, user, authError, router])
+  }, [loading, user, authError, router, hasServerSession])
 
   useEffect(() => {
     if (!dashboardUserId) {
       return
     }
 
-    // Load real dashboard data
-    const loadDashboardData = async () => {
-      try {
-        setIsLoadingData(true)
-        setError(null)
-        
-        if (!dashboardUserId) return
-        
-        // Load stats without an aggressive client timeout: a 5s race was firing on
-        // production (slow networks / large post history) while Supabase was still OK,
-        // which showed misleading fallback numbers and the red error banner.
-        const stats = await DashboardService.getDashboardStats(dashboardUserId)
-        setDashboardData({
-          stats: {
-            likes: stats.likes || 0,
-            followers: stats.followers || 0,
-            shares: stats.shares || 0,
-            views: stats.views || 0
-          },
-        recentActivity: [
-          {
-            id: '1',
-            type: 'like',
-            description: 'Your latest track received 15 new likes',
-            timestamp: '2 hours ago',
-            icon: Heart
-          },
-          {
-            id: '2',
-            type: 'booking',
-            description: 'New booking request from Blue Moon Venue',
-            timestamp: '4 hours ago',
-            icon: Calendar
-          },
-          {
-            id: '3',
-            type: 'follow',
-            description: '3 new followers joined your community',
-            timestamp: '6 hours ago',
-            icon: Users
-          },
-          {
-            id: '4',
-            type: 'achievement',
-            description: 'You reached 1K profile views milestone!',
-            timestamp: '1 day ago',
-            icon: Award
-          }
-        ],
-        quickLinks: [
-          {
-            title: 'Analytics',
-            description: 'Track your performance',
-            href: '/analytics',
-            icon: BarChart3,
-            color: 'from-blue-500 to-cyan-500'
-          },
-          {
-            title: 'Events',
-            description: 'Manage your shows',
-            href: '/events',
-            icon: Calendar,
-            color: 'from-purple-500 to-pink-500'
-          },
-          {
-            title: 'Network',
-            description: 'Connect with others',
-            href: '/network',
-            icon: Users,
-            color: 'from-green-500 to-emerald-500'
-          },
-          {
-            title: 'Profile',
-            description: 'Update your profile',
-            href: '/profile',
-            icon: User,
-            color: 'from-orange-500 to-red-500'
-          },
-          {
-            title: 'Job applications',
-            description: 'Artist and venue staffing',
-            href: '/jobs/my-applications',
-            icon: Briefcase,
-            color: 'from-amber-500 to-orange-500'
-          },
-          {
-            title: 'Open jobs',
-            description: 'Browse gigs and staffing',
-            href: '/jobs?tab=staffing',
-            icon: Target,
-            color: 'from-indigo-500 to-violet-500'
-          },
-        ]
-      })
-    } catch (error) {
-      console.error('Error loading dashboard data:', error)
-      setError('Failed to load dashboard data')
-      // Set fallback dashboard data to prevent hanging
-      setDashboardData({
-        stats: {
-          likes: 42,
-          followers: 128,
-          shares: 18,
-          views: 1247
-        },
-        recentActivity: [
-          {
-            id: '1',
-            type: 'like',
-            description: 'Your content is gaining traction!',
-            timestamp: '2 hours ago',
-            icon: Heart
-          },
-          {
-            id: '2',
-            type: 'follow',
-            description: 'New followers joined your community',
-            timestamp: '4 hours ago',
-            icon: Users
-          }
-        ],
-        quickLinks: [
-          {
-            title: 'Analytics',
-            description: 'Track your performance',
-            href: '/analytics',
-            icon: BarChart3,
-            color: 'from-blue-500 to-cyan-500'
-          },
-          {
-            title: 'Events',
-            description: 'Manage your shows',
-            href: '/events',
-            icon: Calendar,
-            color: 'from-purple-500 to-pink-500'
-          },
-          {
-            title: 'Network',
-            description: 'Connect with others',
-            href: '/network',
-            icon: Users,
-            color: 'from-green-500 to-emerald-500'
-          },
-          {
-            title: 'Profile',
-            description: 'Update your profile',
-            href: '/profile',
-            icon: User,
-            color: 'from-orange-500 to-red-500'
-          },
-          {
-            title: 'Job applications',
-            description: 'Artist and venue staffing',
-            href: '/jobs/my-applications',
-            icon: Briefcase,
-            color: 'from-amber-500 to-orange-500'
-          },
-          {
-            title: 'Open jobs',
-            description: 'Browse gigs and staffing',
-            href: '/jobs?tab=staffing',
-            icon: Target,
-            color: 'from-indigo-500 to-violet-500'
-          },
-        ]
-      })
-    } finally {
-      setIsLoadingData(false)
-    }
-  }
-
     fetchUserProfile().catch(() => {})
-    loadDashboardData().catch(() => {})
 
     const handleFocus = () => {
       if (user?.id) fetchUserProfile().catch(() => {})
@@ -473,15 +273,14 @@ export function DashboardPageClient() {
     }
   }, [user, loading, router, dashboardUserId])
 
-  // If the auth listener already set `user` but `getSession()` is still slow (Safari Private, etc.),
-  // do not block the whole dashboard — same pattern as Nav showing the avatar early.
-  if (loading && !user) {
+  // Server verified the session; don't block on slow client auth hydration.
+  if (loading && !user && !hasServerSession) {
     return (
       <BrandLoadingScreen message="Loading" fullScreen />
     )
   }
 
-  if (!user) {
+  if (!user && !hasServerSession) {
     if (authError) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 px-4">
@@ -538,7 +337,11 @@ export function DashboardPageClient() {
                 <div className="relative">
                   <Avatar className="h-16 w-16 border-2 border-white/20">
                     <AvatarImage
-                      src={userProfile?.avatar_url || (user.user_metadata as { avatar_url?: string })?.avatar_url}
+                      src={
+                        userProfile?.avatar_url ||
+                        (user?.user_metadata as { avatar_url?: string } | undefined)?.avatar_url ||
+                        (currentAccount?.profile_data as { avatar_url?: string } | undefined)?.avatar_url
+                      }
                       alt={`${getDisplayName()} profile photo`}
                     />
                     <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-lg font-semibold">
@@ -589,17 +392,6 @@ export function DashboardPageClient() {
           </div>
         )}
 
-        {/* Error Alert */}
-        {error && (
-          <div className="container mx-auto px-4 sm:px-6 py-6 max-w-7xl">
-            <Alert className="bg-gradient-to-r from-red-500/20 to-pink-500/20 border-red-500/50 backdrop-blur-sm">
-              <AlertDescription className="text-red-200">
-                ⚠️ {error} - Showing fallback data. Some features may be limited.
-              </AlertDescription>
-            </Alert>
-          </div>
-        )}
-
         {/* Main Content */}
         <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
@@ -611,74 +403,12 @@ export function DashboardPageClient() {
 
             {/* Center Column - Activity Feed */}
             <div className="lg:col-span-6 space-y-6">
-              
-              {/* Consolidated Analytics Overview */}
-              {dashboardData && (
-                <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl hover:bg-white/15 transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-white font-medium flex items-center gap-2">
-                        <BarChart3 className="h-5 w-5 text-purple-400" />
-                        Quick Stats
-                      </h3>
-                        <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20 rounded-xl"
-                        onClick={() => {
-                          const accountId = currentAccount?.profile_id || user?.id
-                          router.push(`/analytics?scope=dashboard&accountId=${accountId}`)
-                        }}
-                      >
-                        View All
-                        <ArrowRight className="h-3 w-3 ml-1" />
-                      </Button>
-                    </div>
-                    
-                    <div className="grid grid-cols-4 gap-4">
-                      <div className="text-center">
-                        <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                          <Heart className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="text-lg font-bold text-white">{dashboardData.stats.likes.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400">Likes</div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                          <Users className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="text-lg font-bold text-white">{dashboardData.stats.followers.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400">Followers</div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-500 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                          <Share className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="text-lg font-bold text-white">{dashboardData.stats.shares.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400">Shares</div>
-                      </div>
-
-                      <div className="text-center">
-                        <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-yellow-500 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                          <Eye className="h-5 w-5 text-white" />
-                        </div>
-                        <div className="text-lg font-bold text-white">{dashboardData.stats.views.toLocaleString()}</div>
-                        <div className="text-xs text-gray-400">Views</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Quick Post Creator */}
               <QuickPostCreator />
 
               {/* Write Article CTA */}
               <button
                 type="button"
-                onClick={() => router.push('/blog/new')}
+                onClick={() => router.push('/artist/features/blog?new=1')}
                 className="group flex w-full items-center gap-3 rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-4 text-left backdrop-blur-sm transition-all hover:border-purple-500/40 hover:bg-white/10"
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-fuchsia-500/20 transition-colors group-hover:from-purple-500/30 group-hover:to-fuchsia-500/30">
@@ -811,11 +541,13 @@ export function DashboardPageClient() {
 
             {/* Right Column - Quick Actions */}
             <div className="lg:col-span-3 space-y-6">
+              <JukeboxPlayer />
+              <DashboardUpcomingEventsCard />
               {dashboardUserId ? (
                 <DashboardContractsCard userId={dashboardUserId} />
               ) : null}
               <div className="w-full">
-                <EnhancedQuickActions />
+                <EnhancedQuickActions hideJukebox />
               </div>
             </div>
           </div>

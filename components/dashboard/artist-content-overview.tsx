@@ -25,6 +25,13 @@ import {
 import { format, addDays } from "date-fns"
 import Link from "next/link"
 import { cn } from "@/utils"
+import {
+  ARTIST_CARD,
+  ARTIST_ICON_WELL,
+  ARTIST_INSET,
+  ARTIST_OUTLINE_BTN,
+  ARTIST_PRIMARY_BTN,
+} from "@/components/dashboard/artist-tokens"
 
 interface ContentItem {
   id: string
@@ -114,16 +121,18 @@ export function ArtistContentOverview({
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+      <Card className={ARTIST_CARD}>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-green-400" />
+          <CardTitle className="flex items-center gap-2 tracking-tight text-white">
+            <div className={cn(ARTIST_ICON_WELL, 'inline-flex h-8 w-8 items-center justify-center p-1.5')}>
+              <TrendingUp className="h-4 w-4" />
+            </div>
             Content Performance
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-400"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-purple-400" />
           </div>
         </CardContent>
       </Card>
@@ -131,86 +140,85 @@ export function ArtistContentOverview({
   }
 
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+    <Card className={ARTIST_CARD}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-white flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-400" />
+            <CardTitle className="flex items-center gap-2 tracking-tight text-white">
+              <div className={cn(ARTIST_ICON_WELL, 'inline-flex h-8 w-8 items-center justify-center p-1.5')}>
+                <TrendingUp className="h-4 w-4" />
+              </div>
               Content Performance
             </CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-slate-400">
               How your content is performing
             </CardDescription>
           </div>
           <Button 
             variant="outline" 
             size="sm" 
-            className="border-slate-700 text-gray-300 hover:text-white"
+            className={ARTIST_OUTLINE_BTN}
             onClick={onViewAll}
             asChild
           >
             <Link href="/artist/content">
-              <ArrowRight className="h-4 w-4 mr-2" />
+              <ArrowRight className="mr-2 h-4 w-4" />
               View All
             </Link>
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        {/* Content Summary Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-400">{summary.totalTracks}</div>
-            <div className="text-sm text-gray-400">Tracks</div>
+        <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-white">{summary.totalTracks}</div>
+            <div className="text-sm text-slate-400">Tracks</div>
           </div>
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-400">{summary.totalVideos}</div>
-            <div className="text-sm text-gray-400">Videos</div>
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-white">{summary.totalVideos}</div>
+            <div className="text-sm text-slate-400">Videos</div>
           </div>
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-green-400">{summary.totalPhotos}</div>
-            <div className="text-sm text-gray-400">Photos</div>
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-white">{summary.totalPhotos}</div>
+            <div className="text-sm text-slate-400">Photos</div>
           </div>
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-400">{summary.totalBlogs}</div>
-            <div className="text-sm text-gray-400">Blogs</div>
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-white">{summary.totalBlogs}</div>
+            <div className="text-sm text-slate-400">Blogs</div>
           </div>
         </div>
 
-        {/* Engagement Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="p-3 bg-slate-800/30 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Eye className="h-4 w-4 text-blue-400" />
+        <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className={cn(ARTIST_INSET, 'p-3')}>
+            <div className="mb-2 flex items-center gap-2">
+              <Eye className="h-4 w-4 text-purple-300" />
               <span className="text-sm font-medium text-white">Total Views</span>
             </div>
-            <div className="text-2xl font-bold text-blue-400">
+            <div className="text-2xl font-bold tracking-tight text-white">
               {(summary.totalViews / 1000).toFixed(1)}K
             </div>
           </div>
-          <div className="p-3 bg-slate-800/30 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="h-4 w-4 text-red-400" />
+          <div className={cn(ARTIST_INSET, 'p-3')}>
+            <div className="mb-2 flex items-center gap-2">
+              <Heart className="h-4 w-4 text-purple-300" />
               <span className="text-sm font-medium text-white">Total Likes</span>
             </div>
-            <div className="text-2xl font-bold text-red-400">
+            <div className="text-2xl font-bold tracking-tight text-white">
               {summary.totalLikes.toLocaleString()}
             </div>
           </div>
-          <div className="p-3 bg-slate-800/30 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Share2 className="h-4 w-4 text-green-400" />
+          <div className={cn(ARTIST_INSET, 'p-3')}>
+            <div className="mb-2 flex items-center gap-2">
+              <Share2 className="h-4 w-4 text-purple-300" />
               <span className="text-sm font-medium text-white">Engagement</span>
             </div>
-            <div className="text-2xl font-bold text-green-400">
+            <div className="text-2xl font-bold tracking-tight text-white">
               {summary.engagementRate}%
             </div>
           </div>
         </div>
 
-        {/* Content Type Filter */}
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4 flex flex-wrap gap-2">
           {[
             { key: 'all', label: 'All', count: content.length },
             { key: 'track', label: 'Tracks', count: content.filter(c => c.type === 'track').length },
@@ -222,39 +230,38 @@ export function ArtistContentOverview({
               key={type.key}
               variant={selectedType === type.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setSelectedType(type.key as any)}
+              onClick={() => setSelectedType(type.key as typeof selectedType)}
               className={cn(
                 selectedType === type.key 
-                  ? "bg-purple-600 hover:bg-purple-700" 
-                  : "border-slate-700 text-gray-300 hover:text-white"
+                  ? ARTIST_PRIMARY_BTN
+                  : ARTIST_OUTLINE_BTN
               )}
             >
               {type.label}
-              <Badge variant="secondary" className="ml-2 bg-slate-700/50 text-white">
+              <Badge variant="secondary" className="ml-2 border-0 bg-black/40 text-white">
                 {type.count}
               </Badge>
             </Button>
           ))}
         </div>
         
-        {/* Recent Content Performance */}
         <div className="space-y-3">
           {recentContent.length > 0 ? (
             recentContent.map((item, index) => (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors"
+                transition={{ delay: index * 0.05 }}
+                className={cn(ARTIST_INSET, 'flex items-center justify-between p-3 transition-colors hover:border-purple-500/30')}
               >
                 <div className="flex items-center gap-3">
-                  <div className={cn("p-2 rounded-lg", getTypeColor(item.type))}>
+                  <div className={cn(ARTIST_ICON_WELL, 'inline-flex h-8 w-8 items-center justify-center p-1.5')}>
                     {getTypeIcon(item.type)}
                   </div>
                   <div>
-                    <h4 className="font-medium text-white text-sm">{item.title}</h4>
-                    <div className="flex items-center gap-4 text-xs text-gray-400">
+                    <h4 className="text-sm font-medium text-white">{item.title}</h4>
+                    <div className="flex items-center gap-4 text-xs text-slate-400">
                       <span>
                         {item.plays ? `${(item.plays / 1000).toFixed(1)}K plays` : `${((item.views || 0) / 1000).toFixed(1)}K views`}
                       </span>
@@ -263,13 +270,9 @@ export function ArtistContentOverview({
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1 text-sm">
-                    <Heart className="h-4 w-4 text-red-400" />
+                  <div className="flex items-center gap-1 text-sm text-slate-300">
+                    <Heart className="h-4 w-4 text-purple-300" />
                     {item.likes}
-                  </div>
-                  <div className="flex items-center gap-1 text-sm">
-                    <Share2 className="h-4 w-4 text-green-400" />
-                    {item.shares}
                   </div>
                   {getTrendIcon(item.trend)}
                   <Badge className={getStatusColor(item.status)}>
@@ -279,38 +282,37 @@ export function ArtistContentOverview({
               </motion.div>
             ))
           ) : (
-            <div className="text-center py-8">
-              <Upload className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-              <p className="text-gray-400 mb-4">No content found</p>
+            <div className="py-8 text-center">
+              <Upload className="mx-auto mb-4 h-12 w-12 text-slate-500" />
+              <p className="mb-4 text-slate-400">No content found</p>
               <Button 
-                className="bg-purple-600 hover:bg-purple-700"
+                className={ARTIST_PRIMARY_BTN}
                 onClick={onUploadContent}
               >
-                <Plus className="h-4 w-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" />
                 Upload Content
               </Button>
             </div>
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex gap-2 mt-6">
+        <div className="mt-6 flex gap-2">
           <Button 
             size="sm" 
-            className="bg-purple-600 hover:bg-purple-700 flex-1"
+            className={cn(ARTIST_PRIMARY_BTN, 'flex-1')}
             onClick={onUploadContent}
           >
-            <Upload className="h-4 w-4 mr-2" />
+            <Upload className="mr-2 h-4 w-4" />
             Upload Content
           </Button>
           <Button 
             size="sm" 
             variant="outline" 
-            className="border-slate-700 text-gray-300 hover:text-white"
+            className={ARTIST_OUTLINE_BTN}
             asChild
           >
-            <Link href="/artist/content/analytics">
-              <BarChart3 className="h-4 w-4 mr-2" />
+            <Link href="/artist/business/analytics">
+              <BarChart3 className="mr-2 h-4 w-4" />
               Analytics
             </Link>
           </Button>

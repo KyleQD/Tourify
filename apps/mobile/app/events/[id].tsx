@@ -49,6 +49,7 @@ export default function EventDetailScreen() {
   const { session } = useAuth()
 
   const [event, setEvent] = useState<EventDetail | null>(null)
+  const [ticketingEventId, setTicketingEventId] = useState<string | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isPurchasing, setIsPurchasing] = useState<string | null>(null)
@@ -58,31 +59,86 @@ export default function EventDetailScreen() {
 
     setIsLoading(true)
 
-    const [eventResult, ticketsResult] = await Promise.allSettled([
-      supabase
-        .from("events")
-        .select("id, title, event_date, location, description, status, venue_name, artist_id, max_capacity")
+    try {
+      // Prefer events_v2; fall back to legacy events for display
+      const v2Result = await supabase
+        .from("events_v2")
+        .select("id, title, start_at, description, status, venue_id, capacity, org_id")
         .eq("id", id)
-        .single(),
-      supabase
-        .from("ticket_types")
-        .select("id, name, price, description, quantity_available, quantity_sold, status")
-        .eq("event_id", id)
-        .eq("status", "active")
-        .order("price", { ascending: true }),
-    ])
+        .maybeSingle()
 
-    if (eventResult.status === "fulfilled" && eventResult.value.data) {
-      setEvent(eventResult.value.data as EventDetail)
-    } else {
-      Alert.alert("Error", "Could not load event details.")
+      let eventIdForTickets = id
+      if (v2Result.data) {
+        setEvent({
+          id: v2Result.data.id,
+          title: v2Result.data.title,
+          event_date: v2Result.data.start_at,
+          location: null,
+          description: v2Result.data.description,
+          status: v2Result.data.status,
+          venue_name: null,
+          artist_id: null,
+          max_capacity: v2Result.data.capacity,
+        })
+        eventIdForTickets = v2Result.data.id
+        setTicketingEventId(v2Result.data.id)
+      } else {
+        const legacy = await supabase
+          .from("events")
+          .select("id, title, event_date, location, description, status, venue_name, artist_id, max_capacity, promoted_event_v2_id")
+          .eq("id", id)
+          .single()
+
+        if (legacy.data) {
+          setEvent(legacy.data as EventDetail)
+          if (legacy.data.promoted_event_v2_id) {
+            eventIdForTickets = legacy.data.promoted_event_v2_id
+            setTicketingEventId(legacy.data.promoted_event_v2_id)
+          } else {
+            setTicketingEventId(null)
+          }
+        } else {
+          Alert.alert("Error", "Could not load event details.")
+          setIsLoading(false)
+          return
+        }
+      }
+
+      // Load ticket types via enhanced API (same path as web)
+      try {
+        const apiTypes = await apiRequest<{ ticket_types?: TicketType[] }>(
+          `/api/ticketing/enhanced?action=event_tickets&event_id=${eventIdForTickets}`
+        )
+        setTicketTypes(
+          (apiTypes.ticket_types || []).map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            price: Number(t.price || 0),
+            description: t.description,
+            quantity_available: t.quantity_available,
+            quantity_sold: t.quantity_sold,
+            status: t.is_active === false ? "inactive" : "active",
+          }))
+        )
+      } catch {
+        const ticketsResult = await supabase
+          .from("ticket_types")
+          .select("id, name, price, description, quantity_available, quantity_sold, is_active")
+          .eq("event_id", eventIdForTickets)
+          .eq("is_active", true)
+          .order("price", { ascending: true })
+        if (ticketsResult.data) {
+          setTicketTypes(
+            ticketsResult.data.map((t: any) => ({
+              ...t,
+              status: "active",
+            }))
+          )
+        }
+      }
+    } finally {
+      setIsLoading(false)
     }
-
-    if (ticketsResult.status === "fulfilled" && ticketsResult.value.data) {
-      setTicketTypes(ticketsResult.value.data as TicketType[])
-    }
-
-    setIsLoading(false)
   }, [id])
 
   useEffect(() => {
@@ -106,7 +162,8 @@ export default function EventDetailScreen() {
           method: "POST",
           body: JSON.stringify({
             ticket_type_id: ticketType.id,
-            event_id: event.id,
+            event_id: ticketingEventId || event.id,
+            action: "purchase",
             customer_email: session.user.email,
             customer_name: session.user.user_metadata?.full_name || session.user.email,
             quantity: 1,

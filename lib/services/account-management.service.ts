@@ -4,6 +4,7 @@ import type { Database } from '@/lib/database.types'
 // Import for local use; re-export so existing consumers continue to work.
 import type { ProfileType } from '@/lib/accounts/account-types'
 import { normalizeAccountType, isOrganizationType } from '@/lib/accounts/account-types'
+import { generateUniqueSlug } from '@/lib/accounts/generate-unique-slug'
 export type { ProfileType } from '@/lib/accounts/account-types'
 export { normalizeAccountType, isOrganizationType } from '@/lib/accounts/account-types'
 
@@ -35,6 +36,66 @@ export interface AccountPermissions {
   can_manage_users?: boolean
 }
 
+interface AccountRelationshipRow {
+  owned_profile_id: string
+  account_type: string
+  permissions: AccountPermissions | null
+}
+
+function slugifyOrganizerName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9-]/g, '')
+}
+
+/** Legacy profile_id embedded in URLs/bookmarks — preserve exact slug rules. */
+function legacyOrganizerProfileId(userId: string, organizationName: string): string {
+  return `${userId}-organizer-${organizationName.toLowerCase().replace(/\s+/g, '-')}`
+}
+
+function buildStubMainProfile(userId: string) {
+  return {
+    id: userId,
+    username: `user-${userId.slice(0, 8)}`,
+    full_name: 'User',
+    bio: null,
+    avatar_url: null,
+    location: null,
+    website: null,
+    account_settings: null,
+    is_verified: false,
+    followers_count: 0,
+    following_count: 0,
+    posts_count: 0,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  }
+}
+
+const MAIN_PROFILE_COLUMNS = `
+  id,
+  username,
+  custom_url,
+  full_name,
+  bio,
+  avatar_url,
+  cover_image,
+  location,
+  website,
+  profile_data,
+  social_links,
+  account_settings,
+  account_type,
+  is_verified,
+  followers_count,
+  following_count,
+  posts_count,
+  created_at,
+  updated_at
+`
+
 export class AccountManagementService {
   // Get all user accounts with proper relationship detection
   static async getUserAccounts(userId: string, authenticatedSupabase?: any): Promise<UserAccount[]> {
@@ -46,81 +107,22 @@ export class AccountManagementService {
       
       const accounts: UserAccount[] = []
 
-      // Get main profile first
-      let mainProfile
+      // Get main profile first — non-fatal if missing; entity accounts still load
       const { data: profileData, error: profileError } = await clientToUse
         .from('profiles')
-        .select('*')
+        .select(MAIN_PROFILE_COLUMNS)
         .eq('id', userId)
-        .single()
+        .maybeSingle()
 
-      if (profileError || !profileData) {
-        console.error('[Account Management] Error fetching main profile:', profileError)
-        
-        // If profile doesn't exist, try to create one via API
-        if (profileError?.code === 'PGRST116' || !profileData) {
-          console.log('[Account Management] Profile not found, attempting to create profile for user:', userId)
-          
-          try {
-            // Try to create profile via API endpoint
-            const profileCreateSignal =
-              typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal
-                ? AbortSignal.timeout(15000)
-                : undefined
-            const response = await fetch('/api/profile/create', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              signal: profileCreateSignal,
-            })
-            
-            if (response.ok) {
-              const result = await response.json()
-              console.log('[Account Management] Profile created successfully via API')
-              
-              // Retry fetching the profile
-              const { data: retryProfile, error: retryError } = await clientToUse
-                .from('profiles')
-                .select('*')
-                .eq('id', userId)
-                .single()
-              
-              if (retryProfile && !retryError) {
-                console.log('[Account Management] Successfully fetched newly created profile')
-                mainProfile = retryProfile
-              } else {
-                throw new Error('Failed to fetch newly created profile')
-              }
-            } else {
-              throw new Error(`Profile creation API failed: ${response.status}`)
-            }
-          } catch (apiError) {
-            console.error('[Account Management] Failed to create profile via API:', apiError)
-            
-            // Fallback: create a minimal profile object for the session
-            console.log('[Account Management] Creating fallback profile data')
-            mainProfile = {
-              id: userId,
-              username: `user-${userId.slice(0, 8)}`,
-              full_name: 'User',
-              bio: null,
-              avatar_url: null,
-              location: null,
-              website: null,
-              is_verified: false,
-              followers_count: 0,
-              following_count: 0,
-              posts_count: 0,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }
-          }
-        } else {
-          throw new Error(`Profile fetch failed: ${profileError?.message || 'Unknown error'}`)
-        }
-      } else {
+      let mainProfile
+      if (profileData) {
         mainProfile = profileData
+      } else {
+        console.warn(
+          '[Account Management] Profile row unavailable, using stub:',
+          profileError?.message ?? 'not found'
+        )
+        mainProfile = buildStubMainProfile(userId)
       }
 
       console.log('🔍 [Account Management] Main profile data:', {
@@ -187,7 +189,7 @@ export class AccountManagementService {
         console.log('📋 [Account Management] Found organizer data in profile settings (legacy format)')
         console.log('📋 [Account Management] Organizer data:', organizerData)
         
-        const organizerProfileId = `${userId}-organizer-${organizerData.organization_name.toLowerCase().replace(/\s+/g, '-')}`
+        const organizerProfileId = legacyOrganizerProfileId(userId, organizerData.organization_name)
         
         console.log('➕ [Account Management] Adding organizer account (legacy):', organizerData.organization_name)
         accounts.push({
@@ -328,13 +330,15 @@ export class AccountManagementService {
                 id: organizer.id,
                 organization_name: organizer.organization_name,
                 organization_type: organizer.organization_type,
+                subtype: organizer.subtype,
+                url_slug: organizer.url_slug,
                 description: organizer.description,
                 contact_info: organizer.contact_info,
                 social_links: organizer.social_links,
                 specialties: organizer.specialties,
                 admin_level: organizer.admin_level,
                 display_name: organizer.organization_name,
-                account_display_type: 'Organizer',
+                account_display_type: 'Organization',
                 user_id: userId,
                 created_at: organizer.created_at,
                 updated_at: organizer.updated_at
@@ -358,59 +362,136 @@ export class AccountManagementService {
         console.log('⚠️ [Account Management] Organizer accounts table not available:', organizerTableError)
       }
 
+      // Assigned Admin / tour manager grants via ops org membership
+      try {
+        const { data: memberships } = await clientToUse
+          .from('org_members')
+          .select('org_id, role')
+          .eq('user_id', userId)
+          .in('role', ['owner', 'admin', 'tour_manager', 'production'])
+
+        const orgIds = Array.from(
+          new Set((memberships || []).map((row: any) => String(row.org_id)).filter(Boolean))
+        )
+        if (orgIds.length > 0) {
+          const { data: grantedOrgs } = await clientToUse
+            .from('organizer_accounts')
+            .select('*')
+            .in('ops_org_id', orgIds)
+            .eq('is_active', true)
+
+          const existingIds = new Set(accounts.map((a) => a.profile_id))
+          for (const organizer of grantedOrgs || []) {
+            if (existingIds.has(organizer.id)) continue
+            const member = (memberships || []).find(
+              (row: any) => String(row.org_id) === String(organizer.ops_org_id)
+            )
+            accounts.push({
+              account_type: 'organization',
+              profile_id: organizer.id,
+              profile_data: {
+                ...organizer,
+                display_name: organizer.organization_name,
+                account_display_type: 'Organization',
+                grant_role: member?.role || 'admin',
+              },
+              permissions: {
+                can_post: true,
+                can_manage_settings: member?.role === 'owner' || member?.role === 'admin',
+                can_view_analytics: true,
+                can_manage_content: true,
+                can_manage_events: true,
+              },
+              is_active: true,
+            })
+            existingIds.add(organizer.id)
+          }
+        }
+      } catch (grantErr) {
+        console.warn('[Account Management] org_members grants unavailable (non-fatal):', grantErr)
+      }
+
       // Re-enabled: Read account_relationships to surface delegated / multi-owner accounts.
       // Orphan validation: only include rows whose owned_profile_id actually exists in the
       // corresponding entity table (artist_profiles, venue_profiles, organizer_accounts).
       // This prevents showing accounts that were deleted from the entity table but whose
       // relationship row was not cleaned up.
       try {
+        // Do not select/filter is_active — Demo schema has no such column on account_relationships.
         const { data: relationships, error: relError } = await clientToUse
           .from('account_relationships')
-          .select('owned_profile_id, account_type, permissions, is_active')
+          .select('owned_profile_id, account_type, permissions')
           .eq('owner_user_id', userId)
-          .eq('is_active', true)
 
         if (relError) {
           console.warn('[Account Management] account_relationships unavailable (non-fatal):', relError.message)
         } else if (relationships && relationships.length > 0) {
-          // Collect profile IDs already surfaced so we don't duplicate
           const existingIds = new Set(accounts.map(a => a.profile_id))
+          const pendingRels = (relationships as AccountRelationshipRow[]).filter(
+            (rel) => !existingIds.has(rel.owned_profile_id)
+          )
 
-          for (const rel of relationships) {
-            if (existingIds.has(rel.owned_profile_id)) continue
+          const resolvedRels = await Promise.all(
+            pendingRels.map(async (rel: AccountRelationshipRow) => {
+              const normType = normalizeAccountType(rel.account_type)
+              let entityRow: Record<string, unknown> | null = null
 
-            const normType = normalizeAccountType(rel.account_type)
-            let entityRow: any = null
+              if (normType === 'artist' || normType === 'service') {
+                const { data } = await clientToUse
+                  .from('artist_profiles')
+                  .select('*')
+                  .eq('id', rel.owned_profile_id)
+                  .maybeSingle()
+                entityRow = data
+              } else if (normType === 'venue') {
+                const { data } = await clientToUse
+                  .from('venue_profiles')
+                  .select('*')
+                  .eq('id', rel.owned_profile_id)
+                  .maybeSingle()
+                entityRow = data
+              } else if (isOrganizationType(normType)) {
+                const { data } = await clientToUse
+                  .from('organizer_accounts')
+                  .select('*')
+                  .eq('id', rel.owned_profile_id)
+                  .maybeSingle()
+                entityRow = data
+              }
 
-            if (normType === 'artist' || normType === 'service') {
-              const { data } = await clientToUse
-                .from('artist_profiles').select('*').eq('id', rel.owned_profile_id).maybeSingle()
-              entityRow = data
-            } else if (normType === 'venue') {
-              const { data } = await clientToUse
-                .from('venue_profiles').select('*').eq('id', rel.owned_profile_id).maybeSingle()
-              entityRow = data
-            } else if (isOrganizationType(normType)) {
-              const { data } = await clientToUse
-                .from('organizer_accounts').select('*').eq('id', rel.owned_profile_id).maybeSingle()
-              entityRow = data
-            }
+              if (!entityRow) return null
 
-            if (entityRow) {
-              accounts.push({
-                account_type: normType,
-                profile_id: rel.owned_profile_id,
-                profile_data: { ...entityRow, display_name: entityRow.artist_name ?? entityRow.venue_name ?? entityRow.organization_name },
-                permissions: rel.permissions ?? {
-                  can_post: true,
-                  can_manage_settings: false,
-                  can_view_analytics: false,
-                  can_manage_content: true,
-                },
-                is_active: true,
-              })
-              existingIds.add(rel.owned_profile_id)
-            }
+              return {
+                normType,
+                profileId: rel.owned_profile_id,
+                entityRow,
+                permissions: rel.permissions,
+              }
+            })
+          )
+
+          for (const item of resolvedRels) {
+            if (!item) continue
+            const { normType, profileId, entityRow, permissions } = item
+            accounts.push({
+              account_type: normType,
+              profile_id: profileId,
+              profile_data: {
+                ...entityRow,
+                display_name:
+                  (entityRow.artist_name as string | undefined) ??
+                  (entityRow.venue_name as string | undefined) ??
+                  (entityRow.organization_name as string | undefined),
+              },
+              permissions: permissions ?? {
+                can_post: true,
+                can_manage_settings: false,
+                can_view_analytics: false,
+                can_manage_content: true,
+              },
+              is_active: true,
+            })
+            existingIds.add(profileId)
           }
         }
       } catch (relErr) {
@@ -518,12 +599,20 @@ export class AccountManagementService {
   ): Promise<string> {
     try {
       const clientToUse = authenticatedSupabase || supabase
+
+      const urlSlug = await generateUniqueSlug({
+        client: clientToUse,
+        table: 'artist_profiles',
+        base: artistData.artist_name,
+        fallbackPrefix: `artist-${userId.slice(0, 8)}`,
+      })
       
       const { data: artistProfile, error: artistError } = await clientToUse
         .from('artist_profiles')
         .insert({
           user_id: userId,
           artist_name: artistData.artist_name,
+          url_slug: urlSlug,
           bio: artistData.bio || null,
           genres: artistData.genres || [],
           social_links: artistData.social_links || {},
@@ -593,30 +682,12 @@ export class AccountManagementService {
       
       // Use direct table insert (RPC function has bugs)
 
-      const baseUrlSlug = (venueData.venue_name || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-
-      const baseForSlug = baseUrlSlug || `venue-${userId.slice(0, 8)}`
-
-      const generateUniqueUrlSlug = async () => {
-        for (let i = 0; i < 25; i++) {
-          const candidate = i === 0 ? baseForSlug : `${baseForSlug}-${i}`
-
-          const { data: existing } = await clientToUse
-            .from('venue_profiles')
-            .select('id')
-            .eq('url_slug', candidate)
-            .limit(1)
-
-          if (!existing || existing.length === 0) return candidate
-        }
-
-        throw new Error('Failed to generate unique venue url_slug')
-      }
-
-      const urlSlug = await generateUniqueUrlSlug()
+      const urlSlug = await generateUniqueSlug({
+        client: clientToUse,
+        table: 'venue_profiles',
+        base: venueData.venue_name,
+        fallbackPrefix: `venue-${userId.slice(0, 8)}`,
+      })
 
 const { data: venueProfile, error: venueError } = await clientToUse
         .from('venue_profiles')
@@ -688,6 +759,8 @@ const { data: venueProfile, error: venueError } = await clientToUse
       contact_info?: any
       social_links?: any
       specialties?: string[]
+      subtype?: string
+      url_slug?: string
     },
     authenticatedSupabase?: any,
     authenticatedUser?: any  // New parameter to pass pre-authenticated user
@@ -732,7 +805,9 @@ const { data: venueProfile, error: venueError } = await clientToUse
           p_description: organizerData.description || null,
           p_contact_info: organizerData.contact_info || {},
           p_social_links: organizerData.social_links || {},
-          p_specialties: organizerData.specialties || []
+          p_specialties: organizerData.specialties || [],
+          p_subtype: organizerData.subtype || organizerData.organization_type || null,
+          p_url_slug: organizerData.url_slug || null,
         })
 
       if (rpcError) {
@@ -812,7 +887,6 @@ const { data: venueProfile, error: venueError } = await clientToUse
         .eq('owner_user_id', userId)
         .eq('owned_profile_id', profileId)
         .eq('account_type', accountType)
-        .eq('is_active', true)
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
@@ -960,11 +1034,11 @@ const { data: venueProfile, error: venueError } = await clientToUse
     accountType: ProfileType
   ): Promise<void> {
     try {
+      // Demo schema may not have is_active; touch updated_at only.
       const { error } = await supabase
         .from('account_relationships')
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString()
+        .update({
+          updated_at: new Date().toISOString(),
         })
         .eq('owner_user_id', userId)
         .eq('owned_profile_id', profileId)
@@ -1011,7 +1085,7 @@ const { data: venueProfile, error: venueError } = await clientToUse
           post_comments (count)
         `)
         .eq('posted_as_profile_id', profileId)
-        .eq('posted_as_account_type', accountType)
+        .eq('posted_as_type', normalizeAccountType(accountType))
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1)
 

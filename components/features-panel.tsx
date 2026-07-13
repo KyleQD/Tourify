@@ -29,11 +29,11 @@ const featureSections: FeatureSection[] = [
   {
     title: "Content",
     items: [
-      { name: "Posts", icon: <FileText className="h-4 w-4" />, path: "/artist/posts" },
-      { name: "Videos", icon: <FileVideo className="h-4 w-4" />, path: "/artist/videos" },
-      { name: "Photos", icon: <Image className="h-4 w-4" />, path: "/artist/photos" },
+      { name: "Posts", icon: <FileText className="h-4 w-4" />, path: "/artist/feed" },
+      { name: "Videos", icon: <FileVideo className="h-4 w-4" />, path: "/artist/feed" },
+      { name: "Photos", icon: <Image className="h-4 w-4" />, path: "/artist/feed" },
       { name: "EPK", icon: <Tag className="h-4 w-4" />, path: "/artist/epk", isPro: true },
-      { name: "Blog", icon: <FileText className="h-4 w-4" />, path: "/artist/blog" },
+      { name: "Blog", icon: <FileText className="h-4 w-4" />, path: "/artist/features/blog" },
     ]
   },
   {
@@ -56,7 +56,7 @@ const featureSections: FeatureSection[] = [
   {
     title: "Business",
     items: [
-      { name: "Merchandise", icon: <ShoppingBag className="h-4 w-4" />, path: "/artist/merchandise" },
+      { name: "Merchandise", icon: <ShoppingBag className="h-4 w-4" />, path: "/artist/store?tab=listings&type=merch" },
       { name: "Jobs", icon: <Briefcase className="h-4 w-4" />, path: "/artist/jobs" },
       { name: "Promotions", icon: <Zap className="h-4 w-4" />, path: "/artist/promotions" },
     ]

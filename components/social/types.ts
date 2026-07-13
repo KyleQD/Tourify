@@ -58,8 +58,13 @@ export interface Post {
       id: string
       text: string
       votes: number
+      position?: number
     }[]
-    endsAt: string
+    endsAt: string | null
+    totalVotes?: number
+    isClosed?: boolean
+    viewerVotedOptionId?: string | null
+    viewerHasVoted?: boolean
   }
 }
 

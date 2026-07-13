@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { hasEntityPermission } from '@/lib/services/rbac'
+import { getSiteMapAccess, requireSiteMapAccess, siteMapError, siteMapSuccess } from '@/lib/site-map/access'
 import type { CreateMapIssueRequest } from '@/types/site-map'
 
 export async function GET(request: NextRequest) {
@@ -9,25 +9,20 @@ export async function GET(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
     const { searchParams } = new URL(request.url)
-    const siteMapId = searchParams.get('siteMapId')
+    const siteMapId = searchParams.get('siteMapId') || searchParams.get('site_map_id')
 
     if (!siteMapId) {
-      return NextResponse.json({ error: 'Site map ID is required' }, { status: 400 })
+      return siteMapError('Site map ID is required', 400)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: siteMapId,
-      permission: 'read'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
     const { data: issues, error } = await supabase
@@ -42,13 +37,13 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching issues:', error)
-      return NextResponse.json({ error: 'Failed to fetch issues' }, { status: 500 })
+      return siteMapError('Failed to fetch issues')
     }
 
-    return NextResponse.json(issues)
+    return siteMapSuccess(issues || [])
   } catch (error) {
     console.error('Error in issues GET:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
 }
 
@@ -58,38 +53,29 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
-    const body: CreateMapIssueRequest = await request.json()
-    const { 
-      siteMapId, 
-      issueType, 
-      severity, 
-      title, 
-      description, 
-      x, 
-      y, 
-      assignedTo, 
-      photos, 
-      notes 
-    } = body
+    const body = await request.json() as CreateMapIssueRequest & Record<string, any>
+    const siteMapId = body.siteMapId || body.site_map_id
+    const issueType = body.issueType || body.issue_type
+    const severity = body.severity
+    const title = body.title
+    const description = body.description
+    const x = body.x
+    const y = body.y
+    const assignedTo = body.assignedTo ?? body.assigned_to
+    const photos = body.photos
+    const notes = body.notes
 
     if (!siteMapId || !issueType || !severity || !title || x === undefined || y === undefined) {
-      return NextResponse.json({ 
-        error: 'Site map ID, issue type, severity, title, and coordinates are required' 
-      }, { status: 400 })
+      return siteMapError('Site map ID, issue type, severity, title, and coordinates are required', 400)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: siteMapId,
-      permission: 'write'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
     const { data: issue, error } = await supabase
@@ -117,12 +103,12 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('Error creating issue:', error)
-      return NextResponse.json({ error: 'Failed to create issue' }, { status: 500 })
+      return siteMapError('Failed to create issue')
     }
 
-    return NextResponse.json(issue, { status: 201 })
+    return siteMapSuccess(issue, { status: 201 })
   } catch (error) {
     console.error('Error in issues POST:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
 }

@@ -234,7 +234,7 @@ export function FeatureGrid() {
       title: "Merchandise",
       description: "Sell your merchandise",
       icon: ShoppingBag,
-      href: "/merch",
+      href: "/venue/dashboard/store",
       category: "business",
       color: "bg-amber-500/20 text-amber-400",
     },

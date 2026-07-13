@@ -3,6 +3,8 @@
  * Does not use the legacy "user" placeholder from getProfileUsername(null).
  */
 
+import { normalizeAccountType } from '@/lib/accounts/account-types'
+
 export interface GeneralProfileInput {
   username?: string | null
   metadataUsername?: string | null
@@ -15,6 +17,12 @@ export interface VenuePublicInput {
   url_slug?: string | null
 }
 
+export interface ResolvePublicProfileInput {
+  id: string
+  username?: string | null
+  account_type?: string | null
+}
+
 export function getGeneralPublicProfilePath(input: GeneralProfileInput): string | null {
   const u =
     input.username?.trim() ||
@@ -24,8 +32,12 @@ export function getGeneralPublicProfilePath(input: GeneralProfileInput): string 
   return `/profile/${encodeURIComponent(u)}`
 }
 
-export function getArtistPublicProfilePath(artistName: string | null | undefined): string | null {
-  const a = artistName?.trim()
+/**
+ * Build the public artist path. Prefer `artist_profiles.url_slug` (canonical handle).
+ * Do not pass a raw display name with spaces when a slug is available.
+ */
+export function getArtistPublicProfilePath(artistHandle: string | null | undefined): string | null {
+  const a = artistHandle?.trim()
   if (!a) return null
   return `/artist/${encodeURIComponent(a)}`
 }
@@ -39,8 +51,32 @@ export function getVenuePublicProfilePath(venue: VenuePublicInput): string | nul
   return `/venues/${encodeURIComponent(segment)}`
 }
 
-export function getOrganizationPublicProfilePath(username: string | null | undefined): string | null {
-  const u = username?.trim()
-  if (!u) return null
-  return `/organization/${encodeURIComponent(u)}`
+/**
+ * Public organization brand path. Prefer `organizer_accounts.url_slug`.
+ */
+export function getOrganizationPublicProfilePath(slug: string | null | undefined): string | null {
+  const s = slug?.trim()
+  if (!s) return null
+  return `/organization/${encodeURIComponent(s)}`
+}
+
+/**
+ * Resolve a public profile path from a social/search user payload.
+ * Mirrors getAccountAuthorPath account-type routing with canonical venue paths.
+ */
+export function resolvePublicProfilePath(input: ResolvePublicProfileInput): string | null {
+  const username = input.username?.trim() || null
+  if (!username && !input.id) return null
+
+  switch (normalizeAccountType(input.account_type)) {
+    case 'artist':
+    case 'service':
+      return getArtistPublicProfilePath(username)
+    case 'venue':
+      return getVenuePublicProfilePath({ id: input.id, url_slug: username })
+    case 'organization':
+      return getOrganizationPublicProfilePath(username)
+    default:
+      return getGeneralPublicProfilePath({ username })
+  }
 }

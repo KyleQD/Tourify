@@ -22,10 +22,17 @@ import {
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/auth-context'
 import { useMultiAccount } from '@/hooks/use-multi-account'
+import { isOrganizationType } from '@/lib/accounts/account-types'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useToast } from '@/components/ui/use-toast'
 import { MyStaffingApplications } from '@/components/jobs/my-staffing-applications'
 import { trackDashboardUxEvent } from '@/lib/analytics/ux-event-client'
+import { buildJobDetailHref } from '@/lib/jobs/job-detail-href'
+
+function ConditionalJobLink({ href, children }: { href: string | null; children: React.ReactNode }) {
+  if (href) return <a href={href} className="block">{children}</a>
+  return <div className="block cursor-default">{children}</div>
+}
 
 const VALID_JOB_TABS = new Set(['all', 'collaborations', 'saved', 'applications', 'staffing', 'my-jobs', 'hiring'])
 
@@ -35,7 +42,7 @@ export default function JobsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [jobs, setJobs] = useState<ArtistJob[]>([])
+  const [jobs, setJobs] = useState<any[]>([])
   const [collaborations, setCollaborations] = useState<ArtistJob[]>([])
   const [categories, setCategories] = useState<ArtistJobCategory[]>([])
   const [savedJobs, setSavedJobs] = useState<ArtistJob[]>([])
@@ -55,7 +62,7 @@ export default function JobsPage() {
   const [activeTab, setActiveTab] = useState('all')
   const [isJobModalOpen, setIsJobModalOpen] = useState(false)
   const [staffingJobs, setStaffingJobs] = useState<any[]>([])
-  const isAdminAccount = currentAccount?.account_type === 'admin'
+  const isAdminAccount = isOrganizationType(currentAccount?.account_type)
 
   useEffect(() => {
     const tab = searchParams.get('tab')
@@ -102,16 +109,36 @@ export default function JobsPage() {
     setIsLoading(true)
     try {
       const queryParams = new URLSearchParams()
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          queryParams.set(key, Array.isArray(value) ? value.join(',') : value.toString())
-        }
-      })
-      const response = await fetch(`/api/artist-jobs?${queryParams}`)
+      queryParams.set('merge', '1')
+      queryParams.set('page', String(filters.page ?? 1))
+      queryParams.set('per_page', String(filters.per_page ?? 20))
+      if (filters.query) queryParams.set('query', String(filters.query))
+      if (filters.employment_type) queryParams.set('employment_type', String(filters.employment_type))
+      if (filters.experience_level) queryParams.set('experience_level', String(filters.experience_level))
+      if (typeof filters.remote === 'boolean') queryParams.set('remote', String(filters.remote))
+      if (filters.urgent) queryParams.set('urgent', 'true')
+
+      const response = await fetch(`/api/jobs?${queryParams}`)
       const data = await response.json()
       if (data.success) {
-        setSearchResults(data.data)
-        setJobs(data.data.jobs)
+        const rawUnified = Array.isArray(data.data?.unified) ? data.data.unified : []
+        // Self-heal: only keep listings that resolve to a real detail route.
+        const unifiedJobs = rawUnified.filter(
+          (job: any) => buildJobDetailHref({ id: job?.id, source: job?.source, detailHref: job?.detail_href }) !== null
+        )
+        setJobs(unifiedJobs)
+        const totalCount = Number(data.data?.unified_total ?? unifiedJobs.length)
+        const currentPage = Number(data.data?.unified_page ?? filters.page ?? 1)
+        const perPage = Number(data.data?.unified_per_page ?? filters.per_page ?? 20)
+        setSearchResults({
+          jobs: [],
+          total_count: totalCount,
+          page: currentPage,
+          per_page: perPage,
+          total_pages: Math.max(1, Math.ceil(totalCount / perPage)),
+          has_next: currentPage * perPage < totalCount,
+          has_previous: currentPage > 1,
+        } as JobSearchResults)
       }
     } catch (error) {
       console.error('Error fetching jobs:', error)
@@ -126,7 +153,8 @@ export default function JobsPage() {
     try {
       const response = await fetch('/api/artist-jobs/saved')
       const data = await response.json()
-      if (data.success) setSavedJobs(data.data)
+      // Self-heal: saved rows can outlive their job; drop entries with no resolvable listing.
+      if (data.success) setSavedJobs((data.data || []).filter((job: any) => job && job.id && job.title))
     } catch (error) {
       console.error('Error fetching saved jobs:', error)
       toast({ title: 'Unable to load saved jobs', description: 'Please refresh and try again.', variant: 'destructive' })
@@ -286,6 +314,7 @@ export default function JobsPage() {
       void trackDashboardUxEvent({ eventName: 'job_apply_started', surface: 'jobs_dashboard', metadata: { jobId, accountType: currentAccount?.account_type ?? 'unknown' } })
       const response = await fetch(`/api/artist-jobs/${jobId}/applications`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ job_id: jobId, contact_email: user.email, preferred_contact_method: 'email' }),
       })
@@ -382,13 +411,13 @@ export default function JobsPage() {
     setFilters({ sort_by: 'created_at', sort_order: 'desc', page: 1, per_page: 20 })
   }
 
-  const getStaffingJobHref = (job: any) => {
-    if (job?.detail_href && typeof job.detail_href === 'string') return job.detail_href
-    const id = job?.template_id || job?.id
-    if (!id || typeof id !== 'string') return null
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
-    return isUuid ? `/jobs/${id}?source=venue` : null
-  }
+  const getStaffingJobHref = (job: any) =>
+    buildJobDetailHref({
+      id: job?.id,
+      templateId: job?.template_id,
+      source: job?.source,
+      detailHref: job?.detail_href,
+    })
 
   const getDisplayJobs = () => {
     switch (activeTab) {
@@ -504,7 +533,7 @@ export default function JobsPage() {
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {featuredJobs.map((job, index) => (
                     <motion.div key={job.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 + index * 0.1 }}>
-                      <JobCard job={job} onSave={handleSaveJob} onUnsave={handleUnsaveJob} onApply={handleApplyToJob} compact={true} />
+                      <JobCard job={job} onSave={handleSaveJob} onUnsave={handleUnsaveJob} onApply={handleApplyToJob} compact={true} isOwner={user?.id === job.posted_by} />
                     </motion.div>
                   ))}
                 </div>
@@ -770,58 +799,86 @@ export default function JobsPage() {
                         {getDisplayJobs().map((job, index) => (
                           <motion.div key={job.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: index * 0.05 }}
                             whileHover={{ y: -4, transition: { type: "spring", stiffness: 400, damping: 17 } }}>
-                            {tabValue === 'staffing' ? (
-                              <a href={getStaffingJobHref(job as any) || '#'} className="block">
-                                <SurfaceCard className="bg-slate-800/30 transition-all duration-300 hover:bg-slate-800/50">
-                                  <CardHeader className="pb-2">
-                                    <CardTitle className="text-white flex items-center gap-2">
-                                      <Briefcase className="h-5 w-5 text-purple-400" />
-                                      <span>{(job as any).title}</span>
-                                    </CardTitle>
-                                  </CardHeader>
-                                  <CardContent className="text-slate-300 text-sm">
-                                    <div className="flex flex-wrap items-center gap-3">
-                                      {(job as any).source && (
-                                        <Badge variant="outline" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50 capitalize">
-                                          {(job as any).source === 'artist' ? 'Artist board' : 'Venue staffing'}
-                                        </Badge>
-                                      )}
-                                      {(job as any).organization_name && (
-                                        <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
-                                          <Building2 className="h-3.5 w-3.5 mr-1" />{(job as any).organization_name}
-                                        </Badge>
-                                      )}
-                                      {(job as any).location && (
-                                        <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
-                                          <MapPin className="h-3.5 w-3.5 mr-1" />{(job as any).location}
-                                        </Badge>
-                                      )}
-                                      {(job as any).experience_level && (
-                                        <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
-                                          <Target className="h-3.5 w-3.5 mr-1" />{(job as any).experience_level}
-                                        </Badge>
-                                      )}
-                                      {(job as any).employment_type && (
-                                        <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50 capitalize">{(job as any).employment_type}</Badge>
-                                      )}
-                                      {Number.isFinite(Number((job as any).applications_count)) && (
-                                        <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
-                                          <Users className="h-3.5 w-3.5 mr-1" />{Number((job as any).applications_count)} applications
-                                        </Badge>
-                                      )}
-                                      {Number.isFinite(Number((job as any).views_count)) && (
-                                        <Badge variant="secondary" className="surface-chip rounded-lg border-slate-600/50 bg-slate-700/50">
-                                          <Eye className="h-3.5 w-3.5 mr-1" />{Number((job as any).views_count)} views
-                                        </Badge>
-                                      )}
-                                      {(job as any).urgent && <Badge className="rounded-lg border-red-600/30 bg-red-600/20 text-red-300">Urgent</Badge>}
+                            {tabValue === 'staffing' || tabValue === 'all' ? (
+                              <ConditionalJobLink href={getStaffingJobHref(job as any)}>
+                                <div className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-5 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-purple-400/30 hover:bg-white/[0.065]">
+                                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500/20 via-purple-500/20 to-cyan-400/20 ring-1 ring-white/10">
+                                      <Briefcase className="h-4.5 w-4.5 text-purple-300" />
                                     </div>
-                                    {!getStaffingJobHref(job as any) && (
-                                      <p className="text-xs text-amber-300 mt-3">This posting is syncing. Details will be available shortly.</p>
-                                    )}
-                                  </CardContent>
-                                </SurfaceCard>
-                              </a>
+                                    <div className="min-w-0 flex-1 space-y-3">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="font-semibold text-white transition-colors group-hover:text-purple-200">
+                                          {(job as any).title}
+                                        </h3>
+                                        {(job as any).urgent && (
+                                          <Badge className="border-red-500/30 bg-red-500/20 text-xs text-red-300">Urgent</Badge>
+                                        )}
+                                        {(job as any).source && (
+                                          <Badge
+                                            variant="outline"
+                                            className={cn(
+                                              'text-xs capitalize',
+                                              (job as any).source === 'artist'
+                                                ? 'border-fuchsia-500/30 bg-fuchsia-500/15 text-fuchsia-200'
+                                                : 'border-cyan-500/30 bg-cyan-500/15 text-cyan-200'
+                                            )}
+                                          >
+                                            {(job as any).source === 'artist' ? 'Artist board' : 'Venue staffing'}
+                                          </Badge>
+                                        )}
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-slate-300">
+                                        {(job as any).location && (
+                                          <span className="inline-flex items-center gap-1.5">
+                                            <MapPin className="h-3.5 w-3.5 text-cyan-400/80" />
+                                            {(job as any).location}
+                                          </span>
+                                        )}
+                                        {(job as any).employment_type && (
+                                          <span className="inline-flex items-center gap-1.5 capitalize text-slate-400">
+                                            <Briefcase className="h-3.5 w-3.5 text-purple-400/80" />
+                                            {(job as any).employment_type}
+                                          </span>
+                                        )}
+                                        {(job as any).experience_level && (
+                                          <span className="inline-flex items-center gap-1.5 capitalize text-slate-400">
+                                            <Target className="h-3.5 w-3.5 text-fuchsia-400/80" />
+                                            {(job as any).experience_level}
+                                          </span>
+                                        )}
+                                        {(job as any).organization_name && (
+                                          <span className="inline-flex items-center gap-1.5 text-slate-400">
+                                            <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                                            {(job as any).organization_name}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                                        {Number.isFinite(Number((job as any).applications_count)) && (
+                                          <span className="inline-flex items-center gap-1">
+                                            <Users className="h-3 w-3" />
+                                            {Number((job as any).applications_count)} applications
+                                          </span>
+                                        )}
+                                        {Number.isFinite(Number((job as any).views_count)) && (
+                                          <span className="inline-flex items-center gap-1">
+                                            <Eye className="h-3 w-3" />
+                                            {Number((job as any).views_count)} views
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      {!getStaffingJobHref(job as any) && (
+                                        <p className="text-xs text-amber-300/90">This posting is syncing. Details will be available shortly.</p>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </ConditionalJobLink>
                             ) : (
                               <JobCard
                                 job={job}
@@ -829,6 +886,7 @@ export default function JobsPage() {
                                 onUnsave={handleUnsaveJob}
                                 onApply={handleApplyToJob}
                                 showApplicationStatus={tabValue === 'applications'}
+                                isOwner={user?.id === job.posted_by}
                               />
                             )}
                           </motion.div>

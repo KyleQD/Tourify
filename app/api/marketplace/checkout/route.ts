@@ -3,8 +3,9 @@ import type Stripe from "stripe"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { calculateMarketplaceFeeBreakdown } from "@/lib/marketplace/fees"
 import { groupCartLinesBySeller, hasSingleSellerCart } from "@/lib/marketplace/cart"
+import { getInsufficientInventoryItem } from "@/lib/marketplace/inventory"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
-import { resolveStripeConnectAccountId } from "@/lib/stripe-connect-resolve"
+import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
 import { getStripeClient } from "@/lib/stripe"
 import { marketplaceCheckoutRequestSchema } from "@tourify/api-contracts"
 
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
 
     const { data: listings, error: listingsError } = await supabase
       .from("marketplace_listings")
-      .select("id, seller_user_id, title, status, product_type, currency, base_price, cover_image_url, metadata, music_track_id")
+      .select("id, seller_user_id, title, status, product_type, currency, base_price, cover_image_url, metadata, music_track_id, integration_id, source_provider, external_product_id, fulfillment_provider, fulfillment_profile, inventory_count, has_unlimited_inventory")
       .in("id", listingIds)
 
     if (listingsError || !listings?.length) {
@@ -93,7 +94,7 @@ export async function POST(request: NextRequest) {
     if (variantIds.length > 0) {
       const { data: variants } = await supabase
         .from("marketplace_listing_variants")
-        .select("id, listing_id, title, price")
+        .select("id, listing_id, title, price, inventory_count, external_variant_id, external_product_id, fulfillment_provider, fulfillment_profile")
         .in("id", variantIds)
       variantMap = new Map<string, any>((variants || []).map((variant: any) => [variant.id, variant]))
     }
@@ -108,6 +109,30 @@ export async function POST(request: NextRequest) {
         retryable: false,
       })
 
+    const insufficient = getInsufficientInventoryItem(
+      payload.lines.map(line => {
+        const listing = listingMap.get(line.listingId)
+        const variant = line.variantId ? variantMap.get(line.variantId) : null
+        return {
+          listingId: line.listingId,
+          variantId: line.variantId,
+          quantity: line.quantity,
+          hasUnlimitedInventory: listing?.has_unlimited_inventory,
+          listingInventoryCount: listing?.inventory_count,
+          variantInventoryCount: variant?.inventory_count,
+        }
+      })
+    )
+    if (insufficient) {
+      return jsonError({
+        status: 409,
+        code: "insufficient_inventory",
+        message: "One or more items do not have enough inventory for this purchase.",
+        retryable: false,
+        issues: { listingId: insufficient.listingId, variantId: insufficient.variantId },
+      })
+    }
+
     const lineItems = payload.lines.map(line => {
       const listing = listingMap.get(line.listingId)
       if (!listing) throw new Error("Missing listing")
@@ -118,6 +143,9 @@ export async function POST(request: NextRequest) {
       const resolvedPrice = Number(variant?.price ?? listing.base_price ?? 0)
       if (resolvedPrice <= 0) throw new Error("Invalid listing price")
 
+      const fulfillmentProvider = variant?.fulfillment_provider || listing.fulfillment_provider || null
+      const listingMetadata = listing.metadata && typeof listing.metadata === "object" ? listing.metadata : {}
+      const fulfillmentProfile = variant?.fulfillment_profile || listing.fulfillment_profile || {}
       const titleSuffix = variant?.title ? ` (${variant.title})` : ""
       return {
         listingId: line.listingId,
@@ -128,21 +156,38 @@ export async function POST(request: NextRequest) {
         unitPrice: resolvedPrice,
         lineTotal: Math.round(resolvedPrice * line.quantity * 100) / 100,
         coverImageUrl: listing.cover_image_url || null,
-        listingMetadata: listing.metadata || {},
+        listingMetadata: {
+          ...listingMetadata,
+          integrationId: listing.integration_id || null,
+          sourceProvider: listing.source_provider || listingMetadata.sourceProvider || null,
+          externalProductId: variant?.external_product_id || listing.external_product_id || listingMetadata.externalProductId || null,
+          externalVariantId: variant?.external_variant_id || listingMetadata.externalVariantId || null,
+          fulfillmentProvider,
+          fulfillmentProfile,
+        },
         musicTrackId: listing.music_track_id || null,
+        fulfillmentProvider,
       }
     })
+
+    const needsShippingAddress = lineItems.some(item => item.fulfillmentProvider === "printful")
+    // Prefer Stripe-native shipping collection for POD; payload address remains an optional override.
+    const useStripeShipping = needsShippingAddress && !payload.shippingAddress
 
     const subtotal = lineItems.reduce((sum, line) => sum + line.lineTotal, 0)
     const feeBreakdown = calculateMarketplaceFeeBreakdown({ subtotal })
 
-    const { data: sellerProfile } = await supabase
-      .from("profiles")
-      .select("stripe_connect_account_id, stripe_connect_v2_account_id, stripe_connect_account_kind")
-      .eq("id", sellerUserId)
-      .single()
-
-    const sellerStripeAccountId = resolveStripeConnectAccountId(sellerProfile)
+    const payoutReadiness = await getSellerPayoutReadiness({ supabase, sellerUserId })
+    if (!payoutReadiness.ready || !payoutReadiness.accountId) {
+      return jsonError({
+        status: 409,
+        code: "seller_payouts_not_ready",
+        message: "This seller is finishing payout setup and cannot accept purchases yet.",
+        retryable: false,
+        issues: payoutReadiness,
+      })
+    }
+    const sellerStripeAccountId = payoutReadiness.accountId
 
     const { data: order, error: orderError } = await supabase
       .from("marketplace_orders")
@@ -158,7 +203,13 @@ export async function POST(request: NextRequest) {
         tax_amount: feeBreakdown.taxAmount,
         total_amount: feeBreakdown.buyerTotal,
         shipping_address: payload.shippingAddress || null,
-        metadata: { ...(payload.metadata || {}), sellerStripeAccountId },
+        metadata: {
+          ...(payload.metadata || {}),
+          sellerStripeAccountId,
+          payoutProvider: "stripe_connect",
+          needsShippingAddress,
+          useStripeShipping,
+        },
       })
       .select("*")
       .single()
@@ -183,6 +234,7 @@ export async function POST(request: NextRequest) {
       unit_price: item.unitPrice,
       line_total: item.lineTotal,
       fulfillment_status: item.productType === "digital_asset" ? "digital_ready" : "pending",
+      fulfillment_provider: item.fulfillmentProvider || null,
       service_status: item.productType === "service" ? "pending" : null,
       metadata: item.listingMetadata,
       music_track_id: item.musicTrackId,
@@ -206,7 +258,7 @@ export async function POST(request: NextRequest) {
       platform_fee_amount: feeBreakdown.platformFee,
       net_amount: feeBreakdown.sellerPayout,
       payout_status: "pending",
-      payout_provider: sellerStripeAccountId ? "stripe_connect" : "manual",
+      payout_provider: "stripe_connect",
       available_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       metadata: {
         taxAmount: feeBreakdown.taxAmount,
@@ -229,6 +281,7 @@ export async function POST(request: NextRequest) {
     let session: Stripe.Checkout.Session
     try {
       const stripe = getStripeClient()
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || request.nextUrl.origin
 
       const checkoutLineItems = [
         ...lineItems.map(item => ({
@@ -265,8 +318,8 @@ export async function POST(request: NextRequest) {
         },
         mode: "payment",
         line_items: checkoutLineItems,
-        success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/artist/store?checkout=success&order_id=${order.id}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/artist/store?checkout=cancelled&order_id=${order.id}`,
+        success_url: `${siteUrl}/marketplace?checkout=success&order_id=${order.id}`,
+        cancel_url: `${siteUrl}/marketplace?checkout=cancelled&order_id=${order.id}`,
         metadata: {
           source: "marketplace_checkout",
           order_id: order.id,
@@ -274,6 +327,12 @@ export async function POST(request: NextRequest) {
           buyer_user_id: user.id,
         },
         customer_email: user.email || undefined,
+      }
+
+      if (useStripeShipping) {
+        sessionParams.shipping_address_collection = {
+          allowed_countries: ["US", "CA", "GB", "AU", "NZ", "IE", "DE", "FR", "NL", "ES", "IT", "SE", "NO", "DK", "FI", "MX", "JP"],
+        }
       }
 
       if (sellerStripeAccountId) {

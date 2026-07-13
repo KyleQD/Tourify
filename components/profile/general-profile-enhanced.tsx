@@ -44,6 +44,8 @@ import { ProfilePosts } from "./profile-posts"
 interface GeneralProfileProps {
   profile: {
     id: string
+    author_profile_id?: string | null
+    owner_user_id?: string | null
     username: string
     account_type: 'general'
     profile_data: {
@@ -583,7 +585,8 @@ export function GeneralProfileEnhanced({ profile, isOwnProfile = false, onFollow
 
           <TabsContent value="posts" className="space-y-6">
             <ProfilePosts 
-              profileId={profile.id}
+              profileId={profile.author_profile_id || profile.id}
+              ownerUserId={profile.owner_user_id || profile.id}
               profileUsername={profile.username}
               isOwnProfile={isOwnProfile}
               compact={false}

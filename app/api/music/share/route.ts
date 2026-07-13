@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiUser, jsonError } from '@/lib/api/route-helpers'
+import { jsonError } from '@/lib/api/route-helpers'
+import { resolveActingContext } from '@/lib/auth/acting-context'
+import { resolveActingAccountSnapshot } from '@/lib/accounts/acting-account-snapshot'
+import { isTrackPubliclyPlayable, recordMusicEvent, syncMusicStats } from '@/lib/music/music-access'
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiUser(request)
-    if (!authResult.success) return authResult.response
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
-    const { user, supabase } = authResult.auth
+    const { userId, accountType, profileId, supabase } = ctx
+    const author = await resolveActingAccountSnapshot(ctx)
     const { musicId, playlistId, createPost, content } = await request.json()
 
     if (!musicId && !playlistId) {
@@ -30,7 +34,7 @@ export async function POST(request: NextRequest) {
           code: 'playlist_not_found',
           message: 'Playlist not found',
         })
-      if (playlist.owner_user_id !== user.id && playlist.visibility !== 'public') {
+      if (playlist.owner_user_id !== userId && playlist.visibility !== 'public') {
         return jsonError({
           status: 403,
           code: 'forbidden',
@@ -50,11 +54,16 @@ export async function POST(request: NextRequest) {
         const { data: createdPost, error: createPostError } = await supabase
           .from('posts')
           .insert({
-            user_id: user.id,
+            user_id: userId,
             content: typeof content === 'string' && content.trim().length ? content.trim() : `Sharing playlist: "${playlist.title}"`,
             type: 'music',
             media_urls: playlist.cover_image_url ? [playlist.cover_image_url] : [],
             hashtags: ['music', 'playlist'],
+            posted_as_type: accountType,
+            posted_as_profile_id: profileId,
+            account_display_name: author.name,
+            account_username: author.username,
+            account_avatar_url: author.avatarUrl,
           })
           .select('id')
           .single()
@@ -71,7 +80,7 @@ export async function POST(request: NextRequest) {
 
         const { error: shareInsertError } = await supabase.from('music_playlist_shares').insert({
           playlist_id: playlist.id,
-          shared_by_user_id: user.id,
+          shared_by_user_id: userId,
           feed_post_id: createdPost?.id || null,
         })
 
@@ -87,7 +96,7 @@ export async function POST(request: NextRequest) {
       }
 
       await supabase.from('achievement_progress_events').insert({
-        user_id: user.id,
+        user_id: userId,
         metric_key: 'music_playlist_shares_total',
         event_type: 'music_playlist_shared',
         event_value: 1,
@@ -100,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const { data: track, error } = await supabase
       .from('artist_music')
-      .select('id,title,cover_art_url,file_url,stats,metadata,user_id')
+      .select('id,title,cover_art_url,stats,metadata,user_id,is_public,is_visible,moderation_status,rights_confirmed')
       .eq('id', musicId)
       .single()
 
@@ -111,11 +120,18 @@ export async function POST(request: NextRequest) {
         message: 'Not found',
       })
 
-    if (track.user_id !== user.id) {
+    if (track.user_id !== userId) {
+      if (!isTrackPubliclyPlayable(track)) {
+        return jsonError({
+          status: 403,
+          code: 'track_not_available',
+          message: 'Track is not available to share',
+        })
+      }
       const { data: ownedLibraryTrack } = await supabase
         .from('user_music_library')
         .select('id')
-        .eq('buyer_user_id', user.id)
+        .eq('buyer_user_id', userId)
         .eq('music_track_id', track.id)
         .maybeSingle()
 
@@ -132,20 +148,31 @@ export async function POST(request: NextRequest) {
       id: track.id,
       title: track.title,
       cover: track.cover_art_url,
-      preview: track.file_url,
+      preview: `/api/music/stream?trackId=${track.id}`,
       likes: track.stats?.likes || 0,
       plays: track.stats?.plays || 0,
       buy_url: track.metadata?.commerce?.buy_url || null,
-      full_track_url: track.metadata?.full_track_url || null,
     }
 
     if (createPost) {
       const { error: createPostError } = await supabase.from('posts').insert({
-        user_id: user.id,
+        user_id: userId,
         content: typeof content === 'string' && content.trim().length ? content.trim() : `Sharing track: "${track.title}"`,
         type: 'music',
         media_urls: track.cover_art_url ? [track.cover_art_url] : [],
         hashtags: ['music', 'track'],
+        metadata: {
+          music_track_id: track.id,
+          track_id: track.id,
+          track_title: track.title,
+          cover_url: track.cover_art_url || null,
+          stream_url: `/api/music/stream?trackId=${track.id}`,
+        },
+        posted_as_type: accountType,
+        posted_as_profile_id: profileId,
+        account_display_name: author.name,
+        account_username: author.username,
+        account_avatar_url: author.avatarUrl,
       })
 
       if (createPostError) {
@@ -160,13 +187,24 @@ export async function POST(request: NextRequest) {
     }
 
     await supabase.from('achievement_progress_events').insert({
-      user_id: user.id,
+      user_id: userId,
       metric_key: 'music_track_shares_total',
       event_type: 'music_track_shared',
       event_value: 1,
       event_source: 'api_music_share_track',
       event_data: { music_id: track.id, created_post: Boolean(createPost) },
     })
+
+    await recordMusicEvent({
+      supabase,
+      musicId: track.id,
+      artistUserId: track.user_id,
+      actorUserId: userId,
+      eventType: 'share',
+      source: 'api_music_share_track',
+      metadata: { created_post: Boolean(createPost) },
+    })
+    await syncMusicStats(supabase, track.id)
 
     return NextResponse.json({ payload })
   } catch (error) {
@@ -179,5 +217,3 @@ export async function POST(request: NextRequest) {
     })
   }
 }
-
-

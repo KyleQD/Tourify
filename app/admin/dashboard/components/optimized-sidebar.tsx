@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useAdminStats } from "../hooks/use-admin-stats"
+import { isOrganizationType, normalizeAccountType } from "@/lib/accounts/account-types"
 import {
   Home,
   Globe,
@@ -57,9 +58,58 @@ import {
   Flag,
   Crown,
   Target,
+  MessageSquare,
 } from "lucide-react"
 
 const STORAGE_KEY = "admin_sidebar_expanded"
+
+function getHiringEntityType(accountType: string | undefined) {
+  const normalized = normalizeAccountType(accountType)
+  if (normalized === "venue") return "venue"
+  if (normalized === "artist" || normalized === "service") return "artist"
+  if (isOrganizationType(normalized)) return "organization"
+  return null
+}
+
+function getHiringDisplayName(currentAccount: ReturnType<typeof useMultiAccount>["currentAccount"]) {
+  const profile = currentAccount?.profile_data as Record<string, unknown> | undefined
+  const candidates = [
+    (currentAccount as { display_name?: string } | null)?.display_name,
+    profile?.display_name,
+    profile?.organization_name,
+    profile?.venue_name,
+    profile?.artist_name,
+    profile?.stage_name,
+    profile?.name,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) return candidate
+  }
+
+  return undefined
+}
+
+function getHiringHref(path: string, currentAccount: ReturnType<typeof useMultiAccount>["currentAccount"]) {
+  const entityType = getHiringEntityType(currentAccount?.account_type)
+  if (!entityType || !currentAccount?.profile_id) return path
+
+  const params = new URLSearchParams()
+  params.set("entity_type", entityType)
+  params.set("entity_id", currentAccount.profile_id)
+  if (entityType === "venue") params.set("venue_id", currentAccount.profile_id)
+
+  const displayName = getHiringDisplayName(currentAccount)
+  if (displayName) params.set("display_name", displayName)
+
+  return `${path}?${params.toString()}`
+}
+
+function getStaffTabHref(tab: string, currentAccount?: ReturnType<typeof useMultiAccount>["currentAccount"]) {
+  const base = getHiringHref("/admin/dashboard/staff", currentAccount ?? null)
+  const joiner = base.includes("?") ? "&" : "?"
+  return `${base}${joiner}tab=${encodeURIComponent(tab)}`
+}
 
 function doesNavHrefMatchLocation(
   pathname: string,
@@ -179,32 +229,44 @@ export function OptimizedSidebar() {
         description: "Staff, scheduling, hiring & permissions",
         children: [
           {
-            label: "Staff & Crew",
-            href: "/admin/dashboard/staff",
+            label: "Hiring Hub",
+            href: getHiringHref("/admin/dashboard/hiring", currentAccount),
             icon: UserCheck,
             badge: stats?.staffMembers?.toString() || undefined,
             badgeColor: "bg-cyan-500/20 text-cyan-400",
-            description: "Team management and scheduling",
+            description: "Jobs, applications, onboarding and roster",
             shortcut: "⌘7",
             metaShortcutKey: "7",
           },
           {
             label: "Scheduling & Shifts",
-            href: "/admin/dashboard/staff?tab=scheduling",
+            href: getStaffTabHref("scheduling", currentAccount),
             icon: Clock,
             description: "Shift calendar and zone assignments",
           },
           {
-            label: "Jobs & Hiring",
-            href: "/admin/dashboard/jobs",
-            icon: Briefcase,
-            description: "Job postings and hiring pipeline",
-          },
-          {
             label: "Applications",
-            href: "/admin/applications",
+            href: getHiringHref("/admin/dashboard/applications", currentAccount),
             icon: ClipboardList,
             description: "Review and manage applicants",
+          },
+          {
+            label: "Candidates",
+            href: getHiringHref("/admin/dashboard/candidates", currentAccount),
+            icon: Award,
+            description: "Onboarding candidates and compliance",
+          },
+          {
+            label: "Roster",
+            href: getHiringHref("/admin/dashboard/roster", currentAccount),
+            icon: Users,
+            description: "Team roster and Work Mode assignments",
+          },
+          {
+            label: "Organization team",
+            href: "/admin/dashboard/organization",
+            icon: Building,
+            description: "Tour manager grants and artist roster",
           },
           {
             label: "Roles & Permissions",
@@ -213,10 +275,10 @@ export function OptimizedSidebar() {
             description: "Entity RBAC and access control",
           },
           {
-            label: "Onboarding",
-            href: "/admin/dashboard/onboarding",
+            label: "Staff Operations",
+            href: getHiringHref("/admin/dashboard/staff", currentAccount),
             icon: Award,
-            description: "Staff onboarding workflows",
+            description: "Scheduling, communications and analytics",
           },
         ],
       },
@@ -310,6 +372,12 @@ export function OptimizedSidebar() {
             icon: Link2,
             description: "Network connections and requests",
           },
+          {
+            label: "Communications",
+            href: "/admin/dashboard/communications",
+            icon: MessageSquare,
+            description: "Direct messages and group threads",
+          },
         ],
       },
       {
@@ -397,7 +465,7 @@ export function OptimizedSidebar() {
         ],
       },
     ],
-    [stats],
+    [currentAccount, stats],
   )
 
   // ─── Collect all shortcut-bearing leaf items for keyboard handler ──────────
@@ -503,7 +571,7 @@ export function OptimizedSidebar() {
   const SidebarContent = () => (
     <div
       data-education-anchor="admin-sidebar"
-      className={`flex flex-col h-screen bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
+      className={`flex flex-col h-[calc(100vh-4rem)] bg-slate-950/95 backdrop-blur-sm border-r border-slate-800/50 transition-all duration-300 ${
         isCollapsed ? "w-16" : "w-64"
       }`}
     >
@@ -572,6 +640,7 @@ export function OptimizedSidebar() {
                   <TooltipTrigger asChild>
                     <Link
                       href={item.href}
+                      prefetch={false}
                       className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-200 group text-sm ${
                         isActive
                           ? "bg-purple-600/10 text-white border-l-2 border-l-purple-500"
@@ -695,6 +764,7 @@ export function OptimizedSidebar() {
                         <Link
                           key={child.href}
                           href={child.href}
+                          prefetch={false}
                           className={`flex items-center justify-between p-2 rounded-lg transition-all duration-200 text-sm group ${
                             isChildActive
                               ? "bg-purple-600/20 text-purple-400 border border-purple-500/30"
@@ -732,6 +802,7 @@ export function OptimizedSidebar() {
                           <TooltipTrigger asChild>
                             <Link
                               href={child.href}
+                              prefetch={false}
                               className={`flex items-center justify-center p-2 rounded-lg transition-all ${
                                 isChildActive
                                   ? "bg-purple-600/20 text-purple-400"
@@ -777,17 +848,17 @@ export function OptimizedSidebar() {
                 className="w-48 bg-slate-900 border-slate-700 text-slate-100"
               >
                 <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                  <Link href="/admin/dashboard/tours/planner">New Tour</Link>
+                  <Link href="/admin/dashboard/tours/builder" prefetch={false}>New Tour</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                  <Link href="/admin/dashboard/events/create">New Event</Link>
+                  <Link href="/admin/dashboard/events/create" prefetch={false}>New Event</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild className="focus:bg-slate-800 focus:text-white cursor-pointer">
-                  <Link href="/admin/dashboard/jobs">New Job Posting</Link>
+                  <Link href={getHiringHref("/admin/dashboard/hiring", currentAccount)} prefetch={false}>New Job Posting</Link>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Link href="/admin/dashboard/settings">
+            <Link href="/admin/dashboard/settings" prefetch={false}>
               <Button
                 variant="outline"
                 size="sm"
@@ -810,7 +881,7 @@ export function OptimizedSidebar() {
           variant="ghost"
           size="sm"
           onClick={() => setShowMobileMenu(!showMobileMenu)}
-          className="fixed top-4 left-4 z-[100] ml-2 mt-2 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
+          className="fixed top-20 left-4 z-[100] ml-2 mt-2 md:hidden bg-slate-800/80 backdrop-blur-sm border border-slate-700"
         >
           <Menu className="h-5 w-5 text-white" />
         </Button>

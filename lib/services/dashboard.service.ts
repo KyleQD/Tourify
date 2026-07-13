@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { AccountManagementService, UserAccount } from './account-management.service'
+import { normalizeHiringEntityId } from '@/lib/hiring/hiring-entity-id'
 
 export interface DashboardStats {
   likes: number
@@ -155,12 +156,13 @@ export class DashboardService {
     userId: string,
     options?: { engagementSampleMaxRows?: number },
   ): Promise<DashboardStats> {
+    const resolvedUserId = normalizeHiringEntityId(userId) ?? userId
     return safeQuery(async () => {
       const engagementCap = options?.engagementSampleMaxRows ?? 25_000
       const [engagementResult, followersResult, eventCountResult] = await Promise.allSettled([
-        sumPostEngagementForUser(userId, { maxRows: engagementCap }),
-        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-        this.getUserEventCount(userId),
+        sumPostEngagementForUser(resolvedUserId, { maxRows: engagementCap }),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', resolvedUserId),
+        this.getUserEventCount(resolvedUserId),
       ])
 
       const postTotals =
@@ -180,6 +182,7 @@ export class DashboardService {
   }
 
   static async getDashboardActivity(userId: string): Promise<DashboardActivity[]> {
+    const resolvedUserId = normalizeHiringEntityId(userId) ?? userId
     return safeQuery(async () => {
       const activities: DashboardActivity[] = []
 
@@ -187,14 +190,14 @@ export class DashboardService {
         supabase
           .from('posts')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', resolvedUserId)
           .order('created_at', { ascending: false })
           .limit(5),
-        this.getRecentUserEvents(userId),
+        this.getRecentUserEvents(resolvedUserId),
         supabase
           .from('follows')
           .select('id, created_at')
-          .eq('following_id', userId)
+          .eq('following_id', resolvedUserId)
           .order('created_at', { ascending: false })
           .limit(3),
       ])

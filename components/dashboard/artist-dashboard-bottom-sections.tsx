@@ -24,6 +24,10 @@ import {
   type ArtistDashboardWidgetId,
 } from '@/lib/services/artist-dashboard-layout.service'
 import { SortableWidgetSection } from '@/components/dashboard/sortable-widget-section'
+import {
+  ARTIST_OUTLINE_BTN,
+  ARTIST_SECTION_LABEL,
+} from '@/components/dashboard/artist-tokens'
 
 interface ArtistDashboardBottomSectionsProps {
   userId: string
@@ -81,9 +85,12 @@ export function ArtistDashboardBottomSections({ userId, sections: children }: Ar
   )
 
   return (
-    <div className="mt-12 space-y-4">
+    <div className="mt-8 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">Advanced Insights & Analytics</h2>
+        <div>
+          <div className={ARTIST_SECTION_LABEL}>Depth</div>
+          <h2 className="mt-1 text-lg font-semibold tracking-tight text-white">Insights</h2>
+        </div>
         <div className="flex items-center gap-2">
           {customize && (
             <span className="text-xs text-slate-500">{saving ? 'Saving…' : 'Drag sections to reorder'}</span>
@@ -92,10 +99,10 @@ export function ArtistDashboardBottomSections({ userId, sections: children }: Ar
             type="button"
             variant="outline"
             size="sm"
-            className="border-slate-600 text-slate-300"
+            className={ARTIST_OUTLINE_BTN}
             onClick={() => setCustomize((v) => !v)}
           >
-            <GripVertical className="h-4 w-4 mr-1" />
+            <GripVertical className="mr-1 h-4 w-4" />
             {customize ? 'Done' : 'Customize layout'}
           </Button>
         </div>

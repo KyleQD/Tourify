@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'follow') {
+
       // Create follow relationship
       const { data, error } = await supabase
         .from('follows')
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
         
         console.error('Error creating follow:', error)
         return NextResponse.json(
-          { error: 'Failed to follow user' },
+          { error: 'Failed to follow user', details: error.message, code: error.code },
           { status: 500 }
         )
       }

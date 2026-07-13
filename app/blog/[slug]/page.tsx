@@ -1,35 +1,141 @@
-import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { notFound } from 'next/navigation'
-import { format } from 'date-fns'
-import { ArrowLeft, Clock, Tag, User, Eye, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react'
-import Link from 'next/link'
+import type { Metadata } from 'next'
 import Image from 'next/image'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { format, formatDistanceToNow } from 'date-fns'
+import { ArrowLeft, Clock3, Eye, ShieldCheck, Tag } from 'lucide-react'
 
-interface BlogPost {
-  id: string
-  title: string
-  slug: string
-  content: string
-  excerpt: string
-  featured_image_url?: string
-  published_at: string
-  created_at: string
-  updated_at: string
-  stats: {
-    views: number
-    likes: number
-    comments: number
-    shares: number
+import { ArticleActionBar } from '@/components/blog/article-action-bar'
+import { Button } from '@/components/ui/button'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { getMoreFromAuthor, getPublicArticleBySlug, type PublicArticle } from '@/lib/blog/public-articles'
+
+// getBlogAccountAuthor is applied inside the shared article read helpers, which
+// normalize account_display_name and posted_as_type from the stored article row.
+
+export const dynamic = 'force-dynamic'
+
+const SITE_NAME = 'Tourify News'
+const DEFAULT_SITE_ORIGIN = 'https://tourify.live'
+
+function getSiteOrigin() {
+  return (process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_SITE_ORIGIN).replace(/\/$/, '')
+}
+
+function toAbsoluteUrl(value: string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    return new URL(value, `${getSiteOrigin()}/`).toString()
+  } catch {
+    return null
   }
-  tags: string[]
-  categories: string[]
-  author: {
-    id: string
-    name: string
-    username: string
-    avatar_url?: string
-    is_verified: boolean
+}
+
+function stripMarkdown(value: string) {
+  return value
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[[^\]]*]\([^)]+\)/g, ' ')
+    .replace(/\[([^\]]+)]\([^)]+\)/g, '$1')
+    .replace(/[#>*_~\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function getArticleDescription(article: PublicArticle) {
+  const source = article.excerpt || stripMarkdown(article.content)
+  const cleaned = stripMarkdown(source)
+  if (cleaned.length <= 160) return cleaned
+  return `${cleaned.slice(0, 157).trim()}...`
+}
+
+function getArticleKeywords(article: PublicArticle) {
+  return Array.from(new Set([
+    ...article.categories,
+    ...article.tags,
+    article.author.name,
+    'Tourify News',
+    'music news',
+    'live entertainment',
+  ].map(keyword => keyword.trim()).filter(Boolean)))
+}
+
+function getArticleWordCount(article: PublicArticle) {
+  return stripMarkdown(article.content).split(/\s+/).filter(Boolean).length
+}
+
+function getArticleJsonLd(article: PublicArticle) {
+  const canonicalUrl = toAbsoluteUrl(`/blog/${article.slug}`) || `${getSiteOrigin()}/blog/${article.slug}`
+  const imageUrl = toAbsoluteUrl(article.featuredImageUrl)
+  const authorUrl = toAbsoluteUrl(article.author.profilePath)
+  const keywords = getArticleKeywords(article)
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    '@id': `${canonicalUrl}#article`,
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': canonicalUrl,
+    },
+    headline: article.title,
+    description: getArticleDescription(article),
+    image: imageUrl ? [imageUrl] : undefined,
+    datePublished: article.publishedAt,
+    dateModified: article.updatedAt || article.publishedAt,
+    author: {
+      '@type': article.author.type === 'organization' ? 'Organization' : 'Person',
+      name: article.author.name,
+      url: authorUrl || undefined,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Tourify',
+      logo: {
+        '@type': 'ImageObject',
+        url: `${getSiteOrigin()}/icon`,
+      },
+    },
+    url: canonicalUrl,
+    isAccessibleForFree: true,
+    articleSection: article.categories,
+    keywords: keywords.join(', '),
+    wordCount: getArticleWordCount(article),
   }
+}
+
+function getBreadcrumbJsonLd(article: PublicArticle) {
+  const origin = getSiteOrigin()
+  const canonicalUrl = `${origin}/blog/${article.slug}`
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'News',
+        item: `${origin}/news`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Stories',
+        item: `${origin}/news`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: article.title,
+        item: canonicalUrl,
+      },
+    ],
+  }
+}
+
+function jsonLdScript(data: unknown) {
+  return JSON.stringify(data).replace(/</g, '\\u003c')
 }
 
 interface BlogPostPageProps {
@@ -38,307 +144,394 @@ interface BlogPostPageProps {
   }>
 }
 
-async function getBlogPost(slug: string): Promise<BlogPost | null> {
-  const supabase = createServiceRoleClient()
-  
-  const { data, error } = await supabase
-    .from('artist_blog_posts')
-    .select(`
-      id,
-      title,
-      slug,
-      content,
-      excerpt,
-      featured_image_url,
-      published_at,
-      created_at,
-      updated_at,
-      stats,
-      tags,
-      categories,
-      user_id,
-      profiles:user_id (
-        id,
-        username,
-        full_name,
-        avatar_url,
-        is_verified
-      )
-    `)
-    .eq('slug', slug)
-    .eq('status', 'published')
-    .single()
+function renderArticleContent(content: string) {
+  const blocks = content
+    .split(/\n{2,}/)
+    .map(block => block.trim())
+    .filter(Boolean)
 
-  if (error || !data) {
-    return null
+  return blocks.map((block, index) => {
+    if (block.startsWith('### ')) {
+      return (
+        <h3 key={index} className="text-xl font-semibold text-white">
+          {block.replace(/^###\s+/, '')}
+        </h3>
+      )
+    }
+
+    if (block.startsWith('## ')) {
+      return (
+        <h2 key={index} className="text-2xl font-semibold text-white">
+          {block.replace(/^##\s+/, '')}
+        </h2>
+      )
+    }
+
+    if (block.startsWith('> ')) {
+      return (
+        <blockquote
+          key={index}
+          className="border-l-2 border-fuchsia-400/60 pl-4 italic text-slate-300"
+        >
+          {block.replace(/^>\s+/, '')}
+        </blockquote>
+      )
+    }
+
+    const listItems = block
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => /^[-*]\s+/.test(line) || /^\d+\.\s+/.test(line))
+
+    if (listItems.length > 0 && listItems.length === block.split('\n').filter(Boolean).length) {
+      return (
+        <ul key={index} className="space-y-2 pl-5 text-slate-200">
+          {listItems.map(item => (
+            <li key={item} className="list-disc">
+              {item.replace(/^[-*]\s+/, '').replace(/^\d+\.\s+/, '')}
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
+    return (
+      <p key={index} className="text-base leading-8 text-slate-200 md:text-lg">
+        {block}
+      </p>
+    )
+  })
+}
+
+export async function generateMetadata({ params }: BlogPostPageProps): Promise<Metadata> {
+  const { slug } = await params
+  const supabase = createServiceRoleClient()
+  const article = await getPublicArticleBySlug(supabase, slug)
+
+  if (!article) {
+    return {
+      title: `Article not found | ${SITE_NAME}`,
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }
   }
 
-  const profile = Array.isArray(data.profiles) ? data.profiles[0] : data.profiles
-  const authorName = profile?.full_name || profile?.username || 'Community Author'
-  const authorUsername = profile?.username || 'user'
-  const authorAvatar = profile?.avatar_url || undefined
-  const isVerified = profile?.is_verified || false
+  const description = getArticleDescription(article)
+  const canonicalPath = `/blog/${article.slug}`
+  const canonicalUrl = toAbsoluteUrl(canonicalPath) || `${getSiteOrigin()}${canonicalPath}`
+  const imageUrl = toAbsoluteUrl(article.featuredImageUrl)
+  const authorProfileUrl = toAbsoluteUrl(article.author.profilePath)
+  const keywords = getArticleKeywords(article)
 
   return {
-    id: data.id,
-    title: data.title,
-    slug: data.slug,
-    content: data.content,
-    excerpt: data.excerpt,
-    featured_image_url: data.featured_image_url,
-    published_at: data.published_at || data.created_at,
-    created_at: data.created_at,
-    updated_at: data.updated_at,
-    stats: data.stats || { views: 0, likes: 0, comments: 0, shares: 0 },
-    tags: data.tags || [],
-    categories: data.categories || [],
-    author: {
-      id: data.user_id,
-      name: authorName,
-      username: authorUsername,
-      avatar_url: authorAvatar,
-      is_verified: isVerified
-    }
+    title: `${article.title} | ${SITE_NAME}`,
+    description,
+    keywords,
+    authors: [
+      {
+        name: article.author.name,
+        url: authorProfileUrl || undefined,
+      },
+    ],
+    category: article.categories[0] || 'Music',
+    alternates: {
+      canonical: canonicalPath,
+    },
+    robots: {
+      index: true,
+      follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+        'max-video-preview': -1,
+      },
+    },
+    openGraph: {
+      title: article.title,
+      description,
+      type: 'article',
+      url: canonicalUrl,
+      siteName: 'Tourify',
+      publishedTime: article.publishedAt,
+      modifiedTime: article.updatedAt || article.publishedAt,
+      authors: authorProfileUrl ? [authorProfileUrl] : [article.author.name],
+      tags: keywords,
+      images: imageUrl ? [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: article.title,
+        },
+      ] : [],
+    },
+    twitter: {
+      card: imageUrl ? 'summary_large_image' : 'summary',
+      title: article.title,
+      description,
+      images: imageUrl ? [imageUrl] : [],
+    },
   }
 }
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params
-  const blogPost = await getBlogPost(slug)
+  const supabase = createServiceRoleClient()
+  const article = await getPublicArticleBySlug(supabase, slug)
 
-  if (!blogPost) {
+  if (!article) {
     notFound()
   }
 
-  const readingTime = Math.ceil((blogPost.content.length) / 200) // Rough estimate: 200 chars per minute
-  const publishedDate = format(new Date(blogPost.published_at), 'MMMM d, yyyy')
+  const moreFromAuthor = await getMoreFromAuthor(supabase, article, 3)
+  const articleJsonLd = getArticleJsonLd(article)
+  const breadcrumbJsonLd = getBreadcrumbJsonLd(article)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Back Button */}
-        <Link 
-          href="/feed" 
-          className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Feed
-        </Link>
+    <div className="min-h-screen bg-[#03030a] pb-24 pt-[calc(3.5rem+1rem)] text-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: jsonLdScript(breadcrumbJsonLd) }}
+      />
+      <div className="relative mx-auto w-full max-w-6xl px-4 py-8 md:px-8">
+        <div className="relative z-10 grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <main className="space-y-6">
+            <Link
+              href="/news"
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-sm text-slate-300 transition hover:border-fuchsia-300/40 hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              News / Stories
+            </Link>
 
-        {/* Blog Post Header */}
-        <article className="bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 overflow-hidden">
-          {/* Featured Image */}
-          {blogPost.featured_image_url && (
-            <div className="relative h-64 md:h-80 w-full">
-              <Image
-                src={blogPost.featured_image_url}
-                alt={blogPost.title}
-                fill
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
-            </div>
-          )}
+            <article className="overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.04] shadow-[0_24px_80px_rgba(0,0,0,0.35)]">
+              {article.featuredImageUrl ? (
+                <div className="relative h-64 w-full overflow-hidden border-b border-white/10 md:h-96">
+                  <Image
+                    src={article.featuredImageUrl}
+                    alt={article.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#03030a] via-[#03030a]/30 to-transparent" />
+                </div>
+              ) : null}
 
-          {/* Post Header Content */}
-          <div className="p-6 md:p-8">
-            {/* Tags */}
-            {blogPost.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {blogPost.tags.slice(0, 3).map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-3 py-1 bg-purple-600/20 text-purple-300 text-sm rounded-full border border-purple-500/30"
-                  >
-                    #{tag}
+              <div className="space-y-6 p-6 md:p-10">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-200">
+                    Article
                   </span>
-                ))}
+                  {article.categories.slice(0, 2).map(category => (
+                    <span
+                      key={category}
+                      className="rounded-full border border-fuchsia-500/20 bg-fuchsia-500/10 px-3 py-1 text-xs font-medium text-fuchsia-200"
+                    >
+                      {category}
+                    </span>
+                  ))}
+                  <span className="text-xs text-slate-500">
+                    {formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true })}
+                  </span>
+                </div>
+
+                <div className="space-y-4">
+                  <h1 className="text-3xl font-bold tracking-tight text-white md:text-5xl">
+                    {article.title}
+                  </h1>
+                  <p className="max-w-3xl text-base leading-7 text-slate-300 md:text-lg">
+                    {article.excerpt}
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-5 rounded-2xl border border-white/10 bg-black/20 p-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-3">
+                    {article.author.avatarUrl ? (
+                      <Image
+                        src={article.author.avatarUrl}
+                        alt={article.author.name}
+                        width={52}
+                        height={52}
+                        className="h-[52px] w-[52px] rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-white/10 text-lg font-semibold text-white">
+                        {article.author.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-white md:text-base">
+                          {article.author.name}
+                        </span>
+                        {article.author.isVerified ? (
+                          <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400 md:text-sm">
+                        {article.author.profilePath ? (
+                          <Link href={article.author.profilePath} className="transition hover:text-white">
+                            {article.author.username ? `@${article.author.username}` : 'View profile'}
+                          </Link>
+                        ) : (
+                          <span>{article.author.username ? `@${article.author.username}` : 'Tourify author'}</span>
+                        )}
+                        <span className="text-slate-600">•</span>
+                        <span>{format(new Date(article.publishedAt), 'MMMM d, yyyy')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-slate-400">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock3 className="h-4 w-4" />
+                      {article.readingTime} min read
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Eye className="h-4 w-4" />
+                      {article.metrics.views.toLocaleString()} views
+                    </span>
+                  </div>
+                </div>
+
+                <ArticleActionBar
+                  articleTitle={article.title}
+                  canonicalPath={`/blog/${article.slug}`}
+                  metrics={{
+                    likes: article.metrics.likes,
+                    comments: article.metrics.comments,
+                    shares: article.metrics.shares,
+                  }}
+                />
               </div>
-            )}
+            </article>
 
-            {/* Title */}
-            <h1 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
-              {blogPost.title}
-            </h1>
+            <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6 md:p-10">
+              <div className="space-y-6">
+                {renderArticleContent(article.content)}
+              </div>
+            </section>
 
-            {/* Excerpt */}
-            <p className="text-slate-300 text-lg mb-6 leading-relaxed">
-              {blogPost.excerpt}
-            </p>
+            {(article.tags.length > 0 || article.categories.length > 0) ? (
+              <section className="rounded-[28px] border border-white/10 bg-white/[0.04] p-6">
+                <div className="flex flex-wrap gap-6">
+                  {article.categories.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                        <Tag className="h-4 w-4 text-fuchsia-300" />
+                        Categories
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {article.categories.map(category => (
+                          <span
+                            key={category}
+                            className="rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
 
-            {/* Author and Meta Info */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  {blogPost.author.avatar_url ? (
+                  {article.tags.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="text-sm font-semibold text-white">Tags</div>
+                      <div className="flex flex-wrap gap-2">
+                        {article.tags.map(tag => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-300"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+            ) : null}
+          </main>
+
+          <aside className="relative z-10 space-y-6">
+            <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+              <div className="mb-4 text-sm font-semibold text-white">About the author</div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  {article.author.avatarUrl ? (
                     <Image
-                      src={blogPost.author.avatar_url}
-                      alt={blogPost.author.name}
-                      width={40}
-                      height={40}
-                      className="rounded-full"
+                      src={article.author.avatarUrl}
+                      alt={article.author.name}
+                      width={56}
+                      height={56}
+                      className="rounded-full object-cover"
                     />
                   ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-600 text-sm font-bold text-white">
-                      {blogPost.author.name.charAt(0)}
+                    <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-lg font-semibold text-white">
+                      {article.author.name.charAt(0).toUpperCase()}
                     </div>
                   )}
-                  {blogPost.author.is_verified && (
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-white">{article.author.name}</p>
+                      {article.author.isVerified ? (
+                        <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                      ) : null}
                     </div>
-                  )}
-                </div>
-                <div>
-                  <p className="text-white font-medium">{blogPost.author.name}</p>
-                  <p className="text-slate-400 text-sm">@{blogPost.author.username}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4 text-slate-400 text-sm">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{readingTime} min read</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Eye className="w-4 h-4" />
-                  <span>{blogPost.stats.views.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Engagement Stats */}
-            <div className="flex items-center justify-between py-4 border-t border-slate-700/50">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Heart className="w-5 h-5" />
-                  <span>{blogPost.stats.likes.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <MessageCircle className="w-5 h-5" />
-                  <span>{blogPost.stats.comments.toLocaleString()}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-400">
-                  <Share2 className="w-5 h-5" />
-                  <span>{blogPost.stats.shares.toLocaleString()}</span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button className="p-2 text-slate-400 hover:text-purple-400 transition-colors">
-                  <Bookmark className="w-5 h-5" />
-                </button>
-                <button className="p-2 text-slate-400 hover:text-purple-400 transition-colors">
-                  <Share2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-
-            {/* Published Date */}
-            <div className="text-slate-500 text-sm">
-              Published on {publishedDate}
-            </div>
-          </div>
-        </article>
-
-        {/* Blog Content */}
-        <div className="mt-8 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6 md:p-8">
-          <div className="prose prose-invert prose-purple max-w-none">
-            <div 
-              className="text-slate-300 leading-relaxed text-lg"
-              dangerouslySetInnerHTML={{ 
-                __html: blogPost.content
-                  .split('\n\n')
-                  .map(paragraph => `<p class="mb-6">${paragraph}</p>`)
-                  .join('')
-              }}
-            />
-          </div>
-        </div>
-
-        {/* Tags and Categories */}
-        {(blogPost.tags.length > 0 || blogPost.categories.length > 0) && (
-          <div className="mt-8 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
-            <div className="flex flex-wrap gap-4">
-              {blogPost.categories.length > 0 && (
-                <div>
-                  <h3 className="text-white font-medium mb-2 flex items-center gap-2">
-                    <Tag className="w-4 h-4" />
-                    Categories
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {blogPost.categories.map((category) => (
-                      <span
-                        key={category}
-                        className="px-3 py-1 bg-blue-600/20 text-blue-300 text-sm rounded-full border border-blue-500/30"
-                      >
-                        {category}
-                      </span>
-                    ))}
+                    <p className="text-sm text-slate-400">
+                      {article.author.username ? `@${article.author.username}` : 'Tourify member'}
+                    </p>
                   </div>
+                </div>
+
+                {article.author.profilePath ? (
+                  <Button asChild className="w-full rounded-xl bg-white text-black hover:bg-white/90">
+                    <Link href={article.author.profilePath}>Visit profile</Link>
+                  </Button>
+                ) : null}
+              </div>
+            </section>
+
+            <section className="rounded-[24px] border border-white/10 bg-white/[0.04] p-5">
+              <div className="mb-4 text-sm font-semibold text-white">More from this author</div>
+              {moreFromAuthor.length > 0 ? (
+                <div className="space-y-3">
+                  {moreFromAuthor.map(related => (
+                    <Link
+                      key={related.id}
+                      href={`/blog/${related.slug}`}
+                      className="block rounded-2xl border border-white/8 bg-black/20 p-4 transition hover:border-white/15 hover:bg-black/30"
+                    >
+                      <div className="space-y-2">
+                        <p className="line-clamp-2 text-sm font-semibold text-white">{related.title}</p>
+                        <p className="line-clamp-2 text-xs leading-5 text-slate-400">{related.excerpt}</p>
+                        <div className="text-[11px] text-slate-500">
+                          {formatDistanceToNow(new Date(related.publishedAt), { addSuffix: true })}
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/10 bg-black/20 p-4 text-sm text-slate-500">
+                  More stories from this author will show up here once they publish them.
                 </div>
               )}
-
-              {blogPost.tags.length > 0 && (
-                <div>
-                  <h3 className="text-white font-medium mb-2">Tags</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {blogPost.tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="px-3 py-1 bg-purple-600/20 text-purple-300 text-sm rounded-full border border-purple-500/30"
-                      >
-                        #{tag}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Author Profile */}
-        <div className="mt-8 bg-slate-800/50 backdrop-blur-sm rounded-2xl border border-slate-700/50 p-6">
-          <div className="flex items-center gap-4">
-            {blogPost.author.avatar_url ? (
-              <Image
-                src={blogPost.author.avatar_url}
-                alt={blogPost.author.name}
-                width={80}
-                height={80}
-                className="rounded-full"
-              />
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-purple-600 text-2xl font-bold text-white">
-                {blogPost.author.name.charAt(0)}
-              </div>
-            )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-white font-semibold text-lg">{blogPost.author.name}</h3>
-                {blogPost.author.is_verified && (
-                  <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-              <p className="text-slate-400">@{blogPost.author.username}</p>
-              <Link 
-                href={`/profile/${blogPost.author.username}`}
-                className="inline-block mt-3 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
-              >
-                View Profile
-              </Link>
-            </div>
-          </div>
+            </section>
+          </aside>
         </div>
       </div>
     </div>
   )
-} 
+}

@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-
-function formatICalDate(d: Date): string {
-  return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
-}
-
-function escapeIcal(s: string): string {
-  return (s || '').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n')
-}
+import {
+  buildIcsCalendar,
+  resolveDoorsOpenTime,
+} from '@/lib/admin/calendar/ics'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: eventId } = await params
 
@@ -27,50 +23,67 @@ export async function GET(
 
   if (!event) return new NextResponse('Event not found', { status: 404 })
 
-  const settings = event.settings || {}
-  const venueLabel = escapeIcal(settings.venue_label || '')
+  const settings = (event.settings && typeof event.settings === 'object'
+    ? event.settings
+    : {}) as Record<string, unknown>
+  const venueLabel = typeof settings.venue_label === 'string' ? settings.venue_label : ''
   const startAt = new Date(event.start_at)
   const endAt = event.end_at ? new Date(event.end_at) : new Date(startAt.getTime() + 2 * 60 * 60 * 1000)
   const startDate = startAt.toISOString().slice(0, 10)
 
-  const vevents: string[] = []
+  const events = [
+    {
+      uid: `${event.id}-show@tourify`,
+      summary: event.title || 'Event',
+      location: venueLabel || undefined,
+      description: `${event.title || 'Event'} at ${venueLabel}`,
+      start: startAt,
+      end: endAt,
+    },
+  ]
 
-  vevents.push(
-    'BEGIN:VEVENT',
-    `UID:${event.id}-show@tourify`,
-    `DTSTART:${formatICalDate(startAt)}`,
-    `DTEND:${formatICalDate(endAt)}`,
-    `SUMMARY:${escapeIcal(event.title)}`,
-    `LOCATION:${venueLabel}`,
-    `DESCRIPTION:${escapeIcal(event.title)} at ${venueLabel}`,
-    'END:VEVENT',
-  )
-
-  if (settings.load_in_time) {
+  if (typeof settings.load_in_time === 'string' && settings.load_in_time) {
     const t = new Date(`${startDate}T${settings.load_in_time}:00Z`)
-    vevents.push('BEGIN:VEVENT', `UID:${event.id}-load-in@tourify`, `DTSTART:${formatICalDate(t)}`, `DTEND:${formatICalDate(new Date(t.getTime() + 60 * 60 * 1000))}`, `SUMMARY:Load In — ${escapeIcal(event.title)}`, `LOCATION:${venueLabel}`, 'END:VEVENT')
+    events.push({
+      uid: `${event.id}-load-in@tourify`,
+      summary: `Load In — ${event.title}`,
+      location: venueLabel || undefined,
+      description: `Load in for ${event.title}`,
+      start: t,
+      end: new Date(t.getTime() + 60 * 60 * 1000),
+    })
   }
 
-  if (settings.sound_check_time) {
+  if (typeof settings.sound_check_time === 'string' && settings.sound_check_time) {
     const t = new Date(`${startDate}T${settings.sound_check_time}:00Z`)
-    vevents.push('BEGIN:VEVENT', `UID:${event.id}-soundcheck@tourify`, `DTSTART:${formatICalDate(t)}`, `DTEND:${formatICalDate(new Date(t.getTime() + 60 * 60 * 1000))}`, `SUMMARY:Sound Check — ${escapeIcal(event.title)}`, `LOCATION:${venueLabel}`, 'END:VEVENT')
+    events.push({
+      uid: `${event.id}-soundcheck@tourify`,
+      summary: `Sound Check — ${event.title}`,
+      location: venueLabel || undefined,
+      description: `Sound check for ${event.title}`,
+      start: t,
+      end: new Date(t.getTime() + 60 * 60 * 1000),
+    })
   }
 
-  if (settings.doors_open) {
-    const t = new Date(`${startDate}T${settings.doors_open}:00Z`)
-    vevents.push('BEGIN:VEVENT', `UID:${event.id}-doors@tourify`, `DTSTART:${formatICalDate(t)}`, `DTEND:${formatICalDate(new Date(t.getTime() + 30 * 60 * 1000))}`, `SUMMARY:Doors Open — ${escapeIcal(event.title)}`, `LOCATION:${venueLabel}`, 'END:VEVENT')
+  const doorsOpen = resolveDoorsOpenTime(settings)
+  if (doorsOpen) {
+    const t = new Date(`${startDate}T${doorsOpen}:00Z`)
+    events.push({
+      uid: `${event.id}-doors@tourify`,
+      summary: `Doors Open — ${event.title}`,
+      location: venueLabel || undefined,
+      description: `Doors open for ${event.title}`,
+      start: t,
+      end: new Date(t.getTime() + 30 * 60 * 1000),
+    })
   }
 
-  const ical = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Tourify//Event Calendar//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
-    `X-WR-CALNAME:${escapeIcal(event.title)}`,
-    ...vevents,
-    'END:VCALENDAR',
-  ].join('\r\n')
+  const ical = buildIcsCalendar({
+    prodId: '-//Tourify//Event Calendar//EN',
+    name: event.title || 'Event',
+    events,
+  })
 
   return new NextResponse(ical, {
     headers: {

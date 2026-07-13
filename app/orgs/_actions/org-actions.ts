@@ -10,7 +10,10 @@ import { escapeHtml, emailLayout, emailButton, emailFallbackUrl } from '@/lib/em
 const action = createSafeActionClient()
 
 const createOrgSchema = z.object({
-  name: z.string().min(2).max(80)
+  name: z.string().min(2).max(80),
+  organization_type: z.string().min(1).optional(),
+  url_slug: z.string().max(40).optional(),
+  description: z.string().max(1000).optional(),
 })
 
 export const createOrganizationAction = action.schema(createOrgSchema).action(async ({ parsedInput }) => {
@@ -18,29 +21,35 @@ export const createOrganizationAction = action.schema(createOrgSchema).action(as
   const { data: user } = await supabase.auth.getUser()
   if (!user?.user) return { ok: false, error: 'not_authenticated' }
 
-  const slug = parsedInput.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40)
+  const organizationType = parsedInput.organization_type || 'generic'
+  const slug =
+    parsedInput.url_slug?.trim() ||
+    parsedInput.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40)
 
-  const { data, error } = await supabase
-    .from('organizations')
-    .insert({ name: parsedInput.name, slug, created_by: user.user.id })
-    .select('id, slug')
-    .single()
+  const { data: organizerId, error } = await supabase.rpc('create_organizer_account', {
+    p_user_id: user.user.id,
+    p_organization_name: parsedInput.name,
+    p_organization_type: organizationType,
+    p_description: parsedInput.description || null,
+    p_contact_info: {},
+    p_social_links: {},
+    p_specialties: [],
+    p_subtype: organizationType,
+    p_url_slug: slug || null,
+  })
 
   if (error) return { ok: false, error: 'create_failed' }
 
-  // Add creator as owner
-  await supabase
-    .from('org_members')
-    .insert({ org_id: data.id, user_id: user.user.id, role: 'owner', invited_by: user.user.id })
-
   revalidatePath('/dashboard')
-  return { ok: true, orgId: data.id, slug: data.slug }
+  revalidatePath('/admin/dashboard')
+  revalidatePath('/create')
+  return { ok: true, orgId: organizerId as string, slug, redirectTo: '/admin/dashboard' }
 })
 
 const inviteSchema = z.object({
   orgId: z.string().uuid(),
   email: z.string().email(),
-  role: z.enum(['owner','admin','production','finance'])
+  role: z.enum(['owner','admin','production','finance','tour_manager'])
 })
 
 export const createInviteAction = action.schema(inviteSchema).action(async ({ parsedInput }) => {

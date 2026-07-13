@@ -34,7 +34,7 @@ import {
   Share2,
   Sparkles,
 } from "lucide-react"
-import { EPK_SKIN_TOKENS, type EpkSkinId, type EpkSkinTokens } from "@/lib/epk/epk-skin-tokens"
+import { type EpkSkinId, type EpkSkinTokens } from "@/lib/epk/epk-skin-tokens"
 import {
   getDefaultEpkAppearance,
   resolveEpkAppearanceForRender,
@@ -103,7 +103,7 @@ export function createEpkRenderCtx(
   const name = ph(data.artistName, "Artist name")
   const initial = (data.artistName?.trim()?.[0] || "?").toUpperCase()
   const mutedPh = (v: string) =>
-    skin === "classic" ? placeholderToneLight(empty(v)) : placeholderTone(empty(v))
+    t.isLightSurface ? placeholderToneLight(empty(v)) : placeholderTone(empty(v))
   const accentRing =
     accent === "neon"
       ? "ring-cyan-400/40 shadow-[0_0_40px_-10px_rgba(34,211,238,0.45)]"
@@ -155,29 +155,30 @@ function renderStatGrid(ctx: EpkSectionRenderCtx) {
       ].map((s) => (
         <div
           key={s.k}
-          className={cn(
-            "rounded-xl border px-3 py-3 text-center",
-            skin === "classic" && "border-stone-200 bg-amber-50/50 text-stone-900",
-            skin === "minimal" && cn("border-white/10 bg-white/[0.04]", minimalAccent),
-            skin === "bold" && "border-2 border-[#facc15] bg-zinc-950 text-white",
-            skin === "modern" && "border-white/10 bg-white/5 text-white"
-          )}
+          className={cn(t.statCell, skin === "minimal" && minimalAccent)}
         >
-          <div className={cn("text-lg font-semibold tabular-nums sm:text-xl", skin === "bold" && "text-[#facc15]")}>
-            {formatEpkNumber(s.v)}
-          </div>
-          <div className={cn(
-            "text-[11px] uppercase tracking-wide",
-            skin === "classic" && "text-stone-500",
-            skin === "minimal" && "text-white/45",
-            skin === "bold" && "text-white/80",
-            skin === "modern" && "text-white/45"
-          )}>
-            {s.label}
-          </div>
+          <div className={t.statValue}>{formatEpkNumber(s.v)}</div>
+          <div className={t.label}>{s.label}</div>
         </div>
       ))}
     </div>
+  )
+}
+
+function heroNameNode(ctx: EpkSectionRenderCtx) {
+  const { data, showPlaceholder, empty, name, editableField, t } = ctx
+  return (
+    editableField?.("artistName", data.artistName, "Artist name") ?? (
+      <span
+        className={cn(
+          empty(data.artistName) &&
+            showPlaceholder &&
+            (t.isLightSurface ? "italic text-stone-400" : "italic opacity-60")
+        )}
+      >
+        {name}
+      </span>
+    )
   )
 }
 
@@ -185,12 +186,9 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
   const {
     data,
     skin,
-    showPlaceholder,
     t,
     accent,
     ph,
-    empty,
-    name,
     initial,
     accentRing,
     minimalAccent,
@@ -203,11 +201,10 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
   } = ctx
   const av = cn(avatarClassName, avatarShapeClass)
   const statGrid = renderStatGrid(ctx)
-  const eName = editableField?.("artistName", data.artistName, "Artist name") ?? (
-    <span className={cn(empty(data.artistName) && showPlaceholder && (skin === "classic" ? "italic text-stone-400" : "italic opacity-60"))}>{name}</span>
-  )
+  const eName = heroNameNode(ctx)
   const eGenre = editableField?.("genre", data.genre, "Genre") ?? ph(data.genre, "Genre")
-  const eLocation = editableField?.("location", data.location, "City, region") ?? ph(data.location, "City, region")
+  const eLocation =
+    editableField?.("location", data.location, "City, region") ?? ph(data.location, "City, region")
 
   if (skin === "classic") {
     return (
@@ -219,32 +216,38 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
             <div className="h-full w-full bg-gradient-to-br from-amber-200/50 to-rose-200/40" />
           )}
           <div
-            className={cn(
-              "absolute inset-0 bg-gradient-to-t to-transparent",
-              classicCoverOverlayFromClass
-            )}
+            className={cn("absolute inset-0 bg-gradient-to-t to-transparent", classicCoverOverlayFromClass)}
           />
         </div>
         <div className={cn("relative z-10 -mt-14 mx-auto max-w-4xl", t.card)}>
           <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-end sm:text-left">
             <Avatar className={cn("border-4 border-white shadow-lg", av)}>
               <AvatarImage src={data.avatarUrl} className="object-cover" />
-              <AvatarFallback
-                className={cn("bg-amber-800 text-2xl text-white", avatarShapeClass)}
-              >
+              <AvatarFallback className={cn("bg-amber-800 text-2xl text-white", avatarShapeClass)}>
                 {initial}
               </AvatarFallback>
             </Avatar>
             <div className="min-w-0 flex-1 space-y-3">
-              <h1 className="font-serif text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">{eName}</h1>
+              <h1 className="font-serif text-3xl font-semibold tracking-tight text-stone-900 sm:text-4xl">
+                {eName}
+              </h1>
               <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <Badge className={t.badge}>{eGenre}</Badge>
-                <span className="inline-flex items-center gap-1.5 text-sm text-stone-600"><MapPin className="h-4 w-4 shrink-0" />{eLocation}</span>
+                <span className="inline-flex items-center gap-1.5 text-sm text-stone-600">
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  {eLocation}
+                </span>
               </div>
               {statGrid}
               <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
-                <Button size="sm" className={t.btnPrimary}><Mail className="mr-2 h-4 w-4" />Contact</Button>
-                <Button size="sm" variant="outline" className={t.btnGhost}><Share2 className="mr-2 h-4 w-4" />Share</Button>
+                <Button size="sm" className={t.btnPrimary}>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Contact
+                </Button>
+                <Button size="sm" variant="outline" className={t.btnGhost}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Share
+                </Button>
               </div>
             </div>
           </div>
@@ -258,14 +261,10 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
       <header key="hero" className={cn("px-4 py-10 text-center", heroGapClass, minimalAccent)}>
         <div className="mx-auto max-w-xl space-y-6">
           <div className="relative mx-auto w-fit">
-            <div
-              className={cn("absolute inset-0 scale-110 border border-white/10", avatarShapeClass)}
-            />
+            <div className={cn("absolute inset-0 scale-110 border border-white/10", avatarShapeClass)} />
             <Avatar className={cn("relative border border-white/20", av)}>
               <AvatarImage src={data.avatarUrl} className="object-cover" />
-              <AvatarFallback
-                className={cn("bg-transparent text-2xl text-white", avatarShapeClass)}
-              >
+              <AvatarFallback className={cn("bg-transparent text-2xl text-white", avatarShapeClass)}>
                 {initial}
               </AvatarFallback>
             </Avatar>
@@ -275,8 +274,14 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
           <p className="text-sm text-white/45">{eLocation}</p>
           {statGrid}
           <div className="flex justify-center gap-3">
-            <Button size="sm" className={t.btnPrimary}><Mail className="mr-2 h-4 w-4" />Contact</Button>
-            <Button size="sm" className={t.btnGhost}><Share2 className="mr-2 h-4 w-4" />Share</Button>
+            <Button size="sm" className={t.btnPrimary}>
+              <Mail className="mr-2 h-4 w-4" />
+              Contact
+            </Button>
+            <Button size="sm" className={t.btnGhost}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
           </div>
         </div>
       </header>
@@ -287,10 +292,7 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
     return (
       <header
         key="hero"
-        className={cn(
-          "border-4 border-[#facc15] bg-zinc-950 px-4 py-8 text-center sm:px-8",
-          heroGapClass
-        )}
+        className={cn("border-4 border-[#facc15] bg-zinc-950 px-4 py-8 text-center sm:px-8", heroGapClass)}
       >
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-6">
           <div className="relative">
@@ -304,21 +306,253 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
               </AvatarFallback>
             </Avatar>
           </div>
-          <h1 className="text-5xl font-black uppercase leading-none tracking-tight text-[#facc15] sm:text-6xl">{eName}</h1>
+          <h1 className="text-5xl font-black uppercase leading-none tracking-tight text-[#facc15] sm:text-6xl">
+            {eName}
+          </h1>
           <div className="flex flex-wrap justify-center gap-2">
             <span className={t.badge}>{eGenre}</span>
             <span className={t.badge}>{eLocation}</span>
           </div>
           {statGrid}
           <div className="flex flex-wrap justify-center gap-3">
-            <Button size="sm" className={t.btnPrimary}><Mail className="mr-2 h-4 w-4" />Contact</Button>
-            <Button size="sm" className={t.btnGhost}><Share2 className="mr-2 h-4 w-4" />Share</Button>
+            <Button size="sm" className={t.btnPrimary}>
+              <Mail className="mr-2 h-4 w-4" />
+              Contact
+            </Button>
+            <Button size="sm" className={t.btnGhost}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
           </div>
         </div>
       </header>
     )
   }
 
+  if (skin === "cinema") {
+    return (
+      <header key="hero" className={heroGapClass}>
+        <div className="relative -mx-4 overflow-hidden sm:mx-0">
+          <div className={cn("w-full", classicCoverHeightClass)}>
+            {data.coverUrl ? (
+              <img src={data.coverUrl} alt="" className="h-full w-full object-cover opacity-70" />
+            ) : (
+              <div className="h-full w-full bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-900" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e] via-[#0c0c0e]/40 to-transparent" />
+            <div className="absolute inset-x-0 top-0 h-3 bg-black" />
+            <div className="absolute inset-x-0 bottom-0 h-3 bg-black" />
+          </div>
+        </div>
+        <div className="relative z-10 -mt-16 flex flex-col items-center gap-5 px-4 text-center">
+          <div className="relative">
+            <div className={cn("absolute -inset-2 border border-zinc-500/50", avatarShapeClass)} />
+            <div className={cn("absolute -inset-3 border border-zinc-700/40", avatarShapeClass)} />
+            <Avatar className={cn("relative border border-zinc-400/40", av)}>
+              <AvatarImage src={data.avatarUrl} className="object-cover" />
+              <AvatarFallback className={cn("bg-zinc-900 text-2xl text-zinc-300", avatarShapeClass)}>
+                {initial}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <h1 className="text-3xl font-light uppercase tracking-[0.35em] text-zinc-100 sm:text-4xl">
+            {eName}
+          </h1>
+          <div className="flex flex-wrap items-center justify-center gap-3 text-xs uppercase tracking-[0.25em] text-zinc-400">
+            <span>{eGenre}</span>
+            <span className="text-zinc-600">·</span>
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5" />
+              {eLocation}
+            </span>
+          </div>
+          {statGrid}
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button size="sm" className={t.btnPrimary}>
+              <Mail className="mr-2 h-4 w-4" />
+              Contact
+            </Button>
+            <Button size="sm" variant="outline" className={t.btnGhost}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (skin === "gallery") {
+    return (
+      <header key="hero" className={cn("max-w-3xl", heroGapClass)}>
+        <div className="space-y-8">
+          <div className="flex items-start gap-6">
+            <Avatar className={cn("shrink-0 border border-neutral-300", av)}>
+              <AvatarImage src={data.avatarUrl} className="object-cover" />
+              <AvatarFallback className={cn("bg-neutral-200 text-2xl text-neutral-700", avatarShapeClass)}>
+                {initial}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0 flex-1 space-y-4 pt-1">
+              <h1 className="text-4xl font-light tracking-tight text-neutral-900 sm:text-5xl md:text-6xl">
+                {eName}
+              </h1>
+              <div className="h-px w-16 bg-neutral-300" />
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-600">
+                <span className="uppercase tracking-[0.2em] text-neutral-500">{eGenre}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {eLocation}
+                </span>
+              </div>
+            </div>
+          </div>
+          {statGrid}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" className={t.btnPrimary}>
+              <Mail className="mr-2 h-4 w-4" />
+              Contact
+            </Button>
+            <Button size="sm" variant="outline" className={t.btnGhost}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (skin === "luxe") {
+    return (
+      <header key="hero" className={cn("text-center", heroGapClass)}>
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6">
+          <div className="relative">
+            <div
+              className={cn(
+                "absolute -inset-1 bg-gradient-to-br from-[#c9a962] via-[#e8d5a8] to-[#c9a962] p-[2px]",
+                avatarShapeClass
+              )}
+            >
+              <div className={cn("h-full w-full bg-[#0a1628]", avatarShapeClass)} />
+            </div>
+            <Avatar className={cn("relative border-2 border-[#c9a962]/60", av)}>
+              <AvatarImage src={data.avatarUrl} className="object-cover" />
+              <AvatarFallback
+                className={cn("bg-[#0d1c32] font-serif text-2xl text-[#e8d5a8]", avatarShapeClass)}
+              >
+                {initial}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <h1 className="font-serif text-4xl font-semibold tracking-wide text-[#e8dcc8] sm:text-5xl">
+            {eName}
+          </h1>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Badge className={t.badge}>{eGenre}</Badge>
+            <span className="inline-flex items-center gap-1.5 text-sm text-[#b8a990]">
+              <MapPin className="h-4 w-4 shrink-0" />
+              {eLocation}
+            </span>
+          </div>
+          {statGrid}
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button size="sm" className={t.btnPrimary}>
+              <Mail className="mr-2 h-4 w-4" />
+              Contact
+            </Button>
+            <Button size="sm" variant="outline" className={t.btnGhost}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (skin === "poster") {
+    return (
+      <header key="hero" className={cn("relative overflow-hidden", heroGapClass)}>
+        <div className="absolute -right-8 top-4 h-32 w-32 rotate-12 border-4 border-[#f07167]/30" />
+        <div className="absolute -left-4 bottom-8 h-2 w-40 -rotate-6 bg-[#f07167]" />
+        <div className="relative flex flex-col gap-6 border-2 border-[#f07167] bg-[#1a0c0c] p-6 sm:flex-row sm:items-end sm:p-8">
+          <div className="relative shrink-0">
+            <div className={cn("absolute -inset-2 -rotate-2 border-2 border-[#faf3eb]/40", avatarShapeClass)} />
+            <Avatar className={cn("relative border-2 border-[#f07167]", av)}>
+              <AvatarImage src={data.avatarUrl} className="object-cover" />
+              <AvatarFallback
+                className={cn("bg-[#5c1a1a] text-2xl font-black text-[#f07167]", avatarShapeClass)}
+              >
+                {initial}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          <div className="min-w-0 flex-1 space-y-4 text-left">
+            <h1 className="text-4xl font-black uppercase leading-[0.9] tracking-tight text-[#faf3eb] sm:text-5xl md:text-6xl">
+              {eName}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={cn(t.badge, "rotate-[-2deg]")}>{eGenre}</span>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold uppercase tracking-wide text-[#faf3eb]/80">
+                <MapPin className="h-4 w-4" />
+                {eLocation}
+              </span>
+            </div>
+            {statGrid}
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" className={t.btnPrimary}>
+                <Mail className="mr-2 h-4 w-4" />
+                Contact
+              </Button>
+              <Button size="sm" className={t.btnGhost}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  if (skin === "coastal") {
+    return (
+      <header key="hero" className={cn(t.card, heroGapClass)}>
+        <div className="flex flex-col items-center gap-6 text-center sm:flex-row sm:text-left">
+          <Avatar className={cn("border-4 border-white shadow-md ring-2 ring-[#b8cfc4]", av)}>
+            <AvatarImage src={data.avatarUrl} className="object-cover" />
+            <AvatarFallback className={cn("bg-[#7ab8a8] text-2xl text-white", avatarShapeClass)}>
+              {initial}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1 space-y-3">
+            <h1 className="text-3xl font-semibold tracking-tight text-[#1a3a3a] sm:text-4xl">{eName}</h1>
+            <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+              <Badge className={t.badge}>{eGenre}</Badge>
+              <span className="inline-flex items-center gap-1.5 text-sm text-[#3d5c5c]">
+                <MapPin className="h-4 w-4 shrink-0" />
+                {eLocation}
+              </span>
+            </div>
+            {statGrid}
+            <div className="flex flex-wrap justify-center gap-2 sm:justify-start">
+              <Button size="sm" className={t.btnPrimary}>
+                <Mail className="mr-2 h-4 w-4" />
+                Contact
+              </Button>
+              <Button size="sm" variant="outline" className={t.btnGhost}>
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
+
+  // modern (default)
   return (
     <header
       key="hero"
@@ -341,9 +575,7 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
           >
             <Avatar className={cn("border-2 border-[#07080f]", av)}>
               <AvatarImage src={data.avatarUrl} className="object-cover" />
-              <AvatarFallback
-                className={cn("bg-indigo-900 text-2xl text-white", avatarShapeClass)}
-              >
+              <AvatarFallback className={cn("bg-indigo-900 text-2xl text-white", avatarShapeClass)}>
                 {initial}
               </AvatarFallback>
             </Avatar>
@@ -352,17 +584,43 @@ function renderHero(ctx: EpkSectionRenderCtx): React.ReactNode {
         <div className="min-w-0 flex-1 space-y-4">
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">{eName}</h1>
           <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-            <Badge variant="secondary" className="rounded-lg border border-white/15 bg-white/10 px-3 py-1 text-sm font-normal text-white/90">{eGenre}</Badge>
-            <span className="inline-flex items-center gap-1.5 text-sm text-white/65"><MapPin className="h-4 w-4 shrink-0 opacity-70" />{eLocation}</span>
+            <Badge
+              variant="secondary"
+              className="rounded-lg border border-white/15 bg-white/10 px-3 py-1 text-sm font-normal text-white/90"
+            >
+              {eGenre}
+            </Badge>
+            <span className="inline-flex items-center gap-1.5 text-sm text-white/65">
+              <MapPin className="h-4 w-4 shrink-0 opacity-70" />
+              {eLocation}
+            </span>
           </div>
           {statGrid}
           <div className="flex flex-wrap justify-center gap-2 lg:justify-start">
-            <Button size="sm" className="rounded-xl bg-indigo-500 text-white hover:bg-indigo-400"><Mail className="mr-2 h-4 w-4" />Contact</Button>
-            <Button size="sm" variant="outline" className="rounded-xl border-white/20 bg-transparent text-white hover:bg-white/10"><Share2 className="mr-2 h-4 w-4" />Share</Button>
+            <Button size="sm" className={t.btnPrimary}>
+              <Mail className="mr-2 h-4 w-4" />
+              Contact
+            </Button>
+            <Button size="sm" variant="outline" className={t.btnGhost}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share
+            </Button>
           </div>
         </div>
       </div>
     </header>
+  )
+}
+
+function skeletonBar(className: string, t: EpkSkinTokens) {
+  return (
+    <div
+      className={cn(
+        "rounded",
+        t.isLightSurface ? "bg-neutral-200/80" : "bg-white/10",
+        className
+      )}
+    />
   )
 }
 
@@ -387,11 +645,26 @@ export function renderEpkSection(
   if (sectionId === "hero") return renderHero(ctx)
 
   if (sectionId === "one-liner") {
-    const eOneLiner = ctx.editableField?.("bookingAssets.oneLiner", data.bookingAssets?.oneLiner || "", "Your one-line pitch for bookers and festivals appears here.") ?? (
-      <p className={cn("text-center leading-relaxed sm:text-lg", t.subheading, skin === "classic" && "font-serif not-italic text-stone-800", mutedPh(data.bookingAssets?.oneLiner || ""))}>
-        {ph(data.bookingAssets?.oneLiner || "", "Your one-line pitch for bookers and festivals appears here.")}
-      </p>
-    )
+    const eOneLiner =
+      ctx.editableField?.(
+        "bookingAssets.oneLiner",
+        data.bookingAssets?.oneLiner || "",
+        "Your one-line pitch for bookers and festivals appears here."
+      ) ?? (
+        <p
+          className={cn(
+            "text-center leading-relaxed sm:text-lg",
+            t.subheading,
+            skin === "classic" && "font-serif not-italic text-stone-800",
+            mutedPh(data.bookingAssets?.oneLiner || "")
+          )}
+        >
+          {ph(
+            data.bookingAssets?.oneLiner || "",
+            "Your one-line pitch for bookers and festivals appears here."
+          )}
+        </p>
+      )
     return (
       <section key="one-liner" className={g}>
         <div className={t.oneLinerWrap}>{eOneLiner}</div>
@@ -409,9 +682,9 @@ export function renderEpkSection(
             { label: "Monthly listeners", v: data.stats.monthlyListeners },
             { label: "Streams", v: data.stats.totalStreams },
           ].map((s) => (
-            <div key={s.label} className={cn(t.cardMuted, "px-3 py-4 text-center")}>
-              <div className={cn("text-xl font-semibold tabular-nums", skin === "bold" && "text-[#facc15]")}>{formatEpkNumber(s.v)}</div>
-              <div className={cn("text-[11px] uppercase tracking-wide", skin === "classic" && "text-stone-500", skin === "minimal" && "text-white/45", skin === "bold" && "text-white/75", skin === "modern" && "text-white/45")}>{s.label}</div>
+            <div key={s.label} className={cn(t.statCell, "py-4")}>
+              <div className={cn(t.statValue, "text-xl")}>{formatEpkNumber(s.v)}</div>
+              <div className={t.label}>{s.label}</div>
             </div>
           ))}
         </div>
@@ -420,13 +693,27 @@ export function renderEpkSection(
   }
 
   if (sectionId === "bio") {
-    const eBio = ctx.editableField?.("bio", data.bio ?? "", "Tell your story — bio, influences, and what makes your live show stand out.", { multiline: true }) ?? (
-      <p className={cn(t.subheading, "sm:text-base", mutedPh(data.bio ?? ""))}>{ph(data.bio, "Tell your story — bio, influences, and what makes your live show stand out.")}</p>
-    )
+    const eBio =
+      ctx.editableField?.(
+        "bio",
+        data.bio ?? "",
+        "Tell your story — bio, influences, and what makes your live show stand out.",
+        { multiline: true }
+      ) ?? (
+        <p className={cn(t.subheading, "sm:text-base", mutedPh(data.bio ?? ""))}>
+          {ph(
+            data.bio,
+            "Tell your story — bio, influences, and what makes your live show stand out."
+          )}
+        </p>
+      )
     return (
       <section key="bio" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-3 flex items-center gap-2", t.heading)}><Sparkles className={cn("h-5 w-5", t.accentIcon)} />Biography</h2>
+          <h2 className={cn("mb-3 flex items-center gap-2", t.heading)}>
+            <Sparkles className={cn("h-5 w-5", t.accentIcon)} />
+            Biography
+          </h2>
           {eBio}
         </div>
       </section>
@@ -438,26 +725,68 @@ export function renderEpkSection(
     return (
       <section key="music" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}><Music className={cn("h-5 w-5", t.accentIcon)} />Music</h2>
+          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}>
+            <Music className={cn("h-5 w-5", t.accentIcon)} />
+            Music
+          </h2>
           <div className="space-y-2">
             {data.music.length > 0
               ? data.music.map((track) => (
-                  <div key={track.id} className={cn("flex items-center gap-3 rounded-xl border px-3 py-3 transition-colors", t.cardMuted, hoveredTrack === track.id && skin === "modern" && "bg-white/10")} onMouseEnter={() => setHoveredTrack(track.id)} onMouseLeave={() => setHoveredTrack(null)}>
-                    <div className={cn("h-12 w-12 shrink-0 overflow-hidden rounded-lg", skin === "bold" ? "bg-zinc-800" : "bg-gradient-to-br from-indigo-600 to-violet-600")}>
-                      {track.coverArt ? <img src={track.coverArt} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Music className={cn("h-5 w-5", skin === "classic" ? "text-white" : "text-white/80")} /></div>}
+                  <div
+                    key={track.id}
+                    className={cn(
+                      "flex items-center gap-3 rounded-xl border px-3 py-3 transition-colors",
+                      t.cardMuted,
+                      hoveredTrack === track.id && skin === "modern" && "bg-white/10"
+                    )}
+                    onMouseEnter={() => setHoveredTrack(track.id)}
+                    onMouseLeave={() => setHoveredTrack(null)}
+                  >
+                    <div
+                      className={cn(
+                        "h-12 w-12 shrink-0 overflow-hidden rounded-lg",
+                        t.trackArtFallback
+                      )}
+                    >
+                      {track.coverArt ? (
+                        <img src={track.coverArt} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Music
+                            className={cn(
+                              "h-5 w-5",
+                              t.isLightSurface ? "text-neutral-500" : "text-white/80"
+                            )}
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className={cn("truncate font-medium", skin === "classic" && "text-stone-900", skin === "bold" && "font-black uppercase text-white")}>{track.title}</div>
-                      <div className={cn("text-xs", skin === "classic" && "text-stone-500", skin === "minimal" && "text-white/45", skin === "bold" && "text-[#facc15]", skin === "modern" && "text-white/50")}>{formatEpkNumber(track.streams)} streams</div>
+                      <div className={cn("truncate", t.bodyStrong)}>{track.title}</div>
+                      <div className={cn("text-xs", t.muted)}>
+                        {formatEpkNumber(track.streams)} streams
+                      </div>
                     </div>
-                    <Button size="sm" className={cn("shrink-0", skin === "bold" ? t.btnPrimary : "bg-white/10 hover:bg-white/20 text-white")}><Play className="h-4 w-4" /></Button>
+                    <Button size="sm" className={cn("shrink-0", t.btnPrimary)}>
+                      <Play className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))
               : [0, 1, 2].map((i) => (
                   <div key={i} className={cn("flex items-center gap-3 rounded-xl px-3 py-3", t.dashed)}>
-                    <div className="h-12 w-12 shrink-0 rounded-lg bg-white/10" />
-                    <div className="flex-1 space-y-2"><div className="h-3 max-w-[10rem] rounded bg-white/10" /><div className="h-2 max-w-[6rem] rounded bg-white/5" /></div>
-                    <Button size="sm" variant="ghost" className="text-white/40" disabled><Play className="h-4 w-4" /></Button>
+                    <div
+                      className={cn(
+                        "h-12 w-12 shrink-0 rounded-lg",
+                        t.isLightSurface ? "bg-neutral-200" : "bg-white/10"
+                      )}
+                    />
+                    <div className="flex-1 space-y-2">
+                      {skeletonBar("h-3 max-w-[10rem]", t)}
+                      {skeletonBar("h-2 max-w-[6rem]", t)}
+                    </div>
+                    <Button size="sm" variant="ghost" className={cn(t.muted)} disabled>
+                      <Play className="h-4 w-4" />
+                    </Button>
                   </div>
                 ))}
           </div>
@@ -471,21 +800,39 @@ export function renderEpkSection(
     return (
       <section key="shows" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}><Calendar className={cn("h-5 w-5", t.accentIcon)} />Upcoming shows</h2>
+          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}>
+            <Calendar className={cn("h-5 w-5", t.accentIcon)} />
+            Upcoming shows
+          </h2>
           {data.upcomingShows.length > 0 ? (
             <div className="grid gap-3 sm:grid-cols-2">
               {data.upcomingShows.map((show) => (
                 <div key={show.id} className={cn("rounded-xl border p-4", t.cardMuted)}>
-                  <div className={cn("font-medium", skin === "classic" && "text-stone-900", skin === "bold" && "font-black uppercase text-[#facc15]")}>{show.venue}</div>
-                  <div className={cn("mt-1 flex items-center gap-1 text-xs", skin === "classic" && "text-stone-600", skin === "minimal" && "text-white/45", skin === "bold" && "text-white", skin === "modern" && "text-white/55")}><MapPin className="h-3.5 w-3.5" />{show.location}</div>
-                  <div className={cn("mt-1 text-xs", skin === "classic" && "text-stone-500", skin === "minimal" && "text-white/35", skin === "bold" && "text-white/70", skin === "modern" && "text-white/45")}>{show.date ? formatSafeDate(show.date) : "—"}</div>
-                  {show.ticketUrl ? <Button size="sm" className={cn("mt-3 w-full", t.btnPrimary)}>Tickets</Button> : null}
+                  <div className={t.bodyStrong}>{show.venue}</div>
+                  <div className={cn("mt-1 flex items-center gap-1 text-xs", t.muted)}>
+                    <MapPin className="h-3.5 w-3.5" />
+                    {show.location}
+                  </div>
+                  <div className={cn("mt-1 text-xs", t.muted)}>
+                    {show.date ? formatSafeDate(show.date) : "—"}
+                  </div>
+                  {show.ticketUrl ? (
+                    <Button size="sm" className={cn("mt-3 w-full", t.btnPrimary)}>
+                      Tickets
+                    </Button>
+                  ) : null}
                 </div>
               ))}
             </div>
           ) : (
             <div className="grid gap-3 sm:grid-cols-2">
-              {[0, 1].map((i) => (<div key={i} className={cn("rounded-xl p-4", t.dashed)}><div className="mb-2 h-4 max-w-[60%] rounded bg-white/10" /><div className="mb-1 h-3 max-w-[40%] rounded bg-white/5" /><div className="h-3 max-w-[33%] rounded bg-white/5" /></div>))}
+              {[0, 1].map((i) => (
+                <div key={i} className={cn("rounded-xl p-4", t.dashed)}>
+                  {skeletonBar("mb-2 h-4 max-w-[60%]", t)}
+                  {skeletonBar("mb-1 h-3 max-w-[40%]", t)}
+                  {skeletonBar("h-3 max-w-[33%]", t)}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -498,22 +845,45 @@ export function renderEpkSection(
     return (
       <section key="press" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}><Newspaper className={cn("h-5 w-5", t.accentIcon)} />Press</h2>
+          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}>
+            <Newspaper className={cn("h-5 w-5", t.accentIcon)} />
+            Press
+          </h2>
           {data.press.length > 0 ? (
             <ul className="space-y-3">
               {data.press.map((p) => (
-                <li key={p.id} className={cn("flex flex-col gap-1 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between", t.cardMuted)}>
+                <li
+                  key={p.id}
+                  className={cn(
+                    "flex flex-col gap-1 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between",
+                    t.cardMuted
+                  )}
+                >
                   <div>
-                    <div className={cn("font-medium", skin === "classic" && "text-stone-900", skin === "bold" && "font-bold uppercase text-white")}>{p.title}</div>
-                    <div className={cn("text-xs", skin === "classic" && "text-stone-500", skin === "minimal" && "text-white/45", skin === "bold" && "text-[#facc15]", skin === "modern" && "text-white/50")}>{p.outlet} · {p.date}</div>
+                    <div className={t.bodyStrong}>{p.title}</div>
+                    <div className={cn("text-xs", t.muted)}>
+                      {p.outlet} · {p.date}
+                    </div>
                   </div>
-                  {p.url ? <a href={p.url} className={cn("inline-flex items-center gap-1 text-xs hover:underline", skin === "classic" && "text-amber-800", skin === "bold" && "text-[#facc15]", skin === "modern" && "text-indigo-300")}>Read <ExternalLink className="h-3 w-3" /></a> : null}
+                  {p.url ? (
+                    <a
+                      href={p.url}
+                      className={cn("inline-flex items-center gap-1 text-xs hover:underline", t.link)}
+                    >
+                      Read <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : null}
                 </li>
               ))}
             </ul>
           ) : (
             <div className="space-y-3">
-              {[0, 1].map((i) => (<div key={i} className={cn("rounded-xl px-4 py-3", t.dashed)}><div className="h-3 max-w-[66%] rounded bg-white/10" /><div className="mt-2 h-2 max-w-[33%] rounded bg-white/5" /></div>))}
+              {[0, 1].map((i) => (
+                <div key={i} className={cn("rounded-xl px-4 py-3", t.dashed)}>
+                  {skeletonBar("h-3 max-w-[66%]", t)}
+                  {skeletonBar("mt-2 h-2 max-w-[33%]", t)}
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -523,17 +893,35 @@ export function renderEpkSection(
 
   if (sectionId === "media") {
     if (data.photos.length === 0 && !showPlaceholder) return null
+    const mediaFrame = t.isLightSurface
+      ? "border-neutral-200 bg-neutral-100"
+      : "border-white/10 bg-white/5"
+    const mediaEmpty = t.isLightSurface
+      ? "border-dashed border-neutral-300 bg-neutral-50"
+      : "border-dashed border-white/15 bg-white/[0.04]"
     return (
       <section key="media" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}><ImageIcon className={cn("h-5 w-5", t.accentIcon)} />Photos</h2>
+          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}>
+            <ImageIcon className={cn("h-5 w-5", t.accentIcon)} />
+            Photos
+          </h2>
           {data.photos.length > 0 ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {data.photos.map((p) => (<div key={p.id} className="aspect-square overflow-hidden rounded-lg border border-white/10 bg-white/5">{p.url ? <img src={p.url} alt="" className="h-full w-full object-cover" /> : null}</div>))}
+              {data.photos.map((p) => (
+                <div
+                  key={p.id}
+                  className={cn("aspect-square overflow-hidden rounded-lg border", mediaFrame)}
+                >
+                  {p.url ? <img src={p.url} alt="" className="h-full w-full object-cover" /> : null}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {[0, 1, 2, 3, 4, 5].map((i) => (<div key={i} className="aspect-square rounded-lg border border-dashed border-white/15 bg-white/[0.04]" />))}
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className={cn("aspect-square rounded-lg border", mediaEmpty)} />
+              ))}
             </div>
           )}
         </div>
@@ -544,7 +932,12 @@ export function renderEpkSection(
   if (sectionId === "contact") {
     const contactFields = [
       { label: "Email", field: "contact.email", value: data.contact.email, ph: "booking@you.com" },
-      { label: "Booking", field: "contact.bookingEmail", value: data.contact.bookingEmail, ph: "booking@you.com" },
+      {
+        label: "Booking",
+        field: "contact.bookingEmail",
+        value: data.contact.bookingEmail,
+        ph: "booking@you.com",
+      },
       { label: "Phone", field: "contact.phone", value: data.contact.phone, ph: "+1 ···" },
       { label: "Web", field: "contact.website", value: data.contact.website, ph: "https://…" },
     ]
@@ -555,8 +948,15 @@ export function renderEpkSection(
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             {contactFields.map((row) => (
               <div key={row.label} className={cn("rounded-lg border px-3 py-2", t.cardMuted)}>
-                <dt className={cn("text-[11px] uppercase tracking-wide", skin === "classic" && "text-stone-500", skin === "minimal" && "text-white/40", skin === "bold" && "text-white/60", skin === "modern" && "text-white/45")}>{row.label}</dt>
-                <dd className={cn("mt-0.5 break-all", skin === "classic" ? placeholderToneLight(empty(row.value) && showPlaceholder) : placeholderTone(empty(row.value) && showPlaceholder))}>
+                <dt className={t.label}>{row.label}</dt>
+                <dd
+                  className={cn(
+                    "mt-0.5 break-all",
+                    t.isLightSurface
+                      ? placeholderToneLight(empty(row.value) && showPlaceholder)
+                      : placeholderTone(empty(row.value) && showPlaceholder)
+                  )}
+                >
                   {ctx.editableField?.(row.field, row.value, row.ph) ?? ph(row.value, row.ph)}
                 </dd>
               </div>
@@ -573,16 +973,24 @@ export function renderEpkSection(
     return (
       <section key="social" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}><Globe className={cn("h-5 w-5", t.accentIcon)} />Social</h2>
+          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}>
+            <Globe className={cn("h-5 w-5", t.accentIcon)} />
+            Social
+          </h2>
           {!links.length && showPlaceholder ? (
             <div className="flex flex-wrap gap-2">
-              {["Instagram", "Spotify", "YouTube"].map((p) => (<div key={p} className={cn("rounded-lg border px-4 py-2 text-sm", t.dashed, skin === "classic" && "text-stone-400")}>{p}</div>))}
+              {["Instagram", "Spotify", "YouTube"].map((p) => (
+                <div key={p} className={cn("rounded-lg border px-4 py-2 text-sm", t.dashed, t.muted)}>
+                  {p}
+                </div>
+              ))}
             </div>
           ) : (
             <div className="flex flex-wrap gap-2">
               {links.map((link) => (
-                <Button key={link.id} variant="outline" size="sm" className={cn(skin === "classic" && "border-stone-300 bg-white text-stone-800 hover:bg-stone-50", skin === "minimal" && t.btnGhost, skin === "bold" && t.btnGhost, skin === "modern" && "border-white/20 bg-white/[0.04] text-white hover:bg-white/10")}>
-                  {getSocialIcon(link.platform)}<span className="ml-2">{link.platform}</span>
+                <Button key={link.id} variant="outline" size="sm" className={t.outlineBtn}>
+                  {getSocialIcon(link.platform)}
+                  <span className="ml-2">{link.platform}</span>
                 </Button>
               ))}
             </div>
@@ -596,13 +1004,36 @@ export function renderEpkSection(
     return (
       <section key="booking" className={g}>
         <div className={t.card}>
-          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}><Link2 className={cn("h-5 w-5", t.accentIcon)} />Booking assets</h2>
+          <h2 className={cn("mb-4 flex items-center gap-2", t.heading)}>
+            <Link2 className={cn("h-5 w-5", t.accentIcon)} />
+            Booking assets
+          </h2>
           <div className="flex flex-wrap gap-3">
-            <Button variant="outline" size="sm" className={cn(skin === "classic" && "border-stone-300", skin === "modern" && "border-white/20", !data.bookingAssets.techRiderUrl && "pointer-events-none opacity-50")}><Download className="mr-2 h-4 w-4" />Tech rider</Button>
-            <Button variant="outline" size="sm" className={cn(skin === "classic" && "border-stone-300", skin === "modern" && "border-white/20", !data.bookingAssets.stagePlotUrl && "pointer-events-none opacity-50")}><Download className="mr-2 h-4 w-4" />Stage plot</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                t.outlineBtn,
+                !data.bookingAssets.techRiderUrl && "pointer-events-none opacity-50"
+              )}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Tech rider
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={cn(
+                t.outlineBtn,
+                !data.bookingAssets.stagePlotUrl && "pointer-events-none opacity-50"
+              )}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Stage plot
+            </Button>
           </div>
           {showPlaceholder && !data.bookingAssets.techRiderUrl && (
-            <p className={cn("mt-3 text-xs", skin === "classic" && "text-stone-500", skin === "modern" && "text-white/40")}>
+            <p className={cn("mt-3 text-xs", t.muted)}>
               Upload tech rider and stage plot in EPK settings — buttons activate when URLs are set.
             </p>
           )}
@@ -612,6 +1043,61 @@ export function renderEpkSection(
   }
 
   return null
+}
+
+function EpkPageChrome({ skin }: { skin: EpkSkinId }) {
+  if (skin === "modern") {
+    return (
+      <>
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`,
+            backgroundSize: "48px 48px",
+          }}
+        />
+        <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 rounded-full bg-indigo-600/25 blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 bottom-32 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
+      </>
+    )
+  }
+  if (skin === "cinema") {
+    return (
+      <>
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(0,0,0,0.65)_100%)]" />
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-zinc-700/60" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-zinc-700/60" />
+      </>
+    )
+  }
+  if (skin === "luxe") {
+    return (
+      <>
+        <div className="pointer-events-none absolute -left-24 top-16 h-64 w-64 rounded-full bg-[#c9a962]/8 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 bottom-24 h-72 w-72 rounded-full bg-[#c9a962]/6 blur-3xl" />
+      </>
+    )
+  }
+  if (skin === "poster") {
+    return (
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
+        style={{
+          backgroundImage: `repeating-linear-gradient(-12deg, transparent, transparent 24px, #f07167 24px, #f07167 25px)`,
+        }}
+      />
+    )
+  }
+  return null
+}
+
+function contentMaxWidth(
+  skin: EpkSkinId,
+  appearanceWidthClass?: string
+): string {
+  if (appearanceWidthClass) return appearanceWidthClass
+  if (skin === "gallery") return "max-w-3xl"
+  return "max-w-6xl"
 }
 
 function EpkSectionStack({
@@ -638,28 +1124,33 @@ function EpkSectionStack({
     resolved
   )
   const { layout, t } = ctx
+  const needsOverflow =
+    skin === "modern" || skin === "cinema" || skin === "luxe" || skin === "poster"
 
   return (
     <div
-      className={cn(t.page, fontClass, resolved.wrapperClassName, skin === "modern" && "overflow-hidden")}
+      className={cn(t.page, fontClass, resolved.wrapperClassName, needsOverflow && "overflow-hidden")}
       style={resolved.rootStyle}
     >
-      {skin === "modern" && (
-        <>
-          <div className="pointer-events-none absolute inset-0 opacity-[0.35]" style={{ backgroundImage: `linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)`, backgroundSize: "48px 48px" }} />
-          <div className="pointer-events-none absolute -left-32 top-20 h-72 w-72 rounded-full bg-indigo-600/25 blur-3xl" />
-          <div className="pointer-events-none absolute -right-24 bottom-32 h-80 w-80 rounded-full bg-violet-600/20 blur-3xl" />
-        </>
-      )}
-      <div className="relative mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6 lg:px-8">
+      <EpkPageChrome skin={skin} />
+      <div
+        className={cn(
+          "relative mx-auto px-4 pb-16 pt-10 sm:px-6 lg:px-8",
+          contentMaxWidth(skin, resolved.contentMaxWidthClass)
+        )}
+      >
         {layout.sectionOrder.map((sectionId) => {
           if (!isSectionVisible(sectionId, layout)) return null
-          return <React.Fragment key={sectionId}>{renderEpkSection(sectionId, ctx)}</React.Fragment>
+          return (
+            <React.Fragment key={sectionId}>{renderEpkSection(sectionId, ctx)}</React.Fragment>
+          )
         })}
       </div>
     </div>
   )
 }
+
+export { EpkPageChrome, contentMaxWidth }
 
 export function ModernEpkTemplate(props: EpkTemplateProps) {
   return <EpkSectionStack {...props} skin="modern" />
@@ -675,4 +1166,24 @@ export function MinimalEpkTemplate(props: EpkTemplateProps) {
 
 export function BoldEpkTemplate(props: EpkTemplateProps) {
   return <EpkSectionStack {...props} skin="bold" />
+}
+
+export function CinemaEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="cinema" />
+}
+
+export function GalleryEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="gallery" />
+}
+
+export function LuxeEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="luxe" />
+}
+
+export function PosterEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="poster" />
+}
+
+export function CoastalEpkTemplate(props: EpkTemplateProps) {
+  return <EpkSectionStack {...props} skin="coastal" />
 }

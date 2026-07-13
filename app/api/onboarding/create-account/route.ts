@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { generateUniqueSlug } from '@/lib/accounts/generate-unique-slug'
 
 export async function POST(request: NextRequest) {
   try {
@@ -44,6 +45,49 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error('[Onboarding] Profile creation error:', profileError)
+    }
+
+    const resolvedAccountType = account_type || 'artist'
+    if (resolvedAccountType === 'artist') {
+      const { data: existingArtist } = await supabase
+        .from('artist_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .limit(1)
+        .maybeSingle()
+
+      if (!existingArtist) {
+        const artistName = (full_name || email.split('@')[0] || 'Artist').trim()
+        const urlSlug = await generateUniqueSlug({
+          client: supabase,
+          table: 'artist_profiles',
+          base: artistName,
+          fallbackPrefix: `artist-${userId.slice(0, 8)}`,
+        })
+
+        const { error: artistError } = await supabase
+          .from('artist_profiles')
+          .insert({
+            user_id: userId,
+            artist_name: artistName,
+            url_slug: urlSlug,
+            bio: null,
+            genres: [],
+            social_links: {},
+            verification_status: 'unverified',
+            account_tier: 'pro',
+            settings: {
+              allow_bookings: true,
+              public_profile: true,
+              show_contact_info: false,
+              auto_accept_follows: true,
+            },
+          })
+
+        if (artistError) {
+          console.error('[Onboarding] Artist profile creation error:', artistError)
+        }
+      }
     }
 
     return NextResponse.json({

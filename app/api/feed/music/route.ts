@@ -15,6 +15,9 @@ export async function GET(request: NextRequest) {
       .from('music_tracks')
       .select('*')
       .eq('is_public', true)
+      .eq('is_visible', true)
+      .eq('moderation_status', 'approved')
+      .eq('rights_confirmed', true)
     if (userId) query = query.eq('user_id', userId)
     if (genre && genre !== 'all') query = query.eq('genre', genre)
 
@@ -47,37 +50,84 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const musicContent = (tracks || []).map(track => {
-      const displayName = track.artist_name || track.artist_username || 'Unknown artist'
-      return {
-        id: track.id,
-        type: 'music' as const,
-        title: track.title,
-        description: track.description,
-        author: {
-          id: track.user_id,
-          name: displayName,
-          username: track.artist_username || null,
-          avatar_url: track.artist_avatar_url || null,
-        },
-        cover_image: track.cover_art_url,
-        created_at: track.created_at,
-        engagement: {
-          likes: track.likes_count || 0,
-          views: track.play_count || 0,
-          shares: track.shares_count || 0,
-          comments: track.comments_count || 0,
-        },
-        metadata: {
-          genre: track.genre,
-          duration: track.duration,
-          tags: track.tags || [],
-          url: `/api/music/stream?trackId=${track.id}`,
-          artist: displayName,
-        },
-        relevance_score: 0.9,
+    const musicContent = await (async () => {
+      const userIds = Array.from(
+        new Set((tracks || []).map((t: any) => t.user_id).filter(Boolean))
+      )
+      const trackIds = Array.from(
+        new Set((tracks || []).map((t: any) => t.id).filter(Boolean))
+      )
+      let artistSlugByUserId: Record<string, string> = {}
+      let listingIdByTrackId: Record<string, string> = {}
+      if (userIds.length > 0) {
+        const { data: artists } = await supabase
+          .from('artist_profiles')
+          .select('user_id, url_slug')
+          .in('user_id', userIds)
+        artistSlugByUserId = (artists || []).reduce(
+          (acc: Record<string, string>, a: any) => {
+            if (a.url_slug) acc[String(a.user_id)] = String(a.url_slug)
+            return acc
+          },
+          {}
+        )
       }
-    })
+      if (trackIds.length > 0) {
+        const { data: listings } = await supabase
+          .from('marketplace_listings')
+          .select('id, music_track_id')
+          .eq('category', 'music')
+          .eq('status', 'published')
+          .in('music_track_id', trackIds)
+        listingIdByTrackId = (listings || []).reduce(
+          (acc: Record<string, string>, listing: any) => {
+            if (listing.music_track_id) acc[String(listing.music_track_id)] = String(listing.id)
+            return acc
+          },
+          {}
+        )
+      }
+
+      return (tracks || []).map((track: any) => {
+        const displayName = track.artist_name || track.artist_username || 'Unknown artist'
+        const handle =
+          artistSlugByUserId[String(track.user_id)] || track.artist_username || null
+        return {
+          id: track.id,
+          type: 'music' as const,
+          title: track.title,
+          description: track.description,
+          author: {
+            id: track.user_id,
+            name: displayName,
+            username: handle,
+            avatar_url: track.artist_avatar_url || null,
+          },
+          cover_image: track.cover_art_url,
+          created_at: track.created_at,
+          engagement: {
+            likes: track.likes_count || 0,
+            views: track.play_count || 0,
+            shares: track.shares_count || 0,
+            comments: track.comments_count || 0,
+          },
+          metadata: {
+            genre: track.genre,
+            duration: track.duration,
+            tags: track.tags || [],
+            url: `/api/music/stream?trackId=${track.id}`,
+            artist: displayName,
+            accessMode: track.access_mode || 'free',
+            previewMode: track.preview_mode || 'full',
+            previewDurationSeconds: track.preview_duration_seconds || 15,
+            allowLibraryAdd: track.allow_library_add !== false,
+            allowProfileFeature: track.allow_profile_feature !== false,
+            listingId: listingIdByTrackId[String(track.id)] || null,
+          },
+          relevance_score: 0.9,
+        }
+      })
+    })()
 
     const response = NextResponse.json({
       success: true,
@@ -102,8 +152,11 @@ async function fallbackFromArtistMusic(
 ) {
   let query = supabase
     .from('artist_music')
-    .select('id, user_id, title, description, genre, duration, file_url, cover_art_url, tags, created_at, stats, is_public')
+    .select('id, user_id, title, description, genre, duration, file_url, cover_art_url, tags, created_at, stats, is_public, is_visible, moderation_status, rights_confirmed, access_mode, preview_mode, preview_duration_seconds, allow_library_add, allow_profile_feature')
     .eq('is_public', true)
+    .eq('is_visible', true)
+    .eq('moderation_status', 'approved')
+    .eq('rights_confirmed', true)
 
   if (opts.userId) query = query.eq('user_id', opts.userId)
   if (opts.genre && opts.genre !== 'all') query = query.eq('genre', opts.genre)
@@ -120,14 +173,48 @@ async function fallbackFromArtistMusic(
   }
 
   const userIds = Array.from(new Set((rawTracks || []).map((t: any) => t.user_id)))
-  let profileMap: Record<string, { full_name: string | null; avatar_url: string | null }> = {}
+  const trackIds = Array.from(new Set((rawTracks || []).map((t: any) => t.id).filter(Boolean)))
+  let profileMap: Record<string, { full_name: string | null; avatar_url: string | null; username: string | null }> = {}
+  let artistSlugByUserId: Record<string, string> = {}
+  let listingIdByTrackId: Record<string, string> = {}
   if (userIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .in('id', userIds)
+    const [{ data: profiles }, { data: artists }] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, username')
+        .in('id', userIds),
+      supabase
+        .from('artist_profiles')
+        .select('user_id, url_slug, artist_name')
+        .in('user_id', userIds),
+    ])
     profileMap = (profiles || []).reduce(
-      (acc: any, p: any) => ({ ...acc, [p.id]: { full_name: p.full_name, avatar_url: p.avatar_url } }),
+      (acc: any, p: any) => ({
+        ...acc,
+        [p.id]: { full_name: p.full_name, avatar_url: p.avatar_url, username: p.username },
+      }),
+      {}
+    )
+    artistSlugByUserId = (artists || []).reduce(
+      (acc: any, a: any) => ({
+        ...acc,
+        [a.user_id]: a.url_slug || null,
+      }),
+      {}
+    )
+  }
+  if (trackIds.length > 0) {
+    const { data: listings } = await supabase
+      .from('marketplace_listings')
+      .select('id, music_track_id')
+      .eq('category', 'music')
+      .eq('status', 'published')
+      .in('music_track_id', trackIds)
+    listingIdByTrackId = (listings || []).reduce(
+      (acc: Record<string, string>, listing: any) => {
+        if (listing.music_track_id) acc[String(listing.music_track_id)] = String(listing.id)
+        return acc
+      },
       {}
     )
   }
@@ -135,6 +222,7 @@ async function fallbackFromArtistMusic(
   let content = (rawTracks || []).map((track: any) => {
     const profile = profileMap[track.user_id]
     const artistName = profile?.full_name || 'Artist'
+    const artistHandle = artistSlugByUserId[track.user_id] || profile?.username || null
     const stats = track.stats || {}
     const likes = Number(stats.likes || 0)
     const plays = Number(stats.plays || 0)
@@ -149,7 +237,7 @@ async function fallbackFromArtistMusic(
       author: {
         id: track.user_id,
         name: artistName,
-        username: null,
+        username: artistHandle,
         avatar_url: profile?.avatar_url || null,
       },
       cover_image: track.cover_art_url,
@@ -161,6 +249,12 @@ async function fallbackFromArtistMusic(
         tags: track.tags || [],
         url: `/api/music/stream?trackId=${track.id}`,
         artist: artistName,
+        accessMode: track.access_mode || 'free',
+        previewMode: track.preview_mode || 'full',
+        previewDurationSeconds: track.preview_duration_seconds || 15,
+        allowLibraryAdd: track.allow_library_add !== false,
+        allowProfileFeature: track.allow_profile_feature !== false,
+        listingId: listingIdByTrackId[String(track.id)] || null,
       },
       relevance_score: 0.8,
       _engagement_total: likes + plays + shares + comments,

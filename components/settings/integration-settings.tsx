@@ -1,9 +1,9 @@
 "use client"
 
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ExternalLink, Plus, Sparkles } from "lucide-react"
-import { SocialIntegrationsManager } from "@/components/social/social-integrations-manager"
 
 export function IntegrationSettings() {
   return (
@@ -15,11 +15,20 @@ export function IntegrationSettings() {
             Platform Integrations
           </CardTitle>
           <CardDescription>
-            Connect your social platforms to increase profile reach and unlock automated analytics sync.
+            Social account linking and analytics live in Content Hub. Manage public links and OAuth there.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <SocialIntegrationsManager />
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Content Hub is the canonical place to add public socials, connect OAuth accounts, and sync
+            cross-platform analytics.
+          </p>
+          <Button asChild>
+            <Link href="/artist/content?tab=socials">
+              <ExternalLink className="mr-2 h-4 w-4" />
+              Open Content Hub · Socials
+            </Link>
+          </Button>
         </CardContent>
       </Card>
 

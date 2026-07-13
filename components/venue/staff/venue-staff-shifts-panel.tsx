@@ -66,7 +66,7 @@ export function VenueStaffShiftsPanel({ venueId, eventId }: VenueStaffShiftsPane
       const eventQs = eventId ? `&eventId=${encodeURIComponent(eventId)}` : ""
       const [shRes, emRes] = await Promise.all([
         fetch(
-          `/api/admin/staffing/shifts?venueId=${encodeURIComponent(venueId)}&date_from=${date}&date_to=${dateTo}${eventQs}`,
+          `/api/venue/shifts?venue_id=${encodeURIComponent(venueId)}&date_from=${date}&date_to=${dateTo}${eventQs}`,
           {
             credentials: "include",
           }
@@ -102,7 +102,7 @@ export function VenueStaffShiftsPanel({ venueId, eventId }: VenueStaffShiftsPane
     }
     setSaving(true)
     try {
-      const res = await fetch("/api/admin/staffing/shifts", {
+      const res = await fetch("/api/venue/shifts", {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -135,7 +135,7 @@ export function VenueStaffShiftsPanel({ venueId, eventId }: VenueStaffShiftsPane
   async function handleCancelShift(shiftId: string) {
     setCancellingId(shiftId)
     try {
-      const res = await fetch(`/api/admin/staffing/shifts/${shiftId}`, {
+      const res = await fetch(`/api/venue/shifts/${shiftId}`, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },

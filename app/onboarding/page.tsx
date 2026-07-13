@@ -39,8 +39,8 @@ export default function OnboardingRouter(props: OnboardingRouterProps) {
     if (source === 'social') {
       setOnboardingType('social-account-setup')
     } else if (token) {
-      // Token-based onboarding (staff invitations)
-      setOnboardingType('staff')
+      router.replace(`/onboarding/hire/${encodeURIComponent(token)}`)
+      return
     } else if (invitation) {
       // Invitation-based onboarding
       setOnboardingType('invitation')
@@ -53,7 +53,7 @@ export default function OnboardingRouter(props: OnboardingRouterProps) {
     }
 
     setIsInitializing(false)
-  }, [loading, searchParams])
+  }, [loading, searchParams, router])
 
   // Show loading while determining onboarding type
   if (loading || isInitializing) {

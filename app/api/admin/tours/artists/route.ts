@@ -1,76 +1,80 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { NextRequest, NextResponse } from "next/server"
 
-export async function GET(req: NextRequest) {
+import {
+  adminAccessErrorResponse,
+  assertAdminTourAccess,
+} from "@/lib/admin/admin-tour-event-access"
+import { withAdminAuth } from "@/lib/auth/api-auth"
+
+export const GET = withAdminAuth(async (req: NextRequest, { supabase, user }) => {
   try {
-    const auth = await authenticateApiRequest(req)
-    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const { user, supabase } = auth
-    const hasAdmin = await checkAdminPermissions(user)
-    if (!hasAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const tourId = new URL(req.url).searchParams.get("tour_id")
+    if (!tourId) return NextResponse.json({ error: "tour_id required" }, { status: 400 })
+    await assertAdminTourAccess({ supabase, userId: user.id, tourId })
 
-    const url = new URL(req.url)
-    const tourId = url.searchParams.get('tour_id')
-    if (!tourId) return NextResponse.json({ error: 'tour_id required' }, { status: 400 })
-
-    const { data, error } = await supabase
-      .from('tour_artists')
-      .select('*')
-      .eq('tour_id', tourId)
-
+    const { data, error } = await supabase.from("tour_artists").select("*").eq("tour_id", tourId)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ data: data ?? [] })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unexpected error' }, { status: 400 })
+  } catch (error: any) {
+    const { status, message } = adminAccessErrorResponse(error, "Failed to load tour artists", 400)
+    return NextResponse.json({ error: message }, { status })
   }
-}
+})
 
-export async function POST(req: NextRequest) {
+export const POST = withAdminAuth(async (req: NextRequest, { supabase, user }) => {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-
     const body = await req.json()
     const { tour_id, artist_user_id, artist_name, role } = body
     if (!tour_id || (!artist_user_id && !artist_name)) {
-      return NextResponse.json({ error: 'tour_id and (artist_user_id or artist_name) required' }, { status: 400 })
+      return NextResponse.json({ error: "tour_id and (artist_user_id or artist_name) required" }, { status: 400 })
     }
+    await assertAdminTourAccess({ supabase, userId: user.id, tourId: tour_id })
 
     const { data, error } = await supabase
-      .from('tour_artists')
-      .insert({ tour_id, artist_user_id: artist_user_id ?? null, artist_name: artist_name ?? null, role: role ?? null })
-      .select('*')
+      .from("tour_artists")
+      .insert({
+        tour_id,
+        artist_user_id: artist_user_id ?? null,
+        artist_name: artist_name ?? null,
+        role: role ?? null,
+      })
+      .select("*")
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ data })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unexpected error' }, { status: 400 })
+  } catch (error: any) {
+    const { status, message } = adminAccessErrorResponse(error, "Failed to add tour artist", 400)
+    return NextResponse.json({ error: message }, { status })
   }
-}
+})
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withAdminAuth(async (req: NextRequest, { supabase, user }) => {
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
-
     const url = new URL(req.url)
-    const id = url.searchParams.get('id')
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+    const id = url.searchParams.get("id")
+    const tourId = url.searchParams.get("tour_id")
+    if (!id) return NextResponse.json({ error: "id required" }, { status: 400 })
 
-    const { error } = await supabase
-      .from('tour_artists')
-      .delete()
-      .eq('id', id)
+    let resolvedTourId = tourId
+    if (!resolvedTourId) {
+      const { data: existing, error: lookupError } = await supabase
+        .from("tour_artists")
+        .select("tour_id")
+        .eq("id", id)
+        .maybeSingle()
+      if (lookupError) return NextResponse.json({ error: lookupError.message }, { status: 400 })
+      resolvedTourId = existing?.tour_id ?? null
+    }
+    if (!resolvedTourId) return NextResponse.json({ error: "tour_id required" }, { status: 400 })
 
+    await assertAdminTourAccess({ supabase, userId: user.id, tourId: resolvedTourId })
+
+    const { error } = await supabase.from("tour_artists").delete().eq("id", id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ success: true })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unexpected error' }, { status: 400 })
+  } catch (error: any) {
+    const { status, message } = adminAccessErrorResponse(error, "Failed to remove tour artist", 400)
+    return NextResponse.json({ error: message }, { status })
   }
-}
-
-
+})

@@ -5,7 +5,10 @@ import type { UserAccount } from '@/lib/services/account-management.service'
 
 export const POST = withAuth(async (request: NextRequest) => {
   try {
-    const body = await request.json()
+    const raw = await request.text()
+    if (!raw.trim()) return NextResponse.json({ metrics: [] })
+
+    const body = JSON.parse(raw) as { accounts?: UserAccount[] }
     const accounts = (body.accounts || []) as UserAccount[]
 
     if (!Array.isArray(accounts) || accounts.length === 0) {

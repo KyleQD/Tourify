@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: <path-to-profile-type-definitions-file>
+@@
+-export type ProfileCategory = "Person" | "Place" | "Thing";n
++export type ProfileCategory = "Person" | "Place" | "Thing";
+*** End Patch

@@ -135,7 +135,7 @@ export default function JobsPage() {
         setIsLoading(true)
         setDidFail(false)
         const [myJobsRes, boardRes, applicationsRes] = await Promise.all([
-          fetch(`/api/admin/job-postings?venue_id=${venue.id}`, buildNoStoreInit()),
+          fetch(`/api/venue/hiring/job-postings?venue_id=${venue.id}`, buildNoStoreInit()),
           fetch("/api/job-board?limit=20", buildNoStoreInit()),
           fetch("/api/job-applications?limit=20", buildNoStoreInit()),
         ])
@@ -177,7 +177,7 @@ export default function JobsPage() {
     async function loadTeam() {
       if (!venue?.id) return
       try {
-        const res = await fetch(`/api/admin/team-members?venue_id=${venue.id}`, buildNoStoreInit())
+        const res = await fetch(`/api/venue/team?venue_id=${venue.id}`, buildNoStoreInit())
         const data = await res.json()
         setTeamMembers(data?.members || [])
       } catch { setTeamMembers([]) }
@@ -203,7 +203,7 @@ export default function JobsPage() {
 
   const handleStatusChange = async (jobId: string, status: string) => {
     try {
-      const res = await fetch(`/api/admin/job-postings/${jobId}`, {
+      const res = await fetch(`/api/venue/hiring/job-postings/${jobId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -244,7 +244,7 @@ export default function JobsPage() {
     setSelectedJobId(jobId)
     setActiveTab("hiring")
     try {
-      const res = await fetch(`/api/admin/applications?job_posting_id=${jobId}`, buildNoStoreInit())
+      const res = await fetch(`/api/venue/hiring/applications?job_posting_id=${jobId}`, buildNoStoreInit())
       const data = await res.json()
       setHiringApps(Array.isArray(data?.data) ? data.data : [])
     } catch {
@@ -254,7 +254,7 @@ export default function JobsPage() {
 
   const handleApplicationAction = async (applicationId: string, status: string) => {
     try {
-      const res = await fetch(`/api/admin/applications/${applicationId}`, {
+      const res = await fetch(`/api/venue/hiring/applications/${applicationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -277,7 +277,7 @@ export default function JobsPage() {
   const handleAddTeamMember = async (name: string, email: string, role: string) => {
     if (!venue?.id) return
     try {
-      const res = await fetch("/api/admin/team-members", {
+      const res = await fetch("/api/venue/team", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -294,7 +294,7 @@ export default function JobsPage() {
 
   const handleRemoveTeamMember = async (memberId: string) => {
     try {
-      const res = await fetch(`/api/admin/team-members?id=${memberId}`, { method: "DELETE", credentials: "include" })
+      const res = await fetch(`/api/venue/team?id=${memberId}`, { method: "DELETE", credentials: "include" })
       const data = await res.json()
       if (!data.success) throw new Error(data.error || "Failed")
       toast({ title: "Member removed", description: "Team member has been removed." })
@@ -306,7 +306,7 @@ export default function JobsPage() {
 
   const handleUpdateMemberRole = async (memberId: string, role: string) => {
     try {
-      const res = await fetch("/api/admin/team-members", {
+      const res = await fetch("/api/venue/team", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

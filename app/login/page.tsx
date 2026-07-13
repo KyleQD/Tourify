@@ -197,7 +197,7 @@ export default function LoginPage() {
             <div className="rounded-2xl border border-white/20 bg-white/10 p-4 backdrop-blur-2xl">
               <div className="mb-3 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-cyan-100">
                 <Radio className="h-3.5 w-3.5" />
-                Live Industry Pulse
+                Live Industry News
               </div>
               <div className="overflow-hidden rounded-xl border border-white/10 bg-black/20">
                 <div className="login-ticker-track flex w-[200%] gap-3 px-3 py-2">
@@ -253,7 +253,7 @@ export default function LoginPage() {
                 </Button>
               </div>
               <p className="mt-2 text-xs text-slate-300">
-                Pulling location-aware Discover opportunities + Pulse stories.
+                Pulling location-aware Discover opportunities + News stories.
               </p>
             </div>
 
@@ -311,7 +311,7 @@ export default function LoginPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-white">Trending News to Spark Your Next Move</h2>
-                <Link href="/feed" className="text-sm font-medium text-cyan-200 hover:text-cyan-100">
+                <Link href="/news" className="text-sm font-medium text-cyan-200 hover:text-cyan-100">
                   Explore full news feed
                 </Link>
               </div>
@@ -404,7 +404,7 @@ export default function LoginPage() {
               <div className="rounded-xl border border-fuchsia-200/30 bg-fuchsia-300/10 p-4 backdrop-blur-xl">
                 <p className="text-[11px] uppercase tracking-[0.14em] text-fuchsia-100">Momentum</p>
                 <p className="mt-1 text-2xl font-bold text-white">24/7</p>
-                <p className="mt-1 text-xs text-slate-200">Live signal updates from Pulse and Discover streams.</p>
+                <p className="mt-1 text-xs text-slate-200">Live signal updates from News and Discover streams.</p>
               </div>
               <div className="rounded-xl border border-emerald-200/30 bg-emerald-300/10 p-4 backdrop-blur-xl">
                 <p className="text-[11px] uppercase tracking-[0.14em] text-emerald-100">Network Reach</p>
@@ -594,9 +594,9 @@ const FALLBACK_NEWS_HIGHLIGHTS: LoginNewsItem[] = [
   {
     id: "fallback-1",
     title: "Festival bookings surge as independent artists scale international tours",
-    sourceName: "Pulse Wire",
+    sourceName: "News Wire",
     topic: "Touring",
-    url: "/feed",
+    url: "/news",
     summary: "Tour routing and fan demand are creating bigger opportunities for emerging acts."
   },
   {
@@ -604,7 +604,7 @@ const FALLBACK_NEWS_HIGHLIGHTS: LoginNewsItem[] = [
     title: "New venue partnerships open premium slots for rising talent",
     sourceName: "Venue Insider",
     topic: "Venues",
-    url: "/feed",
+    url: "/news",
     summary: "Regional venue networks are collaborating to prioritize trusted artist profiles."
   },
   {
@@ -612,7 +612,7 @@ const FALLBACK_NEWS_HIGHLIGHTS: LoginNewsItem[] = [
     title: "Fan engagement tech becomes a key driver for sponsorship deals",
     sourceName: "Creator Daily",
     topic: "Growth",
-    url: "/feed",
+    url: "/news",
     summary: "Data-rich fan communities are helping artists unlock better offers and visibility."
   }
 ]

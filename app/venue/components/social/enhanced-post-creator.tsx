@@ -26,6 +26,8 @@ import {
 import { useAuth } from "@/contexts/auth-context"
 import { useSocial } from "@/contexts/social-context"
 import { useToast } from "@/hooks/use-toast"
+import { useActingContext } from "@/hooks/use-acting-context"
+import type { PollDuration } from "@/lib/polls/poll-duration"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { LinkPreview } from "@/components/ui/link-preview"
 import { MediaUploader } from "./media-uploader"
@@ -67,12 +69,31 @@ export function EnhancedPostCreator({
   const { user } = useAuth()
   const socialContext = useSocial() // Keep for future use but don't destructure non-existent properties
   const { toast } = useToast()
+  const { actingHeaders, isActingReady } = useActingContext()
 
-  // Mock implementations since these don't exist in social context
   const createPost = async (postData: any) => {
-    // Mock implementation
-    console.log("Creating post:", postData)
-    return { success: true, postId: "mock-post-id" }
+    if (!isActingReady) throw new Error('Posting account is still loading')
+
+    const response = await fetch('/api/posts/create', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...actingHeaders,
+      },
+      body: JSON.stringify({
+        content: postData.content,
+        type: postData.type || 'text',
+        visibility: postData.visibility === 'connections' ? 'followers' : (postData.visibility || 'public'),
+        media_urls: (postData.media || []).map((item: any) => item.url).filter(Boolean),
+        poll_options: postData.poll_options,
+        poll_duration: postData.poll_duration,
+      }),
+    })
+    const payload = await response.json().catch(() => ({}))
+    if (!response.ok || !payload.success)
+      throw new Error(payload.error || 'Failed to create post')
+    return payload
   }
   const users: any[] = []
 
@@ -89,7 +110,7 @@ export function EnhancedPostCreator({
   const [moderationResult, setModerationResult] = useState<any>(null)
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false)
   const [pollOptions, setPollOptions] = useState<string[]>(["", ""])
-  const [pollDuration, setPollDuration] = useState("1d")
+  const [pollDuration, setPollDuration] = useState<PollDuration>("7d")
   const [eventDetails, setEventDetails] = useState({
     title: "",
     location: "",
@@ -382,7 +403,6 @@ export function EnhancedPostCreator({
           metadata
         })
       } else if (activeTab === "poll") {
-        // In a real app, you would create a poll post
         const validOptions = pollOptions.filter((opt) => opt.trim().length > 0)
         if (validOptions.length < 2) {
           toast({
@@ -396,14 +416,11 @@ export function EnhancedPostCreator({
 
         await createPost({
           content,
+          type: 'poll',
           media: [],
-          visibility: visibility === "public" ? "public" : visibility,
-          metadata: {
-            ...metadata,
-            pollOptions: validOptions,
-            pollDuration,
-            pollQuestion: content, // Assuming content is the question for a poll
-          }
+          visibility: visibility === "private" ? "private" : "followers",
+          poll_options: validOptions,
+          poll_duration: pollDuration,
         })
       } else if (activeTab === "event") {
         // In a real app, you would create an event post
@@ -1086,7 +1103,7 @@ export function EnhancedPostCreator({
                   <select
                     id="poll-duration"
                     value={pollDuration}
-                    onChange={(e) => setPollDuration(e.target.value)}
+                    onChange={(e) => setPollDuration(e.target.value as PollDuration)}
                     className="bg-gray-800 border-gray-700 text-white rounded-md text-sm p-1"
                   >
                     <option value="1d">1 day</option>

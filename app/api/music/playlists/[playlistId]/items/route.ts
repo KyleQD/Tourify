@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { isTrackPubliclyPlayable } from "@/lib/music/music-access"
 
 const addPlaylistItemSchema = z.object({
   musicTrackId: z.string().uuid(),
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     const { data: track, error: trackError } = await supabase
       .from("artist_music")
-      .select("id, is_public, user_id")
+      .select("id, is_public, is_visible, moderation_status, rights_confirmed, user_id, access_mode")
       .eq("id", payload.musicTrackId)
       .single()
 
@@ -60,9 +61,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Track not found" }, { status: 404 })
 
     const isOwner = track.user_id === user.id
-    const isPublic = track.is_public === true
+    const isPublic = isTrackPubliclyPlayable(track)
 
-    if (!isOwner && !isPublic) {
+    if (!isOwner && (!isPublic || track.access_mode === "paid")) {
       const { data: libraryEntry } = await supabase
         .from("user_music_library")
         .select("id")
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         .maybeSingle()
 
       if (!libraryEntry)
-        return NextResponse.json({ error: "Track is private and not in your library" }, { status: 403 })
+        return NextResponse.json({ error: "Track is not in your library" }, { status: 403 })
     }
 
     const { data, error } = await supabase
@@ -91,7 +92,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: "Failed to add playlist item" }, { status: 500 })
     }
 
-    return NextResponse.json({ data })
+    return NextResponse.json({
+      data: {
+        ...data,
+        artist_music: data.artist_music
+          ? {
+              ...data.artist_music,
+              file_url: `/api/music/stream?trackId=${data.music_track_id}`,
+              stream_url: `/api/music/stream?trackId=${data.music_track_id}`,
+            }
+          : data.artist_music,
+      },
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid playlist item payload", issues: error.issues }, { status: 400 })

@@ -18,12 +18,18 @@ interface DiscoverEvent {
   title: string
   event_date?: string | null
   venue_name?: string | null
+  venue_city?: string | null
+  venue_state?: string | null
 }
 
 interface DiscoverPost {
   id: string
   content: string
   created_at: string
+  profiles?: {
+    id?: string
+    username?: string
+  }
 }
 
 type MobileDiscoverResponse = ContractDiscoverResponse & {

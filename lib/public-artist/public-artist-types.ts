@@ -10,6 +10,8 @@ export interface PublicArtistViewerDTO {
   isAuthenticated: boolean
   userId: PublicUserId | null
   isOwner: boolean
+  /** False when settings.public_profile is disabled (owner can still view). */
+  isPublicProfile: boolean
 }
 
 export interface PublicArtistBannerDTO {
@@ -68,6 +70,12 @@ export interface PublicArtistTrackDTO {
   downloadsCount: number
   isPinned: boolean
   isFeatured: boolean
+  accessMode: 'free' | 'paid'
+  previewMode: 'full' | 'clip'
+  previewDurationSeconds: number
+  allowLibraryAdd: boolean
+  allowProfileFeature: boolean
+  listingId?: string | null
 }
 
 export interface PublicArtistTracksDTO {
@@ -85,6 +93,8 @@ export interface PublicArtistTracksDTO {
 
 export interface PublicArtistEventDTO {
   id: PublicArtistId
+  title?: string | null
+  slug?: string | null
   eventDate: string
   venueName: string | null
   location: string | null
@@ -148,6 +158,15 @@ export interface PublicArtistPostDTO {
   commentsCount: number
   sharesCount: number
   isPinned: boolean
+  poll?: {
+    question: string
+    options: Array<{ id: string; text: string; votes: number; position: number }>
+    endsAt: string | null
+    totalVotes: number
+    isClosed: boolean
+    viewerVotedOptionId: string | null
+    viewerHasVoted: boolean
+  } | null
 }
 
 export interface PublicArtistPostsDTO {
@@ -173,6 +192,12 @@ export interface PublicArtistAboutDTO {
   bio: string | null
 }
 
+export interface PublicArtistSocialLinkDTO {
+  platform: string
+  label: string
+  url: string
+}
+
 export interface PublicArtistCreatorDTO {
   primaryCreatorType: string | null
   serviceOfferings: string[]
@@ -190,10 +215,19 @@ export interface PublicArtistEPKDTO {
   epk: EPKData | null
 }
 
+export interface PublicArtistOrganizationMembershipDTO {
+  organizationId: string
+  name: string
+  slug: string | null
+  role: string
+  subtype: string | null
+}
+
 export interface PublicArtistPageDTO {
   viewer: PublicArtistViewerDTO
   hero: PublicArtistHeroDTO
   about: PublicArtistAboutDTO
+  socialLinks: PublicArtistSocialLinkDTO[]
   tracks: PublicArtistTracksDTO
   events: PublicArtistEventsDTO
   media: PublicArtistMediaGalleryDTO
@@ -202,5 +236,5 @@ export interface PublicArtistPageDTO {
   stats: PublicArtistStatsDTO
   creator: PublicArtistCreatorDTO
   epk: PublicArtistEPKDTO
+  organizations: PublicArtistOrganizationMembershipDTO[]
 }
-

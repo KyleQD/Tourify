@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
+import { isTrackPubliclyPlayable } from "@/lib/music/music-access"
 
 export const dynamic = "force-dynamic"
 
@@ -39,6 +40,9 @@ export async function GET(request: NextRequest) {
           cover_art_url,
           user_id,
           is_public,
+          is_visible,
+          moderation_status,
+          rights_confirmed,
           tags,
           stats
         )
@@ -73,7 +77,7 @@ export async function GET(request: NextRequest) {
       .filter((l: any) => {
         const track = l.artist_music
         if (!track) return false
-        if (!isSelf && !track.is_public) return false
+        if (!isSelf && !isTrackPubliclyPlayable(track)) return false
         return true
       })
       .map((l: any) => {

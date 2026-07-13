@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
+import { isTrackPubliclyPlayable } from "@/lib/music/music-access"
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,10 +36,13 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from("artist_music")
       .select(
-        "id, title, genre, duration, file_url, cover_art_url, tags, created_at, user_id, is_public, stats",
+        "id, title, genre, duration, file_url, cover_art_url, tags, created_at, user_id, is_public, is_visible, moderation_status, rights_confirmed, stats",
         { count: "exact" }
       )
       .eq("is_public", true)
+      .neq("is_visible", false)
+      .eq("moderation_status", "approved")
+      .eq("rights_confirmed", true)
       .in("user_id", followingIds)
 
     switch (sortBy) {
@@ -79,7 +83,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const data = (tracks || []).map((track) => {
+    const data = (tracks || []).filter(isTrackPubliclyPlayable).map((track) => {
       const profile = profileMap[track.user_id]
       return {
         id: track.id,

@@ -4,6 +4,8 @@ import { revalidatePath } from 'next/cache'
 import { EventFormData } from '../components/create-event-modal'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { ensureVenueOperationalContext, getCurrentVenueContext, getManageableVenueIds } from '@/lib/venue/venue-access'
 
 // Create Supabase client per function to avoid top-level await issues
 
@@ -56,24 +58,7 @@ function revalidateVenueOperationPaths(eventId?: string) {
 }
 
 async function getAuthorizedVenueIds(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const [{ data: ownerRows, error: ownerError }, { data: memberRows, error: memberError }] = await Promise.all([
-    supabase
-      .from('venue_profiles')
-      .select('id')
-      .or(`user_id.eq.${userId},main_profile_id.eq.${userId}`),
-    supabase
-      .from('venue_team_members')
-      .select('venue_id')
-      .eq('user_id', userId)
-      .eq('status', 'active')
-      .contains('permissions', { manage_bookings: true }),
-  ])
-
-  if (ownerError && memberError) return []
-
-  const ownerVenueIds = (ownerRows || []).map((row: { id: string }) => row.id)
-  const memberVenueIds = (memberRows || []).map((row: { venue_id: string }) => row.venue_id)
-  return Array.from(new Set([...ownerVenueIds, ...memberVenueIds].filter(Boolean)))
+  return getManageableVenueIds(supabase as any, userId, 'manage_bookings')
 }
 
 async function canManageVenueEvent(
@@ -261,6 +246,7 @@ function buildEventSlug(input: string) {
 
 export async function approveBookingAndMaybeCreateEvent(input: { requestId: string; createEvent?: boolean; responseMessage?: string }) {
   const supabase = await createClient()
+  const service = createServiceRoleClient()
   const { requestId, createEvent, responseMessage } = approveSchema.parse(input)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Unauthorized' }
@@ -268,7 +254,7 @@ export async function approveBookingAndMaybeCreateEvent(input: { requestId: stri
   const venueIds = await getAuthorizedVenueIds(supabase, user.id)
   if (venueIds.length === 0) return { success: false, error: 'Venue access required' }
 
-  const { data: req, error: fetchErr } = await supabase.from('venue_booking_requests').select('*').eq('id', requestId).single()
+  const { data: req, error: fetchErr } = await service.from('venue_booking_requests').select('*').eq('id', requestId).single()
   if (fetchErr || !req) return { success: false, error: fetchErr?.message || 'Request not found' }
   if (!req.venue_id || !venueIds.includes(req.venue_id)) {
     return { success: false, error: 'You do not have permission to approve this request' }
@@ -285,68 +271,50 @@ export async function approveBookingAndMaybeCreateEvent(input: { requestId: stri
   let createdEventId: string | null = null
   let createdEventV2Id: string | null = null
   if (createEvent) {
-    let orgId: string | null = null
-    const { data: membership } = await supabase
-      .from('org_members')
-      .select('org_id')
-      .eq('user_id', user.id)
-      .limit(1)
-      .maybeSingle()
-    orgId = membership?.org_id || null
+    const venue = await getCurrentVenueContext(supabase as any, user.id, req.venue_id)
+    if (!venue) return { success: false, error: 'Venue access required' }
 
-    if (orgId) {
-      const startAt = req.event_date || new Date().toISOString()
-      const durationMinutes = Number(req.event_duration || 120)
-      const endAtDate = new Date(startAt)
-      endAtDate.setMinutes(endAtDate.getMinutes() + (Number.isNaN(durationMinutes) ? 120 : durationMinutes))
-      const slug = buildEventSlug(req.event_name || 'venue-event')
-
-      const { data: v2Event, error: v2Error } = await supabase
-        .from('events_v2')
-        .insert([{
-          org_id: orgId,
-          venue_id: req.venue_id || null,
-          title: req.event_name,
-          slug,
-          status: 'confirmed',
-          start_at: startAt,
-          end_at: endAtDate.toISOString(),
-          timezone: 'UTC',
-          capacity: req.expected_attendance || null,
-          settings: {
-            description: req.description || null,
-            event_type: req.event_type || 'other',
-            venue_profile_id: req.venue_id || null,
-            venue_label: 'Venue Booking'
-          },
-          created_by: user.id
-        }])
-        .select('id')
-        .single()
-
-      if (!v2Error) {
-        createdEventV2Id = v2Event?.id ?? null
-      } else {
-        console.error('Failed to create events_v2 record:', v2Error)
-      }
+    const mappedVenue = await ensureVenueOperationalContext(service as any, venue, user.id)
+    if (!mappedVenue.operationalOrgId) {
+      return { success: false, error: 'Could not resolve a Venue operations organization for this event' }
     }
 
-    if (!createdEventV2Id) {
-      const { data: evt, error: evtErr } = await supabase.from('events').insert([{ 
+    const startAt = req.event_date || new Date().toISOString()
+    const durationMinutes = Number(req.event_duration || 120)
+    const endAtDate = new Date(startAt)
+    endAtDate.setMinutes(endAtDate.getMinutes() + (Number.isNaN(durationMinutes) ? 120 : durationMinutes))
+    const slug = buildEventSlug(req.event_name || 'venue-event')
+
+    const { data: v2Event, error: v2Error } = await service
+      .from('events_v2')
+      .insert([{
+        org_id: mappedVenue.operationalOrgId,
+        venue_id: mappedVenue.venuesV2Id || null,
         title: req.event_name,
-        description: req.description,
-        date: req.event_date,
-        time: '19:00',
-        location: 'Venue',
-        type: req.event_type,
-        capacity: req.expected_attendance || 0,
-        user_id: req.requester_id,
-        venue_id: req.venue_id,
-        genre: req.genre
-      }]).select('id').single()
-      if (evtErr) return { success: false, error: evtErr.message }
-      createdEventId = evt?.id ?? null
-    }
+        slug,
+        status: 'confirmed',
+        start_at: startAt,
+        end_at: endAtDate.toISOString(),
+        timezone: 'UTC',
+        capacity: req.expected_attendance || null,
+        settings: {
+          description: req.description || null,
+          event_type: req.event_type || 'other',
+          venue_profile_id: req.venue_id || null,
+          venue_label: mappedVenue.displayName || mappedVenue.venue_name || 'Venue Booking',
+          source: 'venue_booking_request',
+          booking_request_id: req.id,
+          requester_id: req.requester_id,
+          budget_range: req.budget_range || null,
+          special_requirements: req.special_requirements || null
+        },
+        created_by: user.id
+      }])
+      .select('id')
+      .single()
+
+    if (v2Error) return { success: false, error: v2Error.message }
+    createdEventV2Id = v2Event?.id ?? null
   }
 
   revalidateVenueOperationPaths(createdEventV2Id || createdEventId || undefined)

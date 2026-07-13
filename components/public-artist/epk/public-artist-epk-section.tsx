@@ -1,6 +1,11 @@
 "use client"
 
-import type { PublicArtistEPKDTO, PublicArtistHeroDTO, PublicArtistStatsDTO } from "@/lib/public-artist/public-artist-types"
+import type {
+  PublicArtistEPKDTO,
+  PublicArtistHeroDTO,
+  PublicArtistStatsDTO,
+  PublicArtistViewerDTO,
+} from "@/lib/public-artist/public-artist-types"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileDown, ExternalLink } from "lucide-react"
@@ -10,24 +15,15 @@ import { paBtnRound, paCard, paInset } from "@/components/public-artist/public-a
 export function PublicArtistEPKSection({
   hero,
   stats,
-  epk
+  epk,
+  viewer,
 }: {
   hero: PublicArtistHeroDTO
   stats: PublicArtistStatsDTO
   epk: PublicArtistEPKDTO
+  viewer?: PublicArtistViewerDTO
 }) {
-  if (!epk.epk) {
-    return (
-      <Card className={paCard}>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold tracking-tight text-white">EPK</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className={`${paInset} p-5 text-sm text-white/65`}>No public EPK yet.</div>
-        </CardContent>
-      </Card>
-    )
-  }
+  if (!epk.epk) return null
 
   const data = epk.epk
 
@@ -108,4 +104,3 @@ export function PublicArtistEPKSection({
     </Card>
   )
 }
-

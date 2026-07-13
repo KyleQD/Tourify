@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { 
   BarChart3, 
+  Briefcase,
+  BookOpen,
   Calendar, 
   FileText, 
   Home, 
@@ -15,11 +17,6 @@ import {
   Music2,
   Video,
   ShoppingBag,
-  TrendingUp,
-  Tag,
-  Globe,
-  Mic,
-  Radio,
   Zap,
   Sparkles,
   Bell,
@@ -44,32 +41,47 @@ import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
+import { ARTIST_OUTLINE_BTN } from "@/components/dashboard/artist-tokens"
 
 // View Profile Button Component
 function ViewProfileButton() {
   const { currentAccount } = useMultiAccount()
-  
-  const getUsername = () => {
-    if (currentAccount?.account_type === 'artist') {
-      return currentAccount.profile_data?.artist_name?.toLowerCase().replace(/\s+/g, '') || 
-             currentAccount.profile_data?.stage_name?.toLowerCase().replace(/\s+/g, '') || 
-                           currentAccount.profile_data?.username ||  
-             'neon_pulse_official' // Fallback to demo artist for testing
-    }
-    return currentAccount?.profile_data?.username || 'neon_pulse_official' // Fallback to demo artist for testing
-  }
 
-  const username = getUsername()
+  const publicPath = (() => {
+    if (currentAccount?.account_type !== 'artist' && currentAccount?.account_type !== 'service')
+      return null
+    const data = currentAccount.profile_data || {}
+    return getArtistPublicProfilePath(
+      data.url_slug || data.artist_name || data.stage_name || data.username
+    )
+  })()
+
+  if (!publicPath) {
+    return (
+      <Button
+        asChild
+        variant="outline"
+        size="sm"
+        className={cn(ARTIST_OUTLINE_BTN, "w-full")}
+      >
+        <Link href="/artist/profile">
+          <User className="mr-2 h-4 w-4" />
+          Set up public profile
+        </Link>
+      </Button>
+    )
+  }
 
   return (
     <Button
       asChild
       variant="outline"
       size="sm"
-      className="w-full border-purple-500/30 text-purple-300 hover:text-white hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300"
+      className={cn(ARTIST_OUTLINE_BTN, "w-full")}
     >
-      <Link href={`/artist/${username}`}>
-        <User className="h-4 w-4 mr-2" />
+      <Link href={publicPath}>
+        <User className="mr-2 h-4 w-4" />
         View Profile
       </Link>
     </Button>
@@ -240,9 +252,6 @@ export function AppSidebar() {
   
   // Determine if we're on artist pages
   const isArtistPage = pathname.startsWith('/artist')
-  
-  // Use artist navigation when on artist pages, otherwise use general navigation
-  const currentNavigation = isArtistPage ? artistNavigation : generalNavigation
 
   return (
     <Sidebar collapsible="none" className="border-r border-slate-800/50 bg-gradient-to-b from-black via-slate-950 to-black relative overflow-hidden w-64 min-w-64 flex-shrink-0">
@@ -285,16 +294,80 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent className="bg-transparent relative z-10">
-        <SidebarMenu className="space-y-2 p-2">
-          {currentNavigation.map((item, index) => {
-            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
-            return (
-              <SidebarMenuItem key={item.href}>
-                <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1, type: "spring", stiffness: 300 }}
-                >
+        {isArtistPage ? (
+          <div className="space-y-4 p-2">
+            {artistNavigationGroups.map((group) => (
+              <div key={group.label || 'home'}>
+                {group.label && (
+                  <div className="px-4 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                    {group.label}
+                  </div>
+                )}
+                <SidebarMenu className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href !== '/artist' && pathname.startsWith(item.href))
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton asChild isActive={isActive}>
+                          <Link
+                            href={item.href}
+                            className={cn(
+                              "group relative mx-1 flex items-center rounded-xl border border-transparent px-3 py-2.5",
+                              "transition-all duration-200 ease-out",
+                              "hover:border-white/10 hover:bg-white/[0.04]",
+                              isActive && [
+                                "border-purple-500/20 bg-purple-600/10",
+                                "shadow-[0_0_20px_-10px_rgba(139,92,246,0.45)]",
+                              ]
+                            )}
+                          >
+                            {isActive && (
+                              <div className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-purple-500" />
+                            )}
+                            <div className="relative z-10 flex items-center space-x-3">
+                              <div
+                                className={cn(
+                                  "rounded-lg border p-1.5 transition-all duration-200",
+                                  isActive
+                                    ? "border-purple-500/30 bg-purple-500/15"
+                                    : "border-white/10 bg-white/[0.03] group-hover:border-white/15"
+                                )}
+                              >
+                                <item.icon
+                                  className={cn(
+                                    "h-4 w-4 transition-all duration-200",
+                                    isActive
+                                      ? "text-purple-300"
+                                      : "text-slate-400 group-hover:text-slate-200"
+                                  )}
+                                />
+                              </div>
+                              <span
+                                className={cn(
+                                  "text-sm font-medium transition-all duration-200",
+                                  isActive ? "text-white" : "text-slate-300 group-hover:text-white"
+                                )}
+                              >
+                                {item.name}
+                              </span>
+                            </div>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
+                </SidebarMenu>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <SidebarMenu className="space-y-2 p-2">
+            {generalNavigation.map((item) => {
+              const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+              return (
+                <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={isActive}>
                     <Link
                       href={item.href}
@@ -302,71 +375,40 @@ export function AppSidebar() {
                         "group relative flex items-center px-4 py-3 mx-1 rounded-2xl",
                         "transition-all duration-500 ease-out",
                         "hover:bg-gradient-to-r hover:from-slate-800/50 hover:to-slate-700/30",
-                        "hover:shadow-lg hover:shadow-slate-900/50",
                         "border border-transparent hover:border-slate-700/30",
                         isActive && [
                           "bg-gradient-to-r from-slate-800/80 to-slate-700/50",
                           "border-slate-600/50 shadow-xl shadow-slate-900/50",
-                          "before:absolute before:inset-0 before:bg-gradient-to-r before:from-purple-500/10 before:to-blue-500/10 before:rounded-2xl"
                         ]
                       )}
                     >
-                      {/* Active Indicator */}
-                      {isActive && (
-                        <motion.div 
-                          className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-purple-400 to-blue-600 rounded-r-full"
-                          layoutId="activeIndicator"
-                        />
-                      )}
-                      
-                      {/* Hover Glow Effect */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl" />
-                      
-                      <div className="flex items-center space-x-3 relative z-10">
-                        <motion.div
+                      <div className="relative z-10 flex items-center space-x-3">
+                        <div
                           className={cn(
-                            "p-2 rounded-xl transition-all duration-300",
-                            isActive 
-                              ? "bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30" 
-                              : "bg-slate-800/30 border border-slate-700/30 group-hover:bg-slate-700/50 group-hover:border-slate-600/50"
+                            "rounded-xl border p-2",
+                            isActive
+                              ? "border-purple-500/30 bg-gradient-to-br from-purple-500/20 to-blue-500/20"
+                              : "border-slate-700/30 bg-slate-800/30"
                           )}
-                          whileHover={{ scale: 1.1, rotate: 5 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
                           <item.icon
                             className={cn(
-                              "h-5 w-5 transition-all duration-300",
-                              isActive 
-                                ? "text-purple-400 drop-shadow-sm" 
-                                : "text-slate-400 group-hover:text-slate-200"
+                              "h-5 w-5",
+                              isActive ? "text-purple-400" : "text-slate-400"
                             )}
                           />
-                        </motion.div>
-                        <span className={cn(
-                          "font-medium transition-all duration-300",
-                          isActive 
-                            ? "text-white bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent" 
-                            : "text-slate-300 group-hover:text-white"
-                        )}>
+                        </div>
+                        <span className={cn("font-medium", isActive ? "text-white" : "text-slate-300")}>
                           {item.name}
                         </span>
                       </div>
-                      
-                      {/* Active Shine Effect */}
-                      {isActive && (
-                        <motion.div
-                          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent rounded-2xl"
-                          animate={{ x: ['-100%', '100%'] }}
-                          transition={{ duration: 2, repeat: Infinity, repeatType: "loop" }}
-                        />
-                      )}
                     </Link>
                   </SidebarMenuButton>
-                </motion.div>
-              </SidebarMenuItem>
-            )
-          })}
-        </SidebarMenu>
+                </SidebarMenuItem>
+              )
+            })}
+          </SidebarMenu>
+        )}
       </SidebarContent>
       
       <SidebarFooter className="border-t border-slate-800/50 p-4 bg-gradient-to-t from-black/50 to-transparent relative z-10">
@@ -377,19 +419,17 @@ export function AppSidebar() {
           <Button
             variant="outline"
             asChild
-            className="w-full justify-between bg-gradient-to-r from-slate-800/50 to-slate-700/30 border-slate-700/50 text-slate-300 hover:bg-gradient-to-r hover:from-slate-700/70 hover:to-slate-600/50 hover:text-white hover:border-slate-600/50 transition-all duration-300 rounded-xl h-12"
+            className={cn(
+              ARTIST_OUTLINE_BTN,
+              "h-12 w-full justify-between rounded-xl"
+            )}
           >
-            <Link href="/settings">
+            <Link href={isArtistPage ? "/artist/settings" : "/settings"}>
               <div className="flex items-center space-x-2">
                 <Settings className="h-4 w-4 text-slate-400" />
                 <span>Settings</span>
               </div>
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
-              >
-                <Zap className="h-4 w-4 text-slate-500" />
-              </motion.div>
+              <Zap className="h-4 w-4 text-slate-500" />
             </Link>
           </Button>
         </motion.div>
@@ -406,17 +446,51 @@ const generalNavigation = [
   { name: 'Analytics', href: '/analytics', icon: BarChart3 },
 ]
 
-// Artist-specific navigation
-const artistNavigation = [
-  { name: 'Dashboard', href: '/artist', icon: LayoutDashboard },
-  { name: 'Feed', href: '/artist/feed', icon: Home },
-  { name: 'Content', href: '/artist/content', icon: Video },
-  { name: 'Music', href: '/artist/music', icon: Music2 },
-  { name: 'Store', href: '/artist/store', icon: ShoppingBag },
-  { name: 'Community', href: '/artist/community', icon: Users },
-  { name: 'Business', href: '/artist/business', icon: ShoppingBag },
-  { name: 'Events', href: '/artist/events', icon: Calendar },
-  { name: 'Features', href: '/artist/features', icon: TrendingUp },
-  { name: 'EPK', href: '/artist/epk', icon: Tag },
-  { name: 'Profile', href: '/artist/profile', icon: Settings },
+interface ArtistNavItem {
+  name: string
+  href: string
+  icon: typeof LayoutDashboard
+}
+
+interface ArtistNavGroup {
+  label?: string
+  items: ArtistNavItem[]
+}
+
+const artistNavigationGroups: ArtistNavGroup[] = [
+  {
+    items: [{ name: 'Home', href: '/artist', icon: LayoutDashboard }],
+  },
+  {
+    label: 'Create & Publish',
+    items: [
+      { name: 'Feed', href: '/artist/feed', icon: Home },
+      { name: 'Content', href: '/artist/content', icon: Video },
+      { name: 'Blog', href: '/artist/features/blog', icon: BookOpen },
+      { name: 'Music', href: '/artist/music', icon: Music2 },
+      { name: 'EPK', href: '/artist/epk', icon: FileText },
+    ],
+  },
+  {
+    label: 'Live & Sell',
+    items: [
+      { name: 'Events', href: '/artist/events', icon: Calendar },
+      { name: 'Bookings', href: '/artist/bookings', icon: CalendarCheck },
+      { name: 'Store', href: '/artist/store', icon: ShoppingBag },
+    ],
+  },
+  {
+    label: 'Audience',
+    items: [
+      { name: 'Community', href: '/artist/community', icon: Users },
+      { name: 'Messages', href: '/artist/messages', icon: MessageSquare },
+    ],
+  },
+  {
+    label: 'Career',
+    items: [
+      { name: 'Business', href: '/artist/business', icon: Briefcase },
+      { name: 'Profile', href: '/artist/profile', icon: User },
+    ],
+  },
 ]

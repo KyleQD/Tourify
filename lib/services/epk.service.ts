@@ -1,5 +1,10 @@
 import { supabase } from '@/lib/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/lib/database.types'
 import { normalizeEpkAppearance, type EpkAppearance } from '@/lib/epk/epk-appearance'
+import { normalizeEpkFontId } from '@/lib/epk/epk-preview-utils'
+
+type EpkDb = SupabaseClient<Database>
 
 interface EPKData {
   epkSlug: string
@@ -98,7 +103,7 @@ interface EPKData {
     score: number
     missing: string[]
   }
-  epkFont: 'sans' | 'serif' | 'display' | 'geometric' | 'mono'
+  epkFont: import('@/lib/epk/epk-preview-utils').EpkFontId
   epkAppearance: EpkAppearance
 }
 
@@ -118,7 +123,11 @@ interface EPKSettings {
 }
 
 class EPKService {
-  async loadEPKData(userId: string): Promise<EPKData> {
+  async loadEPKData(
+    userId: string,
+    profileId?: string | null,
+    db: EpkDb = supabase
+  ): Promise<EPKData> {
     try {
       // Load all data in parallel for better performance
       const [
@@ -130,13 +139,13 @@ class EPKService {
         artistPhotos,
         artistStats
       ] = await Promise.all([
-        this.getArtistProfile(userId),
-        this.getProfileSummary(userId),
-        this.getEPKSettings(userId),
-        this.getMusicTracks(userId),
-        this.getUpcomingEvents(userId),
-        this.getPhotos(userId),
-        this.getArtistStats(userId)
+        this.getArtistProfile(userId, profileId, db),
+        this.getProfileSummary(userId, db),
+        this.getEPKSettings(userId, db),
+        this.getMusicTracks(userId, db),
+        this.getUpcomingEvents(userId, db),
+        this.getPhotos(userId, db),
+        this.getArtistStats(userId, db)
       ])
 
       // Transform and combine data into EPK format
@@ -147,7 +156,8 @@ class EPKService {
         musicTracks,
         upcomingEvents,
         artistPhotos,
-        artistStats
+        artistStats,
+        db,
       })
     } catch (error) {
       console.error('Error loading EPK data:', error)
@@ -155,23 +165,31 @@ class EPKService {
     }
   }
 
-  private async getArtistProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('artist_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
+  private async getArtistProfile(userId: string, profileId?: string | null, db: EpkDb = supabase) {
+    let query = db.from('artist_profiles').select('*')
+
+    if (profileId) {
+      query = query.eq('id', profileId)
+    } else {
+      query = query
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+    }
+
+    const { data: rows, error } = await query
 
     if (error && error.code !== 'PGRST116') {
       throw error
     }
 
+    const data = Array.isArray(rows) ? rows[0] ?? null : rows
     return data
   }
 
-  private async getEPKSettings(userId: string): Promise<EPKSettings | null> {
+  private async getEPKSettings(userId: string, db: EpkDb = supabase): Promise<EPKSettings | null> {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('artist_epk_settings')
         .select('*')
         .eq('user_id', userId)
@@ -193,8 +211,8 @@ class EPKService {
     }
   }
 
-  private async getProfileSummary(userId: string) {
-    const { data, error } = await supabase
+  private async getProfileSummary(userId: string, db: EpkDb = supabase) {
+    const { data, error } = await db
       .from('profiles')
       .select('avatar_url, cover_image, location, website, social_links')
       .eq('id', userId)
@@ -204,9 +222,9 @@ class EPKService {
     return data
   }
 
-  private async getMusicTracks(userId: string) {
+  private async getMusicTracks(userId: string, db: EpkDb = supabase) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('artist_music')
         .select('*')
         .eq('user_id', userId)
@@ -230,10 +248,10 @@ class EPKService {
     }
   }
 
-  private async getUpcomingEvents(userId: string) {
+  private async getUpcomingEvents(userId: string, db: EpkDb = supabase) {
     try {
       const [legacyEventsResult, artistEventsResult, v2EventsResult] = await Promise.all([
-        supabase
+        db
           .from('events')
           .select('*')
           .eq('artist_id', userId)
@@ -241,14 +259,14 @@ class EPKService {
           .gte('event_date', new Date().toISOString().slice(0, 10))
           .order('event_date', { ascending: true })
           .limit(10),
-        supabase
+        db
           .from('artist_events')
           .select('*')
           .eq('user_id', userId)
           .gte('event_date', new Date().toISOString())
           .order('event_date', { ascending: true })
           .limit(10),
-        supabase
+        db
           .from('events_v2')
           .select('id, title, status, start_at, end_at, capacity, settings')
           .eq('created_by', userId)
@@ -304,9 +322,9 @@ class EPKService {
     }
   }
 
-  private async getPhotos(userId: string) {
+  private async getPhotos(userId: string, db: EpkDb = supabase) {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await db
         .from('artist_photos')
         .select('*')
         .eq('user_id', userId)
@@ -330,42 +348,42 @@ class EPKService {
     }
   }
 
-  private async getArtistStats(userId: string) {
+  private async getArtistStats(userId: string, db: EpkDb = supabase) {
     try {
-      // Fetch integrations analytics and profile aggregate
-      const [integrations, profileAgg, tracks, completedLegacyEvents, completedV2Events] = await Promise.all([
-        supabase.from('artist_social_integrations').select('platform, analytics').eq('user_id', userId),
-        supabase.from('profiles').select('social_followers').eq('id', userId).single(),
-        supabase.from('artist_music').select('stats').eq('user_id', userId),
-        supabase.from('events').select('id', { count: 'exact', head: true }).eq('artist_id', userId).eq('status', 'published'),
-        supabase.from('events_v2').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('status', 'settled'),
+      // Integrations analytics is the source of truth (not profiles.social_followers)
+      const [integrations, artistProfile, tracks, completedLegacyEvents, completedV2Events] = await Promise.all([
+        db.from('artist_social_integrations').select('platform, analytics').eq('user_id', userId),
+        db
+          .from('artist_profiles')
+          .select('settings')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        db.from('artist_music').select('stats').eq('user_id', userId),
+        db.from('events').select('id', { count: 'exact', head: true }).eq('artist_id', userId).eq('status', 'published'),
+        db.from('events_v2').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('status', 'settled'),
       ])
 
-      // Followers from profile aggregate with fallback to integrations
-      let followers = profileAgg.data?.social_followers || 0
+      let followers = Number((artistProfile.data?.settings as any)?.social_followers_total) || 0
       let youtubeViews = 0
-      let instagramLikes = 0
-      let facebookEngaged = 0
       let monthlyListeners = 0
+      let summedFromIntegrations = 0
 
       try {
-        (integrations.data || []).forEach((row: any) => {
+        ;(integrations.data || []).forEach((row: any) => {
           const a = row.analytics || {}
+          if (a?.status && a.status !== 'synced') return
           const p = String(row.platform)
-          // Heuristics per platform
-          if (p === 'youtube') youtubeViews += a?.views || a?.data?.[0]?.values?.[0]?.value || 0
-          if (p === 'instagram') instagramLikes += a?.total_likes || a?.data?.[0]?.values?.[0]?.value || 0
-          if (p === 'facebook') facebookEngaged += a?.data?.[0]?.values?.[0]?.value || 0
+          if (p === 'youtube') youtubeViews += a?.views || 0
           if (p === 'spotify') monthlyListeners = a?.monthly_listeners || monthlyListeners
-          // If no profile aggregate followers, approximate by summing platform follower-like metrics
-          if (!profileAgg.data?.social_followers) {
-            const f = a?.followers || a?.subscribers || a?.data?.[0]?.values?.[0]?.value || 0
-            followers += f
-          }
+          const f = a?.followers || a?.subscribers || 0
+          summedFromIntegrations += Number(f) || 0
         })
       } catch {}
 
-      // Sum track streams if available
+      if (!followers) followers = summedFromIntegrations
+
       const totalTrackStreams = (tracks.data || []).reduce((sum: number, t: any) => sum + (t?.stats?.plays || 0), 0)
       const totalStreams = totalTrackStreams + youtubeViews
       const eventsPlayed = (completedLegacyEvents.count || 0) + (completedV2Events.count || 0)
@@ -393,7 +411,8 @@ class EPKService {
     musicTracks,
     upcomingEvents,
     artistPhotos,
-    artistStats
+    artistStats,
+    db = supabase,
   }: any): Promise<EPKData> {
     const artistName = artistProfile?.artist_name || ''
     const epkSlug = epkSettings?.epk_slug || createEpkSlug(artistName)
@@ -405,7 +424,7 @@ class EPKService {
     // Build platform follower map from integrations analytics if available
     const followersMap: Record<string, number> = {}
     try {
-      const { data: integrations } = await supabase
+      const { data: integrations } = await db
         .from('artist_social_integrations')
         .select('platform, analytics')
         .eq('user_id', artistProfile?.user_id)
@@ -550,7 +569,7 @@ class EPKService {
         oneLiner: settings?.bookingAssets?.oneLiner || ''
       },
       quality,
-      epkFont: (settings.epkFont as EPKData['epkFont']) || 'sans',
+      epkFont: normalizeEpkFontId(settings.epkFont),
       epkAppearance: normalizeEpkAppearance(settings.epkAppearance, epkSettings?.template)
     }
   }

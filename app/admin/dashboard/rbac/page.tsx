@@ -15,10 +15,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
 import { useToast } from '@/hooks/use-toast'
 import { 
-  usePermissions, 
   useRoleManagement, 
   useRolesAndPermissions,
-  usePermissionGuard
 } from '@/hooks/use-rbac'
 import {
   Shield,
@@ -32,7 +30,6 @@ import {
   Unlock,
   Crown,
   UserCheck,
-  AlertTriangle,
   CheckCircle,
   Star,
   Award,
@@ -47,6 +44,7 @@ import {
 import { PERMISSIONS } from '@/types/rbac'
 import { PermissionsMatrix } from '@/components/admin/permissions-matrix'
 import { RbacRoleAssignment } from '@/components/admin/rbac-role-assignment'
+import { WorkforceHero, WorkforcePageShell } from '@/components/hiring/workforce-ui'
 import type { 
   SystemRole, 
   Permission, 
@@ -82,7 +80,6 @@ export default function RBACManagementPage() {
   const { toast } = useToast()
   const { roles, permissions, loading, error, refreshData } = useRolesAndPermissions()
   const { assignRole, removeRole } = useRoleManagement()
-  const { isAllowed } = usePermissionGuard([PERMISSIONS.ADMIN_ROLES])
   
   const [selectedRole, setSelectedRole] = useState<TourManagementRole | null>(null)
   const [showCreateRole, setShowCreateRole] = useState(false)
@@ -190,21 +187,13 @@ export default function RBACManagementPage() {
     return (role as any).active_users ?? 0
   }
 
-  if (!isAllowed) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Alert className="max-w-md">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            You don't have permission to access role management features.
-          </AlertDescription>
-        </Alert>
-      </div>
-    )
-  }
-
   return (
-    <div className="space-y-6 p-6">
+    <WorkforcePageShell>
+      <WorkforceHero
+        title="Roles & Permissions"
+        description="Manage entity RBAC, role assignments, permission matrices, and operational access across Workforce."
+        badge="Entity RBAC"
+      />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -629,6 +618,6 @@ export default function RBACManagementPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </WorkforcePageShell>
   )
 } 

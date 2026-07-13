@@ -113,8 +113,8 @@ const ACCOUNT_FAQ: AccountFAQSection[] = [
         id: "feed",
         title: "Social Feed",
         description: "Share updates, photos, and releases. Engage with likes and comments. Follow accounts to tailor your feed.",
-        href: "/feed",
-        location: "Top navigation → News / Feed",
+        href: "/community",
+        location: "Top navigation -> Community",
         badge: "Core"
       },
       {
@@ -244,8 +244,8 @@ const ACCOUNT_FAQ: AccountFAQSection[] = [
         id: "social-feed",
         title: "Social Feed",
         description: "Announce releases, tours, and behind‑the‑scenes content.",
-        href: "/feed",
-        location: "Top navigation → News / Feed"
+        href: "/community",
+        location: "Top navigation -> Community"
       },
       {
         id: "content-upload",
@@ -332,8 +332,8 @@ const ACCOUNT_FAQ: AccountFAQSection[] = [
         id: "social-feed",
         title: "Social Feed",
         description: "Promote shows and venue highlights to your followers.",
-        href: "/feed",
-        location: "Top navigation → News / Feed"
+        href: "/community",
+        location: "Top navigation -> Community"
       },
       {
         id: "content-upload",
@@ -432,8 +432,8 @@ const ACCOUNT_FAQ: AccountFAQSection[] = [
         id: "social-feed",
         title: "Social Feed",
         description: "Promote tours and announcements.",
-        href: "/feed",
-        location: "Top navigation → News / Feed"
+        href: "/community",
+        location: "Top navigation -> Community"
       },
       {
         id: "content-upload",
@@ -453,5 +453,4 @@ const ACCOUNT_FAQ: AccountFAQSection[] = [
     ]
   }
 ]
-
 

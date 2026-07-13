@@ -457,6 +457,8 @@ export function PublicMusicDisplay({ artistId, isOwnProfile = false, className =
                           genre: track.genre,
                           file_url: track.file_url,
                           cover_art_url: track.cover_art_url,
+                          artist_name: track.artist,
+                          duration: track.duration,
                           tags: track.tags || [],
                           is_featured: track.is_featured || false,
                           is_public: true,

@@ -28,6 +28,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
+import { EventTicketingOpsPanels } from "@/components/admin/event-ticketing-ops-panels"
 
 interface TicketType {
   id: string
@@ -83,6 +84,8 @@ export function EventTicketManager({ eventId }: Props) {
   const [loading, setLoading] = useState(true)
   const [salesSearch, setSalesSearch] = useState('')
   const [activeView, setActiveView] = useState<'types' | 'sales'>('types')
+  const [ticketingEnabled, setTicketingEnabled] = useState(false)
+  const [report, setReport] = useState<any>(null)
 
   // Type dialog
   const [showTypeDialog, setShowTypeDialog] = useState(false)
@@ -100,9 +103,11 @@ export function EventTicketManager({ eventId }: Props) {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [typesRes, salesRes] = await Promise.allSettled([
+      const [typesRes, salesRes, configRes, reportRes] = await Promise.allSettled([
         fetch(`/api/admin/ticketing/enhanced?type=ticket_types&event_id=${eventId}`, { credentials: 'include' }),
         fetch(`/api/admin/ticketing/enhanced?type=sales&event_id=${eventId}`, { credentials: 'include' }),
+        fetch(`/api/ticketing/config?event_id=${eventId}`, { credentials: 'include' }),
+        fetch(`/api/ticketing/reports?event_id=${eventId}`, { credentials: 'include' }),
       ])
 
       if (typesRes.status === 'fulfilled' && typesRes.value.ok) {
@@ -113,12 +118,43 @@ export function EventTicketManager({ eventId }: Props) {
         const d = await salesRes.value.json()
         setSales(d.sales || d.data || [])
       }
+      if (configRes.status === 'fulfilled' && configRes.value.ok) {
+        const d = await configRes.value.json()
+        setTicketingEnabled(Boolean(d.config?.ticketing_enabled))
+      }
+      if (reportRes.status === 'fulfilled' && reportRes.value.ok) {
+        setReport(await reportRes.value.json())
+      }
     } finally {
       setLoading(false)
     }
   }, [eventId])
 
   useEffect(() => { void fetchData() }, [fetchData])
+
+  async function enableTicketing() {
+    try {
+      const res = await fetch('/api/ticketing/config', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'upsert_config',
+          event_id: eventId,
+          ticketing_enabled: true,
+          ticketing_owner_type: 'organization',
+          platform_fee_type: 'flat_per_ticket',
+          platform_fee_amount: 1,
+        }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setTicketingEnabled(true)
+      toast.success('Ticketing enabled for this event')
+      void fetchData()
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to enable ticketing')
+    }
+  }
 
   function openCreateType() {
     setEditingType(null)
@@ -251,6 +287,43 @@ export function EventTicketManager({ eventId }: Props) {
 
   return (
     <div className="space-y-4">
+      <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
+        <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-white">
+              Ticketing {ticketingEnabled ? 'enabled' : 'not configured'}
+            </p>
+            <p className="text-xs text-slate-400">
+              Explicit ownership + $1/ticket platform fee by default. Connect payout fields are ready for later.
+            </p>
+            {report && (
+              <p className="mt-1 text-xs text-slate-500">
+                Live: {report.tickets_sold ?? 0} sold · {report.checked_in ?? 0} checked in
+                {report.finances ? ` · $${Number(report.finances.gross_revenue || 0).toFixed(0)} gross` : ''}
+              </p>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {!ticketingEnabled && (
+              <Button size="sm" onClick={() => void enableTicketing()}>
+                Enable ticketing
+              </Button>
+            )}
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/admin/dashboard/events/${eventId}/check-in`}>Scanner</a>
+            </Button>
+            <Button size="sm" variant="outline" asChild>
+              <a href={`/tickets/purchase?event_id=${eventId}`}>Public purchase</a>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <EventTicketingOpsPanels
+        eventId={eventId}
+        ticketTypes={ticketTypes.map((t) => ({ id: t.id, name: t.name, price: t.price }))}
+      />
+
       {/* Summary row */}
       <div className="grid grid-cols-3 gap-4">
         <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">

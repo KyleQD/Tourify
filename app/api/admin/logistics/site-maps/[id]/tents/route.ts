@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 import type { CreateTentRequest, UpdateTentRequest } from '@/types/site-map'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id: siteMapId } = await params
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
+
     const { searchParams } = new URL(request.url)
     const zoneId = searchParams.get('zoneId')
     const status = searchParams.get('status')
@@ -57,14 +64,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ error: 'Tent number, type, and capacity are required' }, { status: 400 })
     }
 
-    // Check if user can edit this site map
-    const canEdit = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canEdit.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     // Check if tent number already exists in this site map

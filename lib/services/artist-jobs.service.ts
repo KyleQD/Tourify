@@ -325,29 +325,6 @@ export class ArtistJobsService {
   // JOB APPLICATIONS
   // =============================================================================
 
-  static async applyToJob(
-    applicationData: CreateApplicationFormData,
-    userId: string,
-    client?: ArtistJobsDbClient
-  ): Promise<ArtistJobApplication> {
-    const db = resolveArtistJobsClient(client)
-    const { data, error } = await db
-      .from('artist_job_applications')
-      .insert({
-        ...applicationData,
-        applicant_id: userId
-      })
-      .select('*')
-      .single()
-
-    if (error) {
-      console.error('Error applying to job:', error)
-      throw new Error(getPostgrestErrorMessage(error) || 'Failed to apply to job')
-    }
-
-    return data as ArtistJobApplication
-  }
-
   static async getJobApplications(
     jobId: string,
     userId: string,

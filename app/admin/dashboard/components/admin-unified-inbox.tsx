@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,6 +13,7 @@ import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import {
+  Check,
   FileText,
   Hash,
   Inbox,
@@ -19,6 +21,8 @@ import {
   MessageSquare,
   Mic,
   Paperclip,
+  Plus,
+  Search,
   Send,
   X,
 } from "lucide-react"
@@ -71,6 +75,15 @@ interface InboxSelection {
   label: string
   avatarUrl?: string | null
   recipientId?: string
+  isTrusted?: boolean
+  isPendingCompose?: boolean
+}
+
+interface SearchUser {
+  id: string
+  username: string | null
+  full_name: string | null
+  avatar_url: string | null
 }
 
 const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024
@@ -132,6 +145,10 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachment[] 
 }
 
 export function AdminUnifiedInbox() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const dmParam = searchParams.get("dm")
+
   const [loading, setLoading] = useState(true)
   const [threads, setThreads] = useState<ThreadItem[]>([])
   const [dms, setDms] = useState<DmItem[]>([])
@@ -144,10 +161,17 @@ export function AdminUnifiedInbox() {
   const [uploading, setUploading] = useState(false)
   const [recording, setRecording] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [showCompose, setShowCompose] = useState(false)
+  const [composeQuery, setComposeQuery] = useState("")
+  const [composeResults, setComposeResults] = useState<SearchUser[]>([])
+  const [composeLoading, setComposeLoading] = useState(false)
+  const [requestActionBusy, setRequestActionBusy] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const composeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handledDmRef = useRef<string | null>(null)
 
   const fetchInbox = useCallback(async () => {
     try {
@@ -158,14 +182,21 @@ export function AdminUnifiedInbox() {
       setThreads(data.threads || [])
       setDms(data.dms || [])
       setLastUpdated(new Date())
+      return { threads: data.threads || [], dms: (data.dms || []) as DmItem[] }
     } catch {
       toast.error("Failed to load messages")
+      return { threads: [], dms: [] as DmItem[] }
     } finally {
       setLoading(false)
     }
   }, [])
 
   const fetchMessages = useCallback(async (sel: InboxSelection) => {
+    if (sel.isPendingCompose) {
+      setMessages([])
+      return
+    }
+
     try {
       setMessagesLoading(true)
       if (sel.kind === "group") {
@@ -188,7 +219,58 @@ export function AdminUnifiedInbox() {
     }
   }, [])
 
-  useEffect(() => { void fetchInbox() }, [fetchInbox])
+  const openDmWithUser = useCallback(async (userId: string, profile?: SearchUser | null) => {
+    const existing = dms.find((dm) => dm.participant_id === userId)
+    if (existing) {
+      setSelection({
+        kind: "dm",
+        id: existing.id,
+        label: existing.participant_name,
+        avatarUrl: existing.participant_avatar,
+        recipientId: existing.participant_id,
+        isTrusted: existing.is_trusted,
+      })
+      setShowCompose(false)
+      return
+    }
+
+    let resolved = profile
+    if (!resolved) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, full_name, avatar_url")
+        .eq("id", userId)
+        .maybeSingle()
+      resolved = data as SearchUser | null
+    }
+
+    const label = resolved?.full_name || resolved?.username || "New conversation"
+    setSelection({
+      kind: "dm",
+      id: `pending:${userId}`,
+      label,
+      avatarUrl: resolved?.avatar_url || null,
+      recipientId: userId,
+      isTrusted: true,
+      isPendingCompose: true,
+    })
+    setMessages([])
+    setShowCompose(false)
+  }, [dms])
+
+  useEffect(() => {
+    void fetchInbox()
+  }, [fetchInbox])
+
+  useEffect(() => {
+    if (!dmParam || handledDmRef.current === dmParam || loading) return
+
+    handledDmRef.current = dmParam
+    void (async () => {
+      await openDmWithUser(dmParam)
+      router.replace("/admin/dashboard/communications", { scroll: false })
+    })()
+  }, [dmParam, loading, openDmWithUser, router])
 
   useEffect(() => {
     if (selection) void fetchMessages(selection)
@@ -200,7 +282,7 @@ export function AdminUnifiedInbox() {
   }, [messages])
 
   useEffect(() => {
-    if (!selection) return
+    if (!selection || selection.isPendingCompose) return
 
     const table = selection.kind === "group" ? "group_messages" : "messages"
     const filter =
@@ -226,6 +308,36 @@ export function AdminUnifiedInbox() {
 
     return () => { void supabase.removeChannel(channel) }
   }, [selection])
+
+  useEffect(() => {
+    if (!showCompose) return
+    if (composeTimerRef.current) clearTimeout(composeTimerRef.current)
+
+    composeTimerRef.current = setTimeout(async () => {
+      const q = composeQuery.trim()
+      if (q.length < 1) {
+        setComposeResults([])
+        return
+      }
+
+      setComposeLoading(true)
+      try {
+        const res = await fetch(`/api/messages/user-search?q=${encodeURIComponent(q)}&limit=10`, buildFetchInit())
+        if (!res.ok) throw new Error("Search failed")
+        const data = await res.json()
+        setComposeResults(data.users || [])
+      } catch {
+        toast.error("Failed to search users")
+        setComposeResults([])
+      } finally {
+        setComposeLoading(false)
+      }
+    }, 250)
+
+    return () => {
+      if (composeTimerRef.current) clearTimeout(composeTimerRef.current)
+    }
+  }, [composeQuery, showCompose])
 
   async function uploadAttachment(file: File, threadKey: string): Promise<MessageAttachment | null> {
     if (file.size > MAX_ATTACHMENT_BYTES) {
@@ -259,7 +371,10 @@ export function AdminUnifiedInbox() {
     if (!file || !selection) return
     setUploading(true)
     try {
-      const attachment = await uploadAttachment(file, selection.id)
+      const threadKey = selection.isPendingCompose
+        ? `pending-${selection.recipientId}`
+        : selection.id
+      const attachment = await uploadAttachment(file, threadKey)
       if (attachment) setPendingAttachments((prev) => [...prev, attachment])
     } finally {
       setUploading(false)
@@ -282,7 +397,10 @@ export function AdminUnifiedInbox() {
         const file = new File([blob], `voice-note-${Date.now()}.webm`, { type: "audio/webm" })
         setUploading(true)
         try {
-          const attachment = await uploadAttachment(file, selection.id)
+          const threadKey = selection.isPendingCompose
+            ? `pending-${selection.recipientId}`
+            : selection.id
+          const attachment = await uploadAttachment(file, threadKey)
           if (attachment) setPendingAttachments((prev) => [...prev, attachment])
         } finally {
           setUploading(false)
@@ -332,10 +450,39 @@ export function AdminUnifiedInbox() {
             attachments: pendingAttachments,
           }),
         }))
-        if (!res.ok) throw new Error("Failed to send message")
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          throw new Error(err.error || "Failed to send message")
+        }
         const data = await res.json()
         if (data.message) {
           setMessages((prev) => [...prev, data.message as ChatMessage])
+        }
+
+        if (selection.isPendingCompose || data.conversation?.id) {
+          const inbox = await fetchInbox()
+          const created = inbox.dms.find((dm) => dm.participant_id === selection.recipientId)
+          if (created) {
+            setSelection({
+              kind: "dm",
+              id: created.id,
+              label: created.participant_name,
+              avatarUrl: created.participant_avatar,
+              recipientId: created.participant_id,
+              isTrusted: created.is_trusted,
+            })
+          } else if (data.conversation?.id) {
+            setSelection((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    id: data.conversation.id,
+                    isPendingCompose: false,
+                    isTrusted: data.conversation.trust_tier !== "request",
+                  }
+                : prev,
+            )
+          }
         }
       }
 
@@ -343,10 +490,44 @@ export function AdminUnifiedInbox() {
       setPendingAttachments([])
       setLastUpdated(new Date())
       void fetchInbox()
-    } catch {
-      toast.error("Failed to send message")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to send message"
+      toast.error(message)
     } finally {
       setSending(false)
+    }
+  }
+
+  async function handleAcceptRequest() {
+    if (!selection || selection.kind !== "dm" || selection.isPendingCompose) return
+    setRequestActionBusy(true)
+    try {
+      const res = await fetch(`/api/messages/${selection.id}/accept`, buildFetchInit({ method: "POST" }))
+      if (!res.ok) throw new Error("Failed to accept request")
+      toast.success("Message request accepted")
+      setSelection((prev) => (prev ? { ...prev, isTrusted: true } : prev))
+      void fetchInbox()
+    } catch {
+      toast.error("Failed to accept request")
+    } finally {
+      setRequestActionBusy(false)
+    }
+  }
+
+  async function handleDeclineRequest() {
+    if (!selection || selection.kind !== "dm" || selection.isPendingCompose) return
+    setRequestActionBusy(true)
+    try {
+      const res = await fetch(`/api/messages/${selection.id}/decline`, buildFetchInit({ method: "POST" }))
+      if (!res.ok) throw new Error("Failed to decline request")
+      toast.success("Message request declined")
+      setSelection(null)
+      setMessages([])
+      void fetchInbox()
+    } catch {
+      toast.error("Failed to decline request")
+    } finally {
+      setRequestActionBusy(false)
     }
   }
 
@@ -361,31 +542,98 @@ export function AdminUnifiedInbox() {
       label: dm.participant_name,
       avatarUrl: dm.participant_avatar,
       recipientId: dm.participant_id,
+      isTrusted: dm.is_trusted,
     })
   }
 
   if (loading) return <AdminPageSkeleton />
 
   const inboxEmpty = threads.length === 0 && dms.length === 0
+  const selectedIsRequest =
+    selection?.kind === "dm" &&
+    !selection.isPendingCompose &&
+    selection.isTrusted === false
 
   return (
     <div className="grid gap-4 lg:grid-cols-[320px_1fr] min-h-[560px]">
       <div className="rounded-sm border border-slate-700/50 bg-slate-900/60 backdrop-blur-sm">
-        <div className="flex items-center justify-between border-b border-slate-700/50 px-4 py-3">
+        <div className="flex items-center justify-between border-b border-slate-700/50 px-4 py-3 gap-2">
           <h3 className="text-sm font-medium text-white">Inbox</h3>
-          {lastUpdated ? (
-            <span className="text-[10px] text-slate-500">
-              Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}
-            </span>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {lastUpdated ? (
+              <span className="text-[10px] text-slate-500 hidden sm:inline">
+                Updated {formatDistanceToNow(lastUpdated, { addSuffix: true })}
+              </span>
+            ) : null}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 border-slate-600 text-slate-300 px-2"
+              onClick={() => {
+                setShowCompose((prev) => !prev)
+                setComposeQuery("")
+                setComposeResults([])
+              }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              New
+            </Button>
+          </div>
         </div>
+
+        {showCompose ? (
+          <div className="border-b border-slate-700/50 p-3 space-y-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Input
+                value={composeQuery}
+                onChange={(e) => setComposeQuery(e.target.value)}
+                placeholder="Search people to message..."
+                className="pl-8 h-9 bg-slate-800/50 border-slate-700 text-white text-sm"
+                autoFocus
+              />
+            </div>
+            {composeLoading ? (
+              <div className="flex justify-center py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+              </div>
+            ) : composeResults.length > 0 ? (
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {composeResults.map((user) => {
+                  const name = user.full_name || user.username || "Unknown"
+                  return (
+                    <button
+                      key={user.id}
+                      type="button"
+                      onClick={() => void openDmWithUser(user.id, user)}
+                      className="w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-slate-300 hover:bg-slate-800"
+                    >
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={user.avatar_url || ""} />
+                        <AvatarFallback className="bg-slate-700 text-[10px]">
+                          {name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm truncate">{name}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : composeQuery.trim() ? (
+              <p className="text-xs text-slate-500 text-center py-2">No users found</p>
+            ) : (
+              <p className="text-xs text-slate-500 text-center py-2">Type a name to start a DM</p>
+            )}
+          </div>
+        ) : null}
+
         <ScrollArea className="h-[520px]">
-          {inboxEmpty ? (
+          {inboxEmpty && !showCompose ? (
             <div className="p-6">
               <AdminEmptyState
                 icon={Inbox}
                 title="No conversations"
-                description="Group threads and direct messages will appear here"
+                description="Start a new message or wait for group threads and DMs"
               />
             </div>
           ) : (
@@ -452,24 +700,52 @@ export function AdminUnifiedInbox() {
             <AdminEmptyState
               icon={MessageSquare}
               title="Select a conversation"
-              description="Choose a group thread or direct message from the sidebar"
+              description="Choose a group thread or direct message, or start a new one"
             />
           </div>
         ) : (
           <>
             <div className="border-b border-slate-700/50 px-4 py-3">
-              <div className="flex items-center gap-2">
-                {selection.kind === "dm" ? (
-                  <Avatar className="h-7 w-7">
-                    <AvatarImage src={selection.avatarUrl || ""} />
-                    <AvatarFallback className="bg-slate-700 text-xs">
-                      {selection.label.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                ) : (
-                  <Hash className="h-5 w-5 text-purple-400" />
-                )}
-                <h3 className="font-medium text-white">{selection.label}</h3>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  {selection.kind === "dm" ? (
+                    <Avatar className="h-7 w-7">
+                      <AvatarImage src={selection.avatarUrl || ""} />
+                      <AvatarFallback className="bg-slate-700 text-xs">
+                        {selection.label.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  ) : (
+                    <Hash className="h-5 w-5 text-purple-400" />
+                  )}
+                  <div className="min-w-0">
+                    <h3 className="font-medium text-white truncate">{selection.label}</h3>
+                    {selection.isPendingCompose ? (
+                      <p className="text-[11px] text-slate-500">New conversation</p>
+                    ) : null}
+                  </div>
+                </div>
+                {selectedIsRequest ? (
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      className="h-8 bg-green-600 hover:bg-green-700"
+                      disabled={requestActionBusy}
+                      onClick={() => void handleAcceptRequest()}
+                    >
+                      <Check className="h-3.5 w-3.5 mr-1" /> Accept
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-slate-600 text-slate-300"
+                      disabled={requestActionBusy}
+                      onClick={() => void handleDeclineRequest()}
+                    >
+                      <X className="h-3.5 w-3.5 mr-1" /> Decline
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -479,7 +755,11 @@ export function AdminUnifiedInbox() {
                   <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                 </div>
               ) : messages.length === 0 ? (
-                <p className="text-center text-sm text-slate-500 py-12">No messages yet. Start the conversation.</p>
+                <p className="text-center text-sm text-slate-500 py-12">
+                  {selection.isPendingCompose
+                    ? "Send a message to start the conversation."
+                    : "No messages yet. Start the conversation."}
+                </p>
               ) : (
                 <div className="space-y-3">
                   {messages.map((message) => {

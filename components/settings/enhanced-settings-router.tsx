@@ -30,6 +30,7 @@ import {
 import { toast } from "sonner"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
+import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useAppearanceSettings } from "@/hooks/use-appearance-settings"
 import { EnhancedArtistSettings } from "./enhanced-artist-settings"
 import { EnhancedVenueSettings } from "./enhanced-venue-settings"
@@ -42,10 +43,12 @@ import { ExperienceSettings } from "./experience-settings"
 import { CertificationsSettings } from "./certifications-settings"
 import { AboutSettings } from "./about-settings"
 import { ResetEducationButton } from "@/components/product-education/reset-education-button"
+import { isOrganizationType } from "@/lib/accounts/account-types"
+import Link from "next/link"
 
 interface AccountInfo {
   id: string
-  account_type: 'general' | 'artist' | 'venue' | 'admin'
+  account_type: 'general' | 'artist' | 'venue' | 'admin' | 'organization'
   username: string
   full_name?: string
   profile_data?: any
@@ -54,6 +57,7 @@ interface AccountInfo {
 
 export function EnhancedSettingsRouter() {
   const { user } = useAuth()
+  const { currentAccount } = useMultiAccount()
   const router = useRouter()
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -67,7 +71,7 @@ export function EnhancedSettingsRouter() {
     if (user) {
       loadAccountInfo()
     }
-  }, [user])
+  }, [user, currentAccount?.profile_id, currentAccount?.account_type])
 
   const loadAccountInfo = async () => {
     try {
@@ -86,11 +90,14 @@ export function EnhancedSettingsRouter() {
         return
       }
 
-      // Determine account type and load specific profile data
-      let accountType = profile.account_type || 'general'
+      // Prefer active switcher account (organization sessions) over profiles.account_type
+      let accountType =
+        currentAccount?.account_type || profile.account_type || 'general'
       let profileData = null
 
-      if (accountType === 'artist') {
+      if (isOrganizationType(accountType) && currentAccount?.profile_data) {
+        profileData = currentAccount.profile_data
+      } else if (accountType === 'artist') {
         const { data: artistProfile } = await supabase
           .from('artist_profiles')
           .select('*')
@@ -108,7 +115,7 @@ export function EnhancedSettingsRouter() {
 
       setAccountInfo({
         id: user?.id || '',
-        account_type: accountType,
+        account_type: accountType as AccountInfo['account_type'],
         username: profile.username || '',
         full_name: profile.full_name,
         profile_data: profileData,
@@ -126,29 +133,29 @@ export function EnhancedSettingsRouter() {
 
 
   const getAccountTypeIcon = (type: string) => {
+    if (isOrganizationType(type)) return <Shield className="h-5 w-5" />
     switch (type) {
       case 'artist': return <Music className="h-5 w-5" />
       case 'venue': return <Building2 className="h-5 w-5" />
-      case 'admin': return <Shield className="h-5 w-5" />
       default: return <User className="h-5 w-5" />
     }
   }
 
   const getAccountTypeLabel = (type: string) => {
+    if (isOrganizationType(type)) return 'Organization Account'
     switch (type) {
       case 'artist': return 'Artist Account'
       case 'venue': return 'Venue Account'
-      case 'admin': return 'Admin Account'
       default: return 'General Account'
     }
   }
 
   const getAccountTypeColor = (type: string) => {
+    if (isOrganizationType(type)) return 'bg-amber-500/20 text-amber-400 border-amber-500/30'
     switch (type) {
       case 'artist': return 'bg-purple-500/20 text-purple-400 border-purple-500/30'
       case 'venue': return 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-      case 'admin': return 'bg-red-500/20 text-red-400 border-red-500/30'
-      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+      default: return 'bg-green-500/20 text-green-400 border-green-500/30'
     }
   }
 
@@ -312,13 +319,16 @@ export function EnhancedSettingsRouter() {
               {accountInfo.account_type === 'general' && (
                 <EnhancedGeneralSettings />
               )}
-              {accountInfo.account_type === 'admin' && (
-                <div className="text-center py-8">
-                  <Shield className="h-16 w-16 mx-auto mb-4 text-red-400" />
-                  <h3 className="text-xl font-semibold text-white mb-2">Admin Settings</h3>
-                  <p className="text-gray-400">
-                    Admin settings are managed through a separate interface.
+              {isOrganizationType(accountInfo.account_type) && (
+                <div className="text-center py-8 space-y-4">
+                  <Shield className="h-16 w-16 mx-auto text-amber-400" />
+                  <h3 className="text-xl font-semibold text-white">Organization Settings</h3>
+                  <p className="text-gray-400 max-w-md mx-auto">
+                    Manage your organization profile, public page, and team from Admin settings.
                   </p>
+                  <Button asChild className="bg-amber-500/90 hover:bg-amber-500 text-white">
+                    <Link href="/admin/dashboard/settings">Open organization settings</Link>
+                  </Button>
                 </div>
               )}
             </CardContent>
@@ -703,6 +713,32 @@ export function EnhancedSettingsRouter() {
                 <div>
                   <div className="text-white font-semibold group-hover:text-purple-300 transition-colors">Privacy Policy</div>
                   <div className="text-white/50 text-sm">How we collect, use, and protect your data</div>
+                </div>
+                <span className="text-white/40 group-hover:text-white transition-colors">&rarr;</span>
+              </a>
+
+              <a
+                href="/legal/ticket-buyer-terms"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+              >
+                <div>
+                  <div className="text-white font-semibold group-hover:text-purple-300 transition-colors">Ticket Buyer Terms</div>
+                  <div className="text-white/50 text-sm">Terms for purchasing event tickets</div>
+                </div>
+                <span className="text-white/40 group-hover:text-white transition-colors">&rarr;</span>
+              </a>
+
+              <a
+                href="/legal/workforce-terms"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all group"
+              >
+                <div>
+                  <div className="text-white font-semibold group-hover:text-purple-300 transition-colors">Workforce &amp; Hiring Terms</div>
+                  <div className="text-white/50 text-sm">Terms for employers and workers</div>
                 </div>
                 <span className="text-white/40 group-hover:text-white transition-colors">&rarr;</span>
               </a>

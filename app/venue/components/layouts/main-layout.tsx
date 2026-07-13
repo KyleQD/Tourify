@@ -52,7 +52,7 @@ export function MainLayout({ children }: MainLayoutProps) {
 
   // Navigation items
   const mainNavItems = [
-    { name: "Feed", href: "/feed", icon: "home" },
+    { name: "Community", href: "/community", icon: "home" },
     { name: "Team", href: "/venue/staff", icon: "users" },
     { name: "Messages", href: "/messages", icon: "message-square" },
     { name: "Events", href: "/venue/dashboard/events", icon: "calendar" },
@@ -364,10 +364,10 @@ export function MainLayout({ children }: MainLayoutProps) {
         <div className="flex justify-around">
           <Button
             variant="ghost"
-            className={`flex-1 flex flex-col items-center py-2 ${pathname === "/feed" ? "text-purple-400" : ""}`}
+            className={`flex-1 flex flex-col items-center py-2 ${pathname === "/news" ? "text-purple-400" : ""}`}
             asChild
           >
-            <a href="/feed">
+            <a href="/news">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="24"

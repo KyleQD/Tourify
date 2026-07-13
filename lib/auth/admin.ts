@@ -11,6 +11,104 @@ export interface AdminUser {
   profileType?: string
 }
 
+interface AdminSurfaceMatch {
+  hasAccess: boolean
+  role?: string
+  profileType?: string
+  adminLevel?: AdminUser['adminLevel']
+}
+
+/**
+ * Shared surface gate used by middleware and API admin checks.
+ * Profile OR organizer_accounts OR org_members OR account_relationships
+ * (owner_user_id/account_type, with legacy user_id/type dual-compat).
+ */
+export async function resolveAdminSurfaceAccess(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseClient: any,
+  userId: string
+): Promise<AdminSurfaceMatch> {
+  try {
+    const [
+      profileResult,
+      organizerResult,
+      ownerRelResult,
+      legacyRelResult,
+      orgMemberResult,
+    ] = await Promise.all([
+      supabaseClient
+        .from('profiles')
+        .select('role, account_type, account_settings, is_admin, admin_level, profile_type')
+        .eq('id', userId)
+        .maybeSingle(),
+      supabaseClient
+        .from('organizer_accounts')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle(),
+      supabaseClient
+        .from('account_relationships')
+        .select('id')
+        .eq('owner_user_id', userId)
+        .in('account_type', ['admin', 'organization', 'organizer'])
+        .limit(1)
+        .maybeSingle(),
+      // Legacy dual-compat shape used by older API auth paths
+      supabaseClient
+        .from('account_relationships')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('type', 'admin')
+        .limit(1)
+        .maybeSingle(),
+      supabaseClient
+        .from('org_members')
+        .select('org_id, role')
+        .eq('user_id', userId)
+        .in('role', ['owner', 'admin', 'tour_manager', 'production'])
+        .limit(1)
+        .maybeSingle(),
+    ])
+
+    const profile = profileResult?.data
+    const profileError = profileResult?.error
+    if (!profileError && profileIndicatesAdminAccess(profile as Parameters<typeof profileIndicatesAdminAccess>[0])) {
+      return {
+        hasAccess: true,
+        role: profile?.role || 'admin',
+        profileType: profile?.profile_type || profile?.account_type || 'admin',
+        adminLevel: (profile?.admin_level as AdminUser['adminLevel']) || 'super',
+      }
+    }
+
+    if (organizerResult?.data?.id && !organizerResult?.error) {
+      return { hasAccess: true, role: 'admin', profileType: 'organizer', adminLevel: 'super' }
+    }
+
+    if (orgMemberResult?.data?.org_id && !orgMemberResult?.error) {
+      return {
+        hasAccess: true,
+        role: String(orgMemberResult.data.role || 'admin'),
+        profileType: 'organization',
+        adminLevel: 'super',
+      }
+    }
+
+    const hasOwnerRel = Boolean(ownerRelResult?.data?.id && !ownerRelResult?.error)
+    const hasLegacyRel = Boolean(legacyRelResult?.data?.id && !legacyRelResult?.error)
+    // Ignore missing-column errors on the legacy query; treat as no match
+    if (hasOwnerRel || hasLegacyRel) {
+      return { hasAccess: true, role: 'admin', profileType: 'organization', adminLevel: 'super' }
+    }
+
+    return { hasAccess: false }
+  } catch {
+    return { hasAccess: false }
+  }
+}
+
 /**
  * Server/middleware check: profile row OR organizer_accounts / account_relationships.
  * Aligns with checkIsAdmin() — middleware must not only inspect profiles.account_settings.
@@ -20,39 +118,8 @@ export async function userHasAdminSurfaceAccess(
   supabaseClient: any,
   userId: string
 ): Promise<boolean> {
-  try {
-    const { data: profile, error: profileError } = await supabaseClient
-      .from('profiles')
-      .select('role, account_type, account_settings, is_admin')
-      .eq('id', userId)
-      .single()
-
-    if (!profileError && profileIndicatesAdminAccess(profile as Parameters<typeof profileIndicatesAdminAccess>[0])) {
-      return true
-    }
-
-    const { data: organizerRow, error: orgErr } = await supabaseClient
-      .from('organizer_accounts')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle()
-
-    if (organizerRow?.id && !orgErr) return true
-
-    const { data: adminRel, error: relErr } = await supabaseClient
-      .from('account_relationships')
-      .select('id')
-      .eq('owner_user_id', userId)
-      .eq('account_type', 'admin')
-      .limit(1)
-      .maybeSingle()
-
-    return Boolean(adminRel?.id && !relErr)
-  } catch {
-    return false
-  }
+  const match = await resolveAdminSurfaceAccess(supabaseClient, userId)
+  return match.hasAccess
 }
 
 /**
@@ -65,71 +132,17 @@ export async function checkIsAdmin(): Promise<AdminUser | null> {
 
     if (userError || !user) return null
 
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, is_admin, admin_level, role, profile_type, account_type, account_settings, full_name')
-      .eq('id', user.id)
-      .single()
+    const match = await resolveAdminSurfaceAccess(supabase, user.id)
+    if (!match.hasAccess) return null
 
-    if (profileError || !profile) return null
-
-    if (profileIndicatesAdminAccess(profile)) {
-      return {
-        id: user.id,
-        email: user.email || '',
-        isAdmin: true,
-        adminLevel: (profile.admin_level as AdminUser['adminLevel']) || 'super',
-        role: profile.role || 'admin',
-        profileType: profile.profile_type || profile.account_type || 'admin',
-      }
+    return {
+      id: user.id,
+      email: user.email || '',
+      isAdmin: true,
+      adminLevel: match.adminLevel || 'super',
+      role: match.role || 'admin',
+      profileType: match.profileType || 'admin',
     }
-
-    try {
-      const { data: organizerRow, error: orgErr } = await supabase
-        .from('organizer_accounts')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
-
-      if (organizerRow && !orgErr) {
-        return {
-          id: user.id,
-          email: user.email || '',
-          isAdmin: true,
-          adminLevel: 'super',
-          role: 'admin',
-          profileType: 'organizer',
-        }
-      }
-    } catch {
-      // continue
-    }
-
-    try {
-      const { data: adminRelationship, error: relError } = await supabase
-        .from('account_relationships')
-        .select('*')
-        .eq('owner_user_id', user.id)
-        .eq('account_type', 'admin')
-        .single()
-
-      if (adminRelationship && !relError) {
-        return {
-          id: user.id,
-          email: user.email || '',
-          isAdmin: true,
-          adminLevel: 'super',
-          role: 'admin',
-          profileType: 'admin',
-        }
-      }
-    } catch {
-      // continue
-    }
-
-    return null
   } catch (error) {
     console.error('[Admin Auth] Error checking admin status:', error)
     return null
@@ -149,89 +162,54 @@ export function hasAdminLevel(user: AdminUser, requiredLevel: 'support' | 'moder
   return userLevelIndex >= requiredLevelIndex
 }
 
+function createServiceAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+  if (!supabaseUrl || !supabaseServiceKey)
+    throw new Error('Missing Supabase environment variables')
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  })
+}
+
+async function resolveAdminEmail(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabaseAdmin: any,
+  userId: string
+): Promise<string> {
+  try {
+    const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
+    return userData?.user?.email || ''
+  } catch {
+    return ''
+  }
+}
+
 /**
- * Server-side admin check using service role
+ * Server-side admin check using service role.
+ * Access decision never depends on getUserById succeeding.
  */
 export async function checkIsAdminServer(userId: string): Promise<AdminUser | null> {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+    const supabaseAdmin = createServiceAdminClient()
+    const match = await resolveAdminSurfaceAccess(supabaseAdmin, userId)
+    if (!match.hasAccess) return null
 
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
+    const email = await resolveAdminEmail(supabaseAdmin, userId)
 
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .select('id, is_admin, admin_level, role, profile_type, account_type, account_settings')
-      .eq('id', userId)
-      .single()
-
-    if (profileError || !profile) return null
-
-    if (profileIndicatesAdminAccess(profile)) {
-      const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-      return {
-        id: userId,
-        email: userData.user?.email || '',
-        isAdmin: true,
-        adminLevel: (profile.admin_level as AdminUser['adminLevel']) || 'super',
-        role: profile.role || 'admin',
-        profileType: profile.profile_type || profile.account_type || 'admin',
-      }
+    return {
+      id: userId,
+      email,
+      isAdmin: true,
+      adminLevel: match.adminLevel || 'super',
+      role: match.role || 'admin',
+      profileType: match.profileType || 'admin',
     }
-
-    try {
-      const { data: orgRow, error: orgErr } = await supabaseAdmin
-        .from('organizer_accounts')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle()
-
-      if (orgRow && !orgErr) {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-        return {
-          id: userId,
-          email: userData.user?.email || '',
-          isAdmin: true,
-          adminLevel: 'super',
-          role: 'admin',
-          profileType: 'organizer',
-        }
-      }
-    } catch {
-      // continue
-    }
-
-    try {
-      const { data: adminRel, error: relError } = await supabaseAdmin
-        .from('account_relationships')
-        .select('*')
-        .eq('owner_user_id', userId)
-        .eq('account_type', 'admin')
-        .single()
-
-      if (adminRel && !relError) {
-        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId)
-        return {
-          id: userId,
-          email: userData.user?.email || '',
-          isAdmin: true,
-          adminLevel: 'super',
-          role: 'admin',
-          profileType: 'admin',
-        }
-      }
-    } catch {
-      // continue
-    }
-
-    return null
   } catch (error) {
     console.error('[Admin Auth Server] Error checking admin status:', error)
     return null

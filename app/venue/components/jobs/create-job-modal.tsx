@@ -121,7 +121,7 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
         status: "published",
       }
 
-      const res = await fetch("/api/admin/job-postings", {
+      const res = await fetch("/api/venue/hiring/job-postings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -131,23 +131,7 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
       const data = await res.json()
 
       if (!res.ok || !data.success) {
-        const fallbackRes = await fetch("/api/admin/staffing/job-postings", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        })
-        const fallbackData = await fallbackRes.json()
-
-        if (!fallbackRes.ok && !fallbackData.ok) {
-          throw new Error(data.error || fallbackData.error || "Failed to create job posting")
-        }
-
-        toast({ title: "Job posted", description: `"${title}" is now live on the job board.` })
-        onJobCreated?.(fallbackData.data || fallbackData)
-        resetForm()
-        onClose()
-        return
+        throw new Error(data.error || "Failed to create job posting")
       }
 
       toast({ title: "Job posted", description: `"${title}" is now live on the job board.` })

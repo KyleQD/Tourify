@@ -56,7 +56,7 @@ const featureSections: FeatureSection[] = [
   {
     title: "Business",
     items: [
-      { name: "Merchandise", icon: <ShoppingBag className="h-4 w-4" />, path: "/artist/merchandise" },
+      { name: "Merchandise", icon: <ShoppingBag className="h-4 w-4" />, path: "/artist/store?tab=listings&type=merch" },
       { name: "Jobs", icon: <Briefcase className="h-4 w-4" />, path: "/artist/jobs" },
       { name: "Promotions", icon: <Zap className="h-4 w-4" />, path: "/artist/promotions" },
     ]

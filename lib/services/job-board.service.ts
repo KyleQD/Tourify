@@ -109,8 +109,7 @@ export class JobBoardService {
       console.log('🔍 [Job Board Service] Tables exist - Job Board:', jobBoardTableExists, 'Organization Profile:', organizationProfileTableExists)
       
       if (!jobBoardTableExists || !organizationProfileTableExists) {
-        console.warn('⚠️ [Job Board Service] Tables do not exist, returning mock data')
-        return this.createMockJobPosting(venueId, validatedData, organizationData)
+        throw new Error('Job board tables are not yet provisioned. Please run pending database migrations.')
       }
       
       // Create job posting in job board
@@ -195,8 +194,8 @@ export class JobBoardService {
     try {
       const tableExists = await this.checkTableExists('job_board_postings')
       if (!tableExists) {
-        console.warn('⚠️ [Job Board Service] job_board_postings table does not exist, returning mock data')
-        return this.getMockJobBoardPostings()
+        console.warn('⚠️ [Job Board Service] job_board_postings table does not exist, returning empty array')
+        return []
       }
       
       let query = supabase
@@ -245,7 +244,7 @@ export class JobBoardService {
       return data || []
     } catch (error) {
       console.error('❌ [Job Board Service] Error fetching job board postings:', error)
-      return this.getMockJobBoardPostings()
+      return []
     }
   }
   
@@ -256,8 +255,8 @@ export class JobBoardService {
     try {
       const tableExists = await this.checkTableExists('organization_job_postings')
       if (!tableExists) {
-        console.warn('⚠️ [Job Board Service] organization_job_postings table does not exist, returning mock data')
-        return this.getMockOrganizationJobPostings(organizationId)
+        console.warn('⚠️ [Job Board Service] organization_job_postings table does not exist, returning empty array')
+        return []
       }
       
       const { data, error } = await supabase
@@ -270,7 +269,7 @@ export class JobBoardService {
       return data || []
     } catch (error) {
       console.error('❌ [Job Board Service] Error fetching organization job postings:', error)
-      return this.getMockOrganizationJobPostings(organizationId)
+      return []
     }
   }
   

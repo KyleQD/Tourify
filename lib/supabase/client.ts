@@ -252,6 +252,10 @@ function getClient(): SupabaseClient<Database> {
     isSingleton: true,
     auth: {
       storageKey: 'sb-tourify-auth-token',
+      // Bypass navigator.locks — orphaned locks from React Strict Mode / competing
+      // getSession+onAuthStateChange cause getSession/getUser/from() to hang forever.
+      // Server middleware still refreshes sessions; browser only needs to read cookies.
+      lock: async (_name: string, _acquireTimeout: number, fn: () => Promise<any>) => fn(),
     },
     cookieOptions: mergeAuthCookieOptions({
       name: 'sb-tourify-auth-token',

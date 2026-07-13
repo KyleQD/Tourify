@@ -151,6 +151,43 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       return NextResponse.json({ error: 'Failed to create bulletin' }, { status: 500 })
     }
 
+    try {
+      const { data: event } = await svc
+        .from('events_v2')
+        .select('title')
+        .eq('id', eventId)
+        .maybeSingle()
+      const { data: participants } = await svc
+        .from('event_participants')
+        .select('participant_id')
+        .eq('event_id', eventId)
+        .eq('participant_type', 'Individual')
+        .limit(100)
+
+      const userIds = Array.from(
+        new Set((participants || []).map((row: any) => row.participant_id).filter(Boolean))
+      ).filter((id: string) => id !== user.id)
+
+      if (userIds.length > 0) {
+        await svc.from('notifications').insert(
+          userIds.map((userId: string) => ({
+            user_id: userId,
+            type: 'hq_bulletin',
+            title: validated.title,
+            content: `New HQ bulletin for ${event?.title || 'your event'}: ${validated.content.slice(0, 140)}`,
+            metadata: {
+              event_id: eventId,
+              bulletin_id: data.id,
+              url: `/admin/dashboard/events/${eventId}/hq`,
+              priority: validated.priority,
+            },
+          }))
+        )
+      }
+    } catch (notifyError) {
+      console.warn('[Event Communications] bulletin notification skipped:', notifyError)
+    }
+
     return NextResponse.json({ success: true, bulletin: data })
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -240,6 +277,28 @@ export const PATCH = withAuth(async (request: NextRequest, { user }) => {
 
       await svc.from('event_bulletins').delete().eq('id', id).eq('event_id', eventId)
       return NextResponse.json({ success: true })
+    }
+
+    if (action === 'moderate') {
+      const moderationStatus = body.moderation_status === 'rejected' ? 'rejected' : 'approved'
+      const { data: eventOwner } = await svc
+        .from('events_v2')
+        .select('id')
+        .eq('id', eventId)
+        .eq('created_by', user.id)
+        .maybeSingle()
+
+      if (!eventOwner) {
+        return NextResponse.json({ error: 'Only event admin can moderate bulletins' }, { status: 403 })
+      }
+
+      await svc
+        .from('event_bulletins')
+        .update({ moderation_status: moderationStatus })
+        .eq('id', id)
+        .eq('event_id', eventId)
+
+      return NextResponse.json({ success: true, moderation_status: moderationStatus })
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })

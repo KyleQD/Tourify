@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
+import { startRouteTiming } from '@/lib/observability/route-timing'
 
 export async function GET(request: NextRequest) {
+  const endTiming = startRouteTiming('/api/profile/current')
   try {
     
     const authResult = await ProductionAuthService.authenticateRequest(request)
     if ('error' in authResult) {
+      endTiming({ metadata: { status: authResult.status } })
       return NextResponse.json({ error: authResult.error }, { status: authResult.status })
     }
 
@@ -137,8 +140,10 @@ export async function GET(request: NextRequest) {
     } catch (error) {
     }
 
+    endTiming({ userId: user.id, rowCount: 1 })
     return NextResponse.json({ profile: profileWithStats, portfolio })
   } catch (error) {
+    endTiming({ metadata: { error: true } })
     console.error('[Profile Current API] Error:', error)
     return NextResponse.json(
       { error: 'Internal server error' },

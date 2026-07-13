@@ -23,7 +23,8 @@ const csp = [
     supabaseHost ? `https://${supabaseHost}` : undefined,
     // Realtime uses wss:; `https:` alone does not permit WebSockets in strict browsers (e.g. Safari).
     supabaseHost ? `wss://${supabaseHost}` : undefined,
-    '*.upstash.io'
+    '*.upstash.io',
+    process.env.NODE_ENV !== 'production' ? 'http://127.0.0.1:7556' : undefined,
   ].filter(Boolean).join(' ')
 ].join('; ')
 
@@ -42,6 +43,9 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(process.cwd()),
   reactStrictMode: true,
   poweredByHeader: false,
+  experimental: {
+    optimizePackageImports: ['lucide-react'],
+  },
   eslint: {
     ignoreDuringBuilds: false
   },
@@ -52,6 +56,26 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: '/feed',
+        destination: '/news',
+        permanent: false,
+      },
+      {
+        source: '/feed/:path*',
+        destination: '/news',
+        permanent: false,
+      },
+      {
+        source: '/pulse',
+        destination: '/news',
+        permanent: false,
+      },
+      {
+        source: '/pulse/:path*',
+        destination: '/news',
+        permanent: false,
+      },
+      {
         source: '/onboarding/enhanced-onboarding-flow',
         destination: '/onboarding',
         permanent: false,
@@ -61,13 +85,26 @@ const nextConfig: NextConfig = {
         destination: '/onboarding',
         permanent: false,
       },
+      {
+        source: '/onboarding/complete',
+        destination: '/onboarding?status=complete',
+        permanent: false,
+      },
+      {
+        source: '/onboarding/:token((?!hire$|complete$|enhanced-onboarding-flow$)[A-Za-z0-9._~-]{8,})',
+        destination: '/onboarding/hire/:token',
+        permanent: false,
+      },
     ]
   },
   images: {
     remotePatterns: [
       supabaseHost ? { protocol: 'https', hostname: supabaseHost, pathname: '/**' } : undefined,
       { protocol: 'https', hostname: 'images.unsplash.com', pathname: '/**' },
-      { protocol: 'https', hostname: 'cdn.jsdelivr.net', pathname: '/**' }
+      { protocol: 'https', hostname: 'cdn.jsdelivr.net', pathname: '/**' },
+      { protocol: 'https', hostname: 'blogger.googleusercontent.com', pathname: '/**' },
+      { protocol: 'https', hostname: '**.googleusercontent.com', pathname: '/**' },
+      { protocol: 'https', hostname: '**.bp.blogspot.com', pathname: '/**' }
     ].filter(Boolean) as any
   },
   async headers() {
@@ -81,5 +118,3 @@ const nextConfig: NextConfig = {
 }
 
 export default nextConfig
-
-

@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { 
   Plus, 
   X, 
@@ -31,9 +32,11 @@ import {
   Info,
   CheckCircle,
   Sparkles,
-  Zap
+  Zap,
+  ChevronDown,
 } from 'lucide-react'
 import { format } from 'date-fns'
+import { validate as validateUuid } from 'uuid'
 import { cn } from '@/lib/utils'
 import { useToast } from '@/components/ui/use-toast'
 import { useActingContext } from '@/hooks/use-acting-context'
@@ -129,6 +132,42 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
   const [customBenefit, setCustomBenefit] = useState('')
   const [eventDate, setEventDate] = useState<Date>()
   const [deadlineDate, setDeadlineDate] = useState<Date>()
+  const [isOptionalInfoOpen, setIsOptionalInfoOpen] = useState(false)
+
+  function getOptionalFieldCount(data: CreateJobFormData): number {
+    let count = 0
+    count += data.required_genres?.length || 0
+    count += data.required_skills?.length || 0
+    count += data.required_equipment?.length || 0
+    count += data.benefits?.length || 0
+    if (data.age_requirement?.trim()) count += 1
+    if (data.contact_email?.trim()) count += 1
+    if (data.contact_phone?.trim()) count += 1
+    if (data.external_link?.trim()) count += 1
+    if (data.special_requirements?.trim()) count += 1
+    if (data.featured) count += 1
+    return count
+  }
+
+  const optionalFieldCount = getOptionalFieldCount(formData)
+
+  useEffect(() => {
+    if (!isOpen || categories.length === 0) return
+
+    const validCategories = categories.filter((category) => validateUuid(category.id))
+    if (validCategories.length === 0) return
+
+    setFormData((prev) => {
+      const hasValidSelection =
+        prev.category_id &&
+        validateUuid(prev.category_id) &&
+        validCategories.some((category) => category.id === prev.category_id)
+
+      if (hasValidSelection) return prev
+
+      return { ...prev, category_id: validCategories[0].id }
+    })
+  }, [isOpen, categories])
 
   const resetForm = () => {
     setFormData({
@@ -170,6 +209,7 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
     setEquipmentInput('')
     setCustomGenre('')
     setCustomBenefit('')
+    setIsOptionalInfoOpen(false)
   }
 
   const handleClose = () => {
@@ -258,6 +298,19 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
   }
 
   const handleSubmit = async () => {
+    const hasValidCategory =
+      formData.category_id &&
+      categories.some((category) => category.id === formData.category_id)
+
+    if (!hasValidCategory) {
+      toast({
+        title: 'Select a category',
+        description: 'Choose a valid job category before posting.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     setIsSubmitting(true)
 
     try {
@@ -322,7 +375,12 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
   const canProceed = (step: number) => {
     switch (step) {
       case 1:
-        return formData.title && formData.description && formData.category_id
+        return (
+          !!formData.title &&
+          !!formData.description &&
+          !!formData.category_id &&
+          categories.some((category) => category.id === formData.category_id)
+        )
       case 2:
         return formData.job_type && formData.payment_type
       case 3:
@@ -920,6 +978,34 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
                       </Select>
                     </div>
 
+                    <Collapsible open={isOptionalInfoOpen} onOpenChange={setIsOptionalInfoOpen}>
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-between h-auto py-3 px-4",
+                            "bg-slate-800/50 border-slate-700/50 text-white hover:bg-slate-700/50",
+                            "hover:border-slate-600/50 transition-all duration-300"
+                          )}
+                        >
+                          <div className="flex flex-col items-start gap-0.5 text-left">
+                            <span className="font-medium">Optional Information</span>
+                            <span className="text-xs text-slate-400 font-normal">
+                              Genres, skills, equipment, contact details, and more
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {optionalFieldCount > 0 && (
+                              <Badge variant="secondary" className="bg-purple-600/20 text-purple-300 border-purple-600/30">
+                                {optionalFieldCount}
+                              </Badge>
+                            )}
+                            <ChevronDown className={cn("h-4 w-4 transition-transform", isOptionalInfoOpen && "rotate-180")} />
+                          </div>
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="space-y-6 pt-4">
                     <div>
                       <Label className="text-slate-300 font-medium">Required Genres</Label>
                       <div className="mt-2 space-y-2">
@@ -1120,34 +1206,7 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
 
-                <Card className={cn(
-                  "bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60",
-                  "border border-slate-700/30 backdrop-blur-xl",
-                  "hover:border-slate-600/50 transition-all duration-300",
-                  "hover:shadow-2xl hover:shadow-slate-900/50 relative overflow-hidden"
-                )}>
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-500" />
-                  
-                  <CardHeader className="relative z-10">
-                    <CardTitle className="flex items-center gap-3">
-                      <motion.div
-                        className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg border border-white/10"
-                        whileHover={{ 
-                          rotate: 360,
-                          transition: { duration: 0.6, ease: "easeInOut" }
-                        }}
-                      >
-                        <Star className="w-5 h-5 text-white" />
-                      </motion.div>
-                      <span className="text-xl font-bold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">
-                        Additional Information
-                      </span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 relative z-10">
                     <div>
                       <Label className="text-slate-300 font-medium">Benefits & Perks</Label>
                       <div className="mt-2 space-y-2">
@@ -1308,6 +1367,8 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
                         Feature this job (premium placement)
                       </Label>
                     </div>
+                      </CollapsibleContent>
+                    </Collapsible>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -1405,6 +1466,80 @@ export function JobPostingModal({ isOpen, onClose, onJobCreated, categories }: J
                             </Badge>
                           ))}
                         </div>
+                      </div>
+                    )}
+
+                    {formData.required_equipment && formData.required_equipment.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-400">Required Equipment</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {(formData.required_equipment || []).map((equipment) => (
+                            <Badge key={equipment} variant="secondary" className="bg-slate-700/20 text-slate-300 border-slate-700/30">
+                              {equipment}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.benefits && formData.benefits.length > 0 && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-400">Benefits & Perks</Label>
+                        <div className="flex flex-wrap gap-2">
+                          {(formData.benefits || []).map((benefit) => (
+                            <Badge key={benefit} variant="secondary" className="bg-slate-700/20 text-slate-300 border-slate-700/30">
+                              {benefit}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {formData.special_requirements?.trim() && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium text-slate-400">Special Requirements</Label>
+                        <div className="bg-slate-900/30 border border-slate-700/50 rounded-lg p-3">
+                          <p className="text-white whitespace-pre-wrap">{formData.special_requirements}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {(formData.age_requirement?.trim() ||
+                      formData.contact_email?.trim() ||
+                      formData.contact_phone?.trim() ||
+                      formData.external_link?.trim()) && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {formData.age_requirement?.trim() && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-slate-400">Age Requirement</Label>
+                            <p className="text-white font-medium">{formData.age_requirement}</p>
+                          </div>
+                        )}
+                        {formData.contact_email?.trim() && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-slate-400">Contact Email</Label>
+                            <p className="text-white font-medium">{formData.contact_email}</p>
+                          </div>
+                        )}
+                        {formData.contact_phone?.trim() && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-slate-400">Contact Phone</Label>
+                            <p className="text-white font-medium">{formData.contact_phone}</p>
+                          </div>
+                        )}
+                        {formData.external_link?.trim() && (
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium text-slate-400">External Link</Label>
+                            <p className="text-white font-medium break-all">{formData.external_link}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {formData.featured && (
+                      <div className="flex items-center gap-2">
+                        <Star className="w-4 h-4 text-yellow-400" />
+                        <span className="text-sm text-yellow-400 font-medium">Featured job (premium placement)</span>
                       </div>
                     )}
 

@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 interface UseSiteMapRealtimeOptions {
   siteMapId: string
   userId?: string
+  enableGeometry?: boolean
 }
 
 interface UseSiteMapRealtimeResult {
@@ -13,18 +14,22 @@ interface UseSiteMapRealtimeResult {
   presenceCount: number
   activityVersion: number
   tasksVersion: number
+  geometryVersion: number
 }
 
 export function useSiteMapRealtime({
   siteMapId,
   userId = 'anonymous',
+  enableGeometry = true,
 }: UseSiteMapRealtimeOptions): UseSiteMapRealtimeResult {
   const [isConnected, setIsConnected] = useState(false)
   const [presenceCount, setPresenceCount] = useState(0)
   const [activityVersion, setActivityVersion] = useState(0)
   const [tasksVersion, setTasksVersion] = useState(0)
+  const [geometryVersion, setGeometryVersion] = useState(0)
   const activityChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const taskChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const geometryChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const presenceChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
   useEffect(() => {
@@ -60,6 +65,29 @@ export function useSiteMapRealtime({
         if (status === 'SUBSCRIBED') setIsConnected(true)
       })
 
+    let geometryChannel: ReturnType<typeof supabase.channel> | null = null
+    if (enableGeometry) {
+      geometryChannel = supabase
+        .channel(`site-map-geometry-${siteMapId}`)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'site_map_elements', filter: `site_map_id=eq.${siteMapId}` },
+          () => setGeometryVersion((prev) => prev + 1)
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'site_map_zones', filter: `site_map_id=eq.${siteMapId}` },
+          () => setGeometryVersion((prev) => prev + 1)
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'glamping_tents', filter: `site_map_id=eq.${siteMapId}` },
+          () => setGeometryVersion((prev) => prev + 1)
+        )
+        .subscribe()
+      geometryChannelRef.current = geometryChannel
+    }
+
     const presenceChannel = supabase.channel(`site-map-presence-${siteMapId}`, {
       config: { presence: { key: userId } },
     })
@@ -87,13 +115,14 @@ export function useSiteMapRealtime({
     return () => {
       if (activityChannelRef.current) void supabase.removeChannel(activityChannelRef.current)
       if (taskChannelRef.current) void supabase.removeChannel(taskChannelRef.current)
+      if (geometryChannelRef.current) void supabase.removeChannel(geometryChannelRef.current)
       if (presenceChannelRef.current) void supabase.removeChannel(presenceChannelRef.current)
       setIsConnected(false)
     }
-  }, [siteMapId, userId])
+  }, [enableGeometry, siteMapId, userId])
 
   return useMemo(
-    () => ({ isConnected, presenceCount, activityVersion, tasksVersion }),
-    [activityVersion, isConnected, presenceCount, tasksVersion]
+    () => ({ isConnected, presenceCount, activityVersion, tasksVersion, geometryVersion }),
+    [activityVersion, geometryVersion, isConnected, presenceCount, tasksVersion]
   )
 }

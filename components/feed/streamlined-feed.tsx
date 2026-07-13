@@ -15,6 +15,8 @@ import { useArtist } from '@/contexts/artist-context'
 import { normalizeMediaData, renderMediaContent } from '@/utils/media-utils'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import Link from 'next/link'
+import { extractFeedErrorMessage } from '@/lib/feed/feed-client'
+import { resolvePublicProfilePath } from '@/lib/utils/public-profile-routes'
 
 interface Post {
   id: string
@@ -40,6 +42,7 @@ interface Post {
       type: string
       profile_id: string
       display_name: string
+      profile_path?: string | null
     }
   } | null
   user?: {
@@ -52,6 +55,7 @@ interface Post {
       type: string
       profile_id: string
       display_name: string
+      profile_path?: string | null
     }
   } | null
   // Flag for demo posts
@@ -64,12 +68,16 @@ interface Post {
 
 // Helper function to generate profile URL based on account type and username
 function getProfileUrl(profile: Post['profiles']) {
+  if (profile?.account_context?.profile_path) return profile.account_context.profile_path
   if (!profile?.username) return '/profile/user'
-  
-  // For now, all profiles use the same route structure
-  // In the future, we might want different routes for different account types
-  // e.g., /artist/username, /venue/username, etc.
-  return `/profile/${profile.username}`
+
+  return (
+    resolvePublicProfilePath({
+      id: profile.account_context?.profile_id || profile.username,
+      username: profile.username,
+      account_type: profile.account_context?.type,
+    }) || `/profile/${profile.username}`
+  )
 }
 
 export function StreamlinedFeed() {
@@ -101,9 +109,9 @@ export function StreamlinedFeed() {
       
       const result = await response.json()
       
-      if (result.error) {
+      if (!response.ok || result.success === false || result.error) {
         console.error('❌ API Error:', result.error)
-        throw new Error(result.error)
+        throw new Error(extractFeedErrorMessage(result.error, 'Failed to load posts'))
       }
       
       console.log('✅ API response received:', result.data?.length || 0, 'posts')

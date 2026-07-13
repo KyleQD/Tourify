@@ -102,6 +102,13 @@ describe("shared api contracts", () => {
               content: "New tour dates",
               created_at: new Date().toISOString(),
               likes_count: 10,
+              comments_count: 2,
+              shares_count: 1,
+              profiles: {
+                id: "user-1",
+                username: "tourify",
+                full_name: "Tourify Artist",
+              },
             },
           },
         ],
@@ -110,6 +117,13 @@ describe("shared api contracts", () => {
             id: "post-1",
             content: "New tour dates",
             created_at: new Date().toISOString(),
+            likes_count: 10,
+            comments_count: 2,
+            shares_count: 1,
+            profiles: {
+              id: "user-1",
+              username: "tourify",
+            },
           },
         ],
         upcoming: [
@@ -118,6 +132,14 @@ describe("shared api contracts", () => {
             title: "Launch Show",
             event_date: new Date().toISOString(),
             venue_name: "Main Hall",
+            venue_city: "Nashville",
+          },
+        ],
+        nearby_events: [
+          {
+            id: "event-1",
+            title: "Launch Show",
+            venue_city: "Nashville",
           },
         ],
         people: [
@@ -133,6 +155,16 @@ describe("shared api contracts", () => {
         artists: [],
         venues: [],
         suggestions: [],
+        new_music: [
+          {
+            id: "track-1",
+            title: "Midnight Drive",
+            artist_name: "Tourify Artist",
+            artist_username: "tourify",
+          },
+        ],
+        trending_music: [],
+        new_artists: [],
       },
       stats: {
         trending_count: 1,
@@ -146,6 +178,7 @@ describe("shared api contracts", () => {
 
     expect(parsed.success).toBe(true)
     expect(parsed.sections.people).toHaveLength(1)
+    expect(parsed.sections.trending[0]?.likes_count).toBe(10)
   })
 
   it("accepts valid marketplace checkout payloads", () => {

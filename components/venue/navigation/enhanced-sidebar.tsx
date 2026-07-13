@@ -57,7 +57,7 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
   // Main navigation items
   const mainNavItems = [
     { title: "Home", href: "/", icon: Home },
-    { title: "Pulse", href: "/feed", icon: Sparkles },
+    { title: "News", href: "/news", icon: Sparkles },
     { title: "Network", href: "/network", icon: Users },
     { title: "Messages", href: "/messages", icon: MessageSquare, badge: 5 },
     { title: "Events", href: "/events", icon: Calendar, badge: 3 },
@@ -107,7 +107,7 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
       name: "Business",
       items: [
         { title: "Jobs", href: "/jobs", icon: Briefcase, badge: 3 },
-        { title: "Merch", href: "/merch", icon: ShoppingBag },
+        { title: "Merch", href: "/venue/dashboard/store", icon: ShoppingBag },
         { title: "Promotions", href: "/promotions", icon: Zap },
         { title: "Analytics", href: "/analytics", icon: BarChart3 },
       ],

@@ -11,9 +11,9 @@ import { AspectRatio } from "@/components/ui/aspect-ratio"
 import { Carousel } from "@/components/ui/carousel"
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import { LinkPreview, extractUrls, hasUrls } from "@/components/ui/link-preview"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { PollVoteCard } from "@/components/polls/poll-vote-card"
 
 export function PostItem({
   post,
@@ -230,33 +230,24 @@ export function PostItem({
   const renderPoll = () => {
     if (!post.poll) return null
 
-    const totalVotes = post.poll.options.reduce((sum, option) => sum + option.votes, 0)
-
     return (
-      <div className="mt-4">
-        <Card className="bg-accent">
-          <CardContent className="p-4">
-            <h3 className="font-semibold mb-2">{post.poll.question}</h3>
-            <div className="space-y-2">
-              {post.poll.options.map(option => {
-                const percentage = totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0
-                return (
-                  <div key={option.id}>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>{option.text}</span>
-                      <span>{percentage.toFixed(1)}%</span>
-                    </div>
-                    <Progress value={percentage} className="h-2" />
-                  </div>
-                )
-              })}
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              {totalVotes} votes · Ends {formatDistanceToNow(new Date(post.poll.endsAt))}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      <PollVoteCard
+        postId={post.id}
+        poll={{
+          question: post.poll.question,
+          options: post.poll.options.map((option) => ({
+            id: option.id,
+            text: option.text,
+            votes: option.votes,
+            position: option.position || 0,
+          })),
+          endsAt: post.poll.endsAt,
+          totalVotes: post.poll.totalVotes ?? post.poll.options.reduce((sum, option) => sum + option.votes, 0),
+          isClosed: Boolean(post.poll.isClosed),
+          viewerVotedOptionId: post.poll.viewerVotedOptionId ?? null,
+          viewerHasVoted: Boolean(post.poll.viewerHasVoted || post.poll.viewerVotedOptionId),
+        }}
+      />
     )
   }
 

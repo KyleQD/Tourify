@@ -1,6 +1,48 @@
 import type { EPKData } from "@/lib/services/epk.service"
 
-export type EpkFontId = "sans" | "serif" | "display" | "geometric" | "mono"
+export type EpkFontId =
+  | "sans"
+  | "serif"
+  | "display"
+  | "geometric"
+  | "mono"
+  | "editorial"
+  | "condensed"
+  | "soft"
+  | "slab"
+  | "wide"
+
+export const EPK_FONT_IDS: readonly EpkFontId[] = [
+  "sans",
+  "serif",
+  "display",
+  "geometric",
+  "mono",
+  "editorial",
+  "condensed",
+  "soft",
+  "slab",
+  "wide",
+] as const
+
+export const EPK_FONT_LABELS: Record<EpkFontId, string> = {
+  sans: "Sans",
+  serif: "Serif",
+  display: "Display",
+  geometric: "Geometric",
+  mono: "Mono",
+  editorial: "Editorial",
+  condensed: "Condensed",
+  soft: "Soft",
+  slab: "Slab",
+  wide: "Wide",
+}
+
+export function normalizeEpkFontId(raw: unknown): EpkFontId {
+  if (typeof raw === "string" && (EPK_FONT_IDS as readonly string[]).includes(raw))
+    return raw as EpkFontId
+  return "sans"
+}
 
 export const EPK_DEFAULT_SECTION_ORDER = [
   "hero",

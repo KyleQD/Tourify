@@ -1,0 +1,165 @@
+-- Seed the four curated base onboarding templates: New Staff, Volunteers, Media, Security.
+--
+-- These are global templates (null employer scope) that every employer can use directly
+-- or clone and customize. Agreement blocks use type "waiver" with metadata describing the
+-- agreement type and body so the worker UI can render one-click acceptance panels.
+--
+-- Safety: additive/idempotent. Existing rows are preserved; only the single global default
+-- is normalized to "New Staff".
+
+set client_min_messages = warning;
+
+alter table public.staff_onboarding_templates
+  add column if not exists fields jsonb default '[]'::jsonb,
+  add column if not exists employment_type text default 'contractor',
+  add column if not exists employer_entity_type text,
+  add column if not exists employer_entity_id uuid;
+
+-- New Staff (default)
+insert into public.staff_onboarding_templates (
+  name, description, department, position, employment_type, fields, estimated_days,
+  required_documents, tags, is_default, employer_entity_type, employer_entity_id, created_at, updated_at
+)
+select
+  'New Staff',
+  'Standard onboarding for newly hired event staff and contractors.',
+  'General',
+  'New Staff',
+  'contractor',
+  '[
+    {"id":"legal_name","name":"legal_name","label":"Legal full name","type":"text","section":"Identity","order":10,"required":true,"blocking":true},
+    {"id":"preferred_name","name":"preferred_name","label":"Preferred name","type":"text","section":"Identity","order":20,"required":false},
+    {"id":"date_of_birth","name":"date_of_birth","label":"Date of birth","type":"date","section":"Identity","order":30,"required":true,"blocking":true,"validation":{"minimumAge":16}},
+    {"id":"phone","name":"phone","label":"Mobile phone","type":"phone","section":"Contact","order":100,"required":true,"blocking":true},
+    {"id":"address","name":"address","label":"Home address","type":"address","section":"Contact","order":110,"required":true,"blocking":true},
+    {"id":"emergency_contact","name":"emergency_contact","label":"Emergency contact","type":"emergency_contact","section":"Emergency Contact","order":120,"required":true,"blocking":true},
+    {"id":"work_authorization","name":"work_authorization","label":"I am legally authorized to work for this engagement","type":"checkbox","section":"Work Eligibility","order":200,"required":true,"blocking":true},
+    {"id":"government_id","name":"government_id","label":"Government ID","type":"id_document","section":"Documents","order":300,"required":true,"blocking":true,"requiresAdminReview":true,"credentialType":"government_id"},
+    {"id":"w9_or_tax_form","name":"w9_or_tax_form","label":"W-9 / tax form","type":"tax_info","section":"Tax / Payment","order":400,"required":true,"blocking":true,"requiresAdminReview":true,"credentialType":"tax_form"},
+    {"id":"worker_agreement","name":"worker_agreement","label":"Worker agreement","type":"waiver","section":"Agreements","order":500,"required":true,"blocking":true,"metadata":{"agreementType":"worker","requiresAcknowledgement":true,"agreementBody":"By accepting, you agree to perform your assigned duties professionally, follow all event and venue policies, and understand that this engagement is at-will unless a separate written contract states otherwise. You confirm that the information you provide is accurate and complete."}},
+    {"id":"event_safety_disclaimer","name":"event_safety_disclaimer","label":"Event safety disclaimer","type":"waiver","section":"Agreements","order":510,"required":true,"blocking":true,"metadata":{"agreementType":"safety","requiresAcknowledgement":true,"agreementBody":"You acknowledge that live events involve inherent risks. You agree to follow all safety directions from event staff, wear any required protective equipment, report hazards immediately, and refrain from unsafe behavior. You release the organizer from liability for injuries arising from your failure to follow safety instructions."}}
+  ]'::jsonb,
+  2,
+  array['Government ID', 'W-9 or tax form', 'Worker agreement'],
+  array['default', 'new-staff', 'staff'],
+  true,
+  null,
+  null,
+  now(),
+  now()
+where not exists (
+  select 1 from public.staff_onboarding_templates
+  where name = 'New Staff' and employer_entity_type is null and employer_entity_id is null
+);
+
+-- Volunteers
+insert into public.staff_onboarding_templates (
+  name, description, department, position, employment_type, fields, estimated_days,
+  required_documents, tags, is_default, employer_entity_type, employer_entity_id, created_at, updated_at
+)
+select
+  'Volunteers',
+  'Lightweight onboarding for event volunteers donating their time.',
+  'Volunteer',
+  'Volunteer',
+  'volunteer',
+  '[
+    {"id":"legal_name","name":"legal_name","label":"Legal full name","type":"text","section":"Identity","order":10,"required":true,"blocking":true},
+    {"id":"preferred_name","name":"preferred_name","label":"Preferred name","type":"text","section":"Identity","order":20,"required":false},
+    {"id":"date_of_birth","name":"date_of_birth","label":"Date of birth","type":"date","section":"Identity","order":30,"required":true,"blocking":true,"validation":{"minimumAge":16}},
+    {"id":"phone","name":"phone","label":"Mobile phone","type":"phone","section":"Contact","order":100,"required":true,"blocking":true},
+    {"id":"emergency_contact","name":"emergency_contact","label":"Emergency contact","type":"emergency_contact","section":"Emergency Contact","order":120,"required":true,"blocking":true},
+    {"id":"volunteer_waiver","name":"volunteer_waiver","label":"Volunteer waiver","type":"waiver","section":"Agreements","order":500,"required":true,"blocking":true,"metadata":{"agreementType":"volunteer","requiresAcknowledgement":true,"agreementBody":"As a volunteer you are donating your time and are not an employee or contractor. You agree to follow all event conduct and safety policies, understand that you will not receive wages, and accept the general risks of participating in a live event. You release the organizer from liability for injuries arising from your failure to follow safety instructions."}},
+    {"id":"photo_release","name":"photo_release","label":"I consent to the use of my likeness in event photos and video","type":"checkbox","section":"Agreements","order":510,"required":false,"blocking":false}
+  ]'::jsonb,
+  1,
+  array['Volunteer waiver'],
+  array['volunteer', 'crew'],
+  false,
+  null,
+  null,
+  now(),
+  now()
+where not exists (
+  select 1 from public.staff_onboarding_templates
+  where name = 'Volunteers' and employer_entity_type is null and employer_entity_id is null
+);
+
+-- Media
+insert into public.staff_onboarding_templates (
+  name, description, department, position, employment_type, fields, estimated_days,
+  required_documents, tags, is_default, employer_entity_type, employer_entity_id, created_at, updated_at
+)
+select
+  'Media',
+  'Onboarding for press, photographers, and content creators covering the event.',
+  'Media',
+  'Media',
+  'contractor',
+  '[
+    {"id":"legal_name","name":"legal_name","label":"Legal full name","type":"text","section":"Identity","order":10,"required":true,"blocking":true},
+    {"id":"preferred_name","name":"preferred_name","label":"Preferred name","type":"text","section":"Identity","order":20,"required":false},
+    {"id":"phone","name":"phone","label":"Mobile phone","type":"phone","section":"Contact","order":100,"required":true,"blocking":true},
+    {"id":"outlet","name":"outlet","label":"Outlet / publication","type":"text","section":"Contact","order":110,"required":false},
+    {"id":"press_credential","name":"press_credential","label":"Press credential or portfolio","type":"file","section":"Certifications","order":250,"required":false,"requiresAdminReview":true,"credentialType":"press_credential","validation":{"fileTypes":["image/jpeg","image/png","application/pdf"],"maxFileSizeMb":10}},
+    {"id":"government_id","name":"government_id","label":"Government ID","type":"id_document","section":"Documents","order":300,"required":false,"requiresAdminReview":true,"credentialType":"government_id"},
+    {"id":"media_release","name":"media_release","label":"Media release","type":"waiver","section":"Agreements","order":500,"required":true,"blocking":true,"metadata":{"agreementType":"media_release","requiresAcknowledgement":true,"agreementBody":"You grant the organizer and its partners the irrevocable right to record, use, and distribute your likeness and voice, and to use footage you capture in connection with the event across all media and platforms, without additional compensation. You confirm you have the right to grant this release."}},
+    {"id":"nda","name":"nda","label":"Confidentiality agreement (NDA)","type":"waiver","section":"Agreements","order":510,"required":true,"blocking":true,"metadata":{"agreementType":"nda","requiresAcknowledgement":true,"agreementBody":"You agree to keep confidential all non-public information you learn about artists, productions, guests, and operations, and not to share, publish, or leak such information without prior written authorization from the organizer."}}
+  ]'::jsonb,
+  1,
+  array['Media release', 'NDA'],
+  array['media', 'press', 'content'],
+  false,
+  null,
+  null,
+  now(),
+  now()
+where not exists (
+  select 1 from public.staff_onboarding_templates
+  where name = 'Media' and employer_entity_type is null and employer_entity_id is null
+);
+
+-- Security
+insert into public.staff_onboarding_templates (
+  name, description, department, position, employment_type, fields, estimated_days,
+  required_documents, tags, is_default, employer_entity_type, employer_entity_id, created_at, updated_at
+)
+select
+  'Security',
+  'Compliance onboarding for licensed security staff.',
+  'Security',
+  'Security',
+  'contractor',
+  '[
+    {"id":"legal_name","name":"legal_name","label":"Legal full name","type":"text","section":"Identity","order":10,"required":true,"blocking":true},
+    {"id":"preferred_name","name":"preferred_name","label":"Preferred name","type":"text","section":"Identity","order":20,"required":false},
+    {"id":"date_of_birth","name":"date_of_birth","label":"Date of birth","type":"date","section":"Identity","order":30,"required":true,"blocking":true,"validation":{"minimumAge":18}},
+    {"id":"phone","name":"phone","label":"Mobile phone","type":"phone","section":"Contact","order":100,"required":true,"blocking":true},
+    {"id":"address","name":"address","label":"Home address","type":"address","section":"Contact","order":110,"required":true,"blocking":true},
+    {"id":"emergency_contact","name":"emergency_contact","label":"Emergency contact","type":"emergency_contact","section":"Emergency Contact","order":120,"required":true,"blocking":true},
+    {"id":"guard_card","name":"guard_card","label":"Guard card / security license","type":"file","section":"Certifications","order":250,"required":true,"blocking":true,"requiresAdminReview":true,"credentialType":"guard_card","validation":{"fileTypes":["image/jpeg","image/png","application/pdf"],"maxFileSizeMb":10}},
+    {"id":"government_id","name":"government_id","label":"Government ID","type":"id_document","section":"Documents","order":300,"required":true,"blocking":true,"requiresAdminReview":true,"credentialType":"government_id"},
+    {"id":"w9_or_tax_form","name":"w9_or_tax_form","label":"W-9 / tax form","type":"tax_info","section":"Tax / Payment","order":400,"required":true,"blocking":true,"requiresAdminReview":true,"credentialType":"tax_form"},
+    {"id":"security_conduct","name":"security_conduct","label":"Security conduct & use-of-force disclaimer","type":"waiver","section":"Agreements","order":500,"required":true,"blocking":true,"metadata":{"agreementType":"security_conduct","requiresAcknowledgement":true,"agreementBody":"You agree to act lawfully and professionally, use only reasonable and necessary force consistent with your training and applicable law, de-escalate whenever possible, follow the incident reporting chain, and never discriminate against or harass any person. Violation of this policy may result in immediate removal from the engagement."}},
+    {"id":"event_safety_waiver","name":"event_safety_waiver","label":"Event safety waiver","type":"waiver","section":"Agreements","order":510,"required":true,"blocking":true,"metadata":{"agreementType":"safety","requiresAcknowledgement":true,"agreementBody":"You acknowledge that live events involve inherent risks. You agree to follow all safety directions, wear any required protective equipment, report hazards immediately, and refrain from unsafe behavior. You release the organizer from liability for injuries arising from your failure to follow safety instructions."}}
+  ]'::jsonb,
+  3,
+  array['Government ID', 'Guard card', 'W-9 or tax form', 'Security agreements'],
+  array['security', 'licensed', 'compliance'],
+  false,
+  null,
+  null,
+  now(),
+  now()
+where not exists (
+  select 1 from public.staff_onboarding_templates
+  where name = 'Security' and employer_entity_type is null and employer_entity_id is null
+);
+
+-- Normalize to a single global default.
+update public.staff_onboarding_templates
+set is_default = false, updated_at = now()
+where employer_entity_type is null
+  and employer_entity_id is null
+  and is_default = true
+  and name <> 'New Staff';

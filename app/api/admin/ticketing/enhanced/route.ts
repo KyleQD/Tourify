@@ -318,6 +318,112 @@ export async function POST(request: NextRequest) {
   }
 }
 
+export async function PATCH(request: NextRequest) {
+  try {
+    const authResult = await authenticateApiRequest(request)
+    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { user, supabase } = authResult
+    const hasAdminAccess = await checkAdminPermissions(user)
+    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+
+    const body = await request.json()
+    const { action, id, ...data } = body
+
+    if (action === 'update_ticket_type') {
+      if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+      const allowedFields = [
+        'name', 'description', 'price', 'quantity_available', 'max_per_customer',
+        'sale_start', 'sale_end', 'category', 'benefits', 'seating_section',
+        'is_transferable', 'transfer_fee', 'refund_policy', 'age_restriction',
+        'requires_id', 'featured', 'priority_order', 'is_active', 'metadata',
+        'visibility', 'access_level', 'min_per_order', 'internal_notes',
+      ]
+
+      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+      for (const key of allowedFields) {
+        if (data[key] !== undefined) patch[key] = data[key]
+      }
+
+      if (patch.sale_start && patch.sale_end) {
+        if (new Date(String(patch.sale_end)) <= new Date(String(patch.sale_start)))
+          return NextResponse.json({ error: 'Sale end date must be after start date' }, { status: 400 })
+      }
+
+      const { data: ticketType, error } = await supabase
+        .from('ticket_types')
+        .update(patch)
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (error) {
+        console.error('[Enhanced Admin Ticketing API] Error updating ticket type:', error)
+        return NextResponse.json({ error: 'Failed to update ticket type' }, { status: 500 })
+      }
+
+      return NextResponse.json({ ticket_type: ticketType })
+    }
+
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
+    }
+    console.error('[Enhanced Admin Ticketing API] PATCH error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const authResult = await authenticateApiRequest(request)
+    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const { user, supabase } = authResult
+    const hasAdminAccess = await checkAdminPermissions(user)
+    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+
+    const body = await request.json().catch(() => ({}))
+    const id = body.id || new URL(request.url).searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+
+    // Soft-delete: deactivate rather than hard delete sold inventory
+    const { data: existing } = await supabase
+      .from('ticket_types')
+      .select('id, quantity_sold')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!existing) return NextResponse.json({ error: 'Ticket type not found' }, { status: 404 })
+
+    if ((existing.quantity_sold || 0) > 0) {
+      const { error } = await supabase
+        .from('ticket_types')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true, soft_deleted: true })
+    }
+
+    const { error } = await supabase.from('ticket_types').delete().eq('id', id)
+    if (error) {
+      // Fall back to soft delete if FK prevents hard delete
+      await supabase
+        .from('ticket_types')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      return NextResponse.json({ success: true, soft_deleted: true })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('[Enhanced Admin Ticketing API] DELETE error:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
 // Helper functions
 async function getTicketingOverview(supabase: any, event_id?: string) {
   const now = new Date()
@@ -327,8 +433,8 @@ async function getTicketingOverview(supabase: any, event_id?: string) {
   let salesQuery = supabase
     .from('ticket_sales')
     .select('total_amount, quantity, payment_status')
-    .eq('payment_status', 'paid')
-    .gte('purchase_date', thirtyDaysAgo.toISOString())
+    .in('payment_status', ['completed'])
+    .gte('created_at', thirtyDaysAgo.toISOString())
 
   let ticketTypesQuery = supabase
     .from('ticket_types')
@@ -507,11 +613,10 @@ async function getSales(supabase: any, event_id?: string, limit = 50, offset = 0
         price,
         category
       ),
-      events:event_id (
+      events_v2:event_id (
         id,
         title,
-        date,
-        location
+        start_at
       ),
       promo_codes:promo_code_id (
         id,
@@ -520,7 +625,7 @@ async function getSales(supabase: any, event_id?: string, limit = 50, offset = 0
         discount_value
       )
     `)
-    .order('purchase_date', { ascending: false })
+    .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
   if (event_id) {
@@ -550,15 +655,23 @@ async function getAnalytics(supabase: any, event_id?: string) {
   const now = new Date()
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
-  // Get daily sales data
-  const { data: dailySales } = await supabase
-    .from('ticket_analytics')
-    .select('*')
-    .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
-    .order('date', { ascending: true })
+  // Dual-read: legacy ticket_analytics + v2 ticket_analytics_events
+  const [{ data: dailySales }, { data: v2Events }] = await Promise.all([
+    supabase
+      .from('ticket_analytics')
+      .select('*')
+      .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
+      .order('date', { ascending: true }),
+    supabase
+      .from('ticket_analytics_events')
+      .select('event_name, event_id, amounts, created_at, attribution')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(200),
+  ])
 
-  // Get sales by ticket type
-  const { data: salesByType } = await supabase
+  // Get sales by ticket type — completed only (never require phantom `paid`)
+  let salesQuery = supabase
     .from('ticket_sales')
     .select(`
       ticket_type_id,
@@ -566,8 +679,12 @@ async function getAnalytics(supabase: any, event_id?: string) {
       quantity,
       ticket_types:ticket_type_id (name, category)
     `)
-    .eq('payment_status', 'paid')
-    .gte('purchase_date', thirtyDaysAgo.toISOString())
+    .in('payment_status', ['completed'])
+    .gte('created_at', thirtyDaysAgo.toISOString())
+
+  if (event_id) salesQuery = salesQuery.eq('event_id', event_id)
+
+  const { data: salesByType } = await salesQuery
 
   // Get social performance
   const { data: socialPerformance } = await supabase
@@ -575,12 +692,17 @@ async function getAnalytics(supabase: any, event_id?: string) {
     .select('*')
     .gte('created_at', thirtyDaysAgo.toISOString())
 
+  const filteredV2 = event_id
+    ? (v2Events || []).filter((e: any) => e.event_id === event_id)
+    : v2Events || []
+
   return {
     analytics: {
       daily_sales: dailySales || [],
       sales_by_type: salesByType || [],
-      social_performance: socialPerformance || []
-    }
+      social_performance: socialPerformance || [],
+      ticket_analytics_events: filteredV2,
+    },
   }
 }
 

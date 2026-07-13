@@ -1,5 +1,6 @@
 interface NewsFeedTelemetryParams {
   facet: string
+  category?: string
   userId?: string
   itemCount: number
   latencyMs: number
@@ -9,6 +10,7 @@ interface NewsFeedTelemetryParams {
 export function trackNewsFeedServed(params: NewsFeedTelemetryParams) {
   console.info('[NewsFeedTelemetry] feed_served', {
     facet: params.facet,
+    category: params.category || 'none',
     user_id: params.userId || 'anonymous',
     item_count: params.itemCount,
     latency_ms: params.latencyMs,

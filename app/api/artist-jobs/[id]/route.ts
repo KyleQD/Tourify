@@ -6,15 +6,16 @@ import { CreateJobFormData } from '@/types/artist-jobs'
 
 export async function GET(
   request: Request,
-  { params }: any
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
     
     // Get user (optional for viewing jobs)
     const { data: { user } } = await supabase.auth.getUser()
     
-    const job = await ArtistJobsService.getJob(params.id, user?.id, supabase as any)
+    const job = await ArtistJobsService.getJob(id, user?.id, supabase as any)
     
     if (!job) {
       return NextResponse.json(
@@ -44,9 +45,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: any
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
     
     // Check authentication
@@ -63,7 +65,7 @@ export async function PUT(
 
     const updates: Partial<CreateJobFormData> = await request.json()
     
-    const job = await ArtistJobsService.updateJob(params.id, updates, user.id, supabase as any)
+    const job = await ArtistJobsService.updateJob(id, updates, user.id, supabase as any)
 
     return NextResponse.json({
       success: true,
@@ -84,9 +86,10 @@ export async function PUT(
 
 export async function PATCH(
   request: Request,
-  { params }: any
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
@@ -108,7 +111,7 @@ export async function PATCH(
     const { data: job, error } = await supabase
       .from('artist_jobs')
       .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('posted_by', user.id)
       .select('*, category:artist_job_categories(*)')
       .single()
@@ -131,9 +134,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: Request,
-  { params }: any
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await context.params
     const supabase = await createClient()
     
     // Check authentication
@@ -148,7 +152,7 @@ export async function DELETE(
       )
     }
 
-    await ArtistJobsService.deleteJob(params.id, user.id, supabase as any)
+    await ArtistJobsService.deleteJob(id, user.id, supabase as any)
 
     return NextResponse.json({
       success: true,

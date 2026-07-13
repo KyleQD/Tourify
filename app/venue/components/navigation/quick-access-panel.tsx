@@ -46,7 +46,7 @@ export function QuickAccessPanel({ isOpen, onClose }: QuickAccessPanelProps) {
     { title: "EPK", icon: FileText, href: "/epk" },
     { title: "Analytics", icon: BarChart3, href: "/venue/analytics" },
     { title: "Tickets", icon: Ticket, href: "/venue/dashboard/tickets" },
-    { title: "Merch", icon: ShoppingBag, href: "/merch" },
+    { title: "Merch", icon: ShoppingBag, href: "/venue/dashboard/store" },
   ]
 
   const handleNavigation = (href: string) => {

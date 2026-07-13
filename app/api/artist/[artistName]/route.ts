@@ -94,7 +94,8 @@ export async function GET(
       const { count: postCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', mainProfile.id)
+        .or(`posted_as_profile_id.eq.${artistProfile.id},user_id.eq.${mainProfile.id}`)
+        .eq('visibility', 'public')
 
       if (postCount !== null) {
         stats.posts = postCount
@@ -107,7 +108,8 @@ export async function GET(
       const { data: posts } = await supabase
         .from('posts')
         .select('likes_count')
-        .eq('user_id', mainProfile.id)
+        .or(`posted_as_profile_id.eq.${artistProfile.id},user_id.eq.${mainProfile.id}`)
+        .eq('visibility', 'public')
 
       stats.likes = posts?.reduce((sum: number, post: any) => sum + (post.likes_count || 0), 0) || 0
     } catch (error) {
@@ -139,6 +141,8 @@ export async function GET(
     // Build the artist profile response
     const profileWithStats = {
       id: mainProfile.id,
+      author_profile_id: artistProfile.id,
+      owner_user_id: mainProfile.id,
       username: mainProfile.username, // Keep the main username for internal use
       artist_name: artistProfile.artist_name, // The public artist name
       account_type: 'artist',

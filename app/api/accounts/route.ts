@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { ProductionAuthService } from '@/lib/auth/production-auth'
 import { AccountManagementService } from '@/lib/services/account-management.service'
 import type { ProfileType } from '@/lib/services/account-management.service'
+import { isOrganizationType } from '@/lib/accounts/account-types'
+import { startRouteTiming } from '@/lib/observability/route-timing'
+import { OrganizerAccountSchema } from '@/lib/accounts/organization-account-schema'
+
+async function authenticateAccountsRequest(request: NextRequest) {
+  const authResult = await ProductionAuthService.authenticateRequest(request)
+  if ('error' in authResult) return null
+  return authResult
+}
 
 async function verifyProfileOwnership(
   supabase: { from: (table: string) => any },
@@ -13,7 +22,7 @@ async function verifyProfileOwnership(
     return profileId === userId
   }
 
-  if (accountType === 'artist') {
+  if (accountType === 'artist' || accountType === 'service') {
     const { data } = await supabase
       .from('artist_profiles')
       .select('id')
@@ -33,7 +42,7 @@ async function verifyProfileOwnership(
     return Boolean(data)
   }
 
-  if (accountType === 'admin') {
+  if (isOrganizationType(accountType)) {
     const { data: organizerRow } = await supabase
       .from('organizer_accounts')
       .select('id')
@@ -80,9 +89,12 @@ async function verifyProfileOwnership(
 }
 
 export async function GET(request: NextRequest) {
+  const endTiming = startRouteTiming('/api/accounts')
+
   try {
-    const auth = await authenticateApiRequest(request)
+    const auth = await authenticateAccountsRequest(request)
     if (!auth) {
+      endTiming({ metadata: { status: 401 } })
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -90,12 +102,24 @@ export async function GET(request: NextRequest) {
     const accounts = await AccountManagementService.getUserAccounts(user.id, supabase)
     const activeSession = await AccountManagementService.getActiveSession(user.id, supabase)
 
+    const durationMs = endTiming({
+      userId: user.id,
+      rowCount: accounts.length,
+      queryCount: 2,
+    })
+    console.log('[Accounts API] GET success', {
+      userId: user.id,
+      accountCount: accounts.length,
+      durationMs,
+    })
+
     return NextResponse.json({
       accounts,
       activeSession,
       success: true,
     })
   } catch (error) {
+    endTiming({ metadata: { error: true } })
     console.error('[Accounts API] Error fetching user accounts:', error)
     return NextResponse.json({ error: 'Failed to fetch accounts' }, { status: 500 })
   }
@@ -103,7 +127,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticateApiRequest(request)
+    const auth = await authenticateAccountsRequest(request)
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -142,9 +166,20 @@ export async function POST(request: NextRequest) {
       }
 
       case 'create_organizer': {
+        const parsed = OrganizerAccountSchema.safeParse(data)
+        if (!parsed.success) {
+          return NextResponse.json(
+            { error: parsed.error.errors.map((e) => e.message).join(', ') },
+            { status: 400 }
+          )
+        }
         const organizerId = await AccountManagementService.createOrganizerAccount(
           user.id,
-          data,
+          {
+            ...parsed.data,
+            url_slug: parsed.data.url_slug || undefined,
+            subtype: parsed.data.subtype || parsed.data.organization_type,
+          },
           supabase,
           user
         )
@@ -194,7 +229,7 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const auth = await authenticateApiRequest(request)
+    const auth = await authenticateAccountsRequest(request)
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -219,7 +254,7 @@ export async function PUT(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await authenticateApiRequest(request)
+    const auth = await authenticateAccountsRequest(request)
     if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

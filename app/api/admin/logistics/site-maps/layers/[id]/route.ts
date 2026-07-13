@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { hasEntityPermission } from '@/lib/services/rbac'
+import { getSiteMapAccess, requireSiteMapAccess, siteMapError, siteMapSuccess } from '@/lib/site-map/access'
 import type { UpdateMapLayerRequest } from '@/types/site-map'
 
 export async function GET(
@@ -12,7 +12,7 @@ export async function GET(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
     const { id } = await params
@@ -28,24 +28,19 @@ export async function GET(
 
     if (error) {
       console.error('Error fetching layer:', error)
-      return NextResponse.json({ error: 'Layer not found' }, { status: 404 })
+      return siteMapError('Layer not found', 404)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: layer.site_maps.id,
-      permission: 'read'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, layer.site_maps.id, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
-    return NextResponse.json(layer)
+    return siteMapSuccess(layer)
   } catch (error) {
     console.error('Error in layer GET:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
 }
 
@@ -58,12 +53,19 @@ export async function PUT(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
     const { id } = await params
-    const body: UpdateMapLayerRequest = await request.json()
-    const { name, description, color, opacity, isVisible, isLocked, zIndex } = body
+    const body = await request.json() as Partial<UpdateMapLayerRequest> & Record<string, any>
+    const name = body.name
+    const description = body.description
+    const layerType = body.layerType || body.layer_type
+    const color = body.color
+    const opacity = body.opacity
+    const isVisible = body.isVisible ?? body.is_visible
+    const isLocked = body.isLocked ?? body.is_locked
+    const zIndex = body.zIndex ?? body.z_index ?? body.order
 
     // First get the layer to check permissions
     const { data: existingLayer, error: fetchError } = await supabase
@@ -76,24 +78,20 @@ export async function PUT(
       .single()
 
     if (fetchError || !existingLayer) {
-      return NextResponse.json({ error: 'Layer not found' }, { status: 404 })
+      return siteMapError('Layer not found', 404)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: existingLayer.site_maps.id,
-      permission: 'write'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, existingLayer.site_maps.id, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
     // Build update object
     const updates: any = {}
     if (name !== undefined) updates.name = name
     if (description !== undefined) updates.description = description
+    if (layerType !== undefined) updates.layer_type = layerType
     if (color !== undefined) updates.color = color
     if (opacity !== undefined) updates.opacity = opacity
     if (isVisible !== undefined) updates.is_visible = isVisible
@@ -109,14 +107,21 @@ export async function PUT(
 
     if (error) {
       console.error('Error updating layer:', error)
-      return NextResponse.json({ error: 'Failed to update layer' }, { status: 500 })
+      return siteMapError('Failed to update layer')
     }
 
-    return NextResponse.json(layer)
+    return siteMapSuccess(layer)
   } catch (error) {
     console.error('Error in layer PUT:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, context)
 }
 
 export async function DELETE(
@@ -128,7 +133,7 @@ export async function DELETE(
     const { data: { user }, error: authError } = await supabase.auth.getUser()
 
     if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      return siteMapError('Unauthorized', 401)
     }
 
     const { id } = await params
@@ -144,18 +149,13 @@ export async function DELETE(
       .single()
 
     if (fetchError || !existingLayer) {
-      return NextResponse.json({ error: 'Layer not found' }, { status: 404 })
+      return siteMapError('Layer not found', 404)
     }
 
-    // Check permissions
-    const hasPermission = await hasEntityPermission({
-      userId: user.id,
-      entityType: 'site_map',
-      entityId: existingLayer.site_maps.id,
-      permission: 'write'
-    })
-    if (!hasPermission) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, existingLayer.site_maps.id, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return siteMapError(accessCheck.error, accessCheck.status)
     }
 
     const { error } = await supabase
@@ -165,12 +165,12 @@ export async function DELETE(
 
     if (error) {
       console.error('Error deleting layer:', error)
-      return NextResponse.json({ error: 'Failed to delete layer' }, { status: 500 })
+      return siteMapError('Failed to delete layer')
     }
 
-    return NextResponse.json({ success: true })
+    return siteMapSuccess({ deleted: true })
   } catch (error) {
     console.error('Error in layer DELETE:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return siteMapError('Internal server error')
   }
 }

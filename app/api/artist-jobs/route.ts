@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validate as validateUuid } from 'uuid'
 import { createClient } from '@/lib/supabase/server'
 import { getPostgrestErrorCode, getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
+import { resolveArtistJobCategoryId } from '@/lib/artist-jobs/categories'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 interface JsonRecord {
   [key: string]: any
@@ -151,23 +152,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
 
-    const categoryId = String(body.category_id)
-    if (!validateUuid(categoryId))
+    const categoryId = await resolveArtistJobCategoryId(supabase, String(body.category_id))
+    if (!categoryId)
       return NextResponse.json({ success: false, error: 'Invalid category_id format' }, { status: 400 })
-
-    const { data: categoryRow, error: categoryError } = await supabase
-      .from('artist_job_categories')
-      .select('id')
-      .eq('id', categoryId)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (categoryError) throw categoryError
-    if (!categoryRow)
-      return NextResponse.json(
-        { success: false, error: 'Invalid or inactive job category' },
-        { status: 400 }
-      )
 
     // Derive the posted_by_type from the verified acting context
     const resolvedPostedByType = getPostedByType(accountType)
@@ -179,6 +166,7 @@ export async function POST(request: NextRequest) {
       posted_by: userId,
       posted_by_type: resolvedPostedByType,
       posted_by_profile_id: profileId,
+      poster_profile_id: profileId,
       job_type: body.job_type || 'one_time',
       payment_type: body.payment_type || 'paid',
       payment_amount: body.payment_amount || null,
@@ -208,7 +196,8 @@ export async function POST(request: NextRequest) {
       status: body.status || 'open',
     }
 
-    const { data: created, error } = await supabase
+    const serviceSupabase = createServiceRoleClient()
+    const { data: created, error } = await serviceSupabase
       .from('artist_jobs')
       .insert(insertPayload)
       .select('*, category:artist_job_categories(*)')

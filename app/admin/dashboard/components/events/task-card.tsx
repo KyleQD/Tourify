@@ -1,15 +1,15 @@
 "use client"
 
 import { CheckCircle, Clock, AlertCircle, MoreHorizontal, Edit, Trash2 } from "lucide-react"
-import { Badge } from "../ui/badge"
-import { Button } from "../ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "../ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu"
 import { SlackService } from "../../lib/slack-service"
 import type { Task, TaskStatus } from "./task-dialog"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"

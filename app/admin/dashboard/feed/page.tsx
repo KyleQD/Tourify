@@ -12,9 +12,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
-  Rss, CheckCircle, XCircle, Flag, Pin, PinOff, Plus, Loader2, RefreshCw,
+  Rss, CheckCircle, XCircle, Flag, Pin, PinOff, Plus, Loader2, RefreshCw, BarChart3,
 } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
+import { PollOptionEditor } from "@/components/polls/poll-option-editor"
 
 type ModerationFilter = 'all' | 'flagged' | 'pinned'
 
@@ -38,6 +39,9 @@ export default function FeedPage() {
   const [isComposing, setIsComposing] = useState(false)
   const [composeText, setComposeText] = useState("")
   const [isPosting, setIsPosting] = useState(false)
+  const [composeMode, setComposeMode] = useState<'announcement' | 'poll'>('announcement')
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+  const [pollDuration, setPollDuration] = useState<'1d' | '3d' | '7d' | '14d'>('7d')
 
   const load = useCallback(async () => {
     setIsLoading(true)
@@ -106,14 +110,37 @@ export default function FeedPage() {
     if (!composeText.trim()) return
     setIsPosting(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Not authenticated')
-      const { error } = await supabase
-        .from('posts')
-        .insert({ user_id: user.id, content: composeText.trim(), is_visible: true, moderation_status: 'approved' })
-      if (error) throw error
-      toast.success('Announcement posted')
+      if (composeMode === 'poll') {
+        const validOptions = pollOptions.map((option) => option.trim()).filter(Boolean)
+        if (validOptions.length < 2) throw new Error('Add at least two poll options')
+
+        const res = await fetch('/api/posts/create', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            content: composeText.trim(),
+            type: 'poll',
+            visibility: 'followers',
+            poll_options: validOptions,
+            poll_duration: pollDuration,
+          }),
+        })
+        const payload = await res.json().catch(() => ({}))
+        if (!res.ok || !payload.success) throw new Error(payload.error || 'Failed to create poll')
+        toast.success('Poll posted to followers')
+      } else {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) throw new Error('Not authenticated')
+        const { error } = await supabase
+          .from('posts')
+          .insert({ user_id: user.id, content: composeText.trim(), is_visible: true, moderation_status: 'approved' })
+        if (error) throw error
+        toast.success('Announcement posted')
+      }
       setComposeText("")
+      setPollOptions(['', ''])
+      setComposeMode('announcement')
       setIsComposing(false)
       load()
     } catch (err: any) {
@@ -250,25 +277,61 @@ export default function FeedPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Rss className="h-5 w-5 text-purple-400" />
-              Compose Announcement
+              {composeMode === 'poll' ? 'Create Follower Poll' : 'Compose Announcement'}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant={composeMode === 'announcement' ? 'secondary' : 'outline'}
+                className="border-slate-700"
+                onClick={() => setComposeMode('announcement')}
+              >
+                Announcement
+              </Button>
+              <Button
+                size="sm"
+                variant={composeMode === 'poll' ? 'secondary' : 'outline'}
+                className="border-slate-700"
+                onClick={() => setComposeMode('poll')}
+              >
+                <BarChart3 className="h-4 w-4 mr-1" />
+                Poll
+              </Button>
+            </div>
             <Textarea
               value={composeText}
               onChange={e => setComposeText(e.target.value)}
-              placeholder="Write an announcement for your network..."
+              placeholder={composeMode === 'poll' ? 'Ask your followers a question...' : 'Write an announcement for your network...'}
               className="bg-slate-800/50 border-slate-700/50 text-white min-h-[120px] resize-none"
             />
+            {composeMode === 'poll' && (
+              <PollOptionEditor
+                options={pollOptions}
+                duration={pollDuration}
+                onOptionsChange={setPollOptions}
+                onDurationChange={setPollDuration}
+              />
+            )}
             <div className="flex items-center justify-between">
               <span className="text-xs text-slate-500">{composeText.length} characters</span>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => { setComposeText(""); setIsComposing(false) }}>
+                <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" onClick={() => { setComposeText(""); setPollOptions(['', '']); setComposeMode('announcement'); setIsComposing(false) }}>
                   Cancel
                 </Button>
-                <Button size="sm" disabled={!composeText.trim() || isPosting} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0" onClick={composeAnnouncement}>
+                <Button
+                  size="sm"
+                  disabled={
+                    !composeText.trim()
+                    || isPosting
+                    || (composeMode === 'poll' && pollOptions.filter((option) => option.trim()).length < 2)
+                  }
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
+                  onClick={composeAnnouncement}
+                >
                   {isPosting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                  Post Announcement
+                  {composeMode === 'poll' ? 'Create Poll' : 'Post Announcement'}
                 </Button>
               </div>
             </div>

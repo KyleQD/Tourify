@@ -1,42 +1,17 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import { 
   Calendar, 
-  Clock,
   MapPin, 
   Users,
-  Heart, 
-  MessageCircle, 
   Share2,
-  Settings,
   Edit,
-  Pin,
-  Send,
-  Loader2,
   ExternalLink,
-  UserPlus,
-  Star,
-  ChevronDown,
-  ChevronUp,
-  Ticket,
-  Music,
-  Eye,
-  EyeOff,
-  ArrowLeft,
-  Sparkles,
-  Activity,
-  Zap,
-  Radio,
-  Headphones,
   Plus,
   Download,
   Bell,
@@ -45,16 +20,19 @@ import {
   CheckCircle,
   XCircle
 } from 'lucide-react'
-import { format } from 'date-fns'
-import { useAuth } from '@/contexts/auth-context'
+import { format, isValid, parseISO } from 'date-fns'
 import { formatSafeNumber } from "@/lib/format/number-format"
-import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
-import { EnhancedEventCreator } from '@/components/events/enhanced-event-creator'
 import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+
+function formatEventDate(value?: string) {
+  if (!value) return 'Date TBD'
+  const parsed = value.includes('T') ? parseISO(value) : new Date(`${value}T00:00:00`)
+  if (!isValid(parsed)) return 'Date TBD'
+  return format(parsed, 'MMM d, yyyy')
+}
 
 interface Event {
   id?: string
@@ -81,95 +59,88 @@ interface Event {
 
 export default function EventsPage() {
   const router = useRouter()
-  const { user, loading: isUserLoading } = useAuth()
   
   const [events, setEvents] = useState<Event[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
-  const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [deleteEventId, setDeleteEventId] = useState<string | null>(null)
-  const [selectedTab, setSelectedTab] = useState("overview")
-  // Stats calculation
+  const today = new Date().toISOString().slice(0, 10)
   const stats = {
     totalEvents: events.length,
-    upcomingEvents: events.filter(e => e.status === 'published').length,
-    completedEvents: 0,
+    upcomingEvents: events.filter(e => e.status === 'published' && e.event_date >= today).length,
+    completedEvents: events.filter(e => e.status === 'published' && e.event_date < today).length,
     cancelledEvents: events.filter(e => e.status === 'cancelled').length,
-    totalCapacity: events.reduce((sum, e) => sum + (e.capacity || 0), 0)
+    totalCapacity: events.reduce((sum, e) => sum + (e.capacity || 0), 0),
+    withTicketLink: events.filter(e => Boolean((e as any).ticket_url)).length,
   }
 
-  // Load events
-  useEffect(() => {
-    if (user) loadEvents()
-  }, [user])
-
-  const loadEvents = async () => {
-    if (!user) return
-
+  const loadEvents = React.useCallback(async () => {
     try {
       setIsLoading(true)
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('artist_id', user.id)
-        .order('event_date', { ascending: true })
+      // Cookie-auth API — do not block on client supabase user hydration (can hang while cookies work).
+      const response = await fetch('/api/artist/events', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || 'Failed to load events')
 
-      if (error) throw error
-      setEvents(data || [])
+      const rows = (payload.events || []).map((event: any) => ({
+        ...event,
+        name: event.name || event.title || 'Untitled event',
+        event_type: event.event_type || event.type || 'other',
+        event_date: event.event_date || '',
+      }))
+      setEvents(rows)
     } catch (error) {
       console.error('Error loading events:', error)
-      toast.error('Failed to load events')
+      toast.error(error instanceof Error ? error.message : 'Failed to load events')
+      setEvents([])
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void loadEvents()
+  }, [loadEvents])
 
   const handleDeleteEvent = async (eventId: string) => {
     try {
-      const { error } = await supabase
-        .from('events')
-        .delete()
-        .eq('id', eventId)
-
-      if (error) throw error
+      const response = await fetch(`/api/artist/events/${eventId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data?.error || 'Failed to delete event')
       
       setEvents(prev => prev.filter(e => e.id !== eventId))
       setDeleteEventId(null)
       toast.success('Event deleted successfully')
     } catch (error) {
       console.error('Error deleting event:', error)
-      toast.error('Failed to delete event')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete event')
     }
   }
 
   const handlePublishEvent = async (eventId: string) => {
     try {
-      const { error } = await supabase
-        .from("events")
-        .update({ status: "published" })
-        .eq("id", eventId)
-        .eq("artist_id", user?.id)
-
-      if (error) throw error
+      const response = await fetch(`/api/artist/events/${eventId}/publish`, {
+        method: "POST",
+        credentials: "include",
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data?.error || "Failed to publish event")
       await loadEvents()
       toast.success("Event published")
     } catch (error) {
       console.error("Error publishing event:", error)
-      toast.error("Failed to publish event")
+      toast.error(error instanceof Error ? error.message : "Failed to publish event")
     }
   }
 
-  const handleEventCreated = (newEvent: Event) => {
-    setEvents(prev => [newEvent, ...prev])
-    setShowCreateModal(false)
-    toast.success('Event created successfully!')
-  }
-
-
-
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[40vh]">
         <div className="flex items-center gap-3">
           <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-white">Loading events...</span>
@@ -234,10 +205,7 @@ export default function EventsPage() {
             </Button>
           )}
           <Button 
-            onClick={() => {
-              setEditingEvent(null)
-              setShowCreateModal(true)
-            }}
+            onClick={() => router.push("/artist/events/create")}
             className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -317,7 +285,7 @@ export default function EventsPage() {
                 <h3 className="text-lg font-semibold text-white mb-2">No events yet</h3>
                 <p className="text-gray-400 mb-6">Create your first event to get started</p>
                 <Button
-                  onClick={() => setShowCreateModal(true)}
+                  onClick={() => router.push("/artist/events/create")}
                   className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -352,7 +320,7 @@ export default function EventsPage() {
                       <div className="flex items-center gap-4 text-sm text-gray-500">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />
-                          {format(new Date(event.event_date), 'MMM d, yyyy')}
+                          {formatEventDate(event.event_date)}
                         </span>
                           {event.venue_name && (
                           <span className="flex items-center gap-1">
@@ -371,11 +339,20 @@ export default function EventsPage() {
                       
                       <div className="flex items-center gap-2">
                         <Button
-                          onClick={() => router.push(`/artist/events/${event.id}/manage`)}
+                          onClick={() => router.push(`/artist/events/${event.id}`)}
                           className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
                           size="sm"
                         >
                           Manage Event
+                        </Button>
+                        <Button
+                          onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                          variant="outline"
+                          className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white"
+                          size="sm"
+                        >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
                         </Button>
                         <Button
                           onClick={() => router.push(`/events/${event.slug || event.id}`)}
@@ -404,14 +381,11 @@ export default function EventsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="bg-slate-800 border-slate-700">
                           <DropdownMenuItem 
-                            onClick={() => {
-                              setEditingEvent(event)
-                              setShowCreateModal(true)
-                            }}
+                            onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
                             className="text-white hover:bg-slate-700"
                           >
                             <Edit className="h-4 w-4 mr-2" />
-                            Edit Event
+                            Edit in Producer
                           </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => router.push(`/events/${event.slug || event.id}`)}
@@ -449,17 +423,6 @@ export default function EventsPage() {
           </Card>
                   </div>
                   
-      {/* Enhanced Event Creator Modal */}
-      <EnhancedEventCreator
-        isOpen={showCreateModal}
-        onClose={() => {
-          setShowCreateModal(false)
-          setEditingEvent(null)
-        }}
-        onEventCreated={handleEventCreated}
-        editingEvent={editingEvent}
-      />
-
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteEventId} onOpenChange={() => setDeleteEventId(null)}>
         <AlertDialogContent className="bg-slate-900 border-slate-700">
@@ -484,4 +447,4 @@ export default function EventsPage() {
       </AlertDialog>
     </>
   )
-} 
+}

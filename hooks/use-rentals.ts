@@ -142,6 +142,8 @@ interface UseRentalsOptions {
   status?: string
   client_id?: string
   equipment_id?: string
+  event_id?: string
+  tour_id?: string
   limit?: number
   offset?: number
   autoRefresh?: boolean
@@ -236,6 +238,8 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     status,
     client_id,
     equipment_id,
+    event_id,
+    tour_id,
     autoRefresh = true,
     refreshInterval = 30000
   } = options
@@ -296,6 +300,8 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
 
       if (status) params.append('status', status)
       if (client_id) params.append('client_id', client_id)
+      if (event_id) params.append('event_id', event_id)
+      if (tour_id) params.append('tour_id', tour_id)
 
       const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
@@ -317,7 +323,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setAgreementsLoading(false)
     }
-  }, [user, status, client_id, limit, offset])
+  }, [user, status, client_id, event_id, tour_id, limit, offset])
 
   const fetchAnalytics = useCallback(async () => {
     if (!user) return
@@ -326,7 +332,11 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       setAnalyticsLoading(true)
       setAnalyticsError(null)
 
-      const response = await fetch('/api/admin/rentals?type=analytics', {
+      const params = new URLSearchParams({ type: 'analytics' })
+      if (event_id) params.append('event_id', event_id)
+      if (tour_id) params.append('tour_id', tour_id)
+
+      const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -345,7 +355,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setAnalyticsLoading(false)
     }
-  }, [user])
+  }, [user, event_id, tour_id])
 
   const fetchUtilization = useCallback(async () => {
     if (!user) return
@@ -354,7 +364,11 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
       setUtilizationLoading(true)
       setUtilizationError(null)
 
-      const response = await fetch('/api/admin/rentals?type=utilization', {
+      const params = new URLSearchParams({ type: 'utilization' })
+      if (event_id) params.append('event_id', event_id)
+      if (tour_id) params.append('tour_id', tour_id)
+
+      const response = await fetch(`/api/admin/rentals?${params.toString()}`, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
@@ -373,7 +387,7 @@ export function useRentals(options: UseRentalsOptions = {}): UseRentalsReturn {
     } finally {
       setUtilizationLoading(false)
     }
-  }, [user])
+  }, [user, event_id, tour_id])
 
   const fetchData = useCallback(async () => {
     if (!user) return

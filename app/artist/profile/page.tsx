@@ -58,7 +58,11 @@ interface FormState {
   instagram: string
   twitter: string
   youtube: string
+  tiktok: string
+  facebook: string
   spotify: string
+  apple_music: string
+  soundcloud: string
   contact_email: string
   phone: string
   booking_rate: string
@@ -101,7 +105,11 @@ function buildFormFromProfile(
     instagram: profile.social_links?.instagram || "",
     twitter: profile.social_links?.twitter || "",
     youtube: profile.social_links?.youtube || "",
+    tiktok: profile.social_links?.tiktok || "",
+    facebook: profile.social_links?.facebook || "",
     spotify: profile.social_links?.spotify || "",
+    apple_music: profile.social_links?.apple_music || "",
+    soundcloud: profile.social_links?.soundcloud || "",
     contact_email: professional.contact_email || "",
     phone: professional.phone || "",
     booking_rate: professional.booking_rate || "",
@@ -154,7 +162,11 @@ export default function ArtistProfilePage() {
     instagram: "",
     twitter: "",
     youtube: "",
+    tiktok: "",
+    facebook: "",
     spotify: "",
+    apple_music: "",
+    soundcloud: "",
     contact_email: "",
     phone: "",
     booking_rate: "",
@@ -187,10 +199,11 @@ export default function ArtistProfilePage() {
   }, [profile, publicProfile])
 
   const publicProfilePath = useMemo(() => {
+    if (profile?.url_slug) return `/artist/${encodeURIComponent(profile.url_slug)}`
     if (publicProfile?.username) return `/artist/${encodeURIComponent(publicProfile.username)}`
     if (profile?.artist_name) return `/artist/${encodeURIComponent(profile.artist_name)}`
     return "/artist"
-  }, [publicProfile?.username, profile?.artist_name])
+  }, [profile?.url_slug, publicProfile?.username, profile?.artist_name])
 
   const genreLine = useMemo(() => {
     if (formData.genres.length) return formData.genres.join(" • ")
@@ -549,10 +562,15 @@ export default function ArtistProfilePage() {
                   <CardContent className="grid gap-4 md:grid-cols-2">
                     {(
                       [
+                        ["website", "Website"] as const,
                         ["instagram", "Instagram"] as const,
                         ["twitter", "X (Twitter)"] as const,
                         ["youtube", "YouTube"] as const,
-                        ["spotify", "Spotify"] as const
+                        ["tiktok", "TikTok"] as const,
+                        ["facebook", "Facebook"] as const,
+                        ["spotify", "Spotify"] as const,
+                        ["apple_music", "Apple Music"] as const,
+                        ["soundcloud", "SoundCloud"] as const,
                       ] as const
                     ).map(([key, label]) => (
                       <div key={key} className={dashboardCreatePattern.fieldGroup}>
@@ -562,7 +580,11 @@ export default function ArtistProfilePage() {
                           onChange={e => handleInputChange(key, e.target.value)}
                           disabled={isSaving}
                           className={dashboardCreatePattern.input}
-                          placeholder={key === "instagram" || key === "twitter" ? "@handle or URL" : "URL"}
+                          placeholder={
+                            key === "instagram" || key === "twitter" || key === "tiktok" || key === "facebook"
+                              ? "@handle or URL"
+                              : "URL"
+                          }
                         />
                       </div>
                     ))}

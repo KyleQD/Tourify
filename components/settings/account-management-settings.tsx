@@ -33,7 +33,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { AccountManagementService, UserAccount } from '@/lib/services/account-management.service'
-import { normalizeAccountType } from '@/lib/accounts/account-types'
+import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/auth-context'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
@@ -225,7 +225,7 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
               organization_name: organizerData.organization_name,
               organization_type: organizerData.organization_type || 'event_management',
               display_name: organizerData.organization_name,
-              account_display_type: 'Organizer',
+              account_display_type: 'Organization',
               admin_level: 'super',
               created_at: new Date().toISOString()
             },
@@ -258,12 +258,12 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
           console.log(`✅ [Account Management] Found ${organizerAccounts.length} organizer accounts in table`)
           organizerAccounts.forEach((organizer: any) => {
             accounts.push({
-              account_type: 'admin',
+              account_type: 'organization',
               profile_id: organizer.id,
               profile_data: {
                 ...organizer,
                 display_name: organizer.organization_name,
-                account_display_type: 'Organizer'
+                account_display_type: 'Organization'
               },
               permissions: {
                 can_post: true,
@@ -342,8 +342,8 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
         console.log('✅ [Account Management] Artist deleted successfully')
       }
 
-      // For organizer accounts in dedicated table
-      if (account.account_type === 'admin' && account.profile_id !== `${user.id}-organizer`) {
+      // For organization accounts in dedicated table
+      if (isOrganizationType(account.account_type) && account.profile_id !== `${user.id}-organizer`) {
         const { error } = await supabase
           .from('organizer_accounts')
           .delete()
@@ -351,10 +351,10 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
           .eq('user_id', user.id) // Security check
         
         if (error) {
-          console.error('❌ [Account Management] Failed to delete organizer:', error)
-          throw new Error('Failed to delete organizer account')
+          console.error('❌ [Account Management] Failed to delete organization:', error)
+          throw new Error('Failed to delete organization account')
         }
-        console.log('✅ [Account Management] Organizer deleted successfully')
+        console.log('✅ [Account Management] Organization deleted successfully')
       }
 
       // Refresh accounts to update the UI
@@ -386,20 +386,21 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
     // Can't delete general account
     if (account.account_type === 'general') return false
     
-    // Can't delete admin accounts (too dangerous)
-    if (account.account_type === 'admin') return false
+    // Organization / legacy admin accounts are protected
+    if (isOrganizationType(account.account_type)) return false
     
     return true
   }
 
   const getAccountDisplayName = (account: UserAccount) => {
+    if (isOrganizationType(account.account_type)) {
+      return account.profile_data?.organization_name || account.profile_data?.admin_name || 'Organization Account'
+    }
     switch (account.account_type) {
       case 'artist':
         return account.profile_data?.artist_name || 'Artist Account'
       case 'venue':
         return account.profile_data?.venue_name || 'Venue Account'
-      case 'admin':
-        return account.profile_data?.organization_name || account.profile_data?.admin_name || 'Event & Tour Admin'
       case 'staff':
         return account.profile_data?.venue_profiles?.venue_name || account.profile_data?.role || 'Staff Account'
       default:
@@ -624,13 +625,13 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
             </Button>
             
             <Button
-              onClick={() => router.push('/create?type=admin')}
+              onClick={() => router.push('/create?type=organization')}
               variant="outline"
               className="bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20 h-auto p-4 flex flex-col items-start gap-2"
             >
               <Shield className="h-5 w-5" />
               <div className="text-left">
-                <div className="font-medium">Organizer Account</div>
+                <div className="font-medium">Organization Account</div>
                 <div className="text-xs opacity-70">Manage events & tours</div>
               </div>
             </Button>
@@ -647,7 +648,7 @@ export function AccountManagementSettings({ activeTab }: AccountManagementSettin
               <h4 className="text-blue-300 font-medium mb-1">Important Notes</h4>
               <ul className="text-blue-200 text-sm space-y-1">
                 <li>• Your Personal Account cannot be deleted as it's your primary account</li>
-                <li>• Organizer Accounts are protected and cannot be deleted for security reasons</li>
+                <li>• Organization Accounts are protected and cannot be deleted for security reasons</li>
                 <li>• Deleting an account will permanently remove all associated data</li>
                 <li>• If you're experiencing issues with an account, try refreshing the list first</li>
               </ul>

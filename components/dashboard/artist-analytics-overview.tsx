@@ -1,11 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
+import { PollAnalyticsPanel } from '@/components/polls/poll-analytics-panel'
 import { 
   BarChart3, 
   TrendingUp, 
@@ -350,6 +352,8 @@ export function ArtistAnalyticsOverview({
           </div>
         </div>
       </div>
+
+      <PollAnalyticsPanel className="bg-slate-800/50 border-slate-700/50" />
     </div>
   )
 
@@ -418,15 +422,45 @@ export function ArtistAnalyticsOverview({
   const renderPlatforms = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {Object.entries(data.platforms).map(([platform, stats]) => (
+        {Object.entries(data.platforms).map(([platform, stats]) => {
+          const status = stats.status || 'unavailable'
+          const statusLabel = stats.statusLabel || 'Not connected'
+          const showZerosAsUnavailable = status !== 'synced'
+          return (
           <div key={platform} className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 gap-2">
               <h3 className="text-lg font-semibold text-white capitalize">{platform}</h3>
-              <Badge className={getGrowthColor(stats.growth)}>
-                {getGrowthIcon(stats.growth)}
-                {stats.growth}%
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge
+                  className={
+                    status === 'synced'
+                      ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                      : status === 'unsupported'
+                        ? 'border-blue-500/30 bg-blue-500/10 text-blue-300'
+                        : status === 'needs_oauth' || status === 'handle_only'
+                          ? 'border-amber-500/30 bg-amber-500/10 text-amber-300'
+                          : 'border-slate-600/40 bg-slate-800/50 text-slate-300'
+                  }
+                >
+                  {statusLabel}
+                </Badge>
+                {status === 'synced' && (
+                  <Badge className={getGrowthColor(stats.growth)}>
+                    {getGrowthIcon(stats.growth)}
+                    {stats.growth}%
+                  </Badge>
+                )}
+              </div>
             </div>
+            {showZerosAsUnavailable ? (
+              <p className="text-sm text-slate-400">
+                {status === 'unsupported'
+                  ? 'Analytics for this platform are coming soon. Your public link still shows on profile/EPK.'
+                  : status === 'needs_oauth' || status === 'handle_only'
+                    ? 'Connect OAuth on the Socials tab to sync live metrics.'
+                    : 'No synced metrics yet.'}
+              </p>
+            ) : (
             <div className="space-y-3">
               {platform === 'spotify' || platform === 'appleMusic' ? (
                 <>
@@ -458,20 +492,28 @@ export function ArtistAnalyticsOverview({
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">
-                      {platform === 'instagram' ? 'Engagement' : 'Views'}
+                      {platform === 'instagram'
+                        ? 'Engagement'
+                        : platform === 'facebook'
+                          ? 'Engaged users'
+                          : 'Views'}
                     </span>
                     <span className="text-white">
-                      {platform === 'instagram' 
-                        ? `${('engagement' in stats ? stats.engagement : 0)}%` 
-                        : ('views' in stats ? stats.views : 0)?.toLocaleString()
+                      {platform === 'instagram'
+                        ? `${('engagement' in stats ? stats.engagement : 0)}%`
+                        : platform === 'facebook'
+                          ? ('engagement' in stats ? stats.engagement : 0)?.toLocaleString()
+                          : ('views' in stats ? stats.views : 0)?.toLocaleString()
                       }
                     </span>
                   </div>
                 </>
               )}
             </div>
+            )}
           </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -499,9 +541,12 @@ export function ArtistAnalyticsOverview({
               variant="outline"
               size="sm"
               className="border-blue-500/50 text-blue-400 hover:bg-blue-500/20 rounded-xl"
+              asChild
             >
-              <Activity className="h-4 w-4 mr-1" />
-              Full Analytics
+              <Link href="/artist/music/analytics">
+                <Activity className="h-4 w-4 mr-1" />
+                Full Analytics
+              </Link>
             </Button>
           </div>
         </div>

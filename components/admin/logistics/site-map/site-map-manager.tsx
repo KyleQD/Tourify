@@ -1,79 +1,63 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Map, Loader2, Copy, Trash2, Upload, Download } from 'lucide-react'
+import { Plus, Map, Loader2, Copy, Trash2, Upload, Download, Send, AlertCircle, RefreshCw } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { useSiteMaps } from '@/hooks/use-site-maps'
 import { SiteMapEditor } from './site-map-editor'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+import { AdminEmptyState } from '@/app/admin/dashboard/components/admin-empty-state'
+import { AdminSurfaceCard } from '@/app/admin/dashboard/components/admin-surface-card'
+import { cn } from '@/lib/utils'
+import {
+  SiteMapCreateSheet,
+  defaultCreateForm,
+  sizePresets,
+  type SiteMapCreateFormState,
+  type MapTemplateOption,
+} from './site-map-create-sheet'
 
 interface SiteMapManagerProps {
   eventId?: string
   tourId?: string
   compact?: boolean
+  eventLabel?: string | null
 }
 
-interface CreateForm {
-  name: string
-  description: string
-  environment: string
-  approximateSize: string
-  templateId: string
-  backgroundImage: File | null
-  pixelsPerUnit: string
-  scaleUnit: 'feet' | 'meters'
-}
-
-interface MapTemplateOption {
-  id: string
-  name: string
-  category: string
-  description?: string
-}
-
-const defaultForm: CreateForm = {
-  name: '',
-  description: '',
-  environment: 'outdoor',
-  approximateSize: 'medium',
-  templateId: 'blank',
-  backgroundImage: null,
-  pixelsPerUnit: '1',
-  scaleUnit: 'meters',
-}
-
-const sizePresets = {
-  small: { width: 800, height: 600 },
-  medium: { width: 1200, height: 900 },
-  large: { width: 1600, height: 1200 },
-  xlarge: { width: 2000, height: 1500 },
-}
-
-export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
+export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }: SiteMapManagerProps) {
   const { toast } = useToast()
-  const [createForm, setCreateForm] = useState<CreateForm>(defaultForm)
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [createForm, setCreateForm] = useState<SiteMapCreateFormState>(defaultCreateForm)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
   const [selectedMapId, setSelectedMapId] = useState<string | null>(null)
   const [templates, setTemplates] = useState<MapTemplateOption[]>([])
+  const [openingBuilder, setOpeningBuilder] = useState(false)
 
-  const { siteMaps, loading, createSiteMap, deleteSiteMap, refreshSiteMaps } = useSiteMaps({
+  const { siteMaps, loading, error, createSiteMap, deleteSiteMap, refreshSiteMaps, getSiteMapById, upsertSiteMap } = useSiteMaps({
     eventId,
     tourId,
+    includeData: false,
   })
 
   const selectedSiteMap = useMemo(
     () => siteMaps.find((siteMap) => siteMap.id === selectedMapId) ?? null,
     [siteMaps, selectedMapId]
   )
+
+  useEffect(() => {
+    const deepLinkId = searchParams.get('siteMapId')
+    if (!deepLinkId) return
+    setSelectedMapId(deepLinkId)
+    if (!siteMaps.some((map) => map.id === deepLinkId) && !loading) {
+      void getSiteMapById(deepLinkId)
+    }
+  }, [searchParams, siteMaps, loading, getSiteMapById])
 
   useEffect(() => {
     async function loadTemplates() {
@@ -88,6 +72,36 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
     void loadTemplates()
   }, [])
 
+  useEffect(() => {
+    if (!showCreateDialog || !eventLabel) return
+    setCreateForm((prev) => {
+      if (prev.name.trim()) return prev
+      return { ...prev, name: `${eventLabel} Site Map` }
+    })
+  }, [showCreateDialog, eventLabel])
+
+  function syncSiteMapQuery(siteMapId: string | null) {
+    const next = new URLSearchParams(searchParams.toString())
+    next.set('tab', 'site-maps')
+    if (siteMapId) next.set('siteMapId', siteMapId)
+    else next.delete('siteMapId')
+    const query = next.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }
+
+  function openSiteMap(siteMapId: string) {
+    // Mount editor immediately from local state; URL sync is secondary
+    setOpeningBuilder(true)
+    setSelectedMapId(siteMapId)
+    syncSiteMapQuery(siteMapId)
+    window.setTimeout(() => setOpeningBuilder(false), 400)
+  }
+
+  function closeSiteMap() {
+    setSelectedMapId(null)
+    syncSiteMapQuery(null)
+  }
+
   async function handleCreateSiteMap() {
     if (!createForm.name.trim()) {
       toast({ title: 'Site map name is required', variant: 'destructive' })
@@ -99,13 +113,13 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
       const preset = sizePresets[createForm.approximateSize as keyof typeof sizePresets] ?? sizePresets.medium
       const formData = new FormData()
       formData.append('name', createForm.name.trim())
-      formData.append('description', createForm.description.trim() || createForm.environment)
+      formData.append('description', createForm.description.trim())
       formData.append('width', String(preset.width))
       formData.append('height', String(preset.height))
       formData.append('scale', createForm.pixelsPerUnit || '1')
       formData.append('scaleUnit', createForm.scaleUnit)
       formData.append('templateId', createForm.templateId)
-      formData.append('backgroundColor', '#f8f9fa')
+      formData.append('backgroundColor', '#0f172a')
       formData.append('gridEnabled', 'true')
       formData.append('gridSize', '20')
       formData.append('isPublic', 'false')
@@ -118,18 +132,128 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
         credentials: 'include',
         body: formData,
       })
-      const data = await response.json()
-      if (!data.success) {
-        toast({ title: data.error || 'Failed to create site map', variant: 'destructive' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data.success || !data.data?.id) {
+        toast({
+          title: data.error || 'Failed to create site map',
+          description: data.details || undefined,
+          variant: 'destructive',
+        })
         return
       }
 
-      toast({ title: 'Site map created' })
-      setCreateForm(defaultForm)
+      // Seed list immediately so the editor can mount without waiting on GET
+      upsertSiteMap(data.data)
+      toast({ title: 'Site map created — opening builder' })
+      setCreateForm(defaultCreateForm)
       setShowCreateDialog(false)
-      await refreshSiteMaps()
+      openSiteMap(data.data.id)
+      void getSiteMapById(data.data.id)
+    } catch (err) {
+      toast({
+        title: 'Failed to create site map',
+        description: err instanceof Error ? err.message : 'Network error',
+        variant: 'destructive',
+      })
     } finally {
       setIsCreating(false)
+    }
+  }
+
+  async function copyChildResources(sourceId: string, targetId: string) {
+    const [zonesRes, tentsRes, layersRes, elemsRes] = await Promise.all([
+      fetch(`/api/admin/logistics/site-maps/${sourceId}/zones`, { credentials: 'include' }),
+      fetch(`/api/admin/logistics/site-maps/${sourceId}/tents`, { credentials: 'include' }),
+      fetch(`/api/admin/logistics/site-maps/layers?siteMapId=${sourceId}`, { credentials: 'include' }),
+      fetch(`/api/admin/logistics/site-maps/${sourceId}/elements`, { credentials: 'include' }),
+    ])
+
+    const zonesData = zonesRes.ok ? await zonesRes.json() : { data: [] }
+    const tentsData = tentsRes.ok ? await tentsRes.json() : { data: [] }
+    const layersData = layersRes.ok ? await layersRes.json() : { data: [] }
+    const elemsData = elemsRes.ok ? await elemsRes.json() : { data: [] }
+
+    const layers = layersData?.data ?? []
+    for (const layer of layers) {
+      await fetch('/api/admin/logistics/site-maps/layers', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteMapId: targetId,
+          name: layer.name,
+          layerType: layer.layer_type || layer.layerType || 'custom',
+          color: layer.color,
+          zIndex: layer.z_index ?? layer.zIndex ?? 0,
+          isVisible: layer.is_visible ?? layer.isVisible ?? true,
+          isLocked: layer.is_locked ?? layer.isLocked ?? false,
+        }),
+      })
+    }
+
+    const zones = zonesData?.data ?? []
+    for (const zone of zones) {
+      await fetch(`/api/admin/logistics/site-maps/${targetId}/zones`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: zone.name,
+          zoneType: zone.zone_type || zone.zoneType || 'other',
+          x: zone.x,
+          y: zone.y,
+          width: zone.width,
+          height: zone.height,
+          color: zone.color,
+          borderColor: zone.border_color || zone.borderColor || zone.color,
+          capacity: zone.capacity,
+          tags: zone.tags || [],
+        }),
+      })
+    }
+
+    const tents = tentsData?.data ?? []
+    for (const tent of tents) {
+      await fetch(`/api/admin/logistics/site-maps/${targetId}/tents`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tentNumber: tent.tent_number || tent.tentNumber,
+          tentType: tent.tent_type || tent.tentType || 'custom',
+          width: tent.width,
+          height: tent.height,
+          capacity: tent.capacity,
+          x: tent.x,
+          y: tent.y,
+        }),
+      })
+    }
+
+    const elements: any[] = elemsData?.data ?? []
+    if (elements.length > 0) {
+      await fetch(`/api/admin/logistics/site-maps/${targetId}/elements`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          upsert: true,
+          sync: true,
+          elements: elements.map((el) => ({
+            name: el.name,
+            elementType: el.element_type || el.elementType || 'custom',
+            x: el.x,
+            y: el.y,
+            width: el.width,
+            height: el.height,
+            rotation: el.rotation,
+            color: el.color,
+            strokeColor: el.stroke_color || el.strokeColor,
+            strokeWidth: el.stroke_width || el.strokeWidth,
+            properties: el.properties || {},
+          })),
+        }),
+      })
     }
   }
 
@@ -147,46 +271,15 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
       return
     }
 
-    // Copy all elements from source map to the new map
     try {
-      const elemsResp = await fetch(
-        `/api/admin/logistics/site-maps/${siteMap.id}/elements`,
-        { credentials: 'include' },
-      )
-      if (elemsResp.ok) {
-        const elemsData = await elemsResp.json()
-        const elements: any[] = elemsData?.data ?? []
-        if (elements.length > 0) {
-          await Promise.all(
-            elements.map((el: any) =>
-              fetch(`/api/admin/logistics/site-maps/${created.id}/elements`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  element_type: el.element_type,
-                  name: el.name,
-                  x: el.x,
-                  y: el.y,
-                  width: el.width,
-                  height: el.height,
-                  rotation: el.rotation,
-                  color: el.color,
-                  stroke_color: el.stroke_color,
-                  stroke_width: el.stroke_width,
-                  properties: el.properties,
-                }),
-              }),
-            ),
-          )
-        }
-      }
+      await copyChildResources(siteMap.id, created.id)
     } catch (err) {
-      console.warn('[SiteMapManager] Could not copy elements during duplicate:', err)
+      console.warn('[SiteMapManager] Could not copy child resources during duplicate:', err)
     }
 
     toast({ title: 'Site map duplicated' })
     await refreshSiteMaps()
+    openSiteMap(created.id)
   }
 
   async function handleSaveTemplate(siteMap: any) {
@@ -212,6 +305,21 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
     toast({ title: 'Template saved' })
   }
 
+  async function handlePublishToWorkMode(siteMap: any) {
+    const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/publish-work-mode`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    const data = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      toast({ title: data.error || 'Failed to publish site map', variant: 'destructive' })
+      return
+    }
+
+    toast({ title: 'Site map published to Work Mode' })
+    await refreshSiteMaps()
+  }
+
   async function handleDeleteSiteMap(siteMapId: string) {
     const didDelete = await deleteSiteMap(siteMapId)
     if (!didDelete) {
@@ -219,241 +327,273 @@ export function SiteMapManager({ eventId, tourId }: SiteMapManagerProps) {
       return
     }
 
-    if (selectedMapId === siteMapId) setSelectedMapId(null)
+    if (selectedMapId === siteMapId) closeSiteMap()
     toast({ title: 'Site map deleted' })
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-semibold text-white">Site Maps</h2>
-          <p className="text-sm text-slate-400">Create, edit, and collaborate on event layouts</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Import button */}
-          <label className="cursor-pointer">
-            <input
-              type="file"
-              accept=".json,.sitemapjson"
-              className="hidden"
-              onChange={async (e) => {
-                const file = e.target.files?.[0]
-                if (!file) return
-                try {
-                  const text = await file.text()
-                  const importData = JSON.parse(text)
-                  const res = await fetch('/api/admin/logistics/site-maps/import', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ importData, eventId, tourId }),
-                  })
-                  if (res.ok) {
-                    toast({ title: 'Site map imported successfully' })
-                    await refreshSiteMaps()
-                  } else {
-                    toast({ title: 'Import failed', variant: 'destructive' })
-                  }
-                } catch {
-                  toast({ title: 'Invalid file format', variant: 'destructive' })
-                }
-                e.target.value = ''
-              }}
-            />
-            <Button variant="outline" className="border-slate-700 text-slate-300" asChild>
-              <span><Upload className="h-4 w-4 mr-2" />Import</span>
-            </Button>
-          </label>
+  const scopeLabel = eventLabel || (eventId ? 'Event scoped' : tourId ? 'Tour scoped' : 'No event linked')
 
-        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-              <Plus className="h-4 w-4 mr-2" />
+  return (
+    <div className="space-y-5">
+      {!compact && (
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-white">Site Maps</h2>
+            <p className="text-sm text-slate-400">Create, edit, and publish event layouts</p>
+            <Badge
+              variant="outline"
+              className={cn(
+                'mt-2 text-[10px] uppercase tracking-wide',
+                eventId || tourId
+                  ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100'
+                  : 'border-amber-400/30 bg-amber-400/10 text-amber-100'
+              )}
+            >
+              {scopeLabel}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".json,.sitemapjson"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  try {
+                    const text = await file.text()
+                    const importData = JSON.parse(text)
+                    const res = await fetch('/api/admin/logistics/site-maps/import', {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ importData, eventId, tourId }),
+                    })
+                    if (res.ok) {
+                      toast({ title: 'Site map imported successfully' })
+                      await refreshSiteMaps()
+                    } else {
+                      toast({ title: 'Import failed', variant: 'destructive' })
+                    }
+                  } catch {
+                    toast({ title: 'Invalid file format', variant: 'destructive' })
+                  }
+                  e.target.value = ''
+                }}
+              />
+              <Button variant="outline" className="border-slate-600 text-slate-200" asChild>
+                <span>
+                  <Upload className="mr-2 h-4 w-4" />
+                  Import
+                </span>
+              </Button>
+            </label>
+            <Button
+              className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+              onClick={() => setShowCreateDialog(true)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
               New Site Map
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-xl bg-slate-900 border-slate-700">
-            <DialogHeader>
-              <DialogTitle className="text-white">Create Site Map</DialogTitle>
-            </DialogHeader>
+          </div>
+        </div>
+      )}
 
-            <div className="space-y-4">
-              <div>
-                <Label className="text-slate-300">Name</Label>
-                <Input
-                  value={createForm.name}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
-                  className="bg-slate-800 border-slate-700 text-white"
-                />
-              </div>
+      {compact && (
+        <div className="flex items-center justify-between gap-2">
+          <Badge
+            variant="outline"
+            className={cn(
+              'text-[10px] uppercase tracking-wide',
+              eventId || tourId
+                ? 'border-cyan-400/30 bg-cyan-400/10 text-cyan-100'
+                : 'border-amber-400/30 bg-amber-400/10 text-amber-100'
+            )}
+          >
+            {scopeLabel}
+          </Badge>
+          <Button
+            size="sm"
+            className="bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+            onClick={() => setShowCreateDialog(true)}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            New
+          </Button>
+        </div>
+      )}
 
-              <div>
-                <Label className="text-slate-300">Description</Label>
-                <Textarea
-                  value={createForm.description}
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, description: event.target.value }))}
-                  className="bg-slate-800 border-slate-700 text-white"
-                />
-              </div>
+      <SiteMapCreateSheet
+        open={showCreateDialog}
+        onOpenChange={setShowCreateDialog}
+        form={createForm}
+        onFormChange={setCreateForm}
+        templates={templates}
+        eventId={eventId}
+        tourId={tourId}
+        eventLabel={eventLabel}
+        isCreating={isCreating}
+        onSubmit={handleCreateSiteMap}
+      />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Environment</Label>
-                  <Select value={createForm.environment} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, environment: value }))}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="outdoor">Outdoor</SelectItem>
-                      <SelectItem value="indoor">Indoor</SelectItem>
-                      <SelectItem value="mixed">Mixed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label className="text-slate-300">Size</Label>
-                  <Select value={createForm.approximateSize} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, approximateSize: value }))}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="small">Small</SelectItem>
-                      <SelectItem value="medium">Medium</SelectItem>
-                      <SelectItem value="large">Large</SelectItem>
-                      <SelectItem value="xlarge">X-Large</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
-                <Label className="text-slate-300">Template</Label>
-                <Select value={createForm.templateId} onValueChange={(value) => setCreateForm((prev) => ({ ...prev, templateId: value }))}>
-                  <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="blank">Blank</SelectItem>
-                    {templates.map((template) => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label className="text-slate-300">Floor Plan / Aerial (optional)</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  className="bg-slate-800 border-slate-700 text-white"
-                  onChange={(event) => setCreateForm((prev) => ({ ...prev, backgroundImage: event.target.files?.[0] || null }))}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-slate-300">Pixels Per Unit</Label>
-                  <Input
-                    type="number"
-                    min="0.1"
-                    step="0.1"
-                    value={createForm.pixelsPerUnit}
-                    onChange={(event) => setCreateForm((prev) => ({ ...prev, pixelsPerUnit: event.target.value }))}
-                    className="bg-slate-800 border-slate-700 text-white"
-                  />
-                </div>
-                <div>
-                  <Label className="text-slate-300">Unit</Label>
-                  <Select value={createForm.scaleUnit} onValueChange={(value: 'feet' | 'meters') => setCreateForm((prev) => ({ ...prev, scaleUnit: value }))}>
-                    <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="meters">Meters</SelectItem>
-                      <SelectItem value="feet">Feet</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex justify-end">
-                <Button onClick={handleCreateSiteMap} disabled={isCreating || !createForm.name.trim()}>
-                  {isCreating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
-                  Create Site Map
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-        </div>{/* end button group */}
-      </div>
-
-      {loading ? (
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="py-12 flex items-center justify-center">
-            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-          </CardContent>
-        </Card>
-      ) : siteMaps.length === 0 ? (
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="py-12 text-center">
-            <Map className="h-12 w-12 mx-auto text-slate-500 mb-3" />
-            <p className="text-white font-medium">No site maps yet</p>
-            <p className="text-sm text-slate-400">Create one to start planning your event layout.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {siteMaps.map((siteMap) => (
-            <Card key={siteMap.id} className="bg-slate-900/50 border-slate-700/50 hover:border-purple-500/40 cursor-pointer" onClick={() => setSelectedMapId(siteMap.id)}>
-              <CardHeader>
-                <CardTitle className="flex items-center justify-between text-white">
-                  <span>{siteMap.name}</span>
-                  <Badge>{siteMap.status}</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-slate-400">{siteMap.description || 'No description provided'}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <span className="text-xs text-slate-500">{siteMap.width} x {siteMap.height} • {formatSafeDate(siteMap.created_at)}</span>
-                  <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void handleDuplicateSiteMap(siteMap) }}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm" variant="ghost"
-                      onClick={async (event) => {
-                        event.stopPropagation()
-                        try {
-                          const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/export`, { credentials: 'include' })
-                          if (res.ok) {
-                            const data = await res.json()
-                            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-                            const url = URL.createObjectURL(blob)
-                            const a = document.createElement('a'); a.href = url; a.download = `${siteMap.name.replace(/\s+/g, '-')}.sitemapjson`; a.click()
-                            URL.revokeObjectURL(url)
-                          }
-                        } catch { toast({ title: 'Export failed', variant: 'destructive' }) }
-                      }}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void handleSaveTemplate(siteMap) }}>
-                      Template
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={(event) => { event.stopPropagation(); void handleDeleteSiteMap(siteMap.id) }}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+      {error ? (
+        <AdminSurfaceCard className="border-rose-500/30 bg-rose-950/20 p-6">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <AlertCircle className="h-8 w-8 text-rose-400" />
+            <p className="text-sm text-rose-100">{error}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-rose-400/40 text-rose-100"
+              onClick={() => void refreshSiteMaps()}
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Retry
+            </Button>
+          </div>
+        </AdminSurfaceCard>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-32 animate-pulse rounded-2xl border border-slate-700/50 bg-slate-900/50"
+            />
           ))}
+        </div>
+      ) : siteMaps.length === 0 ? (
+        <AdminEmptyState
+          icon={Map}
+          title="No site maps yet"
+          description="Create a layout to assign zones, pin load-in tasks, and publish to Work Mode."
+          action={{ label: 'Create site map', onClick: () => setShowCreateDialog(true) }}
+        />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {siteMaps.map((siteMap) => (
+            <AdminSurfaceCard
+              key={siteMap.id}
+              className="group cursor-pointer border-slate-700/50 bg-slate-950/60 p-4 transition hover:-translate-y-0.5 hover:border-cyan-400/30"
+              onClick={() => openSiteMap(siteMap.id)}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate font-semibold text-white">{siteMap.name}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs text-slate-400">
+                    {siteMap.description || 'No description'}
+                  </p>
+                </div>
+                <Badge
+                  className={cn(
+                    'shrink-0 capitalize',
+                    siteMap.status === 'published'
+                      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+                      : 'border-slate-600 bg-slate-800 text-slate-300'
+                  )}
+                >
+                  {siteMap.status || 'draft'}
+                </Badge>
+              </div>
+              <div className="mt-4 flex items-center justify-between gap-2">
+                <span className="text-[11px] text-slate-500">
+                  {siteMap.width}×{siteMap.height} · {formatSafeDate(siteMap.updated_at || siteMap.created_at)}
+                </span>
+                <div className="flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-slate-400"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handleDuplicateSiteMap(siteMap)
+                    }}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-slate-400"
+                    onClick={async (event) => {
+                      event.stopPropagation()
+                      try {
+                        const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/export`, {
+                          credentials: 'include',
+                        })
+                        if (res.ok) {
+                          const data = await res.json()
+                          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                          const url = URL.createObjectURL(blob)
+                          const a = document.createElement('a')
+                          a.href = url
+                          a.download = `${siteMap.name.replace(/\s+/g, '-')}.sitemapjson`
+                          a.click()
+                          URL.revokeObjectURL(url)
+                        }
+                      } catch {
+                        toast({ title: 'Export failed', variant: 'destructive' })
+                      }
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 text-[10px] text-slate-400"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handleSaveTemplate(siteMap)
+                    }}
+                  >
+                    Template
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-emerald-400"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handlePublishToWorkMode(siteMap)
+                    }}
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 w-7 p-0 text-rose-400"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      void handleDeleteSiteMap(siteMap.id)
+                    }}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            </AdminSurfaceCard>
+          ))}
+        </div>
+      )}
+
+      {openingBuilder && !selectedSiteMap && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 text-sm text-slate-200 backdrop-blur-sm">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin text-cyan-300" />
+          Opening builder…
         </div>
       )}
 
       {selectedSiteMap ? (
         <SiteMapEditor
           siteMap={selectedSiteMap as any}
-          onClose={() => setSelectedMapId(null)}
+          onClose={closeSiteMap}
           onSave={() => void refreshSiteMaps()}
           onDelete={(siteMapId: string) => void handleDeleteSiteMap(siteMapId)}
+          onPublish={async (siteMap) => {
+            await handlePublishToWorkMode(siteMap)
+          }}
           eventId={eventId}
         />
       ) : null}

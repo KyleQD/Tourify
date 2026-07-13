@@ -3,7 +3,9 @@ import { createClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
-const CURRENT_AGREEMENT_VERSION = "1.0"
+import { SELLER_AGREEMENT_VERSION } from "@/components/legal/legal-constants"
+
+const CURRENT_AGREEMENT_VERSION = SELLER_AGREEMENT_VERSION
 
 export async function GET(request: NextRequest) {
   try {
