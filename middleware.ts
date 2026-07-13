@@ -4,6 +4,7 @@ import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
 import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
+import { isProductionBlockedPathname } from '@/lib/routing/production-blocked-routes'
 
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request)
@@ -52,20 +53,16 @@ export async function middleware(request: NextRequest) {
     '/jobs',
   ]
 
-  const productionBlockedPrefixes = ['/debug', '/migrations/sql']
-
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAnonymousPublicShareRoute = isPublicShareRoute(pathname)
   const isRootRoute = pathname === '/'
 
   const isProduction = process.env.NODE_ENV === 'production'
-  const isProductionBlockedRoute = productionBlockedPrefixes.some(prefix =>
-    pathname.startsWith(prefix)
-  )
+  const isProductionBlockedRoute = isProductionBlockedPathname(pathname)
 
   if (isProduction && isProductionBlockedRoute) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return new NextResponse(null, { status: 404 })
   }
 
   if (pathname === '/News' || pathname.startsWith('/News/')) {
@@ -109,9 +106,6 @@ export async function middleware(request: NextRequest) {
   if (user && (pathname.startsWith('/admin') || pathname.startsWith('/api/admin'))) {
     try {
       const hasAdminAccess = await userHasAdminSurfaceAccess(supabase as never, user.id)
-      // #region agent log
-      fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'10665a'},body:JSON.stringify({sessionId:'10665a',runId:'pre-fix',hypothesisId:'C',location:'middleware.ts:admin-access',message:'middleware admin access check',data:{pathname,hasAdminAccess,userIdPrefix:user.id.slice(0,8)},timestamp:Date.now()})}).catch(()=>{})
-      // #endregion
       if (!hasAdminAccess) {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -119,9 +113,6 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch (error) {
-      // #region agent log
-      fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'10665a'},body:JSON.stringify({sessionId:'10665a',runId:'pre-fix',hypothesisId:'C',location:'middleware.ts:admin-access-error',message:'middleware admin access threw',data:{pathname,errorMessage:error instanceof Error?error.message:String(error)},timestamp:Date.now()})}).catch(()=>{})
-      // #endregion
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }

@@ -1,5 +1,15 @@
 import type { JukeboxTrack } from "@/contexts/jukebox-context"
 
+export function resolveJukeboxCoverUrl(
+  trackId?: string | null,
+  coverUrl?: string | null
+): string | undefined {
+  if (!coverUrl) return undefined
+  if (coverUrl.startsWith("/api/music/cover")) return coverUrl
+  if (!trackId) return coverUrl
+  return `/api/music/cover?trackId=${encodeURIComponent(trackId)}`
+}
+
 interface FeedTrack {
   id: string
   title: string
@@ -23,10 +33,13 @@ function feedTrackToJukeboxTrack(item: FeedTrack): JukeboxTrack {
     artist_id: item.author?.id,
     artist_avatar_url: item.author?.avatar_url || undefined,
     duration: item.metadata?.duration ?? undefined,
-    file_url: item.metadata?.url || "",
-    cover_art_url: item.cover_image || undefined,
+    file_url: item.metadata?.url || `/api/music/stream?trackId=${item.id}`,
+    cover_art_url: resolveJukeboxCoverUrl(item.id, item.cover_image),
     genre: item.metadata?.genre || undefined,
     tags: item.metadata?.tags || [],
+    listing_id: (item.metadata as any)?.listingId || (item.metadata as any)?.listing_id || null,
+    access_mode: (item.metadata as any)?.accessMode || (item.metadata as any)?.access_mode || undefined,
+    allow_library_add: (item.metadata as any)?.allowLibraryAdd ?? (item.metadata as any)?.allow_library_add,
   }
 }
 
@@ -49,7 +62,7 @@ export async function fetchDiscoverTracks({
   if (!res.ok) return []
   const json = await res.json()
   const items: FeedTrack[] = json.content || []
-  return items.filter((t) => t.metadata?.url).map(feedTrackToJukeboxTrack)
+  return items.filter((t) => Boolean(t.id)).map(feedTrackToJukeboxTrack)
 }
 
 export async function fetchFollowingTracks({
@@ -72,7 +85,14 @@ export async function fetchFollowingTracks({
     cache: "no-store",
   })
   if (!res.ok) return { data: [], total: 0 }
-  return res.json()
+  const json = await res.json()
+  const data = Array.isArray(json.data)
+    ? json.data.map((track: JukeboxTrack) => ({
+        ...track,
+        cover_art_url: resolveJukeboxCoverUrl(track.id, track.cover_art_url),
+      }))
+    : []
+  return { data, total: json.total ?? data.length }
 }
 
 export interface JukeboxPlaylist {
@@ -118,17 +138,23 @@ export function playlistItemsToTracks(
   items: JukeboxPlaylistItem[]
 ): JukeboxTrack[] {
   return items
-    .filter((item) => item.artist_music?.file_url)
-    .map((item) => ({
-      id: item.artist_music!.id,
-      title: item.artist_music!.title,
-      artist_name: "Artist",
-      artist_id: item.artist_music!.user_id,
-      duration: item.artist_music!.duration ?? undefined,
-      file_url: item.artist_music!.file_url!,
-      cover_art_url: item.artist_music!.cover_art_url ?? undefined,
-      genre: item.artist_music!.genre ?? undefined,
-    }))
+    .filter((item) => item.artist_music?.id || item.music_track_id)
+    .map((item) => {
+      const trackId = item.artist_music?.id || item.music_track_id
+      return {
+        id: trackId,
+        title: item.artist_music?.title || "Untitled",
+        artist_name: "Artist",
+        artist_id: item.artist_music?.user_id,
+        duration: item.artist_music?.duration ?? undefined,
+        file_url: item.artist_music?.file_url || `/api/music/stream?trackId=${trackId}`,
+        cover_art_url: resolveJukeboxCoverUrl(
+          trackId,
+          item.artist_music?.cover_art_url
+        ),
+        genre: item.artist_music?.genre ?? undefined,
+      }
+    })
 }
 
 export async function createPlaylist(
@@ -192,17 +218,89 @@ export async function fetchLibraryTracks(): Promise<JukeboxTrack[]> {
   const json = await res.json()
   const items: LibraryItem[] = Array.isArray(json.data) ? json.data : []
   return items
-    .filter((item) => item.artist_music?.file_url)
-    .map((item) => ({
-      id: item.artist_music!.id,
-      title: item.artist_music!.title,
-      artist_name: "Artist",
-      duration: item.artist_music!.duration ?? undefined,
-      file_url: item.artist_music!.file_url!,
-      cover_art_url: item.artist_music!.cover_art_url ?? undefined,
-      genre: item.artist_music!.genre ?? undefined,
-      in_library: true,
-    }))
+    .filter((item) => item.artist_music?.id || item.music_track_id)
+    .map((item) => {
+      const trackId = item.artist_music?.id || item.music_track_id
+      return {
+        id: trackId,
+        title: item.artist_music?.title || "Untitled",
+        artist_name: "Artist",
+        duration: item.artist_music?.duration ?? undefined,
+        file_url: item.artist_music?.file_url || `/api/music/stream?trackId=${trackId}`,
+        cover_art_url: resolveJukeboxCoverUrl(
+          trackId,
+          item.artist_music?.cover_art_url
+        ),
+        genre: item.artist_music?.genre ?? undefined,
+        in_library: true,
+      }
+    })
+}
+
+export async function checkLibraryStatus(musicId: string): Promise<boolean> {
+  const res = await fetch(`/api/music/library?musicId=${encodeURIComponent(musicId)}`, {
+    credentials: "include",
+    cache: "no-store",
+  })
+  if (!res.ok) return false
+  const json = await res.json()
+  return json.inLibrary === true
+}
+
+export async function fetchSocialStatus(
+  musicIds: string[]
+): Promise<Record<string, { liked: boolean; inLibrary: boolean }>> {
+  const ids = Array.from(new Set(musicIds.filter(Boolean)))
+  if (ids.length === 0) return {}
+
+  const res = await fetch("/api/music/social-status", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ musicIds: ids.slice(0, 100) }),
+  })
+  if (!res.ok) return {}
+  const json = await res.json()
+  return (json.data || {}) as Record<string, { liked: boolean; inLibrary: boolean }>
+}
+
+export async function addTrackToLibrary(
+  musicId: string
+): Promise<{ ok: boolean; alreadyInLibrary?: boolean; message?: string }> {
+  const res = await fetch("/api/music/library", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ musicId }),
+  })
+
+  if (res.ok) {
+    const json = await res.json()
+    return {
+      ok: true,
+      alreadyInLibrary: Boolean(json.data?.source && json.data.source !== "free_add"),
+    }
+  }
+
+  let message = "Failed to add to library"
+  try {
+    const body = await res.json()
+    message = extractApiErrorMessage(body, message)
+  } catch {}
+
+  return { ok: false, message }
+}
+
+function extractApiErrorMessage(body: unknown, fallback: string): string {
+  if (!body || typeof body !== "object") return fallback
+  const record = body as Record<string, unknown>
+  if (typeof record.message === "string" && record.message.trim()) return record.message
+  if (typeof record.error === "string" && record.error.trim()) return record.error
+  if (record.error && typeof record.error === "object") {
+    const nested = record.error as Record<string, unknown>
+    if (typeof nested.message === "string" && nested.message.trim()) return nested.message
+  }
+  return fallback
 }
 
 export async function toggleLike(
@@ -331,7 +429,7 @@ export async function fetchArtistTracks({
     artist_name: "You",
     duration: t.duration ?? undefined,
     file_url: t.file_url || "",
-    cover_art_url: t.cover_art_url ?? undefined,
+    cover_art_url: resolveJukeboxCoverUrl(t.id, t.cover_art_url),
     genre: t.genre ?? undefined,
     tags: t.tags ?? [],
     is_public: t.is_public,
@@ -366,7 +464,14 @@ export async function fetchFavoriteTracks({
     cache: "no-store",
   })
   if (!res.ok) return { data: [], total: 0 }
-  return res.json()
+  const json = await res.json()
+  const data = Array.isArray(json.data)
+    ? json.data.map((track: JukeboxTrack) => ({
+        ...track,
+        cover_art_url: resolveJukeboxCoverUrl(track.id, track.cover_art_url),
+      }))
+    : []
+  return { data, total: json.total ?? data.length }
 }
 
 export async function fetchUserFavoritesForProfile(

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { isAuthorizedInternalRequest, unauthorizedResponse } from "@/lib/auth/route-guards"
 
 const backfillSchema = z.object({
   dryRun: z.boolean().optional(),
@@ -9,7 +10,9 @@ const backfillSchema = z.object({
 
 export const dynamic = "force-dynamic"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
+
   try {
     const supabase = await createClient()
     const {
@@ -45,6 +48,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isAuthorizedInternalRequest(request)) return unauthorizedResponse()
+
   try {
     const supabase = await createClient()
     const {

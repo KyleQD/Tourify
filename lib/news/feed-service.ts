@@ -6,8 +6,12 @@ import {
   rankNewsItem,
   sortNewsByScore
 } from '@/lib/news/ranking'
-import type { NewsFeedItem, NewsFeedQuery, RankedNewsFeedResult } from '@/lib/news/types'
+import { getBlogAccountAuthor } from '@/lib/blog/account-author'
+import { accountAuthorNeedsRefresh } from '@/lib/accounts/account-author'
+import { resolveAccountAuthorSnapshot } from '@/lib/accounts/acting-account-snapshot'
+import type { NewsCategory, NewsFeedItem, NewsFeedQuery, RankedNewsFeedResult } from '@/lib/news/types'
 import { chooseFanoutStrategy } from '@/lib/news/scale/hybrid-fanout'
+import { fetchFeedPostsWithFallback } from '@/lib/feed/feed-posts-query'
 
 interface BuildNewsFeedParams extends NewsFeedQuery {
   requestOrigin: string
@@ -32,31 +36,49 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
     userId: params.userId
   })
 
-  const [externalCandidates, blogCandidates] = await Promise.all([
+  const [externalCandidates, blogCandidates, postCandidates, musicCandidates, eventCandidates] = await Promise.all([
     fetchExternalCandidates({
       requestOrigin: params.requestOrigin,
       limit: 240,
       subscribedTopics: userSignals.subscribedTopics,
       preferredLocations: userSignals.preferredLocations
     }),
-    fetchBlogCandidates({ supabase: params.supabase, limit: 30 })
+    fetchBlogCandidates({ supabase: params.supabase, limit: 60 }),
+    fetchPostCandidates({ supabase: params.supabase, limit: 60 }),
+    fetchMusicCandidates({ supabase: params.supabase, limit: 60 }),
+    fetchEventCandidates({
+      supabase: params.supabase,
+      limit: 60,
+      preferredLocations: userSignals.preferredLocations
+    })
   ])
 
-  const mergedCandidates = [...externalCandidates, ...blogCandidates]
+  const mergedCandidates = dedupeNewsItems([
+    ...externalCandidates,
+    ...blogCandidates,
+    ...postCandidates,
+    ...musicCandidates,
+    ...eventCandidates
+  ])
   const filteredByFacet = filterByFacet({
     items: mergedCandidates,
     facet: params.facet,
     followedAuthorIds: userSignals.followedAuthorIds,
     preferredLocations: userSignals.preferredLocations
   })
-  const filteredByQuery = filterByQuery({
+  const filteredByCategory = filterByCategory({
     items: filteredByFacet,
+    category: params.category
+  })
+  const filteredByQuery = filterByQuery({
+    items: filteredByCategory,
     query: params.query
   })
   const effectiveCandidates = pickEffectiveCandidates({
     filteredByQuery,
-    filteredByFacet,
-    mergedCandidates
+    filteredByFacet: filteredByCategory,
+    mergedCandidates,
+    hasStrictFilter: Boolean(params.category && params.category !== 'featured') || Boolean(params.query?.trim())
   })
 
   const ranked = effectiveCandidates.map(item =>
@@ -264,24 +286,16 @@ async function getUserPreferenceData(params: { supabase: SupabaseClient; userId?
 
 async function fetchPostCandidates(params: { supabase: SupabaseClient; limit: number }): Promise<NewsFeedItem[]> {
   try {
-    const { data } = await params.supabase
-      .from('posts')
-      .select(`
-        id,
-        content,
-        likes_count,
-        comments_count,
-        created_at,
-        user_id,
-        profiles:user_id (
-          id,
-          username,
-          avatar_url,
-          verified
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(params.limit)
+    const { data } = await fetchFeedPostsWithFallback(
+      params.supabase,
+      {
+        type: 'all',
+        userIdParam: null,
+        profileIdFilter: null
+      },
+      params.limit,
+      0
+    )
 
     return (data || []).map(post => {
       const profile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
@@ -298,18 +312,18 @@ async function fetchPostCandidates(params: { supabase: SupabaseClient; limit: nu
         title: toTitle(post.content),
         summary: post.content || '',
         publishedAt: post.created_at,
-        topics: ['Community', 'Music News'],
+        topics: normalizeTopics([...(Array.isArray(post.hashtags) ? post.hashtags : []), 'Community', 'Music News']),
         author: {
           id: String(post.user_id),
-          name: profile?.username || 'User',
+          name: post.account_display_name || profile?.full_name || profile?.username || 'User',
           username: profile?.username || 'user',
           avatarUrl: profile?.avatar_url || undefined,
-          isVerified: profile?.verified || false
+          isVerified: profile?.is_verified || false
         },
         metrics: {
           likes: post.likes_count || 0,
           comments: post.comments_count || 0,
-          shares: 0,
+          shares: post.shares_count || 0,
           views: 0
         },
         moderation: {
@@ -343,20 +357,27 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
         published_at,
         created_at,
         user_id,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url,
-          verified
-        )
+        posted_as_profile_id,
+        posted_as_type,
+        account_display_name,
+        account_username,
+        account_avatar_url,
+        account_is_verified
       `)
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(params.limit)
 
-    return (data || []).map(blog => {
-      const profile = Array.isArray(blog.profiles) ? blog.profiles[0] : blog.profiles
+    return Promise.all((data || []).map(async blog => {
+      const author = accountAuthorNeedsRefresh(blog)
+        ? await resolveAccountAuthorSnapshot({
+          supabase: params.supabase,
+          accountType: blog.posted_as_type || 'general',
+          profileId: blog.posted_as_profile_id || blog.user_id,
+          userId: blog.user_id,
+        })
+        : getBlogAccountAuthor(blog)
+
       return ({
       id: `blog_${blog.id}`,
       originType: 'internal_blog',
@@ -369,11 +390,11 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
       publishedAt: blog.published_at || blog.created_at,
       topics: normalizeTopics([...(blog.categories || []), ...(blog.tags || []), 'Industry']),
       author: {
-        id: String(blog.user_id),
-        name: profile?.full_name || profile?.username || 'Author',
-        username: profile?.username || undefined,
-        avatarUrl: profile?.avatar_url || undefined,
-        isVerified: profile?.verified || false
+        id: author.id || String(blog.user_id),
+        name: author.name,
+        username: author.username || undefined,
+        avatarUrl: author.avatarUrl || undefined,
+        isVerified: author.isVerified
       },
       metrics: {
         likes: blog.stats?.likes || 0,
@@ -389,7 +410,7 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
       relevanceScore: 0,
       score: 0
     })
-    })
+    }))
   } catch {
     return []
   }
@@ -672,6 +693,79 @@ function filterByFacet(params: {
   return items
 }
 
+function filterByCategory(params: {
+  items: NewsFeedItem[]
+  category?: NewsCategory
+}): NewsFeedItem[] {
+  const { items, category } = params
+  if (!category || category === 'featured') return items
+
+  return items.filter(item => itemMatchesCategory(item, category))
+}
+
+function itemMatchesCategory(item: NewsFeedItem, category: NewsCategory): boolean {
+  const searchable = `${item.id} ${item.originType} ${item.sourceType} ${item.sourceName} ${item.title} ${item.summary} ${item.topics.join(' ')}`.toLowerCase()
+
+  if (category === 'new-music') {
+    return (
+      item.id.startsWith('music_') ||
+      searchable.includes('music release') ||
+      searchable.includes('new release') ||
+      searchable.includes('album') ||
+      searchable.includes('single') ||
+      searchable.includes('track') ||
+      searchable.includes('song')
+    )
+  }
+
+  if (category === 'events') {
+    return (
+      item.id.startsWith('event_') ||
+      item.id.startsWith('eventv2_') ||
+      searchable.includes('live event') ||
+      searchable.includes('festival') ||
+      searchable.includes('concert') ||
+      searchable.includes('tour date') ||
+      searchable.includes('lineup')
+    )
+  }
+
+  if (category === 'gossip') {
+    return (
+      item.moderation.trustLabel === 'developing_story' ||
+      searchable.includes('gossip') ||
+      searchable.includes('rumor') ||
+      searchable.includes('viral') ||
+      searchable.includes('controversy') ||
+      searchable.includes('trending')
+    )
+  }
+
+  if (category === 'editorial') {
+    return (
+      item.originType === 'internal_blog' ||
+      searchable.includes('editorial') ||
+      searchable.includes('review') ||
+      searchable.includes('interview') ||
+      searchable.includes('opinion') ||
+      searchable.includes('industry')
+    )
+  }
+
+  if (category === 'global') {
+    return (
+      item.sourceType === 'publisher' ||
+      searchable.includes('global') ||
+      searchable.includes('world') ||
+      searchable.includes('international') ||
+      searchable.includes('culture') ||
+      searchable.includes('music news')
+    )
+  }
+
+  return true
+}
+
 function filterByQuery(params: { items: NewsFeedItem[]; query?: string }): NewsFeedItem[] {
   const trimmedQuery = params.query?.trim().toLowerCase()
   if (!trimmedQuery) return params.items
@@ -719,7 +813,9 @@ function pickEffectiveCandidates(params: {
   filteredByQuery: NewsFeedItem[]
   filteredByFacet: NewsFeedItem[]
   mergedCandidates: NewsFeedItem[]
+  hasStrictFilter?: boolean
 }): NewsFeedItem[] {
+  if (params.hasStrictFilter) return params.filteredByQuery
   if (params.filteredByQuery.length) return params.filteredByQuery
   if (params.filteredByFacet.length) return params.filteredByFacet
   return params.mergedCandidates
@@ -731,6 +827,20 @@ function dedupeExternalItems(items: any[]) {
 
   for (const item of items) {
     const key = String(item.link || item.id || '').trim().toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    deduped.push(item)
+  }
+
+  return deduped
+}
+
+function dedupeNewsItems(items: NewsFeedItem[]) {
+  const seen = new Set<string>()
+  const deduped: NewsFeedItem[] = []
+
+  for (const item of items) {
+    const key = String(item.url || item.id || item.title).trim().toLowerCase()
     if (!key || seen.has(key)) continue
     seen.add(key)
     deduped.push(item)

@@ -44,10 +44,14 @@ export interface NewsFeedCursor {
   id: string
 }
 
+export type NewsFacet = 'top' | 'following' | 'local' | 'industry' | 'gossip' | 'verified'
+export type NewsCategory = 'featured' | 'new-music' | 'events' | 'gossip' | 'editorial' | 'global'
+
 export interface NewsFeedQuery {
   limit: number
   cursor?: string
-  facet: 'top' | 'following' | 'local' | 'industry' | 'gossip' | 'verified'
+  facet: NewsFacet
+  category?: NewsCategory
   query?: string
   userId?: string
 }

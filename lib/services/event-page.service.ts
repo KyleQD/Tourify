@@ -1,10 +1,16 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 type EventTableName = 'artist_events' | 'events' | 'events_v2'
 
 export class EventPageService {
   private static instance: EventPageService
-  private supabase = createServiceRoleClient()
+  private _supabase: SupabaseClient | null = null
+
+  private get supabase() {
+    if (!this._supabase) this._supabase = createServiceRoleClient()
+    return this._supabase
+  }
 
   static getInstance(): EventPageService {
     if (!EventPageService.instance) {
@@ -404,4 +410,4 @@ export class EventPageService {
 }
 
 // Export singleton instance
-export const eventPageService = EventPageService.getInstance() 
+export const eventPageService = EventPageService.getInstance()

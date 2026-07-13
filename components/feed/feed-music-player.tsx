@@ -1,26 +1,22 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Play, 
-  Pause, 
-  Volume2, 
+import {
+  Play,
+  Pause,
+  Volume2,
   VolumeX,
   Heart,
   MessageCircle,
   Share2,
   MoreHorizontal,
-  Clock,
-  Users,
-  SkipBack,
-  SkipForward
+  BookmarkPlus,
+  BookmarkCheck,
+  Maximize2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { 
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,6 +24,10 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
+import { useJukeboxOptional } from '@/contexts/jukebox-context'
+import { useTrackSocialState } from '@/components/jukebox/player-actions'
+import { TrackCoverImage } from '@/components/jukebox/track-cover-image'
+import { resolveJukeboxCoverUrl } from '@/lib/services/jukebox.service'
 
 interface MusicTrack {
   id: string
@@ -63,112 +63,123 @@ interface FeedMusicPlayerProps {
   onLike?: (trackId: string) => void
   onShare?: (trackId: string) => void
   onComment?: (trackId: string) => void
+  onViewMore?: (trackId: string) => void
   isLiked?: boolean
   className?: string
   compact?: boolean
+  playSource?: string
 }
 
-export function FeedMusicPlayer({ 
-  track, 
-  onLike, 
-  onShare, 
+export function FeedMusicPlayer({
+  track,
+  onLike,
+  onShare,
   onComment,
+  onViewMore,
   isLiked = false,
   className = '',
-  compact = false
+  compact = false,
+  playSource = 'jukebox',
 }: FeedMusicPlayerProps) {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(track.duration || 0)
-  const [volume, setVolume] = useState(1)
-  const [isMuted, setIsMuted] = useState(false)
-  const [showWaveform, setShowWaveform] = useState(false)
-  
-  const audioRef = useRef<HTMLAudioElement>(null)
-  const progressRef = useRef<HTMLDivElement>(null)
+  const jukebox = useJukeboxOptional()
+  const {
+    isLiked: trackLiked,
+    inLibrary,
+    isLibraryLoading,
+    handleLike: handleTrackLike,
+    handleAddToLibrary,
+  } = useTrackSocialState({
+    trackId: track.id,
+    initialLiked: isLiked,
+  })
 
-  useEffect(() => {
-    const audio = audioRef.current
-    if (!audio) return
+  const liked = trackLiked || isLiked
 
-    const updateTime = () => setCurrentTime(audio.currentTime)
-    const updateDuration = () => setDuration(audio.duration || 0)
-    const handleEnded = () => setIsPlaying(false)
-    const handleLoadStart = () => setIsLoading(true)
-    const handleCanPlay = () => setIsLoading(false)
+  const isCurrentTrack = jukebox?.state.currentTrack?.id === track.id
+  const isPlaying = Boolean(isCurrentTrack && jukebox?.state.isPlaying)
+  const currentTime = isCurrentTrack ? jukebox?.state.currentTime || 0 : 0
+  const duration =
+    isCurrentTrack && jukebox?.state.duration
+      ? jukebox.state.duration
+      : track.duration || 0
+  const volume = jukebox?.state.volume ?? 1
+  const isMuted = jukebox?.state.isMuted ?? false
 
-    audio.addEventListener('timeupdate', updateTime)
-    audio.addEventListener('loadedmetadata', updateDuration)
-    audio.addEventListener('ended', handleEnded)
-    audio.addEventListener('loadstart', handleLoadStart)
-    audio.addEventListener('canplay', handleCanPlay)
-
-    return () => {
-      audio.removeEventListener('timeupdate', updateTime)
-      audio.removeEventListener('loadedmetadata', updateDuration)
-      audio.removeEventListener('ended', handleEnded)
-      audio.removeEventListener('loadstart', handleLoadStart)
-      audio.removeEventListener('canplay', handleCanPlay)
+  const handlePlayPause = () => {
+    if (!jukebox) {
+      toast.error('Music player is unavailable')
+      return
     }
-  }, [])
 
-  const handlePlayPause = async () => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    try {
-      if (isPlaying) {
-        audio.pause()
-        setIsPlaying(false)
-      } else {
-        setIsLoading(true)
-        await audio.play()
-        setIsPlaying(true)
-      }
-    } catch (error) {
-      console.error('Error playing audio:', error)
-      toast.error('Failed to play audio')
-    } finally {
-      setIsLoading(false)
+    if (isCurrentTrack && isPlaying) {
+      jukebox.pause()
+      return
     }
+
+    if (isCurrentTrack) {
+      jukebox.resume()
+      return
+    }
+
+    jukebox.play(
+      {
+        id: track.id,
+        title: track.title,
+        artist_name: track.artist,
+        artist_id: track.author?.id,
+        artist_avatar_url: track.author?.avatar_url,
+        duration: track.duration,
+        file_url: track.file_url || `/api/music/stream?trackId=${track.id}`,
+        cover_art_url: resolveJukeboxCoverUrl(track.id, track.cover_art_url),
+        genre: track.genre,
+        tags: track.tags || [],
+      },
+      { source: playSource }
+    )
+  }
+
+  const handleViewMore = () => {
+    if (!jukebox) {
+      toast.error('Music player is unavailable')
+      return
+    }
+
+    if (!isCurrentTrack) {
+      jukebox.play(
+        {
+          id: track.id,
+          title: track.title,
+          artist_name: track.artist,
+          artist_id: track.author?.id,
+          artist_avatar_url: track.author?.avatar_url,
+          duration: track.duration,
+          file_url: track.file_url || `/api/music/stream?trackId=${track.id}`,
+          cover_art_url: resolveJukeboxCoverUrl(track.id, track.cover_art_url),
+          genre: track.genre,
+          tags: track.tags || [],
+        },
+        { source: playSource }
+      )
+    }
+
+    jukebox.setExpanded(true, 'now-playing')
+    onViewMore?.(track.id)
   }
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current
-    const progressBar = progressRef.current
-    if (!audio || !progressBar) return
-
-    const rect = progressBar.getBoundingClientRect()
+    if (!jukebox || !isCurrentTrack || duration <= 0) return
+    const rect = e.currentTarget.getBoundingClientRect()
     const clickX = e.clientX - rect.left
     const percentage = clickX / rect.width
-    const newTime = percentage * duration
-    
-    audio.currentTime = newTime
-    setCurrentTime(newTime)
+    jukebox.seekTo(percentage * duration)
   }
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    const newVolume = parseFloat(e.target.value)
-    setVolume(newVolume)
-    audio.volume = newVolume
-    setIsMuted(newVolume === 0)
+    jukebox?.setVolume(parseFloat(e.target.value))
   }
 
   const toggleMute = () => {
-    const audio = audioRef.current
-    if (!audio) return
-
-    if (isMuted) {
-      audio.volume = volume
-      setIsMuted(false)
-    } else {
-      audio.volume = 0
-      setIsMuted(true)
-    }
+    jukebox?.toggleMute()
   }
 
   const formatTime = (time: number) => {
@@ -178,6 +189,7 @@ export function FeedMusicPlayer({
   }
 
   const handleLike = () => {
+    void handleTrackLike()
     onLike?.(track.id)
   }
 
@@ -193,31 +205,22 @@ export function FeedMusicPlayer({
     return (
       <div className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-all duration-300 group ${className}`}>
         <div className="flex items-center gap-4">
-          {/* Album Art */}
           <div className="relative flex-shrink-0">
             <div className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl overflow-hidden">
-              {track.cover_art_url ? (
-                <img 
-                  src={track.cover_art_url} 
-                  alt={track.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-2xl">🎵</span>
-                </div>
-              )}
+              <TrackCoverImage
+                src={track.cover_art_url}
+                trackId={track.id}
+                alt={track.title}
+                className="h-full w-full"
+                iconClassName="h-6 w-6"
+              />
             </div>
-            
-            {/* Play Button Overlay */}
+
             <Button
               onClick={handlePlayPause}
-              disabled={isLoading}
               className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 rounded-xl border-0 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             >
-              {isLoading ? (
-                <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : isPlaying ? (
+              {isPlaying ? (
                 <Pause className="w-6 h-6 text-white" />
               ) : (
                 <Play className="w-6 h-6 text-white ml-1" />
@@ -225,14 +228,11 @@ export function FeedMusicPlayer({
             </Button>
           </div>
 
-          {/* Track Info */}
           <div className="flex-1 min-w-0">
             <h3 className="text-white font-semibold truncate group-hover:text-purple-300 transition-colors">
               {track.title}
             </h3>
-            <p className="text-gray-400 text-sm truncate">
-              {track.artist}
-            </p>
+            <p className="text-gray-400 text-sm truncate">{track.artist}</p>
             {track.genre && (
               <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 px-2 py-1 text-xs mt-1">
                 {track.genre}
@@ -240,20 +240,38 @@ export function FeedMusicPlayer({
             )}
           </div>
 
-          {/* Duration */}
-          <div className="text-gray-400 text-sm">
-            {formatTime(duration)}
-          </div>
+          <div className="text-gray-400 text-sm">{formatTime(duration)}</div>
 
-          {/* Actions */}
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleLike}
-              className={`h-8 w-8 p-0 ${isLiked ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+              className={`h-8 w-8 p-0 ${liked ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
             >
-              <Heart className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleAddToLibrary}
+              disabled={isLibraryLoading || inLibrary}
+              className="h-8 w-8 p-0 text-gray-400 hover:text-purple-400"
+            >
+              {inLibrary ? (
+                <BookmarkCheck className="h-4 w-4 text-purple-400" />
+              ) : (
+                <BookmarkPlus className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleViewMore}
+              className="h-8 w-8 p-0 text-gray-400 hover:text-purple-400"
+              title="View more"
+            >
+              <Maximize2 className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
@@ -265,15 +283,12 @@ export function FeedMusicPlayer({
             </Button>
           </div>
         </div>
-
-        <audio ref={audioRef} src={track.file_url} preload="metadata" />
       </div>
     )
   }
 
   return (
     <div className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden hover:bg-white/10 transition-all duration-300 group ${className}`}>
-      {/* Header with User Info */}
       {track.author && (
         <div className="p-4 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -303,14 +318,17 @@ export function FeedMusicPlayer({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-slate-900 border-slate-700">
-                <DropdownMenuItem className="text-white hover:bg-slate-800">
-                  Add to Playlist
+                <DropdownMenuItem
+                  className="text-white hover:bg-slate-800"
+                  onClick={handleAddToLibrary}
+                >
+                  Add to Library
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-white hover:bg-slate-800">
-                  Download
+                <DropdownMenuItem className="text-white hover:bg-slate-800" onClick={handleViewMore}>
+                  View more
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-white hover:bg-slate-800">
-                  Report
+                <DropdownMenuItem className="text-white hover:bg-slate-800" onClick={handleShare}>
+                  Share
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -318,34 +336,24 @@ export function FeedMusicPlayer({
         </div>
       )}
 
-      {/* Main Player Section */}
       <div className="p-6">
         <div className="flex items-start gap-6">
-          {/* Album Art */}
           <div className="relative flex-shrink-0">
             <div className="w-32 h-32 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl overflow-hidden">
-              {track.cover_art_url ? (
-                <img 
-                  src={track.cover_art_url} 
-                  alt={track.title}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <span className="text-4xl">🎵</span>
-                </div>
-              )}
+              <TrackCoverImage
+                src={track.cover_art_url}
+                trackId={track.id}
+                alt={track.title}
+                className="h-full w-full"
+                iconClassName="h-10 w-10"
+              />
             </div>
-            
-            {/* Play Button Overlay */}
+
             <Button
               onClick={handlePlayPause}
-              disabled={isLoading}
               className="absolute inset-0 w-full h-full bg-black/50 hover:bg-black/70 rounded-2xl border-0 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
             >
-              {isLoading ? (
-                <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : isPlaying ? (
+              {isPlaying ? (
                 <Pause className="w-8 h-8 text-white" />
               ) : (
                 <Play className="w-8 h-8 text-white ml-1" />
@@ -353,32 +361,24 @@ export function FeedMusicPlayer({
             </Button>
           </div>
 
-          {/* Track Info and Controls */}
           <div className="flex-1 min-w-0">
             <div className="mb-4">
               <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
                 {track.title}
               </h2>
-              <p className="text-gray-300 text-lg mb-2">
-                {track.artist}
-              </p>
+              <p className="text-gray-300 text-lg mb-2">{track.artist}</p>
               {track.album && (
-                <p className="text-gray-400 text-sm mb-3">
-                  from {track.album}
-                </p>
+                <p className="text-gray-400 text-sm mb-3">from {track.album}</p>
               )}
               {track.description && (
-                <p className="text-gray-400 text-sm line-clamp-2">
-                  {track.description}
-                </p>
+                <p className="text-gray-400 text-sm line-clamp-2">{track.description}</p>
               )}
             </div>
 
-            {/* Tags */}
             {track.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {track.tags.slice(0, 3).map((tag, index) => (
-                  <Badge 
+                  <Badge
                     key={index}
                     className="bg-purple-500/20 text-purple-300 border-purple-500/30 px-2 py-1 text-xs"
                   >
@@ -387,123 +387,122 @@ export function FeedMusicPlayer({
                 ))}
                 {track.tags.length > 3 && (
                   <Badge className="bg-gray-500/20 text-gray-300 border-gray-500/30 px-2 py-1 text-xs">
-                    +{track.tags.length - 3} more
+                    +{track.tags.length - 3}
                   </Badge>
                 )}
               </div>
             )}
 
-            {/* Waveform Visualization */}
             <div className="mb-4">
-              <div 
-                ref={progressRef}
+              <div
+                className="w-full h-2 bg-white/10 rounded-full cursor-pointer mb-2"
                 onClick={handleSeek}
-                className="relative h-2 bg-white/10 rounded-full cursor-pointer overflow-hidden"
               >
-                <div 
-                  className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-100"
+                <div
+                  className="h-full bg-gradient-to-r from-purple-500 to-pink-500 rounded-full transition-all duration-100"
                   style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
                 />
-                
-                {/* Waveform bars */}
-                <div className="absolute inset-0 flex items-center justify-between px-1">
-                  {Array.from({ length: 50 }).map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-0.5 bg-white/20 rounded-full"
-                      style={{ 
-                        height: `${Math.random() * 100}%`,
-                        opacity: i < (currentTime / duration) * 50 ? 1 : 0.3
-                      }}
-                    />
-                  ))}
-                </div>
               </div>
-              
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <div className="flex justify-between text-sm text-gray-400">
                 <span>{formatTime(currentTime)}</span>
                 <span>{formatTime(duration)}</span>
               </div>
             </div>
 
-            {/* Controls */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLike}
-                  className={`h-10 w-10 p-0 ${isLiked ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
+                  onClick={handlePlayPause}
+                  className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-full border-0"
                 >
-                  <Heart className={`h-5 w-5 ${isLiked ? 'fill-current' : ''}`} />
+                  {isPlaying ? (
+                    <Pause className="w-5 h-5 text-white" />
+                  ) : (
+                    <Play className="w-5 h-5 text-white ml-0.5" />
+                  )}
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleComment}
-                  className="h-10 w-10 p-0 text-gray-400 hover:text-purple-400"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleShare}
-                  className="h-10 w-10 p-0 text-gray-400 hover:text-purple-400"
-                >
-                  <Share2 className="h-5 w-5" />
-                </Button>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleMute}
+                    className="h-8 w-8 p-0 text-gray-400 hover:text-white"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="h-4 w-4" />
+                    ) : (
+                      <Volume2 className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={isMuted ? 0 : volume}
+                    onChange={handleVolumeChange}
+                    className="w-20 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={toggleMute}
-                  className="h-8 w-8 p-0 text-gray-400 hover:text-white"
+                  onClick={handleLike}
+                  className={`h-8 px-3 ${liked ? 'text-red-400' : 'text-gray-400 hover:text-red-400'}`}
                 >
-                  {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                  <Heart className={`h-4 w-4 mr-1 ${liked ? 'fill-current' : ''}`} />
+                  {track.stats.likes}
                 </Button>
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer slider"
-                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddToLibrary}
+                  disabled={isLibraryLoading || inLibrary}
+                  className="h-8 px-3 text-gray-400 hover:text-purple-400"
+                >
+                  {inLibrary ? (
+                    <BookmarkCheck className="h-4 w-4 mr-1 text-purple-400" />
+                  ) : (
+                    <BookmarkPlus className="h-4 w-4 mr-1" />
+                  )}
+                  {inLibrary ? 'Saved' : 'Library'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleComment}
+                  className="h-8 px-3 text-gray-400 hover:text-blue-400"
+                >
+                  <MessageCircle className="h-4 w-4 mr-1" />
+                  {track.stats.comments}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleShare}
+                  className="h-8 px-3 text-gray-400 hover:text-purple-400"
+                >
+                  <Share2 className="h-4 w-4 mr-1" />
+                  {track.stats.shares}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleViewMore}
+                  className="h-8 px-3 text-gray-400 hover:text-purple-400"
+                >
+                  <Maximize2 className="h-4 w-4 mr-1" />
+                  View more
+                </Button>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Stats */}
-      <div className="px-6 py-4 border-t border-white/10 bg-white/5">
-        <div className="flex items-center justify-between text-sm text-gray-400">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4" />
-              <span>{track.stats.plays.toLocaleString()} plays</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Heart className="h-4 w-4" />
-              <span>{track.stats.likes.toLocaleString()} likes</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <MessageCircle className="h-4 w-4" />
-              <span>{track.stats.comments.toLocaleString()} comments</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Clock className="h-4 w-4" />
-            <span>{formatTime(duration)}</span>
-          </div>
-        </div>
-      </div>
-
-      <audio ref={audioRef} src={track.file_url} preload="metadata" />
     </div>
   )
 }

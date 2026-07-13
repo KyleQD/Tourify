@@ -257,7 +257,33 @@ export class CrossPlatformPostingService {
   }
 
   /**
-   * Create a post template
+   * Flatten hashtag_groups JSON into a string array.
+   * Supports string[], nested arrays, or objects with a hashtags field.
+   */
+  flattenHashtagGroups(hashtagGroups: unknown): string[] {
+    if (!Array.isArray(hashtagGroups)) return []
+
+    const tags: string[] = []
+    for (const entry of hashtagGroups) {
+      if (typeof entry === 'string') {
+        const cleaned = entry.replace(/^#/, '').trim()
+        if (cleaned) tags.push(cleaned)
+        continue
+      }
+      if (Array.isArray(entry)) {
+        tags.push(...this.flattenHashtagGroups(entry))
+        continue
+      }
+      if (entry && typeof entry === 'object' && Array.isArray((entry as { hashtags?: unknown }).hashtags)) {
+        tags.push(...this.flattenHashtagGroups((entry as { hashtags: unknown[] }).hashtags))
+      }
+    }
+
+    return Array.from(new Set(tags.filter(Boolean)))
+  }
+
+  /**
+   * Create a post template (RPC with direct-insert fallback)
    */
   async createTemplate(
     templateName: string,
@@ -273,6 +299,11 @@ export class CrossPlatformPostingService {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
+    const name = templateName.trim()
+    const body = contentTemplate.trim()
+    if (!name) throw new Error('Template name is required')
+    if (!body) throw new Error('Template content is required')
+
     const {
       category = 'general',
       hashtagGroups = [],
@@ -283,8 +314,8 @@ export class CrossPlatformPostingService {
 
     const { data, error } = await this.supabase.rpc('create_post_template', {
       p_user_id: user.id,
-      p_template_name: templateName,
-      p_content_template: contentTemplate,
+      p_template_name: name,
+      p_content_template: body,
       p_template_category: category,
       p_hashtag_groups: hashtagGroups,
       p_account_types: accountTypes,
@@ -292,8 +323,162 @@ export class CrossPlatformPostingService {
       p_is_public: isPublic
     })
 
+    if (!error && data) return data as string
+
+    // Fallback when RPC is missing or unavailable locally
+    const { data: inserted, error: insertError } = await this.supabase
+      .from('post_templates')
+      .insert({
+        user_id: user.id,
+        template_name: name,
+        template_category: category,
+        content_template: body,
+        hashtag_groups: hashtagGroups,
+        account_types: accountTypes,
+        variables,
+        is_public: isPublic,
+        is_active: true,
+        usage_count: 0,
+        media_templates: [],
+        metadata: {}
+      })
+      .select('id')
+      .single()
+
+    if (insertError) throw insertError
+    if (!inserted?.id) throw new Error('Failed to create template')
+    return inserted.id
+  }
+
+  /**
+   * Soft-delete a template (is_active = false). Own templates only.
+   */
+  async deleteTemplate(templateId: string): Promise<void> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const { error } = await this.supabase
+      .from('post_templates')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', templateId)
+      .eq('user_id', user.id)
+
+    if (error) throw error
+  }
+
+  /**
+   * Update an owned template
+   */
+  async updateTemplate(
+    templateId: string,
+    updates: {
+      templateName?: string
+      contentTemplate?: string
+      category?: PostTemplate['template_category']
+      hashtagGroups?: any[]
+      accountTypes?: string[]
+      variables?: Record<string, any>
+      isPublic?: boolean
+    }
+  ): Promise<PostTemplate> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const payload: Record<string, unknown> = {
+      updated_at: new Date().toISOString()
+    }
+    if (updates.templateName !== undefined) payload.template_name = updates.templateName.trim()
+    if (updates.contentTemplate !== undefined) payload.content_template = updates.contentTemplate.trim()
+    if (updates.category !== undefined) payload.template_category = updates.category
+    if (updates.hashtagGroups !== undefined) payload.hashtag_groups = updates.hashtagGroups
+    if (updates.accountTypes !== undefined) payload.account_types = updates.accountTypes
+    if (updates.variables !== undefined) payload.variables = updates.variables
+    if (updates.isPublic !== undefined) payload.is_public = updates.isPublic
+
+    const { data, error } = await this.supabase
+      .from('post_templates')
+      .update(payload)
+      .eq('id', templateId)
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
     if (error) throw error
     return data
+  }
+
+  /**
+   * Seed starter templates once when the user has none.
+   * Returns true if seeds were inserted.
+   */
+  async seedStarterTemplatesIfEmpty(): Promise<boolean> {
+    const { data: { user } } = await this.supabase.auth.getUser()
+    if (!user) return false
+
+    const { data: existing, error: existingError } = await this.supabase
+      .from('post_templates')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .limit(1)
+
+    if (existingError) throw existingError
+    if (existing && existing.length > 0) return false
+
+    const starters = [
+      {
+        template_name: 'Event promo',
+        template_category: 'event' as const,
+        content_template:
+          'Catch me live at {venue_name} on {event_date}! Tickets and details in bio. See you there.',
+        hashtag_groups: ['live', 'tour', 'concert'],
+        variables: { venue_name: '', event_date: '' }
+      },
+      {
+        template_name: 'New release',
+        template_category: 'announcement' as const,
+        content_template:
+          'New music out now — {track_name}. Stream it everywhere and tell me your favorite part.',
+        hashtag_groups: ['newmusic', 'release', 'nowplaying'],
+        variables: { track_name: '' }
+      },
+      {
+        template_name: 'Tour date',
+        template_category: 'event' as const,
+        content_template:
+          '{city} — we\'re coming through on {event_date}. Who\'s pulling up? Link for tickets below.',
+        hashtag_groups: ['tourlife', 'ontour', 'livemusic'],
+        variables: { city: '', event_date: '' }
+      },
+      {
+        template_name: 'Thank you',
+        template_category: 'personal' as const,
+        content_template:
+          'Thank you to everyone who showed up and supported tonight. Means everything. More soon.',
+        hashtag_groups: ['grateful', 'thankyou', 'community'],
+        variables: {}
+      }
+    ]
+
+    const { error: insertError } = await this.supabase.from('post_templates').insert(
+      starters.map((starter) => ({
+        user_id: user.id,
+        template_name: starter.template_name,
+        template_category: starter.template_category,
+        content_template: starter.content_template,
+        hashtag_groups: starter.hashtag_groups,
+        account_types: [] as string[],
+        variables: starter.variables,
+        is_public: false,
+        is_active: true,
+        usage_count: 0,
+        media_templates: [],
+        metadata: { seeded: true }
+      }))
+    )
+
+    if (insertError) throw insertError
+    return true
   }
 
   /**
@@ -309,17 +494,13 @@ export class CrossPlatformPostingService {
     const { data: { user } } = await this.supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
-    let query = this.supabase
+    let finalQuery = this.supabase
       .from('post_templates')
       .select('*')
       .eq('is_active', true)
+      .eq('user_id', user.id)
       .order('usage_count', { ascending: false })
 
-    // Add user templates
-    const userQuery = query.eq('user_id', user.id)
-
-    // Add public templates if requested
-    let finalQuery = userQuery
     if (filters.includePublic) {
       finalQuery = this.supabase
         .from('post_templates')
@@ -339,7 +520,11 @@ export class CrossPlatformPostingService {
 
     const { data, error } = await finalQuery
 
-    if (error) throw error
+    if (error) {
+      // Table may not exist yet before migration
+      if (error.message?.includes('post_templates') || error.code === '42P01') return []
+      throw error
+    }
     return data || []
   }
 
@@ -347,7 +532,6 @@ export class CrossPlatformPostingService {
    * Use a template (increment usage count)
    */
   async useTemplate(templateId: string): Promise<PostTemplate> {
-    // First get the current usage count
     const { data: currentTemplate } = await this.supabase
       .from('post_templates')
       .select('usage_count')

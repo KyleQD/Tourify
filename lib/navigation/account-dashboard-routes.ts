@@ -1,4 +1,5 @@
 import type { ProfileType } from '@/lib/accounts/account-types'
+import { normalizeAccountType } from '@/lib/accounts/account-types'
 
 /**
  * Canonical "home" route for each account mode. Use after account switches and for
@@ -31,4 +32,21 @@ export function getRequiredAccountTypeForPathname(pathname: string): ProfileType
   if (pathname.startsWith('/venue')) return 'venue'
   if (pathname.startsWith('/artist')) return 'artist'
   return null
+}
+
+/** Account types that satisfy a section requirement (e.g. artist section accepts service). */
+export function getCompatibleAccountTypesForSection(requiredType: ProfileType): ProfileType[] {
+  if (requiredType === 'artist') return ['artist', 'service']
+  if (requiredType === 'organization') return ['organization', 'admin']
+  return [requiredType]
+}
+
+/** Whether the active account type is valid for a strict app section. */
+export function accountTypeMatchesSection(
+  accountType: string | null | undefined,
+  requiredType: ProfileType | null
+): boolean {
+  if (!requiredType || !accountType) return false
+  const current = normalizeAccountType(accountType)
+  return getCompatibleAccountTypesForSection(requiredType).includes(current)
 }
