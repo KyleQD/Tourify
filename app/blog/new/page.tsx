@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import {
   ArrowLeft,
   Bold,
@@ -26,7 +27,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 import { toast } from 'sonner'
 
 const CATEGORY_OPTIONS = [
@@ -44,7 +47,10 @@ const CATEGORY_OPTIONS = [
 
 export default function NewArticlePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading } = useAuth()
+  const { actingHeaders } = useActingContext()
+  const isFromArtist = searchParams.get('from') === 'artist'
 
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -107,7 +113,7 @@ export default function NewArticlePage() {
       const response = await fetch('/api/pulse/articles', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify({
           title: title.trim(),
           content: content.trim(),
@@ -124,7 +130,10 @@ export default function NewArticlePage() {
       }
 
       toast.success('Article published! It will appear in your followers\' feeds.')
-      router.push('/dashboard')
+      if (isFromArtist)
+        router.push('/artist/features/blog')
+      else
+        router.push(data.article?.url || `/blog/${data.article?.slug}`)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to publish article')
     } finally {
@@ -143,7 +152,7 @@ export default function NewArticlePage() {
       const response = await fetch('/api/pulse/articles', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify({
           title: title.trim(),
           content: content.trim() || 'Draft in progress...',
@@ -161,6 +170,8 @@ export default function NewArticlePage() {
       }
 
       toast.success('Draft saved')
+      if (isFromArtist)
+        router.push('/artist/features/blog?status=draft')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save draft')
     } finally {
@@ -178,14 +189,22 @@ export default function NewArticlePage() {
       <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
         {/* Top bar */}
         <div className="mb-8 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => (isFromArtist ? router.push('/artist/features/blog') : router.back())}
+              className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </button>
+            <Link
+              href="/artist/features/blog"
+              className="text-sm text-slate-400 transition hover:text-white"
+            >
+              Manage posts
+            </Link>
+          </div>
 
           <div className="flex items-center gap-2">
             <Button
@@ -222,6 +241,7 @@ export default function NewArticlePage() {
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
           {/* Main editor — left 2/3 */}
           <div className="space-y-6 lg:col-span-2">
+            <PostingAccountSelector />
             {isPreview ? (
               <PreviewPane
                 title={title}
@@ -276,7 +296,7 @@ export default function NewArticlePage() {
                   id="article-content"
                   value={content}
                   onChange={e => setContent(e.target.value)}
-                  placeholder="Start writing your article...&#10;&#10;Share your perspective on a music topic, review an album, cover a live event, interview an artist, or tell a story from the scene.&#10;&#10;Use the toolbar above for formatting. Your article will be shared with your followers and, if it gets traction, featured on the Pulse page."
+                  placeholder="Start writing your article...&#10;&#10;Share your perspective on a music topic, review an album, cover a live event, interview an artist, or tell a story from the scene.&#10;&#10;Use the toolbar above for formatting. Your article will be shared with your followers and, if it gets traction, featured on News Pulse."
                   className="min-h-[420px] resize-y border-white/10 bg-white/[0.02] text-base leading-relaxed text-white placeholder:text-slate-600 focus-visible:border-fuchsia-500/30 focus-visible:ring-fuchsia-500/10"
                 />
 
@@ -400,7 +420,7 @@ export default function NewArticlePage() {
                 <p className="mb-2 font-medium text-slate-300">How articles work</p>
                 <ul className="space-y-1.5">
                   <li>Your article appears in your followers' feeds immediately.</li>
-                  <li>Articles that gain traction (likes, shares, comments) are promoted to the Pulse page under Community Stories.</li>
+                  <li>Articles that gain traction (likes, shares, comments) are promoted into News Pulse.</li>
                   <li>All published articles are accessible at <span className="text-fuchsia-400">/blog/your-slug</span>.</li>
                 </ul>
               </CardContent>
