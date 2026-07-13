@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { 
   VenueRole, 
   VenuePermission, 
@@ -18,7 +19,12 @@ import {
 } from '@/types/database.types'
 
 export class VenueRolesPermissionsService {
-  private static supabase = createServiceRoleClient()
+  private static _supabase: SupabaseClient | null = null
+
+  private static get supabase() {
+    if (!this._supabase) this._supabase = createServiceRoleClient()
+    return this._supabase
+  }
 
   // =============================================================================
   // ROLE MANAGEMENT
@@ -650,4 +656,4 @@ export class VenueRolesPermissionsService {
     }
     return true
   }
-} 
+}

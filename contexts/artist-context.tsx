@@ -1,10 +1,11 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/lib/database.types'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { useAuth } from '@/contexts/auth-context'
+import { readAccountFromSearch } from '@/lib/navigation/account-context-url'
 import {
   normalizeGenreList,
   normalizeSocialLinksForStorage,
@@ -28,6 +29,7 @@ interface ArtistProfile {
   id: string
   user_id: string
   artist_name: string | null
+  url_slug?: string | null
   bio: string | null
   genres: string[] | null
   social_links: Record<string, string> | null
@@ -79,6 +81,9 @@ interface ArtistContextType {
   refreshPublicProfile: () => Promise<void>
   syncArtistName: () => Promise<boolean>
   updateDetailedProfile: (profileData: any) => Promise<{ success: boolean; errors?: string[] }>
+  updateSocialLinks: (
+    links: Partial<Record<string, string>>
+  ) => Promise<{ success: boolean; errors?: string[] }>
   
   // Content Management
   createContent: (type: string, data: any) => Promise<any>
@@ -99,7 +104,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<ArtistProfile | null>(null)
   const [publicProfile, setPublicProfile] = useState<PublicProfileIdentity | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [stats, setStats] = useState<ArtistStats>({
     totalRevenue: 0,
     totalFans: 0,
@@ -119,7 +124,11 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     totalViews: 0
   })
 
-  const { currentAccount } = useMultiAccount()
+  const { currentAccount, activeSession, userAccounts, isAccountsReady } = useMultiAccount()
+  const seededUserId =
+    activeSession?.user_id ||
+    userAccounts.find((account) => account.account_type === 'general')?.profile_id ||
+    null
 
   // Feature flags (can be moved to database later)
   const features = {
@@ -162,20 +171,25 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
 
   const displayName = getDisplayName()
   const avatarInitial = getAvatarInitial()
+  const hasInitializedRef = useRef(false)
+  const lastArtistProfileIdRef = useRef<string | null>(null)
+  const profileRef = useRef<ArtistProfile | null>(null)
+  const initGenerationRef = useRef(0)
 
   useEffect(() => {
-    if (!authLoading && authUser) {
-      setUser(authUser)
-      initializeUser()
-    } else if (!authLoading && !authUser) {
-      setUser(null)
-      setProfile(null)
-      setPublicProfile(null)
-      setIsLoading(false)
+    profileRef.current = profile
+  }, [profile])
+
+  function resolveActiveArtistProfileId(): string | null {
+    if (
+      currentAccount?.account_type === 'artist' ||
+      currentAccount?.account_type === 'service'
+    ) {
+      return currentAccount.profile_id
     }
-    // Re-load when the active artist/service account changes so the correct profile is shown
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser, authLoading, currentAccount?.profile_id])
+    if (typeof window === 'undefined') return null
+    return readAccountFromSearch(window.location.search)
+  }
 
   const loadPublicProfileIdentity = async (userId: string) => {
     const { data, error } = await supabase
@@ -204,48 +218,6 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     await loadPublicProfileIdentity(user.id)
   }
 
-  const initializeUser = async () => {
-    try {
-      setIsLoading(true)
-      
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Initialization timeout')), 10000)
-      )
-      
-      const initPromise = async () => {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-        if (sessionError) {
-          console.error('Session error during artist initialization:', sessionError)
-          throw new Error('Authentication session expired')
-        }
-        
-        if (!session) {
-          console.error('No session found during artist initialization')
-          throw new Error('No active session')
-        }
-
-        if (authUser) {
-          // Prefer the profile_id from the active artist account so multi-artist users
-          // load the correct profile instead of always getting the first one.
-          const activeArtistProfileId =
-            currentAccount?.account_type === 'artist' || currentAccount?.account_type === 'service'
-              ? currentAccount.profile_id
-              : null
-
-          await loadArtistProfile(authUser.id, activeArtistProfileId)
-          await loadArtistStats(authUser.id)
-          await ensureArtistAccountExists(authUser.id)
-        }
-      }
-
-      await Promise.race([initPromise(), timeoutPromise])
-    } catch (error) {
-      console.error('Error initializing artist user:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const ensureArtistAccountExists = async (userId: string) => {
     try {
       // Check if artist account relationship exists
@@ -267,7 +239,6 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
             owned_profile_id: userId, // Artist profile uses the same user ID
             account_type: 'artist',
             permissions: {},
-            is_active: true
           })
 
         if (relationError) {
@@ -279,7 +250,13 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const loadArtistProfile = async (userId: string, profileId?: string | null): Promise<ArtistProfile | null> => {
+  const loadArtistProfile = async (
+    userId: string,
+    profileId?: string | null,
+    options?: { includePublicIdentity?: boolean }
+  ): Promise<ArtistProfile | null> => {
+    const includePublicIdentity = options?.includePublicIdentity !== false
+
     try {
       let query = supabase.from('artist_profiles').select('*')
 
@@ -308,18 +285,23 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
       if (!data) return null
 
       setProfile(data)
-      await loadPublicProfileIdentity(userId)
 
-      if (!data.artist_name) {
-        console.log('Artist name is missing, attempting to sync from account data')
-        await syncArtistName()
+      if (includePublicIdentity) {
+        await loadPublicProfileIdentity(userId)
+
+        if (!data.artist_name) {
+          console.log('Artist name is missing, attempting to sync from account data')
+          await syncArtistName()
+        }
+      } else if (!data.artist_name) {
+        void syncArtistName().catch(() => {})
       }
 
       return data
     } catch (error) {
       console.error('Error loading artist profile:', error)
       setProfile(null)
-      setPublicProfile(null)
+      if (includePublicIdentity) setPublicProfile(null)
       return null
     }
   }
@@ -481,58 +463,56 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         console.log('ℹ️ Enhanced stats RPC unavailable, falling back to basic counts:', rpcErr)
       }
 
-      // Fallback: get basic counts from the tables directly
+      // Fallback: get basic counts from the tables directly (parallel)
       try {
-        // Try simple table queries first
-        const { count: musicCount } = await supabase
-          .from('artist_music')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_public', true)
-
-        const { count: videoCount } = await supabase
-          .from('artist_videos')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_public', true)
-
-        const { count: photoCount } = await supabase
-          .from('artist_photos')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_public', true)
-
-        const { count: blogCount } = await supabase
-          .from('artist_blog_posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('status', 'published')
-
-        const { count: eventCount } = await supabase
-          .from('events')
-          .select('*', { count: 'exact', head: true })
-          .eq('artist_id', userId)
+        const [
+          { count: musicCount },
+          { count: videoCount },
+          { count: photoCount },
+          { count: blogCount },
+          { count: eventCount },
+        ] = await Promise.all([
+          supabase
+            .from('artist_music')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_public', true),
+          supabase
+            .from('artist_videos')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_public', true),
+          supabase
+            .from('artist_photos')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('is_public', true),
+          supabase
+            .from('artist_blog_posts')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', userId)
+            .eq('status', 'published'),
+          supabase
+            .from('events')
+            .select('*', { count: 'exact', head: true })
+            .eq('artist_id', userId),
+        ])
 
         console.log('📊 Basic counts loaded:', { musicCount, videoCount, photoCount, blogCount, eventCount })
 
         const basicStats: ArtistStats = {
-          // Real data from database
           musicCount: musicCount || 0,
           videoCount: videoCount || 0,
           photoCount: photoCount || 0,
           blogCount: blogCount || 0,
           eventCount: eventCount || 0,
-          merchandiseCount: 0, // Will be updated if table exists
+          merchandiseCount: 0,
           totalPlays: 0,
           totalViews: 0,
-          
-          // Calculated/derived stats
           totalTracks: musicCount || 0,
           totalEvents: eventCount || 0,
           totalFans: 0,
           engagementRate: 0,
-          
-          // Placeholder for features not yet implemented
           totalRevenue: 0,
           totalStreams: 0,
           monthlyListeners: 0,
@@ -545,7 +525,6 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
       } catch (tableError) {
         console.log('⚠️ Artist content tables not available, using default stats:', tableError)
         
-        // Fallback to default stats
         const defaultStats: ArtistStats = {
           totalRevenue: 0,
           totalFans: 0,
@@ -573,6 +552,106 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
       // Keep default stats on error
     }
   }
+
+  async function loadArtistContext(
+    userId: string,
+    artistProfileId: string | null,
+    showFullScreenLoading: boolean
+  ) {
+    const initGeneration = ++initGenerationRef.current
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    try {
+      if (showFullScreenLoading) setIsLoading(true)
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Initialization timeout')), 10000)
+      })
+
+      // Critical path only: profile load. Auth is already confirmed by useAuth.
+      // Public identity sync and stats run after UI unblocks.
+      const criticalInitPromise = async () => {
+        await loadArtistProfile(userId, artistProfileId, { includePublicIdentity: false })
+      }
+
+      await Promise.race([criticalInitPromise(), timeoutPromise])
+      if (initGeneration !== initGenerationRef.current) return
+
+      hasInitializedRef.current = true
+      lastArtistProfileIdRef.current = artistProfileId
+
+      void Promise.all([
+        loadPublicProfileIdentity(userId),
+        loadArtistStats(userId),
+        ensureArtistAccountExists(userId),
+      ]).catch(err => {
+        console.error('Error loading artist background data:', err)
+      })
+    } catch (error) {
+      if (initGeneration !== initGenerationRef.current) return
+
+      const isTimeout = error instanceof Error && error.message === 'Initialization timeout'
+      if (isTimeout) {
+        console.warn('Artist context initialization timed out; continuing with available state')
+      } else {
+        console.error('Error initializing artist user:', error)
+      }
+      // Soft-init on timeout or when profile already loaded so account switches
+      // don't re-trigger full-screen loading forever.
+      if (profileRef.current || isTimeout) {
+        hasInitializedRef.current = true
+        lastArtistProfileIdRef.current = artistProfileId
+      }
+
+      if (isTimeout) {
+        void Promise.all([
+          loadPublicProfileIdentity(userId),
+          loadArtistStats(userId),
+          ensureArtistAccountExists(userId),
+        ]).catch(() => {})
+      }
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      if (initGeneration === initGenerationRef.current) setIsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    const effectiveAuthUser =
+      authUser ||
+      (seededUserId ? ({ id: seededUserId } as any) : null)
+
+    // Wait for client auth OR server-seeded account identity before treating as logged out.
+    if (authLoading && !effectiveAuthUser) {
+      setIsLoading(true)
+      return
+    }
+
+    if (!effectiveAuthUser) {
+      if (!isAccountsReady) {
+        setIsLoading(true)
+        return
+      }
+      setUser(null)
+      setProfile(null)
+      setPublicProfile(null)
+      setIsLoading(false)
+      hasInitializedRef.current = false
+      lastArtistProfileIdRef.current = null
+      return
+    }
+
+    setUser(effectiveAuthUser)
+
+    const artistProfileId = resolveActiveArtistProfileId()
+    const isSameArtistContext =
+      hasInitializedRef.current && lastArtistProfileIdRef.current === artistProfileId
+
+    if (!isSameArtistContext) setIsLoading(true)
+
+    void loadArtistContext(effectiveAuthUser.id, artistProfileId, !isSameArtistContext)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, authLoading, seededUserId, isAccountsReady, currentAccount?.profile_id, currentAccount?.account_type])
 
   const updateProfile = async (data: Partial<ArtistProfile>): Promise<boolean> => {
     if (!user || !profile) return false
@@ -705,13 +784,24 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         profileData.genres ?? (profileData.genre ? [profileData.genre] : [])
       )
       const location = typeof profileData.location === 'string' ? profileData.location.trim() : ''
-      const normalizedSocial = normalizeSocialLinksForStorage({
-        website: profileData.website ?? '',
-        instagram: profileData.instagram ?? '',
-        twitter: profileData.twitter ?? '',
-        youtube: profileData.youtube ?? '',
-        spotify: profileData.spotify ?? ''
-      })
+      const existingSocial =
+        profile.social_links && typeof profile.social_links === 'object'
+          ? (profile.social_links as Record<string, string>)
+          : {}
+
+      const socialInput = {
+        website: profileData.website ?? existingSocial.website ?? '',
+        instagram: profileData.instagram ?? existingSocial.instagram ?? '',
+        twitter: profileData.twitter ?? existingSocial.twitter ?? '',
+        youtube: profileData.youtube ?? existingSocial.youtube ?? '',
+        tiktok: profileData.tiktok ?? existingSocial.tiktok ?? '',
+        facebook: profileData.facebook ?? existingSocial.facebook ?? '',
+        spotify: profileData.spotify ?? existingSocial.spotify ?? '',
+        apple_music: profileData.apple_music ?? existingSocial.apple_music ?? '',
+        soundcloud: profileData.soundcloud ?? existingSocial.soundcloud ?? '',
+      }
+
+      const normalizedSocial = normalizeSocialLinksForStorage(socialInput)
 
       if (!artistName?.trim()) {
         errors.push('Artist name is required')
@@ -721,8 +811,18 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
         errors.push('Invalid email format')
       }
 
-      for (const field of ['website', 'instagram', 'twitter', 'youtube', 'spotify'] as const) {
-        const err = validateSocialField(field, profileData[field] ?? '')
+      for (const field of [
+        'website',
+        'instagram',
+        'twitter',
+        'youtube',
+        'tiktok',
+        'facebook',
+        'spotify',
+        'apple_music',
+        'soundcloud',
+      ] as const) {
+        const err = validateSocialField(field, socialInput[field] ?? '')
         if (err) errors.push(err)
       }
 
@@ -731,11 +831,8 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
       }
 
       const socialLinks = {
-        website: normalizedSocial.website,
-        instagram: normalizedSocial.instagram,
-        twitter: normalizedSocial.twitter,
-        youtube: normalizedSocial.youtube,
-        spotify: normalizedSocial.spotify
+        ...existingSocial,
+        ...normalizedSocial,
       }
 
       const settings = {
@@ -836,6 +933,90 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const updateSocialLinks = async (
+    links: Partial<Record<string, string>>
+  ): Promise<{ success: boolean; errors?: string[] }> => {
+    if (!user || !profile) {
+      return { success: false, errors: ['User not authenticated or no artist profile'] }
+    }
+
+    try {
+      const existingSocial =
+        profile.social_links && typeof profile.social_links === 'object'
+          ? (profile.social_links as Record<string, string>)
+          : {}
+
+      const socialInput = {
+        website: links.website ?? existingSocial.website ?? '',
+        instagram: links.instagram ?? existingSocial.instagram ?? '',
+        twitter: links.twitter ?? existingSocial.twitter ?? '',
+        youtube: links.youtube ?? existingSocial.youtube ?? '',
+        tiktok: links.tiktok ?? existingSocial.tiktok ?? '',
+        facebook: links.facebook ?? existingSocial.facebook ?? '',
+        spotify: links.spotify ?? existingSocial.spotify ?? '',
+        apple_music: links.apple_music ?? existingSocial.apple_music ?? '',
+        soundcloud: links.soundcloud ?? existingSocial.soundcloud ?? '',
+      }
+
+      const errors: string[] = []
+      for (const field of [
+        'website',
+        'instagram',
+        'twitter',
+        'youtube',
+        'tiktok',
+        'facebook',
+        'spotify',
+        'apple_music',
+        'soundcloud',
+      ] as const) {
+        const err = validateSocialField(field, socialInput[field] ?? '')
+        if (err) errors.push(err)
+      }
+      if (errors.length > 0) return { success: false, errors }
+
+      const socialLinks = {
+        ...existingSocial,
+        ...normalizeSocialLinksForStorage(socialInput),
+      }
+
+      const { error: profileError } = await supabase
+        .from('artist_profiles')
+        .update({
+          social_links: socialLinks,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+
+      if (profileError) throw profileError
+
+      if (socialLinks.website) {
+        await supabase
+          .from('profiles')
+          .update({
+            website: socialLinks.website || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', user.id)
+      }
+
+      setProfile(prev =>
+        prev
+          ? {
+              ...prev,
+              social_links: socialLinks,
+              updated_at: new Date().toISOString(),
+            }
+          : prev
+      )
+
+      return { success: true }
+    } catch (error) {
+      console.error('Error updating social links:', error)
+      return { success: false, errors: ['Failed to update social links. Please try again.'] }
+    }
+  }
+
   const isValidEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     return emailRegex.test(email)
@@ -854,6 +1035,7 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     refreshPublicProfile,
     syncArtistName,
     updateDetailedProfile,
+    updateSocialLinks,
     createContent,
     features
   }

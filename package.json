@@ -2,6 +2,9 @@
   "name": "tourify-platform",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "clean": "rm -rf .next",
     "dev": "next dev",
@@ -24,7 +27,8 @@
     "build:vercel": "NODE_OPTIONS='--max-old-space-size=6144' next build",
     "start": "next start",
     "lint": "next lint",
-    "verify:ci": "npm run lint && npm test && NODE_OPTIONS='--max-old-space-size=6144' next build",
+    "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
+    "verify:ci": "npm run lint && npm run typecheck && npm test && npm run build:vercel",
     "test": "jest",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",

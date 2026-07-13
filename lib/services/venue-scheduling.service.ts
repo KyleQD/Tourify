@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   VenueShift,
   VenueShiftAssignment,
@@ -37,7 +38,12 @@ import {
 import { generateQRCode } from '@/lib/utils/qr-code'
 
 export class VenueSchedulingService {
-  private static supabase = createServiceRoleClient()
+  private static _supabase: SupabaseClient | null = null
+
+  private static get supabase() {
+    if (!this._supabase) this._supabase = createServiceRoleClient()
+    return this._supabase
+  }
 
   // ============================================================================
   // SHIFT MANAGEMENT
@@ -973,4 +979,4 @@ export class VenueSchedulingService {
       return false
     }
   }
-} 
+}
