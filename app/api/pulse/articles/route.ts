@@ -1,72 +1,122 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
+import { resolveActingContext } from '@/lib/auth/acting-context'
+import { getBlogAccountAuthor, isBlogAccountAttributionSchemaError } from '@/lib/blog/account-author'
+import { accountAuthorNeedsRefresh } from '@/lib/accounts/account-author'
+import { resolveAccountAuthorSnapshot } from '@/lib/accounts/acting-account-snapshot'
+import { createArticle, listOwnedArticles } from '@/lib/blog/article-publishing'
 
-function generateSlug(title: string) {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9 -]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/(^-|-$)+/g, '')
-    .slice(0, 120) || `pulse-article-${Date.now()}`
+const ARTICLE_SELECT_WITH_ACCOUNT = `
+  id,
+  title,
+  slug,
+  excerpt,
+  content,
+  featured_image_url,
+  tags,
+  categories,
+  stats,
+  published_at,
+  created_at,
+  user_id,
+  posted_as_profile_id,
+  posted_as_type,
+  account_display_name,
+  account_username,
+  account_avatar_url,
+  account_is_verified
+`
+
+const ARTICLE_SELECT_LEGACY = `
+  id,
+  title,
+  slug,
+  excerpt,
+  content,
+  featured_image_url,
+  tags,
+  categories,
+  stats,
+  published_at,
+  created_at,
+  user_id
+`
+
+function buildArticlesQuery(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+  selectColumns: string,
+  limit: number,
+  cursor: string | null
+) {
+  let query = supabase
+    .from('artist_blog_posts')
+    .select(selectColumns)
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+    .limit(limit + 1)
+
+  if (cursor)
+    query = query.lt('published_at', cursor)
+
+  return query
+}
+
+async function resolveArticleAuthor(supabase: ReturnType<typeof createServiceRoleClient>, row: any) {
+  if (!accountAuthorNeedsRefresh(row)) return getBlogAccountAuthor(row)
+
+  return resolveAccountAuthorSnapshot({
+    supabase,
+    accountType: row.posted_as_type || 'general',
+    profileId: row.posted_as_profile_id || row.user_id,
+    userId: row.user_id,
+  })
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = createServiceRoleClient()
     const { searchParams } = request.nextUrl
+    const mine = searchParams.get('mine') === '1' || searchParams.get('mine') === 'true'
+
+    if (mine) {
+      const ctx = await resolveActingContext(request)
+      if (ctx instanceof NextResponse) return ctx
+
+      const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || '50')))
+      const result = await listOwnedArticles({ ctx, limit })
+      if (!result.success)
+        return NextResponse.json({ success: false, error: result.error }, { status: result.status })
+
+      return NextResponse.json({ success: true, articles: result.articles })
+    }
+
+    const supabase = createServiceRoleClient()
     const limit = Math.min(50, Math.max(1, Number(searchParams.get('limit') || '12')))
     const cursor = searchParams.get('cursor')
 
-    let query = supabase
-      .from('artist_blog_posts')
-      .select(`
-        id,
-        title,
-        slug,
-        excerpt,
-        content,
-        featured_image_url,
-        tags,
-        categories,
-        stats,
-        published_at,
-        created_at,
-        user_id,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url,
-          is_verified
-        )
-      `)
-      .eq('status', 'published')
-      .order('published_at', { ascending: false })
-      .limit(limit + 1)
+    let { data, error } = await buildArticlesQuery(supabase, ARTICLE_SELECT_WITH_ACCOUNT, limit, cursor)
 
-    if (cursor) {
-      query = query.lt('published_at', cursor)
+    if (error && isBlogAccountAttributionSchemaError(error)) {
+      console.warn('[PulseArticles] Account attribution columns missing; using legacy article query.')
+      const legacyResult = await buildArticlesQuery(supabase, ARTICLE_SELECT_LEGACY, limit, cursor)
+      data = legacyResult.data
+      error = legacyResult.error
     }
-
-    const { data, error } = await query
 
     if (error) {
       console.error('[PulseArticles] Query error:', error)
       return NextResponse.json({ success: false, error: 'Failed to load articles' }, { status: 500 })
     }
 
-    const rows = data || []
+    const rows = (data || []) as any[]
     const hasMore = rows.length > limit
     const pageRows = rows.slice(0, limit)
     const nextCursor = hasMore && pageRows.length > 0
       ? pageRows[pageRows.length - 1].published_at
       : null
 
-    const articles = pageRows.map(row => {
-      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles
+    const articles = await Promise.all(pageRows.map(async row => {
       const stats = (row.stats && typeof row.stats === 'object') ? row.stats as Record<string, number> : {}
+      const author = await resolveArticleAuthor(supabase, row)
 
       return {
         id: row.id,
@@ -78,11 +128,12 @@ export async function GET(request: NextRequest) {
         categories: row.categories || [],
         publishedAt: row.published_at || row.created_at,
         author: {
-          id: profile?.id || row.user_id,
-          name: profile?.full_name || profile?.username || 'Community Member',
-          username: profile?.username || null,
-          avatarUrl: profile?.avatar_url || null,
-          isVerified: profile?.is_verified || false,
+          id: author.id,
+          type: author.type,
+          name: author.name,
+          username: author.username,
+          avatarUrl: author.avatarUrl,
+          isVerified: author.isVerified,
         },
         metrics: {
           likes: stats.likes || 0,
@@ -92,7 +143,7 @@ export async function GET(request: NextRequest) {
         },
         readingTime: Math.max(1, Math.ceil((row.content?.length || 0) / 1200)),
       }
-    })
+    }))
 
     return NextResponse.json({ success: true, articles, nextCursor })
   } catch (error) {
@@ -102,74 +153,54 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const cookieHeader = request.headers.get('cookie')
-  const user = parseUserFromRequestCookieHeader(cookieHeader)
-
-  if (!user?.id) {
-    return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
-  }
-
   try {
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
+
     const body = await request.json()
-    const { title, content, excerpt, tags, categories, featuredImageUrl } = body
-
-    if (!title?.trim() || !content?.trim()) {
-      return NextResponse.json({ success: false, error: 'Title and content are required' }, { status: 400 })
-    }
-
-    if (title.trim().length < 5) {
-      return NextResponse.json({ success: false, error: 'Title must be at least 5 characters' }, { status: 400 })
-    }
-
-    if (content.trim().length < 50) {
-      return NextResponse.json({ success: false, error: 'Content must be at least 50 characters' }, { status: 400 })
-    }
-
-    const slug = generateSlug(title.trim())
-    const supabase = createServiceRoleClient()
-
-    const { data, error } = await supabase
-      .from('artist_blog_posts')
-      .insert({
-        user_id: user.id,
-        title: title.trim(),
-        slug: `${slug}-${Date.now().toString(36)}`,
-        content: content.trim(),
-        excerpt: excerpt?.trim() || content.trim().slice(0, 200),
-        featured_image_url: featuredImageUrl || null,
-        tags: Array.isArray(tags) ? tags.filter(Boolean).slice(0, 10) : [],
-        categories: Array.isArray(categories) ? categories.filter(Boolean).slice(0, 5) : ['Community'],
-        status: 'published',
-        published_at: new Date().toISOString(),
-        stats: { likes: 0, comments: 0, shares: 0, views: 0 },
-      })
-      .select('id, slug')
-      .single()
-
-    if (error) {
-      console.error('[PulseArticles] Insert error:', error)
-      return NextResponse.json({ success: false, error: 'Failed to publish article' }, { status: 500 })
-    }
-
-    // Also create a feed post so the article appears in followers' feeds
-    const articleUrl = `/blog/${data.slug}`
-    const postContent = `📝 New article: ${title.trim()}\n\n${(excerpt?.trim() || content.trim().slice(0, 180))}...\n\nRead more: ${articleUrl}`
-    const hashtags = (Array.isArray(tags) ? tags.slice(0, 5) : []).map(t =>
-      t.startsWith('#') ? t : `#${t.replace(/\s+/g, '')}`
-    )
-
-    await supabase.from('posts').insert({
-      user_id: user.id,
-      content: postContent,
-      type: 'article',
-      visibility: 'public',
-      hashtags,
-      media_urls: featuredImageUrl ? [featuredImageUrl] : [],
-    }).then(({ error: postError }) => {
-      if (postError) console.error('[PulseArticles] Feed post insert error (non-blocking):', postError)
+    const status =
+      body.status === 'draft' || body.status === 'scheduled' ? body.status : 'published'
+    const result = await createArticle({
+      ctx,
+      body: {
+        title: body.title,
+        content: body.content,
+        excerpt: body.excerpt,
+        tags: body.tags,
+        categories: body.categories,
+        featuredImageUrl: body.featuredImageUrl,
+        status,
+        seoTitle: body.seoTitle,
+        seoDescription: body.seoDescription,
+        scheduledFor: body.scheduledFor,
+      },
     })
 
-    return NextResponse.json({ success: true, article: data })
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: result.error,
+          article: result.article
+            ? {
+                ...result.article,
+                url: result.article.url,
+                postedAs: result.article.postedAs,
+              }
+            : undefined,
+        },
+        { status: result.status }
+      )
+    }
+
+    return NextResponse.json({
+      success: true,
+      article: {
+        ...result.article,
+        url: result.article.url,
+        postedAs: result.article.postedAs,
+      },
+    })
   } catch (error) {
     console.error('[PulseArticles] Unexpected error:', error)
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 })

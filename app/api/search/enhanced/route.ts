@@ -4,7 +4,7 @@ import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
 
 interface EnhancedSearchResult {
   id: string
-  type: 'artist' | 'venue' | 'user'
+  type: 'artist' | 'venue' | 'organization' | 'user'
   username: string
   displayName: string
   avatar?: string
@@ -20,6 +20,12 @@ interface EnhancedSearchResult {
   posts: number
   created_at: string
   updated_at: string
+  /** auth.users / profiles id — use for friend requests */
+  ownerUserId?: string
+  /** accounts.id — use for account follows (artist/venue/org) */
+  accountId?: string | null
+  accountType?: string
+  urlSlug?: string
   recommendations?: {
     reason: string
     score: number
@@ -79,10 +85,17 @@ function buildArtistResult(params: {
       ? 'Currently available for hire'
       : 'Strong creator profile'
 
+  const ownerUserId = String(profile?.id || artist.user_id || '')
   return {
-    id: String(profile?.id || artist.user_id || artist.id),
+    id: ownerUserId || String(artist.id),
     type: 'artist',
-    username: normalizeText(profile?.username) || String(artist.user_id || artist.id),
+    ownerUserId: ownerUserId || undefined,
+    accountId: null,
+    accountType: 'artist',
+    username:
+      normalizeText(artist.url_slug) ||
+      normalizeText(profile?.username) ||
+      String(artist.user_id || artist.id),
     displayName,
     avatar: normalizeText(profile?.avatar_url) || undefined,
     bio: normalizeText(artist.bio || profile?.bio) || undefined,
@@ -137,6 +150,13 @@ export async function GET(request: NextRequest) {
 
     const isArtistSearch = type === 'all' || type === 'artists' || type === 'artist'
     const isVenueSearch = type === 'all' || type === 'venues' || type === 'venue'
+    const isOrgSearch =
+      type === 'all' ||
+      type === 'organizations' ||
+      type === 'organization' ||
+      type === 'organizers' ||
+      type === 'organizer' ||
+      type === 'business'
     const isUserSearch = type === 'all' || type === 'users' || type === 'user'
 
     const results: EnhancedSearchResult[] = []
@@ -163,7 +183,15 @@ export async function GET(request: NextRequest) {
         return acc
       }, {})
 
-      const artistResults = artistProfiles
+      const publicArtistProfiles = artistProfiles.filter(artist => {
+        const settings =
+          artist.settings && typeof artist.settings === 'object'
+            ? (artist.settings as Record<string, unknown>)
+            : {}
+        return settings.public_profile !== false
+      })
+
+      const artistResults = publicArtistProfiles
         .map(artist => {
           const profile = profileById[String(artist.user_id)] || null
           return buildArtistResult({ artist, profile, includeRecommendations, query })
@@ -194,31 +222,85 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const shouldQueryAccounts = isVenueSearch || isUserSearch
+      const shouldQueryAccounts = isVenueSearch || isUserSearch || isOrgSearch || isArtistSearch
       if (shouldQueryAccounts) {
         let accountsQuery = supabase
           .from('accounts')
-          .select('id, owner_user_id, account_type, display_name, username, avatar_url, is_verified, metadata, created_at, updated_at')
+          .select('id, owner_user_id, account_type, profile_id, display_name, username, avatar_url, is_verified, metadata, follower_count, created_at, updated_at')
           .eq('is_active', true)
           .order('updated_at', { ascending: false })
-          .limit(200)
+          .limit(300)
 
         if (type === 'venues' || type === 'venue') accountsQuery = accountsQuery.eq('account_type', 'venue')
-        if (type === 'users' || type === 'user') accountsQuery = accountsQuery.eq('account_type', 'general')
+        else if (type === 'users' || type === 'user')
+          accountsQuery = accountsQuery.in('account_type', ['general', 'primary'])
+        else if (
+          type === 'organizations' ||
+          type === 'organization' ||
+          type === 'organizers' ||
+          type === 'organizer' ||
+          type === 'business'
+        )
+          accountsQuery = accountsQuery.in('account_type', ['organizer', 'business', 'organization'])
+        else if (type === 'artists' || type === 'artist')
+          accountsQuery = accountsQuery.eq('account_type', 'artist')
+        else
+          accountsQuery = accountsQuery.in('account_type', [
+            'artist',
+            'venue',
+            'organizer',
+            'business',
+            'organization',
+            'general',
+            'primary',
+          ])
 
         const { data: accountRows, error: accountsError } = await accountsQuery
         if (!accountsError && accountRows?.length) {
+          const artistAccountByOwner = new Map<string, string>()
+          for (const account of accountRows) {
+            if (account.account_type === 'artist' && account.owner_user_id)
+              artistAccountByOwner.set(String(account.owner_user_id), String(account.id))
+          }
+
+          // Backfill accountId onto artist results from artist_profiles path
+          for (const result of results) {
+            if (result.type === 'artist' && !result.accountId && result.ownerUserId) {
+              const accountId = artistAccountByOwner.get(result.ownerUserId)
+              if (accountId) result.accountId = accountId
+            }
+          }
+
           const normalized = accountRows
-            .map((account: any): EnhancedSearchResult => {
+            .map((account: any): EnhancedSearchResult | null => {
               const metadata = account.metadata && typeof account.metadata === 'object' ? account.metadata : {}
-              const accountType = account.account_type === 'venue' ? 'venue' : 'user'
+              const rawType = String(account.account_type || '')
+              let resultType: EnhancedSearchResult['type'] = 'user'
+              if (rawType === 'artist') resultType = 'artist'
+              else if (rawType === 'venue') resultType = 'venue'
+              else if (rawType === 'organizer' || rawType === 'business' || rawType === 'organization')
+                resultType = 'organization'
+              else if (rawType === 'general' || rawType === 'primary') resultType = 'user'
+              else return null
+
+              // Artists already included from artist_profiles; prefer that richer row unless missing
+              if (resultType === 'artist' && results.some((row) => row.type === 'artist' && row.ownerUserId === String(account.owner_user_id)))
+                return null
+
+              const ownerUserId = String(account.owner_user_id || '')
+              const username = normalizeText(account.username) || ownerUserId || String(account.id)
               return {
-                id: String(account.id),
-                type: accountType,
-                username: normalizeText(account.username) || String(account.id),
+                id: resultType === 'user' ? ownerUserId || String(account.id) : String(account.id),
+                type: resultType,
+                ownerUserId: ownerUserId || undefined,
+                accountId: resultType === 'user' ? null : String(account.id),
+                accountType: rawType,
+                username,
+                urlSlug: resultType === 'organization' ? username : undefined,
                 displayName:
                   normalizeText(account.display_name) ||
                   normalizeText(metadata.venue_name) ||
+                  normalizeText(metadata.organization_name) ||
                   normalizeText(metadata.name) ||
                   'User',
                 avatar: normalizeText(account.avatar_url) || undefined,
@@ -228,13 +310,14 @@ export async function GET(request: NextRequest) {
                   [normalizeText(metadata.city), normalizeText(metadata.state)].filter(Boolean).join(', ') ||
                   undefined,
                 verified: Boolean(account.is_verified),
-                followers: toNumber(metadata.followers_count),
+                followers: toNumber(account.follower_count ?? metadata.followers_count),
                 following: toNumber(metadata.following_count),
                 posts: toNumber(metadata.posts_count),
                 created_at: String(account.created_at || new Date().toISOString()),
-                updated_at: String(account.updated_at || new Date().toISOString())
+                updated_at: String(account.updated_at || new Date().toISOString()),
               }
             })
+            .filter((result): result is EnhancedSearchResult => Boolean(result))
             .filter(result => {
               if (verifiedOnly && !result.verified) return false
               if (location && !normalizeText(result.location).toLowerCase().includes(location.toLowerCase())) return false
@@ -260,6 +343,9 @@ export async function GET(request: NextRequest) {
         .map((row: any): EnhancedSearchResult => ({
           id: String(row.id),
           type: 'user',
+          ownerUserId: String(row.id),
+          accountId: null,
+          accountType: 'general',
           username: normalizeText(row.username) || String(row.id),
           displayName: normalizeText(row.full_name) || normalizeText(row.username) || 'User',
           avatar: normalizeText(row.avatar_url) || undefined,

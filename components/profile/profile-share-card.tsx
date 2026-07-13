@@ -22,7 +22,7 @@ export function ProfileShareCard({
   className = "",
   compact = false,
 }: ProfileShareCardProps) {
-  const [origin, setOrigin] = useState(process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live")
+  const [origin, setOrigin] = useState(process.env.NEXT_PUBLIC_SITE_URL || "https://tourify.live")
   const [isCopied, setIsCopied] = useState(false)
 
   useEffect(() => {

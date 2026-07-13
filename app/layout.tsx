@@ -6,27 +6,21 @@ import { ThemeProvider } from "@/hooks/use-theme"
 import { AuthProvider } from "@/contexts/auth-context"
 import { MandatoryTosGate } from "@/components/auth/mandatory-tos-gate"
 import { MultiAccountProvider } from "@/hooks/use-multi-account"
-import { JukeboxProvider } from "@/contexts/jukebox-context"
 import { ChunkLoadRecovery } from "@/components/chunk-load-recovery"
+import { NavigationPerfMarks } from "@/components/performance/navigation-perf-marks"
+import { AppChrome } from "@/components/layout/app-chrome"
 import { Toaster } from "sonner"
 import { warnMissingEnv, warnProductionPublicSiteUrl } from "@/lib/utils/env-check"
+import { getMetadataBase } from "@/lib/seo/site"
 
-const Nav = dynamic(() => import("@/components/nav").then((mod) => ({ default: mod.Nav })))
-const PersistentPlayerBar = dynamic(() =>
-  import("@/components/jukebox/persistent-player-bar").then((mod) => ({ default: mod.PersistentPlayerBar }))
-)
-const FullPlayerView = dynamic(() =>
-  import("@/components/jukebox/full-player-view").then((mod) => ({ default: mod.FullPlayerView }))
-)
 const EducationRoot = dynamic(() =>
   import("@/components/product-education/education-root").then((mod) => ({ default: mod.EducationRoot }))
 )
 
 const inter = Inter({ subsets: ["latin"] })
-const metadataBaseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live"
 
 export const metadata: Metadata = {
-  metadataBase: new URL(metadataBaseUrl),
+  metadataBase: getMetadataBase(),
   title: {
     default: "Tourify - Connect. Create. Tour.",
     template: "%s | Tourify",
@@ -81,19 +75,11 @@ export default function RootLayout({
           <AuthProvider>
             <MandatoryTosGate />
             <MultiAccountProvider>
-              <JukeboxProvider>
-                <EducationRoot>
-                  <div className="flex flex-col min-h-screen">
-                    <Nav />
-                    <main className="flex-1 pb-[var(--player-height,0px)]">
-                      {children}
-                    </main>
-                    <PersistentPlayerBar />
-                    <FullPlayerView />
-                    <Toaster richColors position="top-right" />
-                  </div>
-                </EducationRoot>
-              </JukeboxProvider>
+              <EducationRoot>
+                <NavigationPerfMarks />
+                <AppChrome>{children}</AppChrome>
+                <Toaster richColors position="top-right" />
+              </EducationRoot>
             </MultiAccountProvider>
           </AuthProvider>
         </ThemeProvider>

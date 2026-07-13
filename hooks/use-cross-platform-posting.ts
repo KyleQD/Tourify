@@ -40,17 +40,22 @@ export function useCrossPlatformPosting(options: UseCrossPlatformPostingOptions 
     try {
       setLoading(true)
       setError(null)
-      
-      const [posts, userTemplates, publicTemplates, groups, analyticsData] = await Promise.all([
+
+      try {
+        await crossPlatformPostingService.seedStarterTemplatesIfEmpty()
+      } catch {
+        // Seeding is best-effort (table may not exist yet)
+      }
+
+      const [posts, publicTemplates, groups, analyticsData] = await Promise.all([
         crossPlatformPostingService.getScheduledPosts(),
-        crossPlatformPostingService.getTemplates(),
         crossPlatformPostingService.getTemplates({ includePublic: true }),
         crossPlatformPostingService.getHashtagGroups(),
         crossPlatformPostingService.getCrossPlatformAnalytics()
       ])
       
       setScheduledPosts(posts)
-      setTemplates(publicTemplates) // Include both user and public templates
+      setTemplates(publicTemplates)
       setHashtagGroups(groups)
       setAnalytics(analyticsData)
     } catch (err) {
@@ -110,6 +115,8 @@ export function useCrossPlatformPosting(options: UseCrossPlatformPostingOptions 
       repeatConfig?: Record<string, any>
       templateId?: string
       timezone?: string
+      targets?: string[]
+      overrides?: Record<string, string>
     } = {}
   ) => {
     try {
@@ -193,13 +200,50 @@ export function useCrossPlatformPosting(options: UseCrossPlatformPostingOptions 
         template.content_template,
         variables
       )
+
+      const hashtags = crossPlatformPostingService.flattenHashtagGroups(template.hashtag_groups)
       
       return {
         template,
-        processedContent
+        processedContent,
+        hashtags
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to use template')
+      throw err
+    }
+  }, [])
+
+  const deleteTemplate = useCallback(async (templateId: string) => {
+    try {
+      setError(null)
+      await crossPlatformPostingService.deleteTemplate(templateId)
+      setTemplates(prev => prev.filter(t => t.id !== templateId))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete template')
+      throw err
+    }
+  }, [])
+
+  const updateTemplate = useCallback(async (
+    templateId: string,
+    updates: {
+      templateName?: string
+      contentTemplate?: string
+      category?: PostTemplate['template_category']
+      hashtagGroups?: any[]
+      accountTypes?: string[]
+      variables?: Record<string, any>
+      isPublic?: boolean
+    }
+  ) => {
+    try {
+      setError(null)
+      const updated = await crossPlatformPostingService.updateTemplate(templateId, updates)
+      setTemplates(prev => prev.map(t => t.id === templateId ? updated : t))
+      return updated
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update template')
       throw err
     }
   }, [])
@@ -305,6 +349,8 @@ export function useCrossPlatformPosting(options: UseCrossPlatformPostingOptions 
     cancelScheduledPost,
     createTemplate,
     useTemplate,
+    deleteTemplate,
+    updateTemplate,
     createHashtagGroup,
     duplicatePost,
     
@@ -312,6 +358,7 @@ export function useCrossPlatformPosting(options: UseCrossPlatformPostingOptions 
     getFilteredPosts,
     getTemplatesByCategory,
     getHashtagsByGroup,
+    flattenHashtagGroups: crossPlatformPostingService.flattenHashtagGroups.bind(crossPlatformPostingService),
     refreshData: loadData
   }
 }
@@ -398,4 +445,4 @@ export function useContentSuggestions(accountType: string) {
     error,
     refreshSuggestions: loadSuggestions
   }
-} 
+}

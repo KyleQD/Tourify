@@ -1,43 +1,43 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
+import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs"
-import { SurfaceCard, SurfaceHero, SurfaceInput, SurfaceTabsList } from "@/components/surface/surface-primitives"
+import { SurfaceCard, SurfaceHero, SurfaceInput } from "@/components/surface/surface-primitives"
 import {
   ArrowRight,
   Briefcase,
+  Building2,
   Calendar,
   Compass,
+  Disc3,
   Flame,
-  GraduationCap,
+  Heart,
   Loader2,
   MapPin,
+  Music,
+  Pause,
+  Play,
   Search,
   Sparkles,
-  TrendingUp,
   Users,
-  Zap,
-  Disc3,
-  Music,
-  Play,
-  Heart,
-  Ticket,
 } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { getArtistPublicProfilePath, resolvePublicProfilePath } from "@/lib/utils/public-profile-routes"
+import { FollowFriendButton } from "@/components/social/follow-friend-button"
 
 interface DiscoverProfile {
   id: string
   username: string
-  account_type: "artist" | "venue" | "general"
+  account_type: "artist" | "venue" | "organization" | "general"
   display_name: string
   avatar_url?: string | null
   bio?: string
@@ -51,6 +51,8 @@ interface DiscoverProfile {
   creator_type?: string | null
   service_offerings?: string[]
   available_for_hire?: boolean
+  owner_user_id?: string | null
+  account_id?: string | null
 }
 
 interface DiscoverEvent {
@@ -71,6 +73,10 @@ interface DiscoverEvent {
 
 interface DiscoverPost {
   id: string
+  user_id?: string | null
+  author_profile_id?: string | null
+  account_type?: string | null
+  posted_as_type?: string | null
   content: string
   created_at: string
   likes_count: number
@@ -99,6 +105,7 @@ interface DiscoverMusicTrack {
   title: string
   artist_name: string
   artist_id?: string
+  artist_username?: string | null
   cover_art_url?: string | null
   file_url?: string
   genre?: string | null
@@ -116,6 +123,7 @@ interface DiscoverPayload {
     people: DiscoverProfile[]
     artists: DiscoverProfile[]
     venues: DiscoverProfile[]
+    organizations?: DiscoverProfile[]
     suggestions: DiscoverProfile[]
     hire_matches: DiscoverProfile[]
     new_music?: DiscoverMusicTrack[]
@@ -132,41 +140,17 @@ interface DiscoverPayload {
   }
 }
 
-interface IntentOption {
-  id: DiscoverIntent
-  label: string
-  description: string
-  icon: React.ReactNode
-}
+type DiscoverSectionId = "for-you" | "near-you" | "artists" | "music" | "posts" | "venues" | "organizations"
 
-type DiscoverIntent = "grow" | "network" | "book" | "learn"
-type DiscoverTab = "for-you" | "events" | "music" | "trending" | "people" | "hire"
+const LOCATION_STORAGE_KEY = "tourify.discover.location"
 
-const intentOptions: IntentOption[] = [
-  {
-    id: "grow",
-    label: "Grow Reach",
-    description: "Spot proven creators and formats you can apply this week.",
-    icon: <TrendingUp className="h-4 w-4" />,
-  },
-  {
-    id: "network",
-    label: "Build Team",
-    description: "Connect with collaborators, venues, and operators that move projects forward.",
-    icon: <Users className="h-4 w-4" />,
-  },
-  {
-    id: "book",
-    label: "Book Shows",
-    description: "Find active stages and demand signals so you can close more dates.",
-    icon: <Calendar className="h-4 w-4" />,
-  },
-  {
-    id: "learn",
-    label: "Sharpen Skills",
-    description: "Learn from high-signal posts and repeat what already works.",
-    icon: <GraduationCap className="h-4 w-4" />,
-  },
+const SECTION_CHIPS: Array<{ id: DiscoverSectionId; label: string }> = [
+  { id: "near-you", label: "Near You" },
+  { id: "artists", label: "Artists" },
+  { id: "music", label: "Music" },
+  { id: "posts", label: "Posts" },
+  { id: "venues", label: "Venues" },
+  { id: "organizations", label: "Orgs" },
 ]
 
 async function reverseGeocode({
@@ -210,30 +194,22 @@ async function reverseGeocode({
   return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`
 }
 
+function textIncludes(query: string, ...values: Array<string | null | undefined>) {
+  return values.some((value) => String(value || "").toLowerCase().includes(query))
+}
+
 export default function DiscoverPage() {
   const router = useRouter()
   const { user } = useAuth()
+  const jukebox = useJukeboxOptional()
+  const sectionRefs = useRef<Partial<Record<DiscoverSectionId, HTMLElement | null>>>({})
 
   const [isLoading, setIsLoading] = useState(true)
   const [isLocating, setIsLocating] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [locationInput, setLocationInput] = useState("")
   const [appliedLocation, setAppliedLocation] = useState("")
-  const [creatorTypeInput, setCreatorTypeInput] = useState("")
-  const [serviceInput, setServiceInput] = useState("")
-  const [appliedCreatorType, setAppliedCreatorType] = useState("")
-  const [appliedService, setAppliedService] = useState("")
-  const [availableForHireOnly, setAvailableForHireOnly] = useState(false)
-  const [selectedIntent, setSelectedIntent] = useState<DiscoverIntent>("grow")
-  const [activeTab, setActiveTab] = useState<DiscoverTab>("for-you")
-  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set())
-  const [stats, setStats] = useState<DiscoverPayload["stats"]>({
-    trending_count: 0,
-    upcoming_count: 0,
-    people_count: 0,
-    suggestions_count: 0,
-    hire_matches_count: 0,
-  })
+  const [hasHydratedLocation, setHasHydratedLocation] = useState(false)
   const [sections, setSections] = useState<DiscoverPayload["sections"]>({
     for_you: [],
     trending: [],
@@ -241,6 +217,7 @@ export default function DiscoverPage() {
     people: [],
     artists: [],
     venues: [],
+    organizations: [],
     suggestions: [],
     hire_matches: [],
     new_music: [],
@@ -250,79 +227,51 @@ export default function DiscoverPage() {
   })
 
   useEffect(() => {
-    loadDiscover({
-      intent: selectedIntent,
-      location: appliedLocation,
-      creatorType: appliedCreatorType,
-      service: appliedService,
-      availableForHire: availableForHireOnly
-    })
-  }, [selectedIntent, appliedLocation, appliedCreatorType, appliedService, availableForHireOnly])
+    try {
+      const saved = window.localStorage.getItem(LOCATION_STORAGE_KEY)
+      if (saved?.trim()) {
+        setLocationInput(saved)
+        setAppliedLocation(saved)
+      }
+    } catch {
+      // ignore storage errors
+    } finally {
+      setHasHydratedLocation(true)
+    }
+  }, [])
 
-  async function loadDiscover(params: {
-    intent: DiscoverIntent
-    location: string
-    creatorType?: string
-    service?: string
-    availableForHire?: boolean
-  }) {
+  useEffect(() => {
+    if (!hasHydratedLocation) return
+    loadDiscover({ location: appliedLocation })
+  }, [appliedLocation, hasHydratedLocation])
+
+  useEffect(() => {
+    if (!hasHydratedLocation) return
+    try {
+      if (appliedLocation.trim())
+        window.localStorage.setItem(LOCATION_STORAGE_KEY, appliedLocation.trim())
+      else window.localStorage.removeItem(LOCATION_STORAGE_KEY)
+    } catch {
+      // ignore storage errors
+    }
+  }, [appliedLocation, hasHydratedLocation])
+
+  async function loadDiscover(params: { location: string }) {
     setIsLoading(true)
     try {
-      const discoverParams = new URLSearchParams({
-        limit: "12",
-        intent: params.intent
-      })
+      const discoverParams = new URLSearchParams({ limit: "12" })
       if (params.location.trim()) discoverParams.set("location", params.location.trim())
-      if (params.creatorType?.trim()) discoverParams.set("creatorType", params.creatorType.trim())
-      if (params.service?.trim()) discoverParams.set("service", params.service.trim())
-      if (params.availableForHire) discoverParams.set("availableForHire", "true")
 
       const response = await fetch(`/api/discover?${discoverParams.toString()}`)
       if (!response.ok) throw new Error("Failed to load discover")
 
       const payload = (await response.json()) as DiscoverPayload
       setSections(payload.sections)
-      setStats(payload.stats)
     } catch (error) {
       console.error("Discover load error:", error)
       toast.error("Unable to load discover right now")
     } finally {
       setIsLoading(false)
-    }
-  }
-
-  async function handleFollow(profileId: string) {
-    if (!user) {
-      toast.error("Please sign in to follow people")
-      return
-    }
-
-    const isFollowing = followingIds.has(profileId)
-    const action = isFollowing ? "unfollow" : "follow"
-
-    try {
-      const response = await fetch("/api/follow", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          following_id: profileId,
-          action,
-        }),
-      })
-
-      if (!response.ok) throw new Error("Follow update failed")
-
-      setFollowingIds((prev) => {
-        const updated = new Set(prev)
-        if (isFollowing) updated.delete(profileId)
-        else updated.add(profileId)
-        return updated
-      })
-
-      toast.success(isFollowing ? "Unfollowed" : "Following")
-    } catch (error) {
-      console.error("Follow action failed:", error)
-      toast.error("Could not update follow status")
     }
   }
 
@@ -350,135 +299,225 @@ export default function DiscoverPage() {
       toast.success(`Using location: ${resolvedLocation}`)
     } catch (error) {
       const geolocationError = error as GeolocationPositionError
-      if (geolocationError?.code === 1) {
-        toast.error("Location permission denied")
-      } else if (geolocationError?.code === 2) {
-        toast.error("Unable to detect current location")
-      } else if (geolocationError?.code === 3) {
-        toast.error("Location request timed out")
-      } else {
-        toast.error("Failed to use current location")
-      }
+      if (geolocationError?.code === 1) toast.error("Location permission denied")
+      else if (geolocationError?.code === 2) toast.error("Unable to detect current location")
+      else if (geolocationError?.code === 3) toast.error("Location request timed out")
+      else toast.error("Failed to use current location")
     } finally {
       setIsLocating(false)
     }
+  }
+
+  function applyLocation() {
+    setAppliedLocation(locationInput.trim())
+  }
+
+  function clearLocation() {
+    setLocationInput("")
+    setAppliedLocation("")
+  }
+
+  function scrollToSection(id: DiscoverSectionId) {
+    const node = sectionRefs.current[id]
+    if (!node) return
+    node.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  function handleSearchSubmit(event: FormEvent) {
+    event.preventDefault()
+    const query = searchQuery.trim()
+    if (!query) return
+    router.push(`/discover/users?q=${encodeURIComponent(query)}`)
+  }
+
+  function handlePlayTrack(track: DiscoverMusicTrack) {
+    if (!jukebox || !track.file_url) {
+      toast.error("Playback is unavailable right now")
+      return
+    }
+
+    const jukeboxTrack: JukeboxTrack = {
+      id: track.id,
+      title: track.title,
+      artist_name: track.artist_name,
+      artist_id: track.artist_id,
+      duration: track.duration || undefined,
+      file_url: track.file_url,
+      cover_art_url: track.cover_art_url || undefined,
+      genre: track.genre || undefined,
+      is_public: true,
+    }
+
+    const isCurrent =
+      jukebox.state.currentTrack?.id === track.id && jukebox.state.isPlaying
+    if (isCurrent) jukebox.pause()
+    else jukebox.play(jukeboxTrack)
   }
 
   const filtered = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     if (!query) return sections
 
-    const textIncludes = (...values: Array<string | null | undefined>) =>
-      values.some((value) => String(value || "").toLowerCase().includes(query))
-
     return {
       ...sections,
       for_you: sections.for_you.filter((item) => {
-        if (item.post) return textIncludes(item.post.content, item.post.profiles.username)
-        if (item.event) return textIncludes(item.event.title, item.event.venue_name, item.event.venue_city)
-        if (item.profile) return textIncludes(item.profile.display_name, item.profile.username, item.profile.bio, item.profile.location, item.profile.creator_type, ...(item.profile.service_offerings || []))
+        if (item.post)
+          return textIncludes(query, item.post.content, item.post.profiles.username)
+        if (item.event)
+          return textIncludes(
+            query,
+            item.event.title,
+            item.event.venue_name,
+            item.event.venue_city
+          )
+        if (item.profile)
+          return textIncludes(
+            query,
+            item.profile.display_name,
+            item.profile.username,
+            item.profile.bio,
+            item.profile.location
+          )
         return false
       }),
-      trending: sections.trending.filter((post) => textIncludes(post.content, post.profiles.username)),
-      upcoming: sections.upcoming.filter((event) => textIncludes(event.title, event.venue_name, event.venue_city, event.venue_state)),
-      people: sections.people.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
-      artists: sections.artists.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
-      venues: sections.venues.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location)),
-      suggestions: sections.suggestions.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
-      hire_matches: sections.hire_matches.filter((profile) => textIncludes(profile.display_name, profile.username, profile.bio, profile.location, profile.creator_type, ...(profile.service_offerings || []))),
+      trending: sections.trending.filter((post) =>
+        textIncludes(query, post.content, post.profiles.username, post.profiles.full_name)
+      ),
+      upcoming: sections.upcoming.filter((event) =>
+        textIncludes(query, event.title, event.venue_name, event.venue_city, event.venue_state)
+      ),
+      nearby_events: (sections.nearby_events || []).filter((event) =>
+        textIncludes(query, event.title, event.venue_name, event.venue_city, event.venue_state)
+      ),
+      artists: sections.artists.filter((profile) =>
+        textIncludes(
+          query,
+          profile.display_name,
+          profile.username,
+          profile.bio,
+          profile.location,
+          profile.creator_type
+        )
+      ),
+      new_artists: (sections.new_artists || []).filter((profile) =>
+        textIncludes(
+          query,
+          profile.display_name,
+          profile.username,
+          profile.bio,
+          profile.location
+        )
+      ),
+      suggestions: sections.suggestions.filter((profile) =>
+        textIncludes(query, profile.display_name, profile.username, profile.bio, profile.location)
+      ),
+      venues: sections.venues.filter((profile) =>
+        textIncludes(query, profile.display_name, profile.username, profile.bio, profile.location)
+      ),
+      organizations: (sections.organizations || []).filter((profile) =>
+        textIncludes(query, profile.display_name, profile.username, profile.bio, profile.location)
+      ),
+      new_music: (sections.new_music || []).filter((track) =>
+        textIncludes(query, track.title, track.artist_name, track.genre)
+      ),
+      trending_music: (sections.trending_music || []).filter((track) =>
+        textIncludes(query, track.title, track.artist_name, track.genre)
+      ),
     }
   }, [sections, searchQuery])
 
-  const audienceSignal = stats.people_count + stats.suggestions_count + stats.trending_count * 2
-  const tabAvailability = useMemo(
-    () => ({
-      "for-you": filtered.for_you.length > 0,
-      events: filtered.upcoming.length > 0 || (sections.nearby_events?.length || 0) > 0,
-      music: (sections.new_music?.length || 0) > 0 || (sections.trending_music?.length || 0) > 0,
-      trending: filtered.trending.length > 0,
-      people: filtered.people.length > 0 || (sections.new_artists?.length || 0) > 0,
-      hire: filtered.hire_matches.length > 0,
-    }),
-    [filtered, sections]
-  )
-  const visibleTabs = useMemo(
-    () => (Object.entries(tabAvailability) as Array<[DiscoverTab, boolean]>)
-      .filter(([, isVisible]) => isVisible)
-      .map(([tab]) => tab),
-    [tabAvailability]
-  )
+  const nearYouEvents =
+    appliedLocation && (filtered.nearby_events?.length || 0) > 0
+      ? filtered.nearby_events || []
+      : filtered.upcoming
 
-  useEffect(() => {
-    if (isLoading) return
-    if (visibleTabs.includes(activeTab)) return
-    setActiveTab(visibleTabs[0] || "for-you")
-  }, [activeTab, isLoading, visibleTabs])
+  const artistRail = useMemo(() => {
+    const seen = new Set<string>()
+    const combined = [
+      ...(filtered.new_artists || []),
+      ...filtered.suggestions.filter((profile) => profile.account_type === "artist"),
+      ...filtered.artists,
+    ]
+    return combined.filter((profile) => {
+      if (seen.has(profile.id)) return false
+      seen.add(profile.id)
+      return true
+    })
+  }, [filtered.artists, filtered.new_artists, filtered.suggestions])
+
+  const musicRail = useMemo(() => {
+    const seen = new Set<string>()
+    const combined = [...(filtered.new_music || []), ...(filtered.trending_music || [])]
+    return combined.filter((track) => {
+      if (seen.has(track.id)) return false
+      seen.add(track.id)
+      return true
+    })
+  }, [filtered.new_music, filtered.trending_music])
+
+  const featuredEvent = nearYouEvents[0] || null
+  const featuredArtist = artistRail[0] || null
+  const showForYou = Boolean(user) && filtered.for_you.length > 0
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        <SurfaceHero className="p-8 space-y-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="space-y-3 max-w-4xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-sm text-purple-200">
+      <div className="mx-auto max-w-7xl space-y-10 px-6 py-8">
+        <SurfaceHero className="space-y-6 p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-sm text-slate-200">
                 <Compass className="h-4 w-4" />
-                Opportunity Radar
+                Discover
               </div>
-              <h1 className="text-3xl md:text-5xl font-bold leading-tight">
-                Find the right opportunities faster
+              <h1 className="text-3xl font-bold leading-tight md:text-5xl">
+                Find artists, shows near you, new music, and what&apos;s trending
               </h1>
-              <p className="text-slate-300 text-base md:text-lg">
-                Track what is moving now, connect with the right people, and turn momentum into bookings, growth, and real outcomes.
+              <p className="text-base text-slate-300 md:text-lg">
+                Explore the local scene and grow your graph beyond who you already follow.
               </p>
             </div>
             <div className="flex gap-2">
               <Button asChild variant="outline" className="border-white/20 text-slate-200 hover:bg-white/10">
-                <Link href="/feed">Pulse</Link>
+                <Link href="/discover/events">All events</Link>
               </Button>
-              <Button asChild className="rounded-xl bg-purple-600 hover:bg-purple-700">
-                <Link href="/events">Explore Events</Link>
+              <Button asChild className="rounded-xl bg-violet-600 hover:bg-violet-700">
+                <Link href="/discover/users">Find people</Link>
               </Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <SignalCard label="Trending signals" value={stats.trending_count} icon={<Flame className="h-4 w-4" />} />
-            <SignalCard label="Upcoming events" value={stats.upcoming_count} icon={<Calendar className="h-4 w-4" />} />
-            <SignalCard label="People to meet" value={stats.people_count} icon={<Users className="h-4 w-4" />} />
-            <SignalCard label="Opportunity index" value={audienceSignal} icon={<Zap className="h-4 w-4" />} />
-          </div>
-
-          <div className="inline-flex w-fit items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-medium text-cyan-100">
-            <Sparkles className="h-3.5 w-3.5" />
-            RSS-only mode enabled
-          </div>
-
-          <div className="mt-2 max-w-xl relative">
-            <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <form onSubmit={handleSearchSubmit} className="relative max-w-xl">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <SurfaceInput
               value={searchQuery}
               onChange={(event) => setSearchQuery(event.target.value)}
-              placeholder="Search people, events, venues, opportunities..."
+              placeholder="Search artists, events, music, venues..."
               className="pl-9"
             />
-          </div>
+          </form>
 
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative w-full max-w-sm">
-              <MapPin className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <SurfaceInput
                 value={locationInput}
                 onChange={(event) => setLocationInput(event.target.value)}
-                placeholder="Narrow results by location (city, state)"
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault()
+                    applyLocation()
+                  }
+                }}
+                placeholder="City, state"
                 className="pl-9"
               />
             </div>
             <Button
               variant="outline"
               className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10"
-              onClick={() => setAppliedLocation(locationInput.trim())}
+              onClick={applyLocation}
             >
-              Apply Location
+              Apply
             </Button>
             <Button
               variant="outline"
@@ -486,381 +525,392 @@ export default function DiscoverPage() {
               onClick={handleUseCurrentLocation}
               disabled={isLocating}
             >
-              {isLocating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MapPin className="h-4 w-4 mr-2" />}
-              Use my current location
+              {isLocating ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <MapPin className="mr-2 h-4 w-4" />
+              )}
+              Near me
             </Button>
             {appliedLocation ? (
-              <Button
-                variant="ghost"
-                className="text-slate-300 hover:text-white hover:bg-white/10"
-                onClick={() => {
-                  setLocationInput("")
-                  setAppliedLocation("")
-                }}
-              >
-                Clear
-              </Button>
-            ) : null}
-            {appliedLocation ? (
-              <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-500/30">
-                Near {appliedLocation}
-              </Badge>
+              <>
+                <Badge className="border-emerald-500/30 bg-emerald-500/20 text-emerald-200">
+                  Near {appliedLocation}
+                </Badge>
+                <Button
+                  variant="ghost"
+                  className="text-slate-300 hover:bg-white/10 hover:text-white"
+                  onClick={clearLocation}
+                >
+                  Clear
+                </Button>
+              </>
             ) : null}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-            <SurfaceInput
-              value={creatorTypeInput}
-              onChange={(event) => setCreatorTypeInput(event.target.value)}
-              placeholder="Creator type (photographer, designer...)"
-            />
-            <SurfaceInput
-              value={serviceInput}
-              onChange={(event) => setServiceInput(event.target.value)}
-              placeholder="Service keyword (video, merch, styling...)"
-            />
-            <Button
-              variant={availableForHireOnly ? "default" : "outline"}
-              className={availableForHireOnly ? "rounded-xl bg-emerald-600 hover:bg-emerald-700" : "rounded-xl border-white/20 text-slate-200 hover:bg-white/10"}
-              onClick={() => setAvailableForHireOnly((current) => !current)}
-            >
-              <Briefcase className="h-4 w-4 mr-2" />
-              Available for hire only
-            </Button>
-            <Button
-              variant="outline"
-              className="rounded-xl border-white/20 text-slate-200 hover:bg-white/10"
-              onClick={() => {
-                setAppliedCreatorType(creatorTypeInput.trim())
-                setAppliedService(serviceInput.trim())
-              }}
-            >
-              Apply match filters
-            </Button>
-          </div>
-          {(appliedCreatorType || appliedService || availableForHireOnly) ? (
-            <div className="flex flex-wrap gap-2">
-              {appliedCreatorType ? (
-                <Badge className="bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-500/30">
-                  Creator: {appliedCreatorType}
-                </Badge>
-              ) : null}
-              {appliedService ? (
-                <Badge className="bg-cyan-500/20 text-cyan-100 border-cyan-500/30">
-                  Service: {appliedService}
-                </Badge>
-              ) : null}
-              {availableForHireOnly ? (
-                <Badge className="bg-emerald-500/20 text-emerald-100 border-emerald-500/30">
-                  Hire-ready only
-                </Badge>
-              ) : null}
+          <div className="flex flex-wrap gap-2">
+            {SECTION_CHIPS.map((chip) => (
               <Button
-                variant="ghost"
-                className="h-7 px-2 text-xs text-slate-300 hover:bg-white/10"
-                onClick={() => {
-                  setCreatorTypeInput("")
-                  setServiceInput("")
-                  setAppliedCreatorType("")
-                  setAppliedService("")
-                  setAvailableForHireOnly(false)
-                }}
+                key={chip.id}
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full border-white/15 bg-white/5 text-slate-200 hover:bg-white/10"
+                onClick={() => scrollToSection(chip.id)}
               >
-                Clear filters
+                {chip.label}
               </Button>
-            </div>
+            ))}
+          </div>
+
+          {!isLoading && (featuredEvent || featuredArtist) ? (
+            <FeaturedHero
+              event={featuredEvent}
+              artist={featuredArtist}
+              locationLabel={appliedLocation}
+              onOpenEvent={() => featuredEvent && openEvent(router, featuredEvent)}
+              onOpenArtist={() => featuredArtist && openProfile(router, featuredArtist)}
+            />
           ) : null}
         </SurfaceHero>
 
-        <section className="space-y-3">
-          <h2 className="text-xl font-semibold">Choose your outcome</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-            {intentOptions.map((intentOption) => (
-              <button
-                key={intentOption.id}
-                onClick={() => setSelectedIntent(intentOption.id)}
-                className={`text-left rounded-2xl border p-4 transition ${
-                  selectedIntent === intentOption.id
-                    ? "border-purple-400/60 bg-purple-500/10"
-                    : "border-white/10 bg-slate-900/50 hover:border-white/20"
-                }`}
-              >
-                <div className="flex items-center gap-2 text-sm text-purple-200 mb-2">
-                  {intentOption.icon}
-                  {intentOption.label}
-                </div>
-                <p className="text-sm text-slate-300">{intentOption.description}</p>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-          <QuickPathCard
-            title="Land paid work"
-            description="Open active roles and apply where demand is already live."
-            href="/jobs"
-            icon={<Briefcase className="h-4 w-4" />}
-          />
-          <QuickPathCard
-            title="Find collaborators"
-            description="Connect with artists and teams ready to build now."
-            href="/friends/search"
-            icon={<Users className="h-4 w-4" />}
-          />
-          <QuickPathCard
-            title="Track live demand"
-            description="See which events and venues are accelerating."
-            href="/discover/events"
-            icon={<Calendar className="h-4 w-4" />}
-          />
-          <QuickPathCard
-            title="Study winning content"
-            description="Open top-performing posts in Pulse and adapt the playbook."
-            href="/feed"
-            icon={<Sparkles className="h-4 w-4" />}
-          />
-        </section>
-
-        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DiscoverTab)} className="space-y-6">
-          <SurfaceTabsList>
-            {(isLoading || tabAvailability["for-you"]) ? (
-              <TabsTrigger value="for-you"><Sparkles className="h-4 w-4 mr-2" />For You</TabsTrigger>
-            ) : null}
-            {(isLoading || tabAvailability.people) ? (
-              <TabsTrigger value="people"><Users className="h-4 w-4 mr-2" />People</TabsTrigger>
-            ) : null}
-            {(isLoading || tabAvailability.hire) ? (
-              <TabsTrigger value="hire"><Briefcase className="h-4 w-4 mr-2" />Hire Matches</TabsTrigger>
-            ) : null}
-            {(isLoading || tabAvailability.music) ? (
-              <TabsTrigger value="music"><Disc3 className="h-4 w-4 mr-2" />Music</TabsTrigger>
-            ) : null}
-            {(isLoading || tabAvailability.events) ? (
-              <TabsTrigger value="events"><Calendar className="h-4 w-4 mr-2" />Events</TabsTrigger>
-            ) : null}
-            {(isLoading || tabAvailability.trending) ? (
-              <TabsTrigger value="trending"><Flame className="h-4 w-4 mr-2" />Trending</TabsTrigger>
-            ) : null}
-          </SurfaceTabsList>
-
-          <TabsContent value="for-you" className="space-y-6">
-            <SectionHeader title="High-impact picks for your goal" href="/friends/search" />
-            {isLoading ? <LoadingGrid /> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.for_you.map((item) => (
+        {showForYou ? (
+          <section
+            ref={(node) => {
+              sectionRefs.current["for-you"] = node
+            }}
+            className="scroll-mt-24 space-y-4"
+          >
+            <SectionHeader title="For You" href="/discover/users" />
+            {isLoading ? (
+              <LoadingRail />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {filtered.for_you.slice(0, 6).map((item) => (
                   <ForYouCard
                     key={item.id}
                     item={item}
                     onOpenProfile={(profile) => openProfile(router, profile)}
                     onOpenEvent={(event) => openEvent(router, event)}
-                    onOpenPost={() => router.push("/feed")}
+                    onOpenPost={(post) => openPost(router, post)}
                   />
                 ))}
               </div>
             )}
-            {!isLoading && filtered.for_you.length === 0 ? (
-              <EmptyState message="No RSS matches for this goal right now. Try another intent or remove location filtering." />
-            ) : null}
-          </TabsContent>
+          </section>
+        ) : null}
 
-          <TabsContent value="hire" className="space-y-6">
-            <SectionHeader title="Creators ready for paid opportunities" href="/search" />
-            {isLoading ? <LoadingGrid /> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {filtered.hire_matches.slice(0, 12).map((profile) => (
+        <section
+          ref={(node) => {
+            sectionRefs.current["near-you"] = node
+          }}
+          className="scroll-mt-24 space-y-4"
+        >
+          <SectionHeader
+            title={appliedLocation ? `Happening near ${appliedLocation}` : "Happening Near You"}
+            href="/discover/events"
+          />
+          {isLoading ? (
+            <LoadingRail />
+          ) : nearYouEvents.length > 0 ? (
+            <HorizontalRail>
+              {nearYouEvents.map((event) => (
+                <div key={event.id} className="w-[280px] flex-shrink-0">
+                  <EventCard event={event} onOpen={() => openEvent(router, event)} />
+                </div>
+              ))}
+            </HorizontalRail>
+          ) : (
+            <EmptyState
+              message={
+                appliedLocation
+                  ? "No upcoming events near that location yet. Try another city or browse all events."
+                  : "Set your location to prioritize local shows, or browse upcoming events nationwide."
+              }
+              actionHref="/discover/events"
+              actionLabel="Browse events"
+              secondaryAction={
+                !appliedLocation
+                  ? { label: "Use Near me", onClick: handleUseCurrentLocation }
+                  : undefined
+              }
+            />
+          )}
+        </section>
+
+        <section
+          ref={(node) => {
+            sectionRefs.current.artists = node
+          }}
+          className="scroll-mt-24 space-y-4"
+        >
+          <SectionHeader title="Artists to Discover" href="/discover/users" />
+          {isLoading ? (
+            <LoadingRail />
+          ) : artistRail.length > 0 ? (
+            <HorizontalRail>
+              {artistRail.slice(0, 12).map((profile) => (
+                <div key={profile.id} className="w-[240px] flex-shrink-0">
                   <ProfileCard
-                    key={profile.id}
                     profile={profile}
-                    isFollowing={followingIds.has(profile.id)}
-                    onFollow={handleFollow}
                     onOpen={() => openProfile(router, profile)}
                   />
-                ))}
-              </div>
-            )}
-            {!isLoading && filtered.hire_matches.length === 0 ? (
-              <EmptyState message="No hire-ready creator matches yet. Try broadening creator type or service filters." />
-            ) : null}
-          </TabsContent>
-
-          <TabsContent value="people" className="space-y-6">
-            {(sections.new_artists?.length || 0) > 0 && (
-              <>
-                <SectionHeader title="New Artists to Follow" href="/friends/search" />
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                  {sections.new_artists!.slice(0, 8).map((profile) => (
-                    <ProfileCard
-                      key={`new-${profile.id}`}
-                      profile={profile}
-                      isFollowing={followingIds.has(profile.id)}
-                      onFollow={handleFollow}
-                      onOpen={() => openProfile(router, profile)}
-                    />
-                  ))}
                 </div>
-              </>
-            )}
-            <SectionHeader title="People driving momentum right now" href="/friends/search" />
-            {isLoading ? <LoadingGrid /> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                {filtered.people.slice(0, 12).map((profile) => (
+              ))}
+            </HorizontalRail>
+          ) : (
+            <EmptyState
+              message="No artist suggestions right now. Explore the people directory to find creators."
+              actionHref="/discover/users"
+              actionLabel="Find people"
+            />
+          )}
+        </section>
+
+        <section
+          ref={(node) => {
+            sectionRefs.current.music = node
+          }}
+          className="scroll-mt-24 space-y-4"
+        >
+          <SectionHeader title="Fresh Music" href="/music" />
+          {isLoading ? (
+            <LoadingRail />
+          ) : musicRail.length > 0 ? (
+            <HorizontalRail>
+              {musicRail.slice(0, 12).map((track) => (
+                <div key={track.id} className="w-[220px] flex-shrink-0">
+                  <MusicTrackCard
+                    track={track}
+                    isPlaying={
+                      jukebox?.state.currentTrack?.id === track.id && Boolean(jukebox?.state.isPlaying)
+                    }
+                    onPlay={() => handlePlayTrack(track)}
+                    canPlay={Boolean(jukebox && track.file_url)}
+                  />
+                </div>
+              ))}
+            </HorizontalRail>
+          ) : (
+            <EmptyState
+              message="No tracks discovered yet. Check back as artists upload new music."
+              actionHref="/music"
+              actionLabel="Open music"
+            />
+          )}
+        </section>
+
+        <section
+          ref={(node) => {
+            sectionRefs.current.posts = node
+          }}
+          className="scroll-mt-24 space-y-4"
+        >
+          <SectionHeader title="Trending on Tourify" href="/" />
+          {isLoading ? (
+            <LoadingRail />
+          ) : filtered.trending.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {filtered.trending.slice(0, 9).map((post) => (
+                <PostCard key={post.id} post={post} onOpen={() => openPost(router, post)} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              message="No trending posts on Tourify right now. Follow artists and check back soon."
+              actionHref="/"
+              actionLabel="Open feed"
+            />
+          )}
+        </section>
+
+        <section
+          ref={(node) => {
+            sectionRefs.current.venues = node
+          }}
+          className="scroll-mt-24 space-y-4"
+        >
+          <SectionHeader title="Venues Nearby" href="/discover/users" />
+          {isLoading ? (
+            <LoadingRail />
+          ) : filtered.venues.length > 0 ? (
+            <HorizontalRail>
+              {filtered.venues.slice(0, 12).map((profile) => (
+                <div key={profile.id} className="w-[240px] flex-shrink-0">
                   <ProfileCard
-                    key={profile.id}
                     profile={profile}
-                    isFollowing={followingIds.has(profile.id)}
-                    onFollow={handleFollow}
                     onOpen={() => openProfile(router, profile)}
                   />
-                ))}
-              </div>
-            )}
-            {!isLoading && filtered.people.length === 0 && (sections.new_artists?.length || 0) === 0 ? (
-              <EmptyState message="No people suggestions available right now." />
-            ) : null}
-          </TabsContent>
-
-          <TabsContent value="music" className="space-y-6">
-            {(sections.new_music?.length || 0) > 0 && (
-              <>
-                <SectionHeader title="New Releases" />
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {sections.new_music!.map((track) => (
-                    <MusicTrackCard key={track.id} track={track} />
-                  ))}
                 </div>
-              </>
-            )}
-            {(sections.trending_music?.length || 0) > 0 && (
-              <>
-                <SectionHeader title="Trending Music" />
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {sections.trending_music!.map((track) => (
-                    <MusicTrackCard key={track.id} track={track} />
-                  ))}
-                </div>
-              </>
-            )}
-            {!isLoading && (sections.new_music?.length || 0) === 0 && (sections.trending_music?.length || 0) === 0 ? (
-              <EmptyState message="No music discovered yet. Check back soon as artists upload new tracks." />
-            ) : null}
-          </TabsContent>
+              ))}
+            </HorizontalRail>
+          ) : (
+            <EmptyState
+              message={
+                appliedLocation
+                  ? "No venues matched that location yet. Try a broader city or browse people."
+                  : "Set a location to surface venues near you."
+              }
+              actionHref="/discover/users"
+              actionLabel="Browse people"
+            />
+          )}
+        </section>
 
-          <TabsContent value="events" className="space-y-6">
-            {(sections.nearby_events?.length || 0) > 0 && appliedLocation && (
-              <>
-                <SectionHeader title={`Events near ${appliedLocation}`} href="/events" />
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {sections.nearby_events!.map((event) => (
-                    <EventCard key={event.id} event={event} onOpen={() => openEvent(router, event)} />
-                  ))}
+        <section
+          ref={(node) => {
+            sectionRefs.current.organizations = node
+          }}
+          className="scroll-mt-24 space-y-4"
+        >
+          <SectionHeader title="Organizations" href="/discover/users" />
+          {isLoading ? (
+            <LoadingRail />
+          ) : (filtered.organizations || []).length > 0 ? (
+            <HorizontalRail>
+              {(filtered.organizations || []).slice(0, 12).map((profile) => (
+                <div key={profile.id} className="w-[240px] flex-shrink-0">
+                  <ProfileCard
+                    profile={profile}
+                    onOpen={() => openProfile(router, profile)}
+                  />
                 </div>
-              </>
-            )}
-            <SectionHeader title="Upcoming Events" href="/events" />
-            {isLoading ? <LoadingGrid /> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.upcoming.map((event) => (
-                  <EventCard key={event.id} event={event} onOpen={() => openEvent(router, event)} />
-                ))}
-              </div>
-            )}
-            {!isLoading && filtered.upcoming.length === 0 ? (
-              <EmptyState message="No upcoming events found. Try changing your location or check back later." />
-            ) : null}
-          </TabsContent>
+              ))}
+            </HorizontalRail>
+          ) : (
+            <EmptyState
+              message="No organizations to discover yet. Follow orgs from search as they join Tourify."
+              actionHref="/search"
+              actionLabel="Search"
+            />
+          )}
+        </section>
 
-          <TabsContent value="trending" className="space-y-6">
-            <SectionHeader title="Content with traction" href="/feed" />
-            {isLoading ? <LoadingGrid /> : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.trending.map((post) => (
-                  <PostCard key={post.id} post={post} onOpen={() => router.push("/feed")} />
-                ))}
+        <SurfaceCard className="border-white/10 bg-slate-900/50">
+          <CardContent className="flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-sm text-slate-200">
+                <Briefcase className="h-4 w-4" />
+                Looking for work or talent?
               </div>
-            )}
-            {!isLoading && filtered.trending.length === 0 ? (
-              <EmptyState message="No trending RSS stories available right now. Try changing location or refresh." />
-            ) : null}
-          </TabsContent>
-        </Tabs>
+              <p className="text-sm text-slate-400">
+                Hire and job matching live on Jobs — Discover stays focused on culture and the scene.
+              </p>
+            </div>
+            <Button asChild className="rounded-xl">
+              <Link href="/jobs">
+                Open Jobs
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardContent>
+        </SurfaceCard>
       </div>
     </div>
   )
 }
 
-function SignalCard({
-  label,
-  value,
-  icon,
+function FeaturedHero({
+  event,
+  artist,
+  locationLabel,
+  onOpenEvent,
+  onOpenArtist,
 }: {
-  label: string
-  value: number
-  icon: React.ReactNode
+  event: DiscoverEvent | null
+  artist: DiscoverProfile | null
+  locationLabel: string
+  onOpenEvent: () => void
+  onOpenArtist: () => void
 }) {
-  return (
-    <SurfaceCard className="bg-slate-900/70">
-      <CardContent className="p-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-slate-400">{label}</p>
-          <p className="text-2xl font-semibold">{value}</p>
+  if (event) {
+    return (
+      <button
+        type="button"
+        onClick={onOpenEvent}
+        className="w-full rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900/80 to-slate-800/40 p-5 text-left transition hover:border-white/25"
+      >
+        <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-wide text-violet-200">
+          <Calendar className="h-3.5 w-3.5" />
+          {locationLabel ? `Featured near ${locationLabel}` : "Featured event"}
         </div>
-        <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-200">
-          {icon}
-        </div>
-      </CardContent>
-    </SurfaceCard>
-  )
-}
+        <p className="text-xl font-semibold md:text-2xl">{event.title}</p>
+        <p className="mt-1 text-sm text-slate-300">
+          {[formatSafeDate(event.event_date || null), event.venue_name, event.venue_city]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+      </button>
+    )
+  }
 
-function QuickPathCard({
-  title,
-  description,
-  href,
-  icon,
-}: {
-  title: string
-  description: string
-  href: string
-  icon: React.ReactNode
-}) {
+  if (!artist) return null
+
   return (
-    <Link href={href}>
-      <SurfaceCard className="hover:border-purple-400/40 transition h-full">
-        <CardContent className="p-4 space-y-2">
-          <div className="h-8 w-8 rounded-lg bg-purple-500/20 flex items-center justify-center text-purple-200">
-            {icon}
+    <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-gradient-to-r from-slate-900/80 to-slate-800/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <button type="button" onClick={onOpenArtist} className="flex items-center gap-3 text-left">
+        <Avatar className="h-14 w-14">
+          <AvatarImage src={artist.avatar_url || ""} />
+          <AvatarFallback>{artist.display_name.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div>
+          <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wide text-violet-200">
+            <Users className="h-3.5 w-3.5" />
+            Rising artist
           </div>
-          <p className="font-semibold">{title}</p>
-          <p className="text-sm text-slate-400">{description}</p>
-        </CardContent>
-      </SurfaceCard>
-    </Link>
+          <p className="text-xl font-semibold">{artist.display_name}</p>
+          <p className="text-sm text-slate-300">
+            @{artist.username}
+            {artist.location ? ` · ${artist.location}` : ""}
+          </p>
+        </div>
+      </button>
+      <div className="flex gap-2">
+        <Button variant="outline" className="rounded-xl border-white/20" onClick={onOpenArtist}>
+          View
+        </Button>
+        <FollowFriendButton
+          kind="follow"
+          accountType="artist"
+          targetAccountId={artist.account_id || null}
+          targetUserId={artist.owner_user_id || artist.id}
+          className="rounded-xl"
+        />
+      </div>
+    </div>
   )
 }
 
 function SectionHeader({ title, href }: { title: string; href?: string }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-3">
       <h2 className="text-2xl font-semibold">{title}</h2>
-      {href && (
+      {href ? (
         <Button asChild variant="outline" size="sm" className="border-white/20 text-slate-200 hover:bg-white/10">
           <Link href={href}>
-            See more
-            <ArrowRight className="h-4 w-4 ml-2" />
+            See all
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
-      )}
+      ) : null}
     </div>
   )
 }
 
-function LoadingGrid() {
+function HorizontalRail({ children }: { children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-      {Array.from({ length: 6 }).map((_, index) => (
+    <div className="-mx-2 flex gap-4 overflow-x-auto px-2 pb-2 [scrollbar-width:thin]">
+      {children}
+    </div>
+  )
+}
+
+function LoadingRail() {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {Array.from({ length: 3 }).map((_, index) => (
         <SurfaceCard key={index} className="bg-slate-900/50">
-          <CardContent className="p-6 flex items-center gap-3">
+          <CardContent className="flex items-center gap-3 p-6">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
             <span className="text-slate-300">Loading discover content...</span>
           </CardContent>
@@ -870,10 +920,39 @@ function LoadingGrid() {
   )
 }
 
-function EmptyState({ message }: { message: string }) {
+function EmptyState({
+  message,
+  actionHref,
+  actionLabel,
+  secondaryAction,
+}: {
+  message: string
+  actionHref?: string
+  actionLabel?: string
+  secondaryAction?: { label: string; onClick: () => void }
+}) {
   return (
     <SurfaceCard className="bg-slate-900/60">
-      <CardContent className="p-6 text-sm text-slate-300">{message}</CardContent>
+      <CardContent className="space-y-4 p-6">
+        <p className="text-sm text-slate-300">{message}</p>
+        <div className="flex flex-wrap gap-2">
+          {actionHref && actionLabel ? (
+            <Button asChild size="sm" className="rounded-xl">
+              <Link href={actionHref}>{actionLabel}</Link>
+            </Button>
+          ) : null}
+          {secondaryAction ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl border-white/20"
+              onClick={secondaryAction.onClick}
+            >
+              {secondaryAction.label}
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
     </SurfaceCard>
   )
 }
@@ -887,22 +966,20 @@ function ForYouCard({
   item: ForYouItem
   onOpenProfile: (profile: DiscoverProfile) => void
   onOpenEvent: (event: DiscoverEvent) => void
-  onOpenPost: () => void
+  onOpenPost: (post: DiscoverPost) => void
 }) {
   if (item.profile)
     return (
-      <ProfileCard profile={item.profile} onFollow={() => null} onOpen={() => onOpenProfile(item.profile!)} isFollowing={false} hideFollow />
+      <ProfileCard
+        profile={item.profile}
+        onOpen={() => onOpenProfile(item.profile!)}
+        hideFollow
+      />
     )
 
-  if (item.event)
-    return (
-      <EventCard event={item.event} onOpen={() => onOpenEvent(item.event!)} />
-    )
+  if (item.event) return <EventCard event={item.event} onOpen={() => onOpenEvent(item.event!)} />
 
-  if (item.post)
-    return (
-      <PostCard post={item.post} onOpen={onOpenPost} />
-    )
+  if (item.post) return <PostCard post={item.post} onOpen={() => onOpenPost(item.post!)} />
 
   return null
 }
@@ -910,16 +987,17 @@ function ForYouCard({
 function ProfileCard({
   profile,
   onOpen,
-  onFollow,
-  isFollowing,
   hideFollow = false,
 }: {
   profile: DiscoverProfile
   onOpen: () => void
-  onFollow: (profileId: string) => void
-  isFollowing: boolean
   hideFollow?: boolean
 }) {
+  const isFollowable =
+    profile.account_type === "artist" ||
+    profile.account_type === "venue" ||
+    profile.account_type === "organization"
+
   return (
     <motion.div whileHover={{ y: -2 }}>
       <SurfaceCard className="h-full">
@@ -930,38 +1008,33 @@ function ProfileCard({
               <AvatarFallback>{profile.display_name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="min-w-0">
-              <CardTitle className="text-base truncate">{profile.display_name}</CardTitle>
-              <p className="text-xs text-slate-400 truncate">@{profile.username}</p>
+              <CardTitle className="truncate text-base">{profile.display_name}</CardTitle>
+              <p className="truncate text-xs text-slate-400">@{profile.username}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            <Badge variant="secondary" className="capitalize">{profile.account_type}</Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary" className="capitalize">
+              {profile.account_type === "venue" ? (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="h-3 w-3" />
+                  venue
+                </span>
+              ) : (
+                profile.account_type
+              )}
+            </Badge>
             {profile.verified ? <Badge className="bg-blue-500/20 text-blue-200">Verified</Badge> : null}
             {profile.creator_type ? (
-              <Badge className="bg-fuchsia-500/20 text-fuchsia-100 border-fuchsia-500/30">
+              <Badge className="border-fuchsia-500/30 bg-fuchsia-500/20 text-fuchsia-100">
                 {profile.creator_type}
               </Badge>
             ) : null}
-            {profile.available_for_hire ? (
-              <Badge className="bg-emerald-500/20 text-emerald-100 border-emerald-500/30">
-                Available for hire
-              </Badge>
-            ) : null}
           </div>
-          <p className="text-sm text-slate-300 line-clamp-2">{profile.bio || "No bio yet."}</p>
-          {profile.service_offerings?.length ? (
-            <div className="flex flex-wrap gap-1">
-              {profile.service_offerings.slice(0, 3).map((service) => (
-                <Badge key={service} variant="outline" className="border-white/20 text-slate-200">
-                  {service}
-                </Badge>
-              ))}
-            </div>
-          ) : null}
+          <p className="line-clamp-2 text-sm text-slate-300">{profile.bio || "No bio yet."}</p>
           {profile.location ? (
-            <div className="text-xs text-slate-400 flex items-center gap-1">
+            <div className="flex items-center gap-1 text-xs text-slate-400">
               <MapPin className="h-3 w-3" />
               {profile.location}
             </div>
@@ -972,9 +1045,13 @@ function ProfileCard({
               View
             </Button>
             {!hideFollow ? (
-              <Button onClick={() => onFollow(profile.id)} size="sm" className="flex-1 rounded-xl">
-                {isFollowing ? "Following" : "Follow"}
-              </Button>
+              <FollowFriendButton
+                kind={isFollowable ? "follow" : "friend"}
+                accountType={profile.account_type}
+                targetAccountId={isFollowable ? profile.account_id || null : null}
+                targetUserId={profile.owner_user_id || (isFollowable ? null : profile.id)}
+                className="flex-1 rounded-xl"
+              />
             ) : null}
           </div>
         </CardContent>
@@ -992,14 +1069,17 @@ function EventCard({ event, onOpen }: { event: DiscoverEvent; onOpen: () => void
           <p className="text-xs text-slate-400">{formatSafeDate(event.event_date || null)}</p>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-slate-300 line-clamp-2">{event.description || "No description yet."}</p>
-          <div className="text-xs text-slate-400 flex items-center gap-1">
+          <p className="line-clamp-2 text-sm text-slate-300">
+            {event.description || "No description yet."}
+          </p>
+          <div className="flex items-center gap-1 text-xs text-slate-400">
             <MapPin className="h-3 w-3" />
-            {[event.venue_name, event.venue_city, event.venue_state].filter(Boolean).join(", ") || "Venue TBD"}
+            {[event.venue_name, event.venue_city, event.venue_state].filter(Boolean).join(", ") ||
+              "Venue TBD"}
           </div>
           <div className="text-xs text-slate-400">{event.attendance.total} interested/attending</div>
           <Button onClick={onOpen} size="sm" className="w-full rounded-xl">
-            <Calendar className="h-3.5 w-3.5 mr-2" />
+            <Calendar className="mr-2 h-3.5 w-3.5" />
             View Event
           </Button>
         </CardContent>
@@ -1014,30 +1094,32 @@ function PostCard({ post, onOpen }: { post: DiscoverPost; onOpen: () => void }) 
       <SurfaceCard className="h-full">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
               <Avatar className="h-8 w-8">
                 <AvatarImage src={post.profiles.avatar_url || ""} />
                 <AvatarFallback>{post.profiles.username.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{post.profiles.full_name || post.profiles.username}</p>
-                <p className="text-xs text-slate-400 truncate">@{post.profiles.username}</p>
+                <p className="truncate text-sm font-medium">
+                  {post.profiles.full_name || post.profiles.username}
+                </p>
+                <p className="truncate text-xs text-slate-400">@{post.profiles.username}</p>
               </div>
             </div>
-            <TrendingUp className="h-4 w-4 text-purple-300" />
+            <Flame className="h-4 w-4 text-orange-300" />
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm text-slate-300 line-clamp-4">{post.content || "No content available."}</p>
-          <div className="text-xs text-slate-400 flex items-center gap-3">
+          <p className="line-clamp-4 text-sm text-slate-300">{post.content || "No content available."}</p>
+          <div className="flex items-center gap-3 text-xs text-slate-400">
             <span>{post.likes_count} likes</span>
             <span>{post.comments_count} comments</span>
             <span>{post.shares_count} shares</span>
           </div>
           <div className="text-xs text-slate-500">{formatSafeDate(post.created_at)}</div>
           <Button onClick={onOpen} size="sm" variant="outline" className="w-full rounded-xl border-white/20">
-            <Sparkles className="h-3.5 w-3.5 mr-2" />
-            Open in Pulse
+            <Sparkles className="mr-2 h-3.5 w-3.5" />
+            Open post
           </Button>
         </CardContent>
       </SurfaceCard>
@@ -1045,18 +1127,105 @@ function PostCard({ post, onOpen }: { post: DiscoverPost; onOpen: () => void }) 
   )
 }
 
+function MusicTrackCard({
+  track,
+  onPlay,
+  isPlaying,
+  canPlay,
+}: {
+  track: DiscoverMusicTrack
+  onPlay: () => void
+  isPlaying: boolean
+  canPlay: boolean
+}) {
+  const artistHandle = track.artist_username || track.artist_name
+  const artistHref =
+    getArtistPublicProfilePath(artistHandle) ||
+    (track.artist_id ? `/artist/${track.artist_id}` : null)
+
+  return (
+    <motion.div whileHover={{ y: -2 }}>
+      <SurfaceCard className="h-full">
+        <CardContent className="space-y-3 p-4">
+          <div className="flex items-center gap-3">
+            {track.cover_art_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={track.cover_art_url}
+                alt=""
+                className="h-14 w-14 flex-shrink-0 rounded-xl object-cover"
+              />
+            ) : (
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600">
+                <Music className="h-6 w-6 text-white/60" />
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-white">{track.title}</p>
+              <p className="truncate text-sm text-slate-400">{track.artist_name}</p>
+              {track.genre ? (
+                <Badge
+                  variant="secondary"
+                  className="mt-1 border-violet-500/20 bg-violet-500/15 text-[10px] text-violet-300"
+                >
+                  {track.genre}
+                </Badge>
+              ) : null}
+            </div>
+          </div>
+          <div className="flex items-center gap-4 text-xs text-slate-500">
+            {track.plays !== undefined && track.plays > 0 ? (
+              <span className="flex items-center gap-1">
+                <Play className="h-3 w-3" />
+                {track.plays.toLocaleString()}
+              </span>
+            ) : null}
+            {track.likes !== undefined && track.likes > 0 ? (
+              <span className="flex items-center gap-1">
+                <Heart className="h-3 w-3" />
+                {track.likes.toLocaleString()}
+              </span>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            {canPlay ? (
+              <Button onClick={onPlay} size="sm" className="flex-1 rounded-xl">
+                {isPlaying ? (
+                  <>
+                    <Pause className="mr-2 h-3.5 w-3.5" />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-3.5 w-3.5" />
+                    Play
+                  </>
+                )}
+              </Button>
+            ) : null}
+            {artistHref ? (
+              <Button asChild size="sm" variant="outline" className="flex-1 rounded-xl border-white/20">
+                <Link href={artistHref}>
+                  <Disc3 className="mr-2 h-3.5 w-3.5" />
+                  Artist
+                </Link>
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </SurfaceCard>
+    </motion.div>
+  )
+}
+
 function openProfile(router: ReturnType<typeof useRouter>, profile: DiscoverProfile) {
-  if (profile.account_type === "artist") {
-    router.push(`/artist/${profile.username}`)
-    return
-  }
-
-  if (profile.account_type === "venue") {
-    router.push(`/venue/${profile.username}`)
-    return
-  }
-
-  router.push(`/profile/${profile.username}`)
+  const path =
+    resolvePublicProfilePath({
+      id: profile.id,
+      username: profile.username,
+      account_type: profile.account_type,
+    }) || `/profile/${profile.username}`
+  router.push(path)
 }
 
 function openEvent(router: ReturnType<typeof useRouter>, event: DiscoverEvent) {
@@ -1068,55 +1237,16 @@ function openEvent(router: ReturnType<typeof useRouter>, event: DiscoverEvent) {
   router.push(`/events/${event.id}`)
 }
 
-function MusicTrackCard({ track }: { track: DiscoverMusicTrack }) {
-  return (
-    <motion.div whileHover={{ y: -2 }}>
-      <SurfaceCard className="h-full">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            {track.cover_art_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={track.cover_art_url}
-                alt=""
-                className="h-14 w-14 rounded-xl object-cover flex-shrink-0"
-              />
-            ) : (
-              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-pink-600">
-                <Music className="h-6 w-6 text-white/60" />
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-white truncate">{track.title}</p>
-              <p className="text-sm text-slate-400 truncate">{track.artist_name}</p>
-              {track.genre && (
-                <Badge variant="secondary" className="mt-1 text-[10px] bg-purple-500/15 text-purple-300 border-purple-500/20">
-                  {track.genre}
-                </Badge>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-4 text-xs text-slate-500">
-            {track.plays !== undefined && track.plays > 0 && (
-              <span className="flex items-center gap-1"><Play className="h-3 w-3" />{track.plays.toLocaleString()} plays</span>
-            )}
-            {track.likes !== undefined && track.likes > 0 && (
-              <span className="flex items-center gap-1"><Heart className="h-3 w-3" />{track.likes.toLocaleString()}</span>
-            )}
-            {track.duration && (
-              <span>{Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, '0')}</span>
-            )}
-          </div>
-          {track.artist_id && (
-            <Link href={`/artist/${track.artist_id}`}>
-              <Button size="sm" variant="outline" className="w-full rounded-xl border-white/20 text-xs">
-                <Disc3 className="h-3.5 w-3.5 mr-2" />
-                View Artist
-              </Button>
-            </Link>
-          )}
-        </CardContent>
-      </SurfaceCard>
-    </motion.div>
-  )
+function openPost(router: ReturnType<typeof useRouter>, post: DiscoverPost) {
+  const username = post.profiles?.username
+  if (!username) {
+    router.push("/")
+    return
+  }
+  const path = resolvePublicProfilePath({
+    id: String(post.author_profile_id || post.user_id || post.profiles?.id || ''),
+    username,
+    account_type: post.account_type || post.posted_as_type || 'general',
+  })
+  router.push(path || `/profile/${username}`)
 }

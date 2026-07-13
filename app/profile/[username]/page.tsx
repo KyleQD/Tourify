@@ -169,7 +169,7 @@ export default function ProfilePage() {
 
   const handleShare = async (profile: ProfileData) => {
     const shareName = profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name || profile.username
-    const profileUrl = typeof window !== "undefined" ? window.location.href : `${process.env.NEXT_PUBLIC_SITE_URL || "https://demo.tourify.live"}/profile/${profile.username}`
+    const profileUrl = typeof window !== "undefined" ? window.location.href : `${process.env.NEXT_PUBLIC_SITE_URL || "https://tourify.live"}/profile/${profile.username}`
     try {
       if (navigator.share) {
         await navigator.share({
@@ -313,4 +313,4 @@ export default function ProfilePage() {
       )}
     </div>
   )
-} 
+}

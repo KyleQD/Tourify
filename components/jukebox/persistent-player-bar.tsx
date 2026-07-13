@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import {
@@ -10,26 +10,55 @@ import {
   SkipForward,
   Volume2,
   VolumeX,
-  Heart,
   ChevronUp,
-  Music,
   Repeat,
   Repeat1,
   Shuffle,
+  X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useJukeboxOptional } from "@/contexts/jukebox-context"
 import { getTheme } from "@/lib/jukebox/visual-themes"
-import { toggleLike } from "@/lib/services/jukebox.service"
-import { toast } from "sonner"
+import { PlayerSocialActions } from "@/components/jukebox/player-actions"
+import { TrackCoverImage } from "@/components/jukebox/track-cover-image"
 
 export function PersistentPlayerBar() {
   const ctx = useJukeboxOptional()
-  const [isLiked, setIsLiked] = useState(false)
-  const [showVolume, setShowVolume] = useState(false)
   const progressBarRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
 
-  if (!ctx) return null
+  const isVisible = Boolean(
+    ctx?.state.isPlayerChromeVisible && ctx?.state.currentTrack
+  )
+
+  useEffect(() => {
+    if (!isVisible) {
+      document.documentElement.style.setProperty("--player-height", "0px")
+      return
+    }
+
+    const el = barRef.current
+    if (!el) return
+
+    function updateHeight() {
+      if (!barRef.current) return
+      const height = barRef.current.getBoundingClientRect().height
+      document.documentElement.style.setProperty(
+        "--player-height",
+        `${Math.ceil(height)}px`
+      )
+    }
+
+    updateHeight()
+    const ro = new ResizeObserver(updateHeight)
+    ro.observe(el)
+    return () => {
+      ro.disconnect()
+      document.documentElement.style.setProperty("--player-height", "0px")
+    }
+  }, [isVisible])
+
+  if (!ctx || !isVisible || !ctx.state.currentTrack) return null
 
   const {
     state,
@@ -42,10 +71,10 @@ export function PersistentPlayerBar() {
     toggleShuffle,
     cycleRepeatMode,
     setExpanded,
+    dismissPlayer,
   } = ctx
 
-  if (!state.currentTrack) return null
-
+  const currentTrack = state.currentTrack!
   const theme = getTheme(state.visualTheme)
 
   const formatTime = (seconds: number) => {
@@ -63,18 +92,8 @@ export function PersistentPlayerBar() {
     seekTo(pct * state.duration)
   }
 
-  async function handleLike() {
-    if (!state.currentTrack) return
-    const result = await toggleLike(state.currentTrack.id)
-    if (result) {
-      setIsLiked(result.liked)
-      toast.success(result.liked ? "Added to likes" : "Removed from likes")
-    }
-  }
-
   return (
-    <div className="fixed inset-x-0 bottom-16 z-40 md:bottom-0">
-      {/* Progress bar at very top of the bar - thin scrubber */}
+    <div ref={barRef} className="fixed inset-x-0 bottom-16 z-40 md:bottom-0">
       <div
         ref={progressBarRef}
         className="group relative h-1 w-full cursor-pointer bg-white/10 hover:h-2 transition-all touch-none"
@@ -82,12 +101,18 @@ export function PersistentPlayerBar() {
         onTouchStart={(e) => {
           const touch = e.touches[0]
           const rect = e.currentTarget.getBoundingClientRect()
-          const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width))
+          const pct = Math.max(
+            0,
+            Math.min(1, (touch.clientX - rect.left) / rect.width)
+          )
           seekTo(pct * state.duration)
         }}
       >
         <div
-          className={cn("absolute inset-y-0 left-0 rounded-r-full bg-gradient-to-r", theme.progressGradient)}
+          className={cn(
+            "absolute inset-y-0 left-0 rounded-r-full bg-gradient-to-r",
+            theme.progressGradient
+          )}
           style={{ width: `${progress}%` }}
         />
         <div
@@ -96,59 +121,52 @@ export function PersistentPlayerBar() {
         />
       </div>
 
-      <div className={cn("flex items-center gap-2 backdrop-blur-xl border-t px-3 py-2 sm:px-4 sm:py-2.5 safe-area-pb", theme.barBgClass, theme.barBorderClass)}>
-        {/* Track info - left section */}
+      <div
+        className={cn(
+          "flex items-center gap-2 backdrop-blur-xl border-t px-3 py-2 sm:px-4 sm:py-2.5 safe-area-pb",
+          theme.barBgClass,
+          theme.barBorderClass
+        )}
+      >
         <button
-          className="flex items-center gap-3 flex-1 min-w-0 text-left sm:flex-none sm:w-64"
+          className="flex items-center gap-3 flex-1 min-w-0 text-left sm:flex-none sm:w-56 lg:w-64"
           onClick={() => setExpanded(true)}
         >
-          {state.currentTrack.cover_art_url ? (
-            <img
-              src={state.currentTrack.cover_art_url}
-              alt=""
-              className="h-10 w-10 rounded-md object-cover flex-shrink-0 sm:h-12 sm:w-12"
-            />
-          ) : (
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-purple-600 to-pink-600 sm:h-12 sm:w-12">
-              <Music className="h-5 w-5 text-white" />
-            </div>
-          )}
+          <TrackCoverImage
+            src={currentTrack.cover_art_url}
+            trackId={currentTrack.id}
+            className="h-10 w-10 rounded-md sm:h-12 sm:w-12"
+            iconClassName="h-5 w-5"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white">
-              {state.currentTrack.title}
+              {currentTrack.title}
             </p>
             <p className="truncate text-xs text-slate-400">
-              {state.currentTrack.artist_name}
+              {currentTrack.artist_name}
             </p>
           </div>
         </button>
 
-        {/* Like button (visible on mobile too) */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 flex-shrink-0 sm:hidden"
-          onClick={handleLike}
-        >
-          <Heart
-            className={cn(
-              "h-4 w-4",
-              isLiked ? "fill-red-500 text-red-500" : "text-slate-400"
-            )}
+        <div className="flex-shrink-0 sm:hidden">
+          <PlayerSocialActions
+            trackId={currentTrack.id}
+            initialInLibrary={currentTrack.in_library}
           />
-        </Button>
+        </div>
 
-        {/* Playback controls - center */}
         <div className="flex items-center justify-center gap-1 sm:gap-2 flex-shrink-0">
           <Button
             variant="ghost"
             size="sm"
-            className="hidden h-8 w-8 sm:flex"
+            className="hidden h-9 w-9 sm:flex"
             onClick={toggleShuffle}
+            aria-label="Shuffle"
+            aria-pressed={state.isShuffled}
           >
             <Shuffle
               className={cn(
-                "h-3.5 w-3.5",
+                "h-4 w-4",
                 state.isShuffled ? "text-purple-400" : "text-slate-400"
               )}
             />
@@ -157,28 +175,31 @@ export function PersistentPlayerBar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8"
+            className="h-9 w-9"
             onClick={prev}
+            aria-label="Previous track"
           >
             <SkipBack className="h-4 w-4 text-white" />
           </Button>
 
           <Button
             onClick={togglePlayPause}
-            className="h-9 w-9 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform"
+            className="h-10 w-10 rounded-full bg-white text-black hover:bg-white/90 hover:scale-105 transition-transform"
+            aria-label={state.isPlaying ? "Pause" : "Play"}
           >
             {state.isPlaying ? (
-              <Pause className="h-4 w-4" />
+              <Pause className="h-5 w-5" />
             ) : (
-              <Play className="h-4 w-4 ml-0.5" />
+              <Play className="h-5 w-5 ml-0.5" />
             )}
           </Button>
 
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8"
+            className="h-9 w-9"
             onClick={next}
+            aria-label="Next track"
           >
             <SkipForward className="h-4 w-4 text-white" />
           </Button>
@@ -186,15 +207,16 @@ export function PersistentPlayerBar() {
           <Button
             variant="ghost"
             size="sm"
-            className="hidden h-8 w-8 sm:flex"
+            className="hidden h-9 w-9 sm:flex"
             onClick={cycleRepeatMode}
+            aria-label="Repeat"
           >
             {state.repeatMode === "one" ? (
-              <Repeat1 className="h-3.5 w-3.5 text-purple-400" />
+              <Repeat1 className="h-4 w-4 text-purple-400" />
             ) : (
               <Repeat
                 className={cn(
-                  "h-3.5 w-3.5",
+                  "h-4 w-4",
                   state.repeatMode === "all"
                     ? "text-purple-400"
                     : "text-slate-400"
@@ -204,37 +226,28 @@ export function PersistentPlayerBar() {
           </Button>
         </div>
 
-        {/* Time + Volume - right section (desktop) */}
-        <div className="hidden items-center gap-2 sm:flex flex-shrink-0 sm:w-64 justify-end">
+        <div className="hidden items-center gap-2 sm:flex flex-shrink-0 sm:w-72 lg:w-80 justify-end">
           <span className="text-xs text-slate-400 tabular-nums w-20 text-right">
             {formatTime(state.currentTime)} / {formatTime(state.duration)}
           </span>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8"
-            onClick={handleLike}
-          >
-            <Heart
-              className={cn(
-                "h-3.5 w-3.5",
-                isLiked ? "fill-red-500 text-red-500" : "text-slate-400"
-              )}
-            />
-          </Button>
+          <PlayerSocialActions
+            trackId={currentTrack.id}
+            initialInLibrary={currentTrack.in_library}
+          />
 
           <div className="relative flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8"
+              className="h-9 w-9"
               onClick={toggleMute}
+              aria-label={state.isMuted ? "Unmute" : "Mute"}
             >
               {state.isMuted || state.volume === 0 ? (
-                <VolumeX className="h-3.5 w-3.5 text-slate-400" />
+                <VolumeX className="h-4 w-4 text-slate-400" />
               ) : (
-                <Volume2 className="h-3.5 w-3.5 text-slate-400" />
+                <Volume2 className="h-4 w-4 text-slate-400" />
               )}
             </Button>
             <Slider
@@ -249,21 +262,42 @@ export function PersistentPlayerBar() {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8"
+            className="h-9 w-9"
             onClick={() => setExpanded(true)}
+            aria-label="Expand player"
           >
             <ChevronUp className="h-4 w-4 text-slate-400" />
           </Button>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9"
+            onClick={dismissPlayer}
+            aria-label="Close player"
+          >
+            <X className="h-4 w-4 text-slate-400" />
+          </Button>
         </div>
 
-        {/* Mobile play/pause only (already shown above) + expand */}
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 w-8 flex-shrink-0 sm:hidden"
+          className="h-9 w-9 flex-shrink-0 sm:hidden"
           onClick={() => setExpanded(true)}
+          aria-label="Expand player"
         >
           <ChevronUp className="h-4 w-4 text-slate-400" />
+        </Button>
+
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 w-9 flex-shrink-0 sm:hidden"
+          onClick={dismissPlayer}
+          aria-label="Close player"
+        >
+          <X className="h-4 w-4 text-slate-400" />
         </Button>
       </div>
     </div>

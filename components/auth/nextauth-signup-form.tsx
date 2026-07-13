@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from 'react'
+import { useState } from "react"
+import { PLATFORM_TOS_VERSION } from "@/components/legal/legal-constants"
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -170,7 +171,7 @@ export default function NextAuthSignupForm() {
         const now = new Date().toISOString()
         const { error: tosError } = await supabase
           .from("profiles")
-          .update({ tos_accepted_at: now, tos_version: 1, privacy_accepted_at: now })
+          .update({ tos_accepted_at: now, tos_version: PLATFORM_TOS_VERSION, privacy_accepted_at: now })
           .eq("id", data.user.id)
         if (tosError) console.error("TOS profile update failed:", tosError)
 
@@ -180,7 +181,7 @@ export default function NextAuthSignupForm() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               template_id: "a0000000-0000-0000-0000-000000000001",
-              template_version: 1,
+              template_version: PLATFORM_TOS_VERSION,
               context: "signup",
               signature_method: "clickwrap",
               metadata: {

@@ -3,7 +3,8 @@
 import { supabase } from '@/lib/supabase'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/auth-context'
+import { useArtist } from '@/contexts/artist-context'
+import { useMultiAccount } from '@/hooks/use-multi-account'
 import { toast } from 'sonner'
 import { 
   Upload,
@@ -25,7 +26,10 @@ import {
   ExternalLink,
   Globe,
   Lock,
-  Users2
+  Users2,
+  ShoppingBag,
+  RefreshCw,
+  Loader2,
 } from "lucide-react"
 import { EnhancedMusicUploader } from "@/components/music/enhanced-music-uploader"
 import Image from "next/image"
@@ -63,8 +67,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { MusicPlayer } from "@/components/music/music-player"
-import { tafConverter } from '@/lib/utils/taf-converter'
+import { useJukeboxOptional } from "@/contexts/jukebox-context"
+import {
+  fetchJsonWithTimeout,
+  getAudioDuration,
+  parseMusicApiError,
+  parsePaidTrackPrice,
+} from "@/lib/music/upload-helpers"
 
 interface MusicTrack {
   id: string
@@ -75,6 +84,14 @@ interface MusicTrack {
   release_date?: string
   duration?: number
   file_url: string
+  preview_file_url?: string | null
+  storage_bucket?: string | null
+  storage_path?: string | null
+	  preview_storage_bucket?: string | null
+	  preview_storage_path?: string | null
+  preview_status?: 'not_required' | 'pending' | 'ready' | 'failed'
+  preview_error?: string | null
+  preview_generated_at?: string | null
   cover_art_url?: string
   lyrics?: string
   spotify_url?: string
@@ -84,6 +101,17 @@ interface MusicTrack {
   tags: string[]
   is_featured: boolean
   is_public: boolean
+  access_mode?: 'free' | 'paid'
+  preview_mode?: 'full' | 'clip'
+  preview_duration_seconds?: number
+  allow_library_add?: boolean
+  allow_profile_feature?: boolean
+  allow_downloads?: boolean
+  rights_confirmed?: boolean
+  rights_confirmed_at?: string | null
+  listing_sync_status?: string | null
+  listing_sync_error?: string | null
+  metadata?: Record<string, unknown>
   stats: {
     plays: number
     likes: number
@@ -94,28 +122,24 @@ interface MusicTrack {
   updated_at: string
 }
 
-interface ArtistProfile {
+interface MarketplaceListing {
   id: string
-  user_id: string
-  artist_name: string
-  bio?: string
-  avatar_url?: string
-  cover_image_url?: string
-  genre?: string
-  location?: string
-  website_url?: string
-  social_links?: Record<string, string>
-  verified: boolean
-  created_at: string
-  updated_at: string
+  title: string
+  status: string
+  category: string
+  product_type: string
+  base_price: number | null
+  currency: string
+  music_track_id?: string | null
 }
 
 export default function MusicPage() {
-  const { user } = useAuth()
+  const { user, profile, isLoading: isArtistLoading } = useArtist()
+  const { currentAccount, isAccountsReady } = useMultiAccount()
   const router = useRouter()
+  const jukebox = useJukeboxOptional()
   
   const [tracks, setTracks] = useState<MusicTrack[]>([])
-  const [profile, setProfile] = useState<ArtistProfile | null>(null)
   const [showUploader, setShowUploader] = useState(false)
   const [editingTrack, setEditingTrack] = useState<MusicTrack | null>(null)
   const [deletingTrack, setDeletingTrack] = useState<string | null>(null)
@@ -128,8 +152,8 @@ export default function MusicPage() {
   const [newTag, setNewTag] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [musicListings, setMusicListings] = useState<MarketplaceListing[]>([])
 
   const [formData, setFormData] = useState({
     title: '',
@@ -139,6 +163,10 @@ export default function MusicPage() {
     release_date: '',
     duration: 0,
     file_url: '',
+    storage_bucket: '',
+    storage_path: '',
+    preview_storage_bucket: '',
+    preview_storage_path: '',
     cover_art_url: '',
     lyrics: '',
     spotify_url: '',
@@ -147,15 +175,103 @@ export default function MusicPage() {
     youtube_url: '',
     tags: [] as string[],
     is_featured: false,
-    is_public: true
+    is_public: true,
+    access_mode: 'free' as 'free' | 'paid',
+    allow_library_add: true,
+    allow_profile_feature: true,
+    allow_downloads: false,
+    rights_confirmed: false,
   })
 
+  function resetFormData() {
+    setFormData({
+      title: '',
+      description: '',
+      type: 'single',
+      genre: '',
+      release_date: '',
+      duration: 0,
+      file_url: '',
+      storage_bucket: '',
+      storage_path: '',
+      preview_storage_bucket: '',
+      preview_storage_path: '',
+      cover_art_url: '',
+      lyrics: '',
+      spotify_url: '',
+      apple_music_url: '',
+      soundcloud_url: '',
+      youtube_url: '',
+      tags: [],
+      is_featured: false,
+      is_public: true,
+      access_mode: 'free',
+      allow_library_add: true,
+      allow_profile_feature: true,
+      allow_downloads: false,
+      rights_confirmed: false,
+    })
+    setMusicFile(null)
+    setCoverFile(null)
+    setShareAsPost(false)
+    setPostContent('')
+  }
+
+  function hydrateFormFromTrack(track: MusicTrack) {
+    setFormData({
+      title: track.title || '',
+      description: track.description || '',
+      type: track.type || 'single',
+      genre: track.genre || '',
+      release_date: track.release_date || '',
+      duration: track.duration || 0,
+      file_url: track.file_url || '',
+      storage_bucket: track.storage_bucket || '',
+      storage_path: track.storage_path || '',
+      preview_storage_bucket: track.preview_storage_bucket || '',
+      preview_storage_path: track.preview_storage_path || '',
+      cover_art_url: track.cover_art_url || '',
+      lyrics: track.lyrics || '',
+      spotify_url: track.spotify_url || '',
+      apple_music_url: track.apple_music_url || '',
+      soundcloud_url: track.soundcloud_url || '',
+      youtube_url: track.youtube_url || '',
+      tags: track.tags || [],
+      is_featured: track.is_featured || false,
+      is_public: track.is_public ?? true,
+      access_mode: track.access_mode || 'free',
+      allow_library_add: track.allow_library_add ?? true,
+      allow_profile_feature: track.allow_profile_feature ?? true,
+      allow_downloads: track.allow_downloads || false,
+      rights_confirmed: track.rights_confirmed === true,
+    })
+  }
+
+  const activeAccountId = currentAccount?.profile_id ?? null
+  const hasActiveAccount = Boolean(currentAccount)
+
   useEffect(() => {
-    if (user) {
-      loadProfile()
-      loadTracks()
+    if (isArtistLoading || !isAccountsReady) return
+    // Server-seeded account means session is valid; wait for artist user to hydrate.
+    if (hasActiveAccount && !user) return
+
+    if (!user) {
+      setIsLoading(false)
+      return
     }
-  }, [user])
+
+    loadTracks()
+    loadMusicListings()
+    // activeAccountId: reload when the artist switches accounts
+  }, [user, isArtistLoading, isAccountsReady, hasActiveAccount, activeAccountId])
+
+  useEffect(() => {
+    if (!isAccountsReady || isArtistLoading) return
+    if (hasActiveAccount && !user) return
+    if (user) return
+
+    router.replace('/login?redirectTo=%2Fartist%2Fmusic')
+  }, [user, isArtistLoading, isAccountsReady, hasActiveAccount, router])
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -165,36 +281,18 @@ export default function MusicPage() {
     router.replace("/artist/music", { scroll: false })
   }, [router])
 
-  const loadProfile = async () => {
-    if (!user) return
-
-    try {
-      const { data, error } = await supabase
-        .from('artist_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-
-      if (error) throw error
-      setProfile(data)
-    } catch (error) {
-      console.error('Error loading profile:', error)
-    }
-  }
-
   const loadTracks = async () => {
     if (!user) return
 
     try {
       setIsLoading(true)
-      const { data, error } = await supabase
-        .from('artist_music')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setTracks(data || [])
+      const response = await fetch('/api/artist/music?limit=300', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body?.error?.message || body?.error || 'Failed to load tracks')
+      setTracks(body.data || [])
     } catch (error) {
       console.error('Error loading tracks:', error)
       toast.error('Failed to load tracks')
@@ -203,69 +301,189 @@ export default function MusicPage() {
     }
   }
 
+  const loadMusicListings = async () => {
+    try {
+      const response = await fetch('/api/marketplace/listings?includeDrafts=true&category=music', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      const body = await response.json()
+      setMusicListings(Array.isArray(body.data) ? body.data : [])
+    } catch (error) {
+      console.error('Error loading music listings:', error)
+      setMusicListings([])
+    }
+  }
+
+  const createSignedUpload = async (file: File, kind: 'full' | 'preview' | 'cover') => {
+    const { response, body } = await fetchJsonWithTimeout('/api/artist/music/upload-url', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        contentType: file.type,
+        kind,
+      }),
+    })
+    if (!response.ok) throw new Error(parseMusicApiError(body, 'Unable to prepare upload'))
+    return body.data as { bucket: string; path: string; token: string; signedUrl: string }
+  }
+
+  const uploadWithSignedUrl = async (file: File, kind: 'full' | 'preview' | 'cover') => {
+    const prepared = await createSignedUpload(file, kind)
+    const { error } = await supabase.storage
+      .from(prepared.bucket)
+      .uploadToSignedUrl(prepared.path, prepared.token, file, {
+        contentType: file.type,
+      })
+    if (error) throw error
+    const { data: { publicUrl } } = supabase.storage
+      .from(prepared.bucket)
+      .getPublicUrl(prepared.path)
+    return { ...prepared, publicUrl }
+  }
+
+  const cleanupUploadedPaths = async (uploads: Array<{ bucket?: string; path?: string } | null | undefined>) => {
+    for (const upload of uploads) {
+      if (!upload?.bucket || !upload?.path) continue
+      try {
+        await supabase.storage.from(upload.bucket).remove([upload.path])
+      } catch (error) {
+        console.warn('Failed to clean up uploaded file', upload.path, error)
+      }
+    }
+  }
+
   const uploadFiles = async (customMusicFile?: File, customCoverFile?: File) => {
     const fileToUpload = customMusicFile || musicFile
     const coverToUpload = customCoverFile || coverFile
     
-    if (!fileToUpload || !user) return { fileUrl: '', coverUrl: '' }
+    if (!fileToUpload || !user) return { fileUrl: '', coverUrl: '', storageBucket: '', storagePath: '' }
 
     try {
       setUploadProgress(20)
-      
-      // Upload music file
-      const musicFileExt = fileToUpload.name.split('.').pop()
-      const safeFileName = fileToUpload.name.replace(/[^A-Za-z0-9._-]/g, '_')
-      const musicFileName = `${user.id}/${Date.now()}-${safeFileName}`
-      
-      const { error: musicUploadError } = await supabase.storage
-        .from('artist-music')
-        .upload(musicFileName, fileToUpload)
 
-      if (musicUploadError) throw musicUploadError
-
-      const { data: { publicUrl: musicUrl } } = supabase.storage
-        .from('artist-music')
-        .getPublicUrl(musicFileName)
+      const musicUpload = await uploadWithSignedUrl(fileToUpload, 'full')
 
       setUploadProgress(60)
 
-      // Upload cover art if provided
       let coverUrl = ''
+      let coverUpload: Awaited<ReturnType<typeof uploadWithSignedUrl>> | null = null
       if (coverToUpload) {
-        const coverFileExt = coverToUpload.name.split('.').pop()
-        const safeCoverFileName = coverToUpload.name.replace(/[^A-Za-z0-9._-]/g, '_')
-        const coverFileName = `${user.id}/${Date.now()}-cover-${safeCoverFileName}`
-        
-        const { error: coverUploadError } = await supabase.storage
-          .from('artist-photos')
-          .upload(coverFileName, coverToUpload)
-
-        if (coverUploadError) throw coverUploadError
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('artist-photos')
-          .getPublicUrl(coverFileName)
-
-        coverUrl = publicUrl
+        coverUpload = await uploadWithSignedUrl(coverToUpload, 'cover')
+        coverUrl = coverUpload.publicUrl
       }
 
-      setUploadProgress(100)
-      return { fileUrl: musicUrl, coverUrl }
+      setUploadProgress(80)
+      return {
+        fileUrl: musicUpload.publicUrl,
+        coverUrl,
+        storageBucket: musicUpload.bucket,
+        storagePath: musicUpload.path,
+        musicUpload,
+        coverUpload,
+      }
     } catch (error) {
       console.error('Error uploading files:', error)
-      toast.error('Failed to upload files')
+      toast.error(error instanceof Error ? error.message : 'Failed to upload files')
       return { fileUrl: '', coverUrl: '' }
     }
   }
 
-  const getAudioDuration = (file: File): Promise<number> => {
-    return new Promise((resolve) => {
-      const audio = new Audio()
-      audio.addEventListener('loadedmetadata', () => {
-        resolve(Math.round(audio.duration))
-      })
-      audio.src = URL.createObjectURL(file)
+  const uploadPreviewFile = async (file: File) => {
+    if (!user) return null
+    return uploadWithSignedUrl(file, 'preview')
+  }
+
+  const queuePreviewJob = async (musicId: string) => {
+    const { response, body } = await fetchJsonWithTimeout('/api/artist/music/preview-jobs', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ musicId }),
     })
+    if (!response.ok) throw new Error(parseMusicApiError(body, 'Unable to queue preview'))
+    return body.data
+  }
+
+  const createMusicPost = async ({
+    trackId,
+    title,
+    content,
+    coverUrl,
+  }: {
+    trackId: string
+    title: string
+    content?: string
+    coverUrl?: string
+  }) => {
+    const { response, body } = await fetchJsonWithTimeout('/api/music/share', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        musicId: trackId,
+        createPost: true,
+        content: content?.trim() || `New track: "${title}"`,
+      }),
+    })
+    if (!response.ok) throw new Error(parseMusicApiError(body, 'Failed to create share post'))
+    toast.success('Shared to your feed')
+    return body
+  }
+
+  const handleDownloadTrack = async (track: MusicTrack) => {
+    try {
+      const { response, body } = await fetchJsonWithTimeout(
+        `/api/music/download?trackId=${encodeURIComponent(track.id)}`,
+        { method: 'GET', credentials: 'include' }
+      )
+      if (!response.ok) throw new Error(parseMusicApiError(body, 'Download unavailable'))
+      const url = body?.url || body?.data?.url || body?.downloadUrl
+      if (!url) throw new Error('Download URL missing')
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to download track')
+    }
+  }
+
+  const handleShareTrack = async (track: MusicTrack) => {
+    try {
+      await createMusicPost({
+        trackId: track.id,
+        title: track.title,
+        content: `Check out "${track.title}"`,
+        coverUrl: track.cover_art_url,
+      })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to share track')
+    }
+  }
+
+  const publishTrackWhenReady = async (track: MusicTrack) => {
+    if (track.preview_mode === 'clip' && track.preview_status !== 'ready') {
+      toast.error('Preview sample must be ready before publishing')
+      return
+    }
+    try {
+      const { response, body } = await fetchJsonWithTimeout('/api/artist/music', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: track.id,
+          is_public: true,
+          rights_confirmed: true,
+          rights_confirmed_at: track.rights_confirmed_at || new Date().toISOString(),
+        }),
+      })
+      if (!response.ok) throw new Error(parseMusicApiError(body, 'Failed to publish track'))
+      toast.success('Track published')
+      await loadTracks()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to publish track')
+    }
   }
 
   const handleSaveTrack = async (trackData?: any) => {
@@ -274,45 +492,69 @@ export default function MusicPage() {
       return
     }
 
-    // Handle data from enhanced uploader
     if (trackData && trackData.musicFile) {
+      let uploadedArtifacts: Array<{ bucket?: string; path?: string } | null | undefined> = []
       try {
         setIsUploading(true)
         setUploadProgress(0)
-        
-        // Upload files
+
+        if (trackData.access_mode === 'paid') {
+          const price = parsePaidTrackPrice(trackData.price ?? trackData.metadata?.price)
+          if (!price) {
+            toast.error('Enter a price greater than 0 to offer this track for sale')
+            return
+          }
+          trackData.price = price
+          trackData.metadata = { ...(trackData.metadata || {}), price }
+        }
+
         const uploadResult = await uploadFiles(trackData.musicFile, trackData.coverFile)
-        if (!uploadResult.fileUrl) {
+        if (!uploadResult.fileUrl || !uploadResult.storagePath) {
           toast.error('Failed to upload music file')
           return
         }
+        uploadedArtifacts = [uploadResult.musicUpload, uploadResult.coverUpload]
 
-        // Convert to TAF format with error correction
-        toast.info('Converting to TAF format with error correction...')
-        const tafResult = await tafConverter.convertToTaf(uploadResult.fileUrl, user.id, {
-          dataShards: 4,
-          parityShards: 2,
-          compressionLevel: 3,
-          quality: 0.8
-        })
+        const needsGeneratedPreview = trackData.preview_mode === 'clip' && !trackData.previewFile
+        const previewUpload = trackData.preview_mode === 'clip' && trackData.previewFile
+          ? await uploadPreviewFile(trackData.previewFile)
+          : null
+        if (previewUpload) uploadedArtifacts.push(previewUpload)
 
-        if (!tafResult.success) {
-          toast.error(`TAF conversion failed: ${tafResult.error}`)
-          // Continue with original file if TAF conversion fails
-        } else {
-          toast.success(`TAF conversion successful! Compression ratio: ${tafResult.metadata?.compressionRatio.toFixed(2)}x`)
-        }
+        const previewStatus =
+          trackData.preview_mode !== 'clip'
+            ? 'not_required'
+            : previewUpload
+              ? 'ready'
+              : 'pending'
+
+        setUploadProgress(90)
+        const duration = await getAudioDuration(trackData.musicFile)
 
         const finalTrackData = {
-          user_id: user.id,
-          artist_profile_id: profile?.id,
           title: trackData.title,
           description: trackData.description,
           type: trackData.type,
           genre: trackData.genre,
           release_date: trackData.release_date || new Date().toISOString().split('T')[0],
-          duration: await getAudioDuration(trackData.musicFile),
-          file_url: tafResult.success ? tafResult.tafUrl! : uploadResult.fileUrl,
+          duration,
+          file_url: uploadResult.fileUrl,
+          storage_bucket: uploadResult.storageBucket || 'artist-music',
+          storage_path: uploadResult.storagePath || null,
+          preview_file_url:
+            trackData.preview_mode === 'clip'
+              ? previewUpload?.publicUrl || null
+              : uploadResult.fileUrl,
+          preview_storage_bucket:
+            trackData.preview_mode === 'clip'
+              ? previewUpload?.bucket || null
+              : uploadResult.storageBucket || 'artist-music',
+          preview_storage_path:
+            trackData.preview_mode === 'clip'
+              ? previewUpload?.path || null
+              : uploadResult.storagePath || null,
+          preview_status: previewStatus,
+          preview_generated_at: previewStatus === 'ready' ? new Date().toISOString() : null,
           cover_art_url: uploadResult.coverUrl,
           lyrics: trackData.lyrics,
           spotify_url: trackData.spotify_url,
@@ -321,31 +563,60 @@ export default function MusicPage() {
           youtube_url: trackData.youtube_url,
           tags: trackData.tags,
           is_featured: trackData.is_featured,
-          is_public: trackData.is_public
-          // Removed updated_at - let database handle it with default now()
+          is_public: needsGeneratedPreview ? false : trackData.is_public,
+          access_mode: trackData.access_mode || 'free',
+          preview_mode: trackData.preview_mode || 'full',
+          preview_duration_seconds: trackData.preview_duration_seconds || 15,
+          allow_library_add: trackData.allow_library_add ?? true,
+          allow_profile_feature: trackData.allow_profile_feature ?? true,
+          allow_downloads: trackData.allow_downloads || false,
+          rights_confirmed: trackData.rights_confirmed === true,
+          rights_confirmed_at: trackData.rights_confirmed_at || new Date().toISOString(),
+          metadata: trackData.metadata || {},
+          price: trackData.price || trackData.metadata?.price,
+          currency: trackData.currency || trackData.metadata?.currency || 'USD',
         }
 
-        // Create new track
-        const { data, error } = await supabase
-          .from('artist_music')
-          .insert(finalTrackData)
-          .select()
-          .single()
-
-        if (error) throw error
-        
-        toast.success('Track uploaded successfully!')
-
-        // Share as post if requested
-        if (trackData.shareAsPost) {
-          await createMusicPost(data.id, trackData.title, uploadResult.coverUrl)
+        const { response: createResponse, body: createBody } = await fetchJsonWithTimeout('/api/artist/music', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(finalTrackData),
+        })
+        if (!createResponse.ok) {
+          await cleanupUploadedPaths(uploadedArtifacts)
+          throw new Error(parseMusicApiError(createBody, 'Failed to save track'))
         }
-        
+        const data = createBody.data
+        setUploadProgress(100)
+
+        toast.success(
+          needsGeneratedPreview
+            ? 'Track saved as a draft. Preview generation is queued — publish when the sample is ready.'
+            : 'Track uploaded successfully!'
+        )
+
+        if (trackData.shareAsPost && !needsGeneratedPreview) {
+          try {
+            await createMusicPost({
+              trackId: data.id,
+              title: trackData.title,
+              content: trackData.postContent,
+              coverUrl: uploadResult.coverUrl,
+            })
+          } catch (shareError) {
+            toast.error(shareError instanceof Error ? shareError.message : 'Track saved, but sharing failed')
+          }
+        } else if (trackData.shareAsPost && needsGeneratedPreview) {
+          toast.message('Share skipped until the track is public with a ready sample')
+        }
+
         setShowUploader(false)
-        await loadTracks()
+        resetFormData()
+        await Promise.all([loadTracks(), loadMusicListings()])
       } catch (error) {
         console.error('Error saving track:', error)
-        toast.error('Failed to save track')
+        toast.error(error instanceof Error ? error.message : 'Failed to save track')
       } finally {
         setIsUploading(false)
         setUploadProgress(0)
@@ -353,9 +624,13 @@ export default function MusicPage() {
       return
     }
 
-    // Handle editing existing track
     if (!formData.title.trim()) {
       toast.error('Please fill in required fields')
+      return
+    }
+
+    if (formData.is_public && !formData.rights_confirmed && !editingTrack?.rights_confirmed) {
+      toast.error('Confirm rights ownership before publishing this track')
       return
     }
 
@@ -364,37 +639,24 @@ export default function MusicPage() {
       setUploadProgress(0)
       
       let fileUrl = formData.file_url
+      let storageBucket = formData.storage_bucket || 'artist-music'
+      let storagePath = formData.storage_path || null
       let coverUrl = formData.cover_art_url
 
-      // Upload files if files have changed
       if (musicFile) {
         const uploadResult = await uploadFiles(musicFile, coverFile || undefined)
         if (uploadResult.fileUrl) {
-          // Convert to TAF format with error correction
-          toast.info('Converting to TAF format with error correction...')
-          const tafResult = await tafConverter.convertToTaf(uploadResult.fileUrl, user.id, {
-            dataShards: 4,
-            parityShards: 2,
-            compressionLevel: 3,
-            quality: 0.8
-          })
-
-          if (tafResult.success) {
-            fileUrl = tafResult.tafUrl!
-            toast.success(`TAF conversion successful! Compression ratio: ${tafResult.metadata?.compressionRatio.toFixed(2)}x`)
-          } else {
-            fileUrl = uploadResult.fileUrl
-            toast.error(`TAF conversion failed: ${tafResult.error}`)
-          }
+          fileUrl = uploadResult.fileUrl
+          storageBucket = uploadResult.storageBucket || 'artist-music'
+          storagePath = uploadResult.storagePath || null
         }
         if (uploadResult.coverUrl) {
           coverUrl = uploadResult.coverUrl
         }
       }
 
-      const trackData = {
-        user_id: user.id,
-        artist_profile_id: profile?.id,
+      const updatePayload = {
+        id: editingTrack!.id,
         title: formData.title,
         description: formData.description,
         type: formData.type,
@@ -402,6 +664,8 @@ export default function MusicPage() {
         release_date: formData.release_date || new Date().toISOString().split('T')[0],
         duration: musicFile ? await getAudioDuration(musicFile) : formData.duration,
         file_url: fileUrl,
+        storage_bucket: storageBucket,
+        storage_path: storagePath,
         cover_art_url: coverUrl,
         lyrics: formData.lyrics,
         spotify_url: formData.spotify_url,
@@ -410,27 +674,35 @@ export default function MusicPage() {
         youtube_url: formData.youtube_url,
         tags: formData.tags,
         is_featured: formData.is_featured,
-        is_public: formData.is_public
-        // Removed updated_at - let database handle it with default now()
+        is_public: formData.is_public,
+        access_mode: formData.access_mode,
+        allow_library_add: formData.allow_library_add,
+        allow_profile_feature: formData.allow_profile_feature,
+        allow_downloads: formData.allow_downloads,
+        rights_confirmed: formData.rights_confirmed || editingTrack?.rights_confirmed === true,
+        rights_confirmed_at:
+          formData.rights_confirmed || editingTrack?.rights_confirmed
+            ? editingTrack?.rights_confirmed_at || new Date().toISOString()
+            : null,
       }
 
-      // Update existing track
-      const { error } = await supabase
-        .from('artist_music')
-        .update(trackData)
-        .eq('id', editingTrack!.id)
-        .eq('user_id', user.id)
-
-      if (error) throw error
+      const { response: updateResponse, body: updateBody } = await fetchJsonWithTimeout('/api/artist/music', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatePayload),
+      })
+      if (!updateResponse.ok) throw new Error(parseMusicApiError(updateBody, 'Failed to update track'))
       
       toast.success('Track updated successfully!')
       
       setShowUploader(false)
       setEditingTrack(null)
-      await loadTracks()
+      resetFormData()
+      await Promise.all([loadTracks(), loadMusicListings()])
     } catch (error) {
       console.error('Error saving track:', error)
-      toast.error('Failed to save track')
+      toast.error(error instanceof Error ? error.message : 'Failed to save track')
     } finally {
       setIsUploading(false)
       setUploadProgress(0)
@@ -441,16 +713,17 @@ export default function MusicPage() {
     if (!user) return
 
     try {
-      const { error } = await supabase
-        .from('artist_music')
-        .delete()
-        .eq('id', trackId)
-        .eq('user_id', user.id)
-
-      if (error) throw error
+      const deleteResponse = await fetch('/api/artist/music', {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: trackId }),
+      })
+      const deleteBody = await deleteResponse.json().catch(() => ({}))
+      if (!deleteResponse.ok) throw new Error(deleteBody?.error?.message || deleteBody?.error || 'Failed to delete track')
       
       toast.success('Track deleted successfully!')
-      await loadTracks()
+      await Promise.all([loadTracks(), loadMusicListings()])
     } catch (error) {
       console.error('Error deleting track:', error)
       toast.error('Failed to delete track')
@@ -459,8 +732,32 @@ export default function MusicPage() {
     }
   }
 
+  const currentlyPlaying =
+    jukebox?.state.isPlaying ? jukebox.state.currentTrack?.id ?? null : null
+
   const handlePlayPause = (trackId: string) => {
-    setCurrentlyPlaying(currentlyPlaying === trackId ? null : trackId)
+    if (!jukebox) return
+    const track = tracks.find((t) => t.id === trackId)
+    if (!track) return
+
+    if (jukebox.state.currentTrack?.id === trackId && jukebox.state.isPlaying) {
+      jukebox.pause()
+      return
+    }
+
+    jukebox.play({
+      id: track.id,
+      title: track.title,
+      artist_name: profile?.artist_name || "You",
+      artist_id: user?.id,
+      duration: track.duration,
+      file_url: track.file_url || `/api/music/stream?trackId=${track.id}`,
+      cover_art_url: track.cover_art_url,
+      genre: track.genre,
+      tags: track.tags || [],
+      allow_downloads: track.allow_downloads,
+      in_library: true,
+    })
   }
 
   const addTag = () => {
@@ -517,46 +814,47 @@ export default function MusicPage() {
     return filtered
   }
 
-  const createMusicPost = async (trackId: string, title: string, coverUrl?: string) => {
-    if (!user || !postContent.trim()) return
+  const totalStats = getTotalStats()
+  const filteredTracks = getFilteredTracks()
+  const publicArtistSlug = profile?.url_slug || profile?.artist_name
+  const publicMusicPath = publicArtistSlug
+    ? `/artist/${encodeURIComponent(publicArtistSlug)}#public-artist-music`
+    : null
+  const isContextHydrating =
+    !isAccountsReady ||
+    isArtistLoading ||
+    (hasActiveAccount && !user) ||
+    !user
 
+  const getListingForTrack = (trackId: string) =>
+    musicListings.find(listing => listing.music_track_id === trackId)
+
+  const openSellFlow = (track: MusicTrack, listing?: MarketplaceListing) => {
+    if (listing) {
+      router.push(`/artist/store?tab=listings&listing=${encodeURIComponent(listing.id)}`)
+      return
+    }
+    router.push(`/artist/store?tab=listings&type=music&trackId=${encodeURIComponent(track.id)}`)
+  }
+
+  const retryPreviewGeneration = async (track: MusicTrack) => {
     try {
-      const { error } = await supabase
-        .from('posts')
-        .insert({
-          user_id: user.id,
-          content: postContent,
-          type: 'music',
-          metadata: {
-            track_id: trackId,
-            track_title: title,
-            cover_url: coverUrl
-          }
-        })
-
-      if (error) throw error
-      toast.success('Post created successfully!')
+      await queuePreviewJob(track.id)
+      toast.success('Preview generation queued.')
+      await loadTracks()
     } catch (error) {
-      console.error('Error creating post:', error)
-      toast.error('Failed to create post')
+      toast.error(error instanceof Error ? error.message : 'Could not queue preview generation')
     }
   }
 
-  const totalStats = getTotalStats()
-  const filteredTracks = getFilteredTracks()
-
-  if (!user) {
+  if (isContextHydrating) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900 flex items-center justify-center">
-        <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8">
-          <CardContent className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-4">Access Denied</h2>
-            <p className="text-gray-400 mb-6">Please log in to access your music library.</p>
-            <Button onClick={() => router.push('/login')} className="bg-purple-600 hover:bg-purple-700">
-              Log In
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-purple-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Loading Music Library</h2>
+          <p className="text-gray-400">Recognizing your active artist account...</p>
+        </div>
       </div>
     )
   }
@@ -689,7 +987,9 @@ export default function MusicPage() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTracks.map((track) => (
+            {filteredTracks.map((track) => {
+              const listing = getListingForTrack(track.id)
+              return (
               <Card key={track.id} className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl hover:bg-white/15 transition-all duration-300 group">
                 <CardContent className="p-6">
                   {/* Cover Art */}
@@ -731,6 +1031,29 @@ export default function MusicPage() {
                       </Badge>
                     )}
 
+	                    {listing && (
+	                      <Badge className={`absolute bottom-2 left-2 border-0 ${listing.status === 'published' ? 'bg-emerald-600/90 text-white' : 'bg-amber-600/90 text-white'}`}>
+	                        <ShoppingBag className="h-3 w-3 mr-1" />
+	                        {listing.status === 'published' ? 'For sale' : 'Draft listing'}
+	                      </Badge>
+	                    )}
+
+                    {track.preview_mode === 'clip' && track.preview_status && track.preview_status !== 'not_required' && (
+                      <Badge className={`absolute bottom-2 right-2 border-0 ${
+                        track.preview_status === 'ready'
+                          ? 'bg-sky-600/90 text-white'
+                          : track.preview_status === 'failed'
+                            ? 'bg-red-600/90 text-white'
+                            : 'bg-slate-600/90 text-white'
+                      }`}>
+                        {track.preview_status === 'ready'
+                          ? 'Sample ready'
+                          : track.preview_status === 'failed'
+                            ? 'Sample failed'
+                            : 'Sample pending'}
+                      </Badge>
+                    )}
+
                     {/* Privacy Badge */}
                     <Badge className={`absolute top-2 right-2 ${track.is_public ? 'bg-green-600/20 text-green-400' : 'bg-orange-600/20 text-orange-400'}`}>
                       {track.is_public ? <Globe className="h-3 w-3 mr-1" /> : <Lock className="h-3 w-3 mr-1" />}
@@ -742,6 +1065,27 @@ export default function MusicPage() {
                   <div className="space-y-2">
                     <h3 className="font-semibold text-white text-lg line-clamp-1">{track.title}</h3>
                     <p className="text-gray-400 text-sm">{track.type.charAt(0).toUpperCase() + track.type.slice(1)}</p>
+                    {listing ? (
+                      <p className="text-emerald-300 text-sm">
+                        {listing.base_price !== null ? `${listing.currency || 'USD'} ${Number(listing.base_price).toFixed(2)}` : 'Listed'} · {listing.status}
+                      </p>
+                    ) : null}
+                    {track.listing_sync_status && track.listing_sync_status !== 'not_required' && (
+                      <p className={`text-xs ${track.listing_sync_status === 'error' || track.listing_sync_status === 'blocked' ? 'text-red-300' : 'text-amber-300'}`}>
+                        Listing sync: {track.listing_sync_status}
+                        {track.listing_sync_error ? ` — ${track.listing_sync_error}` : ''}
+                      </p>
+                    )}
+                    {!track.is_public && track.preview_mode === 'clip' && track.preview_status === 'ready' && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-1 border-sky-500/40 text-sky-300 hover:bg-sky-500/10"
+                        onClick={() => publishTrackWhenReady(track)}
+                      >
+                        Publish now
+                      </Button>
+                    )}
                     {track.genre && (
                       <p className="text-gray-400 text-sm">{track.genre}</p>
                     )}
@@ -771,19 +1115,47 @@ export default function MusicPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent className="bg-slate-800 border-slate-700">
-                        <DropdownMenuItem onClick={() => setEditingTrack(track)}>
+                        <DropdownMenuItem onClick={() => {
+                          hydrateFormFromTrack(track)
+                          setEditingTrack(track)
+                          setShowUploader(true)
+                        }}>
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
+	                        <DropdownMenuItem onClick={() => openSellFlow(track, listing)}>
+	                          <ShoppingBag className="h-4 w-4 mr-2" />
+	                          {listing ? 'Edit storefront listing' : 'Sell / Add to storefront'}
+	                        </DropdownMenuItem>
+                        {track.preview_mode === 'clip' && track.preview_status === 'failed' && (
+                          <DropdownMenuItem onClick={() => retryPreviewGeneration(track)}>
+                            <RefreshCw className="h-4 w-4 mr-2" />
+                            Retry sample generation
+                          </DropdownMenuItem>
+                        )}
+                        {!track.is_public && (
+                          track.preview_mode !== 'clip' || track.preview_status === 'ready'
+                        ) && (
+                          <DropdownMenuItem onClick={() => publishTrackWhenReady(track)}>
+                            <Globe className="h-4 w-4 mr-2" />
+                            Publish
+                          </DropdownMenuItem>
+                        )}
+                        {publicMusicPath && (
+                          <DropdownMenuItem onClick={() => router.push(publicMusicPath)}>
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            Preview public track
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem onClick={() => setDeletingTrack(track.id)}>
                           <Trash2 className="h-4 w-4 mr-2" />
                           Delete
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleDownloadTrack(track)}>
                           <Download className="h-4 w-4 mr-2" />
                           Download
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleShareTrack(track)}>
                           <Share2 className="h-4 w-4 mr-2" />
                           Share
                         </DropdownMenuItem>
@@ -792,21 +1164,21 @@ export default function MusicPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Music Player */}
-        {currentlyPlaying && (
-          <div className="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-white/20 p-4 z-50">
-            <MusicPlayer
-              track={filteredTracks.find(t => t.id === currentlyPlaying)!}
-            />
+            )})}
           </div>
         )}
 
         {/* Upload/Edit Dialog */}
-        <Dialog open={showUploader} onOpenChange={setShowUploader}>
+        <Dialog
+          open={showUploader}
+          onOpenChange={(open) => {
+            setShowUploader(open)
+            if (!open) {
+              setEditingTrack(null)
+              resetFormData()
+            }
+          }}
+        >
           <DialogContent className="bg-slate-800 border-slate-700 max-w-6xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-white">
@@ -899,7 +1271,7 @@ export default function MusicPage() {
                       />
                     </div>
 
-                    <div className="flex items-center space-x-4">
+                    <div className="flex flex-wrap items-center gap-4">
                       <div className="flex items-center space-x-2">
                         <Switch
                           id="featured"
@@ -918,6 +1290,38 @@ export default function MusicPage() {
                           {formData.is_public ? <Globe className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
                           {formData.is_public ? 'Public' : 'Private'}
                         </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="library-add"
+                          checked={formData.allow_library_add}
+                          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_library_add: checked }))}
+                        />
+                        <Label htmlFor="library-add" className="text-gray-300">Library Adds</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="profile-feature"
+                          checked={formData.allow_profile_feature}
+                          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_profile_feature: checked }))}
+                        />
+                        <Label htmlFor="profile-feature" className="text-gray-300">Profile Features</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="allow-download"
+                          checked={formData.allow_downloads}
+                          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_downloads: checked }))}
+                        />
+                        <Label htmlFor="allow-download" className="text-gray-300">Allow Download</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="rights-confirmed"
+                          checked={formData.rights_confirmed}
+                          onCheckedChange={(checked) => setFormData(prev => ({ ...prev, rights_confirmed: checked }))}
+                        />
+                        <Label htmlFor="rights-confirmed" className="text-gray-300">Rights confirmed</Label>
                       </div>
                     </div>
 
@@ -956,8 +1360,12 @@ export default function MusicPage() {
               // Show enhanced uploader for new tracks
               <EnhancedMusicUploader
                 onUploadComplete={handleSaveTrack}
-                onCancel={() => setShowUploader(false)}
+                onCancel={() => {
+                  setShowUploader(false)
+                  resetFormData()
+                }}
                 isUploading={isUploading}
+                progress={uploadProgress}
               />
             )}
 
@@ -999,4 +1407,4 @@ export default function MusicPage() {
       </div>
     </div>
   )
-} 
+}

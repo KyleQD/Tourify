@@ -3,6 +3,7 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
 import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
+import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
 
 export async function middleware(request: NextRequest) {
   const { supabaseResponse, user, supabase } = await updateSession(request)
@@ -22,6 +23,8 @@ export async function middleware(request: NextRequest) {
     '/messages',
     '/analytics',
     '/feed',
+    '/news',
+    '/community',
     '/music',
     '/connect',
     '/create',
@@ -53,6 +56,7 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
+  const isAnonymousPublicShareRoute = isPublicShareRoute(pathname)
   const isRootRoute = pathname === '/'
 
   const isProduction = process.env.NODE_ENV === 'production'
@@ -62,6 +66,12 @@ export async function middleware(request: NextRequest) {
 
   if (isProduction && isProductionBlockedRoute) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  if (pathname === '/News' || pathname.startsWith('/News/')) {
+    const redirectUrl = new URL('/news', request.url)
+    redirectUrl.search = request.nextUrl.search
+    return NextResponse.redirect(redirectUrl)
   }
 
   // Root route should route users to their primary experience:
@@ -89,7 +99,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  if (!user && isProtectedRoute) {
+  if (!user && isProtectedRoute && !isAnonymousPublicShareRoute) {
     const redirectUrl = new URL('/login', request.url)
     const targetPath = `${pathname}${request.nextUrl.search || ''}`
     redirectUrl.searchParams.set('redirectTo', targetPath)
@@ -99,13 +109,19 @@ export async function middleware(request: NextRequest) {
   if (user && (pathname.startsWith('/admin') || pathname.startsWith('/api/admin'))) {
     try {
       const hasAdminAccess = await userHasAdminSurfaceAccess(supabase as never, user.id)
+      // #region agent log
+      fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'10665a'},body:JSON.stringify({sessionId:'10665a',runId:'pre-fix',hypothesisId:'C',location:'middleware.ts:admin-access',message:'middleware admin access check',data:{pathname,hasAdminAccess,userIdPrefix:user.id.slice(0,8)},timestamp:Date.now()})}).catch(()=>{})
+      // #endregion
       if (!hasAdminAccess) {
         if (pathname.startsWith('/api/')) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
-    } catch {
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'10665a'},body:JSON.stringify({sessionId:'10665a',runId:'pre-fix',hypothesisId:'C',location:'middleware.ts:admin-access-error',message:'middleware admin access threw',data:{pathname,errorMessage:error instanceof Error?error.message:String(error)},timestamp:Date.now()})}).catch(()=>{})
+      // #endregion
       if (pathname.startsWith('/api/')) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }

@@ -31,14 +31,44 @@ import { formatDistanceToNow } from 'date-fns'
 import { useFeed } from '@/hooks/use-feed'
 import { useAuth } from '@/hooks/use-auth'
 import type { ExtendedPost as BaseExtendedPost } from '@/lib/services/feed.service'
+import { getAccountAuthor, getAccountAuthorPath } from '@/lib/accounts/account-author'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import Link from 'next/link'
+import { PollVoteCard } from '@/components/polls/poll-vote-card'
+import type { PollPayload } from '@/lib/polls/hydrate-polls'
+import { useJukeboxOptional } from '@/contexts/jukebox-context'
+import { toast } from 'sonner'
+import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
+import {
+  buildFeedMusicTrackFromPost,
+  isMusicFeedPost,
+  type FeedTrackPreview,
+} from '@/lib/feed/music-post-preview'
 
-// Extend the base interface to include additional media properties
-interface ExtendedPost extends BaseExtendedPost {
-  media_urls: string[] | null
+// Extend the base post with optional account/media fields used by the card UI
+type ExtendedPost = Omit<BaseExtendedPost, 'profiles'> & {
   media?: any[]
   media_items?: any[]
+  poll?: PollPayload | null
+  poll_ends_at?: string | null
+  poll_total_votes?: number
+  posted_as_profile_id?: string | null
+  posted_as_type?: string | null
+  account_display_name?: string | null
+  account_username?: string | null
+  account_avatar_url?: string | null
+  account_is_verified?: boolean | null
+  track_preview?: FeedTrackPreview | null
+  metadata?: Record<string, unknown> | null
+  profiles: (NonNullable<BaseExtendedPost['profiles']> & {
+    id?: string
+    account_context?: {
+      type?: string
+      profile_id?: string
+      display_name?: string
+      profile_path?: string | null
+    }
+  }) | null
 }
 
 interface PostCardProps {
@@ -47,16 +77,19 @@ interface PostCardProps {
   onShareClick?: () => void
 }
 
-// Helper function to generate profile URL based on username
-function getProfileUrl(username: string | null | undefined) {
-  if (!username) return '/profile/user'
-  return `/profile/${username}`
+function getProfileUrl(post: ExtendedPost) {
+  const contextPath = post.profiles?.account_context?.profile_path
+  if (contextPath) return contextPath
+
+  const author = getAccountAuthor(post)
+  return getAccountAuthorPath(author) || `/profile/${author.username || 'user'}`
 }
 
 export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.is_liked)
   const [likesCount, setLikesCount] = useState(post.likes_count)
   const [isBookmarked, setIsBookmarked] = useState(false)
+  const jukebox = useJukeboxOptional()
   const [showFullContent, setShowFullContent] = useState(false)
   const [isMediaPlaying, setIsMediaPlaying] = useState(false)
   const [isMuted, setIsMuted] = useState(true)
@@ -65,6 +98,7 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
   const { user } = useAuth()
 
   const isLongContent = post.content.length > 300
+  const musicTrack = isMusicFeedPost(post) ? buildFeedMusicTrackFromPost(post) : null
 
   const handleLike = async () => {
     if (!user) return
@@ -118,6 +152,9 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
   }
 
   const renderMedia = () => {
+    // Music posts render FeedMusicPlayer separately; cover art must not show as an image.
+    if (musicTrack) return null
+
     // Handle multiple possible media data structures
     let mediaItems: any[] = []
     
@@ -157,10 +194,54 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
                 className="w-full h-auto max-h-96 object-cover"
                 controls
               />
-            ) : mediaItems[0].type === 'audio' || post.type === 'music' ? (
+            ) : mediaItems[0].type === 'audio' ? (
               <div className="rounded-lg border border-slate-700/50 bg-slate-900/70 p-4">
-                <div className="mb-2 text-sm text-slate-300">Music preview</div>
-                <audio src={mediaItems[0].url} className="w-full" controls />
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-white truncate">
+                      {post.content?.slice(0, 48) || 'Audio'}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="rounded-full bg-white text-black hover:bg-white/90"
+                    onClick={() => {
+                      const audioUrl = mediaItems[0]?.url
+                      const trackId = mediaItems[0]?.id || `${post.id}-audio`
+                      if (!jukebox || !audioUrl) {
+                        toast.error('Music player is unavailable')
+                        return
+                      }
+                      const player = jukebox
+                      const isCurrent =
+                        player.state.currentTrack?.id === trackId && player.state.isPlaying
+                      if (isCurrent) {
+                        player.pause()
+                        return
+                      }
+                      player.play(
+                        {
+                          id: String(trackId),
+                          title: post.content?.slice(0, 48) || 'Audio',
+                          artist_name: post.profiles?.full_name || 'Artist',
+                          artist_id: post.profiles?.id || undefined,
+                          file_url: audioUrl,
+                        },
+                        { source: 'feed_post' }
+                      )
+                    }}
+                  >
+                    {Boolean(
+                      jukebox?.state.currentTrack?.id ===
+                        (mediaItems[0]?.id || `${post.id}-audio`) &&
+                        jukebox?.state.isPlaying
+                    ) ? (
+                      <Pause className="h-4 w-4" />
+                    ) : (
+                      <Play className="h-4 w-4 ml-0.5" />
+                    )}
+                  </Button>
+                </div>
               </div>
             ) : null}
           </div>
@@ -274,7 +355,7 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex gap-3">
-              <Link href={getProfileUrl(post.profiles?.username)} className="flex-shrink-0">
+              <Link href={getProfileUrl(post)} className="flex-shrink-0">
                 <Avatar className="h-12 w-12 cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                   <AvatarImage src={post.profiles?.avatar_url || undefined} />
                   <AvatarFallback>
@@ -285,7 +366,7 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
               
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <Link href={getProfileUrl(post.profiles?.username)} className="hover:underline">
+                  <Link href={getProfileUrl(post)} className="hover:underline">
                     <h4 className="font-semibold text-white">
                       {post.profiles?.full_name || post.profiles?.username}
                     </h4>
@@ -293,7 +374,7 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
                   {post.profiles?.is_verified && (
                     <Verified className="h-4 w-4 text-blue-400" />
                   )}
-                  <Link href={getProfileUrl(post.profiles?.username)} className="hover:underline">
+                  <Link href={getProfileUrl(post)} className="hover:underline">
                     <span className="text-slate-400">@{post.profiles?.username}</span>
                   </Link>
                 </div>
@@ -375,6 +456,10 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
                 {showFullContent ? 'Show less' : 'Show more'}
               </Button>
             )}
+
+            {post.poll && (
+              <PollVoteCard postId={post.id} poll={post.poll} />
+            )}
           </div>
 
           {/* Hashtags */}
@@ -389,6 +474,18 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
                   #{hashtag}
                 </Badge>
               ))}
+            </div>
+          )}
+
+          {musicTrack && (
+            <div className="mb-4">
+              <FeedMusicPlayer
+                track={musicTrack}
+                compact
+                playSource="feed_post"
+                onComment={() => onCommentClick?.()}
+                onShare={() => onShareClick?.()}
+              />
             </div>
           )}
 
@@ -474,4 +571,4 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
       </Card>
     </motion.div>
   )
-} 
+}

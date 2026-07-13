@@ -1,1264 +1,611 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { 
-  Heart, 
-  MessageCircle, 
-  Share2, 
-  Send,
-  MoreHorizontal, 
-  Music, 
-  Image as ImageIcon, 
-  Video, 
-  FileText,
-  MapPin,
-  Calendar,
+import {
   Users,
   TrendingUp,
-  BarChart3,
   Activity,
-  Zap,
-  Star,
-  Award,
-  Target,
-  Lightbulb,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Heart,
+  MessageCircle,
+  BarChart3,
 } from 'lucide-react'
 import { CleanPostCreator } from '@/components/feed/clean-post-creator'
-import { MediaDisplay } from '@/components/feed/media-display'
-// Database type not used; removed invalid import
+import {
+  ArtistPostCard,
+  type ArtistFeedPost,
+} from '@/components/artist/artist-post-card'
 import { useAuth } from '@/contexts/auth-context'
 import { useArtist } from '@/contexts/artist-context'
+import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+import {
+  ARTIST_CARD,
+  ARTIST_MUTED,
+  ARTIST_OUTLINE_BTN,
+  ARTIST_PRIMARY_BTN,
+  ARTIST_SECTION_LABEL,
+  ARTIST_STAT_GRID,
+  ARTIST_TITLE,
+} from '@/components/dashboard/artist-tokens'
+import type { PollPayload } from '@/lib/polls/hydrate-polls'
 
-interface PostComment {
-  id: string
-  post_id: string
-  user_id: string
-  content: string
-  created_at: string
-  profiles?: {
-    username: string
-    avatar_url?: string
+type FeedFilter = 'all' | 'following' | 'trending'
+
+interface ArtistFeedStats {
+  followers: number
+  postCount: number
+  engagementTotal: number
+  engagementRate: number
+}
+
+const EMPTY_FEED_STATS: ArtistFeedStats = {
+  followers: 0,
+  postCount: 0,
+  engagementTotal: 0,
+  engagementRate: 0,
+}
+
+function buildNoStoreInit(input?: RequestInit): RequestInit {
+  return {
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...(input?.headers || {}),
+    },
   }
 }
 
-interface Post {
-  id: string
-  content: string
-  type: string
-  visibility: string
-  location?: string
-  hashtags: string[]
-  media_items?: any[]
-  created_at: string
-  user: {
-    id: string
-    username: string
-    avatar_url?: string
+type RawMediaItem = string | {
+  url?: string
+  type?: string
+  thumbnail_url?: string
+  altText?: string
+}
+
+function normalizeMediaItems(post: any): ArtistFeedPost['media_items'] {
+  if (Array.isArray(post.media_items) && post.media_items.length > 0) return post.media_items
+  const urls: RawMediaItem[] = Array.isArray(post.media_urls) ? post.media_urls : []
+  return urls.map((url, index: number) => ({
+    id: `${post.id}-media-${index}`,
+    type: typeof url === 'string' && url.includes('.mp4') ? 'video' : 'image',
+    url: typeof url === 'string' ? url : url?.url || '',
+    thumbnail_url: typeof url === 'string' ? undefined : url.thumbnail_url,
+    altText: typeof url === 'string' ? undefined : url.altText,
+  })).filter((item: { url: string }) => Boolean(item.url))
+}
+
+function toArtistFeedPost(post: any, likedPostIds: Set<string>): ArtistFeedPost {
+  const userData = post.profiles || post.user || {}
+  return {
+    id: post.id,
+    content: post.content || '',
+    type: post.type || 'text',
+    visibility: post.visibility || 'public',
+    location: post.location || null,
+    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    media_items: normalizeMediaItems(post),
+    media_urls: Array.isArray(post.media_urls) ? post.media_urls : [],
+    metadata: post.metadata || null,
+    track_preview: post.track_preview || null,
+    created_at: post.created_at,
+    user: {
+      id: userData.id || post.user_id || post.posted_as_profile_id || '',
+      username:
+        post.account_display_name
+        || userData.full_name
+        || userData.username
+        || post.account_username
+        || 'Artist',
+      avatar_url: post.account_avatar_url || userData.avatar_url || null,
+      profile_path: userData.account_context?.profile_path || null,
+    },
+    likes_count: post.likes_count || 0,
+    comments_count: post.comments_count || 0,
+    shares_count: post.shares_count || 0,
+    is_liked: likedPostIds.has(post.id) || Boolean(post.is_liked),
+    is_pinned: Boolean(post.is_pinned),
+    poll: (post.poll as PollPayload | null | undefined) || null,
   }
-  likes_count: number
-  comments_count: number
-  shares_count: number
-  is_liked: boolean
+}
+
+function dedupePosts(posts: ArtistFeedPost[]): ArtistFeedPost[] {
+  const seen = new Set<string>()
+  return posts.filter((post) => {
+    if (seen.has(post.id)) return false
+    seen.add(post.id)
+    return true
+  })
+}
+
+function engagementScore(post: ArtistFeedPost) {
+  return post.likes_count + post.comments_count + post.shares_count + (post.poll?.totalVotes || 0)
 }
 
 export default function ArtistFeedPage() {
   const { user } = useAuth()
-  const { profile: artistProfile, displayName, avatarInitial } = useArtist()
-  const [posts, setPosts] = useState<Post[]>([])
-  const [networkPosts, setNetworkPosts] = useState<Post[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const { profile: artistProfile, displayName } = useArtist()
+  const [artistPosts, setArtistPosts] = useState<ArtistFeedPost[]>([])
+  const [ownedPosts, setOwnedPosts] = useState<ArtistFeedPost[]>([])
+  const [networkPosts, setNetworkPosts] = useState<ArtistFeedPost[]>([])
+  const [feedStats, setFeedStats] = useState<ArtistFeedStats>(EMPTY_FEED_STATS)
+  const [isLoadingArtist, setIsLoadingArtist] = useState(true)
+  const [isLoadingOwned, setIsLoadingOwned] = useState(true)
   const [isLoadingNetwork, setIsLoadingNetwork] = useState(true)
-  const [activeTab, setActiveTab] = useState('live')
-  const [feedFilter, setFeedFilter] = useState<'all' | 'following' | 'trending'>('all')
-  const [expandedComments, setExpandedComments] = useState<Set<string>>(new Set())
-  const [commentTexts, setCommentTexts] = useState<Record<string, string>>({})
-  const [postComments, setPostComments] = useState<Record<string, PostComment[]>>({})
-  const [loadingComments, setLoadingComments] = useState<Set<string>>(new Set())
-  const [submittingComment, setSubmittingComment] = useState<Set<string>>(new Set())
+  const [feedFilter, setFeedFilter] = useState<FeedFilter>('all')
+  const feedTopRef = useRef<HTMLDivElement>(null)
 
-  function buildNoStoreInit(input?: RequestInit): RequestInit {
-    return {
-      credentials: 'include',
-      cache: 'no-store',
-      ...input,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-        ...(input?.headers || {}),
-      },
-    }
-  }
-
-  // Fetch user's own posts
-  const fetchPosts = async () => {
-    if (!user?.id) return
-
-    setIsLoading(true)
-    try {
-      // Fetch only current user's posts
-      const response = await fetch(`/api/feed/posts?type=user&user_id=${user.id}&limit=20`, buildNoStoreInit())
-
-      if (!response.ok) {
-        console.log('API Response Error:', response.status, 'using empty posts for now')
-        // Don't show error to user, just use empty posts
-        setPosts([])
-        setIsLoading(false)
-        return
-      }
-
-      const result = await response.json()
-      console.log('API Response:', result)
-      const feedPosts = result.data || result.posts || []
-
-      // Transform posts to match our Post interface
-      const transformedPosts: Post[] = await transformPosts(feedPosts)
-
-      console.log('Fetched user posts:', transformedPosts)
-      setPosts(transformedPosts)
-    } catch (error) {
-      console.log('Error fetching posts, using empty posts:', error)
-      // Don't show error toast, just handle gracefully
-      setPosts([])
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Fetch network posts (following, followers, pages)
-  const fetchNetworkPosts = async () => {
-    if (!user?.id) return
-
-    setIsLoadingNetwork(true)
-    try {
-      // Get users that this artist follows
-      const { data: following, error: followError } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id)
-
-      if (followError) {
-        console.log('Follows table not available yet, using empty network posts')
-        setNetworkPosts([])
-        setIsLoadingNetwork(false)
-        return
-      }
-
-      const followingIds = following?.map(f => f.following_id) || []
-
-      if (followingIds.length === 0) {
-        setNetworkPosts([])
-        setIsLoadingNetwork(false)
-        return
-      }
-
-      // Fetch posts from followed users
-      const response = await fetch('/api/feed/posts?type=network&limit=30', buildNoStoreInit({
-        method: 'POST',
-        body: JSON.stringify({ following_ids: followingIds, limit: 30 })
-      }))
-
-      if (!response.ok) {
-        console.log('Network API Response Error:', response.status, 'using empty network posts')
-        setNetworkPosts([])
-        setIsLoadingNetwork(false)
-        return
-      }
-
-      const result = await response.json()
-      console.log('Network API Response:', result)
-      const feedPosts = result.data || result.posts || []
-
-      const transformedPosts: Post[] = await transformPosts(feedPosts)
-      
-      console.log('Fetched network posts:', transformedPosts)
-      setNetworkPosts(transformedPosts)
-    } catch (error) {
-      console.log('Error fetching network posts, using empty posts:', error)
-      // Don't show error toast, just handle gracefully
-      setNetworkPosts([])
-    } finally {
-      setIsLoadingNetwork(false)
-    }
-  }
-
-  // Helper function to transform posts
-  const transformPosts = async (feedPosts: any[]): Promise<Post[]> => {
-    // Fetch liked posts for current user
-    const postIds = feedPosts.map((post: any) => post.id)
-    let likedPosts: string[] = []
+  const transformPosts = useCallback(async (feedPosts: any[]): Promise<ArtistFeedPost[]> => {
+    const postIds = feedPosts.map((post) => post.id).filter(Boolean)
+    const liked = new Set<string>()
     if (postIds.length > 0 && user?.id) {
       const { data: likesData } = await supabase
         .from('post_likes')
         .select('post_id')
         .in('post_id', postIds)
         .eq('user_id', user.id)
-      likedPosts = likesData?.map(like => like.post_id) || []
+      for (const like of likesData || []) liked.add(like.post_id)
+    }
+    return feedPosts.map((post) => toArtistFeedPost(post, liked))
+  }, [user?.id])
+
+  const fetchFeedStats = useCallback(async () => {
+    if (!artistProfile?.id) {
+      setFeedStats(EMPTY_FEED_STATS)
+      return
     }
 
-    return feedPosts.map((post: any) => {
-      const userData = post.profiles || post.user || {
-        id: post.user_id,
-        username: post.account_username || 'Unknown',
-        avatar_url: post.account_avatar_url
+    try {
+      const params = new URLSearchParams({ profile_id: artistProfile.id })
+      const response = await fetch(`/api/artist/feed-stats?${params}`, buildNoStoreInit())
+      if (!response.ok) {
+        setFeedStats(EMPTY_FEED_STATS)
+        return
+      }
+      const result = await response.json()
+      const data = result.data || {}
+      setFeedStats({
+        followers: Number(data.followers) || 0,
+        postCount: Number(data.postCount) || 0,
+        engagementTotal: Number(data.engagementTotal) || 0,
+        engagementRate: Number(data.engagementRate) || 0,
+      })
+    } catch {
+      setFeedStats(EMPTY_FEED_STATS)
+    }
+  }, [artistProfile?.id])
+
+  const fetchArtistPosts = useCallback(async () => {
+    if (!user?.id) return
+    setIsLoadingArtist(true)
+    try {
+      if (!artistProfile?.id) {
+        setArtistPosts([])
+        return
       }
 
-      return {
-        id: post.id,
-        content: post.content,
-        type: post.type || 'text',
-        visibility: post.visibility || 'public',
-        location: post.location,
-        hashtags: post.hashtags || [],
-        media_items: (post.media_urls || []).map((url: string, index: number) => ({
-          id: `${post.id}-media-${index}`,
-          type: 'image',
-          url: url,
-          altText: `Media ${index + 1}`,
-          title: `Media ${index + 1}`
-        })),
-        created_at: post.created_at,
-        user: {
-          id: userData.id,
-          username: userData.username || userData.full_name || 'Unknown',
-          avatar_url: userData.avatar_url
-        },
-        likes_count: post.likes_count || 0,
-        comments_count: post.comments_count || 0,
-        shares_count: post.shares_count || 0,
-        is_liked: likedPosts.includes(post.id)
+      const params = new URLSearchParams({
+        type: 'user',
+        limit: '30',
+        profile_id: artistProfile.id,
+        attribution: 'strict',
+      })
+      const response = await fetch(`/api/feed/posts?${params}`, buildNoStoreInit())
+      if (!response.ok) {
+        setArtistPosts([])
+        return
       }
+      const result = await response.json()
+      setArtistPosts(await transformPosts(result.data || result.posts || []))
+    } catch {
+      setArtistPosts([])
+    } finally {
+      setIsLoadingArtist(false)
+    }
+  }, [user?.id, artistProfile?.id, transformPosts])
+
+  const fetchOwnedPosts = useCallback(async () => {
+    if (!user?.id) return
+    setIsLoadingOwned(true)
+    try {
+      const params = new URLSearchParams({
+        type: 'user',
+        limit: '30',
+        user_id: user.id,
+      })
+      const response = await fetch(`/api/feed/posts?${params}`, buildNoStoreInit())
+      if (!response.ok) {
+        setOwnedPosts([])
+        return
+      }
+      const result = await response.json()
+      // Legacy user scope includes all owned-account posts; merge dedupes with artistPosts.
+      setOwnedPosts(await transformPosts(result.data || result.posts || []))
+    } catch {
+      setOwnedPosts([])
+    } finally {
+      setIsLoadingOwned(false)
+    }
+  }, [user?.id, transformPosts])
+
+  const fetchNetworkPosts = useCallback(async () => {
+    if (!user?.id) return
+    setIsLoadingNetwork(true)
+    try {
+      const { data: following, error } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', user.id)
+
+      if (error) {
+        setNetworkPosts([])
+        return
+      }
+
+      const followingIds = (following || []).map((row) => row.following_id).filter(Boolean)
+      if (followingIds.length === 0) {
+        setNetworkPosts([])
+        return
+      }
+
+      const response = await fetch('/api/feed/posts?type=network&limit=30', buildNoStoreInit({
+        method: 'POST',
+        body: JSON.stringify({ following_ids: followingIds, limit: 30 }),
+      }))
+      if (!response.ok) {
+        setNetworkPosts([])
+        return
+      }
+      const result = await response.json()
+      setNetworkPosts(await transformPosts(result.data || result.posts || []))
+    } catch {
+      setNetworkPosts([])
+    } finally {
+      setIsLoadingNetwork(false)
+    }
+  }, [user?.id, transformPosts])
+
+  const refreshAll = useCallback(() => {
+    fetchFeedStats()
+    fetchArtistPosts()
+    fetchOwnedPosts()
+    fetchNetworkPosts()
+  }, [fetchFeedStats, fetchArtistPosts, fetchOwnedPosts, fetchNetworkPosts])
+
+  useEffect(() => {
+    if (!user) return
+    refreshAll()
+  }, [user, refreshAll])
+
+  const filteredPosts = useMemo(() => {
+    if (feedFilter === 'following') return networkPosts
+
+    const merged = dedupePosts([...artistPosts, ...ownedPosts, ...networkPosts])
+    if (feedFilter === 'trending')
+      return merged.sort((a, b) => engagementScore(b) - engagementScore(a))
+
+    return merged.sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    )
+  }, [feedFilter, artistPosts, ownedPosts, networkPosts])
+
+  const isLoadingFeed = feedFilter === 'following'
+    ? isLoadingNetwork
+    : (isLoadingArtist || isLoadingOwned || isLoadingNetwork)
+
+  const showFeedEmpty = feedFilter === 'following'
+    ? networkPosts.length === 0
+    : filteredPosts.length === 0
+
+  function updateAllLists(updater: (list: ArtistFeedPost[]) => ArtistFeedPost[]) {
+    setArtistPosts(updater)
+    setOwnedPosts(updater)
+    setNetworkPosts(updater)
+  }
+
+  function handlePostCreated(newPost: any) {
+    const transformed = toArtistFeedPost(newPost, new Set())
+    const postedAsProfileId = newPost?.posted_as_profile_id || null
+    const isArtistPost = Boolean(artistProfile?.id && postedAsProfileId === artistProfile.id)
+
+    if (isArtistPost) {
+      setArtistPosts((prev) => [transformed, ...prev.filter((post) => post.id !== transformed.id)])
+      void fetchFeedStats()
+    } else {
+      setOwnedPosts((prev) => [transformed, ...prev.filter((post) => post.id !== transformed.id)])
+    }
+
+    setFeedFilter('all')
+    requestAnimationFrame(() => {
+      feedTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
   }
 
-  useEffect(() => {
-    if (user) {
-      fetchPosts()
-      fetchNetworkPosts()
-    }
-  }, [user])
-
-  // Get filtered posts based on current filter
-  const getFilteredPosts = () => {
-    switch (feedFilter) {
-      case 'following':
-        return networkPosts
-      case 'trending':
-        // Sort by engagement (likes + comments + shares)
-        return [...posts, ...networkPosts].sort((a, b) => {
-          const engagementA = a.likes_count + a.comments_count + a.shares_count
-          const engagementB = b.likes_count + b.comments_count + b.shares_count
-          return engagementB - engagementA
-        })
-      case 'all':
-      default:
-        // Combine and sort by date
-        return [...posts, ...networkPosts].sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-    }
-  }
-
-  const filteredPosts = getFilteredPosts()
-  const isLoadingFeed = feedFilter === 'following' ? isLoadingNetwork : (isLoading || isLoadingNetwork)
-
-  const handlePostCreated = (newPost: any) => {
-    // Transform the API response to match our Post interface
-    const transformedPost: Post = {
-      id: newPost.id,
-      content: newPost.content,
-      type: newPost.type || 'text',
-      visibility: newPost.visibility || 'public',
-      location: newPost.location,
-      hashtags: newPost.hashtags || [],
-      media_items: (newPost.media_urls || newPost.media_items || []).map((url: string, index: number) => ({
-        id: `${newPost.id}-media-${index}`,
-        type: 'image', // Default to image, could be enhanced to detect type from URL
-        url: url,
-        altText: `Media ${index + 1}`,
-        title: `Media ${index + 1}`
-      })),
-      created_at: newPost.created_at,
-      user: {
-        id: newPost.user_id,
-        username: newPost.account_username || newPost.profiles?.username || 'Unknown',
-        avatar_url: newPost.account_avatar_url || newPost.profiles?.avatar_url
-      },
-      likes_count: newPost.likes_count || 0,
-      comments_count: newPost.comments_count || 0,
-      shares_count: newPost.shares_count || 0,
-      is_liked: false
-    }
-    
-    setPosts(prev => [transformedPost, ...prev])
-    toast.success('Post created successfully!')
-  }
-
-  const updatePostInAllLists = (postId: string, updater: (post: Post) => Post) => {
-    setPosts(prev => prev.map(p => p.id === postId ? updater(p) : p))
-    setNetworkPosts(prev => prev.map(p => p.id === postId ? updater(p) : p))
-  }
-
-  const handleLike = async (postId: string) => {
+  async function handleLike(postId: string) {
     if (!user?.id) return
+    const post = filteredPosts.find((item) => item.id === postId)
+    const action = post?.is_liked ? 'unlike' : 'like'
+    const response = await fetch(`/api/posts/${postId}/likes`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+    if (!response.ok) throw new Error('Failed to toggle like')
 
-    const post = [...posts, ...networkPosts].find(p => p.id === postId)
-    if (!post) return
-
-    const wasLiked = post.is_liked
-
-    updatePostInAllLists(postId, p => ({
-      ...p,
-      is_liked: !wasLiked,
-      likes_count: wasLiked ? p.likes_count - 1 : p.likes_count + 1
+    updateAllLists((list) => list.map((item) => {
+      if (item.id !== postId) return item
+      const nextLiked = !item.is_liked
+      return {
+        ...item,
+        is_liked: nextLiked,
+        likes_count: Math.max(0, item.likes_count + (nextLiked ? 1 : -1)),
+      }
     }))
-
-    try {
-      if (wasLiked) {
-        const { error } = await supabase
-          .from('post_likes')
-          .delete()
-          .eq('post_id', postId)
-          .eq('user_id', user.id)
-        if (error) throw error
-      } else {
-        const { error } = await supabase
-          .from('post_likes')
-          .insert({ post_id: postId, user_id: user.id })
-        if (error) throw error
-      }
-    } catch (error) {
-      console.error('Error toggling like:', error)
-      updatePostInAllLists(postId, p => ({
-        ...p,
-        is_liked: wasLiked,
-        likes_count: wasLiked ? p.likes_count + 1 : p.likes_count - 1
-      }))
-      toast.error('Failed to update like')
-    }
+    void fetchFeedStats()
   }
 
-  const loadComments = async (postId: string) => {
-    setLoadingComments(prev => new Set(prev).add(postId))
-    try {
-      const { data, error } = await supabase
-        .from('post_comments')
-        .select('*, profiles:user_id(username, avatar_url)')
-        .eq('post_id', postId)
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-      setPostComments(prev => ({ ...prev, [postId]: (data || []) as PostComment[] }))
-    } catch (error) {
-      console.error('Error loading comments:', error)
-    } finally {
-      setLoadingComments(prev => { const s = new Set(prev); s.delete(postId); return s })
-    }
-  }
-
-  const handleComment = async (postId: string) => {
-    const isExpanded = expandedComments.has(postId)
-    if (isExpanded) {
-      setExpandedComments(prev => { const s = new Set(prev); s.delete(postId); return s })
-    } else {
-      setExpandedComments(prev => new Set(prev).add(postId))
-      if (!postComments[postId]) {
-        await loadComments(postId)
-      }
-    }
-  }
-
-  const submitComment = async (postId: string) => {
-    if (!user?.id) return
-    const text = (commentTexts[postId] || '').trim()
-    if (!text) return
-
-    setSubmittingComment(prev => new Set(prev).add(postId))
-    try {
-      const { data, error } = await supabase
-        .from('post_comments')
-        .insert({ post_id: postId, user_id: user.id, content: text })
-        .select('*, profiles:user_id(username, avatar_url)')
-        .single()
-
-      if (error) throw error
-
-      setPostComments(prev => ({
-        ...prev,
-        [postId]: [...(prev[postId] || []), data as PostComment]
-      }))
-      setCommentTexts(prev => ({ ...prev, [postId]: '' }))
-      updatePostInAllLists(postId, p => ({ ...p, comments_count: p.comments_count + 1 }))
-    } catch (error) {
-      console.error('Error submitting comment:', error)
-      toast.error('Failed to post comment')
-    } finally {
-      setSubmittingComment(prev => { const s = new Set(prev); s.delete(postId); return s })
-    }
-  }
-
-  const handleShare = async (postId: string) => {
+  async function handleShare(postId: string) {
     const url = `${window.location.origin}/posts/${postId}`
     try {
       await navigator.clipboard.writeText(url)
-      toast.success('Post link copied to clipboard!')
+      toast.success('Post link copied')
     } catch {
       toast.error('Failed to copy link')
     }
   }
 
-  const handleFollow = async (targetUserId: string, action: 'follow' | 'unfollow') => {
+  async function handleFollow(targetUserId: string) {
     if (!user?.id) return
-
-    try {
-      if (action === 'follow') {
-        const { error } = await supabase
-          .from('follows')
-          .insert({ follower_id: user.id, following_id: targetUserId })
-        if (error) throw error
-        toast.success('Followed successfully!')
-      } else {
-        const { error } = await supabase
-          .from('follows')
-          .delete()
-          .eq('follower_id', user.id)
-          .eq('following_id', targetUserId)
-        if (error) throw error
-        toast.success('Unfollowed successfully')
-      }
-
-      if (feedFilter === 'following') {
-        fetchNetworkPosts()
-      }
-    } catch (error) {
-      console.error('Error updating follow:', error)
-      toast.error('Failed to update follow status')
+    const { error } = await supabase
+      .from('follows')
+      .insert({ follower_id: user.id, following_id: targetUserId })
+    if (error) {
+      toast.error('Failed to follow')
+      return
     }
+    toast.success('Followed')
+    fetchNetworkPosts()
   }
 
-  const formatTimeAgo = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-    if (diffInSeconds < 60) return 'just now'
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
-    return formatSafeDate(date.toISOString())
+  async function handlePin(postId: string, isPinned: boolean) {
+    const response = await fetch('/api/posts/pin', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postId, isPinned }),
+    })
+    if (!response.ok) throw new Error('Failed to pin')
+    setArtistPosts((prev) => prev.map((post) => (
+      post.id === postId ? { ...post, is_pinned: isPinned } : post
+    )))
+    setOwnedPosts((prev) => prev.map((post) => (
+      post.id === postId ? { ...post, is_pinned: isPinned } : post
+    )))
   }
 
-  const getPostTypeIcon = (type: string) => {
-    switch (type) {
-      case 'image': return <ImageIcon className="h-4 w-4" />
-      case 'video': return <Video className="h-4 w-4" />
-      case 'audio': return <Music className="h-4 w-4" />
-      case 'document': return <FileText className="h-4 w-4" />
-      default: return null
+  async function loadComments(postId: string) {
+    const { data, error } = await supabase
+      .from('post_comments')
+      .select('id, content, created_at, profiles:user_id(username, avatar_url)')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true })
+      .limit(40)
+    if (error) {
+      toast.error('Failed to load comments')
+      return []
     }
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      content: row.content,
+      created_at: row.created_at,
+      profiles: Array.isArray(row.profiles) ? row.profiles[0] : row.profiles,
+    }))
   }
 
-  const getVisibilityIcon = (visibility: string) => {
-    switch (visibility) {
-      case 'public': return <Users className="h-4 w-4" />
-      case 'followers': return <Users className="h-4 w-4" />
-      case 'private': return <Users className="h-4 w-4" />
-      default: return <Users className="h-4 w-4" />
+  async function submitComment(postId: string, content: string) {
+    if (!user?.id) return null
+    const { data, error } = await supabase
+      .from('post_comments')
+      .insert({ post_id: postId, user_id: user.id, content })
+      .select('id, content, created_at, profiles:user_id(username, avatar_url)')
+      .single()
+    if (error) {
+      toast.error('Failed to post comment')
+      return null
+    }
+    updateAllLists((list) => list.map((post) => (
+      post.id === postId ? { ...post, comments_count: post.comments_count + 1 } : post
+    )))
+    void fetchFeedStats()
+    return {
+      id: data.id,
+      content: data.content,
+      created_at: data.created_at,
+      profiles: Array.isArray((data as any).profiles)
+        ? (data as any).profiles[0]
+        : (data as any).profiles,
     }
   }
 
   return (
     <div className="relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-purple-500/5 to-pink-500/5 rounded-full blur-3xl"
-          animate={{ y: [0, -20, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-blue-500/5 to-cyan-500/5 rounded-full blur-3xl"
-          animate={{ y: [0, -15, 0] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-emerald-500/3 to-teal-500/3 rounded-full blur-3xl"
-          animate={{ y: [0, -25, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-24 left-10 h-72 w-72 rounded-full bg-purple-600/[0.07] blur-3xl" />
+        <div className="absolute bottom-10 right-10 h-64 w-64 rounded-full bg-blue-600/[0.06] blur-3xl" />
       </div>
 
-      <div className="max-w-4xl mx-auto relative z-10">
-        {/* Header */}
-        <div className="mb-8">
-          <motion.h1 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-4xl md:text-5xl font-bold mb-2 bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent"
-          >
+      <div className="relative z-10 mx-auto max-w-4xl space-y-6">
+        <div>
+          <p className={ARTIST_SECTION_LABEL}>Create & Publish</p>
+          <h1 className={cn(ARTIST_TITLE, 'mt-1 text-3xl md:text-4xl bg-gradient-to-r from-white via-purple-100 to-blue-100 bg-clip-text text-transparent')}>
             Artist Feed
-          </motion.h1>
-          <motion.p 
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-white/70 text-lg"
-          >
-            Share your music, connect with fans, and grow your audience
-          </motion.p>
+          </h1>
+          <p className={cn(ARTIST_MUTED, 'mt-2')}>
+            Share updates, poll your followers, and keep your community close.
+          </p>
         </div>
 
-        {/* Tabs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
-            <TabsList className="grid w-full grid-cols-3 bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
-              <TabsTrigger 
-                value="live" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-pink-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/25 transition-all duration-300"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center"
-                >
-                  <Activity className="h-4 w-4 mr-2" />
-                  Live Feed
-                </motion.div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="overview" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-600 data-[state=active]:to-cyan-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-blue-500/25 transition-all duration-300"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center"
-                >
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Overview
-                </motion.div>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="insights" 
-                className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-green-600 data-[state=active]:to-emerald-600 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-green-500/25 transition-all duration-300"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  className="flex items-center"
-                >
-                  <TrendingUp className="h-4 w-4 mr-2" />
-                  Insights
-                </motion.div>
-              </TabsTrigger>
-            </TabsList>
+        <div className={cn(ARTIST_STAT_GRID)}>
+          <div className={cn(ARTIST_CARD, 'p-4')}>
+            <p className={ARTIST_SECTION_LABEL}>Followers</p>
+            <p className="mt-2 text-2xl font-bold text-white">{feedStats.followers.toLocaleString()}</p>
+            <Users className="mt-2 h-4 w-4 text-purple-300" />
+          </div>
+          <div className={cn(ARTIST_CARD, 'p-4')}>
+            <p className={ARTIST_SECTION_LABEL}>Your posts</p>
+            <p className="mt-2 text-2xl font-bold text-white">{feedStats.postCount.toLocaleString()}</p>
+            <Activity className="mt-2 h-4 w-4 text-blue-300" />
+          </div>
+          <div className={cn(ARTIST_CARD, 'p-4')}>
+            <p className={ARTIST_SECTION_LABEL}>Engagement</p>
+            <p className="mt-2 text-2xl font-bold text-white">{feedStats.engagementTotal.toLocaleString()}</p>
+            <Heart className="mt-2 h-4 w-4 text-rose-300" />
+          </div>
+          <div className={cn(ARTIST_CARD, 'p-4')}>
+            <p className={ARTIST_SECTION_LABEL}>Rate</p>
+            <p className="mt-2 text-2xl font-bold text-white">{feedStats.engagementRate.toFixed(1)}%</p>
+            <TrendingUp className="mt-2 h-4 w-4 text-emerald-300" />
+          </div>
+        </div>
 
-            {/* Live Feed Tab */}
-            <TabsContent value="live" className="space-y-6">
-            {/* Feed Header with Filters */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <h2 className="text-xl font-semibold text-white">Your Feed</h2>
-              
-              <div className="flex items-center gap-3">
-                {/* Feed Filter Buttons */}
-                <div className="flex items-center gap-1 bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-xl border border-white/20 rounded-xl p-1 shadow-xl">
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      variant={feedFilter === 'all' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setFeedFilter('all')}
-                      className={cn(
-                        "text-xs transition-all duration-300",
-                        feedFilter === 'all' 
-                          ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg shadow-purple-500/25" 
-                          : "text-white/70 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <Activity className="h-3 w-3 mr-1" />
-                      All
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      variant={feedFilter === 'following' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setFeedFilter('following')}
-                      className={cn(
-                        "text-xs transition-all duration-300",
-                        feedFilter === 'following' 
-                          ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:from-blue-700 hover:to-cyan-700 shadow-lg shadow-blue-500/25" 
-                          : "text-white/70 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <Users className="h-3 w-3 mr-1" />
-                      Following
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                    <Button
-                      variant={feedFilter === 'trending' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => setFeedFilter('trending')}
-                      className={cn(
-                        "text-xs transition-all duration-300",
-                        feedFilter === 'trending' 
-                          ? "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 shadow-lg shadow-green-500/25" 
-                          : "text-white/70 hover:bg-white/10 hover:text-white"
-                      )}
-                    >
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      Trending
-                    </Button>
-                  </motion.div>
-                </div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className={cn(ARTIST_CARD, 'inline-flex items-center gap-1 p-1')}>
+            {([
+              { id: 'all', label: 'All' },
+              { id: 'following', label: 'Following' },
+              { id: 'trending', label: 'Trending' },
+            ] as const).map((filter) => (
+              <Button
+                key={filter.id}
+                size="sm"
+                variant="ghost"
+                onClick={() => setFeedFilter(filter.id)}
+                className={cn(
+                  'rounded-xl px-3 text-xs',
+                  feedFilter === filter.id
+                    ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/20'
+                    : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                )}
+              >
+                {filter.label}
+              </Button>
+            ))}
+          </div>
 
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      fetchPosts()
-                      fetchNetworkPosts()
-                    }}
-                    disabled={isLoadingFeed}
-                    className="border-white/20 text-white/80 hover:bg-white/10 hover:border-white/30 bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-xl transition-all duration-300"
-                  >
-                    <RefreshCw className={cn("h-4 w-4 mr-2 transition-transform", isLoadingFeed && "animate-spin")} />
-                    Refresh
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className={ARTIST_OUTLINE_BTN} asChild>
+              <Link href="/discover">
+                <Sparkles className="mr-2 h-3.5 w-3.5" />
+                Discover
+              </Link>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className={ARTIST_OUTLINE_BTN}
+              onClick={refreshAll}
+            >
+              <RefreshCw className="mr-2 h-3.5 w-3.5" />
+              Refresh
+            </Button>
+          </div>
+        </div>
+
+        {feedFilter !== 'following' && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+            <CleanPostCreator
+              onPostCreated={handlePostCreated}
+              placeholder="Share a moment, drop a track teaser, or poll your followers..."
+              maxMediaItems={10}
+              defaultVisibility="public"
+              showAdvancedOptions
+              className="!bg-white/[0.04] !border-white/10"
+              user={{
+                id: user?.id || '',
+                username: displayName,
+                avatar_url: (artistProfile as any)?.avatar_url || undefined,
+              }}
+            />
+          </motion.div>
+        )}
+
+        <div ref={feedTopRef} className="space-y-4">
+          {isLoadingFeed ? (
+            <div className={cn(ARTIST_CARD, 'flex items-center justify-center py-16')}>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-purple-400 border-t-transparent" />
+            </div>
+          ) : showFeedEmpty ? (
+            <div className={cn(ARTIST_CARD, 'px-6 py-14 text-center')}>
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-purple-400/30 bg-gradient-to-br from-purple-500/20 to-blue-500/20">
+                <Sparkles className="h-6 w-6 text-purple-300" />
+              </div>
+              <h3 className="text-xl font-semibold text-white">
+                {feedFilter === 'following' ? 'No posts from following yet' : 'No posts yet'}
+              </h3>
+              <p className={cn(ARTIST_MUTED, 'mx-auto mt-2 max-w-md')}>
+                {feedFilter === 'following'
+                  ? 'Follow artists and accounts to fill this feed with their latest updates.'
+                  : 'Share your first update or ask your followers a question with a poll.'}
+              </p>
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                {feedFilter === 'following' ? (
+                  <>
+                    <Button className={ARTIST_PRIMARY_BTN} onClick={() => setFeedFilter('all')}>
+                      View your posts
+                    </Button>
+                    <Button variant="outline" className={ARTIST_OUTLINE_BTN} asChild>
+                      <Link href="/discover">Find artists</Link>
+                    </Button>
+                  </>
+                ) : (
+                  <Button className={ARTIST_PRIMARY_BTN} asChild>
+                    <Link href="/artist/content">
+                      <BarChart3 className="mr-2 h-4 w-4" />
+                      Open Content Hub
+                    </Link>
                   </Button>
-                </motion.div>
+                )}
               </div>
             </div>
+          ) : (
+            filteredPosts.map((post) => (
+              <ArtistPostCard
+                key={post.id}
+                post={post}
+                currentUserId={user?.id}
+                showFollow={feedFilter !== 'all'}
+                canPin
+                onLike={handleLike}
+                onShare={handleShare}
+                onFollow={handleFollow}
+                onPin={handlePin}
+                onLoadComments={loadComments}
+                onSubmitComment={submitComment}
+              />
+            ))
+          )}
+        </div>
 
-            {/* Network Discovery (show when no following posts) */}
-            {feedFilter === 'following' && networkPosts.length === 0 && !isLoadingNetwork && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <Card className="bg-gradient-to-r from-purple-900/30 via-blue-900/30 to-pink-900/30 border border-purple-500/30 backdrop-blur-xl shadow-2xl shadow-purple-500/10">
-                  <CardContent className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <motion.div 
-                        className="h-10 w-10 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center"
-                        animate={{ 
-                          boxShadow: [
-                            '0 0 20px rgba(168, 85, 247, 0.3)',
-                            '0 0 40px rgba(168, 85, 247, 0.6)',
-                            '0 0 20px rgba(168, 85, 247, 0.3)'
-                          ]
-                        }}
-                        transition={{ duration: 2, repeat: Infinity }}
-                      >
-                        <Users className="h-5 w-5 text-purple-400" />
-                      </motion.div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-white">Discover Artists</h3>
-                        <p className="text-purple-200/80 text-sm">Connect with other artists and build your network</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="border-purple-500/30 text-purple-300 hover:bg-purple-500/20 hover:border-purple-400/50 transition-all duration-300"
-                          onClick={() => setFeedFilter('all')}
-                        >
-                          <Target className="h-3 w-3 mr-1" />
-                          Browse All Posts
-                        </Button>
-                      </motion.div>
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="border-blue-500/30 text-blue-300 hover:bg-blue-500/20 hover:border-blue-400/50 transition-all duration-300"
-                        >
-                          <Star className="h-3 w-3 mr-1" />
-                          Find Similar Artists
-                        </Button>
-                      </motion.div>
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="border-green-500/30 text-green-300 hover:bg-green-500/20 hover:border-green-400/50 transition-all duration-300"
-                        >
-                          <Lightbulb className="h-3 w-3 mr-1" />
-                          Trending Hashtags
-                        </Button>
-                      </motion.div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* Post Creator (hide when viewing following feed) */}
-            {feedFilter !== 'following' && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <CleanPostCreator
-                  onPostCreated={handlePostCreated}
-                  placeholder="Share your latest track, behind-the-scenes moments, or connect with your fans..."
-                  maxMediaItems={10}
-                  defaultVisibility="public"
-                  showAdvancedOptions={true}
-                  user={{
-                    id: user?.id || '',
-                    username: displayName,
-                    avatar_url: (artistProfile as any)?.avatar_url || undefined
-                  }}
-                />
-              </motion.div>
-            )}
-
-            {/* Posts Feed */}
-            <div className="space-y-6">
-              {isLoadingFeed ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
-                </div>
-              ) : filteredPosts.length === 0 ? (
-                <Card className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/20 shadow-2xl">
-                  <CardContent className="p-12 text-center">
-                    <motion.div
-                      animate={{ y: [0, -10, 0] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <Sparkles className="h-12 w-12 text-purple-400 mx-auto mb-4" />
-                    </motion.div>
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      {feedFilter === 'following' ? 'No posts from following' : 'No posts yet'}
-                    </h3>
-                    <p className="text-white/60 mb-6">
-                      {feedFilter === 'following' 
-                        ? "Start following artists and pages to see their content here!"
-                        : "Be the first to share something amazing with your community!"
-                      }
-                    </p>
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                      <Button 
-                        onClick={() => feedFilter === 'following' ? setFeedFilter('all') : setActiveTab('live')}
-                        className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg shadow-purple-500/25 transition-all duration-300"
-                      >
-                        {feedFilter === 'following' ? 'View All Posts' : 'Create Your First Post'}
-                      </Button>
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <AnimatePresence>
-                  {filteredPosts.map((post, index) => (
-                    <motion.div
-                      key={post.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <Card className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl border border-white/10 hover:border-purple-500/30 shadow-lg hover:shadow-purple-500/10 transition-all duration-500">
-                        <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-12 w-12 ring-2 ring-purple-500/20 hover:ring-purple-500/40 transition-all duration-200">
-                                <AvatarImage src={post.user.avatar_url} />
-                                <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white font-semibold">
-                                  {post.user.username.charAt(0).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-white hover:text-purple-300 transition-colors cursor-pointer">
-                                  {post.user.username}
-                                  </span>
-                                  {post.user.id !== user?.id && (
-                                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                      <Button 
-                                        size="sm" 
-                                        variant="ghost" 
-                                        onClick={() => handleFollow(post.user.id, 'follow')}
-                                        className="text-xs text-purple-400 hover:text-purple-300 hover:bg-purple-500/20 hover:border-purple-500/30 border border-transparent px-2 py-1 h-6 transition-all duration-300"
-                                      >
-                                        Follow
-                                      </Button>
-                                    </motion.div>
-                                  )}
-                                  {post.type !== 'text' && (
-                                    <Badge variant="secondary" className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-xs">
-                                        {getPostTypeIcon(post.type)}
-                                      <span className="ml-1 capitalize">{post.type}</span>
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 text-sm text-gray-400 mt-1">
-                                  <span className="flex items-center gap-1">
-                                    {getVisibilityIcon(post.visibility)}
-                                    <span>{formatTimeAgo(post.created_at)}</span>
-                                  </span>
-                                  {post.location && (
-                                    <>
-                                      <span>•</span>
-                                      <div className="flex items-center gap-1">
-                                        <MapPin className="h-3 w-3" />
-                                        <span>{post.location}</span>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-white/40 hover:text-white hover:bg-white/10 transition-all duration-300 rounded-full"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </motion.div>
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="pt-0 pb-4">
-                          {/* Post content */}
-                          {post.content && (
-                            <div className="text-white leading-relaxed text-base mb-4">
-                              {post.content}
-                            </div>
-                          )}
-
-                          {/* Media display - simplified for social media style */}
-                          {post.media_items && post.media_items.length > 0 && (
-                            <div className="mt-3">
-                              {post.media_items.length === 1 ? (
-                                // Single image/video - full width
-                                <div className="relative rounded-xl overflow-hidden">
-                                  {post.media_items[0].type === 'image' ? (
-                                    <img
-                                      src={post.media_items[0].url}
-                                      alt="Post media"
-                                      className="w-full h-auto max-h-96 object-cover"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <video
-                                      src={post.media_items[0].url}
-                                      controls
-                                      className="w-full h-auto max-h-96 object-cover"
-                                      poster={post.media_items[0].thumbnail_url}
-                                    />
-                                  )}
-                                </div>
-                              ) : post.media_items.length === 2 ? (
-                                // Two images/videos - side by side
-                                <div className="grid grid-cols-2 gap-2">
-                                  {post.media_items.slice(0, 2).map((item, index) => (
-                                    <div key={index} className="relative rounded-xl overflow-hidden">
-                                      {item.type === 'image' ? (
-                                        <img
-                                          src={item.url}
-                                          alt="Post media"
-                                          className="w-full h-48 object-cover"
-                                          loading="lazy"
-                                        />
-                                      ) : (
-                                        <video
-                                          src={item.url}
-                                          controls
-                                          className="w-full h-48 object-cover"
-                                          poster={item.thumbnail_url}
-                                        />
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : post.media_items.length === 3 ? (
-                                // Three images/videos - 2 on top, 1 on bottom
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="row-span-2">
-                                    {post.media_items[0].type === 'image' ? (
-                                      <img
-                                        src={post.media_items[0].url}
-                                        alt="Post media"
-                                        className="w-full h-full object-cover rounded-xl"
-                                        loading="lazy"
-                                      />
-                                    ) : (
-                                      <video
-                                        src={post.media_items[0].url}
-                                        controls
-                                        className="w-full h-full object-cover rounded-xl"
-                                        poster={post.media_items[0].thumbnail_url}
-                                      />
-                                    )}
-                                  </div>
-                                  <div className="space-y-2">
-                                    {post.media_items.slice(1, 3).map((item, index) => (
-                                      <div key={index} className="relative rounded-xl overflow-hidden">
-                                        {item.type === 'image' ? (
-                                          <img
-                                            src={item.url}
-                                            alt="Post media"
-                                            className="w-full h-24 object-cover"
-                                            loading="lazy"
-                                          />
-                                        ) : (
-                                          <video
-                                            src={item.url}
-                                            controls
-                                            className="w-full h-24 object-cover"
-                                            poster={item.thumbnail_url}
-                                          />
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : (
-                                // Four or more images/videos - 2x2 grid with overlay
-                                <div className="grid grid-cols-2 gap-2">
-                                  {post.media_items.slice(0, 4).map((item, index) => (
-                                    <div key={index} className="relative rounded-xl overflow-hidden">
-                                      {item.type === 'image' ? (
-                                        <img
-                                          src={item.url}
-                                          alt="Post media"
-                                          className="w-full h-48 object-cover"
-                                          loading="lazy"
-                                        />
-                                      ) : (
-                                        <video
-                                          src={item.url}
-                                          controls
-                                          className="w-full h-48 object-cover"
-                                          poster={item.thumbnail_url}
-                                        />
-                                      )}
-                                      {index === 3 && (post.media_items?.length || 0) > 4 && (
-                                        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                                          <span className="text-white text-xl font-bold">
-                                            +{(post.media_items?.length || 0) - 4}
-                                          </span>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Hashtags */}
-                          {post.hashtags && post.hashtags.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-4">
-                              {post.hashtags.map((tag) => (
-                                <Badge
-                                  key={tag}
-                                  variant="secondary"
-                                  className="bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 hover:text-purple-200 cursor-pointer transition-all duration-200 border-purple-500/30 text-xs font-medium"
-                                >
-                                  #{tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Post actions */}
-                          <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-                            <div className="flex items-center gap-8">
-                              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleLike(post.id)}
-                                  className={cn(
-                                    "flex items-center gap-2 transition-all duration-300 rounded-xl px-3 py-2 border border-transparent",
-                                    post.is_liked 
-                                      ? "text-red-400 hover:text-red-300 hover:bg-red-500/20 hover:border-red-500/30" 
-                                      : "text-white/60 hover:text-white hover:bg-white/10 hover:border-white/20"
-                                  )}
-                                >
-                                  <Heart className={cn("h-5 w-5 transition-all duration-300", post.is_liked && "fill-current scale-110")} />
-                                  <span className="font-medium">{post.likes_count}</span>
-                                </Button>
-                              </motion.div>
-                              
-                              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleComment(post.id)}
-                                  className="flex items-center gap-2 text-white/60 hover:text-blue-400 hover:bg-blue-500/20 hover:border-blue-500/30 transition-all duration-300 rounded-xl px-3 py-2 border border-transparent"
-                                >
-                                  <MessageCircle className="h-5 w-5" />
-                                  <span className="font-medium">{post.comments_count}</span>
-                                </Button>
-                              </motion.div>
-                              
-                              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleShare(post.id)}
-                                  className="flex items-center gap-2 text-white/60 hover:text-green-400 hover:bg-green-500/20 hover:border-green-500/30 transition-all duration-300 rounded-xl px-3 py-2 border border-transparent"
-                                >
-                                  <Share2 className="h-5 w-5" />
-                                  <span className="font-medium">{post.shares_count}</span>
-                                </Button>
-                              </motion.div>
-                            </div>
-
-                            <div className="flex items-center gap-2 text-white/40 text-sm">
-                              {getVisibilityIcon(post.visibility)}
-                              <span className="capitalize">{post.visibility}</span>
-                            </div>
-                          </div>
-
-                          {/* Inline Comments Section */}
-                          <AnimatePresence>
-                            {expandedComments.has(post.id) && (
-                              <motion.div
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                className="pt-4 border-t border-slate-700/50 space-y-3 overflow-hidden"
-                              >
-                                {loadingComments.has(post.id) ? (
-                                  <div className="flex items-center justify-center py-4">
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500" />
-                                  </div>
-                                ) : (
-                                  <>
-                                    {(postComments[post.id] || []).length === 0 && (
-                                      <p className="text-white/40 text-sm text-center py-2">No comments yet. Be the first!</p>
-                                    )}
-                                    <div className="space-y-3 max-h-64 overflow-y-auto">
-                                      {(postComments[post.id] || []).map(comment => (
-                                        <div key={comment.id} className="flex items-start gap-2">
-                                          <Avatar className="h-7 w-7 flex-shrink-0">
-                                            <AvatarImage src={comment.profiles?.avatar_url} />
-                                            <AvatarFallback className="bg-gradient-to-br from-purple-600 to-blue-600 text-white text-xs">
-                                              {(comment.profiles?.username || '?').charAt(0).toUpperCase()}
-                                            </AvatarFallback>
-                                          </Avatar>
-                                          <div className="flex-1 bg-white/5 rounded-xl px-3 py-2">
-                                            <span className="text-white/80 text-xs font-semibold">{comment.profiles?.username || 'User'}</span>
-                                            <p className="text-white/70 text-sm">{comment.content}</p>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </>
-                                )}
-
-                                <div className="flex items-center gap-2">
-                                  <Input
-                                    placeholder="Write a comment..."
-                                    value={commentTexts[post.id] || ''}
-                                    onChange={e => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitComment(post.id) } }}
-                                    className="flex-1 bg-white/5 border-white/10 text-white placeholder:text-white/30 text-sm"
-                                    disabled={submittingComment.has(post.id)}
-                                  />
-                                  <Button
-                                    size="sm"
-                                    onClick={() => submitComment(post.id)}
-                                    disabled={submittingComment.has(post.id) || !(commentTexts[post.id] || '').trim()}
-                                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-3"
-                                  >
-                                    <Send className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              )}
-            </div>
-          </TabsContent>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Stats Cards */}
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-400">Total Posts</p>
-                      <p className="text-2xl font-bold text-white">24</p>
-                    </div>
-                    <div className="h-12 w-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                      <FileText className="h-6 w-6 text-purple-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-400">Total Likes</p>
-                      <p className="text-2xl font-bold text-white">1,234</p>
-                    </div>
-                    <div className="h-12 w-12 bg-red-500/20 rounded-lg flex items-center justify-center">
-                      <Heart className="h-6 w-6 text-red-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-gray-400">Engagement Rate</p>
-                      <p className="text-2xl font-bold text-white">8.5%</p>
-                    </div>
-                    <div className="h-12 w-12 bg-green-500/20 rounded-lg flex items-center justify-center">
-                      <TrendingUp className="h-6 w-6 text-green-400" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Recent Activity */}
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader>
-                <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
-                    <div className="h-8 w-8 bg-purple-500/20 rounded-full flex items-center justify-center">
-                      <Heart className="h-4 w-4 text-purple-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white text-sm">New like on your latest post</p>
-                      <p className="text-gray-400 text-xs">2 minutes ago</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
-                    <div className="h-8 w-8 bg-blue-500/20 rounded-full flex items-center justify-center">
-                      <MessageCircle className="h-4 w-4 text-blue-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white text-sm">New comment from @fan123</p>
-                      <p className="text-gray-400 text-xs">15 minutes ago</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 p-3 bg-slate-800/30 rounded-lg">
-                    <div className="h-8 w-8 bg-green-500/20 rounded-full flex items-center justify-center">
-                      <Users className="h-4 w-4 text-green-400" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white text-sm">New follower: @musiclover</p>
-                      <p className="text-gray-400 text-xs">1 hour ago</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Insights Tab */}
-          <TabsContent value="insights" className="space-y-6">
-            <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
-              <CardHeader>
-                <h3 className="text-lg font-semibold text-white">Performance Insights</h3>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <h4 className="text-white font-medium mb-3">Top Performing Posts</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                            <ImageIcon className="h-5 w-5 text-purple-400" />
-                          </div>
-                          <div>
-                            <p className="text-white text-sm">Behind the scenes studio session</p>
-                            <p className="text-gray-400 text-xs">Posted 2 days ago</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white font-medium">156 likes</p>
-                          <p className="text-green-400 text-xs">+23% engagement</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-3 bg-slate-800/30 rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                            <Music className="h-5 w-5 text-blue-400" />
-                          </div>
-                          <div>
-                            <p className="text-white text-sm">New track preview</p>
-                            <p className="text-gray-400 text-xs">Posted 5 days ago</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-white font-medium">89 likes</p>
-                          <p className="text-green-400 text-xs">+15% engagement</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <Separator className="bg-slate-700" />
-                  
-                  <div>
-                    <h4 className="text-white font-medium mb-3">Audience Growth</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="p-4 bg-slate-800/30 rounded-lg">
-                        <p className="text-gray-400 text-sm">This Week</p>
-                        <p className="text-2xl font-bold text-white">+12</p>
-                        <p className="text-green-400 text-xs">+8% from last week</p>
-                      </div>
-                      <div className="p-4 bg-slate-800/30 rounded-lg">
-                        <p className="text-gray-400 text-sm">This Month</p>
-                        <p className="text-2xl font-bold text-white">+47</p>
-                        <p className="text-green-400 text-xs">+12% from last month</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-        </motion.div>
+        <div className={cn(ARTIST_CARD, 'flex flex-wrap items-center justify-between gap-3 p-4')}>
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <MessageCircle className="h-4 w-4" />
+            Need cross-platform scheduling?
+          </div>
+          <Button size="sm" variant="outline" className={ARTIST_OUTLINE_BTN} asChild>
+            <Link href="/artist/content">Go to Content Hub</Link>
+          </Button>
+        </div>
       </div>
     </div>
   )
-} 
+}
