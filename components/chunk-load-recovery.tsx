@@ -5,8 +5,7 @@ import { isChunkLoadError } from '@/lib/utils/is-chunk-load-error'
 
 const RELOAD_GUARD_KEY = 'tourify.chunk-reload-guard'
 
-function maybeReloadOnce(source: string, detail: unknown) {
-
+function maybeReloadOnce() {
   try {
     if (sessionStorage.getItem(RELOAD_GUARD_KEY)) return
     sessionStorage.setItem(RELOAD_GUARD_KEY, '1')
@@ -28,13 +27,13 @@ export function ChunkLoadRecovery() {
       const candidate = event.error ?? event.message
       if (!isChunkLoadError(candidate)) return
       event.preventDefault()
-      maybeReloadOnce('error', candidate)
+      maybeReloadOnce()
     }
 
     function onRejection(event: PromiseRejectionEvent) {
       if (!isChunkLoadError(event.reason)) return
       event.preventDefault()
-      maybeReloadOnce('unhandledrejection', event.reason)
+      maybeReloadOnce()
     }
 
     window.addEventListener('error', onError)

@@ -38,6 +38,10 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+  },
   // Parent folder has its own package-lock.json; this repo uses pnpm-lock.yaml here.
   // Pin tracing to this app so Next does not infer the wrong workspace root (see Next.js outputFileTracingRoot docs).
   outputFileTracingRoot: path.join(process.cwd()),
