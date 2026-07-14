@@ -13,6 +13,7 @@ import type { LucideIcon } from "lucide-react"
 import { AdminPageHeader } from "../components/admin-page-header"
 import { AdminStatCard } from "../components/admin-stat-card"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
+import { PollAnalyticsPanel } from "@/components/polls/poll-analytics-panel"
 import {
   BarChart3,
   TrendingUp,
@@ -649,6 +650,8 @@ export default function AnalyticsPage() {
             ) : (
               <ChartPlaceholderCard title="Audience analytics" />
             )}
+
+            <PollAnalyticsPanel className="rounded-sm border-slate-700/50 bg-slate-900/60" />
           </TabsContent>
 
           <TabsContent value="trends" className="space-y-6">

@@ -17,7 +17,8 @@ import {
   X,
   Globe,
   Users,
-  Lock
+  Lock,
+  BarChart3
 } from 'lucide-react'
 import {
   Select,
@@ -31,7 +32,10 @@ import { Input } from '@/components/ui/input'
 import { Database } from '@/lib/database.types'
 import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
+import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { toast } from 'sonner'
+import { PollOptionEditor } from '@/components/polls/poll-option-editor'
+import type { PollDuration } from '@/lib/polls/poll-duration'
 
 interface PostCreatorProps {
   onPostCreated?: (post: any) => void
@@ -45,35 +49,41 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
   const [hashtagInput, setHashtagInput] = useState('')
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPollMode, setIsPollMode] = useState(false)
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+  const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
 
   const { user, loading } = useAuth()
-  const { actingHeaders } = useActingContext()
+  const { actingHeaders, isActingReady } = useActingContext()
   const createPost = async (postData: {
     content: string
     visibility: string
     location?: string
     hashtags: string[]
+    type?: string
+    poll_options?: string[]
+    poll_duration?: PollDuration
   }) => {
     if (!user) throw new Error('User not authenticated')
+    if (!isActingReady) throw new Error('Posting account is still loading. Please try again in a moment.')
 
-    console.log('createPost called with:', postData)
-
-    // Extract hashtags from content
     const hashtagMatches = postData.content.match(/#[a-zA-Z0-9_]+/g)
     const extractedHashtags = hashtagMatches?.map(tag => tag.substring(1).toLowerCase()) || []
     const allHashtags = [...extractedHashtags, ...postData.hashtags]
 
-    const requestBody = {
+    const requestBody: Record<string, unknown> = {
       content: postData.content,
-      type: 'text',
+      type: postData.type || 'text',
       visibility: postData.visibility,
       location: postData.location || null,
       hashtags: allHashtags,
     }
 
-    console.log('Making API request to /api/posts/create with body:', requestBody)
+    if (postData.type === 'poll') {
+      requestBody.poll_options = postData.poll_options
+      requestBody.poll_duration = postData.poll_duration
+    }
 
-    // Use the proper API endpoint with Next.js 15 compatible authentication
     const response = await fetch('/api/posts/create', {
       method: 'POST',
       headers: {
@@ -84,107 +94,68 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
       body: JSON.stringify(requestBody),
     })
 
-    console.log('API response status:', response.status, response.statusText)
-
     if (!response.ok) {
       let errorData
       try {
         errorData = await response.json()
-        console.log('🔴 API error response:', errorData)
-      } catch (e) {
-        console.log('🔴 Failed to parse error response')
+      } catch {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
       
       const errorMessage = errorData.error || errorData.details || 'Failed to create post'
-      const debugInfo = errorData.debug || 'No debug info'
-      
-      console.error('🔴 Detailed error:', {
-        error: errorMessage,
-        details: errorData.details,
-        debug: debugInfo,
-        status: response.status
-      })
-      
-      // Better error message formatting
-      const debugText = typeof debugInfo === 'object' 
-        ? JSON.stringify(debugInfo, null, 2)
-        : String(debugInfo)
-      
-      throw new Error(`${errorMessage} (Debug: ${debugText})`)
+      throw new Error(errorMessage)
     }
 
     const result = await response.json()
-    console.log('🟢 API success response:', result)
     
     if (!result.success) {
-      const errorMessage = result.error || result.details || 'Post creation failed'
-      const debugInfo = result.debug || 'No debug info'
-      
-      console.error('🔴 API returned error:', {
-        error: errorMessage,
-        details: result.details,
-        debug: debugInfo
-      })
-      
-      // Better error message formatting  
-      const debugText = typeof debugInfo === 'object'
-        ? JSON.stringify(debugInfo, null, 2)
-        : String(debugInfo)
-      
-      throw new Error(`${errorMessage} (Debug: ${debugText})`)
+      throw new Error(result.error || result.details || 'Post creation failed')
     }
 
-    return result.data
+    return result.data || result.post
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!content.trim() || isSubmitting || !user) return
+    if (!content.trim() || isSubmitting || !user || !isActingReady) return
+
+    if (isPollMode) {
+      const validOptions = pollOptions.map((option) => option.trim()).filter(Boolean)
+      if (validOptions.length < 2) {
+        toast.error('Invalid poll', { description: 'Add at least two poll options.' })
+        return
+      }
+    }
 
     setIsSubmitting(true)
     try {
-      console.log('Creating post with data:', {
-        content: content.trim(),
-        visibility,
-        location: location.trim() || undefined,
-        hashtags,
-        user_id: user.id
-      })
-
       const post = await createPost({
         content: content.trim(),
-        visibility,
+        visibility: isPollMode && visibility === 'public' ? 'followers' : visibility,
         location: location.trim() || undefined,
         hashtags,
+        type: isPollMode ? 'poll' : 'text',
+        poll_options: isPollMode ? pollOptions : undefined,
+        poll_duration: isPollMode ? pollDuration : undefined,
       })
 
-      console.log('Post created successfully:', post)
-
-      // Reset form
       setContent('')
       setLocation('')
       setHashtags([])
       setHashtagInput('')
       setIsExpanded(false)
+      setIsPollMode(false)
+      setPollOptions(['', ''])
+      setPollDuration('7d')
       
-      // Notify parent
       onPostCreated?.(post)
       
-      // Show success message
-      console.log('✅ Post created successfully!')
-      toast.success('Post created successfully!', {
-        description: 'Your post has been published to your feed.'
+      toast.success(isPollMode ? 'Poll created!' : 'Post created successfully!', {
+        description: isPollMode
+          ? 'Your followers can vote in the feed.'
+          : 'Your post has been published to your feed.'
       })
     } catch (error) {
-      console.error('❌ Error creating post:', error)
-      console.log('Full error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : 'No stack trace'
-      })
-      
-      // Check if it's an authentication error
       const errorMessage = error instanceof Error ? error.message : String(error)
       if (errorMessage.includes('Unauthorized') || errorMessage.includes('401')) {
         toast.error('Authentication Error', {
@@ -195,7 +166,7 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
           }
         })
       } else {
-        toast.error('Failed to create post', {
+        toast.error(isPollMode ? 'Failed to create poll' : 'Failed to create post', {
           description: errorMessage || 'An unknown error occurred. Please try again.'
         })
       }
@@ -258,6 +229,9 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
     <Card className="mb-6 overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl border-slate-700/50 rounded-xl">
       <CardContent className="p-6">
         <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <PostingAccountSelector className="border-slate-700/50 bg-slate-900/30" />
+          </div>
           <div className="flex gap-4">
             <Avatar className="flex-shrink-0">
               <AvatarImage src={user?.user_metadata?.avatar_url} />
@@ -268,12 +242,22 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
             
             <div className="flex-1 space-y-4">
               <Textarea
-                placeholder="What's happening in your world?"
+                placeholder={isPollMode ? 'Ask your followers a question...' : "What's happening in your world?"}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 onFocus={() => setIsExpanded(true)}
                 className="min-h-[120px] resize-none bg-slate-800/50 border-slate-600/50 focus:border-blue-500/50 placeholder:text-slate-400 rounded-xl"
+                disabled={!isActingReady || isSubmitting}
               />
+
+              {isPollMode && (
+                <PollOptionEditor
+                  options={pollOptions}
+                  duration={pollDuration}
+                  onOptionsChange={setPollOptions}
+                  onDurationChange={setPollDuration}
+                />
+              )}
 
               <AnimatePresence>
                 {isExpanded && (
@@ -363,12 +347,18 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
                       </Button>
                       <Button
                         type="button"
-                        variant="outline"
+                        variant={isPollMode ? 'secondary' : 'outline'}
                         size="sm"
                         className="border-slate-600/50 hover:bg-slate-700/50"
+                        onClick={() => {
+                          setIsPollMode((prev) => !prev)
+                          setIsExpanded(true)
+                          if (!isPollMode && visibility === 'public')
+                            setVisibility('followers')
+                        }}
                       >
-                        <Music className="h-4 w-4 mr-2" />
-                        Audio
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        Poll
                       </Button>
                     </div>
                   </motion.div>
@@ -451,18 +441,23 @@ export function EnhancedPostCreator({ onPostCreated }: PostCreatorProps) {
                   
                   <Button
                     type="submit"
-                    disabled={!content.trim() || isSubmitting}
+                    disabled={
+                      !content.trim()
+                      || isSubmitting
+                      || !isActingReady
+                      || (isPollMode && pollOptions.filter((option) => option.trim()).length < 2)
+                    }
                     className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
                   >
                     {isSubmitting ? (
                       <div className="flex items-center gap-2">
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        Posting...
+                        {isPollMode ? 'Creating...' : 'Posting...'}
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <Send className="h-4 w-4" />
-                        Post
+                        {isPollMode ? <BarChart3 className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                        {isPollMode ? 'Create Poll' : 'Post'}
                       </div>
                     )}
                   </Button>

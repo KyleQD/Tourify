@@ -5,23 +5,30 @@ import type { PublicArtistHeroDTO, PublicArtistViewerDTO } from "@/lib/public-ar
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Play, Share2, UserPlus, CalendarDays } from "lucide-react"
+import Link from "next/link"
+import { Play, Share2, CalendarDays, MessageCircle, Pencil } from "lucide-react"
+import { toast } from "sonner"
 import { paBtnRound, paHeroAspect, paHeroFrame, paShell, paStickyInner } from "@/components/public-artist/public-artist-ui"
+import { FollowFriendButton } from "@/components/social/follow-friend-button"
 
 export function PublicArtistHero({
   hero,
   viewer,
   creatorType,
   isAvailableForHire,
+  hasMusic = true,
   onBookNow,
-  onPlayMusic
+  onPlayMusic,
+  onMessage,
 }: {
   hero: PublicArtistHeroDTO
   viewer: PublicArtistViewerDTO
   creatorType: string | null
   isAvailableForHire: boolean
+  hasMusic?: boolean
   onBookNow: () => void
   onPlayMusic: () => void
+  onMessage?: () => void
 }) {
   const [isStickyVisible, setIsStickyVisible] = useState(false)
 
@@ -40,17 +47,27 @@ export function PublicArtistHero({
     return bits.length ? bits.join(" • ") : "Creator • Entrepreneur"
   }, [hero.genres, hero.location, creatorType])
 
+  const handleMessage = () => {
+    if (viewer.isOwner) return
+    if (!viewer.isAuthenticated) {
+      toast.error("Please sign in to send messages")
+      return
+    }
+    onMessage?.()
+  }
+
   const share = async () => {
     const url = window.location.href
     try {
       if (navigator.share) {
         await navigator.share({
           title: `${hero.artistName} on Tourify`,
-          url
+          url,
         })
         return
       }
       await navigator.clipboard.writeText(url)
+      toast.success("Profile link copied")
     } catch {}
   }
 
@@ -107,28 +124,60 @@ export function PublicArtistHero({
                   </div>
 
                   <div className="flex flex-wrap gap-2 sm:justify-end">
-                    <Button variant="secondary" disabled className={`${paBtnRound} px-5`}>
-                      <UserPlus className="mr-2 h-4 w-4" />
-                      Follow
-                    </Button>
+                    {viewer.isOwner ? (
+                      <Button asChild variant="secondary" className={`${paBtnRound} px-5`}>
+                        <Link href="/artist/profile">
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit Profile
+                        </Link>
+                      </Button>
+                    ) : (
+                      <>
+                        {viewer.isAuthenticated ? (
+                          <FollowFriendButton
+                            kind="follow"
+                            accountType="artist"
+                            targetUserId={hero.userId}
+                            className={`${paBtnRound} px-5`}
+                            size="default"
+                          />
+                        ) : (
+                          <Button
+                            variant="secondary"
+                            className={`${paBtnRound} px-5`}
+                            onClick={() => toast.error("Please sign in to follow artists")}
+                          >
+                            Follow
+                          </Button>
+                        )}
+                        <Button
+                          variant="secondary"
+                          onClick={handleMessage}
+                          className={`${paBtnRound} px-5`}
+                        >
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          Message
+                        </Button>
+                      </>
+                    )}
                     <Button variant="secondary" onClick={share} className={`${paBtnRound} px-5`}>
                       <Share2 className="mr-2 h-4 w-4" />
                       Share
                     </Button>
-                    <Button onClick={onBookNow} className={`${paBtnRound} px-5`}>
-                      <CalendarDays className="mr-2 h-4 w-4" />
-                      Hire / Book
-                    </Button>
-                    <Button variant="outline" onClick={onPlayMusic} className={`${paBtnRound} border-white/25 bg-white/5 px-5 text-white hover:bg-white/10`}>
-                      <Play className="mr-2 h-4 w-4" />
-                      Explore Work
-                    </Button>
+                    {!viewer.isOwner ? (
+                      <Button onClick={onBookNow} className={`${paBtnRound} px-5`}>
+                        <CalendarDays className="mr-2 h-4 w-4" />
+                        Hire / Book
+                      </Button>
+                    ) : null}
+                    {hasMusic ? (
+                      <Button variant="outline" onClick={onPlayMusic} className={`${paBtnRound} border-white/25 bg-white/5 px-5 text-white hover:bg-white/10`}>
+                        <Play className="mr-2 h-4 w-4" />
+                        Explore Work
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
-
-                {viewer.isOwner ? (
-                  <p className="mt-4 text-xs text-white/45">Viewing as owner — pin your best work or posts to highlight them at the top.</p>
-                ) : null}
               </div>
             </div>
           </div>
@@ -143,18 +192,48 @@ export function PublicArtistHero({
               <div className="truncate text-xs text-white/55">{subtitle}</div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              <Button size="sm" variant="secondary" disabled className={`${paBtnRound} px-3`}>
-                Follow
-              </Button>
+              {viewer.isOwner ? (
+                <Button asChild size="sm" variant="secondary" className={`${paBtnRound} px-3`}>
+                  <Link href="/artist/profile">Edit</Link>
+                </Button>
+              ) : (
+                <>
+                  {viewer.isAuthenticated ? (
+                    <FollowFriendButton
+                      kind="follow"
+                      accountType="artist"
+                      targetUserId={hero.userId}
+                      className={`${paBtnRound} px-3`}
+                      size="sm"
+                    />
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className={`${paBtnRound} px-3`}
+                      onClick={() => toast.error("Please sign in to follow artists")}
+                    >
+                      Follow
+                    </Button>
+                  )}
+                  <Button size="sm" variant="secondary" onClick={handleMessage} className={`${paBtnRound} px-3`}>
+                    Message
+                  </Button>
+                </>
+              )}
               <Button size="sm" variant="secondary" onClick={share} className={`${paBtnRound} px-3`}>
                 Share
               </Button>
-              <Button size="sm" onClick={onBookNow} className={`${paBtnRound} px-3`}>
-                Hire
-              </Button>
-              <Button size="sm" variant="outline" onClick={onPlayMusic} className={`${paBtnRound} border-white/20 px-3`}>
-                Work
-              </Button>
+              {!viewer.isOwner ? (
+                <Button size="sm" onClick={onBookNow} className={`${paBtnRound} px-3`}>
+                  Hire
+                </Button>
+              ) : null}
+              {hasMusic ? (
+                <Button size="sm" variant="outline" onClick={onPlayMusic} className={`${paBtnRound} border-white/20 px-3`}>
+                  Work
+                </Button>
+              ) : null}
             </div>
           </div>
         </div>

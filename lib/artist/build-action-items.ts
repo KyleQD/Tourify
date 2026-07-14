@@ -6,19 +6,23 @@ export interface DashboardActionItem {
   description: string
   priority: 'high' | 'medium' | 'low'
   dueDate: Date
-  type: 'profile' | 'content' | 'collaboration' | 'event'
+  type: 'profile' | 'content' | 'collaboration' | 'event' | 'payment' | 'business'
   href?: string
 }
 
-/** Derive actionable items from real profile + catalog state (no mock tasks). */
+/** Derive actionable items from real profile + catalog + account state (no mock tasks). */
 export function buildDashboardActionItems(input: {
   profile: {
     bio: string | null
     genres: string[] | null
     artist_name: string | null
+    url_slug?: string | null
   } | null
   musicCount: number
   eventCount: number
+  hasEpk?: boolean
+  stripeConnected?: boolean
+  agreementAccepted?: boolean
 }): DashboardActionItem[] {
   const items: DashboardActionItem[] = []
   const p = input.profile
@@ -36,6 +40,54 @@ export function buildDashboardActionItems(input: {
       dueDate: addDays(new Date(), 7),
       type: 'profile',
       href: '/artist/profile',
+    })
+  }
+
+  if (p && !p.url_slug) {
+    items.push({
+      id: 'task-url-slug',
+      title: 'Set your public profile URL',
+      description: 'Choose a URL slug so fans and bookers can find your public page.',
+      priority: 'high',
+      dueDate: addDays(new Date(), 7),
+      type: 'profile',
+      href: '/artist/profile',
+    })
+  }
+
+  if (input.hasEpk === false) {
+    items.push({
+      id: 'task-epk',
+      title: 'Build your EPK',
+      description: 'Create an electronic press kit so venues and press can book you faster.',
+      priority: 'high',
+      dueDate: addDays(new Date(), 14),
+      type: 'business',
+      href: '/artist/epk',
+    })
+  }
+
+  if (input.stripeConnected === false) {
+    items.push({
+      id: 'task-stripe',
+      title: 'Connect Stripe payouts',
+      description: 'Connect Stripe so you can get paid for merch, tickets, and store sales.',
+      priority: 'high',
+      dueDate: addDays(new Date(), 7),
+      type: 'payment',
+      href: '/artist/store?tab=payments',
+    })
+  }
+
+  if (input.agreementAccepted === false) {
+    items.push({
+      id: 'task-seller-agreement',
+      title: 'Accept seller agreement',
+      description: 'Accept the seller agreement to publish listings in your store.',
+      priority: 'medium',
+      dueDate: addDays(new Date(), 10),
+      type: 'payment',
+      href: '/artist/store',
     })
   }
 
@@ -63,5 +115,5 @@ export function buildDashboardActionItems(input: {
     })
   }
 
-  return items.slice(0, 5)
+  return items.slice(0, 8)
 }

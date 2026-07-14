@@ -18,18 +18,20 @@ const AdminDashboardContext = createContext<AdminDashboardContextType | undefine
 
 export function AdminDashboardProvider({ children }: { children: ReactNode }) {
   const { currentAccount, isLoading: accountLoading } = useMultiAccount()
-  const { venue, loading: venueLoading } = useCurrentVenue()
+  const isVenueAccount = currentAccount?.account_type === 'venue'
+  // Organizer/admin shells do not need a venue profile fetch on every navigation.
+  const { venue, loading: venueLoading } = useCurrentVenue({ enabled: isVenueAccount })
 
   const value = useMemo<AdminDashboardContextType>(() => ({
-    venueId: venue?.id,
+    venueId: isVenueAccount ? venue?.id : undefined,
     accountId: currentAccount?.profile_id,
     accountType: currentAccount?.account_type,
     isAdmin: isOrganizationType(currentAccount?.account_type),
-    isLoading: accountLoading || venueLoading,
+    isLoading: accountLoading || (isVenueAccount && venueLoading),
     displayName: currentAccount?.profile_data?.display_name
       || currentAccount?.profile_data?.organization_name
       || 'Organizer',
-  }), [currentAccount, venue, accountLoading, venueLoading])
+  }), [currentAccount, venue, accountLoading, venueLoading, isVenueAccount])
 
   return (
     <AdminDashboardContext.Provider value={value}>

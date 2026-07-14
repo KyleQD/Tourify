@@ -8,7 +8,7 @@ export const venueHelpArticles: HelpArticle[] = [
     category: "Getting Started",
     contentHtml: `
         <h3>Venue workspace</h3>
-        <p>The venue dashboard groups social, events, teams, documents, and equipment. Use the main site navigation to reach Pulse and Discover; venue-specific pages live under <code>/venue/dashboard</code>.</p>
+        <p>The venue dashboard groups social, events, teams, documents, and equipment. Use the main site navigation to reach News, Community, and Discover; venue-specific pages live under <code>/venue/dashboard</code>.</p>
         <h4>Where to start</h4>
         <ul>
           <li>Complete venue onboarding tasks first so permissions and profile data are correct.</li>
@@ -26,14 +26,14 @@ export const venueHelpArticles: HelpArticle[] = [
   {
     id: "venue-social-feed",
     title: "Social & feed",
-    description: "Share updates and build audience on Pulse",
+    description: "Share updates and build audience in Community",
     category: "Social",
     contentHtml: `
         <h3>Social</h3>
         <p>Use the venue social area to highlight shows, staff spotlights, and behind-the-scenes content. Pair feed posts with events so dates stay discoverable.</p>
-        <p>Open <strong>Pulse</strong> from the top navigation for the global community feed.</p>
+        <p>Open <strong>Community</strong> for the global community feed, or <strong>News</strong> for industry stories.</p>
       `,
-    keywords: ["social", "feed", "posts", "pulse"],
+    keywords: ["social", "feed", "posts", "community"],
     difficulty: "beginner",
     lastUpdated: "2026-04-12",
     relatedTopicIds: ["venue-dashboard-overview"],

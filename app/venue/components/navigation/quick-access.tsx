@@ -31,7 +31,7 @@ export function QuickAccess({ className }: QuickAccessProps) {
   useEffect(() => {
     // In a real app, this would be persisted in local storage
     const mockRecentPages = [
-      { path: "/feed", label: "Feed", timestamp: Date.now() - 1000 * 60 * 5 }, // 5 minutes ago
+      { path: "/community", label: "Community", timestamp: Date.now() - 1000 * 60 * 5 }, // 5 minutes ago
       { path: "/venue/dashboard/events/map", label: "Event Map", timestamp: Date.now() - 1000 * 60 * 30 }, // 30 minutes ago
       { path: "/messages", label: "Messages", timestamp: Date.now() - 1000 * 60 * 60 }, // 1 hour ago
       { path: "/epk", label: "EPK", timestamp: Date.now() - 1000 * 60 * 60 * 3 }, // 3 hours ago

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { generateUniqueSlug } from '@/lib/accounts/generate-unique-slug'
 
 const createArtistSchema = z.object({
   display_name: z.string().min(1, 'Artist name is required'),
@@ -143,33 +144,14 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createArtistSchema.parse(body)
 
-    // Generate username from display name
-    const generateUsername = (displayName: string) => {
-      return displayName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .substring(0, 30)
-    }
-
-    let username = generateUsername(validatedData.display_name)
-    let usernameCounter = 0
-
-    // Ensure unique username
-    while (true) {
-      const testUsername = usernameCounter === 0 ? username : `${username}-${usernameCounter}`
-      const { data: existingUser } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', testUsername)
-        .single()
-
-      if (!existingUser) {
-        username = testUsername
-        break
-      }
-      usernameCounter++
-    }
+    // Keep profiles.username as personal identity (do not overwrite with stage name).
+    // Artist public handle lives on artist_profiles.url_slug.
+    const urlSlug = await generateUniqueSlug({
+      client: supabase,
+      table: 'artist_profiles',
+      base: validatedData.display_name,
+      fallbackPrefix: `artist-${user.id.slice(0, 8)}`,
+    })
 
     // Start a transaction to create both profile and artist_profile
     const { data: profile, error: profileError } = await (supabase
@@ -177,7 +159,6 @@ export async function POST(request: NextRequest) {
       .insert({
         id: user.id, // Use the authenticated user's ID
         name: validatedData.display_name,
-        username: username,
         bio: validatedData.bio,
         avatar_url: validatedData.avatar_url,
       })
@@ -194,6 +175,7 @@ export async function POST(request: NextRequest) {
       .insert({
         user_id: user.id,
         artist_name: validatedData.display_name,
+        url_slug: urlSlug,
         bio: validatedData.bio,
         genres: validatedData.primary_genres || [],
         verification_status: validatedData.verification_status || 'unverified',

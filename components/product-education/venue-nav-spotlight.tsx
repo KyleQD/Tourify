@@ -15,7 +15,7 @@ const spotlightSteps = [
   {
     title: "Venue workspace",
     description:
-      "Your venue hub groups social posts, events, teams, documents, and equipment. Use the main Tourify navigation (Pulse, Discover, Jobs) for the wider network; use the venue dashboard for day-to-day operations.",
+      "Your venue hub groups social posts, events, teams, documents, and equipment. Use the main Tourify navigation (News, Discover, Jobs) for the wider network; use the venue dashboard for day-to-day operations.",
     icon: Grid3X3,
   },
   {

@@ -598,7 +598,7 @@ export function MegaMenu({ isOpen, onClose }: MegaMenuProps) {
               </h3>
               <ul className="space-y-3">
                 <li>
-                  <Link href="/merch" className="flex items-center text-gray-300 hover:text-white" onClick={onClose}>
+                  <Link href="/venue/dashboard/store" className="flex items-center text-gray-300 hover:text-white" onClick={onClose}>
                     <span className="bg-amber-500/20 p-1.5 rounded-md mr-3">
                       <svg
                         xmlns="http://www.w3.org/2000/svg"

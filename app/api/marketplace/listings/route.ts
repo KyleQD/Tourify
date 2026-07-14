@@ -4,7 +4,9 @@ import { createClient } from "@/lib/supabase/server"
 import { requireApiUser, fromZodError, jsonError } from "@/lib/api/route-helpers"
 import { isValidMarketplaceProductType } from "@/lib/marketplace/catalog"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
-import { getStoragePathFromUrl } from "@/lib/marketplace/storage-path"
+import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
+import { enforceFeaturedRankCap } from "@/lib/marketplace/storefront-curation"
+import { getTrackFullStoragePath, getTrackPreviewStoragePath, getTrackStorageBucket } from "@/lib/music/music-access"
 
 const listingVariantSchema = z.object({
   id: z.string().uuid().optional(),
@@ -51,6 +53,28 @@ export async function GET(request: NextRequest) {
     const productType = searchParams.get("productType")
     const limit = Number(searchParams.get("limit") || "24")
 
+    let scopedSellerUserId = sellerUserId
+    if (includeDrafts) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) {
+        return jsonError({
+          status: 401,
+          code: "auth_required",
+          message: "Sign in to view draft listings",
+        })
+      }
+      if (sellerUserId && sellerUserId !== user.id) {
+        return jsonError({
+          status: 403,
+          code: "forbidden_drafts",
+          message: "You can only view your own draft listings",
+        })
+      }
+      scopedSellerUserId = user.id
+    }
+
     let query = supabase
       .from("marketplace_listings")
       .select("*, marketplace_listing_variants(*)")
@@ -58,7 +82,7 @@ export async function GET(request: NextRequest) {
       .order("created_at", { ascending: false })
       .limit(Math.min(Math.max(limit, 1), 100))
 
-    if (sellerUserId) query = query.eq("seller_user_id", sellerUserId)
+    if (scopedSellerUserId) query = query.eq("seller_user_id", scopedSellerUserId)
     if (category) query = query.eq("category", category)
     if (productType) query = query.eq("product_type", productType)
     if (!includeDrafts) query = query.eq("status", "published")
@@ -111,6 +135,18 @@ export async function POST(request: NextRequest) {
         message: "You must accept the Marketplace Seller Agreement before publishing listings. Visit /marketplace/seller-agreement to review and accept.",
       })
     }
+    if (payload.status === "published" && isPaidListingPayload(payload)) {
+      const payoutReadiness = await getSellerPayoutReadiness({ supabase, sellerUserId: user.id })
+      if (!payoutReadiness.ready) {
+        return jsonError({
+          status: 403,
+          code: "stripe_connect_required",
+          message: "Complete Stripe Connect before publishing paid marketplace listings.",
+          retryable: false,
+          issues: payoutReadiness,
+        })
+      }
+    }
 
     const trackId = payload.trackId || null
     if (payload.productType === "digital_asset" && payload.category === "music" && !trackId) {
@@ -128,11 +164,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    let track: { id: string; user_id: string; title: string; file_url: string | null; cover_art_url: string | null } | null = null
+    let track: {
+      id: string
+      user_id: string
+      title: string
+      file_url: string | null
+      preview_file_url?: string | null
+      storage_bucket?: string | null
+      storage_path?: string | null
+      preview_storage_bucket?: string | null
+      preview_storage_path?: string | null
+      cover_art_url: string | null
+    } | null = null
     if (trackId) {
       const { data: foundTrack, error: trackError } = await supabase
         .from("artist_music")
-        .select("id, user_id, title, file_url, cover_art_url")
+        .select("id, user_id, title, file_url, preview_file_url, storage_bucket, storage_path, preview_storage_bucket, preview_storage_path, cover_art_url")
         .eq("id", trackId)
         .single()
 
@@ -153,23 +200,41 @@ export async function POST(request: NextRequest) {
       track = foundTrack
     }
 
-    const storagePath = track?.file_url ? getStoragePathFromUrl(track.file_url) : null
+    const assetPath = track ? getTrackFullStoragePath(track) : null
+    const previewPath = track ? getTrackPreviewStoragePath(track) || assetPath : null
     const mergedMetadata = {
       ...(payload.metadata || {}),
       ...(track
         ? {
             musicTrackId: track.id,
-            assetUrl: track.file_url,
-            previewUrl: track.file_url,
-            assetBucket: storagePath?.bucket || null,
-            assetPath: storagePath?.path || null,
-            previewBucket: storagePath?.bucket || null,
-            previewPath: storagePath?.path || null,
+            assetUrl: null,
+            previewUrl: `/api/music/stream?trackId=${track.id}`,
+            assetBucket: assetPath ? getTrackStorageBucket(track, "full") : null,
+            assetPath,
+            previewBucket: previewPath ? getTrackStorageBucket(track, previewPath === assetPath ? "full" : "preview") : null,
+            previewPath,
             coverArtUrl: track.cover_art_url,
             artistAttestedOwnership: payload.rightsConfirmed ?? false,
             licenseType: payload.licenseType || "personal_use",
           }
         : {}),
+    }
+
+    let featuredRank = payload.featuredRank ?? null
+    if (featuredRank != null) {
+      const featuredGate = await enforceFeaturedRankCap({
+        supabase,
+        sellerUserId: user.id,
+        nextFeaturedRank: featuredRank,
+      })
+      if (!featuredGate.ok) {
+        return jsonError({
+          status: 400,
+          code: "featured_cap_exceeded",
+          message: featuredGate.message,
+        })
+      }
+      featuredRank = featuredGate.featuredRank
     }
 
     const insertPayload = {
@@ -188,7 +253,7 @@ export async function POST(request: NextRequest) {
       tags: payload.tags || [],
       inventory_count: payload.inventoryCount ?? null,
       has_unlimited_inventory: payload.hasUnlimitedInventory ?? false,
-      featured_rank: payload.featuredRank ?? null,
+      featured_rank: featuredRank,
       metadata: mergedMetadata,
       music_track_id: track?.id || null,
       license_type: payload.licenseType || "personal_use",
@@ -255,4 +320,9 @@ export async function POST(request: NextRequest) {
       retryable: true,
     })
   }
+}
+
+function isPaidListingPayload(payload: z.infer<typeof listingSchema>) {
+  if ((payload.basePrice ?? 0) > 0) return true
+  return Boolean(payload.variants?.some(variant => variant.price > 0))
 }

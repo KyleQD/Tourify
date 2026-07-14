@@ -9,13 +9,14 @@ interface TimelineCacheEntry {
 const TIMELINE_CACHE = new Map<string, TimelineCacheEntry>()
 const TIMELINE_CACHE_TTL_MS = 3 * 60 * 1000
 
-function getCacheKey(params: { userId?: string; facet: string; query?: string }): string {
+function getCacheKey(params: { userId?: string; facet: string; category?: string; query?: string }): string {
   const userKey = params.userId || 'anonymous'
+  const categoryKey = params.category || 'none'
   const queryKey = params.query?.trim().toLowerCase() || 'none'
-  return `${userKey}:${params.facet}:${queryKey}`
+  return `${userKey}:${params.facet}:${categoryKey}:${queryKey}`
 }
 
-export function getCachedTimeline(params: { userId?: string; facet: string; query?: string }) {
+export function getCachedTimeline(params: { userId?: string; facet: string; category?: string; query?: string }) {
   const key = getCacheKey(params)
   const cached = TIMELINE_CACHE.get(key)
   if (!cached) return null
@@ -29,6 +30,7 @@ export function getCachedTimeline(params: { userId?: string; facet: string; quer
 export function setCachedTimeline(params: {
   userId?: string
   facet: string
+  category?: string
   query?: string
   items: NewsFeedItem[]
   nextCursor: string | null

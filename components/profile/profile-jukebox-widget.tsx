@@ -54,6 +54,7 @@ export function ProfileJukeboxWidget({
   className,
 }: ProfileJukeboxWidgetProps) {
   const jukebox = useJukeboxOptional()
+  const [featuredTrack, setFeaturedTrack] = useState<JukeboxTrack | null>(null)
   const [favorites, setFavorites] = useState<JukeboxTrack[]>([])
   const [playlists, setPlaylists] = useState<ProfilePlaylist[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -65,7 +66,25 @@ export function ProfileJukeboxWidget({
     async function load() {
       setIsLoading(true)
       try {
-        const [favsRes, playlistsRes] = await Promise.all([
+        const [featuredRes, favsRes, playlistsRes] = await Promise.all([
+          fetch(`/api/music/profile-featured-track?userId=${userId}`, {
+            cache: "no-store",
+          }).then(async (r) => {
+            if (!r.ok) return null
+            const json = await r.json()
+            const track = json.data?.artist_music
+            if (!track?.id) return null
+            return {
+              id: track.id,
+              title: track.title,
+              artist_name: displayName,
+              artist_id: track.user_id,
+              duration: track.duration ?? undefined,
+              file_url: `/api/music/stream?trackId=${track.id}`,
+              cover_art_url: track.cover_art_url ?? undefined,
+              genre: track.genre ?? undefined,
+            } satisfies JukeboxTrack
+          }),
           fetchUserFavoritesForProfile(userId, 8),
           fetch(
             `/api/music/playlists?ownerUserId=${userId}&includeItems=true`,
@@ -79,13 +98,14 @@ export function ProfileJukeboxWidget({
             return all.filter((p) => p.visibility === "public")
           }),
         ])
+        setFeaturedTrack(featuredRes)
         setFavorites(favsRes)
         setPlaylists(playlistsRes)
       } catch {}
       setIsLoading(false)
     }
     load()
-  }, [userId])
+  }, [userId, displayName])
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return ""
@@ -116,17 +136,20 @@ export function ProfileJukeboxWidget({
     (playlist: ProfilePlaylist) => {
       if (!jukebox || !playlist.music_playlist_items?.length) return
       const tracks = playlist.music_playlist_items
-        .filter((item) => item.artist_music?.file_url)
-        .map((item) => ({
-          id: item.artist_music!.id,
-          title: item.artist_music!.title,
-          artist_name: displayName,
-          artist_id: item.artist_music!.user_id,
-          duration: item.artist_music!.duration ?? undefined,
-          file_url: item.artist_music!.file_url!,
-          cover_art_url: item.artist_music!.cover_art_url ?? undefined,
-          genre: item.artist_music!.genre ?? undefined,
-        }))
+        .filter((item) => item.artist_music?.id || item.music_track_id)
+        .map((item) => {
+          const trackId = item.artist_music?.id || item.music_track_id
+          return {
+            id: trackId,
+            title: item.artist_music?.title || "Untitled",
+            artist_name: displayName,
+            artist_id: item.artist_music?.user_id,
+            duration: item.artist_music?.duration ?? undefined,
+            file_url: item.artist_music?.file_url || `/api/music/stream?trackId=${trackId}`,
+            cover_art_url: item.artist_music?.cover_art_url ?? undefined,
+            genre: item.artist_music?.genre ?? undefined,
+          }
+        })
       if (tracks.length === 0) return
       jukebox.playPlaylist(tracks)
       toast.success(`Playing: ${playlist.title}`)
@@ -134,7 +157,7 @@ export function ProfileJukeboxWidget({
     [jukebox, displayName]
   )
 
-  const hasContent = favorites.length > 0 || playlists.length > 0
+  const hasContent = Boolean(featuredTrack) || favorites.length > 0 || playlists.length > 0
   if (!isLoading && !hasContent) return null
 
   const nowPlaying = jukebox?.state.currentTrack
@@ -188,6 +211,38 @@ export function ProfileJukeboxWidget({
                 </div>
                 <Disc3 className="h-5 w-5 text-purple-400 animate-spin" />
               </div>
+            )}
+
+            {featuredTrack && (
+              <button
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl border border-purple-400/20 bg-purple-500/10 p-3 text-left transition-colors hover:bg-purple-500/15",
+                  isTrackPlaying(featuredTrack.id) && "ring-2 ring-purple-400/40"
+                )}
+                onClick={() => handlePlay(featuredTrack)}
+              >
+                {featuredTrack.cover_art_url ? (
+                  <img
+                    src={featuredTrack.cover_art_url}
+                    alt=""
+                    className="h-12 w-12 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-600/30">
+                    <Music className="h-5 w-5 text-purple-300" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-medium text-purple-300">Featured Song</p>
+                  <p className="truncate text-sm font-semibold text-white">{featuredTrack.title}</p>
+                  <p className="truncate text-xs text-slate-400">{featuredTrack.artist_name}</p>
+                </div>
+                {isTrackPlaying(featuredTrack.id) ? (
+                  <Pause className="h-4 w-4 text-purple-300" />
+                ) : (
+                  <Play className="h-4 w-4 text-white/60" />
+                )}
+              </button>
             )}
 
             {/* Section toggle */}

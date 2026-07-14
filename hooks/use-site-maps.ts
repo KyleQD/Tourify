@@ -6,6 +6,8 @@ interface UseSiteMapsOptions {
   tourId?: string
   autoRefresh?: boolean
   refreshInterval?: number
+  /** When false, skips nested zones/tents/elements for faster list loads. Default false. */
+  includeData?: boolean
 }
 
 interface UseSiteMapsReturn {
@@ -23,6 +25,8 @@ interface UseSiteMapsReturn {
   shareSiteMap: (id: string, options: any) => Promise<any>
   getCollaborators: (id: string) => Promise<any[]>
   removeCollaborator: (siteMapId: string, userId: string) => Promise<boolean>
+  getSiteMapById: (id: string) => Promise<SiteMap | null>
+  upsertSiteMap: (map: SiteMap) => void
 }
 
 export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn {
@@ -31,28 +35,23 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { eventId, tourId, autoRefresh = false, refreshInterval = 30000 } = options
+  const { eventId, tourId, autoRefresh = false, refreshInterval = 30000, includeData = false } = options
 
   const fetchSiteMaps = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       const params = new URLSearchParams()
       if (eventId) params.append('eventId', eventId)
       if (tourId) params.append('tourId', tourId)
-      params.append('includeData', 'true')
+      params.append('includeData', includeData ? 'true' : 'false')
 
-      const response = await fetch(`/api/admin/logistics/site-maps?${params}`)
+      const response = await fetch(`/api/admin/logistics/site-maps?${params}`, { credentials: 'include' })
       const data = await response.json()
 
       if (data.success) {
-        setSiteMaps(data.data)
-        
-        // Auto-select first site map if none selected
-        if (!selectedSiteMap && data.data.length > 0) {
-          setSelectedSiteMap(data.data[0])
-        }
+        setSiteMaps(data.data || [])
       } else {
         throw new Error(data.error || 'Failed to fetch site maps')
       }
@@ -63,12 +62,41 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     } finally {
       setLoading(false)
     }
-  }, [eventId, tourId, selectedSiteMap])
+  }, [eventId, tourId, includeData])
+
+  const getSiteMapById = useCallback(async (id: string): Promise<SiteMap | null> => {
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${id}`, { credentials: 'include' })
+      const data = await response.json()
+      if (data.success && data.data) {
+        setSiteMaps((prev) => {
+          const exists = prev.some((map) => map.id === id)
+          if (exists) return prev.map((map) => (map.id === id ? data.data : map))
+          return [data.data, ...prev]
+        })
+        return data.data
+      }
+      return null
+    } catch {
+      return null
+    }
+  }, [])
+
+  const upsertSiteMap = useCallback((map: SiteMap) => {
+    if (!map?.id) return
+    setSiteMaps((prev) => {
+      const exists = prev.some((row) => row.id === map.id)
+      if (exists) return prev.map((row) => (row.id === map.id ? { ...row, ...map } : row))
+      return [map, ...prev]
+    })
+    setSelectedSiteMap(map)
+  }, [])
 
   const createSiteMap = useCallback(async (data: Partial<SiteMap>): Promise<SiteMap | null> => {
     try {
       const response = await fetch('/api/admin/logistics/site-maps', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
@@ -98,6 +126,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${id}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -124,7 +153,8 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
   const deleteSiteMap = useCallback(async (id: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       const result = await response.json()
@@ -159,7 +189,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
 
   const exportSiteMap = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${id}/export`)
+      const response = await fetch(`/api/admin/logistics/site-maps/${id}/export`, { credentials: 'include' })
       
       if (response.ok) {
         const blob = await response.blob()
@@ -190,6 +220,7 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
 
       const response = await fetch('/api/admin/logistics/site-maps/import', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           importData,
@@ -290,7 +321,9 @@ export function useSiteMaps(options: UseSiteMapsOptions = {}): UseSiteMapsReturn
     importSiteMap,
     shareSiteMap,
     getCollaborators,
-    removeCollaborator
+    removeCollaborator,
+    getSiteMapById,
+    upsertSiteMap,
   }
 }
 
@@ -332,7 +365,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     setError(null)
     
     try {
-      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}`)
+      const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}`, { credentials: 'include' })
       const data = await response.json()
 
       if (data.success) {
@@ -353,6 +386,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -377,6 +411,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/zones`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -404,6 +439,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/zones/${zoneId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -430,7 +466,8 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
   const deleteZone = useCallback(async (zoneId: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/zones/${zoneId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       const result = await response.json()
@@ -456,6 +493,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -483,6 +521,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -509,7 +548,8 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
   const deleteTent = useCallback(async (tentId: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tents/${tentId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       const result = await response.json()
@@ -535,6 +575,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/elements`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -562,6 +603,7 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/elements/${elementId}`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       })
@@ -588,7 +630,8 @@ export function useSiteMap(options: UseSiteMapOptions): UseSiteMapReturn {
   const deleteElement = useCallback(async (elementId: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/elements/${elementId}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       const result = await response.json()

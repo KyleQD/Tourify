@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils"
 
 interface EnhancedSearchResult {
   id: string
-  type: 'artist' | 'venue' | 'user' | 'event' | 'music'
+  type: 'artist' | 'venue' | 'user' | 'organization' | 'event' | 'music'
   username: string
   displayName: string
   avatar?: string
@@ -49,7 +49,7 @@ interface EnhancedSearchResult {
 }
 
 interface SearchFilters {
-  type: 'all' | 'artists' | 'venues' | 'users'
+  type: 'all' | 'artists' | 'venues' | 'users' | 'organizations'
   location: string
   genre: string
   creatorType: string
@@ -70,17 +70,19 @@ interface EnhancedSearchProps {
   placeholder?: string
   showFilters?: boolean
   showRecommendations?: boolean
+  initialQuery?: string
 }
 
 export function EnhancedSearch({
   onResultSelect,
   onFiltersChange,
   className,
-  placeholder = "Search artists, venues, users...",
+  placeholder = "Search artists, venues, organizations, users...",
   showFilters = true,
-  showRecommendations = true
+  showRecommendations = true,
+  initialQuery = "",
 }: EnhancedSearchProps) {
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(initialQuery)
   const [results, setResults] = useState<EnhancedSearchResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
@@ -98,6 +100,11 @@ export function EnhancedSearch({
     includeRecommendations: showRecommendations,
     includeSocialData: true
   })
+
+  useEffect(() => {
+    if (!initialQuery) return
+    setQuery(initialQuery)
+  }, [initialQuery])
 
   const debouncedQuery = useDebounce(query, 300)
 
@@ -272,6 +279,7 @@ export function EnhancedSearch({
                         <SelectItem value="artists">Artists</SelectItem>
                         <SelectItem value="venues">Venues</SelectItem>
                         <SelectItem value="users">Users</SelectItem>
+                        <SelectItem value="organizations">Organizations</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

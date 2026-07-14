@@ -4,12 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { canReviewStaffingApplications } from '@/lib/auth/hiring-permissions'
 import { isJobApplicationStatus } from '@/lib/hiring/states'
 import { canTransitionApplicationStatus } from '@/lib/hiring/application-transitions'
-import {
-  evaluateHiringEligibility,
-  isHiringEligibilityGateError,
-  recordHiringEligibilitySnapshot,
-} from '@/lib/services/hiring-eligibility.service'
+import { isHiringEligibilityGateError } from '@/lib/services/hiring-eligibility.service'
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
+import { approveStaffApplication } from '@/lib/services/hiring-application-approval.service'
+import { createHiringServiceClient } from '@/lib/supabase/hiring-service-client'
 
 function buildEligibilityConflictPayload(assessment: any) {
   return {
@@ -141,38 +139,47 @@ export async function PATCH(
       )
     }
 
+    // Approvals go through the canonical service so every admin surface produces
+    // the same side effects: candidate + invitation + workflow + roster shell,
+    // separate approval/onboarding notifications, and work-thread messages.
     if (status === 'approved') {
-      const eligibility = await evaluateHiringEligibility({
-        supabase,
+      const serviceClient = createHiringServiceClient()
+      const result = await approveStaffApplication({
+        supabase: serviceClient,
+        actorUserId: user.id,
         applicationId: id,
+        options: { feedback: typeof feedback === 'string' ? feedback : undefined },
       })
-      try {
-        await recordHiringEligibilitySnapshot({
-          supabase,
-          assessment: eligibility,
-          actorUserId: user.id,
-        })
-      } catch (snapshotError) {
-        console.warn('⚠️ [Admin Application API] Failed to write eligibility snapshot:', snapshotError)
+
+      if (!result.ok) {
+        const eligibilityDetails = result.error.details as { code?: string; eligibility?: unknown } | undefined
+        if (eligibilityDetails?.code === 'HIRING_ELIGIBILITY_BLOCKED') {
+          return NextResponse.json(
+            {
+              success: false,
+              error: result.error.message,
+              code: 'HIRING_ELIGIBILITY_BLOCKED',
+              eligibility: eligibilityDetails.eligibility,
+            },
+            { status: 409 }
+          )
+        }
+        const statusCode =
+          result.error.code === 'NOT_FOUND'
+            ? 404
+            : result.error.code === 'FORBIDDEN'
+              ? 403
+              : result.error.code === 'CONFLICT'
+                ? 409
+                : 400
+        return NextResponse.json({ success: false, error: result.error.message }, { status: statusCode })
       }
-      if (eligibility.mode === 'enforce' && !eligibility.is_eligible) {
-        await writeHiringAuditEvent({
-          supabase,
-          actorUserId: user.id,
-          applicationId: id,
-          jobId: currentApplication.job_posting_id,
-          venueId: currentApplication.venue_id,
-          action: 'approve_blocked',
-          fromStatus: currentApplication.status,
-          toStatus: 'approved',
-          metadata: {
-            blocking_reasons: eligibility.blocking_reasons,
-            checklist: eligibility.checklist,
-            eligibility_mode: eligibility.mode,
-          },
-        })
-        return NextResponse.json(buildEligibilityConflictPayload(eligibility), { status: 409 })
-      }
+
+      return NextResponse.json({
+        data: result.data.application,
+        success: true,
+        message: 'Application status updated successfully',
+      })
     }
 
     const updatedApplication = await AdminOnboardingStaffService.updateApplicationStatus(
@@ -180,124 +187,7 @@ export async function PATCH(
       { status, feedback, rating }
     )
 
-    if (status === 'approved') {
-      try {
-        const candidate = await AdminOnboardingStaffService.createOrLinkCandidateFromApplication(id)
-        const invToken = `invite_${candidate.id}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
-
-        const { data: existingInvite } = await supabase
-          .from('staff_invitations')
-          .select('id, token')
-          .eq('user_id', candidate.user_id)
-          .eq('status', 'accepted')
-          .maybeSingle()
-
-        if (!existingInvite && candidate.email) {
-          await supabase.from('staff_invitations').insert({
-            email: candidate.email,
-            phone: candidate.phone || null,
-            position_details: {
-              position: candidate.position,
-              department: candidate.department,
-              candidate_id: candidate.id,
-              application_id: id,
-            },
-            token: invToken,
-            status: 'accepted',
-            user_id: candidate.user_id,
-            created_by: user.id,
-          })
-        }
-
-        const { data: existingWorkflow } = await supabase
-          .from('onboarding_workflows')
-          .select('id')
-          .eq('candidate_id', candidate.id)
-          .maybeSingle()
-
-        if (!existingWorkflow) {
-          await supabase.from('onboarding_workflows').insert({
-            venue_id: candidate.venue_id,
-            candidate_id: candidate.id,
-            job_posting_id: currentApplication.job_posting_id,
-            current_stage: 'onboarding_started',
-            status: 'active',
-            steps: [],
-            created_by: user.id,
-          })
-        }
-
-        if (candidate.venue_id) {
-          const { data: existingMember } = await supabase
-            .from('venue_team_members')
-            .select('id')
-            .eq('venue_id', candidate.venue_id)
-            .eq('email', candidate.email)
-            .maybeSingle()
-
-          if (!existingMember) {
-            await supabase.from('venue_team_members').insert({
-              venue_id: candidate.venue_id,
-              user_id: candidate.user_id || null,
-              name: candidate.name || candidate.email,
-              email: candidate.email,
-              role: candidate.position || candidate.department || 'member',
-              status: 'active',
-              permissions: {
-                manage_bookings: false,
-                manage_events: false,
-                view_analytics: false,
-                manage_team: false,
-                manage_documents: false,
-              },
-            })
-          }
-        }
-
-        // Create employment_assignments row so Work Mode can be activated
-        if (candidate.user_id) {
-          const { data: existingAssignment } = await supabase
-            .from('employment_assignments')
-            .select('id')
-            .eq('user_id', candidate.user_id)
-            .eq('venue_id', candidate.venue_id || null)
-            .eq('status', 'confirmed')
-            .maybeSingle()
-
-          if (!existingAssignment) {
-            // Derive Work Mode permissions from the matching role template.
-            const { resolveWorkModeGrant } = await import('@/lib/staff/role-templates')
-            const templateKey = candidate.position
-              ? candidate.position.toLowerCase().trim().replace(/\s+/g, '-')
-              : null
-            const grant = await resolveWorkModeGrant(supabase, {
-              templateKey,
-              position: candidate.position,
-              department: candidate.department,
-              owner: candidate.venue_id
-                ? { entityType: 'venue', entityId: candidate.venue_id }
-                : null,
-            })
-
-            await supabase.from('employment_assignments').insert({
-              user_id: candidate.user_id,
-              venue_id: candidate.venue_id || null,
-              event_id: (currentApplication as any).event_id || null,
-              role_title: candidate.position || candidate.department || 'Staff',
-              department: candidate.department || null,
-              role_template_id: grant.roleTemplateId,
-              role_category: grant.roleCategory,
-              status: 'confirmed',
-              permissions: grant.permissions,
-            })
-          }
-        }
-      } catch (onboardingError) {
-        console.warn('⚠️ [Admin Application API] Onboarding bridge failed (non-blocking):', onboardingError)
-      }
-    }
-
-    if (status === 'approved' || status === 'rejected') {
+    if (status === 'rejected') {
       await notifyApplicantStatusChange({
         applicantUserId: currentApplication.applicant_id,
         applicationId: id,

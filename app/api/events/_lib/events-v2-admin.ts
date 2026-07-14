@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const UI_STATUSES = [
+  'draft',
   'scheduled',
   'confirmed',
   'in_progress',
@@ -16,7 +17,7 @@ export function mapV2StatusToUi(status: string): AdminUiEventStatus {
     case 'hold':
     case 'offer':
     case 'inquiry':
-      return 'scheduled'
+      return 'draft'
     case 'confirmed':
     case 'advancing':
       return 'confirmed'
@@ -49,6 +50,7 @@ export function mapIncomingStatusToV2(status: string | undefined): string {
 
 export function mapUiStatusToV2ForPatch(status: AdminUiEventStatus): string {
   switch (status) {
+    case 'draft':
     case 'scheduled':
       return 'inquiry'
     case 'postponed':

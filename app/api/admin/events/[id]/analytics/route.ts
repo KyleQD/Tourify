@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import {
+  assertAdminEventAccess,
+} from "@/lib/admin/admin-tour-event-access"
 
 export const GET = withAdminAuth(
-  async (request: NextRequest, { supabase }, { params }: any = {}) => {
+  async (request: NextRequest, { supabase, user }, { params }: any = {}) => {
     // Extract id from URL since withAdminAuth HOC doesn't forward params
     const url = new URL(request.url)
     const segments = url.pathname.split('/')
@@ -10,6 +13,7 @@ export const GET = withAdminAuth(
     const id = segments[idIndex]
 
     if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
+    await assertAdminEventAccess({ supabase, userId: user.id, eventId: id })
 
     const { searchParams } = url
     const range = searchParams.get('range') || '30d'

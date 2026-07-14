@@ -119,6 +119,19 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
                 Outlook
               </Button>
               <Button
+                onClick={() => {
+                  const webcal = icalUrl.replace(/^https?:\/\//, 'webcal://')
+                  window.location.href = webcal
+                }}
+                disabled={loading}
+                className="bg-slate-700/40 border border-slate-600/40 text-slate-200"
+                variant="outline"
+                size="sm"
+              >
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                Apple Calendar
+              </Button>
+              <Button
                 onClick={downloadIcs}
                 disabled={loading}
                 className="border-slate-700 text-slate-300"

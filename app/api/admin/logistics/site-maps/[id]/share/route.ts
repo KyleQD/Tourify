@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 
 export async function POST(
   request: NextRequest,
@@ -13,6 +14,12 @@ export async function POST(
 
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    }
+
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'share')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     const body = await request.json()

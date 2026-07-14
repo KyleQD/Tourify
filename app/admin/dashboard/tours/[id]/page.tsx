@@ -5,7 +5,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
 
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -82,27 +81,35 @@ import {
   MoreHorizontal
 } from "lucide-react"
 import { toast } from "sonner"
-import { TourEventManager } from "@/components/admin/tour-event-manager"
-import { TourTeamManager } from "@/components/admin/tour-team-manager"
-import { TourVendorManager } from "@/components/admin/tour-vendor-manager"
-import { TourJobPosting } from "@/components/admin/tour-job-posting"
-import { TourJobsList } from "@/components/admin/tour-jobs-list"
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 import { SurfaceInput } from "@/components/surface/surface-primitives"
 import { AdminSurfaceCard } from "../../components/admin-surface-card"
-import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
-import { AdminSurfaceSelectTrigger, AdminSurfaceTabsList, AdminSurfaceTabsTrigger } from "../../components/admin-surface-controls"
-import { AdminPageActionsRow } from "../../components/admin-page-actions-row"
-import { TourCalendarSync } from "@/components/admin/tour-calendar-sync"
-import { TourFinanceManager } from "@/components/admin/tour-finance-manager"
+import {
+  OperationsCommandShell,
+  OperationsTabPanel,
+} from "@/components/admin/operations/operations-command-shell"
+import { WorkforceMetricCard, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { LifecycleStrip } from "@/components/admin/operations/lifecycle-strip"
+import { buildAdminHiringHref, buildAdminLogisticsHref, buildAdminRosterHref, buildAdminSiteMapHref } from "@/lib/admin/admin-ops-context"
+import {
+  TourEventsPanel,
+  TourTeamPanel,
+  TourVendorPanel,
+  TourJobsPanel,
+  TourJobPostingPanel,
+  TourFinancePanel,
+  TourCalendarPanel,
+  TourLogisticsPanel,
+} from "@/components/admin/tours/panels"
+import { LayoutDashboard, Briefcase, Ticket, Wallet, CalendarDays } from "lucide-react"
 
 interface Tour {
   id: string
   name: string
   description?: string
   artist_id: string
-  status: 'planning' | 'active' | 'completed' | 'cancelled'
+  status: 'planning' | 'active' | 'on_hold' | 'completed' | 'cancelled'
   start_date: string
   end_date: string
   total_shows: number
@@ -131,7 +138,7 @@ interface Event {
   event_time?: string
   doors_open?: string
   duration_minutes?: number
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
+  status: 'draft' | 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
   capacity: number
   tickets_sold: number
   ticket_price?: number
@@ -217,10 +224,23 @@ function buildNoStoreInit(input?: RequestInit): RequestInit {
   }
 }
 
+const TOUR_TABS = [
+  { value: "overview", label: "Overview", icon: LayoutDashboard },
+  { value: "events", label: "Shows", icon: Calendar },
+  { value: "team", label: "People", icon: Users },
+  { value: "vendors", label: "Vendors", icon: Truck },
+  { value: "jobs", label: "Jobs", icon: Briefcase },
+  { value: "ticketing", label: "Ticketing", icon: Ticket },
+  { value: "finances", label: "Finances", icon: Wallet },
+  { value: "logistics", label: "Logistics", icon: Map },
+  { value: "calendar-sync", label: "Calendar", icon: CalendarDays },
+]
+
 export default function TourManagementPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const justPublished = searchParams.get('published') === '1' || searchParams.get('published') === 'true'
   const tourId = params.id as string
 
   const [tour, setTour] = useState<Tour | null>(null)
@@ -234,6 +254,13 @@ export default function TourManagementPage() {
 
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [exportSections, setExportSections] = useState({
+    tourInfo: true,
+    events: true,
+    team: true,
+    vendors: true,
+    finances: true,
+  })
   const [tourFinances, setTourFinances] = useState<any[]>([])
   const [workflowSummary, setWorkflowSummary] = useState<TourWorkflowSummary>({
     threadId: null,
@@ -277,9 +304,10 @@ export default function TourManagementPage() {
       try {
         setIsLoading(true)
 
-        const tourResponse = await fetch(`/api/tours/${tourId}`, buildNoStoreInit())
+        const tourResponse = await fetch(`/api/admin/tours/${tourId}`, buildNoStoreInit())
         if (tourResponse.ok) {
-          const tourData = await tourResponse.json()
+          const tourPayload = await tourResponse.json()
+          const tourData = tourPayload.tour || tourPayload
           setTour(tourData)
           setEditForm(tourData)
         } else {
@@ -288,7 +316,7 @@ export default function TourManagementPage() {
           toast.error('Could not load tour')
         }
 
-        const eventsResponse = await fetch(`/api/tours/${tourId}/events`, buildNoStoreInit())
+        const eventsResponse = await fetch(`/api/admin/tours/${tourId}/events`, buildNoStoreInit())
         if (eventsResponse.ok) {
           const eventsData = await eventsResponse.json()
           const normalizedEvents = (eventsData.events || []).map((event: any) => {
@@ -328,18 +356,18 @@ export default function TourManagementPage() {
           setEvents([])
         }
 
-        const teamResponse = await fetch(`/api/tours/${tourId}/team`, buildNoStoreInit())
+        const teamResponse = await fetch(`/api/admin/tours/teams?tour_id=${tourId}`, buildNoStoreInit())
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()
-          setMembers(teamData.team_members || [])
+          setMembers(teamData.data || teamData.team_members || [])
         } else {
           setMembers([])
         }
 
-        const vendorsResponse = await fetch(`/api/tours/${tourId}/vendors`, buildNoStoreInit())
+        const vendorsResponse = await fetch(`/api/admin/tours/vendors?tour_id=${tourId}`, buildNoStoreInit())
         if (vendorsResponse.ok) {
           const vendorsData = await vendorsResponse.json()
-          setVendors(vendorsData.vendors || [])
+          setVendors(vendorsData.data || vendorsData.vendors || [])
         } else {
           setVendors([])
         }
@@ -457,7 +485,7 @@ export default function TourManagementPage() {
   const handleStatusChange = async (newStatus: Tour['status']) => {
     try {
       const response = await fetch(
-        `/api/tours/${tourId}`,
+        `/api/admin/tours/${tourId}`,
         buildNoStoreInit({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -479,10 +507,10 @@ export default function TourManagementPage() {
 
   const handleDeleteTour = async () => {
     try {
-      const response = await fetch(`/api/tours/${tourId}`, buildNoStoreInit({ method: 'DELETE' }))
+      const response = await fetch(`/api/admin/tours/${tourId}`, buildNoStoreInit({ method: 'DELETE' }))
 
       if (response.ok) {
-        toast.success('Tour deleted successfully')
+        toast.success('Tour deleted. Linked events were detached, not deleted.')
         router.push('/admin/dashboard/tours')
       } else {
         throw new Error('Failed to delete tour')
@@ -493,28 +521,64 @@ export default function TourManagementPage() {
     }
   }
 
-  const handleSaveTour = async () => {
+  const handlePublishTour = async () => {
     try {
       const response = await fetch(
-        `/api/tours/${tourId}`,
+        `/api/admin/tours/${tourId}/publish`,
+        buildNoStoreInit({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+      )
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to publish tour')
+      }
+      setTour((prev) => prev ? { ...prev, status: 'active' } : prev)
+      toast.success('Tour published', { description: 'Work Mode fanout sent to linked events.' })
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to publish tour')
+    }
+  }
+
+  const handleSaveTour = async () => {
+    try {
+      const payload = {
+        name: editForm.name,
+        description: editForm.description,
+        status: editForm.status,
+        start_date: editForm.start_date,
+        end_date: editForm.end_date,
+        budget: editForm.budget,
+        expenses: editForm.expenses,
+        revenue: editForm.expected_revenue ?? editForm.actual_revenue,
+        crew_size: editForm.crew_size,
+        transportation: editForm.transportation,
+        accommodation: editForm.accommodation,
+        equipment_requirements: editForm.equipment_requirements,
+        main_artist: (editForm as any).main_artist || (editForm as any).artist,
+      }
+
+      const response = await fetch(
+        `/api/admin/tours/${tourId}`,
         buildNoStoreInit({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(editForm),
+          body: JSON.stringify(payload),
         })
       )
 
       if (response.ok) {
-        const updatedTour = await response.json()
+        const result = await response.json()
+        const updatedTour = result.tour || result
         setTour(updatedTour)
+        setEditForm(updatedTour)
         setIsEditing(false)
         toast.success('Tour updated successfully')
       } else {
-        throw new Error('Failed to update tour')
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to update tour')
       }
     } catch (error) {
       console.error('Error updating tour:', error)
-      toast.error('Failed to update tour')
+      toast.error(error instanceof Error ? error.message : 'Failed to update tour')
     }
   }
 
@@ -531,14 +595,17 @@ export default function TourManagementPage() {
   const handleDuplicateTour = async () => {
     try {
       const response = await fetch(
-        '/api/tours',
+        '/api/admin/tours',
         buildNoStoreInit({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...tour,
             name: `${tour?.name} (Copy)`,
             status: 'planning',
+            description: tour?.description,
+            start_date: tour?.start_date,
+            end_date: tour?.end_date,
+            budget: tour?.budget,
           }),
         })
       )
@@ -670,7 +737,7 @@ export default function TourManagementPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
         <div className="container mx-auto text-center">
           <h1 className="text-2xl font-bold text-white mb-4">Tour Not Found</h1>
-          <p className="text-slate-400 mb-6">The tour you're looking for doesn't exist or has been deleted.</p>
+          <p className="text-slate-400 mb-6">The tour you are looking for does not exist or has been deleted.</p>
           <Button onClick={() => router.push('/admin/dashboard/tours')}>
             Back to Tours
           </Button>
@@ -702,85 +769,36 @@ export default function TourManagementPage() {
     : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
-      <div className="container mx-auto space-y-6">
+    <WorkforcePageShell className="px-0 sm:px-0 lg:px-0">
+      <div className="container mx-auto space-y-6 px-4 sm:px-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              onClick={() => router.push('/admin/dashboard/tours')}
-              className="text-slate-400 hover:text-white"
-            >
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              Back to Tours
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-white">{safeTour.name}</h1>
-              <p className="text-slate-400">Tour Management Dashboard</p>
-            </div>
-          </div>
-          <AdminPageActionsRow>
-            <Select
-              value={safeTour.status}
-              onValueChange={(v) => void handleStatusChange(v as Tour['status'])}
-            >
-              <AdminSurfaceSelectTrigger className="w-[168px] border-slate-600 bg-slate-900/50 capitalize text-slate-200">
-                <div className="flex items-center gap-2">
-                  {getStatusIcon(safeTour.status)}
-                  <SelectValue />
-                </div>
-              </AdminSurfaceSelectTrigger>
-              <SelectContent>
-                <SelectItem value="planning">Planning</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="cancelled">Cancelled</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={() => {
-                if (isEditing && tour) setEditForm(tour)
-                setIsEditing((v) => !v)
-              }}
-              className="border-slate-600 text-slate-300"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              {isEditing ? 'Cancel' : 'Edit'}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleShare}
-              className="border-slate-600 text-slate-300"
-            >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/admin/dashboard/tours')}
+            className="text-slate-400 hover:text-white"
+          >
+            <ChevronLeft className="h-4 w-4 mr-2" />
+            Back to Tours
+          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={handleShare} className="border-slate-600 text-slate-300">
               <Share className="h-4 w-4 mr-2" />
               Share
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleExport}
-              className="border-slate-600 text-slate-300"
-            >
+            <Button variant="outline" onClick={handleExport} className="border-slate-600 text-slate-300">
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>
-            <Button
-              variant="outline"
-              onClick={handleDuplicateTour}
-              className="border-slate-600 text-slate-300"
-            >
+            <Button variant="outline" onClick={handleDuplicateTour} className="border-slate-600 text-slate-300">
               <Copy className="h-4 w-4 mr-2" />
               Duplicate
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => setShowDeleteDialog(true)}
-            >
+            <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
               <Trash2 className="h-4 w-4 mr-2" />
               Delete
             </Button>
-          </AdminPageActionsRow>
+          </div>
         </div>
 
         {isEditing && (
@@ -879,134 +897,107 @@ export default function TourManagementPage() {
           </AdminSurfaceCard>
         )}
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <AdminSurfaceCard>
-            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-400">Progress</p>
-                      <p className="text-2xl font-bold text-white">{safeTour.completed_shows}/{safeTour.total_shows}</p>
-                      <p className="text-sm text-slate-400">Shows Completed</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-blue-500/20 shadow-lg shadow-blue-500/10">
-                      <Music className="h-6 w-6 text-blue-400" />
-                    </div>
-                  </div>
-              <div className="mt-4">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-slate-400">Progress</span>
-                  <span className="text-white">{progressPercentage.toFixed(1)}%</span>
-                </div>
-                <div className="w-full bg-slate-800 rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${progressPercentage}%` }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </AdminSurfaceCard>
+        {justPublished ? (
+          <div className="rounded-[1.25rem] border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            Tour published successfully. Linked shows received Work Mode fanout.
+          </div>
+        ) : null}
 
-          <AdminSurfaceCard>
-            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-400">Revenue</p>
-                      <p className="text-2xl font-bold text-green-400">{formatSafeCurrency(safeTour.actual_revenue)}</p>
-                      <p className="text-sm text-slate-400">of {formatSafeCurrency(safeTour.expected_revenue)}</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-green-500/20 shadow-lg shadow-green-500/10">
-                      <DollarSign className="h-6 w-6 text-green-400" />
-                    </div>
-                  </div>
-            </CardContent>
-          </AdminSurfaceCard>
-
-          <AdminSurfaceCard>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Profit</p>
-                  <p className={`text-2xl font-bold ${profit >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {formatSafeCurrency(profit)}
-                  </p>
-                  <p className="text-sm text-slate-400">Net Income</p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-500/20 shadow-lg shadow-blue-500/10">
-                  <Target className="h-6 w-6 text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </AdminSurfaceCard>
-
-          <AdminSurfaceCard>
-            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-400">Crew</p>
-                      <p className="text-2xl font-bold text-white">{safeTour.crew_size}</p>
-                      <p className="text-sm text-slate-400">Team Members</p>
-                    </div>
-                    <div className="p-3 rounded-xl bg-purple-500/20 shadow-lg shadow-purple-500/10">
-                      <Users className="h-6 w-6 text-purple-400" />
-                    </div>
-                  </div>
-            </CardContent>
-          </AdminSurfaceCard>
+        <div className="flex flex-wrap items-center gap-2">
+          <LifecycleStrip kind="tour" status={safeTour.status} />
         </div>
 
-        {/* Quick Actions */}
-        <AdminSurfaceCard>
-          <CardHeader>
-            <CardTitle className="text-white">Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('events')}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Manage Events
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('team')}>
-                      <Users className="mr-2 h-4 w-4" />
-                      Manage Team
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('vendors')}>
-                      <Truck className="mr-2 h-4 w-4" />
-                      Manage Vendors
-                    </Button>
-                                <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('finances')}>
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      View Finances
-                    </Button>
-                    <Separator className="bg-slate-700" />
-                    <TourJobPosting
-                      tourId={tourId}
-                      tourName={safeTour.name}
-                      tourStartDate={safeTour.start_date}
-                      tourEndDate={safeTour.end_date}
-                      onJobPosted={(job) => {
-                        toast.success(`Job "${job.title}" posted successfully!`)
-                      }}
-                    />
-          </CardContent>
-        </AdminSurfaceCard>
-
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <AdminSurfaceTabsList className="grid w-full grid-cols-7">
-            <AdminSurfaceTabsTrigger value="overview">Overview</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="events">Events ({events.length})</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="team">Team ({members.length})</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="vendors">Vendors ({vendors.length})</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="jobs">Jobs</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="ticketing">Ticketing</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="finances">Finances</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="calendar-sync">Calendar Sync</AdminSurfaceTabsTrigger>
-            <AdminSurfaceTabsTrigger value="logistics">Logistics</AdminSurfaceTabsTrigger>
-          </AdminSurfaceTabsList>
+        <OperationsCommandShell
+          eyebrow="Tour operations"
+          title={safeTour.name}
+          description={`Tour management · ${formatSafeDate(safeTour.start_date)} – ${formatSafeDate(safeTour.end_date)}`}
+          badge={safeTour.status.replace('_', ' ')}
+          tabs={TOUR_TABS}
+          activeTab={activeTab}
+          onTabChange={(value) => {
+            setActiveTab(value)
+            const url = new URL(window.location.href)
+            url.searchParams.set('tab', value)
+            window.history.replaceState({}, '', url.toString())
+          }}
+          tabColsClassName="md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-9"
+          metrics={
+            <>
+              <WorkforceMetricCard label="Shows" value={`${safeTour.completed_shows}/${safeTour.total_shows}`} icon={Calendar} accent="purple" />
+              <WorkforceMetricCard label="Revenue" value={formatSafeCurrency(safeTour.actual_revenue)} description={`of ${formatSafeCurrency(safeTour.expected_revenue)}`} icon={DollarSign} accent="green" />
+              <WorkforceMetricCard label="Budget left" value={formatSafeCurrency(budgetRemaining)} icon={Wallet} accent="blue" />
+              <WorkforceMetricCard label="Crew" value={safeTour.crew_size || members.length} icon={Users} accent="amber" />
+            </>
+          }
+          actions={
+            <>
+              <Button variant="outline" className="border-slate-600 text-slate-300" onClick={() => router.push(`/admin/dashboard/tours/builder?draft=${tourId}`)}>
+                <Edit className="h-4 w-4 mr-2" />
+                Edit in Builder
+              </Button>
+              <Button variant="outline" className="border-slate-600 text-slate-300" onClick={() => router.push(buildAdminLogisticsHref({ tourId }))}>
+                <Truck className="h-4 w-4 mr-2" />
+                Logistics
+              </Button>
+              <Button variant="outline" className="border-slate-600 text-slate-300" onClick={() => router.push(buildAdminRosterHref({ tourId }))}>
+                <Users className="h-4 w-4 mr-2" />
+                Roster
+              </Button>
+              <Button variant="outline" className="border-slate-600 text-slate-300" onClick={() => router.push(buildAdminHiringHref({ tourId }))}>
+                <Briefcase className="h-4 w-4 mr-2" />
+                Hiring
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-purple-600 to-blue-600 text-white"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/admin/tours/${tourId}/publish`, { method: 'POST', credentials: 'include' })
+                    const data = await res.json().catch(() => ({}))
+                    if (!res.ok) throw new Error(data.error || 'Publish failed')
+                    toast.success('Tour published')
+                    router.push(`/admin/dashboard/tours/${tourId}?published=1`)
+                  } catch (error: any) {
+                    toast.error(error.message || 'Publish failed')
+                  }
+                }}
+              >
+                Publish
+              </Button>
+            </>
+          }
+        >
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <OperationsTabPanel value="overview" className="space-y-6">
+            <AdminSurfaceCard>
+              <CardHeader>
+                <CardTitle className="text-white">Tour readiness</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+                <div>
+                  <p className="text-slate-400">Stops</p>
+                  <p className="text-white text-lg font-semibold">{events.length}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Missing venue</p>
+                  <p className="text-white text-lg font-semibold">
+                    {events.filter((ev: any) => !ev.venue_name || ev.venue_name === 'Venue TBD').length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Advance not started</p>
+                  <p className="text-white text-lg font-semibold">
+                    {events.filter((ev: any) => !ev.advance_status || ev.advance_status === 'not_started').length}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400">Publish state</p>
+                  <p className="text-white text-lg font-semibold capitalize">
+                    {safeTour.status === 'planning' || safeTour.status === 'on_hold' ? 'Unpublished' : safeTour.status.replace('_', ' ')}
+                  </p>
+                </div>
+              </CardContent>
+            </AdminSurfaceCard>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AdminSurfaceCard>
                 <CardHeader>
@@ -1188,45 +1179,45 @@ export default function TourManagementPage() {
                 </CardContent>
               </AdminSurfaceCard>
             </div>
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Events Tab */}
-          <TabsContent value="events" className="space-y-6">
+          <OperationsTabPanel value="events" className="space-y-6">
             <div className="text-sm text-slate-400">Select an event below to view or edit. If you arrived here from the calendar, the targeted event opens automatically.</div>
-            <TourEventManager
+            <TourEventsPanel
               tourId={tourId}
               events={events}
               onEventsUpdate={setEvents}
               initialEventId={initialEventId}
             />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Team Tab */}
-          <TabsContent value="team" className="space-y-6">
-            <TourTeamManager
+          <OperationsTabPanel value="team" className="space-y-6">
+            <TourTeamPanel
               tourId={tourId}
               members={members}
               onMembersUpdate={setMembers}
             />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Vendors Tab */}
-          <TabsContent value="vendors" className="space-y-6">
-            <TourVendorManager
+          <OperationsTabPanel value="vendors" className="space-y-6">
+            <TourVendorPanel
               tourId={tourId}
               vendors={vendors}
               onVendorsUpdate={setVendors}
             />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Jobs Tab */}
-          <TabsContent value="jobs" className="space-y-6">
+          <OperationsTabPanel value="jobs" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-white">Tour Jobs</h2>
                 <p className="text-slate-400">Post jobs to find crew and team members for this tour</p>
               </div>
-              <TourJobPosting
+              <TourJobPostingPanel
                 tourId={tourId}
                 tourName={safeTour.name}
                 tourStartDate={safeTour.start_date}
@@ -1236,12 +1227,12 @@ export default function TourManagementPage() {
                 }}
               />
             </div>
-            <TourJobsList tourId={tourId} />
-          </TabsContent>
+            <TourJobsPanel tourId={tourId} />
+          </OperationsTabPanel>
 
           {/* Finances Tab */}
           {/* Ticketing Tab */}
-          <TabsContent value="ticketing" className="space-y-6">
+          <OperationsTabPanel value="ticketing" className="space-y-6">
             <AdminSurfaceCard>
               <CardHeader>
                 <CardTitle className="text-white">Tour Ticket Sales</CardTitle>
@@ -1253,14 +1244,24 @@ export default function TourManagementPage() {
                 ) : (
                   <div className="space-y-2">
                     {events.map((ev: any) => (
-                      <div key={ev.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                      <div key={ev.id} className="flex items-center justify-between gap-3 p-3 bg-slate-800/50 rounded-lg">
                         <div>
                           <p className="text-white text-sm font-medium">{ev.name || ev.title}</p>
                           <p className="text-slate-400 text-xs">{ev.event_date || ev.start_at ? new Date(ev.event_date || ev.start_at).toLocaleDateString() : '—'}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-white text-sm">{ev.tickets_sold || 0} sold</p>
-                          <p className="text-slate-400 text-xs">{formatSafeCurrency(ev.actual_revenue || 0)}</p>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="text-white text-sm">{ev.tickets_sold || 0} sold</p>
+                            <p className="text-slate-400 text-xs">{formatSafeCurrency(ev.actual_revenue || 0)}</p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-slate-600 text-slate-300"
+                            onClick={() => router.push(`/admin/dashboard/events/${ev.id}?tab=tickets`)}
+                          >
+                            Open tickets
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -1272,19 +1273,19 @@ export default function TourManagementPage() {
                 )}
               </CardContent>
             </AdminSurfaceCard>
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Calendar Sync Tab */}
-          <TabsContent value="calendar-sync" className="space-y-6">
-            <TourCalendarSync tourId={tourId} tourName={safeTour.name} />
-          </TabsContent>
+          <OperationsTabPanel value="calendar-sync" className="space-y-6">
+            <TourCalendarPanel tourId={tourId} tourName={safeTour.name} />
+          </OperationsTabPanel>
 
-          <TabsContent value="finances" className="space-y-6">
-            <TourFinanceManager tourId={tourId} />
-          </TabsContent>
+          <OperationsTabPanel value="finances" className="space-y-6">
+            <TourFinancePanel tourId={tourId} />
+          </OperationsTabPanel>
 
           {/* Logistics Tab */}
-          <TabsContent value="logistics" className="space-y-6">
+          <OperationsTabPanel value="logistics" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <AdminSurfaceCard>
                 <CardHeader>
@@ -1323,14 +1324,14 @@ export default function TourManagementPage() {
               </AdminSurfaceCard>
             </div>
 
-            <LogisticsDynamicManager
+            <TourLogisticsPanel
               tourId={tourId}
               enableEditing={true}
               autoSave={true}
               showFilters={true}
             />
-          </TabsContent>
-        </Tabs>
+          </OperationsTabPanel>
+        </OperationsCommandShell>
 
         {/* Dialogs */}
         <Dialog open={showWorkflowActivityDialog} onOpenChange={onWorkflowActivityDialogOpenChange}>
@@ -1387,7 +1388,7 @@ export default function TourManagementPage() {
             <AlertDialogHeader>
               <AlertDialogTitle className="text-white">Delete Tour</AlertDialogTitle>
               <AlertDialogDescription className="text-slate-300">
-                Are you sure you want to delete this tour? This action cannot be undone and will also delete all associated events.
+                Delete this tour? Event assignments will be detached; events will not be deleted. This action cannot be undone and will also detach event assignments (events themselves are kept).
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -1451,38 +1452,51 @@ export default function TourManagementPage() {
             <div className="space-y-4">
               <p className="text-slate-300">Choose what data to export:</p>
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="tour-info" defaultChecked />
-                  <Label htmlFor="tour-info" className="text-slate-300">Tour Information</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="events" defaultChecked />
-                  <Label htmlFor="events" className="text-slate-300">Events</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="team" defaultChecked />
-                  <Label htmlFor="team" className="text-slate-300">Team Members</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="vendors" defaultChecked />
-                  <Label htmlFor="vendors" className="text-slate-300">Vendors</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <input type="checkbox" id="finances" defaultChecked />
-                  <Label htmlFor="finances" className="text-slate-300">Financial Data</Label>
-                </div>
+                {([
+                  ["tourInfo", "Tour Information"],
+                  ["events", "Events"],
+                  ["team", "Team Members"],
+                  ["vendors", "Vendors"],
+                  ["finances", "Financial Data"],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id={`export-${key}`}
+                      checked={exportSections[key]}
+                      onChange={(event) =>
+                        setExportSections((current) => ({ ...current, [key]: event.target.checked }))
+                      }
+                    />
+                    <Label htmlFor={`export-${key}`} className="text-slate-300">{label}</Label>
+                  </div>
+                ))}
               </div>
               <div className="flex space-x-2">
                   <Button
                     className="flex-1 bg-purple-600 hover:bg-purple-700"
-                    onClick={() => { window.location.href = `/api/admin/tours/${tourId}/export?format=pdf`; setShowExportDialog(false) }}
+                    onClick={() => {
+                      const sections = Object.entries(exportSections)
+                        .filter(([, enabled]) => enabled)
+                        .map(([key]) => key)
+                        .join(",")
+                      window.location.href = `/api/admin/tours/${tourId}/export?format=pdf&sections=${encodeURIComponent(sections)}`
+                      setShowExportDialog(false)
+                    }}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     HTML Report
                   </Button>
                   <Button
                     className="flex-1 bg-green-600 hover:bg-green-700"
-                    onClick={() => { window.location.href = `/api/admin/tours/${tourId}/export?format=csv`; setShowExportDialog(false) }}
+                    onClick={() => {
+                      const sections = Object.entries(exportSections)
+                        .filter(([, enabled]) => enabled)
+                        .map(([key]) => key)
+                        .join(",")
+                      window.location.href = `/api/admin/tours/${tourId}/export?format=csv&sections=${encodeURIComponent(sections)}`
+                      setShowExportDialog(false)
+                    }}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Export as CSV
@@ -1492,6 +1506,6 @@ export default function TourManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </WorkforcePageShell>
   )
 } 

@@ -116,6 +116,72 @@ export async function POST(request: NextRequest) {
         return ok(data, `${data.length} group members added successfully`)
       }
 
+      case 'create_flight': {
+        const { action: _, ...flightData } = body
+        const { data, error } = await auth.supabase
+          .from('flight_coordination')
+          .insert({ ...flightData, assigned_by: auth.user.id })
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Flight created successfully')
+      }
+
+      case 'create_ground_transportation': {
+        const { action: _, ...transportData } = body
+        const { data, error } = await auth.supabase
+          .from('ground_transportation_coordination')
+          .insert({ ...transportData, assigned_by: auth.user.id })
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Ground transportation created successfully')
+      }
+
+      case 'create_flight_passenger': {
+        const { action: _, ...assignmentData } = body
+        const { data, error } = await auth.supabase
+          .from('flight_passenger_assignments')
+          .insert(assignmentData)
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Passenger assigned to flight')
+      }
+
+      case 'create_transportation_passenger': {
+        const { action: _, ...assignmentData } = body
+        const { data, error } = await auth.supabase
+          .from('transportation_passenger_assignments')
+          .insert(assignmentData)
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Passenger assigned to transportation')
+      }
+
+      case 'create_hotel_assignment': {
+        const { action: _, ...assignmentData } = body
+        const { data, error } = await auth.supabase
+          .from('hotel_room_assignments')
+          .insert(assignmentData)
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Hotel room assigned successfully')
+      }
+
+      case 'create_timeline_entry': {
+        const { action: _, ...timelineData } = body
+        const { data, error } = await auth.supabase
+          .from('travel_coordination_timeline')
+          .insert({ ...timelineData, created_by: auth.user.id })
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Timeline entry created successfully')
+      }
+
       case 'auto_coordinate_group': {
         const { group_id } = body
         if (!group_id) return err('group_id is required', 400)
@@ -127,9 +193,33 @@ export async function POST(request: NextRequest) {
           .single()
         if (groupError) throw groupError
 
+        const now = new Date()
+        const end = new Date(now.getTime() + 60 * 60 * 1000)
+
+        await auth.supabase
+          .from('travel_coordination_timeline')
+          .insert({
+            entry_type: 'meeting',
+            title: `Coordinate ${group.name}`,
+            description: 'Auto-coordination review task generated from Logistics.',
+            start_time: now.toISOString(),
+            end_time: end.toISOString(),
+            timezone: 'UTC',
+            group_id,
+            affected_members: group.total_members || 0,
+            event_id: group.event_id,
+            tour_id: group.tour_id,
+            created_by: auth.user.id,
+          })
+
+        await auth.supabase
+          .from('travel_groups')
+          .update({ coordination_status: 'transport_arranged', updated_at: new Date().toISOString() })
+          .eq('id', group_id)
+
         return ok(
-          { group_id, status: 'pending', message: 'Auto-coordination queued' },
-          `Auto-coordination initiated for group "${group.name}"`
+          { group_id, status: 'transport_arranged', message: 'Auto-coordination task created' },
+          `Auto-coordination task created for group "${group.name}"`
         )
       }
 
@@ -166,6 +256,39 @@ export async function PUT(request: NextRequest) {
           .single()
         if (error) throw error
         return ok(data, 'Travel group updated successfully')
+      }
+
+      case 'update_flight': {
+        const { data, error } = await auth.supabase
+          .from('flight_coordination')
+          .update({ ...updateData, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Flight updated successfully')
+      }
+
+      case 'update_ground_transportation': {
+        const { data, error } = await auth.supabase
+          .from('ground_transportation_coordination')
+          .update({ ...updateData, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Ground transportation updated successfully')
+      }
+
+      case 'update_hotel_assignment': {
+        const { data, error } = await auth.supabase
+          .from('hotel_room_assignments')
+          .update({ ...updateData, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select('*')
+          .single()
+        if (error) throw error
+        return ok(data, 'Hotel assignment updated successfully')
       }
 
       default:
@@ -221,7 +344,7 @@ interface GroupFilters extends Pagination { status?: string | null; groupType?: 
 async function getGroups(supabase: any, f: GroupFilters) {
   let query = supabase
     .from('travel_groups')
-    .select('*, staff_profiles:group_leader_id(first_name, last_name, email)')
+    .select('*')
     .order('arrival_date', { ascending: true })
     .range(f.offset, f.offset + f.limit - 1)
 
@@ -335,7 +458,7 @@ async function getHotelAssignments(supabase: any, f: Pagination & { status?: str
     .from('hotel_room_assignments')
     .select(`
       *,
-      lodging_bookings:lodging_booking_id(booking_number, lodging_providers:lodging_provider_id(name)),
+      lodging_bookings:lodging_booking_id(booking_number, lodging_providers(name)),
       travel_group_members:group_member_id(member_name, member_email, member_role)
     `)
     .order('created_at', { ascending: false })

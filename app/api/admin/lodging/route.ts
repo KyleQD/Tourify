@@ -117,7 +117,7 @@ async function getRoomTypes(supabase: any, p: ReturnType<typeof params>) {
 async function getBookings(supabase: any, p: ReturnType<typeof params>) {
   let query = supabase
     .from('lodging_bookings')
-    .select('*, lodging_providers(name, type, city, state), lodging_room_types(name, capacity, bed_configuration), events(name), tours(name)')
+    .select('*, lodging_providers(name, type, city, state), lodging_room_types(name, capacity, bed_configuration), events:events_v2(title), tours(name)')
     .order('check_in_date', { ascending: false })
     .range(p.offset, p.offset + p.limit - 1)
 
@@ -193,9 +193,14 @@ async function getAvailability(supabase: any, p: ReturnType<typeof params>) {
 }
 
 async function getAnalytics(supabase: any, _p: ReturnType<typeof params>) {
-  const { data: bookings, error: bErr } = await supabase
+  let bookingsQuery = supabase
     .from('lodging_bookings')
     .select('id, status, payment_status, total_amount, paid_amount, total_nights, total_guests, provider_id, event_id, tour_id, check_in_date')
+
+  if (_p.event_id) bookingsQuery = bookingsQuery.eq('event_id', _p.event_id)
+  if (_p.tour_id) bookingsQuery = bookingsQuery.eq('tour_id', _p.tour_id)
+
+  const { data: bookings, error: bErr } = await bookingsQuery
 
   if (bErr) throw bErr
 

@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getStripeOrNull } from '@/lib/stripe'
+import {
+  claimWebhookEvent,
+  finalizePaidOrder,
+  markOrderFailedAndRelease,
+  refundOrderTickets,
+} from '@/lib/ticketing/finalize'
+import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
 
 const stripe = getStripeOrNull()
-
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET
 
 export async function POST(request: NextRequest) {
   try {
-
     if (!stripe || !endpointSecret) {
       console.error('[Ticketing Webhook] Stripe not configured')
       return NextResponse.json({ error: 'Webhook not configured' }, { status: 503 })
@@ -18,13 +23,10 @@ export async function POST(request: NextRequest) {
     const body = await request.text()
     const signature = request.headers.get('stripe-signature')
 
-    if (!signature) {
-      console.error('[Ticketing Webhook] No signature found')
+    if (!signature)
       return NextResponse.json({ error: 'No signature' }, { status: 400 })
-    }
 
     let event: Stripe.Event
-
     try {
       event = stripe.webhooks.constructEvent(body, signature, endpointSecret)
     } catch (err) {
@@ -32,142 +34,134 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
-    // Use service role to bypass RLS — this is a trusted Stripe webhook
     const supabase = createServiceRoleClient()
+
+    if (isTicketingV2Enabled()) {
+      const claimed = await claimWebhookEvent({
+        supabase,
+        stripeEventId: event.id,
+        eventType: event.type,
+      })
+      if (!claimed)
+        return NextResponse.json({ received: true, duplicate: true })
+    }
 
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+        if (session.payment_status !== 'paid') break
 
-        if (session.payment_status === 'paid') {
+        const saleId = session.metadata?.sale_id || session.metadata?.order_id
+        if (!saleId) break
 
-          const { sale_id } = session.metadata || {}
-
-          if (sale_id) {
-            // Fetch the sale to get ticket_type_id and quantity
-            const { data: sale, error: fetchError } = await supabase
-              .from('ticket_sales')
-              .select('ticket_type_id, quantity')
-              .eq('id', sale_id)
-              .maybeSingle()
-
-            if (fetchError) {
-              console.error('[Ticketing Webhook] Error fetching sale:', fetchError)
-              return NextResponse.json({ error: 'Failed to fetch sale' }, { status: 500 })
-            }
-
-            // Update sale payment_status to 'completed' (matches DB check constraint)
-            const { error: updateError } = await supabase
-              .from('ticket_sales')
-              .update({
-                payment_status: 'completed',
-                payment_reference: session.payment_intent as string,
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', sale_id)
-
-            if (updateError) {
-              console.error('[Ticketing Webhook] Error updating sale status:', updateError)
-              return NextResponse.json({ error: 'Failed to update sale' }, { status: 500 })
-            }
-
-            // Increment quantity_sold on the ticket_type
-            if (sale?.ticket_type_id && sale?.quantity) {
-              const { error: qtyError } = await supabase.rpc('increment_ticket_quantity_sold', {
-                p_ticket_type_id: sale.ticket_type_id,
-                p_quantity: sale.quantity,
-              })
-
-              if (qtyError) {
-                // Fallback: raw UPDATE if RPC doesn't exist yet
-                console.warn('[Ticketing Webhook] RPC fallback for quantity_sold:', qtyError.message)
-                await supabase
-                  .from('ticket_types')
-                  .update({ updated_at: new Date().toISOString() })
-                  .eq('id', sale.ticket_type_id)
-                  .select('quantity_sold')
-                  .then(async () => {
-                    // Manual increment via re-select
-                    const { data: tt } = await supabase
-                      .from('ticket_types')
-                      .select('quantity_sold')
-                      .eq('id', sale.ticket_type_id)
-                      .single()
-                    if (tt) {
-                      await supabase
-                        .from('ticket_types')
-                        .update({
-                          quantity_sold: (tt.quantity_sold ?? 0) + sale.quantity,
-                          updated_at: new Date().toISOString(),
-                        })
-                        .eq('id', sale.ticket_type_id)
-                    }
-                  })
-              }
-            }
-
-          }
-        }
-        break
-      }
-
-      case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent
+        await finalizePaidOrder({
+          supabase,
+          orderId: saleId,
+          stripeEventId: event.id,
+          paymentIntentId: typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : session.payment_intent?.id ?? null,
+          checkoutSessionId: session.id,
+        })
         break
       }
 
       case 'payment_intent.payment_failed': {
         const failedPayment = event.data.object as Stripe.PaymentIntent
-
-        await supabase
+        const { data: sale } = await supabase
           .from('ticket_sales')
-          .update({
-            payment_status: 'failed',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('payment_reference', failedPayment.id)
+          .select('id')
+          .or(`payment_reference.eq.${failedPayment.id},stripe_payment_intent_id.eq.${failedPayment.id}`)
+          .maybeSingle()
+
+        if (sale?.id)
+          await markOrderFailedAndRelease({ supabase, orderId: sale.id })
+        else {
+          await supabase
+            .from('ticket_sales')
+            .update({
+              payment_status: 'failed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('payment_reference', failedPayment.id)
+        }
         break
       }
 
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge
+        const paymentIntent =
+          typeof charge.payment_intent === 'string'
+            ? charge.payment_intent
+            : charge.payment_intent?.id || null
+        if (!paymentIntent) break
 
-        // Fetch sale first to decrement quantity_sold
-        const { data: sale } = await supabase
+        // Prefer stripe_payment_intent_id; fall back to payment_reference
+        let sale: { id: string; buyer_user_id: string | null; total_amount: number } | null = null
+        const byIntent = await supabase
           .from('ticket_sales')
-          .select('ticket_type_id, quantity')
-          .eq('payment_reference', charge.payment_intent as string)
+          .select('id, buyer_user_id, total_amount')
+          .eq('stripe_payment_intent_id', paymentIntent)
           .maybeSingle()
+        if (byIntent.data?.id) {
+          sale = byIntent.data
+        } else {
+          const byRef = await supabase
+            .from('ticket_sales')
+            .select('id, buyer_user_id, total_amount')
+            .eq('payment_reference', paymentIntent)
+            .maybeSingle()
+          sale = byRef.data
+        }
 
-        await supabase
-          .from('ticket_sales')
-          .update({
-            payment_status: 'refunded',
-            updated_at: new Date().toISOString(),
+        // Use Stripe refunded amount (cents → dollars), not always full order total
+        const refundedCents = Number(charge.amount_refunded ?? charge.amount ?? 0)
+        const refundAmount = Math.round((refundedCents / 100) * 100) / 100
+
+        if (sale?.id && isTicketingV2Enabled()) {
+          await refundOrderTickets({
+            supabase,
+            orderId: sale.id,
+            actorUserId: sale.buyer_user_id || '00000000-0000-0000-0000-000000000000',
+            refundAmount: refundAmount || Number(sale.total_amount || 0),
           })
-          .eq('payment_reference', charge.payment_intent as string)
+        } else if (sale?.id) {
+          const { data: full } = await supabase
+            .from('ticket_sales')
+            .select('ticket_type_id, quantity')
+            .eq('id', sale.id)
+            .maybeSingle()
 
-        // Decrement quantity_sold on refund
-        if (sale?.ticket_type_id && sale?.quantity) {
-          const { data: tt } = await supabase
-            .from('ticket_types')
-            .select('quantity_sold')
-            .eq('id', sale.ticket_type_id)
-            .single()
-          if (tt) {
-            await supabase
+          await supabase
+            .from('ticket_sales')
+            .update({
+              payment_status: 'refunded',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', sale.id)
+
+          if (full?.ticket_type_id && full?.quantity) {
+            const { data: tt } = await supabase
               .from('ticket_types')
-              .update({
-                quantity_sold: Math.max(0, (tt.quantity_sold ?? 0) - sale.quantity),
-                updated_at: new Date().toISOString(),
-              })
-              .eq('id', sale.ticket_type_id)
+              .select('quantity_sold')
+              .eq('id', full.ticket_type_id)
+              .single()
+            if (tt) {
+              await supabase
+                .from('ticket_types')
+                .update({
+                  quantity_sold: Math.max(0, (tt.quantity_sold ?? 0) - full.quantity),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', full.ticket_type_id)
+            }
           }
         }
         break
       }
 
       default:
+        break
     }
 
     return NextResponse.json({ received: true })

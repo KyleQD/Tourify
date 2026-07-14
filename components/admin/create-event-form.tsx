@@ -86,7 +86,7 @@ export function CreateEventForm({ tourId, onSuccess, onCancel }: CreateEventForm
     const fetchTours = async () => {
       try {
         setLoadingTours(true)
-        const response = await fetch('/api/tours?status=planning,active')
+        const response = await fetch('/api/admin/tours?status=planning,active')
         if (response.ok) {
           const data = await response.json()
           setTours(data.tours || [])
@@ -104,7 +104,7 @@ export function CreateEventForm({ tourId, onSuccess, onCancel }: CreateEventForm
   const onSubmit = async (data: CreateEventFormData) => {
     setIsLoading(true)
     try {
-      const response = await fetch('/api/events', {
+      const response = await fetch('/api/admin/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

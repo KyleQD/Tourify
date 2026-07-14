@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",
-  "installCommand": "npm ci",
+  "installCommand": "npm ci --legacy-peer-deps",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
@@ -57,6 +57,10 @@
     {
       "path": "/api/cron/contract-sign-reminders",
       "schedule": "0 11 * * *"
+    },
+    {
+      "path": "/api/cron/social-analytics",
+      "schedule": "0 3 * * *"
     }
   ],
   "rewrites": [

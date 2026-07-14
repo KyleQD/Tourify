@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import type { PublicArtistPageDTO } from "@/lib/public-artist/public-artist-types"
 import { PublicProfileLayout } from "@/components/layouts/public-profile-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Briefcase, ExternalLink, Handshake, Image as ImageIcon, ShoppingBag } from "lucide-react"
+import { Briefcase, ExternalLink, Handshake, Image as ImageIcon, Pencil, ShoppingBag } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { PublicArtistMusicSection } from "@/components/public-artist/music/public-artist-music-section"
 import { PublicArtistPostsSection } from "@/components/public-artist/posts/public-artist-posts-section"
@@ -13,6 +14,7 @@ import { PublicArtistEPKSection } from "@/components/public-artist/epk/public-ar
 import { PublicArtistHero } from "@/components/public-artist/hero/public-artist-hero"
 import { BookThisArtistModal } from "@/components/public-artist/events/book-this-artist-modal"
 import { ProfileShareCard } from "@/components/profile/profile-share-card"
+import { MessageModal } from "@/components/messaging/message-modal"
 import { extractApiError } from "@/lib/api/extract-error"
 import { paCard, paInset, paShell } from "@/components/public-artist/public-artist-ui"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -20,6 +22,12 @@ import { Button } from "@/components/ui/button"
 import { AnimatedProductCard } from "@/components/marketplace/animated-product-card"
 import { StorefrontBanner } from "@/components/marketplace/storefront-banner"
 import { getStorefrontTheme, DEFAULT_STOREFRONT_THEME, getLayoutClasses, type StorefrontThemeConfig } from "@/lib/marketplace/storefront-themes"
+import {
+  DEFAULT_STOREFRONT_SECTIONS,
+  STOREFRONT_SECTION_LABELS,
+  isFeaturedListing,
+  normalizeStorefrontSections,
+} from "@/lib/marketplace/storefront-curation"
 
 interface MarketplaceListing {
   id: string
@@ -30,19 +38,24 @@ interface MarketplaceListing {
   currency: string
   base_price: number | null
   cover_image_url: string | null
+  featured_rank?: number | null
   marketplace_listing_variants?: Array<{ id: string; title: string; price: number }>
 }
 
 export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; username: string }) {
-  const { hero, tracks, events, about, media, products, posts, stats, epk, creator } = dto
+  const { hero, tracks, events, about, media, posts, stats, epk, creator, organizations, socialLinks = [] } = dto
   const [isBookingOpen, setIsBookingOpen] = useState(false)
+  const [showMessageModal, setShowMessageModal] = useState(false)
   const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([])
   const [isCheckoutLoadingId, setIsCheckoutLoadingId] = useState<string | null>(null)
   const [marketplaceMessage, setMarketplaceMessage] = useState<string | null>(null)
+  const [selectedVariantByListing, setSelectedVariantByListing] = useState<Record<string, string>>({})
   const [storefrontExternalLinks, setStorefrontExternalLinks] = useState<Array<{ label: string; url: string }>>([])
   const [storefrontTheme, setStorefrontTheme] = useState<StorefrontThemeConfig>(DEFAULT_STOREFRONT_THEME)
   const [storefrontDisplayName, setStorefrontDisplayName] = useState<string | null>(null)
   const [storefrontTagline, setStorefrontTagline] = useState<string | null>(null)
+  const [storefrontSections, setStorefrontSections] = useState<string[]>([...DEFAULT_STOREFRONT_SECTIONS])
+  const [hasLoadedStorefront, setHasLoadedStorefront] = useState(false)
 
   const openBooking = () => setIsBookingOpen(true)
   const scrollToMusic = () =>
@@ -60,9 +73,21 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
       const response = await fetch(`/api/marketplace/discover?sellerUserId=${encodeURIComponent(hero.userId)}&limit=18`)
       if (!response.ok) return
       const body = await response.json()
-      setMarketplaceListings(Array.isArray(body.data) ? body.data : [])
+      const listings = Array.isArray(body.data) ? body.data : []
+      setMarketplaceListings(listings)
+      setSelectedVariantByListing(prev => {
+        const next = { ...prev }
+        for (const listing of listings as MarketplaceListing[]) {
+          if (next[listing.id]) continue
+          const firstVariant = listing.marketplace_listing_variants?.[0]
+          if (firstVariant?.id) next[listing.id] = firstVariant.id
+        }
+        return next
+      })
     } catch (error) {
       console.error("Failed to load marketplace listings", error)
+    } finally {
+      setHasLoadedStorefront(true)
     }
   }
 
@@ -78,6 +103,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
       setStorefrontTheme(getStorefrontTheme(rawTheme))
       setStorefrontDisplayName(body.data?.display_name || body.data?.displayName || null)
       setStorefrontTagline(body.data?.tagline || null)
+      setStorefrontSections(normalizeStorefrontSections(body.data?.sections))
     } catch {}
   }
 
@@ -85,7 +111,10 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
     try {
       setMarketplaceMessage(null)
       setIsCheckoutLoadingId(listing.id)
-      const defaultVariant = listing.marketplace_listing_variants?.[0]
+      const variants = listing.marketplace_listing_variants || []
+      const selectedVariantId =
+        selectedVariantByListing[listing.id] ||
+        variants[0]?.id
       const response = await fetch("/api/marketplace/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,7 +122,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           lines: [
             {
               listingId: listing.id,
-              variantId: defaultVariant?.id,
+              variantId: selectedVariantId,
               quantity: 1,
             },
           ],
@@ -102,8 +131,16 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
       const body = await response.json()
       if (!response.ok) {
         if (response.status === 401) {
-          const redirectTo = `${window.location.pathname}${window.location.search}`
-          window.location.href = `/login?tab=signin&redirect=${encodeURIComponent(redirectTo)}`
+          const redirectTo = `${window.location.pathname}${window.location.search}#public-artist-storefront`
+          window.location.href = `/login?tab=signin&redirectTo=${encodeURIComponent(redirectTo)}`
+          return
+        }
+        if (body?.error?.code === "seller_payouts_not_ready") {
+          setMarketplaceMessage("This seller is finishing payout setup and cannot accept purchases yet.")
+          return
+        }
+        if (body?.error?.code === "insufficient_inventory") {
+          setMarketplaceMessage("This item is sold out or low on inventory.")
           return
         }
         setMarketplaceMessage(extractApiError(body, "Checkout failed"))
@@ -118,21 +155,92 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
     }
   }
 
+  const featuredListings = marketplaceListings.filter(isFeaturedListing)
+  const hasMusic = tracks.tracks.length > 0
+  const showStorefront = !hasLoadedStorefront || marketplaceListings.length > 0
+  const storefrontCategories = storefrontSections.map(section => {
+    if (section === "featured") {
+      return {
+        value: "featured",
+        label: STOREFRONT_SECTION_LABELS.featured,
+        listings: featuredListings,
+      }
+    }
+    return {
+      value: section,
+      label: STOREFRONT_SECTION_LABELS[section] || section,
+      listings: marketplaceListings.filter(l => l.category === section),
+    }
+  })
+  const visibleCategories = marketplaceListings.length
+    ? storefrontCategories.filter(cat => cat.value === "featured" || cat.listings.length > 0)
+    : storefrontCategories.filter(cat => cat.value === "featured").slice(0, 1)
+
   return (
     <PublicProfileLayout profileName={hero.artistName} profileType="artist">
       <div className="relative">
+        {dto.viewer.isOwner ? (
+          <div className="border-b border-white/10 bg-black/60 backdrop-blur-md">
+            <div className={`${paShell} flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between`}>
+              <div className="min-w-0 text-sm text-white/75">
+                <span>You’re viewing your public profile</span>
+                {!dto.viewer.isPublicProfile ? (
+                  <span className="mt-1 block text-xs text-amber-200/90 sm:mt-0 sm:ml-2 sm:inline">
+                    This profile is private — visitors cannot see it
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button asChild size="sm" variant="secondary" className="rounded-full px-4">
+                  <Link href="/artist/profile">
+                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
+                    Edit Profile
+                  </Link>
+                </Button>
+                <Button asChild size="sm" variant="outline" className="rounded-full border-white/20 px-4 text-white hover:bg-white/10">
+                  <Link href="/artist">Manage</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* Hero */}
         <PublicArtistHero
           hero={hero}
           viewer={dto.viewer}
           creatorType={creator.primaryCreatorType}
           isAvailableForHire={creator.availableForHire}
+          hasMusic={hasMusic}
           onBookNow={() => {
             openBooking()
             scrollToEvents()
           }}
           onPlayMusic={scrollToMusic}
+          onMessage={() => setShowMessageModal(true)}
         />
+
+        {socialLinks.length > 0 ? (
+          <section className={`${paShell} pt-2`}>
+            <div className={`${paCard} p-4`}>
+              <p className="text-xs uppercase tracking-[0.16em] text-white/50 mb-3">Connect</p>
+              <div className="flex flex-wrap gap-2">
+                {socialLinks.map(link => (
+                  <a
+                    key={`${link.platform}-${link.url}`}
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-sm text-white/90 hover:bg-white/10"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 opacity-70" />
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <main className={`${paShell} space-y-8 pb-28 pt-2 sm:pt-4`}>
           <section>
@@ -155,10 +263,55 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
             />
           </section>
 
+          {/* Storefront — hide when empty for everyone */}
+          {showStorefront && (
+          <section id="public-artist-storefront" className="scroll-mt-28">
+            <Card className={paCard}>
+              <CardContent className="p-0">
+                <StorefrontBanner
+                  displayName={storefrontDisplayName || hero.artistName + "'s Store"}
+                  tagline={storefrontTagline}
+                  theme={storefrontTheme}
+                />
+
+                <div className="p-5 pt-4">
+                  {!hasLoadedStorefront ? (
+                    <div className={`${paInset} p-5 text-sm text-white/55`}>Loading storefront…</div>
+                  ) : (
+                    <Tabs defaultValue="featured" className="w-full">
+                      <TabsList className="mb-4">
+                        {visibleCategories.map(cat => (
+                          <TabsTrigger key={cat.value} value={cat.value}>{cat.label}</TabsTrigger>
+                        ))}
+                      </TabsList>
+
+                      {visibleCategories.map(cat => (
+                        <TabsContent key={cat.value} value={cat.value}>
+                          <ThemedProductGrid
+                            listings={cat.listings}
+                            theme={storefrontTheme}
+                            onCheckout={checkoutListing}
+                            isCheckoutLoadingId={isCheckoutLoadingId}
+                            selectedVariantByListing={selectedVariantByListing}
+                            onSelectVariant={(listingId, variantId) =>
+                              setSelectedVariantByListing(prev => ({ ...prev, [listingId]: variantId }))
+                            }
+                          />
+                        </TabsContent>
+                      ))}
+                    </Tabs>
+                  )}
+                  {marketplaceMessage ? <div className="mt-3 text-xs text-rose-200">{marketplaceMessage}</div> : null}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+          )}
+
           {/* Events */}
           <section id="public-artist-events" className="scroll-mt-28">
             <PublicArtistEventsSection
-              artistUserId={hero.userId}
+              viewer={dto.viewer}
               artistName={hero.artistName}
               creatorType={creator.primaryCreatorType}
               isAvailableForHire={creator.availableForHire}
@@ -190,110 +343,55 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
                     </div>
                     {creator.availability ? <div className="mt-1 text-xs text-white/60">{creator.availability}</div> : null}
                   </div>
+                  {creator.serviceOfferings.length > 0 && (
                   <div className={`${paInset} p-4 sm:col-span-2`}>
                     <div className="text-xs text-white/55">Service offerings</div>
-                    {creator.serviceOfferings.length ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {creator.serviceOfferings.slice(0, 12).map(service => (
-                          <Badge key={service} variant="secondary" className="rounded-full bg-white/10 text-white/85">
-                            {service}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-sm text-white/65">No services listed yet.</div>
-                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {creator.serviceOfferings.slice(0, 12).map(service => (
+                        <Badge key={service} variant="secondary" className="rounded-full bg-white/10 text-white/85">
+                          {service}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
+                  )}
+                  {creator.productsForSale.length > 0 && (
                   <div className={`${paInset} p-4 sm:col-span-2`}>
                     <div className="flex items-center gap-2 text-xs text-white/55">
                       <ShoppingBag className="h-3.5 w-3.5" />
                       Products for sale
                     </div>
-                    {creator.productsForSale.length ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {creator.productsForSale.slice(0, 12).map(product => (
-                          <Badge key={product} variant="secondary" className="rounded-full bg-purple-500/15 text-purple-100">
-                            {product}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-sm text-white/65">No products listed yet.</div>
-                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {creator.productsForSale.slice(0, 12).map(product => (
+                        <Badge key={product} variant="secondary" className="rounded-full bg-purple-500/15 text-purple-100">
+                          {product}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
+                  )}
+                  {creator.credentials.length > 0 && (
                   <div className={`${paInset} p-4 sm:col-span-2`}>
                     <div className="text-xs text-white/55">Credentials</div>
-                    {creator.credentials.length ? (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {creator.credentials.slice(0, 12).map(credential => (
-                          <Badge key={credential} variant="secondary" className="rounded-full bg-emerald-500/15 text-emerald-100">
-                            {credential}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-sm text-white/65">No credentials listed yet.</div>
-                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {creator.credentials.slice(0, 12).map(credential => (
+                        <Badge key={credential} variant="secondary" className="rounded-full bg-emerald-500/15 text-emerald-100">
+                          {credential}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
+                  )}
+                  {creator.workHighlights.length > 0 && (
                   <div className={`${paInset} p-4 sm:col-span-2`}>
                     <div className="text-xs text-white/55">Past work highlights</div>
-                    {creator.workHighlights.length ? (
-                      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/85">
-                        {creator.workHighlights.slice(0, 8).map(item => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <div className="mt-1 text-sm text-white/65">No past work highlights listed yet.</div>
-                    )}
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-white/85">
+                      {creator.workHighlights.slice(0, 8).map(item => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-
-          {/* Storefront */}
-          <section>
-            <Card className={paCard}>
-              <CardContent className="p-0">
-                <StorefrontBanner
-                  displayName={storefrontDisplayName || hero.artistName + "'s Store"}
-                  tagline={storefrontTagline}
-                  theme={storefrontTheme}
-                />
-
-                <div className="p-5 pt-4">
-                  <Tabs defaultValue="featured" className="w-full">
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="featured">Featured</TabsTrigger>
-                      <TabsTrigger value="music">Music</TabsTrigger>
-                      <TabsTrigger value="photos-and-prints">Photos & Prints</TabsTrigger>
-                      <TabsTrigger value="merch">Merch</TabsTrigger>
-                      <TabsTrigger value="fine-art">Fine Art</TabsTrigger>
-                      <TabsTrigger value="services">Services</TabsTrigger>
-                      <TabsTrigger value="tickets">Tickets</TabsTrigger>
-                    </TabsList>
-
-                    <TabsContent value="featured">
-                      <ThemedProductGrid
-                        listings={marketplaceListings.slice(0, 9)}
-                        theme={storefrontTheme}
-                        onCheckout={checkoutListing}
-                        isCheckoutLoadingId={isCheckoutLoadingId}
-                      />
-                    </TabsContent>
-                    {["music", "photos-and-prints", "merch", "fine-art", "services", "tickets"].map(cat => (
-                      <TabsContent key={cat} value={cat}>
-                        <ThemedProductGrid
-                          listings={marketplaceListings.filter(l => l.category === cat)}
-                          theme={storefrontTheme}
-                          onCheckout={checkoutListing}
-                          isCheckoutLoadingId={isCheckoutLoadingId}
-                        />
-                      </TabsContent>
-                    ))}
-                  </Tabs>
-                  {marketplaceMessage ? <div className="mt-3 text-xs text-rose-200">{marketplaceMessage}</div> : null}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -329,23 +427,56 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
             </section>
           )}
 
-          {/* About */}
+          {/* About — hide empty bio for everyone */}
+          {about.bio ? (
           <section>
             <Card className={paCard}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg font-semibold tracking-tight text-white">About</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {about.bio ? (
-                  <div className={`${paInset} p-5 text-sm leading-relaxed text-white/80`}>{about.bio}</div>
-                ) : (
-                  <div className={`${paInset} p-5 text-sm text-white/60`}>No bio yet.</div>
-                )}
+                <div className={`${paInset} p-5 text-sm leading-relaxed text-white/80`}>{about.bio}</div>
               </CardContent>
             </Card>
           </section>
+          ) : null}
 
-          {/* Media */}
+          {(organizations?.length ?? 0) > 0 ? (
+            <section>
+              <Card className={paCard}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg font-semibold tracking-tight text-white">Member of</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="flex flex-wrap gap-2">
+                    {organizations.map((org) => {
+                      const href = org.slug ? `/organization/${org.slug}` : null
+                      const label = org.subtype
+                        ? `${org.name} · ${org.subtype.replace(/_/g, ' ')}`
+                        : org.name
+                      if (!href) {
+                        return (
+                          <Badge key={org.organizationId} variant="secondary" className="bg-white/10 text-white/90">
+                            {label}
+                          </Badge>
+                        )
+                      }
+                      return (
+                        <Link key={org.organizationId} href={href}>
+                          <Badge variant="secondary" className="bg-white/10 text-white/90 hover:bg-white/20">
+                            {label}
+                          </Badge>
+                        </Link>
+                      )
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          ) : null}
+
+          {/* Media — hide empty gallery for everyone */}
+          {media.items.length > 0 ? (
           <section>
             <Card className={paCard}>
               <CardHeader className="pb-2">
@@ -355,26 +486,21 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {media.items.length === 0 ? (
-                  <div className={`${paInset} p-5 text-sm text-white/65`}>
-                    No media yet. When the artist uploads photos/videos, they will appear here.
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                    {media.items.slice(0, 6).map(item => (
-                      <div
-                        key={item.id}
-                        className="aspect-square overflow-hidden rounded-2xl border border-white/10 bg-black/30 ring-1 ring-white/5"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={item.thumbnailUrl || item.url} alt={item.caption || 'Media item'} className="h-full w-full object-cover" loading="lazy" />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {media.items.slice(0, 6).map(item => (
+                    <div
+                      key={item.id}
+                      className="aspect-square overflow-hidden rounded-2xl border border-white/10 bg-black/30 ring-1 ring-white/5"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={item.thumbnailUrl || item.url} alt={item.caption || 'Media item'} className="h-full w-full object-cover" loading="lazy" />
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </section>
+          ) : null}
 
           {/* Posts */}
           <section>
@@ -412,7 +538,7 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
 
           {/* EPK Preview */}
           <section>
-            <PublicArtistEPKSection hero={hero} stats={stats} epk={epk} />
+            <PublicArtistEPKSection hero={hero} stats={stats} epk={epk} viewer={dto.viewer} />
           </section>
         </main>
       </div>
@@ -425,72 +551,18 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
         creatorType={creator.primaryCreatorType}
         serviceOfferings={creator.serviceOfferings}
       />
+
+      <MessageModal
+        isOpen={showMessageModal}
+        onClose={() => setShowMessageModal(false)}
+        recipient={{
+          id: hero.userId,
+          username,
+          full_name: hero.artistName,
+          avatar_url: hero.avatarUrl || undefined,
+        }}
+      />
     </PublicProfileLayout>
-  )
-}
-
-function StorefrontGrid({
-  products,
-  listings,
-  onCheckout,
-  isCheckoutLoadingId,
-}: {
-  products: PublicArtistPageDTO["products"]["products"]
-  listings: MarketplaceListing[]
-  onCheckout: (listing: MarketplaceListing) => Promise<void>
-  isCheckoutLoadingId: string | null
-}) {
-  if (!products.length && !listings.length) return <div className={`${paInset} p-5 text-sm text-white/65`}>No products listed yet.</div>
-
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {products.slice(0, 3).map(product => (
-        <div key={product.id} className={`${paInset} overflow-hidden`}>
-          <div className="aspect-square bg-black/20">
-            {product.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" loading="lazy" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
-            )}
-          </div>
-          <div className="p-3.5">
-            <div className="truncate text-sm font-medium text-white">{product.name}</div>
-            <div className="mt-1 text-xs text-white/60">{product.type || "Product"}</div>
-            <div className="mt-2 text-sm font-semibold text-purple-100">
-              {product.price !== null ? `${product.currency || "USD"} ${product.price.toFixed(2)}` : "Price on request"}
-            </div>
-          </div>
-        </div>
-      ))}
-      {listings.slice(0, 6).map(listing => (
-        <div key={listing.id} className={`${paInset} overflow-hidden`}>
-          <div className="aspect-square bg-black/20">
-            {listing.cover_image_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={listing.cover_image_url} alt={listing.title} className="h-full w-full object-cover" loading="lazy" />
-            ) : (
-              <div className="flex h-full items-center justify-center text-xs text-white/45">No product image</div>
-            )}
-          </div>
-          <div className="p-3.5">
-            <div className="truncate text-sm font-medium text-white">{listing.title}</div>
-            <div className="mt-1 text-xs text-white/60">{listing.product_type || "Product"}</div>
-            <div className="mt-2 text-sm font-semibold text-purple-100">
-              {listing.base_price !== null ? `${listing.currency || "USD"} ${Number(listing.base_price).toFixed(2)}` : "Price on request"}
-            </div>
-            <Button
-              size="sm"
-              className="mt-3 w-full"
-              disabled={isCheckoutLoadingId === listing.id}
-              onClick={() => void onCheckout(listing)}
-            >
-              {isCheckoutLoadingId === listing.id ? "Starting checkout..." : "Support this creator"}
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
   )
 }
 
@@ -499,37 +571,62 @@ function ThemedProductGrid({
   theme,
   onCheckout,
   isCheckoutLoadingId,
+  selectedVariantByListing,
+  onSelectVariant,
 }: {
   listings: MarketplaceListing[]
   theme: StorefrontThemeConfig
   onCheckout: (listing: MarketplaceListing) => Promise<void>
   isCheckoutLoadingId: string | null
+  selectedVariantByListing: Record<string, string>
+  onSelectVariant: (listingId: string, variantId: string) => void
 }) {
-  if (!listings.length) return <div className={`${paInset} p-5 text-sm text-white/65`}>No listings in this category yet.</div>
+  if (!listings.length) return null
 
   const layoutClasses = getLayoutClasses(theme.layout)
 
   return (
     <div className={layoutClasses}>
-      {listings.map((listing, index) => (
-        <AnimatedProductCard
-          key={listing.id}
-          id={listing.id}
-          title={listing.title}
-          description={listing.description}
-          imageUrl={listing.cover_image_url}
-          productType={listing.product_type}
-          category={listing.category}
-          price={listing.base_price}
-          currency={listing.currency}
-          index={index}
-          theme={theme}
-          layout={theme.layout}
-          isCheckoutLoading={isCheckoutLoadingId === listing.id}
-          onCheckout={() => void onCheckout(listing)}
-        />
-      ))}
+      {listings.map((listing, index) => {
+        const variants = listing.marketplace_listing_variants || []
+        const hasMultipleVariants = variants.length > 1
+        return (
+          <div key={listing.id} className="space-y-2">
+            {hasMultipleVariants ? (
+              <select
+                className="h-9 w-full rounded-md border border-white/15 bg-black/30 px-3 text-xs text-white"
+                value={selectedVariantByListing[listing.id] || variants[0]?.id || ""}
+                onChange={event => onSelectVariant(listing.id, event.target.value)}
+              >
+                {variants.map(variant => (
+                  <option key={variant.id} value={variant.id}>
+                    {variant.title} — {listing.currency || "USD"} {Number(variant.price).toFixed(2)}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            <AnimatedProductCard
+              id={listing.id}
+              title={listing.title}
+              description={listing.description}
+              imageUrl={listing.cover_image_url}
+              productType={listing.product_type}
+              category={listing.category}
+              price={
+                hasMultipleVariants
+                  ? Number(variants.find(v => v.id === selectedVariantByListing[listing.id])?.price ?? listing.base_price)
+                  : listing.base_price
+              }
+              currency={listing.currency}
+              index={index}
+              theme={theme}
+              layout={theme.layout}
+              isCheckoutLoading={isCheckoutLoadingId === listing.id}
+              onCheckout={() => void onCheckout(listing)}
+            />
+          </div>
+        )
+      })}
     </div>
   )
 }
-

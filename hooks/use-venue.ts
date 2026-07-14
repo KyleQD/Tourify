@@ -97,13 +97,21 @@ export function useVenue(venueId?: string, options: UseVenueOptions = {}): UseVe
   }
 }
 
+export interface UseCurrentVenueOptions {
+  /** When false, skip the automatic venue profile fetch (e.g. organizer admin shells). */
+  enabled?: boolean
+}
+
 // Hook for getting current user's venue (for dashboard)
-export function useCurrentVenue(): UseVenueReturn {
+export function useCurrentVenue(options: UseCurrentVenueOptions = {}): UseVenueReturn {
+  const { enabled = true } = options
   const [venue, setVenue] = useState<VenueProfile | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchCurrentVenue = useCallback(async () => {
+    if (!enabled) return
+
     setLoading(true)
     setError(null)
 
@@ -120,7 +128,7 @@ export function useCurrentVenue(): UseVenueReturn {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [enabled])
 
   const refreshVenue = useCallback(async () => {
     if (venue?.id) {
@@ -160,8 +168,14 @@ export function useCurrentVenue(): UseVenueReturn {
   }, [venue?.id])
 
   useEffect(() => {
-    fetchCurrentVenue()
-  }, [fetchCurrentVenue])
+    if (!enabled) {
+      setVenue(null)
+      setLoading(false)
+      setError(null)
+      return
+    }
+    void fetchCurrentVenue()
+  }, [enabled, fetchCurrentVenue])
 
   return {
     venue,

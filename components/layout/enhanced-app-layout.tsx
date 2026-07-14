@@ -87,7 +87,7 @@ export function EnhancedAppLayout({
   if (showBrandLoading) {
     return (
       <BrandLoadingScreen
-        logoSrc={customLogo || '/tourify-logo-white.svg'}
+        logoSrc={customLogo}
         message={getLoadingMessage()}
         showProgress={true}
         progress={loadingProgress}
@@ -101,7 +101,7 @@ export function EnhancedAppLayout({
   if (authLoading) {
     return (
       <BrandLoadingScreen
-        logoSrc={customLogo || '/tourify-logo-white.svg'}
+        logoSrc={customLogo}
         message="Loading..."
         fullScreen={true}
       />
@@ -112,7 +112,7 @@ export function EnhancedAppLayout({
   if (!isConnected) {
     return (
       <BrandLoadingScreen
-        logoSrc={customLogo || '/tourify-logo-white.svg'}
+        logoSrc={customLogo}
         message="Connecting..."
         fullScreen={true}
       />

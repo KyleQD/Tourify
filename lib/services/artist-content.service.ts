@@ -11,6 +11,19 @@ export interface MusicContent {
   release_date?: string
   duration?: number
   file_url?: string
+  preview_file_url?: string | null
+  storage_bucket?: string | null
+  storage_path?: string | null
+  preview_storage_bucket?: string | null
+  preview_storage_path?: string | null
+  preview_status?: 'not_required' | 'pending' | 'ready' | 'failed' | null
+  preview_mode?: 'full' | 'clip'
+  access_mode?: 'free' | 'paid'
+  allow_library_add?: boolean
+  allow_profile_feature?: boolean
+  allow_downloads?: boolean
+  rights_confirmed?: boolean
+  rights_confirmed_at?: string | null
   cover_art_url?: string
   spotify_url?: string
   apple_music_url?: string
@@ -21,6 +34,9 @@ export interface MusicContent {
   metadata?: Record<string, any>
   is_public?: boolean
   is_featured?: boolean
+  is_pinned?: boolean
+  moderation_status?: string
+  is_visible?: boolean
   tags?: string[]
 }
 
@@ -163,6 +179,9 @@ class ArtistContentService {
       .from('music_tracks')
       .select('*')
       .eq('is_public', true)
+      .eq('is_visible', true)
+      .eq('moderation_status', 'approved')
+      .eq('rights_confirmed', true)
 
     if (options?.genre && options.genre !== 'all') query = query.eq('genre', options.genre)
 
@@ -173,7 +192,12 @@ class ArtistContentService {
     query = query.limit(options?.limit || 20)
     const { data, error } = await query
     if (error) throw error
-    return data
+    return (data || []).map((track: any) => ({
+      ...track,
+      file_url: `/api/music/stream?trackId=${track.id}`,
+      preview_file_url: `/api/music/stream?trackId=${track.id}`,
+      stream_url: `/api/music/stream?trackId=${track.id}`,
+    }))
   }
 
   async updateMusic(id: string, userId: string, data: Partial<MusicContent>) {
@@ -336,12 +360,12 @@ class ArtistContentService {
 
   async getEvents(userId: string, options?: { limit?: number; status?: string; upcoming?: boolean; ownerScope?: boolean }) {
     let query = this.supabase
-      .from('artist_events')
+      .from('events')
       .select('*')
-      .eq('user_id', userId)
+      .eq('artist_id', userId)
 
     if (!options?.ownerScope) {
-      query = query.eq('is_public', true)
+      query = query.eq('status', 'published')
     }
 
     if (options?.status) {
@@ -360,7 +384,12 @@ class ArtistContentService {
 
     const { data, error } = await query
     if (error) throw error
-    return data
+    return (data || []).map((event: any) => ({
+      ...event,
+      name: event.name || event.title,
+      title: event.title || event.name,
+      is_public: event.status === 'published',
+    }))
   }
 
   // Merchandise Management

@@ -1,7 +1,5 @@
-import { NewsPage } from '@/components/news/news-page'
+import { redirect } from 'next/navigation'
 
 export default function FeedPage() {
-  return (
-    <NewsPage />
-  )
-} 
+  redirect('/news')
+}

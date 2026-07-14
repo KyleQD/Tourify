@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get('type') || 'agreements'
   const status = searchParams.get('status')
   const clientId = searchParams.get('client_id')
+  const eventId = searchParams.get('event_id')
+  const tourId = searchParams.get('tour_id')
   const limit = parseInt(searchParams.get('limit') || '50', 10)
   const offset = parseInt(searchParams.get('offset') || '0', 10)
 
@@ -49,9 +51,9 @@ export async function GET(request: NextRequest) {
           rental_clients (*),
           rental_agreement_items (
             *,
-            equipment:logistics_equipment (id, name, category, rental_rate)
+            equipment (id, name, category, rental_rate)
           ),
-          events:events_v2 (id, name, start_date),
+          events (id, name, start_date),
           tours (id, name, start_date)
         `, { count: 'exact' })
         .order('created_at', { ascending: false })
@@ -59,6 +61,8 @@ export async function GET(request: NextRequest) {
 
       if (status) query = query.eq('status', status)
       if (clientId) query = query.eq('client_id', clientId)
+      if (eventId) query = query.eq('event_id', eventId)
+      if (tourId) query = query.eq('tour_id', tourId)
 
       const { data, count, error } = await query
       if (error) throw error
@@ -78,6 +82,10 @@ export async function GET(request: NextRequest) {
           id, status, payment_status, total_amount, paid_amount,
           rental_agreement_items (id, equipment_id, total_days, subtotal, status, damage_notes)
         `)
+        .match({
+          ...(eventId ? { event_id: eventId } : {}),
+          ...(tourId ? { tour_id: tourId } : {}),
+        })
 
       if (error) throw error
 
@@ -121,13 +129,19 @@ export async function GET(request: NextRequest) {
     }
 
     if (type === 'utilization') {
-      const { data: items, error } = await supabase
+      let query = supabase
         .from('rental_agreement_items')
         .select(`
           id, equipment_id, quantity, daily_rate, total_days, subtotal,
           status, damage_notes, actual_return_date,
-          equipment:logistics_equipment (id, name, category, rental_rate, is_rentable)
+          equipment (id, name, category, rental_rate, is_rentable:is_available_for_rent),
+          rental_agreements!inner(event_id, tour_id)
         `)
+
+      if (eventId) query = query.eq('rental_agreements.event_id', eventId)
+      if (tourId) query = query.eq('rental_agreements.tour_id', tourId)
+
+      const { data: items, error } = await query
 
       if (error) throw error
 

@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
-import { 
-  Heart, 
-  MessageCircle, 
-  Share, 
+import {
+  Heart,
+  MessageCircle,
+  Share,
   MoreHorizontal,
   Users,
   Globe,
@@ -21,7 +21,8 @@ import {
   Loader2,
   MapPin,
   Check,
-  ArrowRight
+  ArrowRight,
+  Calendar
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '@/contexts/auth-context'
@@ -29,6 +30,16 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { usePhotoViewer } from '@/hooks/use-photo-viewer'
 import { supabase } from '@/lib/supabase'
+import { useMultiAccount } from '@/hooks/use-multi-account'
+import { buildFeedPostsUrl, extractFeedErrorMessage } from '@/lib/feed/feed-client'
+import { ArticleFeedPreview, type ArticlePreviewData } from '@/components/feed/article-feed-preview'
+import { EventFeedPreview, type EventPreviewData } from '@/components/feed/event-feed-preview'
+import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
+import {
+  buildFeedMusicTrackFromPost,
+  isMusicFeedPost,
+  type FeedTrackPreview,
+} from '@/lib/feed/music-post-preview'
 
 interface PostData {
   id: string
@@ -43,11 +54,25 @@ interface PostData {
   comments_count: number
   shares_count: number
   created_at: string
+  posted_as_profile_id?: string | null
+  posted_as_type?: string | null
+  content_ref_type?: string | null
+  content_ref_id?: string | null
+  article_preview?: ArticlePreviewData | null
+  event_preview?: EventPreviewData | null
+  track_preview?: FeedTrackPreview | null
+  metadata?: Record<string, unknown> | null
   profiles: {
     username: string
     full_name: string
     avatar_url?: string
     is_verified: boolean
+    account_context?: {
+      type: string
+      profile_id: string
+      display_name: string
+      profile_path?: string | null
+    }
   }
   is_liked: boolean
   like_count: number
@@ -67,10 +92,10 @@ interface Comment {
   }
 }
 
-// Helper function to generate profile URL based on username
-function getProfileUrl(username: string) {
-  if (!username) return '/profile/user'
-  return `/profile/${username}`
+function getProfileUrl(profile: PostData['profiles']) {
+  if (profile?.account_context?.profile_path) return profile.account_context.profile_path
+  if (!profile?.username) return '/profile/user'
+  return `/profile/${profile.username}`
 }
 
 function dedupePostsById(posts: PostData[]) {
@@ -87,7 +112,7 @@ export function DashboardFeed() {
   const [posts, setPosts] = useState<PostData[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('following')
+  const [activeTab, setActiveTab] = useState('all')
   const [page, setPage] = useState(0)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -97,10 +122,45 @@ export function DashboardFeed() {
   const [feedMessage, setFeedMessage] = useState<string | null>(null)
   const [feedError, setFeedError] = useState<string | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  
+  const recentlyCreatedPostsRef = useRef<Map<string, PostData>>(new Map())
+  const recentlyCreatedPostTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+
   const { user } = useAuth()
+  const { currentAccount } = useMultiAccount()
   const router = useRouter()
   const photoViewer = usePhotoViewer()
+
+  const isPostVisibleInFeed = (post: PostData, feedType: string) => {
+    if (feedType === 'all') return post.visibility === 'public'
+    if (feedType === 'following') return post.visibility === 'public'
+    if (feedType !== 'personal') return true
+
+    const activeProfileId = currentAccount?.profile_id || null
+    const postProfileId = post.posted_as_profile_id || post.profiles?.account_context?.profile_id || null
+    if (activeProfileId && postProfileId === activeProfileId) return true
+    return Boolean(user?.id && post.user_id === user.id)
+  }
+
+  const mergeRecentlyCreatedPosts = (feedType: string, postsData: PostData[]) => {
+    const serverPostIds = new Set(postsData.map(post => post.id).filter(Boolean))
+    const optimisticPosts: PostData[] = []
+
+    recentlyCreatedPostsRef.current.forEach((post, postId) => {
+      if (serverPostIds.has(postId)) {
+        recentlyCreatedPostsRef.current.delete(postId)
+        const timer = recentlyCreatedPostTimersRef.current.get(postId)
+        if (timer) clearTimeout(timer)
+        recentlyCreatedPostTimersRef.current.delete(postId)
+        return
+      }
+
+      if (isPostVisibleInFeed(post, feedType)) {
+        optimisticPosts.push(post)
+      }
+    })
+
+    return dedupePostsById([...optimisticPosts, ...postsData])
+  }
 
   const loadPosts = async ({
     feedType = activeTab,
@@ -113,7 +173,13 @@ export function DashboardFeed() {
   } = {}) => {
     try {
       const offset = pageIndex * pageSize
-      const response = await fetch(`/api/feed/posts?type=${feedType}&limit=${pageSize}&offset=${offset}`, {
+      const response = await fetch(buildFeedPostsUrl({
+        type: feedType,
+        limit: pageSize,
+        offset,
+        userId: user?.id,
+        profileId: currentAccount?.profile_id || null,
+      }), {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -121,21 +187,34 @@ export function DashboardFeed() {
         },
       })
       const result = await response.json()
-      
-      if (result.error) {
-        console.error('Error loading posts:', result.error)
-        setFeedError(result.error)
+
+      if (!response.ok || result.success === false || result.error) {
+        const errorMessage = extractFeedErrorMessage(
+          result.error,
+          `Failed to load feed (HTTP ${response.status})`
+        )
+        console.error('Error loading posts:', errorMessage, {
+          status: response.status,
+          error: result.error,
+        })
+        setFeedError(
+          extractFeedErrorMessage(result.error, 'Failed to load your feed. Please try again.')
+        )
         return
       }
-      
+
       // Standardize on { posts } but gracefully support { data }
       const postsData = result.posts || result.data || []
-      
-      setPosts((prev) => append ? dedupePostsById([...prev, ...postsData]) : dedupePostsById(postsData))
+
+      setPosts((prev) => {
+        if (append) return dedupePostsById([...prev, ...postsData])
+        if (pageIndex === 0) return mergeRecentlyCreatedPosts(feedType, postsData)
+        return dedupePostsById(postsData)
+      })
       setPage(pageIndex)
       setHasMore(postsData.length === pageSize)
       setFeedError(null)
-      
+
       // Handle API messages (like empty feed guidance)
       if (result.message) {
         setFeedMessage(result.message)
@@ -144,11 +223,21 @@ export function DashboardFeed() {
       }
     } catch (error) {
       console.error('Error loading posts:', error)
-      setFeedError('Failed to load your feed. Please try again.')
+      setFeedError(
+        extractFeedErrorMessage(error instanceof Error ? error.message : null, 'Failed to load your feed. Please try again.')
+      )
     }
   }
 
   const handlePostCreated = (newPost: PostData) => {
+    recentlyCreatedPostsRef.current.set(newPost.id, newPost)
+    const existingTimer = recentlyCreatedPostTimersRef.current.get(newPost.id)
+    if (existingTimer) clearTimeout(existingTimer)
+    const timer = setTimeout(() => {
+      recentlyCreatedPostsRef.current.delete(newPost.id)
+      recentlyCreatedPostTimersRef.current.delete(newPost.id)
+    }, 15000)
+    recentlyCreatedPostTimersRef.current.set(newPost.id, timer)
     setPosts(prev => dedupePostsById([newPost, ...prev]))
   }
 
@@ -186,10 +275,10 @@ export function DashboardFeed() {
       const action = isCurrentlyLiked ? 'unlike' : 'like'
 
       // Optimistic update
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
               is_liked: !post.is_liked,
               like_count: post.is_liked ? post.like_count - 1 : post.like_count + 1
             }
@@ -212,10 +301,10 @@ export function DashboardFeed() {
 
     } catch (error) {
       // Revert on error
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
               is_liked: !post.is_liked,
               like_count: post.is_liked ? post.like_count + 1 : post.like_count - 1
             }
@@ -228,7 +317,7 @@ export function DashboardFeed() {
   const loadComments = async (postId: string) => {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }))
-      
+
       const response = await fetch(`/api/posts/${postId}/comments`, {
         credentials: 'include'
       })
@@ -239,7 +328,7 @@ export function DashboardFeed() {
 
       const result = await response.json()
       setComments(prev => ({ ...prev, [postId]: result.comments || [] }))
-      
+
     } catch (error) {
       console.error('Error loading comments:', error)
     } finally {
@@ -249,14 +338,14 @@ export function DashboardFeed() {
 
   const toggleComments = async (postId: string) => {
     const isCurrentlyShowing = showComments[postId]
-    
+
     if (!isCurrentlyShowing) {
       // Load comments if we don't have them yet
       if (!comments[postId]) {
         await loadComments(postId)
       }
     }
-    
+
     setShowComments(prev => ({ ...prev, [postId]: !isCurrentlyShowing }))
   }
 
@@ -278,18 +367,18 @@ export function DashboardFeed() {
       }
 
       const result = await response.json()
-      
+
       // Add the new comment to the local state
       setComments(prev => ({
         ...prev,
         [postId]: [...(prev[postId] || []), result.comment]
       }))
-      
+
       // Update the post comments count
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
               comments_count: post.comments_count + 1
             }
           : post
@@ -344,6 +433,14 @@ export function DashboardFeed() {
     window.addEventListener('dashboard:post-created', handleDashboardPostCreated)
     return () => window.removeEventListener('dashboard:post-created', handleDashboardPostCreated)
   }, [user, activeTab])
+
+  useEffect(() => {
+    return () => {
+      recentlyCreatedPostTimersRef.current.forEach(timer => clearTimeout(timer))
+      recentlyCreatedPostTimersRef.current.clear()
+      recentlyCreatedPostsRef.current.clear()
+    }
+  }, [])
 
   // Subscribe to real-time updates
   useEffect(() => {
@@ -409,7 +506,7 @@ export function DashboardFeed() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => router.push('/feed')}
+              onClick={() => router.push('/community')}
               className="border-purple-500/50 text-purple-300 hover:bg-purple-500/20 rounded-xl"
             >
               View All
@@ -450,7 +547,12 @@ export function DashboardFeed() {
           <TabsContent value={activeTab} className="mt-6 space-y-4">
             <AnimatePresence>
               {posts.length > 0 ? (
-                posts.map((post, index) => (
+                posts.map((post, index) => {
+                  const musicTrack = isMusicFeedPost(post)
+                    ? buildFeedMusicTrackFromPost(post)
+                    : null
+
+                  return (
                   <motion.div
                     key={post.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -462,7 +564,7 @@ export function DashboardFeed() {
                       <CardContent className="p-4">
                         {/* Post Header */}
                         <div className="flex items-start gap-3 mb-3">
-                          <Link href={getProfileUrl(post.profiles.username)} className="flex-shrink-0">
+                          <Link href={getProfileUrl(post.profiles)} className="flex-shrink-0">
                             <Avatar className="cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200 h-10 w-10">
                               <AvatarImage
                                 src={post.profiles.avatar_url || ''}
@@ -475,7 +577,7 @@ export function DashboardFeed() {
                           </Link>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <Link href={getProfileUrl(post.profiles.username)} className="hover:underline">
+                              <Link href={getProfileUrl(post.profiles)} className="hover:underline">
                                 <span className="font-semibold text-white text-sm">
                                   {post.profiles.full_name || post.profiles.username}
                                 </span>
@@ -485,7 +587,16 @@ export function DashboardFeed() {
                                   <Check className="w-2 h-2 text-white" />
                                 </div>
                               )}
-                              <Link href={getProfileUrl(post.profiles.username)} className="hover:underline">
+                              {post.content_ref_type === 'event_update' && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-purple-500/30 bg-purple-500/10 text-purple-200 text-[10px] px-1.5 py-0"
+                                >
+                                  <Calendar className="h-2.5 w-2.5 mr-1" />
+                                  Event update
+                                </Badge>
+                              )}
+                              <Link href={getProfileUrl(post.profiles)} className="hover:underline">
                                 <span className="text-gray-400 text-xs">
                                   @{post.profiles.username}
                                 </span>
@@ -515,83 +626,112 @@ export function DashboardFeed() {
 
                         {/* Post Content */}
                         <div className="mb-3">
-                          <p className="text-white text-sm leading-relaxed">
-                            {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
-                          </p>
-                          
-                          {/* Link Preview */}
-                          {hasUrls(post.content) && (
-                            <LinkPreview 
-                              url={extractUrls(post.content)[0]} 
-                              className="mt-2"
-                            />
-                          )}
-                          
-                          {/* Media Display */}
-                          {post.media_urls && post.media_urls.length > 0 && post.media_urls[0] && (
-                            <div className="mt-3">
-                              {post.media_urls.length === 1 ? (
-                                // Single image - full width with natural aspect ratio
-                                <div 
-                                  className="relative bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                                  onClick={() => {
-                                    if (post.media_urls && post.media_urls.length > 0) {
-                                      photoViewer.openPhotoViewer(post.media_urls, 0, post)
-                                    } else {
-                                      console.error('❌ No media URLs available for this post')
-                                    }
-                                  }}
-                                >
-                                  <img
-                                    src={post.media_urls?.[0] || ''}
-                                    alt={`${post.profiles.full_name || post.profiles.username} post image`}
-                                    className="w-full h-auto max-h-96 object-cover"
-                                    loading="lazy"
-                                    onError={(e) => {
-                                      console.error('❌ Failed to load image:', post.media_urls?.[0])
-                                      e.currentTarget.style.display = 'none'
-                                    }}
+                          {post.content_ref_type === 'article' && post.article_preview ? (
+                            <ArticleFeedPreview article={post.article_preview} compact />
+                          ) : post.content_ref_type === 'event_update' && post.event_preview ? (
+                            <>
+                              <p className="mb-2 text-white text-sm leading-relaxed">
+                                {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
+                              </p>
+                              <EventFeedPreview event={post.event_preview} compact />
+                            </>
+                          ) : post.content_ref_type === 'event' && post.event_preview ? (
+                            <>
+                              <p className="mb-2 text-white text-sm leading-relaxed">
+                                {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
+                              </p>
+                              <EventFeedPreview event={post.event_preview} compact />
+                            </>
+                          ) : (
+                            <>
+                              <p className="text-white text-sm leading-relaxed">
+                                {post.content.length > 150 ? `${post.content.substring(0, 150)}...` : post.content}
+                              </p>
+
+                              {/* Link Preview */}
+                              {hasUrls(post.content) && (
+                                <LinkPreview
+                                  url={extractUrls(post.content)[0]}
+                                  className="mt-2"
+                                />
+                              )}
+
+                              {/* Media Display — skip cover art when music player is shown */}
+                              {!musicTrack && post.media_urls && post.media_urls.length > 0 && post.media_urls[0] && (
+                                <div className="mt-3">
+                                  {post.media_urls.length === 1 ? (
+                                    // Single image - full width with natural aspect ratio
+                                    <div
+                                      className="relative bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() => {
+                                        if (post.media_urls && post.media_urls.length > 0) {
+                                          photoViewer.openPhotoViewer(post.media_urls, 0, post)
+                                        } else {
+                                          console.error('❌ No media URLs available for this post')
+                                        }
+                                      }}
+                                    >
+                                      <img
+                                        src={post.media_urls?.[0] || ''}
+                                        alt={`${post.profiles.full_name || post.profiles.username} post image`}
+                                        className="w-full h-auto max-h-96 object-cover"
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          e.currentTarget.style.display = 'none'
+                                        }}
+                                      />
+                                    </div>
+                                  ) : (
+                                    // Multiple images - grid layout
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                      {post.media_urls.slice(0, 4).map((url, index) => (
+                                        url && (
+                                          <div
+                                            key={`${post.id}-${url}-${index}`}
+                                            className="relative aspect-square bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => {
+                                              if (post.media_urls && post.media_urls.length > 0) {
+                                                photoViewer.openPhotoViewer(post.media_urls, index, post)
+                                              } else {
+                                                console.error('❌ No media URLs available for this post')
+                                              }
+                                            }}
+                                          >
+                                            <img
+                                              src={url}
+                                              alt={`${post.profiles.full_name || post.profiles.username} post image ${index + 1}`}
+                                              className="w-full h-full object-cover"
+                                              loading="lazy"
+                                              onError={(e) => {
+                                                e.currentTarget.style.display = 'none'
+                                              }}
+                                            />
+                                          </div>
+                                        )
+                                      ))}
+                                    </div>
+                                  )}
+                                  {post.media_urls.length > 4 && (
+                                    <p className="text-gray-400 text-xs mt-2">
+                                      +{post.media_urls.length - 4} more photos
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+
+                              {musicTrack && (
+                                <div className="mt-3">
+                                  <FeedMusicPlayer
+                                    track={musicTrack}
+                                    compact
+                                    playSource="feed_post"
+                                    onComment={() => toggleComments(post.id)}
                                   />
                                 </div>
-                              ) : (
-                                // Multiple images - grid layout
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                  {post.media_urls.slice(0, 4).map((url, index) => (
-                                    url && (
-                                      <div 
-                                        key={`${post.id}-${url}-${index}`}
-                                        className="relative aspect-square bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => {
-                                          if (post.media_urls && post.media_urls.length > 0) {
-                                            photoViewer.openPhotoViewer(post.media_urls, index, post)
-                                          } else {
-                                            console.error('❌ No media URLs available for this post')
-                                          }
-                                        }}
-                                      >
-                                        <img
-                                          src={url}
-                                          alt={`${post.profiles.full_name || post.profiles.username} post image ${index + 1}`}
-                                          className="w-full h-full object-cover"
-                                          loading="lazy"
-                                          onError={(e) => {
-                                            console.error('❌ Failed to load image:', url)
-                                            e.currentTarget.style.display = 'none'
-                                          }}
-                                        />
-                                      </div>
-                                    )
-                                  ))}
-                                </div>
                               )}
-                              {post.media_urls.length > 4 && (
-                                <p className="text-gray-400 text-xs mt-2">
-                                  +{post.media_urls.length - 4} more photos
-                                </p>
-                              )}
-                            </div>
+                            </>
                           )}
-                          
+
                           {post.hashtags && post.hashtags.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-2">
                               {post.hashtags.slice(0, 3).map((hashtag) => (
@@ -617,35 +757,51 @@ export function DashboardFeed() {
                         {/* Post Actions */}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleLike(post.id)}
-                              className={`${post.is_liked ? 'text-red-500' : 'text-gray-400'} hover:text-red-400 transition-colors h-8 px-2`}
-                            >
-                              <Heart className={`h-4 w-4 mr-1 ${post.is_liked ? 'fill-current' : ''}`} />
-                              <span className="text-xs">{post.like_count}</span>
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-gray-400 hover:text-blue-400 h-8 px-2"
-                              onClick={() => toggleComments(post.id)}
-                            >
-                              <MessageCircle className="h-4 w-4 mr-1" />
-                              <span className="text-xs">{post.comments_count}</span>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              aria-label="Share post (coming soon)"
-                              disabled
-                              title="Share is coming soon"
-                              className="text-gray-400 h-8 px-2 opacity-50"
-                            >
-                              <Share className="h-4 w-4 mr-1" />
-                              <span className="text-xs">{post.shares_count}</span>
-                            </Button>
+                            {post.content_ref_type === 'event_update' ? (
+                              <Button
+                                asChild
+                                variant="ghost"
+                                size="sm"
+                                className="text-purple-300 hover:text-purple-200 h-8 px-2"
+                              >
+                                <Link href={post.event_preview?.url || `/events/${post.content_ref_id}`}>
+                                  <Calendar className="h-4 w-4 mr-1" />
+                                  <span className="text-xs">View event</span>
+                                </Link>
+                              </Button>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleLike(post.id)}
+                                  className={`${post.is_liked ? 'text-red-500' : 'text-gray-400'} hover:text-red-400 transition-colors h-8 px-2`}
+                                >
+                                  <Heart className={`h-4 w-4 mr-1 ${post.is_liked ? 'fill-current' : ''}`} />
+                                  <span className="text-xs">{post.like_count}</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-gray-400 hover:text-blue-400 h-8 px-2"
+                                  onClick={() => toggleComments(post.id)}
+                                >
+                                  <MessageCircle className="h-4 w-4 mr-1" />
+                                  <span className="text-xs">{post.comments_count}</span>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  aria-label="Share post (coming soon)"
+                                  disabled
+                                  title="Share is coming soon"
+                                  className="text-gray-400 h-8 px-2 opacity-50"
+                                >
+                                  <Share className="h-4 w-4 mr-1" />
+                                  <span className="text-xs">{post.shares_count}</span>
+                                </Button>
+                              </>
+                            )}
                           </div>
                           <div className="flex items-center gap-1 text-gray-400 text-xs">
                             {post.visibility === 'public' ? (
@@ -656,9 +812,9 @@ export function DashboardFeed() {
                             <span className="capitalize">{post.visibility}</span>
                           </div>
                         </div>
-                        
+
                         {/* Comments Section */}
-                        {showComments[post.id] && (
+                        {post.content_ref_type !== 'event_update' && showComments[post.id] && (
                           <div className="px-3 py-2 border-t border-white/10 space-y-3 mt-3">
                             {/* Existing Comments */}
                             {loadingComments[post.id] ? (
@@ -718,7 +874,7 @@ export function DashboardFeed() {
                                 <p className="text-gray-400 text-xs">No comments yet. Be the first to comment!</p>
                               </div>
                             )}
-                            
+
                             {/* Comment Input */}
                             <div className="flex gap-2 pt-1">
                               <Avatar className="h-6 w-6 flex-shrink-0">
@@ -753,7 +909,8 @@ export function DashboardFeed() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                ))
+                  )
+                })
               ) : (
                 <div className="text-center py-8">
                   <div className="text-gray-400 mb-4">
@@ -797,4 +954,4 @@ export function DashboardFeed() {
 
     </Card>
   )
-} 
+}

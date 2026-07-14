@@ -57,7 +57,8 @@ export function CrossPlatformAnalyticsOverview() {
 
         {optimalTimes.length > 0 && (
           <div className="space-y-2">
-            <h4 className="text-slate-300 font-medium">Optimal Posting Times</h4>
+            <h4 className="text-slate-300 font-medium">Suggested posting times</h4>
+            <p className="text-xs text-slate-500">Estimates (not live synced from providers)</p>
             <div className="flex flex-wrap gap-2">
               {optimalTimes.map(t => (
                 <Badge key={`${t.account_type}-${t.hour}`} variant="secondary" className="capitalize">{t.account_type}: {t.hour}:00</Badge>

@@ -1,4 +1,18 @@
 /** Shared shape for `ArtistAnalyticsOverview` — no mock defaults in UI. */
+
+export type PlatformMetricStatus =
+  | 'synced'
+  | 'handle_only'
+  | 'needs_oauth'
+  | 'unsupported'
+  | 'unavailable'
+
+export interface PlatformMetricsBase {
+  growth: number
+  status?: PlatformMetricStatus
+  statusLabel?: string
+}
+
 export interface AnalyticsData {
   overview: {
     totalRevenue: number
@@ -50,10 +64,11 @@ export interface AnalyticsData {
     }
   }
   platforms: {
-    spotify: { listeners: number; streams: number; growth: number }
-    appleMusic: { listeners: number; streams: number; growth: number }
-    youtube: { subscribers: number; views: number; growth: number }
-    instagram: { followers: number; engagement: number; growth: number }
-    tiktok: { followers: number; views: number; growth: number }
+    spotify: PlatformMetricsBase & { listeners: number; streams: number }
+    appleMusic: PlatformMetricsBase & { listeners: number; streams: number }
+    youtube: PlatformMetricsBase & { subscribers: number; views: number }
+    instagram: PlatformMetricsBase & { followers: number; engagement: number }
+    tiktok: PlatformMetricsBase & { followers: number; views: number }
+    facebook?: PlatformMetricsBase & { followers: number; engagement: number }
   }
 }

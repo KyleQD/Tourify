@@ -77,8 +77,16 @@ const SOCIAL_PLATFORMS = [
     bgColor: 'bg-green-500/10'
   },
   { 
-    id: 'apple', 
+    id: 'apple_music', 
     name: 'Apple Music', 
+    baseUrl: 'https://music.apple.com/artist/',
+    placeholder: 'Artist ID or URL',
+    color: 'text-gray-500',
+    bgColor: 'bg-gray-500/10'
+  },
+  { 
+    id: 'apple', 
+    name: 'Apple Music (legacy)', 
     baseUrl: 'https://music.apple.com/artist/',
     placeholder: 'Artist ID',
     color: 'text-gray-500',

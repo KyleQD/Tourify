@@ -1,73 +1,128 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { achievementEngine } from '@/lib/services/achievement-engine.service'
+import { getTrustedMusicWriteClient, recordMusicEvent, resolveMusicAccess, syncMusicStats } from '@/lib/music/music-access'
 
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
-    const { musicId } = await request.json()
+    const { musicId: bodyMusicId, trackId, completed = false, listenSeconds, eventType, source } = await request.json()
+    const musicId = bodyMusicId || trackId
     
     if (!musicId)
       return NextResponse.json({ error: 'Music ID is required' }, { status: 400 })
 
     const { data: music, error: musicError } = await supabase
       .from('artist_music')
-      .select('id, is_public, user_id, stats')
+      .select(`
+        id,
+        user_id,
+        is_public,
+        is_visible,
+        moderation_status,
+        access_mode,
+        preview_mode,
+        preview_status,
+        preview_file_url,
+        preview_storage_bucket,
+        preview_storage_path,
+        storage_bucket,
+        storage_path,
+        file_url,
+        rights_confirmed,
+        stats
+      `)
       .eq('id', musicId)
       .single()
 
     if (musicError || !music)
       return NextResponse.json({ error: 'Music not found' }, { status: 404 })
 
-    if (!music.is_public)
-      return NextResponse.json({ error: 'Music is private' }, { status: 403 })
-
     const { data: { user } } = await supabase.auth.getUser()
+    const access = await resolveMusicAccess({
+      supabase,
+      track: music,
+      viewerUserId: user?.id || null,
+    })
+
+    if (!access.allowed) {
+      return NextResponse.json({ error: 'Music is not playable', accessLevel: access.accessLevel }, { status: 403 })
+    }
     
     const forwarded = request.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
 
-    const { error: playError } = await supabase
-      .from('music_plays')
-      .insert({
-        music_id: musicId,
-        user_id: user?.id || null,
-        ip_address: ip,
-        user_agent: userAgent
-      })
+    const writeClient = await getTrustedMusicWriteClient(supabase)
+    const shouldInsertPlay = eventType ? eventType === 'play_started' : !completed
+    if (shouldInsertPlay) {
+      const { error: playError } = await writeClient
+        .from('music_plays')
+        .insert({
+          music_id: musicId,
+          artist_user_id: music.user_id,
+          user_id: user?.id || null,
+          access_level: access.accessLevel,
+          listen_seconds: Number.isFinite(Number(listenSeconds)) ? Math.max(0, Math.round(Number(listenSeconds))) : null,
+          completed: Boolean(completed),
+          ip_address: ip,
+          user_agent: userAgent
+        })
 
-    if (playError) {
-      console.error('Error recording music play:', playError)
+      if (playError) {
+        console.error('Error recording music play:', playError)
+      }
     }
 
-    const currentStats = (music.stats && typeof music.stats === 'object') ? music.stats as Record<string, number> : {}
-    const newPlays = (currentStats.plays || 0) + 1
-
-    const { count: likeCount } = await supabase
-      .from('music_likes')
-      .select('id', { count: 'exact', head: true })
-      .eq('music_id', musicId)
-
-    const { count: commentCount } = await supabase
-      .from('music_comments')
-      .select('id', { count: 'exact', head: true })
-      .eq('music_id', musicId)
-
-    await supabase
-      .from('artist_music')
-      .update({
-        stats: {
-          ...currentStats,
-          plays: newPlays,
-          likes: likeCount ?? currentStats.likes ?? 0,
-          comments: commentCount ?? currentStats.comments ?? 0,
-        }
+    if (eventType === 'play_progress') {
+      await recordMusicEvent({
+        supabase,
+        musicId,
+        artistUserId: music.user_id,
+        actorUserId: user?.id || null,
+        eventType: 'play_progress',
+        accessLevel: access.accessLevel,
+        source: source || 'api_music_play',
+        metadata: { listen_seconds: listenSeconds ?? null },
       })
-      .eq('id', musicId)
+    } else if (!completed) {
+      await recordMusicEvent({
+        supabase,
+        musicId,
+        artistUserId: music.user_id,
+        actorUserId: user?.id || null,
+        eventType: 'play_started',
+        accessLevel: access.accessLevel,
+        source: source || 'api_music_play',
+        metadata: { listen_seconds: listenSeconds ?? null },
+      })
+      await recordMusicEvent({
+        supabase,
+        musicId,
+        artistUserId: music.user_id,
+        actorUserId: user?.id || null,
+        eventType: access.accessLevel === 'full' ? 'full_play' : 'preview_play',
+        accessLevel: access.accessLevel,
+        source: source || 'api_music_play',
+      })
+    }
 
-    if (music?.user_id) {
-      const { count: trackPlayCount } = await supabase
+    if (completed) {
+      await recordMusicEvent({
+        supabase,
+        musicId,
+        artistUserId: music.user_id,
+        actorUserId: user?.id || null,
+        eventType: 'play_completed',
+        accessLevel: access.accessLevel,
+        source: source || 'api_music_play',
+      })
+    }
+
+    await syncMusicStats(supabase, musicId)
+
+    if (music?.user_id && shouldInsertPlay) {
+      const { count: trackPlayCount } = await writeClient
         .from('music_plays')
         .select('id', { count: 'exact', head: true })
         .eq('music_id', musicId)

@@ -2,16 +2,20 @@ import { useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { useSession } from "@/hooks/use-session"
 
-export function useRealtimeNotifications(params: { onChange: () => void }) {
+export function useRealtimeNotifications(params: { onChange: () => void; channelKey?: string }) {
   const { user } = useSession()
-  const { onChange } = params
+  const { onChange, channelKey } = params
 
   useEffect(() => {
     if (!user?.id) return
     let debounceTimeout: ReturnType<typeof setTimeout> | null = null
 
+    const channelName = channelKey
+      ? `mobile-notifications-${user.id}-${channelKey}`
+      : `mobile-notifications-${user.id}`
+
     const channel = supabase
-      .channel(`mobile-notifications-${user.id}`)
+      .channel(channelName)
       .on(
         "postgres_changes",
         {
@@ -31,5 +35,5 @@ export function useRealtimeNotifications(params: { onChange: () => void }) {
       if (debounceTimeout) clearTimeout(debounceTimeout)
       void supabase.removeChannel(channel)
     }
-  }, [onChange, user?.id])
+  }, [onChange, user?.id, channelKey])
 }

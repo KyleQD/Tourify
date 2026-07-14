@@ -4,25 +4,14 @@ import React, { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Map, Loader2, ZoomIn, ZoomOut, Layers, MapPin } from "lucide-react"
-import { SiteMapEditor } from "@/components/admin/logistics/site-map/site-map-editor"
-
-interface SiteMapData {
-  id: string
-  name: string
-  description: string
-  width: number
-  height: number
-  created_at: string
-  status: string
-}
+import { ArrowLeft, Map, Loader2 } from "lucide-react"
+import { PublicSiteMapViewer } from "@/components/site-maps/public-site-map-viewer"
 
 export default function ArtistEventSiteMapPage() {
   const params = useParams()
   const router = useRouter()
   const eventId = params.id as string
-  const [siteMap, setSiteMap] = useState<SiteMapData | null>(null)
+  const [siteMap, setSiteMap] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -30,39 +19,22 @@ export default function ArtistEventSiteMapPage() {
     async function load() {
       setIsLoading(true)
       try {
-        // Try shared maps first (for collaborator access)
         const sharedResp = await fetch(`/api/site-maps/shared?eventId=${eventId}`, { credentials: 'include' })
         const sharedData = await sharedResp.json()
 
         if (sharedData.success && sharedData.data?.length > 0) {
           const map = sharedData.data[0]
-          setSiteMap({
-            id: map.id,
-            name: map.name,
-            description: map.description || '',
-            width: map.width || 1200,
-            height: map.height || 900,
-            created_at: map.created_at,
-            status: map.status || 'published'
-          })
+          const detailResp = await fetch(`/api/admin/logistics/site-maps/${map.id}`, { credentials: 'include' })
+          const detail = await detailResp.json()
+          setSiteMap(detail.data || detail.siteMap || map)
           return
         }
 
-        // Fallback: try admin API (for maps the user owns)
-        const adminResp = await fetch(`/api/admin/logistics/site-maps?eventId=${eventId}&includeData=false`, { credentials: 'include' })
+        const adminResp = await fetch(`/api/admin/logistics/site-maps?eventId=${eventId}&includeData=true`, { credentials: 'include' })
         const adminData = await adminResp.json()
 
         if (adminData.success && adminData.data?.length > 0) {
-          const map = adminData.data[0]
-          setSiteMap({
-            id: map.id,
-            name: map.name,
-            description: map.description || '',
-            width: map.width || 1200,
-            height: map.height || 900,
-            created_at: map.created_at,
-            status: map.status || 'published'
-          })
+          setSiteMap(adminData.data[0])
           return
         }
 
@@ -110,10 +82,14 @@ export default function ArtistEventSiteMapPage() {
   }
 
   return (
-    <SiteMapEditor
-      siteMap={siteMap}
-      onClose={() => router.back()}
-      isReadOnly={true}
-    />
+    <div className="space-y-3">
+      <div className="px-4 pt-4">
+        <Button variant="ghost" onClick={() => router.back()} className="text-slate-400">
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Event
+        </Button>
+      </div>
+      <PublicSiteMapViewer siteMap={siteMap} />
+    </div>
   )
 }

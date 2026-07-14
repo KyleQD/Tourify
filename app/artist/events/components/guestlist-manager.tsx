@@ -5,180 +5,160 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-
-interface Guest {
-  id: string
-  user_id?: string
-  full_name?: string
-  contact_email?: string
-  contact_phone?: string
-  guests_count: number
-  status: "invited" | "confirmed" | "declined" | "checked_in"
-  invite_code?: string
-  notes?: string
-  checked_in_at?: string | null
-}
 
 interface Props {
   eventIdOrSlug: string
+  /** Prefer events_v2 id when available — allocations API is v2-scoped. */
+  eventsV2Id?: string | null
 }
 
-export function GuestlistManager({ eventIdOrSlug }: Props) {
-  const [guests, setGuests] = useState<Guest[]>([])
+/**
+ * Deprecated guestlist UI — issues comps via ticket allocations API.
+ */
+export function GuestlistManager({ eventIdOrSlug, eventsV2Id }: Props) {
+  const eventId = eventsV2Id || eventIdOrSlug
+  const [allocations, setAllocations] = useState<any[]>([])
+  const [ticketTypes, setTicketTypes] = useState<any[]>([])
+  const [allocationId, setAllocationId] = useState("")
+  const [ticketTypeId, setTicketTypeId] = useState("")
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [quantity, setQuantity] = useState("1")
   const [isLoading, setIsLoading] = useState(false)
-  const [form, setForm] = useState<Partial<Guest>>({ guests_count: 1, status: "invited" })
-  const [counts, setCounts] = useState({ attending: 0, interested: 0, not_going: 0 })
+  const [isIssuing, setIsIssuing] = useState(false)
 
-  function buildNoStoreInit(input?: RequestInit): RequestInit {
-    return {
-      credentials: 'include',
-      cache: 'no-store',
-      ...input,
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-        ...(input?.headers || {}),
-      },
-    }
-  }
-
-  async function loadGuests() {
+  async function load() {
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, buildNoStoreInit())
-      const json = await res.json()
-      setGuests(json.guests || [])
-    } catch (e) {
-      console.error('Failed to load guests', e)
+      const [allocRes, typesRes] = await Promise.all([
+        fetch(`/api/ticketing/allocations?event_id=${eventId}`, { credentials: "include", cache: "no-store" }),
+        fetch(`/api/ticketing/enhanced?action=event_tickets&event_id=${eventId}`, {
+          credentials: "include",
+          cache: "no-store",
+        }),
+      ])
+      const allocData = await allocRes.json().catch(() => ({}))
+      const typesData = await typesRes.json().catch(() => ({}))
+      if (allocRes.ok) {
+        setAllocations(allocData.allocations || [])
+        if (allocData.allocations?.[0]?.id) setAllocationId(String(allocData.allocations[0].id))
+      }
+      const types = typesData.ticket_types || typesData.ticketTypes || []
+      setTicketTypes(types)
+      if (types[0]?.id) setTicketTypeId(String(types[0].id))
+    } catch {
+      setAllocations([])
     } finally {
       setIsLoading(false)
     }
   }
 
-  useEffect(() => { loadGuests() }, [eventIdOrSlug])
-  useEffect(() => { (async () => {
-    try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/attendance`, buildNoStoreInit())
-      const json = await res.json()
-      setCounts(json.counts || { attending: 0, interested: 0, not_going: 0 })
-    } catch {}
-  })() }, [eventIdOrSlug])
+  useEffect(() => {
+    void load()
+  }, [eventId])
 
-  async function addGuest() {
-    try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, buildNoStoreInit({
-        method: 'POST',
-        body: JSON.stringify(form)
-      }))
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to add guest')
-      toast.success('Guest added')
-      setForm({ guests_count: 1, status: 'invited' })
-      loadGuests()
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to add guest')
+  async function issueGuest() {
+    if (!allocationId || !ticketTypeId) {
+      toast.error("Allocation and ticket type required")
+      return
     }
-  }
-
-  async function updateGuest(guest: Guest, updates: Partial<Guest>) {
+    setIsIssuing(true)
     try {
-      const res = await fetch(`/api/events/${eventIdOrSlug}/guestlist`, buildNoStoreInit({
-        method: 'PATCH',
-        body: JSON.stringify({ id: guest.id, ...updates })
-      }))
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error || 'Failed to update guest')
-      toast.success('Guest updated')
-      setGuests(prev => prev.map(g => g.id === guest.id ? { ...g, ...updates } as Guest : g))
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to update guest')
+      const res = await fetch("/api/ticketing/allocations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "issue",
+          allocation_id: allocationId,
+          ticket_type_id: ticketTypeId,
+          quantity: Math.max(1, Number(quantity) || 1),
+          recipient_email: email || undefined,
+          recipient_name: name || undefined,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data?.error || "Failed to issue guest tickets")
+      toast.success("Guest tickets issued from allocation")
+      setName("")
+      setEmail("")
+      setQuantity("1")
+      await load()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Issue failed")
+    } finally {
+      setIsIssuing(false)
     }
   }
 
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl">
+    <Card className="border-slate-800 bg-slate-950/50">
       <CardHeader>
-        <CardTitle className="text-white">Guestlist</CardTitle>
+        <CardTitle className="text-white">Guestlist (allocations)</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-gray-400 text-sm">Attending</div>
-            <div className="text-white text-2xl font-semibold">{counts.attending}</div>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-gray-400 text-sm">Interested</div>
-            <div className="text-white text-2xl font-semibold">{counts.interested}</div>
-          </div>
-          <div className="p-4 rounded-xl bg-slate-800/40 border border-slate-700/40">
-            <div className="text-gray-400 text-sm">Not Going</div>
-            <div className="text-white text-2xl font-semibold">{counts.not_going}</div>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="space-y-2">
-            <Label className="text-gray-300">Full Name</Label>
-            <Input value={form.full_name || ''} onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))} className="bg-slate-800 border-slate-700 text-white" />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-gray-300">Email</Label>
-            <Input value={form.contact_email || ''} onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))} className="bg-slate-800 border-slate-700 text-white" />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-gray-300">Phone</Label>
-            <Input value={form.contact_phone || ''} onChange={e => setForm(f => ({ ...f, contact_phone: e.target.value }))} className="bg-slate-800 border-slate-700 text-white" />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-gray-300">Guests</Label>
-            <Input type="number" min={1} value={form.guests_count || 1} onChange={e => setForm(f => ({ ...f, guests_count: parseInt(e.target.value || '1', 10) }))} className="bg-slate-800 border-slate-700 text-white" />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-gray-300">Status</Label>
-            <Select value={form.status} onValueChange={v => setForm(f => ({ ...f, status: v as Guest['status'] }))}>
-              <SelectTrigger className="bg-slate-800 border-slate-700 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="invited">Invited</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="declined">Declined</SelectItem>
-                <SelectItem value="checked_in">Checked In</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-2 md:col-span-2">
-            <Label className="text-gray-300">Notes</Label>
-            <Input value={form.notes || ''} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} className="bg-slate-800 border-slate-700 text-white" />
-          </div>
-          <div className="flex items-end">
-            <Button onClick={addGuest} disabled={isLoading} className="bg-purple-600 hover:bg-purple-700">
-              Add Guest
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {guests.length === 0 && (
-            <div className="text-gray-400">No guests yet.</div>
-          )}
-          {guests.map(g => (
-            <div key={g.id} className="p-4 bg-slate-800/50 border border-slate-700/50 rounded-xl flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="text-white font-medium">{g.full_name || 'Guest'}</div>
-                <div className="text-gray-400 text-sm">{g.contact_email || ''} {g.contact_phone ? `• ${g.contact_phone}` : ''}</div>
-                <div className="text-gray-500 text-sm">Guests: {g.guests_count} • Status: {g.status}</div>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-slate-400">
+          Legacy guestlist writes are deprecated. Comps now issue from ticket allocation pools for this event.
+        </p>
+        {isLoading ? (
+          <p className="text-sm text-slate-500">Loading allocations…</p>
+        ) : allocations.length === 0 ? (
+          <p className="text-sm text-amber-300/90">
+            No allocations found. Create an artist/venue pool in the event ticket manager first.
+          </p>
+        ) : (
+          <>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div>
+                <Label className="text-slate-400">Allocation</Label>
+                <select
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  value={allocationId}
+                  onChange={(e) => setAllocationId(e.target.value)}
+                >
+                  {allocations.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.label} ({a.quantity_issued}/{a.quantity_total})
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="border-slate-700 text-gray-300 hover:text-white" onClick={() => updateGuest(g, { status: 'confirmed' })}>Confirm</Button>
-                <Button size="sm" variant="outline" className="border-slate-700 text-gray-300 hover:text-white" onClick={() => updateGuest(g, { status: 'checked_in', checked_in_at: new Date().toISOString() })}>Check In</Button>
+              <div>
+                <Label className="text-slate-400">Ticket type</Label>
+                <select
+                  className="mt-1 w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm"
+                  value={ticketTypeId}
+                  onChange={(e) => setTicketTypeId(e.target.value)}
+                >
+                  {ticketTypes.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
-          ))}
-        </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <Label className="text-slate-400">Guest name</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1 border-slate-700 bg-slate-900" />
+              </div>
+              <div>
+                <Label className="text-slate-400">Email</Label>
+                <Input value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 border-slate-700 bg-slate-900" />
+              </div>
+              <div>
+                <Label className="text-slate-400">Quantity</Label>
+                <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} className="mt-1 border-slate-700 bg-slate-900" />
+              </div>
+            </div>
+            <Button disabled={isIssuing} onClick={() => void issueGuest()}>
+              Issue guest tickets
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   )
 }
-
-

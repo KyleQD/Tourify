@@ -1,40 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getStripeOrNull } from '@/lib/stripe'
 
 const stripe = getStripeOrNull()
 
 export async function GET(request: NextRequest) {
   try {
-    
     const { searchParams } = new URL(request.url)
     const sessionId = searchParams.get('session_id')
 
-    if (!sessionId) {
+    if (!sessionId)
       return NextResponse.json({ error: 'Session ID is required' }, { status: 400 })
-    }
 
-    if (!stripe) {
+    if (!stripe)
       return NextResponse.json({ error: 'Payment service not configured' }, { status: 503 })
-    }
 
-    // Retrieve the checkout session from Stripe
     const session = await stripe.checkout.sessions.retrieve(sessionId)
-    
-    if (!session) {
+    if (!session)
       return NextResponse.json({ error: 'Session not found' }, { status: 404 })
-    }
 
-    const supabase = await createClient()
-
-    // Get the sale details from metadata
-    const { sale_id, order_number } = session.metadata || {}
-
-    if (!sale_id) {
+    const saleId = session.metadata?.sale_id || session.metadata?.order_id
+    if (!saleId)
       return NextResponse.json({ error: 'Sale ID not found in session' }, { status: 400 })
-    }
 
-    // Fetch the sale details from database
+    // Service role so post-checkout page works before session cookies settle
+    const supabase = createServiceRoleClient()
+
     const { data: sale, error: saleError } = await supabase
       .from('ticket_sales')
       .select(`
@@ -45,14 +37,14 @@ export async function GET(request: NextRequest) {
           price,
           description
         ),
-        events:event_id (
+        events_v2:event_id (
           id,
           title,
-          date,
-          location
+          start_at,
+          venue_id
         )
       `)
-      .eq('id', sale_id)
+      .eq('id', saleId)
       .single()
 
     if (saleError || !sale) {
@@ -60,34 +52,32 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Sale not found' }, { status: 404 })
     }
 
-    // Verify payment status
-    if (session.payment_status !== 'paid') {
+    if (session.payment_status !== 'paid')
       return NextResponse.json({ error: 'Payment not completed' }, { status: 400 })
-    }
 
-    // Format the response
+    const event = sale.events_v2 as any
     const purchase = {
-      order_number: sale.order_number,
-      customer_name: sale.customer_name,
-      customer_email: sale.customer_email,
+      order_number: sale.order_number || (sale.metadata as any)?.order_number,
+      customer_name: sale.buyer_name || sale.customer_name,
+      customer_email: sale.buyer_email || sale.customer_email,
       quantity: sale.quantity,
       total_amount: parseFloat(sale.total_amount),
-      purchase_date: sale.purchase_date,
+      purchase_date: sale.created_at || sale.purchase_date,
+      wallet_url: '/tickets/my-tickets',
       ticket_type: {
         name: sale.ticket_types?.name,
-        price: parseFloat(sale.ticket_types?.price || '0')
+        price: parseFloat(sale.ticket_types?.price || '0'),
       },
       event: {
-        title: sale.events?.title,
-        date: sale.events?.date,
-        location: sale.events?.location
-      }
+        title: event?.title,
+        date: event?.start_at || event?.date,
+        location: event?.location || '',
+      },
     }
 
     return NextResponse.json({ purchase })
-
   } catch (error) {
     console.error('[Ticket Verification API] Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}

@@ -1,27 +1,67 @@
 'use client'
 
-import React, { useState, useRef, useEffect, useCallback } from "react"
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  useDroppable,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { 
-  ZoomIn, ZoomOut, RotateCcw, Save, Edit3, Trash2, Eye, EyeOff,
-  Layers, Grid, Move, Square, Circle, Triangle, MapPin, Zap, Truck,
-  Building, Users, Settings, Download, Share, Lock, Unlock, Plus,
-  Minus, Maximize, Minimize, Palette, Type, Image, Upload,
-  MoreHorizontal, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
-  Hand, Search, Filter, Star, Copy, RotateCw, FlipHorizontal,
-  FlipVertical, AlignLeft, AlignCenter, AlignRight, AlignVerticalJustifyCenter,
-  AlignHorizontalJustifyCenter, Ruler, AlertTriangle, MousePointer, Check,
-  MessageCircle, Utensils, Music, Shield, Heart, TreePine
+  ZoomIn, ZoomOut, Save, Trash2, Eye, EyeOff,
+  Layers, Grid, Square, MapPin, Zap,
+  Building, Download, Share, Plus, Minus,
+  Maximize, Minimize, Type,
+  Copy, RotateCw, RotateCcw, Palette, Filter,
+  Ruler, AlertTriangle, MousePointer,
+  MessageCircle, Send, ChevronLeft, ChevronRight, PanelRight
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { CANNED_ELEMENTS, getElementById, type CannedElement } from "@/lib/data/canned-elements"
+import { getElementById, type CannedElement } from "@/lib/data/canned-elements"
 import { SiteMapShareDialog } from "../site-map-share-dialog"
-import { SiteMapCollaborationPanel } from "../site-map-collaboration-panel"
 import { useSiteMapRealtime } from "@/hooks/use-site-map-realtime"
+import type { ElementStatus } from "@/types/site-map"
+import {
+  snapToGridPosition as snapPoint,
+  getGridAlignedDimensions as alignDims,
+  getOccupiedGridCells as occupiedCells,
+  checkPlacementValidity as placementValid,
+  screenToMapCoords,
+  hitTestRect,
+  normalizeZoneBounds as normZone,
+  normalizeTentBounds as normTent,
+  computeCenteredPlacement,
+  hitTestResizeHandle,
+  applyResize,
+  getNumber as toNumber,
+  LIBRARY_DND_TYPE,
+  type LibraryDragPayload,
+  type ResizeHandle,
+} from './canvas-coords'
+import { drawElementSymbol, roundRect, drawFittedLabel } from './canvas-draw'
+import { ElementLibraryPanel } from './element-library-panel'
+import { ElementInspector } from './element-inspector'
+import { ToolPalette } from './tool-palette'
+import { SiteMapContextDrawer, type SelectedMapObject, type ContextDrawerTab } from './site-map-context-drawer'
+import { SiteMapFilterBar, hasActiveCanvasFilters as filtersAreActive, defaultFilters, type CanvasFilters as FilterBarFilters } from './site-map-filter-bar'
+import { SiteMapTaskForm } from './site-map-task-form'
 
 interface SiteMap {
   id: string
@@ -29,6 +69,9 @@ interface SiteMap {
   description: string
   width: number
   height: number
+  scale?: number
+  scale_unit?: string
+  scaleUnit?: string
   created_at: string
   status: string
   backgroundImageUrl?: string
@@ -53,18 +96,70 @@ interface SiteMapElement {
   data?: any
 }
 
+interface MapBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+interface MapMeasurementRow {
+  id: string
+  measurement_type?: string
+  measurementType?: string
+  start_x?: number
+  startX?: number
+  start_y?: number
+  startY?: number
+  end_x?: number
+  endX?: number
+  end_y?: number
+  endY?: number
+  width?: number
+  height?: number
+  value?: number
+  unit?: string
+  label?: string
+  color?: string
+  is_compliant?: boolean
+  compliance_notes?: string
+}
+
+interface MapIssueRow {
+  id: string
+  issue_type?: string
+  issueType?: string
+  severity?: string
+  title?: string
+  description?: string
+  x: number
+  y: number
+  status?: string
+}
+
+interface CanvasFilters extends FilterBarFilters {}
+
 interface SimCitySiteMapViewerProps {
   siteMap: SiteMap
   onClose: () => void
   onSave?: (siteMap: SiteMap) => void
   onDelete?: (siteMapId: string) => void
+  onPublish?: (siteMap: SiteMap) => void | Promise<void>
   isReadOnly?: boolean
   eventId?: string
 }
 
-export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isReadOnly = false, eventId }: SimCitySiteMapViewerProps) {
+function CanvasDropZone({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: 'site-map-canvas-drop' })
+  return (
+    <div ref={setNodeRef} className={cn('relative flex-1 min-h-0', isOver && 'ring-2 ring-emerald-400/50')}>
+      {children}
+    </div>
+  )
+}
+
+export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPublish, isReadOnly = false, eventId }: SimCitySiteMapViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isEditing, setIsEditing] = useState(!isReadOnly)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [selectedTool, setSelectedTool] = useState<string>('select')
@@ -77,29 +172,190 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [selectedElements, setSelectedElements] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState('elements')
+  const [activeTab, setActiveTab] = useState('library')
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true)
   const [hoverPosition, setHoverPosition] = useState<{ x: number; y: number } | null>(null)
   const [selectedElementForPlacement, setSelectedElementForPlacement] = useState<CannedElement | null>(null)
   const [highlightedGridCells, setHighlightedGridCells] = useState<Array<{x: number, y: number}>>([])
   const [isValidPlacement, setIsValidPlacement] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [canvasTheme, setCanvasTheme] = useState<'dark' | 'light'>('dark')
-  const [showCollabPanel, setShowCollabPanel] = useState(true)
+  const [showContextDrawer, setShowContextDrawer] = useState(true)
+  const [contextTab, setContextTab] = useState<ContextDrawerTab>('properties')
+  const [selectedObject, setSelectedObject] = useState<SelectedMapObject>(null)
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null)
+  const [selectedIssueId, setSelectedIssueId] = useState<string | null>(null)
+  const [readinessExpanded, setReadinessExpanded] = useState(false)
+
   const [elementStatuses, setElementStatuses] = useState<Record<string, string>>({})
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null)
-  const { activityVersion } = useSiteMapRealtime({ siteMapId: siteMap.id })
+  const [resizeHandle, setResizeHandle] = useState<ResizeHandle | null>(null)
+  const [dragTarget, setDragTarget] = useState<{ kind: 'element' | 'zone' | 'tent'; id: string } | null>(null)
+  const [marqueeStart, setMarqueeStart] = useState<{ x: number; y: number } | null>(null)
+  const [marqueeEnd, setMarqueeEnd] = useState<{ x: number; y: number } | null>(null)
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false)
+  const [issueDraft, setIssueDraft] = useState({ title: '', description: '', severity: 'medium', x: 0, y: 0 })
+  const [textDialogOpen, setTextDialogOpen] = useState(false)
+  const [textDraft, setTextDraft] = useState({ label: '', x: 0, y: 0 })
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [activeLibraryDrag, setActiveLibraryDrag] = useState<CannedElement | null>(null)
+  const [mapStatus, setMapStatus] = useState(siteMap.status)
+  const { activityVersion, tasksVersion, geometryVersion } = useSiteMapRealtime({ siteMapId: siteMap.id })
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   // ─── Zones, Tents, Layers state ───────────────────────────────────────────
   const [zones, setZones] = useState<any[]>([])
   const [tents, setTents] = useState<any[]>([])
   const [layers, setLayers] = useState<any[]>([])
-  const [zoneForm, setZoneForm] = useState({ name: '', color: '#9333ea', capacity: '' })
-  const [tentForm, setTentForm] = useState({ name: '', type: 'tent', width_ft: '', depth_ft: '', capacity: '' })
+  const [measurements, setMeasurements] = useState<MapMeasurementRow[]>([])
+  const [issues, setIssues] = useState<MapIssueRow[]>([])
+  const [tasks, setTasks] = useState<any[]>([])
+  const [notes, setNotes] = useState<any[]>([])
+  const [zoneForm, setZoneForm] = useState({ name: '', color: '#9333ea', capacity: '', zoneType: 'other' })
+  const [tentForm, setTentForm] = useState({ name: '', type: 'custom', width_ft: '', depth_ft: '', capacity: '' })
   const [layerForm, setLayerForm] = useState({ name: '', color: '#3b82f6' })
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null)
   const [hiddenLayers, setHiddenLayers] = useState<Set<string>>(new Set())
+  const [measureStart, setMeasureStart] = useState<{ x: number; y: number } | null>(null)
+  const [measureHover, setMeasureHover] = useState<{ x: number; y: number } | null>(null)
+  const [toolError, setToolError] = useState<string | null>(null)
+  const [canvasFilters, setCanvasFilters] = useState<CanvasFilters>({
+    ...defaultFilters,
+  })
+
+  const getNumber = toNumber
+  const normalizeZoneBounds = useCallback((zone: any, index = 0): MapBounds => normZone(zone, index), [])
+  const normalizeTentBounds = useCallback((tent: any, index = 0): MapBounds => normTent(tent, index), [])
+  const snapOptions = useMemo(() => ({ snapToGrid, gridSize }), [snapToGrid, gridSize])
+
+  const unresolvedNoteObjectIds = useMemo(() => {
+    const ids = new Set<string>()
+    notes.forEach(note => {
+      const values = note.new_values || note.newValues || {}
+      const entityId = note.entity_id || note.entityId || values.element_id || values.elementId
+      if (entityId && values.is_resolved !== true) ids.add(entityId)
+    })
+    return ids
+  }, [notes])
+
+  const taskObjectIds = useMemo(() => {
+    const ids = new Set<string>()
+    tasks.forEach(task => {
+      const elementId = task.elementId || task.element_id
+      if (!elementId) return
+      if (canvasFilters.taskState === 'all' || task.status === canvasFilters.taskState) {
+        ids.add(elementId)
+      }
+    })
+    return ids
+  }, [canvasFilters.taskState, tasks])
+
+  const assigneeOptions = useMemo(() => {
+    const options = new Map<string, string>()
+    tasks.forEach(task => {
+      const userId = task.assignedUserId || task.assignedTo || task.assigned_user_id
+      if (userId) options.set(`user:${userId}`, task.assignedToName || 'Assigned user')
+      const teamId = task.assignedTeamId || task.assigned_team_id
+      if (teamId) options.set(`team:${teamId}`, 'Assigned team')
+      const role = task.assignedRole || task.assigned_role
+      if (role) options.set(`role:${role}`, role)
+    })
+    return Array.from(options.entries()).map(([value, label]) => ({ value, label }))
+  }, [tasks])
+
+  const elementMatchesAssigneeFilter = useCallback((elementId: string) => {
+    if (canvasFilters.assignee === 'all') return true
+    const [scope, value] = canvasFilters.assignee.split(':')
+    return tasks.some(task => {
+      const taskElementId = task.elementId || task.element_id
+      if (taskElementId !== elementId) return false
+      if (scope === 'user') return (task.assignedUserId || task.assignedTo || task.assigned_user_id) === value
+      if (scope === 'team') return (task.assignedTeamId || task.assigned_team_id) === value
+      if (scope === 'role') return (task.assignedRole || task.assigned_role) === value
+      return false
+    })
+  }, [canvasFilters.assignee, tasks])
+
+  const getVisibleElements = useCallback(() => {
+    return elements.filter(element => {
+      const layerId = element.data?.layerId || element.data?.layer_id
+      if (layerId && hiddenLayers.has(layerId)) return false
+      if (canvasFilters.layerId !== 'all' && layerId !== canvasFilters.layerId) return false
+      if (canvasFilters.status !== 'all') {
+        const status = elementStatuses[element.id] || 'not_started'
+        if (status !== canvasFilters.status) return false
+      }
+      if (canvasFilters.taskState !== 'all' && !taskObjectIds.has(element.id)) return false
+      if (canvasFilters.unresolvedNotesOnly && !unresolvedNoteObjectIds.has(element.id)) return false
+      if (!elementMatchesAssigneeFilter(element.id)) return false
+      return true
+    })
+  }, [canvasFilters.layerId, canvasFilters.status, canvasFilters.taskState, canvasFilters.unresolvedNotesOnly, elementMatchesAssigneeFilter, elementStatuses, elements, hiddenLayers, taskObjectIds, unresolvedNoteObjectIds])
+
+  const getVisibleIssues = useCallback(() => {
+    return issues.filter(issue => canvasFilters.issueSeverity === 'all' || issue.severity === canvasFilters.issueSeverity)
+  }, [canvasFilters.issueSeverity, issues])
+
+  const getVisibleZones = useCallback(() => {
+    return zones.filter((zone: any) => {
+      if (canvasFilters.unassignedZonesOnly) {
+        const hasLead = Boolean(zone.lead_user_id || zone.leadUserId)
+        const hasDept = Boolean(zone.assigned_department || zone.assignedDepartment)
+        if (hasLead || hasDept) return false
+      }
+      if (canvasFilters.myDepartment) {
+        const dept = String(zone.assigned_department || zone.assignedDepartment || '')
+        if (dept.toLowerCase() !== String(canvasFilters.myDepartment).toLowerCase()) return false
+      }
+      return true
+    })
+  }, [canvasFilters.myDepartment, canvasFilters.unassignedZonesOnly, zones])
+
+  const getUnresolvedNotes = useCallback(() => {
+    return notes.filter(note => {
+      const values = note.new_values || note.newValues || {}
+      return values.is_resolved !== true
+    })
+  }, [notes])
+
+  const hasActiveCanvasFilters = useMemo(
+    () => filtersAreActive(canvasFilters),
+    [canvasFilters]
+  )
+
+  const readinessSummary = useMemo(() => {
+    const objectIds = [
+      ...elements.map(element => element.id),
+      ...zones.map(zone => zone.id).filter(Boolean),
+      ...tents.map(tent => tent.id).filter(Boolean),
+    ]
+    const totalObjects = objectIds.length
+    const assignedObjects = new Set(tasks.map(task => task.elementId || task.element_id).filter(Boolean)).size
+    const openIssues = issues.filter(issue => !['resolved', 'closed'].includes(issue.status || 'open')).length
+    const blockedTasks = tasks.filter(task => task.status === 'blocked').length
+    const setupComplete = objectIds.filter(id => ['setup_complete', 'verified'].includes(elementStatuses[id])).length
+    const setupCompletion = totalObjects > 0 ? Math.round((setupComplete / totalObjects) * 100) : 0
+    const criticalZoneTypes = new Set(['medical', 'security', 'entrance', 'exit', 'utility'])
+    const unverifiedCriticalZones = zones.filter(zone => {
+      const tags = Array.isArray(zone.tags) ? zone.tags.map((tag: any) => String(tag).toLowerCase()) : []
+      const isCritical = criticalZoneTypes.has(zone.zone_type || zone.zoneType) || tags.includes('critical')
+      return isCritical && elementStatuses[zone.id] !== 'verified'
+    }).length
+
+    return {
+      totalObjects,
+      assignedObjects,
+      openIssues,
+      blockedTasks,
+      setupCompletion,
+      unverifiedCriticalZones,
+    }
+  }, [elementStatuses, elements, issues, tasks, tents, zones])
 
   // Load zones, tents, layers
   useEffect(() => {
@@ -107,29 +363,50 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     Promise.allSettled([
       fetch(`/api/admin/logistics/site-maps/${id}/zones`, { credentials: 'include' }).then(r => r.json()),
       fetch(`/api/admin/logistics/site-maps/${id}/tents`, { credentials: 'include' }).then(r => r.json()),
-      fetch(`/api/admin/logistics/site-maps/layers?site_map_id=${id}`, { credentials: 'include' }).then(r => r.json()),
-    ]).then(([zr, tr, lr]) => {
+      fetch(`/api/admin/logistics/site-maps/layers?siteMapId=${id}`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/admin/logistics/site-maps/measurements?siteMapId=${id}`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/admin/logistics/site-maps/issues?siteMapId=${id}`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/admin/logistics/site-maps/${id}/tasks`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`/api/admin/logistics/site-maps/${id}/notes`, { credentials: 'include' }).then(r => r.json()),
+    ]).then(([zr, tr, lr, mr, ir, tar, nr]) => {
       if (zr.status === 'fulfilled') setZones((zr.value as any).data || (zr.value as any).zones || [])
       if (tr.status === 'fulfilled') setTents((tr.value as any).data || (tr.value as any).tents || [])
       if (lr.status === 'fulfilled') {
         const list = (lr.value as any).data || (lr.value as any).layers || []
         setLayers(list)
+        setHiddenLayers(new Set(list.filter((layer: any) => layer.is_visible === false || layer.isVisible === false).map((layer: any) => layer.id)))
         if (list.length > 0 && !activeLayerId) setActiveLayerId(list[0].id)
       }
+      if (mr.status === 'fulfilled') setMeasurements((mr.value as any).data || (mr.value as any).measurements || [])
+      if (ir.status === 'fulfilled') setIssues((ir.value as any).data || (ir.value as any).issues || [])
+      if (tar.status === 'fulfilled') setTasks((tar.value as any).data || (tar.value as any).tasks || [])
+      if (nr.status === 'fulfilled') setNotes((nr.value as any).data || (nr.value as any).notes || [])
     })
   }, [siteMap.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function addZone() {
     if (!zoneForm.name.trim()) return
+    const offset = zones.length * 28
     const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: zoneForm.name, color: zoneForm.color, capacity: zoneForm.capacity ? Number(zoneForm.capacity) : null, metadata: {} }),
+      body: JSON.stringify({
+        name: zoneForm.name,
+        zoneType: zoneForm.zoneType || 'other',
+        x: 80 + offset,
+        y: 80 + offset,
+        width: 220,
+        height: 140,
+        color: zoneForm.color,
+        borderColor: zoneForm.color,
+        capacity: zoneForm.capacity ? Number(zoneForm.capacity) : null,
+        tags: [],
+      }),
     })
     if (res.ok) {
       const d = await res.json()
       setZones(prev => [...prev, d.data || d.zone || {}])
-      setZoneForm({ name: '', color: '#9333ea', capacity: '' })
+      setZoneForm({ name: '', color: '#9333ea', capacity: '', zoneType: 'other' })
     }
   }
 
@@ -140,15 +417,26 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
 
   async function addTent() {
     if (!tentForm.name.trim()) return
+    if (!tentForm.capacity.trim()) return
+    const width = tentForm.width_ft ? Number(tentForm.width_ft) : 100
+    const height = tentForm.depth_ft ? Number(tentForm.depth_ft) : 80
     const res = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: tentForm.name, type: tentForm.type, width_ft: tentForm.width_ft ? Number(tentForm.width_ft) : null, depth_ft: tentForm.depth_ft ? Number(tentForm.depth_ft) : null, capacity: tentForm.capacity ? Number(tentForm.capacity) : null, position_x: 100, position_y: 100 }),
+      body: JSON.stringify({
+        tentNumber: tentForm.name,
+        tentType: tentForm.type,
+        width,
+        height,
+        capacity: Number(tentForm.capacity),
+        x: 120 + (tents.length % 5) * 120,
+        y: 140 + Math.floor(tents.length / 5) * 110,
+      }),
     })
     if (res.ok) {
       const d = await res.json()
       setTents(prev => [...prev, d.data || d.tent || {}])
-      setTentForm({ name: '', type: 'tent', width_ft: '', depth_ft: '', capacity: '' })
+      setTentForm({ name: '', type: 'custom', width_ft: '', depth_ft: '', capacity: '' })
     }
   }
 
@@ -162,12 +450,21 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     const res = await fetch(`/api/admin/logistics/site-maps/layers`, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ site_map_id: siteMap.id, name: layerForm.name, color: layerForm.color, order: layers.length }),
+      body: JSON.stringify({
+        siteMapId: siteMap.id,
+        name: layerForm.name,
+        layerType: 'custom',
+        color: layerForm.color,
+        zIndex: layers.length,
+        isVisible: true,
+        isLocked: false,
+      }),
     })
     if (res.ok) {
       const d = await res.json()
       const newLayer = d.data || d.layer || {}
       setLayers(prev => [...prev, newLayer])
+      setActiveLayerId(newLayer.id || activeLayerId)
       setLayerForm({ name: '', color: '#3b82f6' })
     }
   }
@@ -178,6 +475,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       next.has(layerId) ? next.delete(layerId) : next.add(layerId)
       return next
     })
+    const currentlyHidden = hiddenLayers.has(layerId)
+    void fetch(`/api/admin/logistics/site-maps/layers/${layerId}`, {
+      method: 'PATCH',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isVisible: currentlyHidden }),
+    }).catch(() => undefined)
   }
 
   useEffect(() => {
@@ -193,6 +497,75 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     image.onload = () => setBackgroundImage(image)
     image.onerror = () => setBackgroundImage(null)
   }, [siteMap.backgroundImageUrl, siteMap.background_image_url])
+
+  useEffect(() => {
+    if (activityVersion === 0) return
+    let cancelled = false
+    async function refreshActivityBackedData() {
+      try {
+        const [issuesResponse, notesResponse] = await Promise.all([
+          fetch(`/api/admin/logistics/site-maps/issues?siteMapId=${siteMap.id}`, { credentials: 'include' }),
+          fetch(`/api/admin/logistics/site-maps/${siteMap.id}/notes`, { credentials: 'include' }),
+        ])
+        const [issuesPayload, notesPayload] = await Promise.all([
+          issuesResponse.json().catch(() => null),
+          notesResponse.json().catch(() => null),
+        ])
+        if (cancelled) return
+        if (issuesPayload?.success) setIssues(issuesPayload.data || [])
+        if (notesPayload?.success) setNotes(notesPayload.data || [])
+      } catch {}
+    }
+    void refreshActivityBackedData()
+    return () => { cancelled = true }
+  }, [activityVersion, siteMap.id])
+
+  useEffect(() => {
+    if (tasksVersion === 0) return
+    let cancelled = false
+    async function refreshTasks() {
+      try {
+        const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, { credentials: 'include' })
+        const payload = await response.json()
+        if (!cancelled && payload.success) setTasks(payload.data || [])
+      } catch {}
+    }
+    void refreshTasks()
+    return () => { cancelled = true }
+  }, [siteMap.id, tasksVersion])
+
+  useEffect(() => {
+    if (geometryVersion === 0) return
+    let cancelled = false
+    async function refreshGeometry() {
+      try {
+        const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}`, { credentials: 'include' })
+        const payload = await response.json()
+        const map = payload.data || payload.siteMap
+        if (cancelled || !map) return
+        if (Array.isArray(map.zones)) setZones(map.zones)
+        if (Array.isArray(map.tents)) setTents(map.tents)
+        if (Array.isArray(map.elements)) {
+          setElements(map.elements.map((el: any) => ({
+            id: el.id,
+            type: el.element_type || el.elementType || el.type || 'custom',
+            x: Number(el.x) || 0,
+            y: Number(el.y) || 0,
+            width: Number(el.width) || 40,
+            height: Number(el.height) || 40,
+            rotation: Number(el.rotation) || 0,
+            label: el.label || el.name || 'Element',
+            fill: el.fill || el.fill_color || '#334155',
+            stroke: el.stroke || el.stroke_color || '#94a3b8',
+            strokeWidth: Number(el.stroke_width || el.strokeWidth || 2),
+            data: el.data || el.properties || {},
+          })))
+        }
+      } catch {}
+    }
+    void refreshGeometry()
+    return () => { cancelled = true }
+  }, [geometryVersion, siteMap.id])
 
   // Load element statuses from activity log
   useEffect(() => {
@@ -263,55 +636,12 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     return `tmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   }, [])
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    function handleKeyboard(e: KeyboardEvent) {
-      if (e.key === ' ' && document.activeElement?.tagName !== 'INPUT') {
-        e.preventDefault()
-        setIsSpaceHeld(true)
-      }
-      if (isReadOnly) return
-      const meta = e.metaKey || e.ctrlKey
-      if (meta && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
-      if (meta && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo() }
-      if (meta && e.key === 'y') { e.preventDefault(); redo() }
-      if (meta && e.key === 'd' && selectedElement) {
-        e.preventDefault()
-        const el = elements.find(el => el.id === selectedElement)
-        if (el) {
-          const dup = { ...el, id: createElementId(), x: el.x + 20, y: el.y + 20 }
-          updateElements(prev => [...prev, dup])
-          setSelectedElement(dup.id)
-        }
-      }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedElement && document.activeElement?.tagName !== 'INPUT') {
-          e.preventDefault()
-          updateElements(prev => prev.filter(el => el.id !== selectedElement))
-          setSelectedElement(null)
-        }
-      }
-      if (e.key === 'Escape') {
-        setSelectedElementForPlacement(null)
-        setSelectedTool('select')
-        setSelectedElement(null)
-        setContextMenu(null)
-      }
-      if (e.key === 'v' || e.key === 'V') { if (document.activeElement?.tagName !== 'INPUT') setSelectedTool('select') }
-      if (e.key === 'h' || e.key === 'H') { if (document.activeElement?.tagName !== 'INPUT') setSelectedTool('pan') }
-    }
-    function handleKeyUp(e: KeyboardEvent) {
-      if (e.key === ' ') setIsSpaceHeld(false)
-    }
-    window.addEventListener('keydown', handleKeyboard)
-    window.addEventListener('keyup', handleKeyUp)
-    return () => { window.removeEventListener('keydown', handleKeyboard); window.removeEventListener('keyup', handleKeyUp) }
-  }, [isReadOnly, undo, redo, selectedElement, updateElements, elements, createElementId])
 
   // Save to API
   const saveToAPI = useCallback(async () => {
     if (isReadOnly) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const elementsPayload = elements.map(el => ({
         id: el.id,
@@ -326,24 +656,34 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         strokeColor: el.stroke,
         strokeWidth: el.strokeWidth,
         opacity: 1,
-        properties: el.data || {}
+        properties: {
+          ...(el.data || {}),
+          layerId: el.data?.layerId || activeLayerId || null,
+        }
       }))
 
-      await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, {
+      const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({ elements: elementsPayload, upsert: true, sync: true })
       })
+      const payload = await response.json().catch(() => null)
+
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.error || 'Save failed')
+      }
 
       setHasUnsavedChanges(false)
+      setLastSavedAt(new Date())
       onSave?.(siteMap)
     } catch (err) {
       console.error('Failed to save site map:', err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save site map')
     } finally {
       setIsSaving(false)
     }
-  }, [elements, siteMap, onSave, isReadOnly])
+  }, [activeLayerId, elements, siteMap, onSave, isReadOnly])
 
   useEffect(() => {
     if (isReadOnly || !hasUnsavedChanges) return
@@ -353,19 +693,49 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     return () => window.clearTimeout(timer)
   }, [hasUnsavedChanges, isReadOnly, saveToAPI])
 
+  useEffect(() => {
+    if (isReadOnly || !hasUnsavedChanges || !saveError) return
+    const timer = window.setTimeout(() => {
+      void saveToAPI()
+    }, 8000)
+    return () => window.clearTimeout(timer)
+  }, [hasUnsavedChanges, isReadOnly, saveError, saveToAPI])
+
+  useEffect(() => {
+    if (isReadOnly || !hasUnsavedChanges) return
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges, isReadOnly])
+
+  const handleClose = useCallback(() => {
+    if (!isReadOnly && hasUnsavedChanges && !window.confirm('You have unsaved map changes. Close anyway?')) {
+      return
+    }
+    onClose()
+  }, [hasUnsavedChanges, isReadOnly, onClose])
+
   // Fit to content
   const fitToContent = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    if (elements.length === 0) {
+    const bounds = [
+      ...getVisibleElements().map(element => ({ x: element.x, y: element.y, width: element.width, height: element.height })),
+      ...zones.map((zone, index) => normalizeZoneBounds(zone, index)),
+      ...tents.map((tent, index) => normalizeTentBounds(tent, index)),
+    ]
+    if (bounds.length === 0) {
       setZoom(1)
       setPan({ x: 0, y: 0 })
       return
     }
-    const minX = Math.min(...elements.map(e => e.x))
-    const minY = Math.min(...elements.map(e => e.y))
-    const maxX = Math.max(...elements.map(e => e.x + e.width))
-    const maxY = Math.max(...elements.map(e => e.y + e.height))
+    const minX = Math.min(...bounds.map(e => e.x))
+    const minY = Math.min(...bounds.map(e => e.y))
+    const maxX = Math.max(...bounds.map(e => e.x + e.width))
+    const maxY = Math.max(...bounds.map(e => e.y + e.height))
     const contentW = maxX - minX + 80
     const contentH = maxY - minY + 80
     const rect = canvas.getBoundingClientRect()
@@ -377,7 +747,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       x: -minX * newZoom + (rect.width - contentW * newZoom) / 2 + 40 * newZoom,
       y: -minY * newZoom + (rect.height - contentH * newZoom) / 2 + 40 * newZoom
     })
-  }, [elements])
+  }, [getVisibleElements, normalizeTentBounds, normalizeZoneBounds, tents, zones])
 
   // Export as PNG
   const exportAsPNG = useCallback(() => {
@@ -401,9 +771,29 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       ctx.fillRect(0, 0, siteMap.width, siteMap.height)
     }
 
-    // Draw elements
-    elements.forEach(element => {
+    getVisibleZones().forEach((zone, index) => {
+      drawZone(ctx, zone, index)
+    })
+
+    tents.forEach((tent, index) => {
+      drawTent(ctx, tent, index)
+    })
+
+    getVisibleElements().forEach(element => {
       drawElement(ctx, element)
+    })
+
+    measurements.forEach(measurement => {
+      drawMeasurement(ctx, measurement)
+    })
+
+    getVisibleIssues().forEach(issue => {
+      drawIssue(ctx, issue)
+    })
+
+    const notesToDraw = canvasFilters.unresolvedNotesOnly ? getUnresolvedNotes() : notes
+    notesToDraw.forEach(note => {
+      drawNotePin(ctx, note)
     })
 
     const dataURL = exportCanvas.toDataURL('image/png')
@@ -411,13 +801,19 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     link.download = `${siteMap.name.replace(/\s+/g, '_')}_sitemap.png`
     link.href = dataURL
     link.click()
-  }, [siteMap.name, siteMap.width, siteMap.height, elements, canvasTheme, backgroundImage])
+  }, [siteMap.name, siteMap.width, siteMap.height, canvasFilters.unresolvedNotesOnly, zones, tents, getVisibleElements, getVisibleIssues, getVisibleZones, getUnresolvedNotes, measurements, canvasTheme, backgroundImage, elements, tasks, selectedObject])
 
   // Export as JSON
   const exportAsJSON = useCallback(() => {
     const exportData = {
       siteMap: { id: siteMap.id, name: siteMap.name, description: siteMap.description, width: siteMap.width, height: siteMap.height },
       elements: elements.map(el => ({ type: el.type, x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, label: el.label, fill: el.fill, stroke: el.stroke, data: el.data })),
+      zones,
+      tents,
+      measurements,
+      issues,
+      notes,
+      tasks,
       metadata: { exportedAt: new Date().toISOString(), version: '1.0' }
     }
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
@@ -426,7 +822,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     link.href = URL.createObjectURL(blob)
     link.click()
     URL.revokeObjectURL(link.href)
-  }, [siteMap, elements])
+  }, [siteMap, elements, zones, tents, measurements, issues, notes, tasks])
 
   const exportAsPDF = useCallback(() => {
     const canvas = canvasRef.current
@@ -448,50 +844,18 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     popup.document.close()
   }, [siteMap.height, siteMap.name, siteMap.width])
 
-  // Grid utility functions
-  const snapToGridPosition = useCallback((x: number, y: number) => {
-    if (!snapToGrid) return { x, y }
-    return {
-      x: Math.round(x / gridSize) * gridSize,
-      y: Math.round(y / gridSize) * gridSize
-    }
-  }, [snapToGrid, gridSize])
-
-  const getGridAlignedDimensions = useCallback((width: number, height: number) => {
-    if (!snapToGrid) return { width, height }
-    return {
-      width: Math.max(gridSize, Math.round(width / gridSize) * gridSize),
-      height: Math.max(gridSize, Math.round(height / gridSize) * gridSize)
-    }
-  }, [snapToGrid, gridSize])
-
-  const getOccupiedGridCells = useCallback((x: number, y: number, width: number, height: number) => {
-    const cells: Array<{x: number, y: number}> = []
-    const gridX = Math.floor(x / gridSize)
-    const gridY = Math.floor(y / gridSize)
-    const gridWidth = Math.ceil(width / gridSize)
-    const gridHeight = Math.ceil(height / gridSize)
-    
-    for (let gy = gridY; gy < gridY + gridHeight; gy++) {
-      for (let gx = gridX; gx < gridX + gridWidth; gx++) {
-        cells.push({ x: gx * gridSize, y: gy * gridSize })
+  const snapToGridPosition = useCallback((x: number, y: number) => snapPoint(x, y, snapOptions), [snapOptions])
+  const getGridAlignedDimensions = useCallback((width: number, height: number) => alignDims(width, height, snapOptions), [snapOptions])
+  const getOccupiedGridCells = useCallback((x: number, y: number, width: number, height: number) => occupiedCells(x, y, width, height, gridSize), [gridSize])
+  const checkPlacementValidity = useCallback((x: number, y: number, width: number, height: number, ignoreIds: string[] = []) => {
+    return placementValid(
+      { x, y, width, height },
+      {
+        mapWidth: siteMap.width,
+        mapHeight: siteMap.height,
+        obstacles: elements.map((el) => ({ id: el.id, x: el.x, y: el.y, width: el.width, height: el.height })),
+        ignoreIds,
       }
-    }
-    return cells
-  }, [gridSize])
-
-  const checkPlacementValidity = useCallback((x: number, y: number, width: number, height: number) => {
-    // Check if placement is within canvas bounds
-    if (x < 0 || y < 0 || x + width > siteMap.width || y + height > siteMap.height) {
-      return false
-    }
-    
-    // Check for collisions with existing elements
-    return !elements.some(element => 
-      x < element.x + element.width &&
-      x + width > element.x &&
-      y < element.y + element.height &&
-      y + height > element.y
     )
   }, [elements, siteMap.width, siteMap.height])
 
@@ -501,9 +865,10 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       try {
         const resp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/elements`, { credentials: 'include' })
         if (!resp.ok) {
-          // Leave elements as empty array — canvas will show empty state
+          setLoadError('Failed to load map elements')
           return
         }
+        setLoadError(null)
         const data = await resp.json()
         if (data.success && Array.isArray(data.data)) {
           const mapped: SiteMapElement[] = data.data.map((el: any) => ({
@@ -526,8 +891,8 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         }
         // If data.data is empty array, elements stays [] — canvas shows empty state hint
       } catch {
-        // Network error — leave elements as empty, do not inject demo data
         console.warn('[SiteMapViewer] Failed to load elements — showing empty canvas')
+        setLoadError('Failed to load map elements')
       }
     }
     loadElements()
@@ -643,9 +1008,34 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       }
     }
 
-    // Draw elements
-    elements.forEach(element => {
+    // Draw first-class site map objects
+    getVisibleZones().forEach((zone, index) => {
+      drawZone(ctx, zone, index)
+    })
+
+    tents.forEach((tent, index) => {
+      drawTent(ctx, tent, index)
+    })
+
+    getVisibleElements().forEach(element => {
       drawElement(ctx, element)
+    })
+
+    measurements.forEach(measurement => {
+      drawMeasurement(ctx, measurement)
+    })
+
+    if (measureStart && measureHover) {
+      drawMeasurementPreview(ctx, measureStart, measureHover)
+    }
+
+    getVisibleIssues().forEach(issue => {
+      drawIssue(ctx, issue)
+    })
+
+    const notesToDraw = canvasFilters.unresolvedNotesOnly ? getUnresolvedNotes() : notes
+    notesToDraw.forEach(note => {
+      drawNotePin(ctx, note)
     })
 
     // Draw placement preview
@@ -654,143 +1044,275 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     }
 
     ctx.restore()
-  }, [siteMap, elements, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses, backgroundImage])
+  }, [siteMap, canvasFilters.unresolvedNotesOnly, getUnresolvedNotes, getVisibleElements, getVisibleIssues, getVisibleZones, zones, tents, measurements, measureStart, measureHover, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElements, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses, backgroundImage, notes, marqueeStart, marqueeEnd, tasks, selectedObject])
 
-  const drawElementSymbol = (ctx: CanvasRenderingContext2D, type: string, w: number, h: number, color: string) => {
-    const cx = w / 2
-    const cy = (h - 25) / 2
-    const s = Math.min(w, h - 25) * 0.3
-    ctx.fillStyle = color
-    ctx.strokeStyle = color
-    ctx.lineWidth = 2
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
+  const countOpenTasksForObject = (objectId: string) =>
+    tasks.filter((task) => {
+      const id = task.elementId || task.element_id
+      return id === objectId && task.status !== 'completed'
+    }).length
 
-    const symbolMap: Record<string, () => void> = {
-      // Tents & Shelters
-      'vip-tent': () => { ctx.beginPath(); ctx.moveTo(cx - s, cy + s * 0.7); ctx.lineTo(cx, cy - s * 0.7); ctx.lineTo(cx + s, cy + s * 0.7); ctx.closePath(); ctx.stroke() },
-      'pop-up-tent-10x10': () => symbolMap['vip-tent'](),
-      'frame-tent-20x30': () => symbolMap['vip-tent'](),
-      'pole-tent-40x60': () => symbolMap['vip-tent'](),
-      'backstage-tent': () => symbolMap['vip-tent'](),
-      'merchandise-tent': () => symbolMap['vip-tent'](),
-      'information-tent': () => symbolMap['vip-tent'](),
-      'check-in-tent': () => symbolMap['vip-tent'](),
-      'medical-tent': () => { symbolMap['vip-tent'](); ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy); ctx.lineTo(cx + s * 0.3, cy); ctx.moveTo(cx, cy - s * 0.3); ctx.lineTo(cx, cy + s * 0.3); ctx.stroke() },
-      'camping-tent-site': () => symbolMap['vip-tent'](),
-      'glamping-bell-tent': () => symbolMap['vip-tent'](),
-      'shade-sail': () => { ctx.beginPath(); ctx.moveTo(cx - s, cy - s * 0.4); ctx.lineTo(cx + s, cy - s * 0.4); ctx.lineTo(cx + s * 0.5, cy + s * 0.4); ctx.lineTo(cx - s * 0.5, cy + s * 0.4); ctx.closePath(); ctx.stroke() },
-
-      // Stages & Music
-      'main-stage': () => { ctx.fillStyle = color; ctx.fillRect(cx - s, cy - s * 0.3, s * 2, s * 0.6); ctx.beginPath(); ctx.arc(cx - s * 0.4, cy - s * 0.6, s * 0.15, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(cx + s * 0.4, cy - s * 0.6, s * 0.15, 0, Math.PI * 2); ctx.fill() },
-      'dj-booth': () => symbolMap['main-stage'](),
-      'acoustic-stage': () => symbolMap['main-stage'](),
-
-      // Food & Drink
-      'food-truck': () => { ctx.strokeRect(cx - s, cy - s * 0.4, s * 2, s * 0.8); ctx.beginPath(); ctx.arc(cx - s * 0.5, cy + s * 0.6, s * 0.2, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(cx + s * 0.5, cy + s * 0.6, s * 0.2, 0, Math.PI * 2); ctx.stroke() },
-      'food-vendor-tent': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.5, cy + s * 0.3); ctx.lineTo(cx - s * 0.3, cy - s * 0.3); ctx.lineTo(cx + s * 0.3, cy - s * 0.3); ctx.lineTo(cx + s * 0.5, cy + s * 0.3); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - s * 0.2, cy + s * 0.3); ctx.lineTo(cx, cy - s * 0.1); ctx.lineTo(cx + s * 0.2, cy + s * 0.3); ctx.stroke() },
-      'bbq-grill-station': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.4, cy + s * 0.3); ctx.lineTo(cx, cy - s * 0.5); ctx.lineTo(cx + s * 0.4, cy + s * 0.3); ctx.stroke() },
-      'bar-station': () => { ctx.strokeRect(cx - s * 0.6, cy - s * 0.2, s * 1.2, s * 0.4); ctx.beginPath(); ctx.arc(cx, cy - s * 0.5, s * 0.15, 0, Math.PI * 2); ctx.stroke() },
-      'coffee-cart': () => symbolMap['bar-station'](),
-      'ice-cream-stand': () => symbolMap['food-vendor-tent'](),
-      'water-refill-station': () => { ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.5); ctx.lineTo(cx, cy + s * 0.5); ctx.moveTo(cx - s * 0.2, cy - s * 0.3); ctx.lineTo(cx + s * 0.2, cy - s * 0.3); ctx.stroke() },
-
-      // Vendors
-      'vendor-booth-10x10': () => { ctx.strokeRect(cx - s * 0.7, cy - s * 0.5, s * 1.4, s); ctx.beginPath(); ctx.moveTo(cx - s * 0.7, cy - s * 0.2); ctx.lineTo(cx + s * 0.7, cy - s * 0.2); ctx.stroke() },
-      'vendor-booth-10x20': () => symbolMap['vendor-booth-10x10'](),
-      'artisan-market-stall': () => symbolMap['vendor-booth-10x10'](),
-      'merch-trailer': () => symbolMap['food-truck'](),
-      'atm-machine': () => { ctx.strokeRect(cx - s * 0.3, cy - s * 0.5, s * 0.6, s); ctx.fillStyle = color; ctx.font = `bold ${s * 0.4}px monospace`; ctx.textAlign = 'center'; ctx.fillText('$', cx, cy + s * 0.15) },
-      'ticket-booth': () => { ctx.strokeRect(cx - s * 0.5, cy - s * 0.4, s, s * 0.8); ctx.beginPath(); ctx.moveTo(cx - s * 0.2, cy); ctx.lineTo(cx + s * 0.2, cy); ctx.stroke() },
-
-      // Security
-      'security-checkpoint': () => { ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.6); ctx.lineTo(cx - s * 0.5, cy + s * 0.4); ctx.lineTo(cx + s * 0.5, cy + s * 0.4); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.15); ctx.lineTo(cx, cy + s * 0.2); ctx.stroke() },
-      'emergency-exit': () => { ctx.beginPath(); ctx.moveTo(cx + s * 0.4, cy); ctx.lineTo(cx - s * 0.4, cy); ctx.lineTo(cx - s * 0.1, cy - s * 0.3); ctx.moveTo(cx - s * 0.4, cy); ctx.lineTo(cx - s * 0.1, cy + s * 0.3); ctx.stroke(); ctx.strokeRect(cx - s * 0.6, cy - s * 0.5, s * 1.2, s) },
-      'emergency-exit-gate': () => symbolMap['emergency-exit'](),
-      'fire-extinguisher': () => { ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.6); ctx.lineTo(cx, cy + s * 0.4); ctx.moveTo(cx - s * 0.3, cy + s * 0.4); ctx.lineTo(cx + s * 0.3, cy + s * 0.4); ctx.stroke() },
-      'fire-lane': () => { ctx.setLineDash([4, 4]); ctx.strokeRect(cx - s * 0.8, cy - s * 0.15, s * 1.6, s * 0.3); ctx.setLineDash([]) },
-      'crowd-barrier': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.8, cy); ctx.lineTo(cx + s * 0.8, cy); ctx.stroke(); ctx.fillRect(cx - s * 0.8, cy - s * 0.1, s * 0.1, s * 0.2); ctx.fillRect(cx + s * 0.7, cy - s * 0.1, s * 0.1, s * 0.2) },
-      'security-tower': () => { ctx.strokeRect(cx - s * 0.3, cy - s * 0.1, s * 0.6, s * 0.6); ctx.beginPath(); ctx.moveTo(cx - s * 0.4, cy - s * 0.1); ctx.lineTo(cx, cy - s * 0.6); ctx.lineTo(cx + s * 0.4, cy - s * 0.1); ctx.closePath(); ctx.stroke() },
-      'bag-check-area': () => { ctx.strokeRect(cx - s * 0.5, cy - s * 0.3, s, s * 0.6); ctx.beginPath(); ctx.arc(cx, cy - s * 0.3, s * 0.15, Math.PI, 0); ctx.stroke() },
-
-      // Essential services
-      'first-aid-station': () => { ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx - s * 0.4, cy); ctx.lineTo(cx + s * 0.4, cy); ctx.moveTo(cx, cy - s * 0.4); ctx.lineTo(cx, cy + s * 0.4); ctx.stroke(); ctx.lineWidth = 2 },
-      'ambulance-bay': () => symbolMap['first-aid-station'](),
-      'info-booth': () => { ctx.font = `bold ${s}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('i', cx, cy) },
-      'lost-and-found': () => { ctx.beginPath(); ctx.arc(cx, cy - s * 0.1, s * 0.4, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = color; ctx.font = `bold ${s * 0.5}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', cx, cy - s * 0.1) },
-      'phone-charging-station': () => { ctx.strokeRect(cx - s * 0.2, cy - s * 0.4, s * 0.4, s * 0.7); ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.4); ctx.lineTo(cx, cy + s * 0.55); ctx.stroke() },
-      'baby-changing-station': () => { ctx.beginPath(); ctx.arc(cx, cy - s * 0.2, s * 0.25, 0, Math.PI * 2); ctx.stroke(); ctx.strokeRect(cx - s * 0.4, cy + s * 0.1, s * 0.8, s * 0.1) },
-      'accessibility-ramp': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.5, cy + s * 0.3); ctx.lineTo(cx + s * 0.5, cy - s * 0.3); ctx.lineTo(cx + s * 0.5, cy + s * 0.3); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.arc(cx, cy, s * 0.25, 0, Math.PI * 2); ctx.stroke() },
-      'accessible-viewing-platform': () => symbolMap['accessibility-ramp'](),
-
-      // Signage
-      'directional-sign': () => { ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.5); ctx.lineTo(cx, cy - s * 0.3); ctx.lineTo(cx + s * 0.4, cy - s * 0.1); ctx.lineTo(cx, cy + s * 0.1); ctx.stroke() },
-      'event-banner': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.6, cy - s * 0.3); ctx.lineTo(cx - s * 0.6, cy + s * 0.5); ctx.moveTo(cx + s * 0.6, cy - s * 0.3); ctx.lineTo(cx + s * 0.6, cy + s * 0.5); ctx.moveTo(cx - s * 0.6, cy - s * 0.3); ctx.lineTo(cx + s * 0.6, cy - s * 0.3); ctx.stroke() },
-      'digital-schedule-board': () => { ctx.strokeRect(cx - s * 0.5, cy - s * 0.4, s, s * 0.7); ctx.beginPath(); for (let i = 0; i < 3; i++) { ctx.moveTo(cx - s * 0.35, cy - s * 0.15 + i * s * 0.2); ctx.lineTo(cx + s * 0.35, cy - s * 0.15 + i * s * 0.2) }; ctx.stroke() },
-      'speaker-pa-tower': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.15, cy - s * 0.3); ctx.lineTo(cx + s * 0.15, cy - s * 0.3); ctx.lineTo(cx + s * 0.3, cy); ctx.lineTo(cx + s * 0.15, cy + s * 0.3); ctx.lineTo(cx - s * 0.15, cy + s * 0.3); ctx.closePath(); ctx.stroke(); ctx.beginPath(); ctx.arc(cx + s * 0.45, cy, s * 0.15, -0.5, 0.5); ctx.stroke() },
-
-      // Sanitation
-      'trash-bin': () => { ctx.strokeRect(cx - s * 0.3, cy - s * 0.2, s * 0.6, s * 0.5); ctx.beginPath(); ctx.moveTo(cx - s * 0.4, cy - s * 0.2); ctx.lineTo(cx + s * 0.4, cy - s * 0.2); ctx.stroke() },
-      'recycling-station': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy - s * 0.3); ctx.lineTo(cx + s * 0.1, cy + s * 0.1); ctx.moveTo(cx + s * 0.3, cy - s * 0.3); ctx.lineTo(cx - s * 0.1, cy + s * 0.1); ctx.moveTo(cx, cy + s * 0.4); ctx.lineTo(cx, cy - s * 0.1); ctx.stroke() },
-      'dumpster': () => { ctx.strokeRect(cx - s * 0.5, cy - s * 0.2, s, s * 0.5); ctx.beginPath(); ctx.moveTo(cx - s * 0.5, cy - s * 0.2); ctx.lineTo(cx - s * 0.4, cy - s * 0.4); ctx.lineTo(cx + s * 0.4, cy - s * 0.4); ctx.lineTo(cx + s * 0.5, cy - s * 0.2); ctx.stroke() },
-      'hand-washing-station': () => symbolMap['water-refill-station'](),
-
-      // Transportation
-      'parking-lot': () => { ctx.font = `bold ${s * 0.8}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('P', cx, cy) },
-      'vip-parking': () => symbolMap['parking-lot'](),
-      'shuttle-stop': () => { ctx.strokeRect(cx - s * 0.6, cy - s * 0.3, s * 1.2, s * 0.6); ctx.beginPath(); ctx.arc(cx - s * 0.3, cy + s * 0.4, s * 0.12, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(cx + s * 0.3, cy + s * 0.4, s * 0.12, 0, Math.PI * 2); ctx.stroke() },
-      'rideshare-zone': () => { ctx.beginPath(); ctx.arc(cx, cy - s * 0.15, s * 0.35, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.2); ctx.lineTo(cx, cy + s * 0.5); ctx.stroke() },
-      'bicycle-rack': () => { ctx.beginPath(); ctx.arc(cx, cy, s * 0.35, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.35); ctx.lineTo(cx, cy + s * 0.35); ctx.moveTo(cx - s * 0.35, cy); ctx.lineTo(cx + s * 0.35, cy); ctx.stroke() },
-      'loading-dock': () => symbolMap['food-truck'](),
-      'rv-hookup': () => { ctx.strokeRect(cx - s * 0.6, cy - s * 0.3, s * 1.2, s * 0.6); ctx.beginPath(); ctx.moveTo(cx - s * 0.6, cy - s * 0.1); ctx.lineTo(cx - s * 0.8, cy - s * 0.1); ctx.lineTo(cx - s * 0.8, cy + s * 0.1); ctx.lineTo(cx - s * 0.6, cy + s * 0.1); ctx.stroke() },
-
-      // Landscaping
-      'tree': () => { ctx.beginPath(); ctx.arc(cx, cy - s * 0.2, s * 0.35, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(cx - s * 0.05, cy + s * 0.15, s * 0.1, s * 0.35) },
-      'planter-box': () => { ctx.strokeRect(cx - s * 0.5, cy - s * 0.15, s, s * 0.4); ctx.beginPath(); ctx.arc(cx - s * 0.15, cy - s * 0.3, s * 0.12, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(cx + s * 0.15, cy - s * 0.3, s * 0.12, 0, Math.PI * 2); ctx.fill() },
-      'string-lights': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.7, cy - s * 0.1); ctx.quadraticCurveTo(cx, cy + s * 0.2, cx + s * 0.7, cy - s * 0.1); ctx.stroke(); for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.arc(cx + i * s * 0.25, cy + Math.abs(i) * s * 0.03, s * 0.06, 0, Math.PI * 2); ctx.fill() } },
-      'spotlight': () => { ctx.beginPath(); ctx.arc(cx, cy, s * 0.25, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.25); ctx.lineTo(cx - s * 0.15, cy - s * 0.5); ctx.lineTo(cx + s * 0.15, cy - s * 0.5); ctx.closePath(); ctx.fill() },
-
-      // Technology
-      'wifi-tower': () => { ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.4); ctx.lineTo(cx, cy - s * 0.2); ctx.stroke(); for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(cx, cy - s * 0.2, s * 0.15 * i, -Math.PI * 0.75, -Math.PI * 0.25); ctx.stroke() } },
-      'camera-mount': () => { ctx.strokeRect(cx - s * 0.3, cy - s * 0.2, s * 0.6, s * 0.4); ctx.beginPath(); ctx.arc(cx, cy, s * 0.12, 0, Math.PI * 2); ctx.stroke() },
-
-      // Special areas
-      'smoking-area': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.1, cy + s * 0.3); ctx.lineTo(cx - s * 0.1, cy - s * 0.1); ctx.quadraticCurveTo(cx - s * 0.1, cy - s * 0.4, cx + s * 0.1, cy - s * 0.4); ctx.stroke() },
-      'pet-relief-area': () => { ctx.beginPath(); ctx.arc(cx, cy - s * 0.15, s * 0.25, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.arc(cx - s * 0.15, cy - s * 0.35, s * 0.08, 0, Math.PI * 2); ctx.fill(); ctx.beginPath(); ctx.arc(cx + s * 0.15, cy - s * 0.35, s * 0.08, 0, Math.PI * 2); ctx.fill() },
-      'quiet-zone': () => { ctx.beginPath(); ctx.arc(cx, cy, s * 0.35, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx - s * 0.15, cy - s * 0.15); ctx.lineTo(cx + s * 0.15, cy + s * 0.15); ctx.moveTo(cx + s * 0.15, cy - s * 0.15); ctx.lineTo(cx - s * 0.15, cy + s * 0.15); ctx.stroke() },
-
-      // Furniture
-      'folding-chair': () => { ctx.strokeRect(cx - s * 0.3, cy - s * 0.3, s * 0.6, s * 0.6) },
-      'round-table': () => { ctx.beginPath(); ctx.arc(cx, cy, s * 0.35, 0, Math.PI * 2); ctx.stroke() },
-      'rectangular-table': () => { ctx.strokeRect(cx - s * 0.6, cy - s * 0.2, s * 1.2, s * 0.4) },
-      'picnic-table': () => { ctx.strokeRect(cx - s * 0.5, cy - s * 0.15, s, s * 0.3); ctx.beginPath(); ctx.moveTo(cx - s * 0.6, cy + s * 0.25); ctx.lineTo(cx + s * 0.6, cy + s * 0.25); ctx.moveTo(cx - s * 0.6, cy - s * 0.25); ctx.lineTo(cx + s * 0.6, cy - s * 0.25); ctx.stroke() },
-
-      // Power
-      'generator-50kw': () => { ctx.beginPath(); ctx.moveTo(cx - s * 0.3, cy - s * 0.4); ctx.lineTo(cx + s * 0.1, cy); ctx.lineTo(cx - s * 0.1, cy); ctx.lineTo(cx + s * 0.3, cy + s * 0.4); ctx.stroke() },
-      'generator-100kw': () => symbolMap['generator-50kw'](),
-      'power-distribution': () => symbolMap['generator-50kw'](),
-      'water-station': () => symbolMap['water-refill-station'](),
-      'portable-restroom': () => { ctx.strokeRect(cx - s * 0.3, cy - s * 0.4, s * 0.6, s * 0.8); ctx.beginPath(); ctx.arc(cx, cy - s * 0.15, s * 0.12, 0, Math.PI * 2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(cx, cy - s * 0.03); ctx.lineTo(cx, cy + s * 0.25); ctx.stroke() },
-      'luxury-restroom': () => symbolMap['portable-restroom'](),
+  const drawOpsBadge = (
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    leadLabel?: string | null,
+    openTaskCount = 0
+  ) => {
+    let offsetX = width - 12
+    if (openTaskCount > 0) {
+      ctx.fillStyle = '#f59e0b'
+      ctx.beginPath()
+      ctx.arc(offsetX, 12, 9, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#0f172a'
+      ctx.font = '700 10px Inter, system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(String(Math.min(openTaskCount, 99)), offsetX, 12)
+      offsetX -= 22
     }
-
-    const drawFn = symbolMap[type]
-    if (drawFn) {
-      ctx.globalAlpha = 0.7
-      drawFn()
-      ctx.globalAlpha = 1
+    if (leadLabel) {
+      ctx.fillStyle = '#22c55e'
+      ctx.beginPath()
+      ctx.arc(offsetX, 12, 9, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = '#052e16'
+      ctx.font = '700 9px Inter, system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(leadLabel.slice(0, 2).toUpperCase(), offsetX, 12)
     }
   }
 
-  const roundRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
-    r = Math.min(r, w / 2, h / 2)
+  const drawZone = (ctx: CanvasRenderingContext2D, zone: any, index: number) => {
+    const bounds = normalizeZoneBounds(zone, index)
+    const color = zone.color || '#9333ea'
+    const borderColor = zone.border_color || zone.borderColor || color
+    const opacity = getNumber(zone.opacity, 0.22)
+    const rotation = getNumber(zone.rotation, 0)
+    const isSelected = selectedObject?.kind === 'zone' && selectedObject.id === zone.id
+
+    ctx.save()
+    ctx.translate(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    ctx.rotate((rotation * Math.PI) / 180)
+    ctx.translate(-bounds.width / 2, -bounds.height / 2)
+
+    ctx.globalAlpha = Math.min(0.85, Math.max(0.12, opacity))
+    ctx.fillStyle = color
+    roundRect(ctx, 0, 0, bounds.width, bounds.height, 8)
+    ctx.fill()
+    ctx.globalAlpha = 1
+
+    ctx.strokeStyle = isSelected ? '#fbbf24' : borderColor
+    ctx.lineWidth = isSelected ? 3 : getNumber(zone.border_width ?? zone.borderWidth, 2)
+    ctx.setLineDash(isSelected ? [] : [10, 6])
+    roundRect(ctx, 0, 0, bounds.width, bounds.height, 8)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)'
+    roundRect(ctx, 8, 8, Math.min(bounds.width - 16, 180), 34, 6)
+    ctx.fill()
+    ctx.fillStyle = '#ffffff'
+    ctx.font = '700 12px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'middle'
+    drawFittedLabel(ctx, zone.name || `Zone ${index + 1}`, 18, 21, Math.min(bounds.width - 36, 150))
+    ctx.fillStyle = '#cbd5e1'
+    ctx.font = '500 10px Inter, system-ui, sans-serif'
+    drawFittedLabel(ctx, (zone.zone_type || zone.zoneType || 'zone').replace(/_/g, ' '), 18, 35, Math.min(bounds.width - 36, 150))
+
+    const leadId = zone.lead_user_id || zone.leadUserId
+    const leadInitials = leadId ? String(leadId).slice(0, 2) : (zone.assigned_department || zone.assignedDepartment || '').slice(0, 2)
+    drawOpsBadge(ctx, bounds.width, leadInitials || null, countOpenTasksForObject(zone.id))
+
+    ctx.restore()
+  }
+
+  const drawTent = (ctx: CanvasRenderingContext2D, tent: any, index: number) => {
+    const bounds = normalizeTentBounds(tent, index)
+    const status = tent.status || 'available'
+    const statusColors: Record<string, string> = {
+      available: '#2563eb',
+      occupied: '#f59e0b',
+      reserved: '#7c3aed',
+      maintenance: '#ef4444',
+    }
+    const color = statusColors[status] || '#2563eb'
+    const rotation = getNumber(tent.rotation, 0)
+
+    ctx.save()
+    ctx.translate(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
+    ctx.rotate((rotation * Math.PI) / 180)
+    ctx.translate(-bounds.width / 2, -bounds.height / 2)
+
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)'
+    ctx.shadowBlur = 6
+    ctx.shadowOffsetY = 2
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)'
+    roundRect(ctx, 0, 0, bounds.width, bounds.height, 7)
+    ctx.fill()
+    ctx.shadowColor = 'transparent'
+
+    ctx.strokeStyle = color
+    ctx.lineWidth = 2
+    roundRect(ctx, 0, 0, bounds.width, bounds.height, 7)
+    ctx.stroke()
+
+    ctx.strokeStyle = `${color}cc`
+    ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.moveTo(x + r, y)
-    ctx.arcTo(x + w, y, x + w, y + h, r)
-    ctx.arcTo(x + w, y + h, x, y + h, r)
-    ctx.arcTo(x, y + h, x, y, r)
-    ctx.arcTo(x, y, x + w, y, r)
+    ctx.moveTo(bounds.width * 0.18, bounds.height * 0.64)
+    ctx.lineTo(bounds.width * 0.5, bounds.height * 0.22)
+    ctx.lineTo(bounds.width * 0.82, bounds.height * 0.64)
+    ctx.stroke()
+
+    ctx.fillStyle = '#ffffff'
+    ctx.font = '700 11px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    drawFittedLabel(ctx, tent.tent_number || tent.name || `Structure ${index + 1}`, bounds.width / 2, bounds.height - 16, bounds.width - 12)
+
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.arc(bounds.width - 10, 10, 4.5, 0, Math.PI * 2)
+    ctx.fill()
+
+    drawOpsBadge(ctx, bounds.width, null, countOpenTasksForObject(tent.id))
+
+    ctx.restore()
+  }
+
+  const drawMeasurement = (ctx: CanvasRenderingContext2D, measurement: MapMeasurementRow) => {
+    const startX = getNumber(measurement.start_x ?? measurement.startX, 0)
+    const startY = getNumber(measurement.start_y ?? measurement.startY, 0)
+    const endX = getNumber(measurement.end_x ?? measurement.endX, startX)
+    const endY = getNumber(measurement.end_y ?? measurement.endY, startY)
+    const color = measurement.color || '#fb7185'
+    const label = measurement.label || `${measurement.value ?? ''} ${measurement.unit || ''}`.trim()
+
+    ctx.save()
+    ctx.strokeStyle = color
+    ctx.fillStyle = color
+    ctx.lineWidth = 3
+    ctx.setLineDash([8, 5])
+    ctx.beginPath()
+    ctx.moveTo(startX, startY)
+    ctx.lineTo(endX, endY)
+    ctx.stroke()
+    ctx.setLineDash([])
+
+    ctx.beginPath()
+    ctx.arc(startX, startY, 5, 0, Math.PI * 2)
+    ctx.arc(endX, endY, 5, 0, Math.PI * 2)
+    ctx.fill()
+
+    if (label) {
+      const midX = (startX + endX) / 2
+      const midY = (startY + endY) / 2
+      ctx.font = '700 11px Inter, system-ui, sans-serif'
+      const textWidth = Math.min(ctx.measureText(label).width + 16, 180)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)'
+      roundRect(ctx, midX - textWidth / 2, midY - 14, textWidth, 24, 6)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      drawFittedLabel(ctx, label, midX, midY - 2, textWidth - 10)
+    }
+
+    ctx.restore()
+  }
+
+  const drawMeasurementPreview = (ctx: CanvasRenderingContext2D, start: { x: number; y: number }, end: { x: number; y: number }) => {
+    const pixels = Math.hypot(end.x - start.x, end.y - start.y)
+    const scale = getNumber(siteMap.scale, 1)
+    const unit = siteMap.scaleUnit || siteMap.scale_unit || 'meters'
+    const label = `${(pixels * scale).toFixed(1)} ${unit}`
+    drawMeasurement(ctx, {
+      id: 'preview',
+      start_x: start.x,
+      start_y: start.y,
+      end_x: end.x,
+      end_y: end.y,
+      value: Number((pixels * scale).toFixed(1)),
+      unit,
+      label,
+      color: '#38bdf8',
+    })
+  }
+
+  const drawIssue = (ctx: CanvasRenderingContext2D, issue: MapIssueRow) => {
+    const severityColors: Record<string, string> = {
+      low: '#38bdf8',
+      medium: '#f59e0b',
+      high: '#f97316',
+      critical: '#ef4444',
+    }
+    const color = severityColors[issue.severity || 'medium'] || '#f59e0b'
+
+    ctx.save()
+    ctx.translate(issue.x, issue.y)
+    ctx.fillStyle = color
+    ctx.strokeStyle = '#0f172a'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(0, -16)
+    ctx.lineTo(15, 12)
+    ctx.lineTo(-15, 12)
     ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.fillStyle = '#0f172a'
+    ctx.font = '900 16px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('!', 0, 3)
+
+    if (issue.title) {
+      ctx.font = '700 10px Inter, system-ui, sans-serif'
+      const textWidth = Math.min(ctx.measureText(issue.title).width + 14, 150)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)'
+      roundRect(ctx, -textWidth / 2, 18, textWidth, 22, 6)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      drawFittedLabel(ctx, issue.title, 0, 29, textWidth - 10)
+    }
+
+    ctx.restore()
+  }
+
+  const drawNotePin = (ctx: CanvasRenderingContext2D, note: any) => {
+    const values = note.new_values || note.newValues || {}
+    const x = getNumber(values.x, 0)
+    const y = getNumber(values.y, 0)
+    const label = values.content || 'Note'
+
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.fillStyle = '#38bdf8'
+    ctx.strokeStyle = '#0f172a'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.arc(0, 0, 12, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+
+    ctx.fillStyle = '#0f172a'
+    ctx.font = '900 12px Inter, system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('N', 0, 1)
+
+    ctx.font = '700 10px Inter, system-ui, sans-serif'
+    const textWidth = Math.min(ctx.measureText(label).width + 14, 150)
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)'
+    roundRect(ctx, -textWidth / 2, 16, textWidth, 22, 6)
+    ctx.fill()
+    ctx.fillStyle = '#ffffff'
+    drawFittedLabel(ctx, label, 0, 27, textWidth - 10)
+    ctx.restore()
   }
 
   const drawElement = (ctx: CanvasRenderingContext2D, element: SiteMapElement) => {
@@ -800,7 +1322,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     ctx.translate(-element.width / 2, -element.height / 2)
 
     const r = Math.min(8, element.width * 0.08, element.height * 0.08)
-    const isSelected = selectedElement === element.id
+    const isSelected = (selectedElement === element.id || selectedElements.includes(element.id))
 
     // Drop shadow
     ctx.shadowColor = isSelected ? 'rgba(251, 191, 36, 0.5)' : 'rgba(0, 0, 0, 0.4)'
@@ -871,6 +1393,8 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       ctx.lineWidth = 1.5
       ctx.stroke()
     }
+
+    drawOpsBadge(ctx, element.width, null, countOpenTasksForObject(element.id))
 
     // Drag handle indicator when selected
     if (isSelected) {
@@ -944,24 +1468,342 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     ctx.restore()
   }
 
-  // Helper to get map coords from mouse event
-  const getMapCoords = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+  const getMapCoords = useCallback((event: { clientX: number; clientY: number }) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
-    const rect = canvas.getBoundingClientRect()
-    return {
-      x: (event.clientX - rect.left - pan.x) / zoom,
-      y: (event.clientY - rect.top - pan.y) / zoom
-    }
+    return screenToMapCoords(event.clientX, event.clientY, canvas.getBoundingClientRect(), pan, zoom)
   }, [pan, zoom])
 
-  const hitTestElement = useCallback((mx: number, my: number) => {
-    for (let i = elements.length - 1; i >= 0; i--) {
-      const el = elements[i]
-      if (mx >= el.x && mx <= el.x + el.width && my >= el.y && my <= el.y + el.height) return el
+  const hitTestElement = useCallback((mx: number, my: number) => hitTestRect(elements, mx, my), [elements])
+
+  const hitTestZone = useCallback((mx: number, my: number) => {
+    const rects = zones.map((zone, index) => ({ ...normalizeZoneBounds(zone, index), id: zone.id, __raw: zone, __index: index }))
+    return hitTestRect(rects, mx, my)
+  }, [normalizeZoneBounds, zones])
+
+  const hitTestTent = useCallback((mx: number, my: number) => {
+    const rects = tents.map((tent, index) => ({ ...normalizeTentBounds(tent, index), id: tent.id, __raw: tent, __index: index }))
+    return hitTestRect(rects, mx, my)
+  }, [normalizeTentBounds, tents])
+
+  const persistZonePosition = useCallback(async (zoneId: string, bounds: MapBounds) => {
+    try {
+      await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${zoneId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }),
+      })
+    } catch (error) {
+      console.error('Failed to persist zone position', error)
+      setToolError('Failed to save zone position')
     }
-    return null
-  }, [elements])
+  }, [siteMap.id])
+
+  const persistTentPosition = useCallback(async (tentId: string, bounds: MapBounds) => {
+    try {
+      await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${tentId}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }),
+      })
+    } catch (error) {
+      console.error('Failed to persist tent position', error)
+      setToolError('Failed to save structure position')
+    }
+  }, [siteMap.id])
+
+  const placeCannedElementAt = useCallback((canned: CannedElement | LibraryDragPayload, rawX: number, rawY: number) => {
+    const width = 'width' in canned ? canned.width : 60
+    const height = 'height' in canned ? canned.height : 60
+    const aligned = getGridAlignedDimensions(width, height)
+    const finalPosition = computeCenteredPlacement({ x: rawX, y: rawY }, aligned.width, aligned.height, snapOptions)
+    const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, aligned.width, aligned.height)
+    if (!isValid) return false
+
+    const id = 'cannedElementId' in canned ? canned.cannedElementId : canned.id
+    const name = canned.name
+    const color = canned.color
+    const strokeColor = 'strokeColor' in canned ? canned.strokeColor : (canned as CannedElement).strokeColor
+    const properties = canned.properties || {}
+
+    const newElement: SiteMapElement = {
+      id: createElementId(),
+      type: id,
+      x: finalPosition.x,
+      y: finalPosition.y,
+      width: aligned.width,
+      height: aligned.height,
+      rotation: 0,
+      fill: color,
+      stroke: strokeColor,
+      strokeWidth: 2,
+      label: name,
+      data: { ...properties, layerId: activeLayerId },
+    }
+    updateElements((prev) => [...prev, newElement])
+    setSelectedElement(newElement.id)
+    setSelectedElements([newElement.id])
+    setSelectedElementForPlacement(null)
+    setSelectedTool('select')
+    setHighlightedGridCells([])
+    setIsValidPlacement(true)
+    return true
+  }, [activeLayerId, checkPlacementValidity, createElementId, getGridAlignedDimensions, snapOptions, updateElements])
+
+  const updateElementStatus = useCallback(async (elementId: string, status: ElementStatus) => {
+    if (isReadOnly) return
+    setElementStatuses(prev => ({ ...prev, [elementId]: status }))
+    try {
+      const response = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'STATUS_CHANGE',
+          entityType: 'status_change',
+          entityId: elementId,
+          newValues: { status }
+        })
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.error || 'Failed to update status')
+      }
+    } catch (error) {
+      console.error('Failed to update element status:', error)
+      setToolError(error instanceof Error ? error.message : 'Failed to update status')
+    }
+  }, [isReadOnly, siteMap.id])
+
+  const createMeasurementAt = useCallback(async (x: number, y: number) => {
+    if (isReadOnly) return
+    setToolError(null)
+
+    if (!measureStart) {
+      setMeasureStart({ x, y })
+      setMeasureHover({ x, y })
+      return
+    }
+
+    const scale = getNumber(siteMap.scale, 1)
+    const unit = siteMap.scaleUnit || siteMap.scale_unit || 'meters'
+    const distance = Math.hypot(x - measureStart.x, y - measureStart.y)
+    const value = Number((distance * scale).toFixed(2))
+
+    try {
+      const response = await fetch('/api/admin/logistics/site-maps/measurements', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteMapId: siteMap.id,
+          measurementType: 'distance',
+          startX: Math.round(measureStart.x),
+          startY: Math.round(measureStart.y),
+          endX: Math.round(x),
+          endY: Math.round(y),
+          value,
+          unit,
+          label: `${value} ${unit}`,
+          color: '#fb7185',
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.error || 'Failed to save measurement')
+      }
+      setMeasurements(prev => [payload.data, ...prev].filter(Boolean))
+      setMeasureStart(null)
+      setMeasureHover(null)
+    } catch (error) {
+      console.error('Failed to create measurement:', error)
+      setToolError(error instanceof Error ? error.message : 'Failed to create measurement')
+    }
+  }, [getNumber, isReadOnly, measureStart, siteMap.id, siteMap.scale, siteMap.scaleUnit, siteMap.scale_unit])
+
+  const createIssueAt = useCallback(async (x: number, y: number) => {
+    if (isReadOnly) return
+    setIssueDraft({ title: '', description: '', severity: 'medium', x, y })
+    setIssueDialogOpen(true)
+  }, [isReadOnly])
+
+  const submitIssue = useCallback(async () => {
+    if (!issueDraft.title.trim()) return
+    setToolError(null)
+    try {
+      const response = await fetch('/api/admin/logistics/site-maps/issues', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteMapId: siteMap.id,
+          issueType: 'logistics',
+          severity: issueDraft.severity || 'medium',
+          title: issueDraft.title.trim(),
+          description: issueDraft.description.trim() || undefined,
+          x: Math.round(issueDraft.x),
+          y: Math.round(issueDraft.y),
+        }),
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok || payload?.success === false) {
+        throw new Error(payload?.error || 'Failed to save issue')
+      }
+      setIssues(prev => [payload.data, ...prev].filter(Boolean))
+      setSelectedTool('select')
+      setIssueDialogOpen(false)
+      setIssueDraft({ title: '', description: '', severity: 'medium', x: 0, y: 0 })
+    } catch (error) {
+      console.error('Failed to create issue:', error)
+      setToolError(error instanceof Error ? error.message : 'Failed to create issue')
+    }
+  }, [issueDraft, siteMap.id])
+
+  const submitTextLabel = useCallback(() => {
+    if (!textDraft.label.trim()) return
+    const aligned = getGridAlignedDimensions(120, 40)
+    const pos = snapToGridPosition(textDraft.x - aligned.width / 2, textDraft.y - aligned.height / 2)
+    const newElement: SiteMapElement = {
+      id: createElementId(),
+      type: 'custom',
+      x: pos.x,
+      y: pos.y,
+      width: aligned.width,
+      height: aligned.height,
+      rotation: 0,
+      fill: 'rgba(15, 23, 42, 0.7)',
+      stroke: '#94a3b8',
+      strokeWidth: 1,
+      label: textDraft.label.trim(),
+      data: { layerId: activeLayerId, isTextLabel: true },
+    }
+    updateElements(prev => [...prev, newElement])
+    setTextDialogOpen(false)
+    setTextDraft({ label: '', x: 0, y: 0 })
+    setSelectedTool('select')
+  }, [activeLayerId, createElementId, getGridAlignedDimensions, snapToGridPosition, textDraft, updateElements])
+
+  const deleteSelectedMeasurementOrIssue = useCallback(async () => {
+    if (selectedMeasurementId) {
+      const res = await fetch(`/api/admin/logistics/site-maps/measurements/${selectedMeasurementId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (res.ok) {
+        setMeasurements((prev) => prev.filter((m) => m.id !== selectedMeasurementId))
+        setSelectedMeasurementId(null)
+      }
+      return
+    }
+    if (selectedIssueId) {
+      const res = await fetch(`/api/admin/logistics/site-maps/issues/${selectedIssueId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (res.ok) {
+        setIssues((prev) => prev.filter((i) => i.id !== selectedIssueId))
+        setSelectedIssueId(null)
+      }
+    }
+  }, [selectedIssueId, selectedMeasurementId])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyboard(e: KeyboardEvent) {
+      if (e.key === ' ' && document.activeElement?.tagName !== 'INPUT') {
+        e.preventDefault()
+        setIsSpaceHeld(true)
+      }
+      if (isReadOnly) return
+      const meta = e.metaKey || e.ctrlKey
+      if (meta && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo() }
+      if (meta && e.key === 'z' && e.shiftKey) { e.preventDefault(); redo() }
+      if (meta && e.key === 'y') { e.preventDefault(); redo() }
+      if (meta && e.key === 'd' && selectedElement) {
+        e.preventDefault()
+        const el = elements.find(el => el.id === selectedElement)
+        if (el) {
+          const dup = { ...el, id: createElementId(), x: el.x + 20, y: el.y + 20 }
+          updateElements(prev => [...prev, dup])
+          setSelectedElement(dup.id)
+        }
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+        e.preventDefault()
+        if (selectedElements.length) {
+          updateElements(prev => prev.filter(el => !selectedElements.includes(el.id)))
+          setSelectedElement(null)
+          setSelectedElements([])
+          setSelectedObject(null)
+          return
+        }
+        void deleteSelectedMeasurementOrIssue()
+      }
+      if (e.key === 'Escape') {
+        setSelectedElementForPlacement(null)
+        setSelectedTool('select')
+        setSelectedElement(null)
+        setContextMenu(null)
+        setMeasureStart(null)
+        setMeasureHover(null)
+      }
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return
+      if (e.key === 'v' || e.key === 'V') setSelectedTool('select')
+      if (e.key === 'h' || e.key === 'H') setSelectedTool('pan')
+      if (e.key === 'm' || e.key === 'M') setSelectedTool('measure')
+      if (e.key === 't' || e.key === 'T') setSelectedTool('text')
+      if (e.key === 'i' || e.key === 'I') setSelectedTool('issue')
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedElements.length) {
+        e.preventDefault()
+        const step = e.shiftKey ? gridSize * 5 : gridSize
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        updateElements((prev) => prev.map((el) => selectedElements.includes(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el))
+      }
+    }
+    function handleKeyUp(e: KeyboardEvent) {
+      if (e.key === ' ') setIsSpaceHeld(false)
+    }
+    window.addEventListener('keydown', handleKeyboard)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => { window.removeEventListener('keydown', handleKeyboard); window.removeEventListener('keyup', handleKeyUp) }
+  }, [isReadOnly, undo, redo, selectedElement, selectedElements, updateElements, elements, createElementId, gridSize, deleteSelectedMeasurementOrIssue])
+
+  const handleLibraryDragStart = useCallback((event: DragStartEvent) => {
+    const canned = event.active.data.current?.cannedElement as CannedElement | undefined
+    setActiveLibraryDrag(canned || null)
+  }, [])
+
+  const handleLibraryDragEnd = useCallback((event: DragEndEvent) => {
+    setActiveLibraryDrag(null)
+    if (isReadOnly) return
+    if (event.over?.id !== 'site-map-canvas-drop') return
+    const payload = event.active.data.current?.payload as LibraryDragPayload | undefined
+    const canned = event.active.data.current?.cannedElement as CannedElement | undefined
+    if (!payload && !canned) return
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const activator = event.activatorEvent as PointerEvent | undefined
+    const dropX = (activator?.clientX ?? rect.left + rect.width / 2) + event.delta.x
+    const dropY = (activator?.clientY ?? rect.top + rect.height / 2) + event.delta.y
+    const coords = screenToMapCoords(dropX, dropY, rect, pan, zoom)
+    placeCannedElementAt(canned || payload!, coords.x, coords.y)
+  }, [isReadOnly, pan, placeCannedElementAt, zoom])
+
+  const handlePublishClick = useCallback(async () => {
+    if (!onPublish || isPublishing) return
+    setIsPublishing(true)
+    try {
+      await onPublish({ ...siteMap, status: 'published' })
+      setMapStatus('published')
+    } finally {
+      setIsPublishing(false)
+    }
+  }, [isPublishing, onPublish, siteMap])
 
   // Event handlers
   const handleCanvasMouseDown = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -980,13 +1822,66 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     if (selectedElementForPlacement) return
 
     if (selectedTool === 'select' && !isReadOnly) {
+      const selectedEl = selectedElement ? elements.find((el) => el.id === selectedElement) : null
+      if (selectedEl) {
+        const handle = hitTestResizeHandle(selectedEl, rawX, rawY, 12)
+        if (handle) {
+          setResizeHandle(handle)
+          setIsDragging(true)
+          setDragTarget({ kind: 'element', id: selectedEl.id })
+          return
+        }
+      }
+
       const hit = hitTestElement(rawX, rawY)
       if (hit) {
-        setSelectedElement(hit.id)
-        setSelectedElements([hit.id])
+        if (event.shiftKey) {
+          setSelectedElements((prev) => prev.includes(hit.id) ? prev.filter((id) => id !== hit.id) : [...prev, hit.id])
+          setSelectedElement(hit.id)
+        } else {
+          setSelectedElement(hit.id)
+          setSelectedElements([hit.id])
+        }
+        setSelectedObject({ kind: 'element', id: hit.id })
+        setShowContextDrawer(true)
+        setContextTab('properties')
         setIsDragging(true)
+        setDragTarget({ kind: 'element', id: hit.id })
         setDragStart({ x: rawX - hit.x, y: rawY - hit.y })
+        return
       }
+
+      const zoneHit = hitTestZone(rawX, rawY)
+      if (zoneHit) {
+        setSelectedElement(null)
+        setSelectedElements([])
+        setSelectedObject({ kind: 'zone', id: zoneHit.id })
+        setShowContextDrawer(true)
+        setContextTab('properties')
+        setIsDragging(true)
+        setDragTarget({ kind: 'zone', id: zoneHit.id })
+        setDragStart({ x: rawX - zoneHit.x, y: rawY - zoneHit.y })
+        return
+      }
+
+      const tentHit = hitTestTent(rawX, rawY)
+      if (tentHit) {
+        setSelectedElement(null)
+        setSelectedElements([])
+        setSelectedObject({ kind: 'tent', id: tentHit.id })
+        setShowContextDrawer(true)
+        setContextTab('properties')
+        setIsDragging(true)
+        setDragTarget({ kind: 'tent', id: tentHit.id })
+        setDragStart({ x: rawX - tentHit.x, y: rawY - tentHit.y })
+        return
+      }
+
+      setMarqueeStart({ x: rawX, y: rawY })
+      setMarqueeEnd({ x: rawX, y: rawY })
+      setSelectedElement(null)
+      setSelectedElements([])
+      setSelectedObject(null)
     }
   }
 
@@ -997,51 +1892,77 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     }
 
     if (isDragging) {
+      if (dragTarget?.kind === 'element') pushHistory(elements)
+      if (dragTarget?.kind === 'zone') {
+        const zone = zones.find((z) => z.id === dragTarget.id)
+        if (zone) {
+          const idx = zones.indexOf(zone)
+          void persistZonePosition(zone.id, normalizeZoneBounds(zone, idx))
+        }
+      }
+      if (dragTarget?.kind === 'tent') {
+        const tent = tents.find((t) => t.id === dragTarget.id)
+        if (tent) {
+          const idx = tents.indexOf(tent)
+          void persistTentPosition(tent.id, normalizeTentBounds(tent, idx))
+        }
+      }
       setIsDragging(false)
+      setResizeHandle(null)
+      setDragTarget(null)
+      return
+    }
+
+    if (marqueeStart && marqueeEnd) {
+      const x1 = Math.min(marqueeStart.x, marqueeEnd.x)
+      const y1 = Math.min(marqueeStart.y, marqueeEnd.y)
+      const x2 = Math.max(marqueeStart.x, marqueeEnd.x)
+      const y2 = Math.max(marqueeStart.y, marqueeEnd.y)
+      if (x2 - x1 > 4 && y2 - y1 > 4) {
+        const ids = elements.filter((el) =>
+          el.x + el.width >= x1 && el.x <= x2 && el.y + el.height >= y1 && el.y <= y2
+        ).map((el) => el.id)
+        setSelectedElements(ids)
+        setSelectedElement(ids[0] || null)
+      }
+      setMarqueeStart(null)
+      setMarqueeEnd(null)
       return
     }
 
     if (event.button !== 0) return
     const { x: rawX, y: rawY } = getMapCoords(event)
 
-    if (selectedElementForPlacement) {
-      const snappedPosition = snapToGridPosition(rawX, rawY)
-      const alignedDimensions = getGridAlignedDimensions(selectedElementForPlacement.width, selectedElementForPlacement.height)
-      const centeredX = snappedPosition.x - alignedDimensions.width / 2
-      const centeredY = snappedPosition.y - alignedDimensions.height / 2
-      const finalPosition = snapToGridPosition(centeredX, centeredY)
-      const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
+    if (!isReadOnly && selectedTool === 'measure') {
+      void createMeasurementAt(rawX, rawY)
+      return
+    }
 
-      if (isValid) {
-        const newElement: SiteMapElement = {
-          id: createElementId(),
-          type: selectedElementForPlacement.id,
-          x: finalPosition.x,
-          y: finalPosition.y,
-          width: alignedDimensions.width,
-          height: alignedDimensions.height,
-          rotation: 0,
-          fill: selectedElementForPlacement.color,
-          stroke: selectedElementForPlacement.strokeColor,
-          strokeWidth: 2,
-          label: selectedElementForPlacement.name,
-          data: selectedElementForPlacement.properties
-        }
-        updateElements(prev => [...prev, newElement])
-        setSelectedElementForPlacement(null)
-        setSelectedTool('select')
-        setHighlightedGridCells([])
-        setIsValidPlacement(true)
-      }
-    } else {
-      const clickedElement = hitTestElement(rawX, rawY)
-      if (clickedElement) {
-        setSelectedElement(clickedElement.id)
-        setSelectedElements([clickedElement.id])
-      } else {
-        setSelectedElement(null)
-        setSelectedElements([])
-      }
+    if (!isReadOnly && selectedTool === 'issue') {
+      void createIssueAt(rawX, rawY)
+      return
+    }
+
+    if (!isReadOnly && selectedTool === 'text') {
+      setTextDraft({ label: '', x: rawX, y: rawY })
+      setTextDialogOpen(true)
+      return
+    }
+
+    if (!isReadOnly && selectedTool === 'delete') {
+      const hit = hitTestElement(rawX, rawY)
+      if (hit) deleteElement(hit.id)
+      return
+    }
+
+    if (!isReadOnly && selectedTool === 'duplicate') {
+      const hit = hitTestElement(rawX, rawY)
+      if (hit) duplicateElement(hit.id)
+      return
+    }
+
+    if (selectedElementForPlacement) {
+      placeCannedElementAt(selectedElementForPlacement, rawX, rawY)
     }
   }
 
@@ -1051,31 +1972,68 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
       return
     }
 
-    if (isDragging && selectedElement && !isReadOnly) {
-      const { x: rawX, y: rawY } = getMapCoords(event)
-      const newX = rawX - dragStart.x
-      const newY = rawY - dragStart.y
-      const snapped = snapToGridPosition(newX, newY)
-      setElements(prev => prev.map(el =>
-        el.id === selectedElement ? { ...el, x: snapped.x, y: snapped.y } : el
-      ))
-      setHasUnsavedChanges(true)
+    if (marqueeStart) {
+      setMarqueeEnd(getMapCoords(event))
       return
+    }
+
+    if (isDragging && !isReadOnly && dragTarget) {
+      const { x: rawX, y: rawY } = getMapCoords(event)
+      if (dragTarget.kind === 'element' && resizeHandle) {
+        setElements((prev) => prev.map((el) => {
+          if (el.id !== dragTarget.id) return el
+          const next = applyResize(el, resizeHandle, rawX, rawY, gridSize)
+          const snapped = {
+            ...next,
+            ...snapToGridPosition(next.x, next.y),
+            ...getGridAlignedDimensions(next.width, next.height),
+          }
+          return { ...el, ...snapped }
+        }))
+        setHasUnsavedChanges(true)
+        return
+      }
+
+      if (dragTarget.kind === 'element') {
+        const newX = rawX - dragStart.x
+        const newY = rawY - dragStart.y
+        const snapped = snapToGridPosition(newX, newY)
+        const primary = elements.find((el) => el.id === dragTarget.id)
+        if (!primary) return
+        const dx = snapped.x - primary.x
+        const dy = snapped.y - primary.y
+        const ids = selectedElements.includes(dragTarget.id) ? selectedElements : [dragTarget.id]
+        setElements((prev) => prev.map((el) => ids.includes(el.id) ? { ...el, x: el.x + dx, y: el.y + dy } : el))
+        setHasUnsavedChanges(true)
+        return
+      }
+
+      if (dragTarget.kind === 'zone') {
+        const snapped = snapToGridPosition(rawX - dragStart.x, rawY - dragStart.y)
+        setZones((prev) => prev.map((zone) => zone.id === dragTarget.id ? { ...zone, x: snapped.x, y: snapped.y } : zone))
+        return
+      }
+
+      if (dragTarget.kind === 'tent') {
+        const snapped = snapToGridPosition(rawX - dragStart.x, rawY - dragStart.y)
+        setTents((prev) => prev.map((tent) => tent.id === dragTarget.id ? { ...tent, x: snapped.x, y: snapped.y } : tent))
+        return
+      }
     }
 
     if (selectedElementForPlacement) {
       const { x: rawX, y: rawY } = getMapCoords(event)
       const snappedPosition = snapToGridPosition(rawX, rawY)
       setHoverPosition(snappedPosition)
-
       const alignedDimensions = getGridAlignedDimensions(selectedElementForPlacement.width, selectedElementForPlacement.height)
-      const centeredX = snappedPosition.x - alignedDimensions.width / 2
-      const centeredY = snappedPosition.y - alignedDimensions.height / 2
-      const finalPosition = snapToGridPosition(centeredX, centeredY)
-      const cells = getOccupiedGridCells(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-      setHighlightedGridCells(cells)
-      const isValid = checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height)
-      setIsValidPlacement(isValid)
+      const finalPosition = computeCenteredPlacement(snappedPosition, alignedDimensions.width, alignedDimensions.height, snapOptions)
+      setHighlightedGridCells(getOccupiedGridCells(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height))
+      setIsValidPlacement(checkPlacementValidity(finalPosition.x, finalPosition.y, alignedDimensions.width, alignedDimensions.height))
+      return
+    }
+
+    if (selectedTool === 'measure' && measureStart) {
+      setMeasureHover(getMapCoords(event))
     }
   }
 
@@ -1119,6 +2077,8 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
     setHoverPosition(null)
     setHighlightedGridCells([])
     setIsValidPlacement(true)
+    setMeasureStart(null)
+    setMeasureHover(null)
   }
 
   const handleToolSelect = (tool: string) => {
@@ -1135,6 +2095,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
   }, [drawCanvas])
 
   return (
+    <DndContext sensors={dndSensors} onDragStart={handleLibraryDragStart} onDragEnd={handleLibraryDragEnd}>
     <div className={cn(
       "fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center",
       isFullscreen && "p-0"
@@ -1160,13 +2121,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                     variant="secondary"
                     className={cn(
                       "px-2 py-0.5 text-[10px] font-medium rounded-full border shrink-0",
-                      siteMap.status === 'published'
+                      mapStatus === 'published'
                         ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                         : "bg-amber-500/20 text-amber-300 border-amber-500/30"
                     )}
                   >
-                    <div className={cn("w-1.5 h-1.5 rounded-full mr-1", siteMap.status === 'published' ? "bg-emerald-400" : "bg-amber-400")}></div>
-                    {siteMap.status}
+                    <div className={cn("w-1.5 h-1.5 rounded-full mr-1", mapStatus === 'published' ? "bg-emerald-400" : "bg-amber-400")}></div>
+                    {mapStatus}
                   </Badge>
                   <span className="text-xs text-slate-400 font-mono shrink-0">{siteMap.width}×{siteMap.height}</span>
                 </div>
@@ -1177,14 +2138,25 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowCollabPanel(!showCollabPanel)}
+                onClick={() => setShowContextDrawer((open) => !open)}
                 className={cn(
                   "h-8 px-2.5 rounded-lg border text-xs",
-                  showCollabPanel ? "text-blue-300 bg-blue-500/20 border-blue-500/40" : "text-slate-400 hover:text-white border-slate-700/30"
+                  showContextDrawer ? "text-blue-300 bg-blue-500/20 border-blue-500/40" : "text-slate-400 hover:text-white border-slate-700/30"
                 )}
               >
-                <MessageCircle className="h-3.5 w-3.5 mr-1.5" />Collab
+                <PanelRight className="h-3.5 w-3.5 mr-1.5" />Context
               </Button>
+              {!isReadOnly && onPublish && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={isPublishing}
+                  onClick={() => void handlePublishClick()}
+                  className="h-8 px-2.5 rounded-lg text-xs text-emerald-300 hover:text-white border border-emerald-500/30"
+                >
+                  <Send className="h-3.5 w-3.5 mr-1.5" />{isPublishing ? 'Publishing…' : 'Publish'}
+                </Button>
+              )}
               {!isReadOnly && (
                 <Button variant="ghost" size="sm" onClick={() => setShowShareDialog(true)} className="h-8 px-2.5 rounded-lg text-xs text-slate-400 hover:text-white border border-slate-700/30">
                   <Share className="h-3.5 w-3.5 mr-1.5" />Share
@@ -1193,15 +2165,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
               <Button variant="ghost" size="sm" onClick={() => setIsFullscreen(!isFullscreen)} className="h-8 w-8 rounded-lg text-slate-400 hover:text-white border border-slate-700/30">
                 {isFullscreen ? <Minimize className="h-3.5 w-3.5" /> : <Maximize className="h-3.5 w-3.5" />}
               </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEditing(!isEditing)}
-                className={cn("h-8 w-8 rounded-lg border", isEditing ? "text-purple-300 bg-purple-500/20 border-purple-500/40" : "text-slate-400 hover:text-white border-slate-700/30")}
-              >
-                <Edit3 className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={onClose} className="h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-red-500/20 border border-red-500/30">
+              <Button variant="ghost" size="sm" onClick={handleClose} className="h-8 w-8 rounded-lg text-slate-400 hover:text-white hover:bg-red-500/20 border border-red-500/30">
                 ✕
               </Button>
             </div>
@@ -1210,54 +2174,51 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
 
         <div className="flex flex-1 overflow-hidden">
           {/* Left Sidebar */}
-          {!isReadOnly && <div className="w-72 border-r border-slate-700/30 bg-slate-900/40 backdrop-blur-2xl flex flex-col">
+          {!isReadOnly && (
+            <button
+              type="button"
+              onClick={() => setLeftSidebarOpen((open) => !open)}
+              className="absolute left-0 top-1/2 z-20 -translate-y-1/2 rounded-r-md border border-slate-700/40 bg-slate-900/90 p-1 text-slate-400 hover:text-white"
+              style={{ marginLeft: leftSidebarOpen ? '18rem' : 0 }}
+            >
+              {leftSidebarOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </button>
+          )}
+          {!isReadOnly && leftSidebarOpen && <div className="w-72 border-r border-slate-700/30 bg-slate-900/40 backdrop-blur-2xl flex flex-col">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
               <div className="px-2 py-2 border-b border-slate-700/30">
-                <TabsList className="flex flex-wrap gap-0.5 bg-slate-800/60 border border-slate-700/40 rounded-lg p-0.5 h-auto">
-                  <TabsTrigger value="elements" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
-                    <Square className="h-2.5 w-2.5 mr-0.5" />Elem
+                <TabsList className="grid grid-cols-3 gap-0.5 bg-slate-800/60 border border-slate-700/40 rounded-lg p-0.5 h-auto">
+                  <TabsTrigger value="library" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white rounded text-[10px] font-medium h-7 px-1.5">
+                    Library
                   </TabsTrigger>
-                  <TabsTrigger value="tools" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
-                    <Settings className="h-2.5 w-2.5 mr-0.5" />Tools
+                  <TabsTrigger value="layers" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white rounded text-[10px] font-medium h-7 px-1.5">
+                    Layers
                   </TabsTrigger>
-                  <TabsTrigger value="inspect" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
-                    <Eye className="h-2.5 w-2.5 mr-0.5" />Inspect
-                  </TabsTrigger>
-                  <TabsTrigger value="zones" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
-                    <MapPin className="h-2.5 w-2.5 mr-0.5" />Zones
-                  </TabsTrigger>
-                  <TabsTrigger value="tents" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
-                    <Building className="h-2.5 w-2.5 mr-0.5" />Struct
-                  </TabsTrigger>
-                  <TabsTrigger value="layers" className="data-[state=active]:bg-purple-500/80 data-[state=active]:text-white rounded text-[10px] font-medium h-6 px-1.5 flex-1">
-                    <Layers className="h-2.5 w-2.5 mr-0.5" />Layers
+                  <TabsTrigger value="objects" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white rounded text-[10px] font-medium h-7 px-1.5">
+                    Objects
                   </TabsTrigger>
                 </TabsList>
               </div>
 
               <div className="flex-1 overflow-hidden">
-                <TabsContent value="elements" className="h-full mt-0">
-                  <ElementLibrary onElementSelect={handleElementSelect} selectedElement={selectedElementForPlacement} className="h-full" />
-                </TabsContent>
-                <TabsContent value="tools" className="h-full mt-0 p-3">
-                  <ToolPalette selectedTool={selectedTool} onToolSelect={handleToolSelect} className="h-full" />
-                </TabsContent>
-                <TabsContent value="inspect" className="h-full mt-0">
-                  <ElementInspector
-                    element={elements.find(e => e.id === selectedElement) || null}
-                    onUpdate={(id, updates) => {
-                      updateElements(prev => prev.map(el => el.id === id ? { ...el, ...updates } : el))
-                    }}
-                    onDelete={(id) => { deleteElement(id) }}
-                  />
+                <TabsContent value="library" className="h-full mt-0 flex flex-col">
+                  <div className="p-2 border-b border-slate-700/30">
+                    <ToolPalette selectedTool={selectedTool} onToolSelect={handleToolSelect} />
+                  </div>
+                  <ElementLibraryPanel onElementSelect={handleElementSelect} selectedElement={selectedElementForPlacement} className="flex-1 min-h-0" />
                 </TabsContent>
 
                 {/* Zones Panel */}
-                <TabsContent value="zones" className="h-full mt-0 p-2 overflow-y-auto">
+                <TabsContent value="objects" className="h-full mt-0 p-2 overflow-y-auto">
                   <div className="space-y-3">
                     <div className="space-y-1.5">
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Add Zone</p>
                       <input value={zoneForm.name} onChange={e => setZoneForm(p => ({ ...p, name: e.target.value }))} placeholder="Zone name..." className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
+                      <select value={zoneForm.zoneType} onChange={e => setZoneForm(p => ({ ...p, zoneType: e.target.value }))} className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2">
+                        {['stage','security','medical','entrance','exit','vendor','food','parking','utility','storage','other'].map((type) => (
+                          <option key={type} value={type}>{type}</option>
+                        ))}
+                      </select>
                       <div className="flex gap-1.5">
                         <input type="color" value={zoneForm.color} onChange={e => setZoneForm(p => ({ ...p, color: e.target.value }))} className="h-7 w-10 rounded border-0 bg-transparent cursor-pointer" />
                         <input type="number" value={zoneForm.capacity} onChange={e => setZoneForm(p => ({ ...p, capacity: e.target.value }))} placeholder="Capacity" className="flex-1 h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
@@ -1281,17 +2242,19 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                         Total capacity: {zones.reduce((s: number, z: any) => s + (Number(z.capacity) || 0), 0)}
                       </div>
                     )}
-                  </div>
-                </TabsContent>
-
-                {/* Structures/Tents Panel */}
-                <TabsContent value="tents" className="h-full mt-0 p-2 overflow-y-auto">
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
+                    <div className="space-y-1.5 border-t border-slate-700/30 pt-3">
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Add Structure</p>
                       <input value={tentForm.name} onChange={e => setTentForm(p => ({ ...p, name: e.target.value }))} placeholder="Structure name..." className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2" />
                       <select value={tentForm.type} onChange={e => setTentForm(p => ({ ...p, type: e.target.value }))} className="w-full h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-2">
-                        {['tent','stage','booth','trailer','building'].map(t => <option key={t} value={t}>{t}</option>)}
+                        {[
+                          ['custom', 'Custom Structure'],
+                          ['bell_tent', 'Bell Tent'],
+                          ['safari_tent', 'Safari Tent'],
+                          ['yurt', 'Yurt'],
+                          ['tipi', 'Tipi'],
+                          ['dome', 'Dome'],
+                          ['cabin', 'Cabin'],
+                        ].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                       </select>
                       <div className="grid grid-cols-3 gap-1">
                         <input type="number" value={tentForm.width_ft} onChange={e => setTentForm(p => ({ ...p, width_ft: e.target.value }))} placeholder="W (ft)" className="h-7 text-xs bg-slate-800/50 border border-slate-700/50 text-white rounded px-1.5" />
@@ -1306,8 +2269,8 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                         <div key={t.id} className="flex items-center gap-2 p-1.5 bg-slate-800/30 rounded text-xs">
                           <Building className="h-3 w-3 text-blue-400 shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-slate-200 truncate">{t.name}</p>
-                            <p className="text-slate-500 text-[10px] capitalize">{t.type} {t.width_ft ? `${t.width_ft}×${t.depth_ft}ft` : ''}</p>
+                            <p className="text-slate-200 truncate">{t.tent_number || t.name}</p>
+                            <p className="text-slate-500 text-[10px] capitalize">{(t.tent_type || t.type || 'structure').replace(/_/g, ' ')} {t.width ? `${t.width}×${t.height}` : ''}</p>
                           </div>
                           <button onClick={() => deleteTent(t.id)} className="text-slate-500 hover:text-red-400 shrink-0">×</button>
                         </div>
@@ -1384,9 +2347,9 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-500">Tool:</span>
-                      <Badge variant="outline" className="text-xs text-slate-300 border-slate-600/50 bg-slate-800/60 px-2 py-0.5 rounded-lg capitalize">
-                        {selectedTool}
+                      <span className="text-xs text-slate-500">Mode:</span>
+                      <Badge className="text-xs bg-slate-800 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-lg capitalize">
+                        {selectedElementForPlacement ? 'Place' : selectedTool}
                       </Badge>
                     </div>
                   )}
@@ -1455,9 +2418,22 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                   </Button>
                 </div>
               </div>
+
+              <div className="mt-2">
+                <SiteMapFilterBar
+                  filters={canvasFilters}
+                  onChange={setCanvasFilters}
+                  layers={layers}
+                  assigneeOptions={assigneeOptions}
+                />
+                <div className="mt-1 text-right text-[10px] text-slate-500">
+                  {getVisibleElements().length}/{elements.length} elements · {getVisibleZones().length}/{zones.length} zones · {getVisibleIssues().length}/{issues.length} issues
+                </div>
+              </div>
             </div>
 
-            <div className="flex-1 p-2 relative z-10">
+            <CanvasDropZone>
+            <div className="flex-1 p-2 relative z-10 h-full">
               <div className="relative w-full h-full bg-slate-950/30 rounded-xl border border-slate-700/30 overflow-hidden shadow-inner">
                 <canvas
                   ref={canvasRef}
@@ -1508,7 +2484,35 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                 {/* Minimap */}
                 <div className="absolute bottom-3 right-3 w-36 h-24 bg-slate-900/90 border border-slate-600/50 rounded-lg overflow-hidden backdrop-blur-sm shadow-lg">
                   <div className="relative w-full h-full">
-                    {elements.map(el => {
+                    {zones.map((zone, index) => {
+                      const bounds = normalizeZoneBounds(zone, index)
+                      const sx = (bounds.x / siteMap.width) * 100
+                      const sy = (bounds.y / siteMap.height) * 100
+                      const sw = (bounds.width / siteMap.width) * 100
+                      const sh = (bounds.height / siteMap.height) * 100
+                      return (
+                        <div
+                          key={`zone-${zone.id || index}`}
+                          className="absolute border border-purple-300/70 bg-purple-400/20"
+                          style={{ left: `${sx}%`, top: `${sy}%`, width: `${Math.max(sw, 2)}%`, height: `${Math.max(sh, 2)}%`, borderRadius: 2 }}
+                        />
+                      )
+                    })}
+                    {tents.map((tent, index) => {
+                      const bounds = normalizeTentBounds(tent, index)
+                      const sx = (bounds.x / siteMap.width) * 100
+                      const sy = (bounds.y / siteMap.height) * 100
+                      const sw = (bounds.width / siteMap.width) * 100
+                      const sh = (bounds.height / siteMap.height) * 100
+                      return (
+                        <div
+                          key={`tent-${tent.id || index}`}
+                          className="absolute bg-blue-400/70"
+                          style={{ left: `${sx}%`, top: `${sy}%`, width: `${Math.max(sw, 2)}%`, height: `${Math.max(sh, 2)}%`, borderRadius: 1 }}
+                        />
+                      )
+                    })}
+                    {getVisibleElements().map(el => {
                       const sx = (el.x / siteMap.width) * 100
                       const sy = (el.y / siteMap.height) * 100
                       const sw = (el.width / siteMap.width) * 100
@@ -1566,26 +2570,135 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
                 )}
               </div>
             </div>
-          </div>
+            </CanvasDropZone>
 
-          {/* Right Sidebar - Collaboration Panel */}
-          {showCollabPanel && (
-            <SiteMapCollaborationPanel
-              siteMapId={siteMap.id}
-              eventId={eventId}
+          {showContextDrawer && (
+            <SiteMapContextDrawer
+              open={showContextDrawer}
+              onClose={() => setShowContextDrawer(false)}
+              activeTab={contextTab}
+              onTabChange={setContextTab}
+              selectedObject={selectedObject}
+              element={selectedObject?.kind === 'element' ? elements.find((e) => e.id === selectedObject.id) || null : null}
+              zone={selectedObject?.kind === 'zone' ? zones.find((z) => z.id === selectedObject.id) || null : null}
+              tent={selectedObject?.kind === 'tent' ? tents.find((t) => t.id === selectedObject.id) || null : null}
+              layers={layers}
+              elementStatus={selectedObject?.kind === 'element' ? elementStatuses[selectedObject.id] : undefined}
+              tasks={tasks}
+              issues={issues}
+              notes={notes}
               isReadOnly={isReadOnly}
-              selectedElementId={selectedElement}
-              selectedElementPosition={selectedElement ? (() => {
-                const element = elements.find((item) => item.id === selectedElement)
-                if (!element) return null
-                return { x: element.x, y: element.y }
-              })() : null}
-              onNoteClick={(x, y) => {
-                setPan({ x: -x * zoom + 400, y: -y * zoom + 300 })
+              modeLabel={selectedTool}
+              eventId={eventId || (siteMap as any).event_id || (siteMap as any).eventId}
+              siteMapId={siteMap.id}
+              onUpdateElement={(id, updates) => {
+                updateElements((prev) => prev.map((el) => (el.id === id ? { ...el, ...updates } : el)))
               }}
+              onStatusUpdate={updateElementStatus}
+              onDeleteElement={(id) => {
+                deleteElement(id)
+                setSelectedObject(null)
+              }}
+              onUpdateZone={async (id, updates) => {
+                setZones((prev) => prev.map((z) => (z.id === id ? { ...z, ...updates } : z)))
+                await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/zones/${id}`, {
+                  method: 'PUT',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(updates),
+                })
+              }}
+              onUpdateTent={async (id, updates) => {
+                setTents((prev) => prev.map((t) => (t.id === id ? { ...t, ...updates } : t)))
+                await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tents/${id}`, {
+                  method: 'PUT',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(updates),
+                })
+              }}
+              onCreateTask={() => setContextTab('tasks')}
+              onCompleteTask={async (taskId) => {
+                await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, {
+                  method: 'POST',
+                  credentials: 'include',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'COMPLETE_TASK', taskId }),
+                })
+                setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: 'completed' } : t)))
+              }}
+              childrenTasks={
+                !isReadOnly ? (
+                  <div className="space-y-3">
+                    <SiteMapTaskForm
+                      eventId={eventId || (siteMap as any).event_id || (siteMap as any).eventId}
+                      tourId={(siteMap as any).tour_id || (siteMap as any).tourId}
+                      elementId={selectedObject?.id || null}
+                      elementType={selectedObject?.kind || 'element'}
+                      onSubmit={async (payload) => {
+                        const resp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, {
+                          method: 'POST',
+                          credentials: 'include',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'ASSIGN_TASK',
+                            title: payload.title,
+                            description: payload.description,
+                            priority: payload.priority,
+                            assignedUserId: payload.assignedUserId,
+                            assignedTo: payload.assignedUserId,
+                            assignedToName: payload.assignedToName,
+                            assignedTeamId: payload.assignedTeamId,
+                            assignedRole: payload.assignedRole,
+                            dueDate: payload.dueDate,
+                            elementId: payload.elementId,
+                            elementType: payload.elementType || 'element',
+                            checklist: payload.checklist || [],
+                          }),
+                        })
+                        const result = await resp.json()
+                        if (resp.ok) {
+                          const tasksResp = await fetch(`/api/admin/logistics/site-maps/${siteMap.id}/tasks`, { credentials: 'include' })
+                          const tasksData = await tasksResp.json()
+                          setTasks(tasksData.data || tasksData.tasks || [])
+                        } else {
+                          setToolError(result.error || 'Failed to create task')
+                        }
+                      }}
+                    />
+                  </div>
+                ) : undefined
+              }
             />
           )}
+          </div>
         </div>
+
+        <div className="px-3 py-1.5 border-t border-slate-700/30 bg-slate-950/45 flex items-center gap-2">
+          <button type="button" onClick={() => setReadinessExpanded((v) => !v)} className="text-[10px] uppercase tracking-wide text-slate-400 hover:text-white">
+            Readiness {readinessExpanded ? '▾' : '▸'} · {readinessSummary.setupCompletion}% setup · {readinessSummary.openIssues} issues
+          </button>
+        </div>
+        {readinessExpanded && <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-1.5 px-3 py-2 border-t border-slate-700/30 bg-slate-950/45">
+          {[
+            { label: 'Objects', value: readinessSummary.totalObjects, tone: 'text-slate-200', bar: null },
+            { label: 'Assigned', value: readinessSummary.assignedObjects, tone: 'text-blue-300', bar: null },
+            { label: 'Open Issues', value: readinessSummary.openIssues, tone: readinessSummary.openIssues > 0 ? 'text-rose-300' : 'text-emerald-300', bar: null },
+            { label: 'Blocked', value: readinessSummary.blockedTasks, tone: readinessSummary.blockedTasks > 0 ? 'text-amber-300' : 'text-emerald-300', bar: null },
+            { label: 'Setup', value: `${readinessSummary.setupCompletion}%`, tone: readinessSummary.setupCompletion >= 80 ? 'text-emerald-300' : 'text-cyan-300', bar: readinessSummary.setupCompletion },
+            { label: 'Critical Zones', value: readinessSummary.unverifiedCriticalZones, tone: readinessSummary.unverifiedCriticalZones > 0 ? 'text-red-300' : 'text-emerald-300', bar: null },
+          ].map(item => (
+            <div key={item.label} className="rounded-md border border-slate-700/30 bg-slate-900/55 px-2.5 py-2">
+              <div className={cn("text-base font-semibold leading-none", item.tone)}>{item.value}</div>
+              <div className="mt-1 text-[9px] uppercase tracking-wide text-slate-500">{item.label}</div>
+              {item.bar !== null && (
+                <div className="mt-1.5 h-1 overflow-hidden rounded bg-slate-800">
+                  <div className="h-full rounded bg-emerald-400" style={{ width: `${item.bar}%` }} />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>}
 
         {/* Compact Status Bar */}
         <div className="flex items-center justify-between px-3 py-1.5 border-t border-slate-700/30 bg-slate-900/60 backdrop-blur-xl relative">
@@ -1596,7 +2709,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
-              <span>{elements.length} elements</span>
+              <span>{elements.length + zones.length + tents.length} objects</span>
             </div>
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
@@ -1610,10 +2723,49 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
               <div className="w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
               <span className="capitalize">{selectedTool}</span>
             </div>
-            {hasUnsavedChanges && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-rose-400 rounded-full"></div>
+              <span>{getVisibleIssues().length}/{issues.length} issues</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></div>
+              <span>{measurements.length} measures</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-1.5 h-1.5 bg-sky-400 rounded-full"></div>
+              <span>{getUnresolvedNotes().length} notes</span>
+            </div>
+            {hasActiveCanvasFilters && (
+              <div className="flex items-center gap-1.5 text-blue-300">
+                <Filter className="h-3 w-3" />
+                <span>Filtered</span>
+              </div>
+            )}
+            {saveError ? (
+              <div className="flex items-center gap-1.5 text-red-400">
+                <div className="w-1.5 h-1.5 bg-red-400 rounded-full"></div>
+                <span>{saveError}</span>
+              </div>
+            ) : isSaving ? (
+              <div className="flex items-center gap-1.5 text-blue-400">
+                <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+                <span>Saving</span>
+              </div>
+            ) : hasUnsavedChanges ? (
               <div className="flex items-center gap-1.5 text-amber-400">
                 <div className="w-1.5 h-1.5 bg-amber-400 rounded-full animate-pulse"></div>
                 <span>Unsaved</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 text-emerald-400">
+                <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></div>
+                <span>{lastSavedAt ? `Saved ${lastSavedAt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Saved'}</span>
+              </div>
+            )}
+            {toolError && (
+              <div className="flex items-center gap-1.5 text-red-400">
+                <AlertTriangle className="h-3 w-3" />
+                <span>{toolError}</span>
               </div>
             )}
           </div>
@@ -1642,6 +2794,11 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
             {!isReadOnly && (
               <>
                 <div className="w-px h-3 bg-slate-700/40 mx-0.5"></div>
+                {saveError && (
+                  <Button size="sm" variant="ghost" onClick={saveToAPI} disabled={isSaving} className="h-6 px-2 text-[10px] text-red-300 hover:text-white hover:bg-red-500/10" title="Retry save">
+                    Retry
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   onClick={saveToAPI}
@@ -1670,367 +2827,68 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, isRea
         siteMapName={siteMap.name}
         eventId={eventId}
       />
-    </div>
-  )
-}
 
-// Element Library Component
-function ElementLibrary({ onElementSelect, selectedElement, className }: {
-  onElementSelect: (element: CannedElement) => void
-  selectedElement: CannedElement | null
-  className?: string
-}) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set())
-
-  const categorizedElements = CANNED_ELEMENTS.reduce((acc, element) => {
-    const category = element.category
-    if (!acc[category]) acc[category] = []
-    acc[category].push(element)
-    return acc
-  }, {} as Record<string, typeof CANNED_ELEMENTS>)
-
-  const categories = Array.from(new Set(CANNED_ELEMENTS.map(el => el.category))).sort()
-  const filteredElements = CANNED_ELEMENTS.filter(element => {
-    const matchesSearch = !searchTerm || element.name.toLowerCase().includes(searchTerm.toLowerCase()) || element.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === "all" || element.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
-
-  const categoryConfig: Record<string, { icon: typeof Building; colors: string; label: string }> = {
-    infrastructure: { icon: Building, colors: '#059669', label: 'Infrastructure' },
-    venue: { icon: MapPin, colors: '#7c3aed', label: 'Tents & Venue' },
-    performance: { icon: Music, colors: '#db2777', label: 'Performance' },
-    furniture: { icon: Square, colors: '#d97706', label: 'Furniture' },
-    food: { icon: Utensils, colors: '#ea580c', label: 'Food & Drink' },
-    security: { icon: Shield, colors: '#dc2626', label: 'Security' },
-    transportation: { icon: Truck, colors: '#475569', label: 'Transport' },
-    technology: { icon: Zap, colors: '#0891b2', label: 'Technology' },
-    vendors: { icon: Star, colors: '#e27419', label: 'Vendors' },
-    essential_services: { icon: Heart, colors: '#2563eb', label: 'Services' },
-    signage: { icon: MapPin, colors: '#9333ea', label: 'Signage' },
-    sanitation: { icon: Trash2, colors: '#334155', label: 'Sanitation' },
-    landscaping: { icon: TreePine, colors: '#15803d', label: 'Landscaping' },
-  }
-
-  const toggleCategory = (cat: string) => {
-    setCollapsedCategories(prev => {
-      const next = new Set(prev)
-      next.has(cat) ? next.delete(cat) : next.add(cat)
-      return next
-    })
-  }
-
-  return (
-    <div className={cn("h-full flex flex-col", className)}>
-      <div className="p-3 border-b border-slate-700/30">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+      <Dialog open={issueDialogOpen} onOpenChange={setIssueDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Create issue</DialogTitle>
+          </DialogHeader>
           <Input
-            placeholder="Search elements..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-8 h-8 text-sm bg-slate-800/50 border-slate-700/50 text-white placeholder:text-slate-500 rounded-lg focus:border-purple-500/50 focus:ring-purple-500/20"
+            autoFocus
+            value={issueDraft.title}
+            onChange={(e) => setIssueDraft((prev) => ({ ...prev, title: e.target.value }))}
+            placeholder="Issue title"
+            className="bg-slate-800 border-slate-700 text-white"
           />
-        </div>
-      </div>
-
-      <div className="px-3 py-1.5 border-b border-slate-700/30">
-        <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            onClick={() => setSelectedCategory("all")}
-            className={cn(
-              "shrink-0 px-2.5 py-1 text-[11px] font-medium rounded-lg transition-all",
-              selectedCategory === "all"
-                ? "bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow"
-                : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-            )}
+          <select
+            value={issueDraft.severity}
+            onChange={(e) => setIssueDraft((prev) => ({ ...prev, severity: e.target.value }))}
+            className="w-full h-9 rounded-md border border-slate-700 bg-slate-800 px-2 text-sm text-white"
           >
-            All
-          </button>
-          {categories.map(cat => {
-            const conf = categoryConfig[cat] || { icon: Square, colors: '#6b7280', label: cat }
-            const Icon = conf.icon
-            const count = categorizedElements[cat]?.length || 0
-            return (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={cn(
-                  "shrink-0 flex items-center gap-1 px-2 py-1 text-[11px] font-medium rounded-lg transition-all",
-                  selectedCategory === cat
-                    ? "text-white shadow"
-                    : "text-slate-400 hover:text-white hover:bg-slate-700/50"
-                )}
-                style={selectedCategory === cat ? { backgroundColor: conf.colors } : undefined}
-              >
-                <Icon className="h-3 w-3" />
-                {conf.label}
-                <span className="opacity-60">{count}</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+          <Textarea
+            value={issueDraft.description}
+            onChange={(e) => setIssueDraft((prev) => ({ ...prev, description: e.target.value }))}
+            placeholder="Description (optional)"
+            className="bg-slate-800 border-slate-700 text-white"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIssueDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => void submitIssue()}>Create</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <div className="flex-1 overflow-y-auto px-2">
-        <div className="space-y-0.5 py-2">
-          {searchTerm ? (
-            filteredElements.map(element => {
-              const conf = categoryConfig[element.category] || { icon: Square, colors: '#6b7280', label: element.category }
-              return (
-                <ElementButton key={element.id} element={element} isSelected={selectedElement?.id === element.id} onSelect={onElementSelect} color={conf.colors} />
-              )
-            })
-          ) : selectedCategory !== "all" ? (
-            filteredElements.map(element => {
-              const conf = categoryConfig[element.category] || { icon: Square, colors: '#6b7280', label: element.category }
-              return (
-                <ElementButton key={element.id} element={element} isSelected={selectedElement?.id === element.id} onSelect={onElementSelect} color={conf.colors} />
-              )
-            })
-          ) : (
-            categories.map(cat => {
-              const elems = categorizedElements[cat]
-              if (!elems?.length) return null
-              const conf = categoryConfig[cat] || { icon: Square, colors: '#6b7280', label: cat }
-              const Icon = conf.icon
-              const isCollapsed = collapsedCategories.has(cat)
-              return (
-                <div key={cat}>
-                  <button
-                    onClick={() => toggleCategory(cat)}
-                    className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-slate-800/40 transition-colors"
-                  >
-                    <div className="p-1 rounded-md" style={{ backgroundColor: conf.colors }}>
-                      <Icon className="h-3 w-3 text-white" />
-                    </div>
-                    <span className="text-xs font-semibold text-slate-300 flex-1 text-left">{conf.label}</span>
-                    <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700 bg-transparent px-1.5 py-0">
-                      {elems.length}
-                    </Badge>
-                    <ChevronDown className={cn("h-3 w-3 text-slate-500 transition-transform", isCollapsed && "-rotate-90")} />
-                  </button>
-                  {!isCollapsed && (
-                    <div className="ml-2 space-y-0.5 mt-0.5">
-                      {elems.map(element => (
-                        <ElementButton key={element.id} element={element} isSelected={selectedElement?.id === element.id} onSelect={onElementSelect} color={conf.colors} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )
-            })
-          )}
-          {filteredElements.length === 0 && (
-            <div className="py-8 text-center text-sm text-slate-500">No elements found</div>
-          )}
-        </div>
-      </div>
+      <Dialog open={textDialogOpen} onOpenChange={setTextDialogOpen}>
+        <DialogContent className="bg-slate-900 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Add text label</DialogTitle>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={textDraft.label}
+            onChange={(e) => setTextDraft((prev) => ({ ...prev, label: e.target.value }))}
+            placeholder="Label text"
+            className="bg-slate-800 border-slate-700 text-white"
+          />
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setTextDialogOpen(false)}>Cancel</Button>
+            <Button onClick={submitTextLabel}>Add</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
-}
-
-function ElementButton({ element, isSelected, onSelect, color }: {
-  element: CannedElement
-  isSelected: boolean
-  onSelect: (el: CannedElement) => void
-  color: string
-}) {
-  return (
-    <button
-      onClick={() => onSelect(element)}
-      className={cn(
-        "flex items-center gap-2 w-full px-2 py-2 rounded-lg transition-all duration-150 text-left group",
-        isSelected
-          ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40 shadow-sm"
-          : "hover:bg-slate-800/50 border border-transparent hover:border-slate-700/30"
-      )}
-    >
-      <div className="shrink-0 p-1.5 rounded-md transition-colors" style={{ backgroundColor: isSelected ? color : `${color}33` }}>
-        {element.icon ? <element.icon className="h-3.5 w-3.5 text-white" /> : <Square className="h-3.5 w-3.5 text-white" />}
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className={cn("text-xs font-medium truncate", isSelected ? "text-white" : "text-slate-300")}>
-          {element.name}
+    <DragOverlay>
+      {activeLibraryDrag ? (
+        <div className="rounded-lg border border-slate-500 bg-slate-800 px-3 py-2 text-xs text-white shadow-xl">
+          {activeLibraryDrag.name}
         </div>
-      </div>
-      <span className="text-[10px] text-slate-500 font-mono shrink-0">{element.width}×{element.height}</span>
-      {isSelected && <Check className="h-3 w-3 text-purple-400 shrink-0" />}
-    </button>
-  )
-}
-
-// Element Inspector Component
-function ElementInspector({ element, onUpdate, onDelete }: {
-  element: SiteMapElement | null
-  onUpdate: (id: string, updates: Partial<SiteMapElement>) => void
-  onDelete: (id: string) => void
-}) {
-  if (!element) return (
-    <div className="h-full flex items-center justify-center p-6">
-      <div className="text-center space-y-2">
-        <MousePointer className="h-8 w-8 text-slate-600 mx-auto" />
-        <p className="text-sm text-slate-500">Select an element on the canvas to inspect its properties</p>
-      </div>
-    </div>
-  )
-
-  const cannedInfo = getElementById(element.type)
-
-  return (
-    <div className="h-full overflow-y-auto p-3 space-y-3">
-      <div className="flex items-center gap-2">
-        <div className="p-1.5 rounded-md" style={{ backgroundColor: element.stroke }}>
-          {cannedInfo?.icon ? <cannedInfo.icon className="h-4 w-4 text-white" /> : <Square className="h-4 w-4 text-white" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-white truncate">{element.label}</div>
-          <div className="text-[10px] text-slate-400">{element.type}</div>
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Position</h4>
-        <div className="grid grid-cols-2 gap-1.5">
-          <div>
-            <Label className="text-[10px] text-slate-400">X</Label>
-            <Input type="number" value={element.x} onChange={e => onUpdate(element.id, { x: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
-          </div>
-          <div>
-            <Label className="text-[10px] text-slate-400">Y</Label>
-            <Input type="number" value={element.y} onChange={e => onUpdate(element.id, { y: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
-          </div>
-          <div>
-            <Label className="text-[10px] text-slate-400">Width</Label>
-            <Input type="number" value={element.width} onChange={e => onUpdate(element.id, { width: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
-          </div>
-          <div>
-            <Label className="text-[10px] text-slate-400">Height</Label>
-            <Input type="number" value={element.height} onChange={e => onUpdate(element.id, { height: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
-          </div>
-        </div>
-        <div>
-          <Label className="text-[10px] text-slate-400">Rotation</Label>
-          <Input type="number" value={element.rotation} onChange={e => onUpdate(element.id, { rotation: +e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Appearance</h4>
-        <div>
-          <Label className="text-[10px] text-slate-400">Label</Label>
-          <Input value={element.label} onChange={e => onUpdate(element.id, { label: e.target.value })} className="h-7 text-xs bg-slate-800/50 border-slate-700/50 text-white rounded-md" />
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <div>
-            <Label className="text-[10px] text-slate-400">Fill</Label>
-            <div className="flex items-center gap-1.5">
-              <input type="color" value={element.fill.startsWith('rgba') ? element.stroke : element.fill} onChange={e => onUpdate(element.id, { fill: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" />
-              <span className="text-[10px] text-slate-400 truncate">{element.fill.slice(0, 12)}</span>
-            </div>
-          </div>
-          <div>
-            <Label className="text-[10px] text-slate-400">Stroke</Label>
-            <div className="flex items-center gap-1.5">
-              <input type="color" value={element.stroke} onChange={e => onUpdate(element.id, { stroke: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent" />
-              <span className="text-[10px] text-slate-400 truncate">{element.stroke}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {cannedInfo && (
-        <div className="space-y-2">
-          <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Properties</h4>
-          <div className="space-y-1 bg-slate-800/30 rounded-lg p-2">
-            {Object.entries(cannedInfo.properties).map(([key, value]) => (
-              <div key={key} className="flex justify-between items-center">
-                <span className="text-[10px] text-slate-400 capitalize">{key.replace(/_/g, ' ')}</span>
-                <span className="text-[10px] text-slate-300 font-mono">{String(value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="pt-2 border-t border-slate-700/30">
-        <Button variant="ghost" size="sm" onClick={() => onDelete(element.id)} className="w-full h-7 text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg">
-          <Trash2 className="h-3 w-3 mr-1.5" /> Delete Element
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// Tool Palette Component
-function ToolPalette({ selectedTool, onToolSelect, className }: {
-  selectedTool: string
-  onToolSelect: (tool: string) => void
-  className?: string
-}) {
-  const toolGroups = [
-    {
-      name: 'Navigate',
-      tools: [
-        { id: 'select', icon: MousePointer, label: 'Select', shortcut: 'V', description: 'Select and move elements' },
-        { id: 'pan', icon: Hand, label: 'Pan', shortcut: 'H', description: 'Pan around the canvas' },
-      ]
-    },
-    {
-      name: 'Annotate',
-      tools: [
-        { id: 'measure', icon: Ruler, label: 'Measure', shortcut: 'M', description: 'Measure distances and areas' },
-        { id: 'text', icon: Type, label: 'Text', shortcut: 'T', description: 'Add text labels' },
-        { id: 'issue', icon: AlertTriangle, label: 'Flag Issue', shortcut: 'I', description: 'Mark issues or notes' },
-      ]
-    },
-    {
-      name: 'Edit',
-      tools: [
-        { id: 'delete', icon: Trash2, label: 'Delete', shortcut: 'Del', description: 'Remove selected elements' },
-        { id: 'duplicate', icon: Copy, label: 'Duplicate', shortcut: '⌘D', description: 'Duplicate selection' },
-      ]
-    }
-  ]
-
-  return (
-    <div className={cn("space-y-4", className)}>
-      {toolGroups.map(group => (
-        <div key={group.name} className="space-y-1">
-          <h3 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-1">{group.name}</h3>
-          <div className="space-y-0.5">
-            {group.tools.map(tool => (
-              <button
-                key={tool.id}
-                onClick={() => onToolSelect(tool.id)}
-                className={cn(
-                  "w-full flex items-center gap-2.5 p-2 rounded-lg transition-all duration-150 text-left",
-                  selectedTool === tool.id
-                    ? "bg-gradient-to-r from-purple-500/20 to-blue-500/20 border border-purple-500/40"
-                    : "hover:bg-slate-800/50 border border-transparent"
-                )}
-              >
-                <div className={cn("p-1.5 rounded-md", selectedTool === tool.id ? "bg-purple-500/30" : "bg-slate-700/50")}>
-                  <tool.icon className="h-3.5 w-3.5 text-white" />
-                </div>
-                <div className="flex-1">
-                  <div className={cn("text-xs font-medium", selectedTool === tool.id ? "text-white" : "text-slate-300")}>{tool.label}</div>
-                  <div className="text-[10px] text-slate-500">{tool.description}</div>
-                </div>
-                <kbd className="text-[9px] text-slate-500 bg-slate-800/50 border border-slate-700/50 px-1 py-0.5 rounded font-mono">{tool.shortcut}</kbd>
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <div className="pt-2 border-t border-slate-700/30 px-1">
-        <p className="text-[10px] text-slate-500">
-          <kbd className="bg-slate-800/50 border border-slate-700/50 px-1 py-0.5 rounded font-mono text-[9px]">Space</kbd> + drag to pan
-        </p>
-      </div>
-    </div>
+      ) : null}
+    </DragOverlay>
+    </DndContext>
   )
 }

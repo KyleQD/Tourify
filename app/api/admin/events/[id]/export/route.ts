@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import {
+  assertAdminEventAccess,
+} from "@/lib/admin/admin-tour-event-access"
+import { resolveDoorsOpenTime } from '@/lib/admin/calendar/ics'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   // Extract event ID from URL path
   const url = new URL(request.url)
   const segments = url.pathname.split('/')
@@ -10,6 +14,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   const format = url.searchParams.get('format') || 'csv'
 
   if (!id) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
+    await assertAdminEventAccess({ supabase, userId: user.id, eventId: id })
 
   // Fetch event data
   const { data: event } = await supabase
@@ -73,8 +78,9 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     const soundCheckTime = settings.sound_check_time
       ? new Date(`${startAt.toISOString().slice(0, 10)}T${settings.sound_check_time}:00Z`)
       : null
-    const doorsTime = settings.doors_open_time
-      ? new Date(`${startAt.toISOString().slice(0, 10)}T${settings.doors_open_time}:00Z`)
+    const doorsOpen = resolveDoorsOpenTime(settings)
+    const doorsTime = doorsOpen
+      ? new Date(`${startAt.toISOString().slice(0, 10)}T${doorsOpen}:00Z`)
       : null
 
     const vevents: string[] = []

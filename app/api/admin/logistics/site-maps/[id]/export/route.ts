@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 import type { SiteMapExport } from '@/types/site-map'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +10,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id: siteMapId } = await params
+
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'export')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
 
     // Get site map with all related data
     const { data: siteMapData, error } = await supabase.rpc('get_site_map_with_data', {
@@ -22,16 +29,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (!siteMapData) {
       return NextResponse.json({ error: 'Site map not found' }, { status: 404 })
-    }
-
-    // Check permissions
-    const canAccess = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canAccess.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
     }
 
     // Create export data

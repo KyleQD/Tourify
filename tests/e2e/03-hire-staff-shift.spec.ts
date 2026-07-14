@@ -21,6 +21,12 @@ test.describe("Flow 3 — Staff hiring", () => {
     await expect(page.getByRole("heading", { name: /staff/i })).toBeVisible({ timeout: 8_000 })
   })
 
+  test("staff scheduling tab loads without dashboard fatal error", async ({ page }) => {
+    await page.goto("/admin/dashboard/staff?tab=scheduling")
+    await expect(page.locator("body")).not.toContainText("Error Loading Dashboard", { timeout: 8_000 })
+    await expect(page.locator("body")).toContainText(/Scheduling & Shifts|Venue required/, { timeout: 8_000 })
+  })
+
   test("applications page loads", async ({ page }) => {
     await page.goto("/admin/applications")
     await expect(page.locator("body")).not.toContainText("500", { timeout: 8_000 })

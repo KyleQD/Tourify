@@ -27,6 +27,7 @@ export function AnimatedProductCard({
   description,
   imageUrl,
   productType,
+  category,
   price,
   currency = "USD",
   index = 0,
@@ -43,6 +44,16 @@ export function AnimatedProductCard({
   const isCarousel = layout === "carousel"
 
   const staggerDelay = effects.staggerEntrance ? index * 0.08 : 0
+  const actionLabel =
+    category === "music" || productType === "digital_asset"
+      ? "Download"
+      : category === "services" || productType === "service" || productType === "commission"
+        ? "Book"
+        : category === "tickets" || productType === "ticket"
+          ? "Get Tickets"
+          : category === "support" || productType === "tip"
+            ? "Tip"
+            : "Buy"
 
   return (
     <motion.div
@@ -139,7 +150,7 @@ export function AnimatedProductCard({
               }}
               variant="outline"
             >
-              {isCheckoutLoading ? "..." : "Buy"}
+              {isCheckoutLoading ? "..." : actionLabel}
             </Button>
           )}
         </div>

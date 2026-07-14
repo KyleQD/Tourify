@@ -138,6 +138,8 @@ export async function GET(
 
     // Base profile shape that we will enrich per account type
     let accountType: 'general' | 'artist' | 'venue' | 'organization' = 'general'
+    let authorProfileId: string = profile.id
+    const ownerUserId: string = profile.id
     let profileData: any = {
       ...baseProfileData,
       name: profile.full_name,
@@ -157,7 +159,7 @@ export async function GET(
       // Artist
       const { data: artist, error: artistError } = await supabase
         .from('artist_profiles')
-        .select('artist_name,bio,genres,social_links,settings,created_at,updated_at')
+        .select('id,artist_name,url_slug,bio,genres,social_links,settings,created_at,updated_at')
         .eq('user_id', profile.id)
         .limit(1)
         .single()
@@ -165,8 +167,10 @@ export async function GET(
       if (!artistError && artist) {
         const capabilities = extractCreatorCapabilitiesV1(artist.settings)
         accountType = 'artist'
+        authorProfileId = artist.id
         profileData = {
           artist_name: artist.artist_name,
+          url_slug: artist.url_slug,
           bio: artist.bio ?? profile.bio,
           genre: Array.isArray(artist.genres) && artist.genres.length > 0 ? artist.genres[0] : undefined,
           creator_type: capabilities.creatorType,
@@ -193,13 +197,14 @@ export async function GET(
         // Venue by user
         const { data: venue, error: venueError } = await supabase
           .from('venue_profiles')
-          .select('venue_name,description,address,city,state,country,capacity,venue_types,social_links,created_at')
+          .select('id,venue_name,description,address,city,state,country,capacity,venue_types,social_links,created_at')
           .eq('user_id', profile.id)
           .limit(1)
           .single()
 
         if (!venueError && venue) {
           accountType = 'venue'
+          authorProfileId = venue.id
           profileData = {
             venue_name: venue.venue_name,
             bio: venue.description ?? profile.bio,
@@ -220,56 +225,8 @@ export async function GET(
       }
     }
 
-    if (accountType === 'general') {
-      // Organization detection (two options: dedicated table or columns on profiles)
-      try {
-        const { data: org, error: orgError } = await supabase
-          .from('organizer_profiles')
-          .select('organization_name,organization_type,description,social_links')
-          .eq('user_id', profile.id)
-          .limit(1)
-          .single()
-
-        if (!orgError && org) {
-          accountType = 'organization'
-          profileData = {
-            name: org.organization_name ?? profile.full_name,
-            organization_type: org.organization_type,
-            bio: org.description ?? profile.bio,
-            website: profile.website,
-          }
-          socialLinks = {
-            website: profile.website,
-            ...(org.social_links || {})
-          }
-        }
-      } catch (e) {
-        // Fallback to organization_* columns if present in profiles (best-effort)
-        try {
-          const { data: orgCols } = await supabase
-            .from('profiles')
-            .select('organization_name,organization_type,organization_data')
-            .eq('id', profile.id)
-            .limit(1)
-            .single()
-          if (orgCols && (orgCols as any).organization_name) {
-            accountType = 'organization'
-            profileData = {
-              name: (orgCols as any).organization_name,
-              organization_type: (orgCols as any).organization_type,
-              bio: (orgCols as any).organization_data?.description ?? profile.bio,
-              website: profile.website,
-            }
-            socialLinks = {
-              website: profile.website,
-              ...(orgCols as any).organization_data?.social_links || {}
-            }
-          }
-        } catch {
-          // ignore
-        }
-      }
-    }
+    // General profiles stay General. Organization brands resolve via /organization/{slug}.
+    // Do not rewrite this response to organization when the user also owns an org.
 
     profileData = {
       ...baseProfileData,
@@ -279,6 +236,32 @@ export async function GET(
     socialLinks = {
       ...baseSocialLinks,
       ...socialLinks
+    }
+
+    try {
+      const { count: postCount } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .or(`posted_as_profile_id.eq.${authorProfileId},user_id.eq.${ownerUserId}`)
+        .eq('visibility', 'public')
+
+      if (postCount !== null) {
+        stats.posts = postCount
+      }
+    } catch {
+      // Keep profile table count if posts are unavailable.
+    }
+
+    try {
+      const { data: postLikes } = await supabase
+        .from('posts')
+        .select('likes_count')
+        .or(`posted_as_profile_id.eq.${authorProfileId},user_id.eq.${ownerUserId}`)
+        .eq('visibility', 'public')
+
+      stats.likes = postLikes?.reduce((sum: number, post: any) => sum + (post.likes_count || 0), 0) || 0
+    } catch {
+      // Keep default likes if posts are unavailable.
     }
 
     // Fetch public content tied to this profile
@@ -315,6 +298,8 @@ export async function GET(
 
     const profileWithStats = {
       id: profile.id,
+      author_profile_id: authorProfileId,
+      owner_user_id: ownerUserId,
       username: profile.username,
       account_type: accountType,
       profile_data: profileData,

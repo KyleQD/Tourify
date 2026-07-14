@@ -97,8 +97,9 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
     }
   }
 
-  const handleCreateAccount = (type: 'artist' | 'venue' | 'admin') => {
-    router.push(`/create?type=${type}`)
+  const handleCreateAccount = (type: 'artist' | 'venue' | 'organization' | 'admin') => {
+    const queryType = type === 'admin' ? 'organization' : type
+    router.push(`/create?type=${queryType}`)
   }
 
   if (!currentAccount) {
@@ -260,14 +261,14 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
             
             <DropdownMenuItem
               className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-slate-800 cursor-pointer"
-              onClick={() => handleCreateAccount('admin')}
+              onClick={() => handleCreateAccount('organization')}
               disabled={isSwitching}
             >
               <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center">
                 <Plus className="h-3 w-3 text-amber-400" />
               </div>
               <div>
-                <div className="text-sm font-medium text-white">Create Organizer Account</div>
+                <div className="text-sm font-medium text-white">Create Organization Account</div>
                 <div className="text-xs text-slate-400">Manage events</div>
               </div>
             </DropdownMenuItem>

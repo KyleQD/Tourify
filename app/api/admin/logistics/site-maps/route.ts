@@ -21,21 +21,22 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
     const includeData = searchParams.get('includeData') === 'true'
 
-    // Use the authenticated client
+    const listSelect = '*'
+    const detailSelect = `
+      *,
+      zones:site_map_zones(*),
+      tents:glamping_tents(*),
+      elements:site_map_elements(*),
+      collaborators:site_map_collaborators(
+        *,
+        user:profiles!site_map_collaborators_user_id_fkey(id, username, full_name, avatar_url, email)
+      )
+    `
+
+    // Use the authenticated client — never interpolate an empty nested block after `*,`
     let query = supabase
       .from('site_maps')
-      .select(`
-        *,
-        ${includeData ? `
-        zones:site_map_zones(*),
-        tents:glamping_tents(*),
-        elements:site_map_elements(*),
-        collaborators:site_map_collaborators(
-          *,
-          user:profiles!site_map_collaborators_user_id_fkey(id, username, full_name, avatar_url, email)
-        )
-        ` : ''}
-      `)
+      .select(includeData ? detailSelect : listSelect)
       .order('updated_at', { ascending: false })
 
     if (eventId) query = query.eq('event_id', eventId)
@@ -188,7 +189,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const payload = {
+    const basePayload = {
       event_id: body.eventId || null,
       tour_id: body.tourId || null,
       name: body.name,
@@ -196,31 +197,39 @@ export async function POST(request: NextRequest) {
       width: body.width || 1000,
       height: body.height || 1000,
       scale: body.scale || 1.0,
-      scale_unit: (body as any).scaleUnit || 'meters',
       background_color: body.backgroundColor || '#f8f9fa',
       background_image_url: body.backgroundImageUrl || null,
       grid_enabled: body.gridEnabled ?? true,
       grid_size: body.gridSize || 20,
       is_public: body.isPublic ?? false,
-        created_by: user.id
+      created_by: user.id,
     }
 
-    
-    // Use the authenticated client
-    const { data, error } = await supabase
+    const payloadWithScaleUnit = {
+      ...basePayload,
+      scale_unit: (body as any).scaleUnit || 'meters',
+    }
+
+    // Minimal select on create — avoid nested joins that can trip child-table RLS
+    const selectCreated = '*'
+
+    // Prefer scale_unit when the column exists; retry without it if schema is behind
+    let { data, error } = await supabase
       .from('site_maps')
-      .insert(payload)
-      .select(`
-        *,
-        zones:site_map_zones(*),
-        tents:glamping_tents(*),
-        elements:site_map_elements(*),
-        collaborators:site_map_collaborators(
-          *,
-          user:profiles!site_map_collaborators_user_id_fkey(id, username, full_name, avatar_url, email)
-        )
-      `)
+      .insert(payloadWithScaleUnit)
+      .select(selectCreated)
       .single()
+
+    if (error && /scale_unit/i.test(error.message || '')) {
+      console.warn('[Site Maps API] scale_unit missing — retrying insert without it')
+      const retry = await supabase
+        .from('site_maps')
+        .insert(basePayload)
+        .select(selectCreated)
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       console.error('[Site Maps API] Database insertion error:', error)
@@ -230,7 +239,6 @@ export async function POST(request: NextRequest) {
         details: error.message 
       }, { status: 500 })
     }
-    
 
     // Seed elements from selected template (if provided)
     if ((body as any).templateId && (body as any).templateId !== 'blank') {
@@ -292,7 +300,8 @@ export async function POST(request: NextRequest) {
     console.error('[Site Maps API] POST Error:', error)
     return NextResponse.json({ 
       success: false, 
-      error: 'Failed to create site map' 
+      error: 'Failed to create site map',
+      details: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 })
   }
 }

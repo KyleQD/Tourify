@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { getSellerPayoutReadiness } from "@/lib/marketplace/seller-payout-readiness"
 import { isAuthorizedInternalRequest, unauthorizedResponse } from "@/lib/auth/route-guards"
 
 const backfillSchema = z.object({
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     const payload = backfillSchema.parse(await request.json())
     const isDryRun = payload.dryRun ?? false
-    const publishActiveItems = payload.publishActiveItems ?? true
+    const wantsPublish = payload.publishActiveItems ?? false
 
     const { data: legacyItems, error: legacyError } = await supabase
       .from("artist_merchandise")
@@ -99,52 +100,83 @@ export async function POST(request: NextRequest) {
         data: {
           inserted: 0,
           skipped: legacyItems?.length || 0,
+          published: 0,
+          drafted: 0,
+          publishBlockedReason: null,
         },
       })
     }
 
     const { data: storefront } = await supabase
       .from("marketplace_storefronts")
-      .select("id")
+      .select("id, accepted_seller_agreement_at")
       .eq("seller_user_id", user.id)
       .maybeSingle()
 
-    const insertPayload = itemsToMigrate.map(item => ({
-      seller_user_id: user.id,
-      storefront_id: storefront?.id || null,
-      title: item.name || "Untitled Product",
-      description: item.description || null,
-      category: item.type === "music" ? "music" : "merch",
-      product_type: item.type === "music" ? "digital_asset" : "physical_merch",
-      status: publishActiveItems && item.status === "active" ? "published" : "draft",
-      currency: item.currency || "USD",
-      base_price: Number(item.price || 0),
-      cover_image_url: Array.isArray(item.images) && item.images.length ? item.images[0] : null,
-      media_urls: Array.isArray(item.images) ? item.images : [],
-      inventory_count: item.inventory_count ?? 0,
-      featured_rank: item.is_featured ? 1 : null,
-      metadata: {
-        sourceMerchandiseId: item.id,
-        sourceTable: "artist_merchandise",
-        sku: item.sku || null,
-        sizes: item.sizes || [],
-        colors: item.colors || [],
-      },
-    }))
+    const hasAgreement = Boolean(storefront?.accepted_seller_agreement_at)
+    const payoutReadiness = wantsPublish
+      ? await getSellerPayoutReadiness({ supabase, sellerUserId: user.id })
+      : null
+    const canPublishPaid = hasAgreement && Boolean(payoutReadiness?.ready)
+    const publishBlockedReason = wantsPublish && !canPublishPaid
+      ? !hasAgreement
+        ? "seller_agreement_required"
+        : "stripe_connect_required"
+      : null
+
+    const insertPayload = itemsToMigrate.map(item => {
+      const isPaid = Number(item.price || 0) > 0
+      const shouldPublish =
+        wantsPublish &&
+        item.status === "active" &&
+        (!isPaid || canPublishPaid)
+
+      return {
+        seller_user_id: user.id,
+        storefront_id: storefront?.id || null,
+        title: item.name || "Untitled Product",
+        description: item.description || null,
+        category: item.type === "music" ? "music" : "merch",
+        product_type: item.type === "music" ? "digital_asset" : "physical_merch",
+        status: shouldPublish ? "published" : "draft",
+        currency: item.currency || "USD",
+        base_price: Number(item.price || 0),
+        cover_image_url: Array.isArray(item.images) && item.images.length ? item.images[0] : null,
+        media_urls: Array.isArray(item.images) ? item.images : [],
+        inventory_count: item.inventory_count ?? 0,
+        featured_rank: item.is_featured ? 1 : null,
+        metadata: {
+          sourceMerchandiseId: item.id,
+          sourceTable: "artist_merchandise",
+          sku: item.sku || null,
+          sizes: item.sizes || [],
+          colors: item.colors || [],
+          importNote: publishBlockedReason
+            ? "Imported as draft — finish seller agreement and Stripe before publishing."
+            : null,
+        },
+      }
+    })
 
     const { data: insertedRows, error: insertError } = await supabase
       .from("marketplace_listings")
       .insert(insertPayload)
-      .select("id, title")
+      .select("id, title, status")
 
     if (insertError) {
       console.error("Failed to backfill marketplace listings", insertError)
       return NextResponse.json({ error: "Failed to backfill listings" }, { status: 500 })
     }
 
+    const published = (insertedRows || []).filter(row => row.status === "published").length
+    const drafted = (insertedRows || []).length - published
+
     return NextResponse.json({
       data: {
         inserted: insertedRows?.length || 0,
+        published,
+        drafted,
+        publishBlockedReason,
         rows: insertedRows || [],
       },
     })

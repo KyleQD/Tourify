@@ -18,14 +18,17 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 
+import { PLATFORM_TOS_VERSION } from "@/components/legal/legal-constants"
+
 const PLATFORM_TOS_TEMPLATE_ID = "a0000000-0000-0000-0000-000000000001"
-const PLATFORM_TOS_VERSION = 1
 
 function pathnameExemptsMandatoryTos(pathname: string) {
   if (pathname.startsWith("/login")) return true
   if (pathname.startsWith("/auth/")) return true
   if (pathname.startsWith("/onboarding")) return true
   if (pathname === "/terms" || pathname === "/privacy") return true
+  if (pathname.startsWith("/legal/")) return true
+  if (pathname === "/marketplace/seller-agreement") return true
   return false
 }
 
@@ -54,7 +57,7 @@ export function MandatoryTosGate() {
     setProfileChecked(false)
     const { data, error } = await supabase
       .from("profiles")
-      .select("tos_accepted_at")
+      .select("tos_accepted_at, tos_version")
       .eq("id", user.id)
       .maybeSingle()
 
@@ -65,7 +68,11 @@ export function MandatoryTosGate() {
       return
     }
 
-    setNeedsTos(!data?.tos_accepted_at)
+    const acceptedVersion = data?.tos_version ?? 0
+    const needsAcceptance =
+      !data?.tos_accepted_at || acceptedVersion < PLATFORM_TOS_VERSION
+
+    setNeedsTos(needsAcceptance)
     setProfileChecked(true)
   }, [user?.id, pathname])
 

@@ -43,7 +43,8 @@ import {
   Smile,
   Calendar,
   Clock,
-  Settings
+  Settings,
+  BarChart3
 } from 'lucide-react'
 import { MediaPreview } from '@/components/ui/media-preview'
 import { DragDropIndicator } from '@/components/ui/drag-drop-indicator'
@@ -57,8 +58,20 @@ import {
 import { useDragAndDrop } from '@/hooks/use-drag-and-drop'
 import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
+import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { PollOptionEditor } from '@/components/polls/poll-option-editor'
+import type { PollDuration } from '@/lib/polls/poll-duration'
+import {
+  ARTIST_CARD,
+  ARTIST_GHOST_CHIP,
+  ARTIST_INPUT,
+  ARTIST_OUTLINE_BTN,
+  ARTIST_PRIMARY_BTN,
+  ARTIST_SECONDARY_BTN,
+  ARTIST_TEXTAREA,
+} from '@/components/dashboard/artist-tokens'
 
 interface CleanPostCreatorProps {
   onPostCreated?: (post: any) => void
@@ -114,6 +127,9 @@ export function CleanPostCreator({
   const [scheduledTime, setScheduledTime] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
   const [showMediaUpload, setShowMediaUpload] = useState(false)
+  const [isPollMode, setIsPollMode] = useState(false)
+  const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
+  const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -263,33 +279,42 @@ export function CleanPostCreator({
       return
     }
 
+    if (isPollMode) {
+      const validOptions = pollOptions.map((option) => option.trim()).filter(Boolean)
+      if (validOptions.length < 2) {
+        toast.error('Add at least two poll options')
+        return
+      }
+    }
+
     setIsSubmitting(true)
 
     try {
-      // Upload media files if any
       let uploadedMediaUrls: string[] = []
       
-      if (postData.mediaItems.length > 0) {
-        // For now, we'll simulate upload by creating object URLs
-        // In production, you'd upload to your server/storage
+      if (!isPollMode && postData.mediaItems.length > 0) {
         uploadedMediaUrls = postData.mediaItems.map(item => 
           item.url || URL.createObjectURL(item.file)
         )
       }
 
-      // Create post
-      const postPayload = {
+      const postPayload: Record<string, unknown> = {
         content: postData.content.trim() || (postData.mediaItems.length > 0 ? 'Shared media' : ''),
-        type: postData.mediaItems.length > 0 ? 'media' : 'text',
-        visibility: postData.visibility,
+        type: isPollMode ? 'poll' : (postData.mediaItems.length > 0 ? 'media' : 'text'),
+        visibility: isPollMode
+          ? (postData.visibility === 'public' ? 'followers' : postData.visibility)
+          : postData.visibility,
         location: postData.location || null,
         hashtags: postData.hashtags,
         media_urls: uploadedMediaUrls,
         scheduled_for: postData.scheduledFor?.toISOString(),
         allow_comments: postData.allowComments,
         allow_sharing: postData.allowSharing,
-        route_context: '/artist/feed',
-        posted_as: 'artist'
+      }
+
+      if (isPollMode) {
+        postPayload.poll_options = pollOptions
+        postPayload.poll_duration = pollDuration
       }
 
       const response = await fetch('/api/posts/create', {
@@ -309,7 +334,6 @@ export function CleanPostCreator({
 
       const result = await response.json()
 
-      // Reset form
       setPostData({
         content: '',
         visibility: defaultVisibility,
@@ -322,8 +346,11 @@ export function CleanPostCreator({
       setHashtagInput('')
       setIsExpanded(false)
       setShowMediaUpload(false)
+      setIsPollMode(false)
+      setPollOptions(['', ''])
+      setPollDuration('7d')
 
-      toast.success(postData.scheduledFor ? 'Post scheduled successfully' : 'Post created successfully')
+      toast.success(isPollMode ? 'Poll created successfully' : (postData.scheduledFor ? 'Post scheduled successfully' : 'Post created successfully'))
       onPostCreated?.(result.post || result.data)
 
     } catch (error) {
@@ -333,7 +360,7 @@ export function CleanPostCreator({
     } finally {
       setIsSubmitting(false)
     }
-  }, [user, postData, defaultVisibility, onPostCreated])
+  }, [user, postData, defaultVisibility, onPostCreated, actingHeaders, isPollMode, pollOptions, pollDuration])
 
 
 
@@ -347,26 +374,28 @@ export function CleanPostCreator({
   return (
     <TooltipProvider>
       <Card className={cn(
-        'bg-slate-900/50 border-slate-700/50 backdrop-blur-sm rounded-xl shadow-lg transition-all duration-300',
-        isDragOver && 'border-purple-500/50 bg-purple-500/10',
+        ARTIST_CARD,
+        'transition-all duration-300',
+        isDragOver && 'border-purple-400/40 shadow-[0_0_28px_-10px_rgba(168,85,247,0.55)]',
         className
       )}>
-        <CardContent className="p-6">
+        <CardContent className="p-5 sm:p-6">
+          <PostingAccountSelector className="mb-4 rounded-xl border-white/10 bg-black/25" />
           {/* User header */}
           <div className="flex items-start gap-4 mb-4">
-            <Avatar className="h-12 w-12">
+            <Avatar className="h-12 w-12 ring-2 ring-purple-500/25">
               <AvatarImage src={user ? (user as any).avatar_url || (user as any).avatar : undefined} />
-              <AvatarFallback className="bg-purple-600 text-white font-medium">
+              <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
                 {(user as any)?.username?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             
             <div className="flex-1">
-              <div className="font-medium text-white mb-1">
+              <div className="font-semibold text-white mb-0.5">
                 {(user as any)?.username || 'User'}
               </div>
-              <div className="text-sm text-gray-400">
-                {postData.scheduledFor ? 'Scheduled post' : 'Create a post'}
+              <div className="text-sm text-slate-400">
+                {postData.scheduledFor ? 'Scheduled post' : isPollMode ? 'Create a poll' : 'Create a post'}
               </div>
             </div>
           </div>
@@ -380,32 +409,41 @@ export function CleanPostCreator({
             className="transition-all duration-300"
           >
             <div {...dragHandlers}>
-              {/* Textarea */}
               <Textarea
                 ref={textareaRef}
-                placeholder={placeholder}
+                placeholder={isPollMode ? 'Ask your followers a question...' : placeholder}
                 value={postData.content}
                 onChange={(e) => handleContentChange(e.target.value)}
                 className={cn(
-                  'min-h-[120px] resize-none border-slate-700 bg-slate-800/50 text-white placeholder:text-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-300',
-                  isDragOver && 'border-purple-500/50 bg-purple-500/10'
+                  ARTIST_TEXTAREA,
+                  isDragOver && 'border-purple-400/50 bg-purple-500/10'
                 )}
                 maxLength={maxCharacters}
               />
             </div>
           </DragDropIndicator>
 
+          {isPollMode && (
+            <PollOptionEditor
+              className="mt-4"
+              options={pollOptions}
+              duration={pollDuration}
+              onOptionsChange={setPollOptions}
+              onDurationChange={setPollDuration}
+            />
+          )}
+
           {/* Character count */}
           <div className="flex justify-between items-center mt-2 text-xs">
             <span className={cn(
-              'text-gray-400',
-              isOverLimit && 'text-red-400'
+              'text-slate-500',
+              isOverLimit && 'text-rose-400'
             )}>
               {characterCount}/{maxCharacters} characters
             </span>
             
             {isOverLimit && (
-              <span className="text-red-400 flex items-center gap-1">
+              <span className="text-rose-400 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
                 Over limit
               </span>
@@ -428,7 +466,7 @@ export function CleanPostCreator({
                   variant="ghost"
                   size="sm"
                   onClick={() => setPostData(prev => ({ ...prev, mediaItems: [] }))}
-                  className="text-red-400 hover:text-red-300"
+                  className={cn(ARTIST_GHOST_CHIP, 'h-8 text-rose-300 hover:text-rose-200')}
                 >
                   <X className="h-4 w-4 mr-1" />
                   Clear all
@@ -469,14 +507,14 @@ export function CleanPostCreator({
                   <Badge
                     key={tag}
                     variant="secondary"
-                    className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"
+                    className="rounded-full border border-purple-400/25 bg-purple-500/15 text-purple-200 hover:bg-purple-500/25"
                   >
                     #{tag}
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => removeHashtag(tag)}
-                      className="h-auto p-0 ml-1 text-purple-400 hover:text-purple-300"
+                      className="h-auto p-0 ml-1 text-purple-300 hover:text-white"
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -489,19 +527,21 @@ export function CleanPostCreator({
           {/* Hashtag input */}
           <div className="mt-4">
             <div className="flex items-center gap-2">
-              <Hash className="h-4 w-4 text-gray-400" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] text-purple-300">
+                <Hash className="h-4 w-4" />
+              </div>
               <Input
                 placeholder="Add hashtags..."
                 value={hashtagInput}
                 onChange={(e) => setHashtagInput(e.target.value)}
                 onKeyDown={handleHashtagKeyPress}
-                className="flex-1 bg-slate-800/50 border-slate-700 text-white placeholder:text-gray-400"
+                className={cn(ARTIST_INPUT, 'flex-1')}
               />
               <Button
-                variant="outline"
                 size="sm"
                 onClick={() => addHashtag(hashtagInput)}
                 disabled={!hashtagInput.trim()}
+                className={cn(ARTIST_SECONDARY_BTN, 'h-10 px-4')}
               >
                 Add
               </Button>
@@ -513,16 +553,16 @@ export function CleanPostCreator({
             <motion.div
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-3 p-3 bg-red-500/20 border border-red-500/50 rounded-lg"
+              className="mt-3 rounded-xl border border-rose-500/40 bg-rose-500/10 p-3"
             >
-              <div className="flex items-center gap-2 text-red-400">
+              <div className="flex items-center gap-2 text-rose-300">
                 <AlertCircle className="h-4 w-4" />
                 <span className="text-sm">{errorMessage}</span>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={clearError}
-                  className="ml-auto h-auto p-1 text-red-400 hover:text-red-300"
+                  className="ml-auto h-auto p-1 text-rose-300 hover:text-rose-200"
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -531,73 +571,87 @@ export function CleanPostCreator({
           )}
 
           {/* Action buttons */}
-          <div className="flex items-center justify-between mt-6 pt-4 border-t border-slate-700">
-            <div className="flex items-center gap-2">
-              {/* Media upload button */}
+          <div className="mt-6 flex flex-col gap-4 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               {postData.mediaItems.length < maxMediaItems && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-gray-400 hover:text-white"
+                  className={cn(ARTIST_GHOST_CHIP, 'h-9 px-3')}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
+                  <Plus className="h-4 w-4 mr-1.5" />
                   Add Media
                 </Button>
               )}
 
-              {/* Advanced options toggle */}
               {showAdvancedOptions && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsExpanded(!isExpanded)}
-                  className="text-gray-400 hover:text-white"
+                  className={cn(ARTIST_GHOST_CHIP, 'h-9 px-3')}
                 >
-                  <Settings className="h-4 w-4 mr-2" />
+                  <Settings className="h-4 w-4 mr-1.5" />
                   {isExpanded ? 'Hide' : 'Show'} options
                 </Button>
               )}
 
-              {/* Schedule button */}
               {!postData.scheduledFor && (
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setShowScheduleDialog(true)}
-                  className="text-gray-400 hover:text-white"
+                  className={cn(ARTIST_GHOST_CHIP, 'h-9 px-3')}
                 >
-                  <Calendar className="h-4 w-4 mr-2" />
+                  <Calendar className="h-4 w-4 mr-1.5" />
                   Schedule
                 </Button>
               )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsPollMode((prev) => !prev)
+                  if (!isPollMode && postData.visibility === 'public')
+                    setPostData((prev) => ({ ...prev, visibility: 'followers' }))
+                }}
+                className={cn(
+                  ARTIST_GHOST_CHIP,
+                  'h-9 px-3',
+                  isPollMode && 'border-purple-400/40 bg-purple-500/15 text-purple-100 shadow-[0_0_16px_-8px_rgba(168,85,247,0.55)]'
+                )}
+              >
+                <BarChart3 className="h-4 w-4 mr-1.5" />
+                Poll
+              </Button>
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Visibility selector */}
+            <div className="flex items-center gap-2 sm:gap-3">
               <Select
                 value={postData.visibility}
                 onValueChange={(value: 'public' | 'followers' | 'private') => 
                   setPostData(prev => ({ ...prev, visibility: value }))
                 }
               >
-                <SelectTrigger className="w-auto bg-slate-800/50 border-slate-700 text-white">
+                <SelectTrigger className={cn(ARTIST_OUTLINE_BTN, 'h-10 w-auto min-w-[8.5rem] gap-2 px-3')}>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-700">
-                  <SelectItem value="public" className="text-white">
+                <SelectContent className="border-white/10 bg-slate-950/95 text-slate-100">
+                  <SelectItem value="public">
                     <div className="flex items-center gap-2">
                       {visibilityIcons.public}
                       Public
                     </div>
                   </SelectItem>
-                  <SelectItem value="followers" className="text-white">
+                  <SelectItem value="followers">
                     <div className="flex items-center gap-2">
                       {visibilityIcons.followers}
-                      Followers only
+                      Followers
                     </div>
                   </SelectItem>
-                  <SelectItem value="private" className="text-white">
+                  <SelectItem value="private">
                     <div className="flex items-center gap-2">
                       {visibilityIcons.private}
                       Private
@@ -606,27 +660,31 @@ export function CleanPostCreator({
                 </SelectContent>
               </Select>
 
-              {/* Post button */}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleSubmit}
                     data-submit-post
-                    disabled={isSubmitting || isOverLimit || (!postData.content.trim() && postData.mediaItems.length === 0)}
-                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-600 disabled:to-gray-600"
+                    disabled={
+                      isSubmitting
+                      || isOverLimit
+                      || (!postData.content.trim() && postData.mediaItems.length === 0)
+                      || (isPollMode && pollOptions.filter((option) => option.trim()).length < 2)
+                    }
+                    className={cn(ARTIST_PRIMARY_BTN, 'h-10 px-5')}
                   >
                     {isSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {postData.scheduledFor ? 'Scheduling...' : 'Posting...'}
+                        {isPollMode ? 'Creating...' : (postData.scheduledFor ? 'Scheduling...' : 'Posting...')}
                       </>
                     ) : (
                       <>
-                        <Send className="h-4 w-4 mr-2" />
-                        {postData.scheduledFor ? 'Schedule Post' : 'Post'}
+                        {isPollMode ? <BarChart3 className="h-4 w-4 mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                        {isPollMode ? 'Create Poll' : (postData.scheduledFor ? 'Schedule' : 'Post')}
                       </>
                     )}
-                    <span className="ml-2 text-xs opacity-70">⌘↵</span>
+                    <span className="ml-2 text-[10px] uppercase tracking-wide opacity-80">⌘↵</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -644,43 +702,41 @@ export function CleanPostCreator({
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.3 }}
-                className="mt-4 pt-4 border-t border-slate-700 space-y-4 overflow-hidden"
+                className="mt-4 space-y-4 overflow-hidden border-t border-white/10 pt-4"
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Location */}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-white flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
+                    <label className="flex items-center gap-2 text-sm font-medium text-white">
+                      <MapPin className="h-4 w-4 text-purple-300" />
                       Location
                     </label>
                     <Input
                       placeholder="Where are you?"
                       value={postData.location}
                       onChange={(e) => setPostData(prev => ({ ...prev, location: e.target.value }))}
-                      className="bg-slate-800/50 border-slate-700 text-white placeholder:text-gray-400"
+                      className={ARTIST_INPUT}
                     />
                   </div>
                 </div>
 
-                {/* Post options */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium text-white">Post Options</h4>
                   <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
                       <input
                         type="checkbox"
                         checked={postData.allowComments}
                         onChange={(e) => setPostData(prev => ({ ...prev, allowComments: e.target.checked }))}
-                        className="rounded border-slate-600 bg-slate-800"
+                        className="rounded border-white/20 bg-black/40 text-purple-500 focus:ring-purple-500/40"
                       />
                       Allow comments
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-300">
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
                       <input
                         type="checkbox"
                         checked={postData.allowSharing}
                         onChange={(e) => setPostData(prev => ({ ...prev, allowSharing: e.target.checked }))}
-                        className="rounded border-slate-600 bg-slate-800"
+                        className="rounded border-white/20 bg-black/40 text-purple-500 focus:ring-purple-500/40"
                       />
                       Allow sharing
                     </label>
@@ -702,12 +758,11 @@ export function CleanPostCreator({
         </CardContent>
       </Card>
 
-      {/* Schedule dialog */}
       {showScheduleDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <Card className="bg-slate-900 border-slate-700 w-full max-w-md">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <Card className={cn(ARTIST_CARD, 'w-full max-w-md')}>
             <CardContent className="p-6">
-              <h3 className="text-lg font-medium text-white mb-4">Schedule Post</h3>
+              <h3 className="mb-4 text-lg font-semibold text-white">Schedule Post</h3>
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-white">Date</label>
@@ -716,7 +771,7 @@ export function CleanPostCreator({
                     value={scheduledDate}
                     onChange={(e) => setScheduledDate(e.target.value)}
                     min={new Date().toISOString().split('T')[0]}
-                    className="bg-slate-800 border-slate-700 text-white"
+                    className={ARTIST_INPUT}
                   />
                 </div>
                 <div className="space-y-2">
@@ -725,13 +780,14 @@ export function CleanPostCreator({
                     type="time"
                     value={scheduledTime}
                     onChange={(e) => setScheduledTime(e.target.value)}
-                    className="bg-slate-800 border-slate-700 text-white"
+                    className={ARTIST_INPUT}
                   />
                 </div>
-                <div className="flex gap-2 justify-end">
+                <div className="flex justify-end gap-2">
                   <Button
                     variant="outline"
                     onClick={() => setShowScheduleDialog(false)}
+                    className={ARTIST_OUTLINE_BTN}
                   >
                     Cancel
                   </Button>
@@ -749,6 +805,7 @@ export function CleanPostCreator({
                       }
                     }}
                     disabled={!scheduledDate || !scheduledTime}
+                    className={ARTIST_PRIMARY_BTN}
                   >
                     Schedule
                   </Button>

@@ -1,17 +1,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateEventModal } from "../../components/events/create-event-modal"
-import { TicketGeneratorModal } from "../../components/tickets/ticket-generator-modal"
-import { Calendar, Download, Edit, ExternalLink, QrCode, Search, Share, TicketIcon } from "lucide-react"
+import { Calendar, QrCode, Search, TicketIcon } from "lucide-react"
 import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
-import { venueService } from "@/lib/services/venue.service"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
 
@@ -19,6 +18,8 @@ interface TicketTypeItem {
   id: string
   name: string
   price: number
+  allInPrice: number
+  mandatoryFees: number
   available: number
   sold: number
 }
@@ -39,8 +40,6 @@ interface VenueTicketEvent {
 export default function TicketsPage() {
   const { venue, isLoading: isVenueLoading } = useCurrentVenue()
   const [showCreateEventModal, setShowCreateEventModal] = useState(false)
-  const [showTicketGeneratorModal, setShowTicketGeneratorModal] = useState(false)
-  const [selectedEvent, setSelectedEvent] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeTab, setActiveTab] = useState("selling")
   const [myEvents, setMyEvents] = useState<VenueTicketEvent[]>([])
@@ -48,47 +47,42 @@ export default function TicketsPage() {
   useEffect(() => {
     async function loadEvents() {
       if (!venue?.id) return
-      const now = new Date()
-      const sixMonths = new Date()
-      sixMonths.setMonth(sixMonths.getMonth() + 6)
-      const rows = await venueService.getVenueEventsByRange(venue.id, now.toISOString(), sixMonths.toISOString())
+      const response = await fetch(`/api/venue/ticketing?venue_id=${venue.id}`, {
+        credentials: "include",
+        cache: "no-store",
+      })
+      if (!response.ok) {
+        setMyEvents([])
+        return
+      }
+
+      const payload = await response.json()
+      const rows = Array.isArray(payload?.summary?.events) ? payload.summary.events : []
       const mapped = rows.map((event: any): VenueTicketEvent => {
-        const settings = event.settings && typeof event.settings === "object"
-          ? (event.settings as Record<string, unknown>)
-          : {}
-        const ticketsTotal = Number(event.capacity || 0)
-        const ticketsSold = Math.floor(ticketsTotal * 0.35)
-        const basePrice = Number(settings.ticket_price || 0)
-        const standardSold = Math.floor(ticketsSold * 0.8)
-        const vipSold = Math.max(0, ticketsSold - standardSold)
-        const standardTotal = Math.floor(ticketsTotal * 0.85)
-        const vipTotal = Math.max(0, ticketsTotal - standardTotal)
-        const venueLabel = typeof settings.venue_label === "string" ? settings.venue_label : venue.venue_name || venue.name || "Venue"
+        const ticketTypes = Array.isArray(event.ticket_types) ? event.ticket_types : []
+        const ticketsTotal =
+          ticketTypes.reduce((sum: number, ticket: any) => sum + Number(ticket.quantity_available || 0), 0) ||
+          Number(event.capacity || 0)
+        const ticketsSold = Number(event.tickets_sold || 0)
+        const venueLabel = venue.venue_name || venue.name || "Venue"
         return {
           id: String(event.id),
           title: String(event.title || "Event"),
-          date: String(event.date || new Date().toISOString()),
+          date: String(event.start_at || event.date || new Date().toISOString()),
           venue: venueLabel,
           location: `${venue.city || ""}${venue.city && venue.state ? ", " : ""}${venue.state || ""}` || "TBD",
           ticketsSold,
           ticketsTotal,
-          ticketTypes: [
-            {
-              id: `${event.id}-ga`,
-              name: "General Admission",
-              price: basePrice || 25,
-              available: Math.max(0, standardTotal - standardSold),
-              sold: standardSold,
-            },
-            {
-              id: `${event.id}-vip`,
-              name: "VIP",
-              price: basePrice > 0 ? Math.round(basePrice * 1.8) : 45,
-              available: Math.max(0, vipTotal - vipSold),
-              sold: vipSold,
-            },
-          ],
-          revenue: (basePrice || 25) * ticketsSold,
+          ticketTypes: ticketTypes.map((ticket: any) => ({
+            id: String(ticket.id),
+            name: String(ticket.name || "Ticket"),
+            price: Number(ticket.base_price ?? ticket.price ?? 0),
+            allInPrice: Number(ticket.all_in_price ?? ticket.price ?? 0),
+            mandatoryFees: Number(ticket.mandatory_fees || 0),
+            available: Math.max(0, Number(ticket.quantity_available || 0) - Number(ticket.quantity_sold || 0)),
+            sold: Number(ticket.quantity_sold || 0),
+          })),
+          revenue: Number(event.gross_revenue || 0),
           status: event.status === "inquiry" ? "Draft" : "On Sale",
         }
       })
@@ -96,33 +90,6 @@ export default function TicketsPage() {
     }
     void loadEvents()
   }, [venue?.id, venue?.city, venue?.state, venue?.name, venue?.venue_name])
-
-  const purchasedTickets = [
-    {
-      id: "purchase-1",
-      eventTitle: "Rock Revolution Tour",
-      eventDate: "2025-07-10T19:00:00",
-      venue: "Madison Square Garden",
-      location: "New York, NY",
-      ticketType: "Floor Access",
-      price: 95,
-      purchaseDate: "2024-04-01",
-      ticketCode: "RRT-F-12345",
-      organizer: "Live Nation",
-    },
-    {
-      id: "purchase-2",
-      eventTitle: "Classical Symphony",
-      eventDate: "2025-05-15T20:00:00",
-      venue: "Carnegie Hall",
-      location: "New York, NY",
-      ticketType: "Balcony Seat",
-      price: 65,
-      purchaseDate: "2024-03-20",
-      ticketCode: "CS-B-67890",
-      organizer: "NY Philharmonic",
-    },
-  ]
 
   const formatDate = (dateString: string) => {
     return formatSafeDate(dateString)
@@ -147,18 +114,6 @@ export default function TicketsPage() {
       event.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.location.toLowerCase().includes(searchQuery.toLowerCase()),
   )
-
-  const filteredPurchases = purchasedTickets.filter(
-    (ticket) =>
-      ticket.eventTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.venue.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.location.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
-
-  const handleGenerateTickets = (eventId: string) => {
-    setSelectedEvent(eventId)
-    setShowTicketGeneratorModal(true)
-  }
 
   if (isVenueLoading)
     return (
@@ -234,8 +189,8 @@ export default function TicketsPage() {
                       </CardDescription>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{formatCurrency(event.revenue)}</p>
-                      <p className="text-sm text-gray-400">Total Revenue</p>
+                      <p className="font-medium">{event.ticketsSold} sold</p>
+                      <p className="text-sm text-gray-400">Ops summary (finance hidden)</p>
                     </div>
                   </div>
                 </CardHeader>
@@ -245,12 +200,18 @@ export default function TicketsPage() {
                       <span>
                         {event.ticketsSold}/{event.ticketsTotal} tickets sold
                       </span>
-                      <span>{((event.ticketsSold / event.ticketsTotal) * 100).toFixed(0)}% sold</span>
+                      <span>
+                        {event.ticketsTotal > 0 ? ((event.ticketsSold / event.ticketsTotal) * 100).toFixed(0) : 0}% sold
+                      </span>
                     </div>
                     <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-purple-600"
-                        style={{ width: `${(event.ticketsSold / event.ticketsTotal) * 100}%` }}
+                        style={{
+                          width: `${
+                            event.ticketsTotal > 0 ? Math.min(100, (event.ticketsSold / event.ticketsTotal) * 100) : 0
+                          }%`,
+                        }}
                       ></div>
                     </div>
 
@@ -260,9 +221,13 @@ export default function TicketsPage() {
                           <div className="flex items-center justify-between">
                             <h3 className="font-medium">{ticket.name}</h3>
                             <Badge variant="outline" className="border-gray-700">
-                              {formatCurrency(ticket.price)}
+                              {formatCurrency(ticket.allInPrice)}
                             </Badge>
                           </div>
+                          <p className="mt-1 text-xs text-gray-400">
+                            {formatCurrency(ticket.price)} base
+                            {ticket.mandatoryFees > 0 ? ` + ${formatCurrency(ticket.mandatoryFees)} required fees` : " • no required fees configured"}
+                          </p>
                           <div className="flex items-center justify-between mt-2 text-sm">
                             <span>
                               {ticket.sold}/{ticket.sold + ticket.available} sold
@@ -274,20 +239,17 @@ export default function TicketsPage() {
                     </div>
 
                     <div className="flex gap-2 mt-4">
-                      <Button
-                        className="flex-1"
-                        onClick={() => handleGenerateTickets(event.id)}
-                        disabled={event.status === "Draft"}
-                      >
-                        <TicketIcon className="h-4 w-4 mr-2" />
-                        Manage Tickets
+                      <Button asChild className="flex-1" disabled={event.status === "Draft"}>
+                        <Link href={`/admin/dashboard/events/${event.id}/check-in`}>
+                          <QrCode className="h-4 w-4 mr-2" />
+                          Door check-in
+                        </Link>
                       </Button>
-                      <Button variant="outline" className="border-gray-700">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit Event
-                      </Button>
-                      <Button variant="outline" className="border-gray-700">
-                        <Share className="h-4 w-4" />
+                      <Button asChild variant="outline" className="border-gray-700">
+                        <Link href={`/tickets/my-tickets`}>
+                          <TicketIcon className="h-4 w-4 mr-2" />
+                          My wallet
+                        </Link>
                       </Button>
                     </div>
                   </div>
@@ -298,68 +260,19 @@ export default function TicketsPage() {
         </TabsContent>
 
         <TabsContent value="purchased" className="mt-6 space-y-6">
-          {filteredPurchases.length === 0 ? (
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="pt-6 text-center">
-                <p className="text-gray-400">No purchased tickets found.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            filteredPurchases.map((ticket) => (
-              <Card key={ticket.id} className="bg-gray-900 border-gray-800">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle>{ticket.eventTitle}</CardTitle>
-                      <CardDescription className="mt-1">
-                        {formatDate(ticket.eventDate)} at {formatTime(ticket.eventDate)} • {ticket.venue},{" "}
-                        {ticket.location}
-                      </CardDescription>
-                    </div>
-                    <QrCode className="h-10 w-10 text-gray-400" />
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-400">Ticket Type</p>
-                        <p className="font-medium">{ticket.ticketType}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Price</p>
-                        <p className="font-medium">{formatCurrency(ticket.price)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400">Ticket Code</p>
-                        <p className="font-medium">{ticket.ticketCode}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2 mt-4">
-                      <Button className="flex-1">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Ticket
-                      </Button>
-                      <Button variant="outline" className="border-gray-700">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        View Event
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+          <Card className="bg-gray-900 border-gray-800">
+            <CardContent className="pt-6 text-center">
+              <QrCode className="mx-auto mb-3 h-10 w-10 text-gray-500" />
+              <p className="text-gray-300 font-medium">No purchased tickets found</p>
+              <p className="mt-1 text-sm text-gray-500">
+                Venue ticket purchases will appear here when this account buys tickets as an attendee.
+              </p>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
       <CreateEventModal isOpen={showCreateEventModal} onClose={() => setShowCreateEventModal(false)} />
-      <TicketGeneratorModal
-        isOpen={showTicketGeneratorModal}
-        onClose={() => setShowTicketGeneratorModal(false)}
-        eventId={selectedEvent}
-      />
     </div>
   )
 }

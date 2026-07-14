@@ -79,6 +79,18 @@ interface LogisticsItem {
   actualCost?: number
   notes?: string
   tags?: string[]
+  equipmentLinks?: Array<{
+    id: string
+    equipment_asset_id: string
+    start_time?: string | null
+    end_time?: string | null
+    equipment?: {
+      id: string
+      name?: string
+      serial_number?: string
+      status?: string
+    } | null
+  }>
   lastUpdated: string
   createdBy: string
   isEditing?: boolean
@@ -162,6 +174,7 @@ export function LogisticsDynamicManager({
         actualCost: r.actual_cost ?? undefined,
         notes: r.notes || '',
         tags: r.tags || [],
+        equipmentLinks: r.equipment_links || [],
         lastUpdated: r.updated_at || r.created_at,
         createdBy: r.created_by || ''
       }))
@@ -307,9 +320,13 @@ export function LogisticsDynamicManager({
     setEditingItem(null)
     setItems(prev => prev.map(i => 
       i.id === item.id 
-        ? { ...i, isEditing: false, originalData: undefined }
+        ? { ...(i.originalData || i), isEditing: false, originalData: undefined } as LogisticsItem
         : i
     ))
+  }, [])
+
+  const updateLocalItem = useCallback((itemId: string, updates: Partial<LogisticsItem>) => {
+    setItems(prev => prev.map(item => item.id === itemId ? { ...item, ...updates } : item))
   }, [])
 
   // Handle item delete
@@ -361,10 +378,11 @@ export function LogisticsDynamicManager({
       if (!res.ok) throw new Error('attach failed')
       toast({ title: 'Equipment attached', description: 'Asset linked to task', variant: 'default' })
       setAttachAssetByTask(prev => ({ ...prev, [taskId]: { assetId: '', start: '', end: '' } }))
+      await fetchItems()
     } catch (err) {
       toast({ title: 'Attach failed', description: 'Could not attach equipment', variant: 'destructive' })
     }
-  }, [attachAssetByTask, toast])
+  }, [attachAssetByTask, fetchItems, toast])
 
   // Handle bulk actions
   const handleBulkAction = useCallback(async (action: string) => {
@@ -558,7 +576,10 @@ export function LogisticsDynamicManager({
             <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsCreating(true)}
+            onClick={() => {
+              setNewItem(prev => ({ type: type === 'all' ? 'transportation' : type, priority: 'medium', status: 'pending', ...prev }))
+              setIsCreating(true)
+            }}
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Item
@@ -685,40 +706,126 @@ export function LogisticsDynamicManager({
                           
                           <div className="flex items-center space-x-2">
                             {getTypeIcon(item.type)}
-                            <span className="text-sm font-medium text-white">{item.title}</span>
+                            {editingItem === item.id ? (
+                              <Input
+                                value={item.title}
+                                onChange={(event) => updateLocalItem(item.id, { title: event.target.value })}
+                                className="h-8 max-w-sm bg-slate-900/70 text-white"
+                              />
+                            ) : (
+                              <span className="text-sm font-medium text-white">{item.title}</span>
+                            )}
                           </div>
                         </div>
                         
                         <div className="flex items-center space-x-2">
-                          <Badge className={getStatusColor(item.status)}>
-                            {item.status.replace('_', ' ')}
-                          </Badge>
-                          <Badge className={getPriorityColor(item.priority)}>
-                            {item.priority}
-                          </Badge>
+                          {editingItem === item.id ? (
+                            <>
+                              <Select value={item.status} onValueChange={(value: LogisticsItem['status']) => updateLocalItem(item.id, { status: value })}>
+                                <SelectTrigger className="h-8 w-36 bg-slate-900/70">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="pending">Pending</SelectItem>
+                                  <SelectItem value="confirmed">Confirmed</SelectItem>
+                                  <SelectItem value="in_progress">In Progress</SelectItem>
+                                  <SelectItem value="completed">Completed</SelectItem>
+                                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                                  <SelectItem value="needs_attention">Needs Attention</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <Select value={item.priority} onValueChange={(value: LogisticsItem['priority']) => updateLocalItem(item.id, { priority: value })}>
+                                <SelectTrigger className="h-8 w-28 bg-slate-900/70">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="low">Low</SelectItem>
+                                  <SelectItem value="medium">Medium</SelectItem>
+                                  <SelectItem value="high">High</SelectItem>
+                                  <SelectItem value="urgent">Urgent</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </>
+                          ) : (
+                            <>
+                              <Badge className={getStatusColor(item.status)}>
+                                {item.status.replace('_', ' ')}
+                              </Badge>
+                              <Badge className={getPriorityColor(item.priority)}>
+                                {item.priority}
+                              </Badge>
+                            </>
+                          )}
                         </div>
                       </div>
 
                       {/* Description */}
-                      <p className="text-sm text-slate-300">{item.description}</p>
+                      {editingItem === item.id ? (
+                        <Textarea
+                          value={item.description}
+                          onChange={(event) => updateLocalItem(item.id, { description: event.target.value })}
+                          className="bg-slate-900/70 text-white"
+                          rows={3}
+                        />
+                      ) : (
+                        <p className="text-sm text-slate-300">{item.description}</p>
+                      )}
 
                       {/* Details */}
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                         <div>
                           <span className="text-slate-400">Assigned:</span>
-                          <span className="ml-1 text-white">{item.assignedTo || 'Unassigned'}</span>
+                          {editingItem === item.id ? (
+                            <Combobox
+                              value={item.assignedTo || ''}
+                              placeholder="Search user"
+                              items={userOptions.map(u => ({ id: u.id, label: u.full_name || u.email || 'User', subLabel: u.email }))}
+                              onSearch={(q) => setUserQuery(q)}
+                              onChange={(val) => updateLocalItem(item.id, { assignedTo: val })}
+                            />
+                          ) : (
+                            <span className="ml-1 text-white">{item.assignedTo || 'Unassigned'}</span>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400">Due:</span>
-                          <span className="ml-1 text-white">
-                            {item.dueDate ? formatSafeDate(item.dueDate) : 'No due date'}
-                          </span>
+                          {editingItem === item.id ? (
+                            <Input
+                              type="date"
+                              value={item.dueDate || ''}
+                              onChange={(event) => updateLocalItem(item.id, { dueDate: event.target.value })}
+                              className="mt-1 h-8 bg-slate-900/70"
+                            />
+                          ) : (
+                            <span className="ml-1 text-white">
+                              {item.dueDate ? formatSafeDate(item.dueDate) : 'No due date'}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400">Budget:</span>
-                          <span className="ml-1 text-white">
-                            {formatSafeCurrency(item.budget || 0)} / {formatSafeCurrency(item.actualCost || 0)}
-                          </span>
+                          {editingItem === item.id ? (
+                            <div className="mt-1 grid grid-cols-2 gap-1">
+                              <Input
+                                type="number"
+                                value={item.budget ?? ''}
+                                placeholder="Budget"
+                                onChange={(event) => updateLocalItem(item.id, { budget: event.target.value === '' ? undefined : Number(event.target.value) })}
+                                className="h-8 bg-slate-900/70"
+                              />
+                              <Input
+                                type="number"
+                                value={item.actualCost ?? ''}
+                                placeholder="Actual"
+                                onChange={(event) => updateLocalItem(item.id, { actualCost: event.target.value === '' ? undefined : Number(event.target.value) })}
+                                className="h-8 bg-slate-900/70"
+                              />
+                            </div>
+                          ) : (
+                            <span className="ml-1 text-white">
+                              {formatSafeCurrency(item.budget || 0)} / {formatSafeCurrency(item.actualCost || 0)}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <span className="text-slate-400">Updated:</span>
@@ -729,7 +836,17 @@ export function LogisticsDynamicManager({
                       </div>
 
                       {/* Tags */}
-                      {item.tags && item.tags.length > 0 && (
+                      {editingItem === item.id ? (
+                        <div>
+                          <Label className="text-xs text-slate-400">Tags</Label>
+                          <Input
+                            value={(item.tags || []).join(', ')}
+                            onChange={(event) => updateLocalItem(item.id, { tags: event.target.value.split(',').map(tag => tag.trim()).filter(Boolean) })}
+                            placeholder="Comma-separated tags"
+                            className="mt-1 h-8 bg-slate-900/70"
+                          />
+                        </div>
+                      ) : item.tags && item.tags.length > 0 ? (
                         <div className="flex items-center space-x-2">
                           {item.tags.map((tag, index) => (
                             <Badge key={index} variant="outline" className="text-xs">
@@ -737,18 +854,41 @@ export function LogisticsDynamicManager({
                             </Badge>
                           ))}
                         </div>
-                      )}
+                      ) : null}
 
                       {/* Notes */}
-                      {item.notes && (
+                      {editingItem === item.id ? (
+                        <div>
+                          <Label className="text-xs text-slate-400">Notes</Label>
+                          <Textarea
+                            value={item.notes || ''}
+                            onChange={(event) => updateLocalItem(item.id, { notes: event.target.value })}
+                            className="mt-1 bg-slate-900/70 text-white"
+                            rows={2}
+                          />
+                        </div>
+                      ) : item.notes ? (
                         <div className="text-sm text-slate-400 bg-slate-700/50 p-2 rounded">
                           <span className="font-medium">Notes:</span> {item.notes}
                         </div>
-                      )}
+                      ) : null}
 
                       {/* Equipment attachment (for equipment/backline tasks) */}
                       {(item.type === 'equipment' || item.type === 'backline') && (
                         <div className="mt-2 space-y-2">
+                          {item.equipmentLinks && item.equipmentLinks.length > 0 ? (
+                            <div className="rounded border border-slate-700/50 bg-slate-900/40 p-2">
+                              <p className="mb-2 text-xs font-medium text-slate-400">Attached Equipment</p>
+                              <div className="space-y-1">
+                                {item.equipmentLinks.map(link => (
+                                  <div key={link.id} className="flex items-center justify-between text-xs text-slate-300">
+                                    <span>{link.equipment?.name || link.equipment_asset_id}</span>
+                                    <span className="text-slate-500">{link.equipment?.serial_number || link.equipment?.status || ''}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                             <Input
                               placeholder="Search equipment by name or serial"
@@ -877,7 +1017,7 @@ export function LogisticsDynamicManager({
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm text-slate-300">Type</Label>
-                <Select value={newItem.type} onValueChange={(value: any) => setNewItem(prev => ({ ...prev, type: value }))}>
+                <Select value={newItem.type || (type === 'all' ? undefined : type)} onValueChange={(value: any) => setNewItem(prev => ({ ...prev, type: value }))}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
@@ -977,11 +1117,17 @@ export function LogisticsDynamicManager({
               Cancel
             </Button>
             <Button
+              disabled={!newItem.title?.trim() || !(newItem.type || type !== 'all')}
               onClick={async () => {
                 const payload = {
                   eventId,
                   tourId,
+                  type: newItem.type || (type === 'all' ? undefined : type),
                   ...newItem
+                }
+                if (!payload.title?.trim() || !payload.type) {
+                  toast({ title: 'Missing required fields', description: 'Add a title and type before creating this item.', variant: 'destructive' })
+                  return
                 }
                 try {
                   const res = await fetch('/api/admin/logistics/items', {

@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { AccountManagementService, UserAccount } from './account-management.service'
+import { normalizeHiringEntityId } from '@/lib/hiring/hiring-entity-id'
 
 export interface DashboardStats {
   likes: number
@@ -97,33 +98,23 @@ async function sumPostEngagementForUser(
 
 export class DashboardService {
   private static async getUserEventCount(userId: string): Promise<number> {
-    // events table may have organizer_id or user_id depending on the migration state
-    const [legacyOrganizer, legacyUser, v2] = await Promise.allSettled([
-      supabase.from('events').select('*', { count: 'exact', head: true }).eq('organizer_id', userId),
-      supabase.from('events').select('*', { count: 'exact', head: true }).eq('user_id', userId),
+    // Live legacy events use created_by; avoid organizer_id/user_id filters that 400 in production.
+    const [legacyCreatedBy, v2] = await Promise.allSettled([
+      supabase.from('events').select('*', { count: 'exact', head: true }).eq('created_by', userId),
       supabase.from('events_v2').select('*', { count: 'exact', head: true }).eq('created_by', userId),
     ])
-    const orgCount = legacyOrganizer.status === 'fulfilled' && !legacyOrganizer.value.error
-      ? (legacyOrganizer.value.count ?? 0) : 0
-    const userCount = legacyUser.status === 'fulfilled' && !legacyUser.value.error
-      ? (legacyUser.value.count ?? 0) : 0
-    const legacyCount = Math.max(orgCount, userCount)
+    const legacyCount = legacyCreatedBy.status === 'fulfilled' && !legacyCreatedBy.value.error
+      ? (legacyCreatedBy.value.count ?? 0) : 0
     const v2Count = v2.status === 'fulfilled' ? (v2.value.count ?? 0) : 0
     return legacyCount + v2Count
   }
 
   private static async getRecentUserEvents(userId: string) {
-    const [legacyOrgResult, legacyUserResult, v2Result] = await Promise.allSettled([
+    const [legacyResult, v2Result] = await Promise.allSettled([
       supabase
         .from('events')
         .select('id, title, created_at, capacity')
-        .eq('organizer_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(3),
-      supabase
-        .from('events')
-        .select('id, title, created_at, capacity')
-        .eq('user_id', userId)
+        .eq('created_by', userId)
         .order('created_at', { ascending: false })
         .limit(3),
       supabase
@@ -134,13 +125,8 @@ export class DashboardService {
         .limit(3),
     ])
 
-    const orgEvents = legacyOrgResult.status === 'fulfilled' && !legacyOrgResult.value.error
-      ? (legacyOrgResult.value.data ?? []) : []
-    const userEvents = legacyUserResult.status === 'fulfilled' && !legacyUserResult.value.error
-      ? (legacyUserResult.value.data ?? []) : []
-    // Deduplicate by id, preferring organizer_id results
-    const seenIds = new Set(orgEvents.map(e => e.id))
-    const legacy = [...orgEvents, ...userEvents.filter(e => !seenIds.has(e.id))]
+    const legacy = legacyResult.status === 'fulfilled' && !legacyResult.value.error
+      ? (legacyResult.value.data ?? []) : []
     const modern = (v2Result.status === 'fulfilled' ? (v2Result.value.data ?? []) : []).map(e => ({
       ...e,
       title: e.title || 'Event',
@@ -155,12 +141,13 @@ export class DashboardService {
     userId: string,
     options?: { engagementSampleMaxRows?: number },
   ): Promise<DashboardStats> {
+    const resolvedUserId = normalizeHiringEntityId(userId) ?? userId
     return safeQuery(async () => {
       const engagementCap = options?.engagementSampleMaxRows ?? 25_000
       const [engagementResult, followersResult, eventCountResult] = await Promise.allSettled([
-        sumPostEngagementForUser(userId, { maxRows: engagementCap }),
-        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', userId),
-        this.getUserEventCount(userId),
+        sumPostEngagementForUser(resolvedUserId, { maxRows: engagementCap }),
+        supabase.from('follows').select('*', { count: 'exact', head: true }).eq('following_id', resolvedUserId),
+        this.getUserEventCount(resolvedUserId),
       ])
 
       const postTotals =
@@ -180,6 +167,7 @@ export class DashboardService {
   }
 
   static async getDashboardActivity(userId: string): Promise<DashboardActivity[]> {
+    const resolvedUserId = normalizeHiringEntityId(userId) ?? userId
     return safeQuery(async () => {
       const activities: DashboardActivity[] = []
 
@@ -187,14 +175,14 @@ export class DashboardService {
         supabase
           .from('posts')
           .select('*')
-          .eq('user_id', userId)
+          .eq('user_id', resolvedUserId)
           .order('created_at', { ascending: false })
           .limit(5),
-        this.getRecentUserEvents(userId),
+        this.getRecentUserEvents(resolvedUserId),
         supabase
           .from('follows')
           .select('id, created_at')
-          .eq('following_id', userId)
+          .eq('following_id', resolvedUserId)
           .order('created_at', { ascending: false })
           .limit(3),
       ])
@@ -309,4 +297,4 @@ export class DashboardService {
     if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`
     return `${Math.floor(diffInSeconds / 2592000)} months ago`
   }
-} 
+}

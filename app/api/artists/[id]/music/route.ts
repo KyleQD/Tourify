@@ -19,7 +19,7 @@ export async function GET(
     const { data: artistProfile, error: profileError } = await supabase
       .from('artist_profiles')
       .select('id, user_id, artist_name')
-      .eq('id', params.id)
+      .or(`id.eq.${params.id},user_id.eq.${params.id}`)
       .single()
 
     if (profileError || !artistProfile) {
@@ -37,7 +37,6 @@ export async function GET(
         genre,
         release_date,
         duration,
-        file_url,
         cover_art_url,
         spotify_url,
         apple_music_url,
@@ -47,12 +46,22 @@ export async function GET(
         tags,
         is_featured,
         is_pinned,
+        user_id,
+        access_mode,
+        preview_mode,
+        preview_duration_seconds,
+        preview_status,
+        allow_library_add,
+        allow_profile_feature,
         stats,
         created_at,
         updated_at
       `)
       .eq('user_id', artistProfile.user_id)
       .eq('is_public', true)
+      .eq('is_visible', true)
+      .eq('moderation_status', 'approved')
+      .eq('rights_confirmed', true)
       .order('is_pinned', { ascending: false })
       .order('is_featured', { ascending: false })
       .order('created_at', { ascending: false })
@@ -80,10 +89,34 @@ export async function GET(
       return NextResponse.json({ error: 'Failed to fetch music' }, { status: 500 })
     }
 
-    // Transform tracks to include artist name and format stats
+    const trackIds = (tracks || []).map((track: any) => track.id)
+    const listingByTrack: Record<string, any> = {}
+    if (trackIds.length > 0) {
+      const { data: listings } = await supabase
+        .from('marketplace_listings')
+        .select('id, music_track_id, status, base_price, currency')
+        .eq('category', 'music')
+        .eq('product_type', 'digital_asset')
+        .eq('status', 'published')
+        .in('music_track_id', trackIds)
+      ;(listings || []).forEach((listing: any) => {
+        if (listing.music_track_id && !listingByTrack[listing.music_track_id]) {
+          listingByTrack[listing.music_track_id] = listing
+        }
+      })
+    }
+
+    // Transform tracks to include artist name and stream contract metadata.
     const transformedTracks = (tracks || []).map((track: any) => ({
       ...track,
+      file_url: `/api/music/stream?trackId=${track.id}`,
+      stream_url: `/api/music/stream?trackId=${track.id}`,
+      artist_user_id: artistProfile.user_id,
+      artist_name: artistProfile.artist_name,
       artist: artistProfile.artist_name,
+      listing_id: listingByTrack[track.id]?.id || null,
+      listing_price: listingByTrack[track.id]?.base_price || null,
+      listing_currency: listingByTrack[track.id]?.currency || null,
       play_count: track.stats?.plays || 0,
       likes_count: track.stats?.likes || 0,
       comments_count: track.stats?.comments || 0,
@@ -97,6 +130,9 @@ export async function GET(
       .select('id', { count: 'exact', head: true })
       .eq('user_id', artistProfile.user_id)
       .eq('is_public', true)
+      .eq('is_visible', true)
+      .eq('moderation_status', 'approved')
+      .eq('rights_confirmed', true)
 
     if (featured) {
       countQuery = countQuery.eq('is_featured', true)

@@ -53,6 +53,12 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "neon-purple": "rgb(var(--neon-purple-rgb) / <alpha-value>)",
+        "neon-pink": "rgb(var(--neon-pink-rgb) / <alpha-value>)",
+        "neon-cyan": "rgb(var(--neon-cyan-rgb) / <alpha-value>)",
+        "neon-amber": "rgb(var(--neon-amber-rgb) / <alpha-value>)",
+        "neon-green": "rgb(var(--neon-green-rgb) / <alpha-value>)",
+        "neon-red": "rgb(var(--neon-red-rgb) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -204,7 +210,27 @@ const config = {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    require("tailwindcss-animate"),
+    function schedulingPrototypeDataVariants({
+      addVariant,
+    }: {
+      addVariant: (name: string, selector: string) => void
+    }) {
+      addVariant("data-active", "&[data-active]")
+      addVariant("data-open", "&[data-open]")
+      addVariant("data-closed", "&[data-closed]")
+      addVariant("data-disabled", "&[data-disabled]")
+      addVariant("data-placeholder", "&[data-placeholder]")
+      addVariant("data-popup-open", "&[data-popup-open]")
+      addVariant("data-checked", "&[data-checked]")
+      addVariant("data-inset", "&[data-inset]")
+      addVariant("data-horizontal", "&[data-orientation='horizontal']")
+      addVariant("data-vertical", "&[data-orientation='vertical']")
+      addVariant("data-starting-style", "&[data-starting-style]")
+      addVariant("data-ending-style", "&[data-ending-style]")
+    },
+  ],
 } satisfies Config
 
 export default config

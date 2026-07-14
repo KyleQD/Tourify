@@ -101,14 +101,25 @@ export default function EventAnalytics({ timeRange = "12m" }: EventAnalyticsProp
       }
 
       const { data, error } = await supabase
-        .from('artist_events')
+        .from('events')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('artist_id', user.id)
         .gte('event_date', startDate.toISOString().split('T')[0])
         .order('event_date', { ascending: true })
 
       if (error) throw error
-      setEvents(data || [])
+      setEvents((data || []).map((event: any) => ({
+        ...event,
+        title: event.title || event.name,
+        type: event.event_type || event.type || 'other',
+        venue_city: event.city,
+        venue_state: event.state,
+        status: event.status === 'published'
+          ? (event.event_date >= new Date().toISOString().slice(0, 10) ? 'upcoming' : 'completed')
+          : event.status === 'cancelled'
+            ? 'cancelled'
+            : 'upcoming',
+      })))
     } catch (error) {
       console.error('Error loading events:', error)
     } finally {

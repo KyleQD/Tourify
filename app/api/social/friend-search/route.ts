@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
         followers_count,
         following_count,
         created_at,
+        account_type,
         metadata
       `)
       .neq('id', user.id) // Exclude current user
@@ -153,6 +154,12 @@ export async function GET(request: NextRequest) {
           .eq('target_id', user.id)
           .single()
 
+        const canSendRequest =
+          (!outgoingRequest || ['rejected', 'cancelled'].includes(outgoingRequest.status)) &&
+          (!incomingRequest || incomingRequest.status !== 'pending') &&
+          outgoingRequest?.status !== 'accepted' &&
+          incomingRequest?.status !== 'accepted'
+
         return {
           id: profile.id,
           username: profile.username,
@@ -164,11 +171,12 @@ export async function GET(request: NextRequest) {
           followers_count: profile.followers_count || 0,
           following_count: profile.following_count || 0,
           created_at: profile.created_at,
+          account_type: profile.account_type,
           mutual_friends: mutualFriends,
           mutual_count: mutualFriends.length,
           outgoing_request: outgoingRequest,
           incoming_request: incomingRequest,
-          can_send_request: !outgoingRequest && !incomingRequest
+          can_send_request: canSendRequest
         }
       })
     )

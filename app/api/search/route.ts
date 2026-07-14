@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isArtistEventDiscoverable } from '@/lib/artist/artist-event-visibility'
 
 export async function GET(request: NextRequest) {
   try {
@@ -295,7 +296,9 @@ export async function GET(request: NextRequest) {
           state,
           country,
           venue_name,
-          tags
+          tags,
+          producer_settings,
+          is_public
         `)
         .eq('status', 'published')
         .order('event_date', { ascending: true })
@@ -334,7 +337,9 @@ export async function GET(request: NextRequest) {
         canonicalEventsQuery.range(offset, offset + limit - 1),
       ])
 
-      const legacyEvents = (legacyEventsResult.data || []).map((event: any) => ({
+      const legacyEvents = (legacyEventsResult.data || [])
+        .filter(isArtistEventDiscoverable)
+        .map((event: any) => ({
         ...event,
         title: event.name,
         type: event.event_type,

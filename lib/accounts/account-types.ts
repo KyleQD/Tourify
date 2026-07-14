@@ -12,9 +12,11 @@
  * - artist       : Music / creative persona with own feed and bookings
  * - service      : Service provider persona (photographer, dancer, DJ, etc.)
  * - venue        : Physical / logical space with its own feed and events
- * - organization : Company, vendor, promoter (code alias: 'admin' accepted)
+ * - organization : Public brand (band, label, promoter, agency, …). Subtypes live on organizer_accounts.subtype.
  * - admin        : Legacy alias for organization — accepted in inputs, never emitted
  * - staff        : Deprecated switcher type — maps to Work Mode (Phase 4)
+ *
+ * Tour manager is not a ProfileType — it is a General user with Admin/Work Mode grants.
  */
 export type ProfileType =
   | 'general'
@@ -52,23 +54,38 @@ export const ACCOUNT_TYPE_TO_POSTED_BY_TYPE: Partial<Record<ProfileType, string>
 
 /**
  * Normalize an incoming account type string to a canonical ProfileType.
- * Converts legacy `admin` to `organization`.
+ * Converts legacy `admin`, `organizer`, and `business` to `organization` for routing/display.
  * Falls back to `general` for unknown values.
+ * Do not persist the normalized value back to sessions without a data migration.
  */
 export function normalizeAccountType(raw: string | null | undefined): ProfileType {
   if (!raw) return 'general'
-  if (raw === 'admin') return 'organization'
+  if (raw === 'admin' || raw === 'organizer' || raw === 'business') return 'organization'
   const valid: ProfileType[] = ['general', 'artist', 'service', 'venue', 'organization', 'staff']
   return valid.includes(raw as ProfileType) ? (raw as ProfileType) : 'general'
 }
 
 /**
- * Whether a given account type is still the legacy `admin` string.
- * Useful for queries that must search `organizer_accounts` using the DB column name.
+ * Dual-compat org persona gate. Accepts legacy `admin` and canonical `organization`.
+ * Also treats DB search aliases `organizer` / `business` as organization for UI/API branches.
+ * Never replace with `=== 'organization'` only — legacy sessions still store `admin`.
  */
 export function isOrganizationType(type: string | null | undefined): boolean {
-  return type === 'admin' || type === 'organization'
+  return (
+    type === 'admin' ||
+    type === 'organization' ||
+    type === 'organizer' ||
+    type === 'business'
+  )
 }
+
+/** Account-type values that may appear in `accounts.account_type` for org brands. */
+export const ORGANIZATION_ACCOUNT_TYPE_ALIASES = [
+  'organization',
+  'organizer',
+  'business',
+  'admin',
+] as const
 
 /** Whether the type controls a public entity page (artist/venue/org). */
 export function isEntityType(type: string | null | undefined): boolean {

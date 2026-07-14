@@ -44,6 +44,20 @@ const sendMessageSchema = z.object({
     .optional(),
 })
 
+function getConversationListFallback(error: unknown) {
+  const details = error && typeof error === 'object' ? error as Record<string, unknown> : {}
+  const code = typeof details.code === 'string' ? details.code : 'conversation_list_unavailable'
+
+  return NextResponse.json({
+    conversations: [],
+    viewer: { role: 'member', canSend: true },
+    warning: {
+      code,
+      message: 'Conversations are temporarily unavailable.',
+    },
+  })
+}
+
 async function getViewerRoleBlockedState(
   supabase: ReturnType<typeof createServiceRoleClient>,
   userId: string,
@@ -86,6 +100,48 @@ async function resolveMessageContext(
 
     if (sharedEvent) {
       return { tier: 'open', context_type: 'event_team', context_id: sharedEvent.event_id }
+    }
+
+    const { data: acceptedAsRequester } = await supabase
+      .from('follow_requests')
+      .select('id')
+      .eq('status', 'accepted')
+      .eq('requester_id', senderId)
+      .eq('target_id', recipientId)
+      .maybeSingle()
+
+    const { data: acceptedAsTarget } = acceptedAsRequester
+      ? { data: null }
+      : await supabase
+          .from('follow_requests')
+          .select('id')
+          .eq('status', 'accepted')
+          .eq('requester_id', recipientId)
+          .eq('target_id', senderId)
+          .maybeSingle()
+
+    if (acceptedAsRequester || acceptedAsTarget) {
+      return { tier: 'open', context_type: 'network_connection', context_id: null }
+    }
+
+    const { data: followOutgoing } = await supabase
+      .from('follows')
+      .select('id')
+      .eq('follower_id', senderId)
+      .eq('following_id', recipientId)
+      .maybeSingle()
+
+    const { data: followIncoming } = followOutgoing
+      ? { data: null }
+      : await supabase
+          .from('follows')
+          .select('id')
+          .eq('follower_id', recipientId)
+          .eq('following_id', senderId)
+          .maybeSingle()
+
+    if (followOutgoing || followIncoming) {
+      return { tier: 'open', context_type: 'network_connection', context_id: null }
     }
   }
 
@@ -313,7 +369,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching conversations:', error)
-      return NextResponse.json({ error: 'Failed to fetch conversations' }, { status: 500 })
+      return getConversationListFallback(error)
     }
 
     const isViewerBlocked = await getViewerRoleBlockedState(supabase, user.id)

@@ -36,6 +36,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { isOrganizationType } from "@/lib/accounts/account-types"
 import { useRoutePreloader } from "@/hooks/use-route-preloader"
 import { AccountSwitcher } from "@/components/account-switcher"
 import { TourifyLogo } from "@/components/tourify-logo"
@@ -138,7 +139,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
   const getNavigationItems = () => {
     const baseItems = [
       { name: 'Home', href: getHomeRoute(), icon: Home, onClick: handleHomeClick },
-      { name: 'Pulse', href: '/feed', icon: Sparkles },
+      { name: 'News', href: '/news', icon: Sparkles },
       { name: 'Discover', href: '/discover', icon: Search },
       { name: 'Jobs', href: '/jobs', icon: Briefcase },
     ]
@@ -154,7 +155,7 @@ export function UnifiedNavigation({ variant = 'header', className = '' }: Unifie
         { name: 'Events', href: '/venue/events', icon: Activity },
         { name: 'Analytics', href: '/venue/analytics', icon: Zap }
       )
-    } else if (currentAccount?.account_type === 'admin') {
+    } else if (isOrganizationType(currentAccount?.account_type)) {
       baseItems.push(
         { name: 'Tours', href: '/admin/dashboard/tours', icon: Activity },
         { name: 'Events', href: '/admin/dashboard/events', icon: Building2 }

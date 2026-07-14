@@ -4,7 +4,6 @@ import type {
   SystemRole,
   TourManagementRole,
   TourManagementPermission,
-  UserTourRole,
   UserPermissionContext,
   PermissionChecker,
   DataIsolationContext,
@@ -15,10 +14,41 @@ import type {
 } from '@/types/rbac'
 import { PERMISSIONS, SYSTEM_ROLES, TOUR_ACCESS_LEVELS } from '@/types/rbac'
 
+// ---------------------------------------------------------------------------
+// Helpers: map real DB rows (rbac_*) to the legacy typed shapes
+// ---------------------------------------------------------------------------
+
+function dbRoleToType(row: Record<string, unknown>): TourManagementRole {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    display_name: (row.display_name ?? row.name) as string,
+    description: (row.description ?? null) as string | null,
+    is_system_role: Boolean(row.is_system),
+    created_at: '',
+    updated_at: '',
+  }
+}
+
+function dbPermissionToType(row: Record<string, unknown>): TourManagementPermission {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    display_name: (row.display_name ?? row.name) as string,
+    description: (row.description ?? null) as string | null,
+    category: (row.category ?? 'general') as string,
+    created_at: '',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// RBACService
+// ---------------------------------------------------------------------------
+
 export class RBACService {
   private static instance: RBACService
   private permissionCache: Map<string, UserPermissionContext> = new Map()
-  private cacheTimeout = 5 * 60 * 1000 // 5 minutes
+  private cacheTimeout = 5 * 60 * 1000
 
   private constructor() {}
 
@@ -29,191 +59,248 @@ export class RBACService {
     return RBACService.instance
   }
 
-  // Clear cache when needed
   public clearCache(): void {
     this.permissionCache.clear()
   }
 
-  // Get user's permission context
+  // Fetch user's permission context from real rbac_* tables.
+  // `entityId` is the legacy "tourId" parameter — it scopes the look-up to a
+  // specific entity when provided.
+  // Falls back to ownership-based admin grants when no role assignments exist.
   public async getUserPermissionContext(
     userId: string,
-    tourId?: string
+    entityId?: string
   ): Promise<UserPermissionContext> {
-    const cacheKey = `${userId}:${tourId || 'global'}`
-    
-    // Check cache first
+    const cacheKey = `${userId}:${entityId || 'global'}`
+
     if (this.permissionCache.has(cacheKey)) {
-      const cached = this.permissionCache.get(cacheKey)!
-      return cached
+      return this.permissionCache.get(cacheKey)!
     }
 
     try {
-      // Get user's permissions using the database function
-      const { data: permissions, error: permError } = await supabase
-        .rpc('get_user_permissions', { user_id: userId, tour_id: tourId })
-
-      if (permError) {
-        console.error('Error getting user permissions:', permError)
-        throw permError
-      }
-
-      // Get user's roles
-      const { data: userRoles, error: roleError } = await supabase
-        .from('user_tour_roles')
+      // Build query against rbac_user_entity_roles
+      let rolesQuery = supabase
+        .from('rbac_user_entity_roles')
         .select(`
-          *,
-          tour_management_roles (*)
+          id, entity_type, entity_id, is_active, end_at,
+          rbac_roles (id, name, display_name, description, is_system)
         `)
         .eq('user_id', userId)
         .eq('is_active', true)
 
-      if (roleError) {
-        console.error('Error getting user roles:', roleError)
-        throw roleError
+      if (entityId) {
+        rolesQuery = rolesQuery.eq('entity_id', entityId)
       }
+
+      const { data: userRoles, error: rolesError } = await rolesQuery
+
+      if (rolesError) {
+        console.error('[RBAC] Error loading user roles:', rolesError.message)
+        return this.emptyContext(userId, entityId)
+      }
+
+      const activeRoles = (userRoles ?? []).filter((ur) => {
+        if (!ur.end_at) return true
+        return new Date(ur.end_at) > new Date()
+      })
+
+      const roleIds = activeRoles.map((ur) => (ur.rbac_roles as any)?.id).filter(Boolean)
+
+      let permissionNames: Permission[] = []
+
+      if (roleIds.length > 0) {
+        const { data: rpRows, error: rpError } = await supabase
+          .from('rbac_role_permissions')
+          .select('permission_id, rbac_permissions (name)')
+          .in('role_id', roleIds)
+
+        if (!rpError && rpRows) {
+          permissionNames = rpRows
+            .map((rp) => (rp.rbac_permissions as any)?.name as Permission)
+            .filter(Boolean)
+        }
+      }
+
+      // Ownership fallback: if the user owns an organizer_account they get
+      // admin permissions even before any explicit role assignment is seeded.
+      const ownershipPerms = await this.getOwnershipPermissions(userId)
+      const allPermissions = [...new Set([...permissionNames, ...ownershipPerms])]
 
       const context: UserPermissionContext = {
         userId,
-        tourId,
-        permissions: permissions?.map((p: any) => p.permission_name) || [],
-        roles: userRoles?.map((ur: any) => ({
-          role: ur.tour_management_roles,
-          tourId: ur.tour_id,
-          isActive: ur.is_active
-        })) || []
+        tourId: entityId,
+        permissions: allPermissions,
+        roles: activeRoles.map((ur) => ({
+          role: dbRoleToType(ur.rbac_roles as unknown as Record<string, unknown>),
+          tourId: ur.entity_id as string | undefined,
+          isActive: Boolean(ur.is_active),
+        })),
       }
 
-      // Cache the context
       this.permissionCache.set(cacheKey, context)
-      
-      // Auto-clear cache after timeout
-      setTimeout(() => {
-        this.permissionCache.delete(cacheKey)
-      }, this.cacheTimeout)
+      setTimeout(() => this.permissionCache.delete(cacheKey), this.cacheTimeout)
 
       return context
     } catch (error) {
-      console.error('Error getting user permission context:', error)
-      return {
-        userId,
-        tourId,
-        permissions: [],
-        roles: []
-      }
+      console.error('[RBAC] getUserPermissionContext error:', error)
+      return this.emptyContext(userId, entityId)
     }
   }
 
-  // Create permission checker for a user
+  // Grant admin.* permissions to users who own an organizer_account.
+  // Also grants full permissions to venue and artist owners.
+  private async getOwnershipPermissions(userId: string): Promise<Permission[]> {
+    try {
+      // Check organizer ownership first (fastest path)
+      const { data: orgRow } = await supabase
+        .from('organizer_accounts')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle()
+
+      if (orgRow) {
+        // Org owners get full admin permissions
+        return [
+          PERMISSIONS.ADMIN_USERS,
+          PERMISSIONS.ADMIN_ROLES,
+          PERMISSIONS.ADMIN_SETTINGS,
+          PERMISSIONS.TOURS_CREATE,
+          PERMISSIONS.TOURS_VIEW,
+          PERMISSIONS.TOURS_EDIT,
+          PERMISSIONS.TOURS_MANAGE_STAFF,
+          PERMISSIONS.EVENTS_CREATE,
+          PERMISSIONS.EVENTS_VIEW,
+          PERMISSIONS.EVENTS_EDIT,
+          PERMISSIONS.EVENTS_MANAGE_LOGISTICS,
+          PERMISSIONS.STAFF_VIEW,
+          PERMISSIONS.STAFF_INVITE,
+          PERMISSIONS.STAFF_MANAGE,
+          PERMISSIONS.STAFF_REMOVE,
+          PERMISSIONS.ANALYTICS_VIEW,
+          PERMISSIONS.ANALYTICS_EXPORT,
+        ]
+      }
+
+      return []
+    } catch {
+      return []
+    }
+  }
+
+  private emptyContext(userId: string, entityId?: string): UserPermissionContext {
+    return { userId, tourId: entityId, permissions: [], roles: [] }
+  }
+
   public async createPermissionChecker(
     userId: string,
-    tourId?: string
+    entityId?: string
   ): Promise<PermissionChecker> {
-    const context = await this.getUserPermissionContext(userId, tourId)
-    
+    const context = await this.getUserPermissionContext(userId, entityId)
+
     return {
-      hasPermission: (permission: Permission, specificTourId?: string) => {
-        const targetTourId = specificTourId || tourId
-        
-        // Check global permissions first
-        const hasGlobalPermission = context.permissions.includes(permission)
-        
-        // If we have a specific tour, check tour-specific permissions
-        if (targetTourId) {
-          const tourSpecificContext = context.roles.some(
-            r => r.tourId === targetTourId && r.isActive
-          )
-          if (tourSpecificContext) {
-            return hasGlobalPermission || context.permissions.includes(permission)
-          }
-        }
-        
-        return hasGlobalPermission
+      hasPermission: (permission: Permission, specificEntityId?: string) => {
+        return context.permissions.includes(permission)
       },
-
-      hasAnyPermission: (permissions: Permission[], specificTourId?: string) => {
-        return permissions.some(p => context.permissions.includes(p))
+      hasAnyPermission: (permissions: Permission[], specificEntityId?: string) => {
+        return permissions.some((p) => context.permissions.includes(p))
       },
-
-      hasAllPermissions: (permissions: Permission[], specificTourId?: string) => {
-        return permissions.every(p => context.permissions.includes(p))
+      hasAllPermissions: (permissions: Permission[], specificEntityId?: string) => {
+        return permissions.every((p) => context.permissions.includes(p))
       },
-
-      hasRole: (role: SystemRole, specificTourId?: string) => {
-        const targetTourId = specificTourId || tourId
-        return context.roles.some(r => 
-          r.role.name === role && 
-          r.isActive && 
-          (targetTourId ? r.tourId === targetTourId : true)
+      hasRole: (role: SystemRole, specificEntityId?: string) => {
+        return context.roles.some(
+          (r) => r.role.name === role && r.isActive
         )
       },
-
       canAccessTour: (tourId: string) => {
-        return context.roles.some(r => 
-          r.isActive && (r.tourId === tourId || r.tourId === null)
-        )
-      }
+        return context.roles.some((r) => r.isActive && (r.tourId === tourId || !r.tourId))
+      },
     }
   }
 
-  // Assign role to user
   public async assignRole(payload: RoleAssignmentPayload): Promise<string> {
     try {
+      // Resolve role id by name
+      const { data: role, error: roleErr } = await supabase
+        .from('rbac_roles')
+        .select('id')
+        .eq('name', payload.roleName)
+        .maybeSingle()
+
+      if (roleErr || !role) {
+        throw new Error(`Role "${payload.roleName}" not found`)
+      }
+
+      const entityId = payload.tourId || payload.userId
+      const entityType = payload.tourId ? 'tour' : 'user'
+
       const { data, error } = await supabase
-        .rpc('assign_user_role', {
-          target_user_id: payload.userId,
-          role_name: payload.roleName,
-          target_tour_id: payload.tourId || null,
-          assigner_user_id: payload.assignedBy || null
+        .from('rbac_user_entity_roles')
+        .insert({
+          user_id: payload.userId,
+          entity_type: entityType,
+          entity_id: entityId,
+          role_id: role.id,
+          is_active: true,
         })
+        .select('id')
+        .single()
 
       if (error) {
-        console.error('Error assigning role:', error)
+        console.error('[RBAC] assignRole error:', error.message)
         throw error
       }
 
-      // Clear cache for this user
       this.clearUserCache(payload.userId)
-
-      return data
+      return (data as any).id
     } catch (error) {
-      console.error('Error in assignRole:', error)
+      console.error('[RBAC] Error in assignRole:', error)
       throw error
     }
   }
 
-  // Remove role from user
   public async removeRole(
     userId: string,
     roleName: SystemRole,
-    tourId?: string
+    entityId?: string
   ): Promise<void> {
     try {
-      const { error } = await supabase
-        .from('user_tour_roles')
+      const { data: role } = await supabase
+        .from('rbac_roles')
+        .select('id')
+        .eq('name', roleName)
+        .maybeSingle()
+
+      if (!role) return
+
+      let query = supabase
+        .from('rbac_user_entity_roles')
         .update({ is_active: false })
         .eq('user_id', userId)
-        .eq('tour_id', tourId || null)
-        .in('role_id', [
-          await this.getRoleIdByName(roleName)
-        ])
+        .eq('role_id', role.id)
 
+      if (entityId) {
+        query = query.eq('entity_id', entityId)
+      }
+
+      const { error } = await query
       if (error) {
-        console.error('Error removing role:', error)
+        console.error('[RBAC] removeRole error:', error.message)
         throw error
       }
 
-      // Clear cache for this user
       this.clearUserCache(userId)
     } catch (error) {
-      console.error('Error in removeRole:', error)
+      console.error('[RBAC] Error in removeRole:', error)
       throw error
     }
   }
 
-  // Get role ID by name
   private async getRoleIdByName(roleName: SystemRole): Promise<string> {
     const { data, error } = await supabase
-      .from('tour_management_roles')
+      .from('rbac_roles')
       .select('id')
       .eq('name', roleName)
       .single()
@@ -222,330 +309,291 @@ export class RBACService {
       throw new Error(`Role ${roleName} not found`)
     }
 
-    return data.id
+    return (data as any).id
   }
 
-  // Clear cache for specific user
   private clearUserCache(userId: string): void {
-    const keysToDelete = Array.from(this.permissionCache.keys())
-      .filter(key => key.startsWith(`${userId}:`))
-    
-    keysToDelete.forEach(key => {
-      this.permissionCache.delete(key)
-    })
+    for (const key of Array.from(this.permissionCache.keys())) {
+      if (key.startsWith(`${userId}:`)) this.permissionCache.delete(key)
+    }
   }
 
-  // Validate permission for an action
   public async validatePermission(
     userId: string,
     requiredPermissions: Permission[],
-    tourId?: string
+    entityId?: string
   ): Promise<PermissionValidationResult> {
-    const checker = await this.createPermissionChecker(userId, tourId)
-    
-    const missingPermissions: Permission[] = []
-    
-    for (const permission of requiredPermissions) {
-      if (!checker.hasPermission(permission, tourId)) {
-        missingPermissions.push(permission)
-      }
-    }
+    const checker = await this.createPermissionChecker(userId, entityId)
+
+    const missingPermissions = requiredPermissions.filter(
+      (p) => !checker.hasPermission(p, entityId)
+    )
 
     return {
       isValid: missingPermissions.length === 0,
-      reason: missingPermissions.length > 0 
-        ? `Missing permissions: ${missingPermissions.join(', ')}` 
+      reason: missingPermissions.length > 0
+        ? `Missing permissions: ${missingPermissions.join(', ')}`
         : undefined,
       requiredPermissions,
-      missingPermissions
+      missingPermissions,
     }
   }
 
-  // Get data isolation context for user
   public async getDataIsolationContext(userId: string): Promise<DataIsolationContext> {
     try {
-      // Get all tours the user has access to
       const { data: userRoles, error } = await supabase
-        .from('user_tour_roles')
-        .select('tour_id')
+        .from('rbac_user_entity_roles')
+        .select('entity_id')
         .eq('user_id', userId)
         .eq('is_active', true)
 
       if (error) {
-        console.error('Error getting user tour access:', error)
+        console.error('[RBAC] getDataIsolationContext error:', error.message)
         throw error
       }
 
-      const accessibleTours = userRoles
-        ?.map(ur => ur.tour_id)
-        .filter(id => id !== null) || []
+      const accessibleTours = (userRoles ?? [])
+        .map((ur) => ur.entity_id as string)
+        .filter(Boolean)
 
-      // Get global permissions
       const globalContext = await this.getUserPermissionContext(userId)
-      
-      // Get tour-specific permissions
       const tourSpecificPermissions: Record<string, Permission[]> = {}
-      
-      for (const tourId of accessibleTours) {
-        const tourContext = await this.getUserPermissionContext(userId, tourId)
-        tourSpecificPermissions[tourId] = tourContext.permissions
+
+      for (const entityId of accessibleTours) {
+        const ctx = await this.getUserPermissionContext(userId, entityId)
+        tourSpecificPermissions[entityId] = ctx.permissions
       }
 
       return {
         userId,
         accessibleTours,
         globalPermissions: globalContext.permissions,
-        tourSpecificPermissions
+        tourSpecificPermissions,
       }
     } catch (error) {
-      console.error('Error getting data isolation context:', error)
-      return {
-        userId,
-        accessibleTours: [],
-        globalPermissions: [],
-        tourSpecificPermissions: {}
-      }
+      console.error('[RBAC] getDataIsolationContext failed:', error)
+      return { userId, accessibleTours: [], globalPermissions: [], tourSpecificPermissions: {} }
     }
   }
 
-  // Get user's tour access level
   public async getUserTourAccess(
     userId: string,
-    tourId: string
+    entityId: string
   ): Promise<UserTourAccess> {
-    const checker = await this.createPermissionChecker(userId, tourId)
-    const context = await this.getUserPermissionContext(userId, tourId)
-    
-    // Determine access level based on permissions
+    const checker = await this.createPermissionChecker(userId, entityId)
+    const context = await this.getUserPermissionContext(userId, entityId)
+
     let accessLevel: TourAccessLevel = TOUR_ACCESS_LEVELS.NONE
-    
-    if (checker.hasPermission(PERMISSIONS.TOURS_DELETE, tourId) ||
-        checker.hasPermission(PERMISSIONS.ADMIN_SETTINGS, tourId)) {
+
+    if (
+      checker.hasPermission(PERMISSIONS.TOURS_DELETE, entityId) ||
+      checker.hasPermission(PERMISSIONS.ADMIN_SETTINGS, entityId)
+    ) {
       accessLevel = TOUR_ACCESS_LEVELS.ADMIN
-    } else if (checker.hasPermission(PERMISSIONS.TOURS_MANAGE_STAFF, tourId) ||
-               checker.hasPermission(PERMISSIONS.TOURS_EDIT, tourId)) {
+    } else if (
+      checker.hasPermission(PERMISSIONS.TOURS_MANAGE_STAFF, entityId) ||
+      checker.hasPermission(PERMISSIONS.TOURS_EDIT, entityId)
+    ) {
       accessLevel = TOUR_ACCESS_LEVELS.MANAGE
-    } else if (checker.hasPermission(PERMISSIONS.TOURS_EDIT, tourId) ||
-               checker.hasPermission(PERMISSIONS.EVENTS_EDIT, tourId)) {
+    } else if (
+      checker.hasPermission(PERMISSIONS.EVENTS_EDIT, entityId)
+    ) {
       accessLevel = TOUR_ACCESS_LEVELS.EDIT
-    } else if (checker.hasPermission(PERMISSIONS.TOURS_VIEW, tourId)) {
+    } else if (checker.hasPermission(PERMISSIONS.TOURS_VIEW, entityId)) {
       accessLevel = TOUR_ACCESS_LEVELS.VIEW
     }
 
     return {
-      tourId,
+      tourId: entityId,
       userId,
       accessLevel,
       permissions: context.permissions,
-      roles: context.roles
-        .filter(r => r.tourId === tourId || r.tourId === null)
-        .map(r => r.role.name as SystemRole),
-      isActive: context.roles.some(r => r.isActive),
-      expiresAt: context.roles.find(r => r.tourId === tourId)?.role.updated_at
+      roles: context.roles.map((r) => r.role.name as SystemRole),
+      isActive: context.roles.some((r) => r.isActive),
     }
   }
 
-  // Get all roles
   public async getAllRoles(): Promise<TourManagementRole[]> {
     const { data, error } = await supabase
-      .from('tour_management_roles')
-      .select('*')
+      .from('rbac_roles')
+      .select('id, name, display_name, description, is_system')
       .order('display_name')
 
     if (error) {
-      console.error('Error getting roles:', error)
+      console.error('[RBAC] getAllRoles error:', error.message)
       throw error
     }
 
-    return data || []
+    return (data ?? []).map((row) => dbRoleToType(row as Record<string, unknown>))
   }
 
-  // Get all permissions
   public async getAllPermissions(): Promise<TourManagementPermission[]> {
     const { data, error } = await supabase
-      .from('tour_management_permissions')
-      .select('*')
+      .from('rbac_permissions')
+      .select('id, name, display_name, description, category')
       .order('category, display_name')
 
     if (error) {
-      console.error('Error getting permissions:', error)
+      console.error('[RBAC] getAllPermissions error:', error.message)
       throw error
     }
 
-    return data || []
+    return (data ?? []).map((row) => dbPermissionToType(row as Record<string, unknown>))
   }
 
-  // Get permissions for a role
   public async getRolePermissions(roleId: string): Promise<TourManagementPermission[]> {
     const { data, error } = await supabase
-      .from('tour_role_permissions')
-      .select(`
-        tour_management_permissions (*)
-      `)
+      .from('rbac_role_permissions')
+      .select('rbac_permissions (id, name, display_name, description, category)')
       .eq('role_id', roleId)
 
     if (error) {
-      console.error('Error getting role permissions:', error)
+      console.error('[RBAC] getRolePermissions error:', error.message)
       throw error
     }
 
-    return (data?.map(rp => rp.tour_management_permissions).filter(Boolean).flat() as TourManagementPermission[]) || []
+    return (data ?? [])
+      .map((row) => row.rbac_permissions as unknown as Record<string, unknown> | null)
+      .filter(Boolean)
+      .map((p) => dbPermissionToType(p!))
   }
 
-  // Update role permissions
   public async updateRolePermissions(
     roleId: string,
     permissionIds: string[]
   ): Promise<void> {
     try {
-      // Remove existing permissions
       const { error: deleteError } = await supabase
-        .from('tour_role_permissions')
+        .from('rbac_role_permissions')
         .delete()
         .eq('role_id', roleId)
 
       if (deleteError) {
-        console.error('Error deleting existing permissions:', deleteError)
+        console.error('[RBAC] updateRolePermissions delete error:', deleteError.message)
         throw deleteError
       }
 
-      // Add new permissions
       if (permissionIds.length > 0) {
         const { error: insertError } = await supabase
-          .from('tour_role_permissions')
-          .insert(
-            permissionIds.map(permissionId => ({
-              role_id: roleId,
-              permission_id: permissionId
-            }))
-          )
+          .from('rbac_role_permissions')
+          .insert(permissionIds.map((permission_id) => ({ role_id: roleId, permission_id })))
 
         if (insertError) {
-          console.error('Error inserting new permissions:', insertError)
+          console.error('[RBAC] updateRolePermissions insert error:', insertError.message)
           throw insertError
         }
       }
 
-      // Clear all caches since role permissions changed
       this.clearCache()
     } catch (error) {
-      console.error('Error updating role permissions:', error)
+      console.error('[RBAC] Error updating role permissions:', error)
       throw error
     }
   }
 
-  // Create new role
   public async createRole(
     name: string,
     displayName: string,
     description?: string
   ): Promise<TourManagementRole> {
     const { data, error } = await supabase
-      .from('tour_management_roles')
-      .insert({
-        name,
-        display_name: displayName,
-        description,
-        is_system_role: false
-      })
-      .select()
+      .from('rbac_roles')
+      .insert({ name, display_name: displayName, description, scope_type: 'entity', is_system: false })
+      .select('id, name, display_name, description, is_system')
       .single()
 
     if (error) {
-      console.error('Error creating role:', error)
+      console.error('[RBAC] createRole error:', error.message)
       throw error
     }
 
-    return data
+    return dbRoleToType(data as Record<string, unknown>)
   }
 
-  // Delete role (only non-system roles)
   public async deleteRole(roleId: string): Promise<void> {
     const { error } = await supabase
-      .from('tour_management_roles')
+      .from('rbac_roles')
       .delete()
       .eq('id', roleId)
-      .eq('is_system_role', false)
+      .eq('is_system', false)
 
     if (error) {
-      console.error('Error deleting role:', error)
+      console.error('[RBAC] deleteRole error:', error.message)
       throw error
     }
 
-    // Clear cache
     this.clearCache()
   }
 
-  // Get users with specific role
   public async getUsersWithRole(
     roleName: SystemRole,
-    tourId?: string
+    entityId?: string
   ): Promise<Array<{ userId: string; email?: string; assignedAt: string }>> {
-    const { data, error } = await supabase
-      .from('user_tour_roles')
-      .select(`
-        user_id,
-        assigned_at,
-        tour_management_roles!inner(name)
-      `)
-      .eq('tour_management_roles.name', roleName)
-      .eq('tour_id', tourId || null)
+    const { data: role } = await supabase
+      .from('rbac_roles')
+      .select('id')
+      .eq('name', roleName)
+      .maybeSingle()
+
+    if (!role) return []
+
+    let query = supabase
+      .from('rbac_user_entity_roles')
+      .select('user_id, start_at')
+      .eq('role_id', (role as any).id)
       .eq('is_active', true)
 
+    if (entityId) {
+      query = query.eq('entity_id', entityId)
+    }
+
+    const { data, error } = await query
+
     if (error) {
-      console.error('Error getting users with role:', error)
+      console.error('[RBAC] getUsersWithRole error:', error.message)
       throw error
     }
 
-    return data?.map(ur => ({
-      userId: ur.user_id,
-      assignedAt: ur.assigned_at
-    })) || []
+    return (data ?? []).map((ur) => ({
+      userId: ur.user_id as string,
+      assignedAt: (ur.start_at as string) ?? '',
+    }))
   }
 
-  // Check if user has access to specific tour
-  public async checkTourAccess(userId: string, tourId: string): Promise<boolean> {
+  public async checkTourAccess(userId: string, entityId: string): Promise<boolean> {
     try {
-      const { data, error } = await supabase
-        .rpc('user_has_permission', {
-          user_id: userId,
-          permission_name: PERMISSIONS.TOURS_VIEW,
-          tour_id: tourId
-        })
+      const { data, error } = await supabase.rpc('has_entity_permission', {
+        p_user_id: userId,
+        p_entity_type: 'tour',
+        p_entity_id: entityId,
+        p_permission_name: 'ASSIGN_EVENT_ROLES',
+      })
 
       if (error) {
-        console.error('Error checking tour access:', error)
+        console.error('[RBAC] checkTourAccess error:', error.message)
         return false
       }
 
-      return data || false
+      return Boolean(data)
     } catch (error) {
-      console.error('Error in checkTourAccess:', error)
+      console.error('[RBAC] checkTourAccess failed:', error)
       return false
     }
   }
 }
 
-// Export singleton instance
 export const rbacService = RBACService.getInstance()
 
-// Permission decorators/guards for server actions
-export function requirePermission(permission: Permission, tourId?: string) {
-  return function(target: any, propertyKey: string, descriptor: PropertyDescriptor) {
+export function requirePermission(permission: Permission, entityId?: string) {
+  return function (target: unknown, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value
 
-    descriptor.value = async function(...args: any[]) {
-      const userId = args[0]?.userId // Assuming userId is first arg
-      
-      if (!userId) {
-        throw new Error('User ID is required')
-      }
+    descriptor.value = async function (...args: unknown[]) {
+      const userId = (args[0] as { userId?: string })?.userId
 
-      const validation = await rbacService.validatePermission(
-        userId,
-        [permission],
-        tourId
-      )
+      if (!userId) throw new Error('User ID is required')
+
+      const validation = await rbacService.validatePermission(userId, [permission], entityId)
 
       if (!validation.isValid) {
         throw new Error(`Permission denied: ${validation.reason}`)
@@ -558,30 +606,22 @@ export function requirePermission(permission: Permission, tourId?: string) {
   }
 }
 
-// Helper function to check permissions in server actions
 export async function checkPermission(
   userId: string,
   permission: Permission,
-  tourId?: string
+  entityId?: string
 ): Promise<boolean> {
-  const validation = await rbacService.validatePermission(
-    userId,
-    [permission],
-    tourId
-  )
-  
+  const validation = await rbacService.validatePermission(userId, [permission], entityId)
   return validation.isValid
 }
 
-// Helper function to require permission in server actions
 export async function requirePermissionCheck(
   userId: string,
   permission: Permission,
-  tourId?: string
+  entityId?: string
 ): Promise<void> {
-  const hasPermission = await checkPermission(userId, permission, tourId)
-  
+  const hasPermission = await checkPermission(userId, permission, entityId)
   if (!hasPermission) {
     throw new Error(`Permission denied: ${permission}`)
   }
-} 
+}

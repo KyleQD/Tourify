@@ -34,7 +34,7 @@ export function TourifyLogo({
     <img
       src={logoSrc}
       alt="Tourify"
-      className={cn(sizeClasses[size], className)}
+      className={cn(sizeClasses[size], "object-contain", className)}
       {...props}
     />
   )

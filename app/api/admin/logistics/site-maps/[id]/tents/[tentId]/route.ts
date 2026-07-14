@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 import type { UpdateTentRequest } from '@/types/site-map'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string; tentId: string }> }) {
@@ -9,6 +10,11 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id: siteMapId, tentId } = await params
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
 
     const { data, error } = await supabase
       .from('glamping_tents')
@@ -47,13 +53,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const body: UpdateTentRequest = await request.json()
 
     // Check if user can edit this site map
-    const canEdit = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canEdit.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     // Get existing tent for logging
@@ -176,13 +179,10 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id: siteMapId, tentId } = await params
 
     // Check if user can edit this site map
-    const canEdit = await supabase.rpc('can_edit_site_map', { 
-      site_map_uuid: siteMapId, 
-      user_uuid: user.id 
-    })
-
-    if (!canEdit.data) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
     }
 
     // Get existing tent for logging

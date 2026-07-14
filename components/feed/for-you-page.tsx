@@ -41,6 +41,10 @@ import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
 import { FeedVideoPlayer } from '@/components/feed/feed-video-player'
 import { StartConversationButton } from '@/components/feed/start-conversation-button'
 import { FeedService, type ExtendedPost } from '@/lib/services/feed.service'
+import {
+  buildFeedMusicTrackFromPost,
+  isMusicFeedPost,
+} from '@/lib/feed/music-post-preview'
 
 function EmptyFeedState({ tab }: { tab: string }) {
   return (
@@ -52,6 +56,35 @@ function EmptyFeedState({ tab }: { tab: string }) {
 }
 
 function mapPostToContentItem(post: ExtendedPost): ContentItem {
+  const musicTrack = isMusicFeedPost(post) ? buildFeedMusicTrackFromPost(post as any) : null
+
+  if (musicTrack) {
+    return {
+      id: musicTrack.id,
+      type: 'music',
+      title: musicTrack.title,
+      description: post.content || musicTrack.description,
+      author: musicTrack.author,
+      cover_image: musicTrack.cover_art_url,
+      created_at: post.created_at,
+      engagement: {
+        likes: musicTrack.stats.likes || post.likes_count || 0,
+        views: musicTrack.stats.plays || 0,
+        shares: musicTrack.stats.shares || post.shares_count || 0,
+        comments: musicTrack.stats.comments || post.comments_count || 0,
+      },
+      metadata: {
+        genre: musicTrack.genre,
+        duration: musicTrack.duration,
+        url: musicTrack.file_url,
+        tags: musicTrack.tags,
+        artist: musicTrack.artist,
+      },
+      is_liked: post.is_liked,
+      is_following: post.is_following,
+    }
+  }
+
   return {
     id: post.id,
     type: 'social',
@@ -112,6 +145,8 @@ interface ContentItem {
     ticket_price?: number
     url?: string
     tags?: string[]
+    artist?: string
+    album?: string
     forum?: {
       id: string
       name: string
@@ -1000,11 +1035,11 @@ export function ForYouPage() {
                           track={{
                             id: item.id,
                             title: item.title,
-                            artist: (item.metadata as any)?.artist || item.author?.name || 'Unknown Artist',
-                            album: (item.metadata as any)?.album,
-                            genre: (item.metadata as any)?.genre,
-                            duration: (item.metadata as any)?.duration,
-                            file_url: (item.metadata as any)?.url || '',
+                            artist: item.metadata?.artist || item.author?.name || 'Unknown Artist',
+                            album: item.metadata?.album,
+                            genre: item.metadata?.genre,
+                            duration: item.metadata?.duration,
+                            file_url: item.metadata?.url || '',
                             cover_art_url: item.cover_image,
                             description: item.description,
                             tags: item.metadata?.tags || [],
@@ -1021,6 +1056,7 @@ export function ForYouPage() {
                           }}
                           isLiked={item.is_liked}
                           compact={true}
+                          playSource="feed_post"
                         />
                       ) : item.type === 'video' ? (
                         <FeedVideoPlayer

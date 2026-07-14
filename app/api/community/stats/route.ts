@@ -41,7 +41,7 @@ export const GET = withAuth(async (_request, { user }) => {
       supabase
         .from('events_v2')
         .select('id', { count: 'exact', head: true })
-        .eq('organizer_id', userId)
+        .eq('created_by', userId)
         .gte('start_at', new Date().toISOString()),
 
       supabase

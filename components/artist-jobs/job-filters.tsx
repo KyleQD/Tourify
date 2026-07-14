@@ -1,11 +1,8 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import { CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { SurfaceCard, SurfaceInput } from '@/components/surface/surface-primitives'
@@ -13,10 +10,6 @@ import {
   Search, 
   Filter, 
   X, 
-  MapPin, 
-  Calendar, 
-  DollarSign,
-  Clock,
   Star,
   ChevronDown,
   ChevronUp
@@ -29,6 +22,30 @@ import {
   EXPERIENCE_LEVEL_OPTIONS,
   JOB_SORT_OPTIONS
 } from '@/types/artist-jobs'
+
+function FilterChip({
+  label,
+  isActive,
+  onClick,
+}: {
+  label: string
+  isActive: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center rounded-xl px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+        isActive
+          ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-lg shadow-fuchsia-500/20'
+          : 'border border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:bg-white/10 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
 
 export function JobFilters({ 
   filters, 
@@ -46,7 +63,7 @@ export function JobFilters({
     onFiltersChange({
       ...filters,
       [key]: value,
-      page: 1 // Reset to first page when filters change
+      page: 1
     })
   }
 
@@ -105,33 +122,37 @@ export function JobFilters({
   const activeFiltersCount = getActiveFiltersCount()
 
   return (
-    <SurfaceCard className="border-gray-800/50 bg-gray-900/50">
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            Filters
+    <SurfaceCard className="relative overflow-hidden">
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/50 to-transparent" />
+
+      <div className="space-y-5 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-fuchsia-500/20 via-purple-500/20 to-cyan-400/20 ring-1 ring-white/10">
+              <Filter className="h-4 w-4 text-fuchsia-200" />
+            </div>
+            <h3 className="text-base font-semibold text-white">Filters</h3>
             {activeFiltersCount > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-fuchsia-500/30 bg-fuchsia-500/20 px-1.5 text-[11px] font-medium text-fuchsia-100">
                 {activeFiltersCount}
-              </Badge>
+              </span>
             )}
-          </CardTitle>
-          <div className="flex items-center gap-2">
+          </div>
+          <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="rounded-xl text-gray-400"
+              className="h-8 rounded-lg px-2 text-slate-400 hover:bg-white/10 hover:text-white"
             >
               {showAdvanced ? (
                 <>
-                  <ChevronUp className="w-4 h-4 mr-1" />
+                  <ChevronUp className="mr-1 h-3.5 w-3.5" />
                   Less
                 </>
               ) : (
                 <>
-                  <ChevronDown className="w-4 h-4 mr-1" />
+                  <ChevronDown className="mr-1 h-3.5 w-3.5" />
                   More
                 </>
               )}
@@ -141,40 +162,39 @@ export function JobFilters({
                 variant="ghost"
                 size="sm"
                 onClick={clearFilters}
-                className="rounded-xl text-gray-400 hover:text-red-400"
+                className="h-8 rounded-lg px-2 text-slate-400 hover:bg-white/10 hover:text-red-300"
               >
-                <X className="w-4 h-4 mr-1" />
+                <X className="mr-1 h-3.5 w-3.5" />
                 Clear
               </Button>
             )}
           </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-6">
-        {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-3 w-4 h-4 text-gray-500" />
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
           <SurfaceInput
             placeholder="Search jobs..."
             value={filters.query || ''}
             onChange={(e) => handleFilterChange('query', e.target.value)}
-            className="pl-10"
+            disabled={isLoading}
+            className="h-11 rounded-2xl pl-11 focus-visible:border-fuchsia-500/50 focus-visible:ring-fuchsia-500/20"
           />
         </div>
 
-        {/* Quick Filters */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Category</Label>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Category
+            </Label>
             <Select
               value={filters.category_id || 'all'}
               onValueChange={(value) => handleFilterChange('category_id', value === 'all' ? undefined : value)}
             >
-              <SelectTrigger className="surface-entry">
+              <SelectTrigger className="surface-entry h-10">
                 <SelectValue placeholder="All categories" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-white/10 bg-slate-900/95 text-slate-100 backdrop-blur-xl">
                 <SelectItem value="all">All categories</SelectItem>
                 {categories.map((category) => (
                   <SelectItem key={category.id} value={category.id}>
@@ -185,16 +205,18 @@ export function JobFilters({
             </Select>
           </div>
 
-          <div>
-            <Label className="text-sm font-medium mb-2 block">Sort by</Label>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+              Sort by
+            </Label>
             <Select
               value={filters.sort_by || 'created_at'}
               onValueChange={(value) => handleFilterChange('sort_by', value as any)}
             >
-              <SelectTrigger className="surface-entry">
+              <SelectTrigger className="surface-entry h-10">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="border-white/10 bg-slate-900/95 text-slate-100 backdrop-blur-xl">
                 {JOB_SORT_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value || 'created_at'}>
                     {option.label}
@@ -205,97 +227,87 @@ export function JobFilters({
           </div>
         </div>
 
-        {/* Payment Type */}
-        <div>
-          <Label className="text-sm font-medium mb-2 block">Payment Type</Label>
+        <div className="space-y-2">
+          <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+            Payment Type
+          </Label>
           <div className="flex flex-wrap gap-2">
-            {PAYMENT_TYPE_OPTIONS.map((option) => (
-              <div key={option.value} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`payment-${option.value}`}
-                  checked={filters.payment_type?.includes(option.value) || false}
-                  onCheckedChange={(checked) => 
-                    handleArrayFilterChange('payment_type', option.value, checked as boolean)
-                  }
+            {PAYMENT_TYPE_OPTIONS.map((option) => {
+              const isActive = filters.payment_type?.includes(option.value) || false
+              return (
+                <FilterChip
+                  key={option.value}
+                  label={option.label}
+                  isActive={isActive}
+                  onClick={() => handleArrayFilterChange('payment_type', option.value, !isActive)}
                 />
-                <Label htmlFor={`payment-${option.value}`} className="text-sm">
-                  {option.label}
-                </Label>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
 
-        {/* Advanced Filters */}
         {showAdvanced && (
-          <div className="space-y-6 pt-4 border-t border-gray-800">
-            {/* Job Type */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Job Type</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {JOB_TYPE_OPTIONS.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`job-type-${option.value}`}
-                      checked={filters.job_type?.includes(option.value) || false}
-                      onCheckedChange={(checked) => 
-                        handleArrayFilterChange('job_type', option.value, checked as boolean)
-                      }
-                    />
-                    <Label htmlFor={`job-type-${option.value}`} className="text-sm">
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Location Type */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Location Type</Label>
+          <div className="space-y-5 border-t border-white/10 pt-5">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Job Type
+              </Label>
               <div className="flex flex-wrap gap-2">
-                {LOCATION_TYPE_OPTIONS.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`location-${option.value}`}
-                      checked={filters.location_type?.includes(option.value!) || false}
-                      onCheckedChange={(checked) => 
-                        handleArrayFilterChange('location_type', option.value!, checked as boolean)
-                      }
+                {JOB_TYPE_OPTIONS.map((option) => {
+                  const isActive = filters.job_type?.includes(option.value) || false
+                  return (
+                    <FilterChip
+                      key={option.value}
+                      label={option.label}
+                      isActive={isActive}
+                      onClick={() => handleArrayFilterChange('job_type', option.value, !isActive)}
                     />
-                    <Label htmlFor={`location-${option.value}`} className="text-sm">
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
-            {/* Experience Level */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Experience Level</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {EXPERIENCE_LEVEL_OPTIONS.map((option) => (
-                  <div key={option.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`experience-${option.value}`}
-                      checked={filters.required_experience?.includes(option.value!) || false}
-                      onCheckedChange={(checked) => 
-                        handleArrayFilterChange('required_experience', option.value!, checked as boolean)
-                      }
+            <div className="space-y-2">
+              <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Location Type
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {LOCATION_TYPE_OPTIONS.map((option) => {
+                  const isActive = filters.location_type?.includes(option.value!) || false
+                  return (
+                    <FilterChip
+                      key={option.value}
+                      label={option.label}
+                      isActive={isActive}
+                      onClick={() => handleArrayFilterChange('location_type', option.value!, !isActive)}
                     />
-                    <Label htmlFor={`experience-${option.value}`} className="text-sm">
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
-            {/* Payment Range */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">
-                Payment Range: ${paymentRange[0]} - ${paymentRange[1]}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Experience Level
+              </Label>
+              <div className="flex flex-wrap gap-2">
+                {EXPERIENCE_LEVEL_OPTIONS.map((option) => {
+                  const isActive = filters.required_experience?.includes(option.value!) || false
+                  return (
+                    <FilterChip
+                      key={option.value}
+                      label={option.label}
+                      isActive={isActive}
+                      onClick={() => handleArrayFilterChange('required_experience', option.value!, !isActive)}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Payment Range: ${paymentRange[0].toLocaleString()} – ${paymentRange[1].toLocaleString()}
               </Label>
               <Slider
                 value={paymentRange}
@@ -308,51 +320,52 @@ export function JobFilters({
               />
             </div>
 
-            {/* Location */}
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label className="text-sm font-medium mb-2 block">City</Label>
+            <div className="grid grid-cols-3 gap-2.5">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">City</Label>
                 <SurfaceInput
-                  placeholder="Enter city"
+                  placeholder="City"
                   value={filters.city || ''}
                   onChange={(e) => handleFilterChange('city', e.target.value || undefined)}
+                  className="h-9"
                 />
               </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">State</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">State</Label>
                 <SurfaceInput
-                  placeholder="Enter state"
+                  placeholder="State"
                   value={filters.state || ''}
                   onChange={(e) => handleFilterChange('state', e.target.value || undefined)}
+                  className="h-9"
                 />
               </div>
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Country</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium uppercase tracking-wide text-slate-400">Country</Label>
                 <SurfaceInput
-                  placeholder="Enter country"
+                  placeholder="Country"
                   value={filters.country || ''}
                   onChange={(e) => handleFilterChange('country', e.target.value || undefined)}
+                  className="h-9"
                 />
               </div>
             </div>
 
-            {/* Featured Only */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="featured-only"
-                checked={filters.featured_only || false}
-                onCheckedChange={(checked) => 
-                  handleFilterChange('featured_only', checked ? true : undefined)
-                }
+            <div>
+              <FilterChip
+                label="Featured only"
+                isActive={!!filters.featured_only}
+                onClick={() => handleFilterChange('featured_only', filters.featured_only ? undefined : true)}
               />
-              <Label htmlFor="featured-only" className="text-sm flex items-center gap-1">
-                <Star className="w-4 h-4" />
-                Featured jobs only
-              </Label>
+              {filters.featured_only && (
+                <span className="ml-2 inline-flex items-center gap-1 text-xs text-fuchsia-300">
+                  <Star className="h-3 w-3" />
+                  Showing featured
+                </span>
+              )}
             </div>
           </div>
         )}
-      </CardContent>
+      </div>
     </SurfaceCard>
   )
-} 
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { hasEntityPermission } from '@/lib/services/rbac'
 import type { UpdateSiteMapRequest } from '@/types/site-map'
+import { getSiteMapAccess, requireSiteMapAccess } from '@/lib/site-map/access'
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -10,6 +11,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id } = await params
+    const access = requireSiteMapAccess(await getSiteMapAccess(supabase as any, id, user.id), 'read')
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     const { data, error } = await supabase
       .from('site_maps')
@@ -58,6 +61,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     const { id } = await params
     const body: UpdateSiteMapRequest = await request.json()
+    const access = requireSiteMapAccess(await getSiteMapAccess(supabase as any, id, user.id), 'edit')
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     // Check if user can edit this site map
     const { data: existingMap } = await supabase
@@ -158,6 +163,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id } = await params
+    const access = requireSiteMapAccess(await getSiteMapAccess(supabase as any, id, user.id), 'manage')
+    if (!access.ok) return NextResponse.json({ error: access.error }, { status: access.status })
 
     // Check if user owns this site map
     const { data: existingMap } = await supabase

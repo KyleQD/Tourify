@@ -104,12 +104,6 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
   }
 
   const fetchLogisticsData = useCallback(async () => {
-    if (!user) {
-      setData(null)
-      setLoading(false)
-      return
-    }
-
     try {
       setLoading(true)
       setError(null)
@@ -242,11 +236,15 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
           fetch(`/api/admin/logistics/metrics?${baseQuery}`, readRequestInit)
         ])
 
+        const coreFailed = [transportationRes, equipmentRes].find((res) => !res.ok)
+        if (coreFailed)
+          throw new Error(`HTTP error! status: ${coreFailed.status}`)
+
         const [transportationData, equipmentData, assignmentsData, analyticsData] = await Promise.all([
           transportationRes.json(),
           equipmentRes.json(),
-          assignmentsRes.json(),
-          analyticsRes.json()
+          assignmentsRes.ok ? assignmentsRes.json() : Promise.resolve({ items: [] }),
+          analyticsRes.ok ? analyticsRes.json() : Promise.resolve({ metrics: null }),
         ])
 
         transformedData = {
@@ -271,7 +269,7 @@ export function useLogistics(options: UseLogisticsOptions = {}): UseLogisticsRet
     } finally {
       setLoading(false)
     }
-  }, [user, eventId, tourId, type, status, category, availability, limit, offset])
+  }, [eventId, tourId, type, status, category, availability, limit, offset])
 
   // Create transportation record
   const createTransportation = useCallback(async (transportationData: Partial<Transportation>) => {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
-import { getStoragePathFromUrl } from "@/lib/marketplace/storage-path"
+import { getTrackFullStoragePath, getTrackPreviewStoragePath, getTrackStorageBucket } from "@/lib/music/music-access"
 import { isAuthorizedInternalRequest, unauthorizedResponse } from "@/lib/auth/route-guards"
 
 const backfillSchema = z.object({
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
 
     const { data: tracks, error: tracksError } = await supabase
       .from("artist_music")
-      .select("id, user_id, title, description, genre, duration, file_url, cover_art_url, is_public, metadata")
+      .select("id, user_id, title, description, genre, duration, file_url, preview_file_url, storage_bucket, storage_path, preview_storage_bucket, preview_storage_path, cover_art_url, is_public, metadata")
       .eq("user_id", user.id)
 
     if (tracksError) {
@@ -106,7 +106,8 @@ export async function POST(request: NextRequest) {
       .maybeSingle()
 
     const insertPayload = tracksToMigrate.map(track => {
-      const storage = getStoragePathFromUrl(track.file_url)
+      const assetPath = getTrackFullStoragePath(track)
+      const previewPath = getTrackPreviewStoragePath(track) || assetPath
       return {
         seller_user_id: user.id,
         storefront_id: storefront?.id || null,
@@ -129,12 +130,12 @@ export async function POST(request: NextRequest) {
           sourceTable: "artist_music",
           genre: track.genre || null,
           duration: track.duration || null,
-          assetUrl: track.file_url || null,
-          previewUrl: track.file_url || null,
-          assetBucket: storage?.bucket || null,
-          assetPath: storage?.path || null,
-          previewBucket: storage?.bucket || null,
-          previewPath: storage?.path || null,
+          assetUrl: null,
+          previewUrl: `/api/music/stream?trackId=${track.id}`,
+          assetBucket: assetPath ? getTrackStorageBucket(track, "full") : null,
+          assetPath,
+          previewBucket: previewPath ? getTrackStorageBucket(track, previewPath === assetPath ? "full" : "preview") : null,
+          previewPath,
           sourceTrackMetadata: track.metadata || {},
         },
       }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,9 +19,30 @@ import { ErrorBoundary } from "./error-boundary"
 import { KeyboardShortcutsHelp, useKeyboardShortcutsHelp } from "./keyboard-shortcuts-help"
 import { useProductEducation } from "@/components/product-education/product-education-context"
 import { RealTimeStatusBar } from "@/components/admin/real-time-indicator"
-import AnalyticsDashboard from "./analytics-dashboard"
+import dynamic from "next/dynamic"
 import DataLoadingStatus from "./data-loading-status"
-import DashboardCalendar from "./dashboard-calendar"
+
+const AnalyticsDashboard = dynamic(() => import("./analytics-dashboard"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-[240px] items-center justify-center text-sm text-slate-400">
+      Loading analytics…
+    </div>
+  ),
+})
+
+const AdminCalendarView = dynamic(
+  () => import("@/components/admin/admin-calendar-view").then((mod) => mod.AdminCalendarView),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-[200px] items-center justify-center text-sm text-slate-400">
+        Loading calendar…
+      </div>
+    ),
+  },
+)
+
 import { 
   Globe, 
   Calendar, 
@@ -44,6 +65,8 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { isOrganizationType } from "@/lib/accounts/account-types"
 import { getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { WidgetsRow } from "./apple-widgets"
 import { AdminStatCard } from "./admin-stat-card"
@@ -58,6 +81,8 @@ type DashboardStats = AdminDashboardStats
 export default function OptimizedDashboardClient() {
   const router = useRouter()
   const { currentAccount } = useMultiAccount()
+  const { actingHeaders } = useActingContext()
+  const isOrgAccount = isOrganizationType(currentAccount?.account_type)
   const [organizerPublicPath, setOrganizerPublicPath] = useState<string | null>(null)
 
   // State for data
@@ -87,6 +112,7 @@ export default function OptimizedDashboardClient() {
         'Content-Type': 'application/json',
         'Cache-Control': 'no-cache',
         Pragma: 'no-cache',
+        ...actingHeaders,
         ...(input?.headers || {}),
       },
       ...input,
@@ -119,35 +145,16 @@ export default function OptimizedDashboardClient() {
   }
 
   useEffect(() => {
-    if (currentAccount?.account_type !== 'admin') {
+    if (!isOrgAccount) {
       setOrganizerPublicPath(null)
       return
     }
-    let cancelled = false
-    ;(async () => {
-      try {
-        const res = await fetch('/api/profile/current', buildNoStoreInit())
-        if (!res.ok || cancelled) return
-        const data = await res.json()
-        const customUrl = data?.profile?.custom_url as string | undefined
-        const username = data?.profile?.username as string | undefined
-        const slug = customUrl || username
-
-        if (!cancelled) {
-          if (!slug || slug === 'user') {
-            setOrganizerPublicPath(null)
-          } else {
-            setOrganizerPublicPath(getOrganizationPublicProfilePath(slug))
-          }
-        }
-      } catch {
-        if (!cancelled) setOrganizerPublicPath(null)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [currentAccount?.account_type])
+    const slug =
+      (currentAccount?.profile_data as { url_slug?: string } | undefined)?.url_slug ||
+      (currentAccount?.profile_data as { username?: string } | undefined)?.username ||
+      null
+    setOrganizerPublicPath(getOrganizationPublicProfilePath(slug))
+  }, [isOrgAccount, currentAccount?.profile_data])
 
   const { openHelp, startTour } = useProductEducation()
   const { isOpen: shortcutsOpen, openHelp: openShortcuts, closeHelp: closeShortcuts } = useKeyboardShortcutsHelp()
@@ -174,9 +181,9 @@ export default function OptimizedDashboardClient() {
     })
   }, [])
 
-  // Fetch data only when organizer mode is active (avoids admin API calls with wrong account context)
+  // Fetch data only when organization / legacy admin mode is active
   useEffect(() => {
-    if (currentAccount?.account_type !== 'admin') {
+    if (!isOrgAccount) {
       setStatsLoading(false)
       setToursLoading(false)
       setEventsLoading(false)
@@ -221,11 +228,11 @@ export default function OptimizedDashboardClient() {
     }
 
     fetchData()
-  }, [currentAccount?.account_type])
+  }, [isOrgAccount, currentAccount?.profile_id])
 
-  // Real-time subscriptions for live updates (admin accounts only)
+  // Real-time subscriptions for live updates (organization / legacy admin accounts)
   useEffect(() => {
-    if (currentAccount?.account_type !== 'admin') return
+    if (!isOrgAccount) return
 
     let cancelled = false
     const subscriptions: Array<{ unsubscribe: () => void }> = []
@@ -291,7 +298,7 @@ export default function OptimizedDashboardClient() {
       cancelled = true
       subscriptions.forEach(sub => { try { sub.unsubscribe() } catch {} })
     }
-  }, [currentAccount?.account_type])
+  }, [isOrgAccount, currentAccount?.profile_id])
 
   const recentTours = useMemo(() => {
     if (!tours || tours.length === 0) return []
@@ -390,7 +397,7 @@ export default function OptimizedDashboardClient() {
   const [tasksLoading, setTasksLoading] = useState(true)
 
   useEffect(() => {
-    if (currentAccount?.account_type !== 'admin') {
+    if (!isOrgAccount) {
       setTasksLoading(false)
       return
     }
@@ -408,7 +415,7 @@ export default function OptimizedDashboardClient() {
       }
     }
     fetchTasks()
-  }, [currentAccount?.account_type])
+  }, [isOrgAccount, currentAccount?.profile_id])
 
   const allMappedTasks = useMemo(() => {
     return tasks
@@ -471,7 +478,7 @@ export default function OptimizedDashboardClient() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
-                {currentAccount?.account_type === 'admin' && (
+                {isOrgAccount && (
                   <DropdownMenuItem
                     disabled={!organizerPublicPath}
                     onSelect={() => {
@@ -969,25 +976,9 @@ export default function OptimizedDashboardClient() {
           </TabsContent>
 
           <TabsContent value="calendar" className="space-y-6">
-            <DashboardCalendar
-              tours={tours || []}
-              events={events || []}
-              tasks={allMappedTasks}
-              onItemClick={(item) => {
-                if (item.type === 'tour') {
-                  router.push(`/admin/dashboard/tours/${item.id.replace('tour-', '')}`)
-                } else if (item.type === 'event') {
-                  router.push(`/admin/dashboard/events/${item.id.replace('event-', '')}`)
-                }
-              }}
-              onAddItem={(type) => {
-                if (type === 'event') {
-                  router.push('/admin/dashboard/events/create')
-                } else if (type === 'tour') {
-                  router.push('/admin/dashboard/tours')
-                }
-              }}
-            />
+            <Suspense fallback={<div className="text-sm text-slate-400">Loading calendar…</div>}>
+              <AdminCalendarView showHeader={false} showSubscribePanel syncUrlState={false} />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6">

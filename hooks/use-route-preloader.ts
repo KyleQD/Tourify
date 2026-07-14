@@ -145,7 +145,7 @@ export function useRoutePreloader(options: RoutePreloaderOptions = {}) {
 
   // Get account-specific routes for preloading
   const getAccountRoutes = useCallback((accountType: string): string[] => {
-    const commonRoutes = ['/dashboard', '/feed', '/search', '/create', '/profile', '/settings']
+    const commonRoutes = ['/dashboard', '/news', '/community', '/search', '/create', '/profile', '/settings']
     
     switch (accountType) {
       case 'artist':

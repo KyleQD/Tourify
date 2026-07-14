@@ -271,7 +271,7 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
           {/* Business */}
           <NavGroup title="Business">
             <NavItem href="/jobs" icon={<Briefcase className="h-4 w-4" />} label="Jobs" badge={3} />
-            <NavItem href="/merch" icon={<ShoppingBag className="h-4 w-4" />} label="Merchandise" />
+            <NavItem href="/venue/dashboard/store" icon={<ShoppingBag className="h-4 w-4" />} label="Merchandise" />
             <NavItem href="/promotions" icon={<Zap className="h-4 w-4" />} label="Promotions" />
             <NavItem href="/venue/analytics" icon={<BarChart3 className="h-4 w-4" />} label="Analytics" />
             <NavItem href="/venue/finances" icon={<DollarSign className="h-4 w-4" />} label="Finances" isNew={true} />

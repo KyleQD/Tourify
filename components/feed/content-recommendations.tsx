@@ -303,7 +303,7 @@ export function ContentRecommendations({ className }: ContentRecommendationsProp
             variant="outline"
             size="sm"
             className="w-full border-slate-600/50 text-slate-300 hover:text-white hover:border-purple-500/50 hover:bg-purple-500/10 transition-all duration-300 text-xs md:text-sm"
-            onClick={() => window.location.href = '/feed'}
+            onClick={() => window.location.href = '/community'}
           >
             <Sparkles className="h-3 w-3 md:h-4 md:w-4 mr-2" />
             View All Recommendations

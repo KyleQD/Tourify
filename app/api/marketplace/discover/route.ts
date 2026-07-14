@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
     const sellerUserId = searchParams.get("sellerUserId")
     const sellerUsername = searchParams.get("sellerUsername")
     const q = searchParams.get("q")
+    const featuredOnly = searchParams.get("featuredOnly") === "true"
     const limit = Math.min(Math.max(Number(searchParams.get("limit") || "24"), 1), 100)
 
     let resolvedSellerId = sellerUserId
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from("marketplace_listings")
-      .select("id, seller_user_id, title, description, product_type, category, currency, base_price, cover_image_url, tags, metadata, marketplace_listing_variants(id, title, price)")
+      .select("id, seller_user_id, title, description, product_type, category, currency, base_price, cover_image_url, tags, metadata, featured_rank, marketplace_listing_variants(id, title, price)")
       .eq("status", "published")
       .eq("moderation_status", "approved")
       .order("featured_rank", { ascending: true, nullsFirst: false })
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
     if (category) query = query.eq("category", category)
     if (productType) query = query.eq("product_type", productType)
     if (resolvedSellerId) query = query.eq("seller_user_id", resolvedSellerId)
+    if (featuredOnly) query = query.not("featured_rank", "is", null)
 
     const { data, error } = await query
     if (error) {

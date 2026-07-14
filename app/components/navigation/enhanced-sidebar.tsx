@@ -56,9 +56,9 @@ export function EnhancedSidebar({ className = "", defaultCollapsed = false }: En
       href: "/",
     },
     {
-      label: "Feed",
+      label: "Community",
       icon: <TrendingUp className="h-4 w-4" />,
-      href: "/feed",
+      href: "/community",
       badge: 3,
     },
     {

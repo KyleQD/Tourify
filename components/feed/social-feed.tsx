@@ -9,10 +9,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
-import { 
-  Heart, 
-  MessageCircle, 
-  Share, 
+import {
+  Heart,
+  MessageCircle,
+  Share,
   MoreHorizontal,
   Users,
   Globe,
@@ -28,8 +28,20 @@ import { formatDistanceToNow } from 'date-fns'
 import { supabase } from '@/lib/supabase'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import { Database } from '@/lib/database.types'
+import { resolvePublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
+import { useMultiAccount } from '@/hooks/use-multi-account'
+import { buildFeedPostsUrl, extractFeedErrorMessage } from '@/lib/feed/feed-client'
+import { ArticleFeedPreview, type ArticlePreviewData } from '@/components/feed/article-feed-preview'
+import { ListingFeedPreview, type ListingPreviewData } from '@/components/feed/listing-feed-preview'
+import { EventFeedPreview, type EventPreviewData } from '@/components/feed/event-feed-preview'
+import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
+import {
+  buildFeedMusicTrackFromPost,
+  isMusicFeedPost,
+  type FeedTrackPreview,
+} from '@/lib/feed/music-post-preview'
 
 interface PostData {
   id: string
@@ -39,15 +51,29 @@ interface PostData {
   visibility: string
   location?: string
   hashtags?: string[]
+  media_urls?: string[]
   likes_count: number
   comments_count: number
   shares_count: number
   created_at: string
+  content_ref_type?: string | null
+  content_ref_id?: string | null
+  article_preview?: ArticlePreviewData | null
+  listing_preview?: ListingPreviewData | null
+  event_preview?: EventPreviewData | null
+  track_preview?: FeedTrackPreview | null
+  metadata?: Record<string, unknown> | null
   profiles: {
     username: string
     full_name: string
     avatar_url?: string
     is_verified: boolean
+    account_context?: {
+      type: string
+      profile_id: string
+      display_name: string
+      profile_path?: string | null
+    }
   }
   is_liked: boolean
   like_count: number
@@ -77,10 +103,29 @@ interface SuggestedUser {
   following_count: number
 }
 
-// Helper function to generate profile URL based on username
-function getProfileUrl(username: string) {
-  if (!username) return '/profile/user'
-  return `/profile/${username}`
+function shouldShowArticlePostContent(post: Pick<PostData, 'content' | 'article_preview'>) {
+  const content = post.content?.trim()
+  if (!content) return false
+  if (post.article_preview && content === `Shared an article: ${post.article_preview.title}`) return false
+  return true
+}
+
+function getProfileUrl(
+  profile: Pick<PostData['profiles'], 'username' | 'account_context'> | Pick<SuggestedUser, 'username'>
+) {
+  if ('account_context' in profile && profile.account_context?.profile_path) {
+    return profile.account_context.profile_path
+  }
+  if (!profile.username) return '/profile/user'
+  const accountType =
+    'account_context' in profile ? profile.account_context?.type : undefined
+  return (
+    resolvePublicProfilePath({
+      id: profile.username,
+      username: profile.username,
+      account_type: accountType,
+    }) || `/profile/${profile.username}`
+  )
 }
 
 export function SocialFeed() {
@@ -93,22 +138,23 @@ export function SocialFeed() {
   const [showComments, setShowComments] = useState<{ [postId: string]: boolean }>({})
   const [loadingComments, setLoadingComments] = useState<{ [postId: string]: boolean }>({})
   const [followingUsers, setFollowingUsers] = useState(new Set<string>())
-  
+
   const { user } = useAuth()
-  
+  const { currentAccount } = useMultiAccount()
+
 
   const loadPosts = async (feedType = activeTab) => {
     try {
-      // Use the main posts API for all feed types
-      const endpoint = '/api/feed/posts'
-      const params = new URLSearchParams({
-        limit: '20',
-        type: feedType
+      const feedUrl = buildFeedPostsUrl({
+        type: feedType,
+        limit: 20,
+        userId: user?.id,
+        profileId: currentAccount?.profile_id || null,
       })
-      
-      console.log(`[SocialFeed] Loading ${feedType} feed from ${endpoint}`)
-      
-      const response = await fetch(`${endpoint}?${params}`, {
+
+      console.log(`[SocialFeed] Loading ${feedType} feed from ${feedUrl}`)
+
+      const response = await fetch(feedUrl, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -116,28 +162,33 @@ export function SocialFeed() {
         },
       })
       const result = await response.json()
-      
-      if (result.error) {
+
+      if (!response.ok || result.success === false || result.error) {
         console.error('Error loading posts:', result.error)
+        setPosts([])
         return
       }
-      
+
       // Handle both API response formats
       const postsData = result.posts || result.data || []
       setPosts(postsData)
-      
+
       console.log(`[SocialFeed] Loaded ${postsData.length} posts for ${feedType} feed`)
     } catch (error) {
-      console.error('Error loading posts:', error)
+      console.error(
+        'Error loading posts:',
+        extractFeedErrorMessage(error instanceof Error ? error.message : null)
+      )
+      setPosts([])
     }
   }
 
   const loadSuggestedUsers = async () => {
     if (!user) return
-    
+
     try {
       console.log('🔍 Loading suggested users via API...')
-      
+
       // Use the new API endpoint for suggested users
       const response = await fetch('/api/social/suggested?limit=5', {
         method: 'GET',
@@ -146,21 +197,21 @@ export function SocialFeed() {
           'Content-Type': 'application/json',
         },
       })
-      
+
       if (!response.ok) {
         throw new Error(`API request failed: ${response.status}`)
       }
-      
+
       const result = await response.json()
-      
+
       if (result.error) {
         console.error('❌ API Error:', result.error)
         return
       }
-      
+
       console.log('✅ Received suggested users:', result.users?.length || 0)
       setSuggestedUsers(result.users || [])
-      
+
       // Also get following data for the follow button states
       const { data: followingData } = await supabase
         .from('follows')
@@ -169,7 +220,7 @@ export function SocialFeed() {
 
       const followingIds = followingData?.map(f => f.following_id) || []
       setFollowingUsers(new Set(followingIds))
-      
+
     } catch (error) {
       console.error('Error loading suggested users:', error)
     }
@@ -197,10 +248,10 @@ export function SocialFeed() {
       const action = isCurrentlyLiked ? 'unlike' : 'like'
 
       // Optimistic update
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
               is_liked: !post.is_liked,
               like_count: post.is_liked ? post.like_count - 1 : post.like_count + 1
             }
@@ -224,10 +275,10 @@ export function SocialFeed() {
       console.log('✅ Successfully toggled like')
     } catch (error) {
       // Revert on error
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
               is_liked: !post.is_liked,
               like_count: post.is_liked ? post.like_count + 1 : post.like_count - 1
             }
@@ -240,7 +291,7 @@ export function SocialFeed() {
   const loadComments = async (postId: string) => {
     try {
       setLoadingComments(prev => ({ ...prev, [postId]: true }))
-      
+
       const response = await fetch(`/api/posts/${postId}/comments`, {
         credentials: 'include'
       })
@@ -251,7 +302,7 @@ export function SocialFeed() {
 
       const result = await response.json()
       setComments(prev => ({ ...prev, [postId]: result.comments || [] }))
-      
+
       console.log('✅ Successfully loaded comments for post:', postId)
     } catch (error) {
       console.error('Error loading comments:', error)
@@ -262,14 +313,14 @@ export function SocialFeed() {
 
   const toggleComments = async (postId: string) => {
     const isCurrentlyShowing = showComments[postId]
-    
+
     if (!isCurrentlyShowing) {
       // Load comments if we don't have them yet
       if (!comments[postId]) {
         await loadComments(postId)
       }
     }
-    
+
     setShowComments(prev => ({ ...prev, [postId]: !isCurrentlyShowing }))
   }
 
@@ -294,18 +345,18 @@ export function SocialFeed() {
       }
 
       const result = await response.json()
-      
+
       // Add the new comment to the local state
       setComments(prev => ({
         ...prev,
         [postId]: [...(prev[postId] || []), result.comment]
       }))
-      
+
       // Update the post comments count
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? {
+              ...post,
               comments_count: post.comments_count + 1
             }
           : post
@@ -327,7 +378,7 @@ export function SocialFeed() {
 
     try {
       const isFollowing = followingUsers.has(userId)
-      
+
       // Optimistic update
       setFollowingUsers(prev => {
         const newSet = new Set(prev)
@@ -397,7 +448,7 @@ export function SocialFeed() {
         table: 'posts'
       }, (payload) => {
         // Only add if it's a public post or from someone we follow
-        if (payload.new.visibility === 'public' || 
+        if (payload.new.visibility === 'public' ||
            (activeTab === 'following' && followingUsers.has(payload.new.user_id))) {
           loadPosts() // Reload to get proper joins
         }
@@ -481,7 +532,12 @@ export function SocialFeed() {
                 <TabsContent value={activeTab} className="mt-6 space-y-4">
                   <AnimatePresence>
                     {posts.length > 0 ? (
-                      posts.map((post, index) => (
+                      posts.map((post, index) => {
+                        const musicTrack = isMusicFeedPost(post)
+                          ? buildFeedMusicTrackFromPost(post)
+                          : null
+
+                        return (
                         <motion.div
                           key={post.id}
                           initial={{ opacity: 0, y: 20 }}
@@ -493,7 +549,7 @@ export function SocialFeed() {
                             <CardContent className="p-6">
                               {/* Post Header */}
                               <div className="flex items-start gap-3 mb-4">
-                                <Link href={getProfileUrl(post.profiles.username)} className="flex-shrink-0">
+                                <Link href={getProfileUrl(post.profiles)} className="flex-shrink-0">
                                   <Avatar className="cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                                     <AvatarImage src={post.profiles.avatar_url || ''} />
                                     <AvatarFallback>
@@ -503,7 +559,7 @@ export function SocialFeed() {
                                 </Link>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
-                                    <Link href={getProfileUrl(post.profiles.username)} className="hover:underline">
+                                    <Link href={getProfileUrl(post.profiles)} className="hover:underline">
                                       <span className="font-semibold text-white">
                                         {post.profiles.full_name || post.profiles.username}
                                       </span>
@@ -513,7 +569,7 @@ export function SocialFeed() {
                                         <Check className="w-2.5 h-2.5 text-white" />
                                       </div>
                                     )}
-                                    <Link href={getProfileUrl(post.profiles.username)} className="hover:underline">
+                                    <Link href={getProfileUrl(post.profiles)} className="hover:underline">
                                       <span className="text-slate-400 text-sm">
                                         @{post.profiles.username}
                                       </span>
@@ -536,18 +592,45 @@ export function SocialFeed() {
 
                               {/* Post Content */}
                               <div className="mb-4">
-                                <p className="text-white leading-relaxed">
-                                  {post.content}
-                                </p>
-                                
-                                {/* Link Preview for URLs in content */}
-                                {hasUrls(post.content) && (
-                                  <LinkPreview 
-                                    url={extractUrls(post.content)[0]} 
-                                    className="mt-3"
-                                  />
+                                {post.content_ref_type === 'article' && post.article_preview ? (
+                                  <>
+                                    {shouldShowArticlePostContent(post) ? (
+                                      <p className="mb-3 whitespace-pre-line text-white leading-relaxed">
+                                        {post.content}
+                                      </p>
+                                    ) : null}
+                                    <ArticleFeedPreview article={post.article_preview} />
+                                  </>
+                                ) : post.content_ref_type === 'marketplace_listing' && post.listing_preview ? (
+                                  <>
+                                    <p className="mb-3 whitespace-pre-line text-white leading-relaxed">
+                                      {post.content}
+                                    </p>
+                                    <ListingFeedPreview listing={post.listing_preview} />
+                                  </>
+                                ) : post.content_ref_type === 'event' && post.event_preview ? (
+                                  <>
+                                    <p className="mb-3 whitespace-pre-line text-white leading-relaxed">
+                                      {post.content}
+                                    </p>
+                                    <EventFeedPreview event={post.event_preview} />
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-white leading-relaxed">
+                                      {post.content}
+                                    </p>
+
+                                    {/* Link Preview for URLs in content */}
+                                    {hasUrls(post.content) && (
+                                      <LinkPreview
+                                        url={extractUrls(post.content)[0]}
+                                        className="mt-3"
+                                      />
+                                    )}
+                                  </>
                                 )}
-                                
+
                                 {post.hashtags && post.hashtags.length > 0 && (
                                   <div className="flex flex-wrap gap-2 mt-3">
                                     {post.hashtags.map((hashtag) => (
@@ -559,6 +642,17 @@ export function SocialFeed() {
                                         #{hashtag}
                                       </Badge>
                                     ))}
+                                  </div>
+                                )}
+
+                                {musicTrack && (
+                                  <div className="mt-4">
+                                    <FeedMusicPlayer
+                                      track={musicTrack}
+                                      compact
+                                      playSource="feed_post"
+                                      onComment={() => toggleComments(post.id)}
+                                    />
                                   </div>
                                 )}
                               </div>
@@ -577,9 +671,9 @@ export function SocialFeed() {
                                     <Heart className={`h-4 w-4 mr-2 ${post.is_liked ? 'fill-current' : ''}`} />
                                     {post.like_count}
                                   </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
                                     className="text-slate-400 hover:text-blue-400"
                                     onClick={() => toggleComments(post.id)}
                                   >
@@ -600,7 +694,7 @@ export function SocialFeed() {
                                   <span className="capitalize">{post.visibility}</span>
                                 </div>
                               </div>
-                              
+
                               {/* Comments Section */}
                               {showComments[post.id] && (
                                 <div className="px-4 py-3 border-t border-slate-800 space-y-4">
@@ -646,7 +740,7 @@ export function SocialFeed() {
                                       <p className="text-slate-400 text-sm">No comments yet. Be the first to comment!</p>
                                     </div>
                                   )}
-                                  
+
                                   {/* Comment Input */}
                                   <div className="flex gap-2 pt-2">
                                     <Avatar className="h-8 w-8 flex-shrink-0">
@@ -681,7 +775,8 @@ export function SocialFeed() {
                             </CardContent>
                           </Card>
                         </motion.div>
-                      ))
+                        )
+                      })
                     ) : (
                       <div className="text-center py-12">
                         <div className="text-slate-400 mb-4">
@@ -737,7 +832,7 @@ export function SocialFeed() {
               ) : suggestedUsers.length > 0 ? (
                 suggestedUsers.map((suggestedUser) => (
                   <div key={suggestedUser.id} className="flex items-center gap-3">
-                    <Link href={getProfileUrl(suggestedUser.username)} className="flex-shrink-0">
+                    <Link href={getProfileUrl(suggestedUser)} className="flex-shrink-0">
                       <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-purple-500/50 transition-all duration-200">
                         <AvatarImage src={suggestedUser.avatar_url || ''} />
                         <AvatarFallback>
@@ -747,7 +842,7 @@ export function SocialFeed() {
                     </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <Link href={getProfileUrl(suggestedUser.username)} className="hover:underline">
+                        <Link href={getProfileUrl(suggestedUser)} className="hover:underline">
                           <span className="font-medium text-white text-sm truncate">
                             {suggestedUser.full_name || suggestedUser.username}
                           </span>
@@ -806,4 +901,4 @@ export function SocialFeed() {
       </div>
     </div>
   )
-} 
+}

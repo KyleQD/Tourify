@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { isOrganizationType } from "@/lib/accounts/account-types"
 import { useAuth } from "@/contexts/auth-context"
 import { JukeboxPlayer } from "@/components/dashboard/jukebox-player"
 import { 
@@ -57,7 +58,11 @@ interface QuickAction {
   isExternal?: boolean
 }
 
-export function EnhancedQuickActions() {
+interface EnhancedQuickActionsProps {
+  hideJukebox?: boolean
+}
+
+export function EnhancedQuickActions({ hideJukebox = false }: EnhancedQuickActionsProps) {
   const { user } = useAuth()
   const { accounts, currentAccount } = useMultiAccount()
   const router = useRouter()
@@ -184,16 +189,16 @@ export function EnhancedQuickActions() {
           )
         }
         
-        if (account.account_type === 'admin') {
+        if (isOrganizationType(account.account_type)) {
           accountSpecificActions.push(
             {
               id: `admin-dashboard-${account.profile_id}`,
               title: 'Admin Dashboard',
-              description: 'Manage platform operations',
+              description: 'Manage organization operations',
               icon: Settings,
               href: '/admin/dashboard',
               priority: 'high',
-              accountType: 'admin'
+              accountType: 'organization'
             },
             {
               id: 'user-management',
@@ -202,7 +207,7 @@ export function EnhancedQuickActions() {
               icon: Users,
               href: '/admin/dashboard/users',
               priority: 'medium',
-              accountType: 'admin'
+              accountType: 'organization'
             },
             {
               id: 'admin-analytics',
@@ -211,7 +216,7 @@ export function EnhancedQuickActions() {
               icon: BarChart3,
               href: '/admin/dashboard/analytics',
               priority: 'medium',
-              accountType: 'admin'
+              accountType: 'organization'
             }
           )
         }
@@ -224,7 +229,7 @@ export function EnhancedQuickActions() {
           title: 'Continue Draft',
           description: 'Finish your post about the new album',
           icon: FileText,
-          href: '/feed',
+          href: '/community',
           priority: 'medium',
           isRecent: true
         },
@@ -317,7 +322,7 @@ export function EnhancedQuickActions() {
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
       {/* Jukebox Player - Replaces Recent Actions */}
-      <JukeboxPlayer />
+      {!hideJukebox ? <JukeboxPlayer /> : null}
 
       {/* Quick Actions */}
       <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden">

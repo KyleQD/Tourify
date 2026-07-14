@@ -172,6 +172,10 @@ export interface JobSearchFilters {
   deadline_from?: string
   deadline_to?: string
   featured_only?: boolean
+  employment_type?: string
+  experience_level?: string
+  remote?: boolean
+  urgent?: boolean
   sort_by?: 'created_at' | 'event_date' | 'payment_amount' | 'views_count' | 'applications_count'
   sort_order?: 'asc' | 'desc'
   page?: number

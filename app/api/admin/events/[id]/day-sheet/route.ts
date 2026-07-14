@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import {
+  assertAdminEventAccess,
+} from "@/lib/admin/admin-tour-event-access"
 
 function extractEventId(url: string): string | null {
   const segments = new URL(url).pathname.split('/')
@@ -15,6 +18,7 @@ async function resolveOrgId(supabase: any, userId: string): Promise<string | nul
 export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   const eventId = extractEventId(request.url)
   if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
+  await assertAdminEventAccess({ supabase, userId: user.id, eventId })
 
   const { data: existing } = await supabase
     .from('day_sheets')
@@ -22,7 +26,15 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     .eq('event_id', eventId)
     .maybeSingle()
 
-  if (existing) return NextResponse.json({ day_sheet: existing })
+  if (existing) {
+    const { data: receipts } = await supabase
+      .from('day_sheet_receipts')
+      .select('*')
+      .eq('event_id', eventId)
+      .order('sent_at', { ascending: false })
+
+    return NextResponse.json({ day_sheet: existing, receipts: receipts || [] })
+  }
 
   // Auto-generate from event data
   const [{ data: event }, { data: adv }] = await Promise.all([
@@ -58,6 +70,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
 export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   const eventId = extractEventId(request.url)
   if (!eventId) return NextResponse.json({ error: 'Missing event id' }, { status: 400 })
+  await assertAdminEventAccess({ supabase, userId: user.id, eventId })
 
   const orgId = await resolveOrgId(supabase, user.id)
   if (!orgId) return NextResponse.json({ error: 'No organization found' }, { status: 400 })

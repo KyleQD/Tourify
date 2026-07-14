@@ -1,5 +1,8 @@
 "use client"
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
+import { useMultiAccount } from "@/hooks/use-multi-account"
+import { readAccountFromSearch } from "@/lib/navigation/account-context-url"
 import { venueService } from "@/lib/services/venue.service"
 
 interface ProfileContextType {
@@ -69,10 +72,26 @@ const ProfileContext = createContext<ProfileContextType>({
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState(getDefaultProfile())
+  const { currentAccount } = useMultiAccount()
+  const searchParams = useSearchParams()
+
+  const resolveVenueId = useCallback((): string | null => {
+    if (currentAccount?.account_type === "venue" && currentAccount.profile_id) {
+      return currentAccount.profile_id
+    }
+    const fromUrl = readAccountFromSearch(searchParams.toString())
+    if (fromUrl) return fromUrl
+    return venueService.getActiveVenueId()
+  }, [currentAccount?.account_type, currentAccount?.profile_id, searchParams])
 
   useEffect(() => {
     async function loadProfile() {
-      const venue = await venueService.getCurrentUserVenue()
+      const venueId = resolveVenueId()
+      if (venueId) venueService.setCurrentVenueId(venueId)
+
+      const venue = venueId
+        ? await venueService.getVenueProfile(venueId)
+        : await venueService.getCurrentUserVenue()
       if (!venue) return
 
       const location = [venue.city, venue.state].filter(Boolean).join(", ")
@@ -111,7 +130,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
 
     void loadProfile()
-  }, [])
+  }, [resolveVenueId])
 
   const value = {
     profile,

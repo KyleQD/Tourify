@@ -1,30 +1,29 @@
 'use client'
 
-import { BadgeCheck, Flame, Landmark, MapPinned, Radar, Users } from 'lucide-react'
+import { CalendarDays, Disc3, FileText, Globe2, MessageCircle, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import type { NewsCategory } from '@/lib/news/types'
 
 interface NewsFiltersProps {
-  activeFacet: NewsFacet
-  onFacetChange: (facet: NewsFacet) => void
+  activeCategory: NewsCategory
+  onCategoryChange: (category: NewsCategory) => void
 }
 
-export type NewsFacet = 'top' | 'following' | 'local' | 'industry' | 'gossip' | 'verified'
-
-const FILTERS: Array<{ value: NewsFacet; label: string; icon: LucideIcon }> = [
-  { value: 'top', label: 'Top', icon: Flame },
-  { value: 'following', label: 'Following', icon: Users },
-  { value: 'local', label: 'Local', icon: MapPinned },
-  { value: 'industry', label: 'Industry', icon: Landmark },
-  { value: 'gossip', label: 'Gossip', icon: Radar },
-  { value: 'verified', label: 'Verified', icon: BadgeCheck }
+const FILTERS: Array<{ value: NewsCategory; label: string; icon: LucideIcon }> = [
+  { value: 'featured', label: 'Featured', icon: Sparkles },
+  { value: 'new-music', label: 'New Music', icon: Disc3 },
+  { value: 'events', label: 'Events', icon: CalendarDays },
+  { value: 'gossip', label: 'Gossip', icon: MessageCircle },
+  { value: 'editorial', label: 'Editorial', icon: FileText },
+  { value: 'global', label: 'Global', icon: Globe2 }
 ]
 
-export function NewsFilters({ activeFacet, onFacetChange }: NewsFiltersProps) {
+export function NewsFilters({ activeCategory, onCategoryChange }: NewsFiltersProps) {
   return (
     <div className="flex flex-wrap gap-2">
       {FILTERS.map(filter => {
         const Icon = filter.icon
-        const isActive = activeFacet === filter.value
+        const isActive = activeCategory === filter.value
 
         return (
           <button
@@ -35,7 +34,7 @@ export function NewsFilters({ activeFacet, onFacetChange }: NewsFiltersProps) {
                 ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 text-white shadow-lg shadow-fuchsia-500/20'
                 : 'border border-white/10 bg-white/5 text-slate-400 hover:border-white/20 hover:bg-white/10 hover:text-white'
             }`}
-            onClick={() => onFacetChange(filter.value)}
+            onClick={() => onCategoryChange(filter.value)}
           >
             <Icon className="h-3.5 w-3.5" />
             {filter.label}

@@ -54,6 +54,7 @@ import {
 } from '@/lib/utils/enhanced-media-upload'
 import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
+import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
@@ -326,6 +327,7 @@ export function RobustPostCreator({
       </CardHeader>
 
       <CardContent className="space-y-4">
+        <PostingAccountSelector className="border-slate-700/50 bg-slate-900/30" />
         {/* Main content area */}
         <div className="space-y-3">
           <Textarea

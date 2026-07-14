@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { recordAchievementMetricEvent } from '@/lib/services/achievement-metric-events.service'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { buildProfileSnapshot } from '@/lib/services/applicant-profile-snapshot.service'
 
 /** List current user's staffing job applications (public board / job_posting_templates flow). */
 export async function GET(request: NextRequest) {
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
       .order('applied_at', { ascending: false })
       .limit(limit)
 
+
     if (error) {
       console.error('[job-applications GET]', error)
       return NextResponse.json({ success: false, error: 'Failed to load applications' }, { status: 500 })
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { job_posting_id, form_responses } = body
+    const { job_posting_id, form_responses = {} } = body
 
     if (!job_posting_id) {
       return NextResponse.json(
@@ -70,25 +72,69 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get job posting to extract venue_id and applicant info
+    // Get job posting employer scope and applicant info. Fetch without the status
+    // filter first so we can distinguish "missing" from "not accepting applications".
     const { data: jobPosting, error: jobError } = await supabase
       .from('job_posting_templates')
-      .select('venue_id, title, department, position, applications_count, created_by, allow_applicant_messages')
+      .select('status, venue_id, employer_entity_type, employer_entity_id, title, department, position, applications_count, created_by, allow_applicant_messages')
       .eq('id', job_posting_id)
-      .eq('status', 'published')
-      .single()
+      .maybeSingle()
 
-    if (jobError || !jobPosting) {
+    if (jobError) {
+      console.error('[job-applications POST] lookup failed:', jobError)
       return NextResponse.json(
-        { success: false, error: 'Job posting not found or not published' },
+        { success: false, error: 'Failed to load job posting' },
+        { status: 500 }
+      )
+    }
+
+    if (!jobPosting) {
+      return NextResponse.json(
+        { success: false, error: 'This job posting no longer exists.' },
         { status: 404 }
       )
     }
 
-    // Extract applicant info from form responses
-    const applicantName = form_responses.full_name || form_responses.name || 'Unknown'
-    const applicantEmail = form_responses.email || user.email || ''
-    const applicantPhone = form_responses.phone || ''
+    if (jobPosting.status !== 'published') {
+      return NextResponse.json(
+        { success: false, error: 'This job posting is not accepting applications.' },
+        { status: 409 }
+      )
+    }
+
+    const employerEntityType =
+      jobPosting.employer_entity_type ??
+      (jobPosting.venue_id ? 'venue' : null)
+    const employerEntityId =
+      jobPosting.employer_entity_id ??
+      jobPosting.venue_id ??
+      null
+
+    if (!employerEntityType || !employerEntityId) {
+      return NextResponse.json(
+        { success: false, error: 'Job posting is missing employer scope' },
+        { status: 422 }
+      )
+    }
+
+    // Quick Apply: capture an immutable snapshot of the applicant's general
+    // profile so the hiring party can review them like a resume. Applying with
+    // consent shares contact details even when the profile hides them publicly.
+    const profileSnapshot = await buildProfileSnapshot({
+      supabase,
+      userId: user.id,
+      authEmail: user.email,
+      shareContact: true,
+    })
+
+    // Extract applicant info from form responses, falling back to the profile
+    // snapshot so Quick Apply (which does not re-ask contact fields) still
+    // records who applied.
+    const applicantName =
+      form_responses.full_name || form_responses.name || profileSnapshot?.basics.fullName || 'Unknown'
+    const applicantEmail =
+      form_responses.email || profileSnapshot?.contact.email || user.email || ''
+    const applicantPhone = form_responses.phone || profileSnapshot?.contact.phone || ''
 
     // Simple rate limiting and duplicate protection
     // 1) Prevent duplicate application for the same job by the same user within 24h
@@ -125,11 +171,18 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the application
+    // Organization/artist employers may not have a venue_id; venue-scoped rows
+    // still populate venue_id for legacy queries.
+    const resolvedVenueId =
+      jobPosting.venue_id ??
+      (employerEntityType === 'venue' ? employerEntityId : null)
+
     const { data: application, error: applicationError } = await supabase
       .from('job_applications')
       .insert({
-        venue_id: jobPosting.venue_id,
+        venue_id: resolvedVenueId,
+        employer_entity_type: employerEntityType,
+        employer_entity_id: employerEntityId,
         job_posting_id,
         applicant_id: user.id,
         applicant_name: applicantName,
@@ -137,6 +190,9 @@ export async function POST(request: NextRequest) {
         applicant_phone: applicantPhone,
         status: 'pending',
         form_responses,
+        profile_snapshot: profileSnapshot,
+        profile_snapshot_version: profileSnapshot?.version ?? null,
+        profile_shared_at: profileSnapshot ? new Date().toISOString() : null,
         applied_at: new Date().toISOString()
       })
       .select()
@@ -200,6 +256,8 @@ export async function POST(request: NextRequest) {
       eventData: {
         job_posting_id,
         venue_id: jobPosting.venue_id,
+        employer_entity_type: employerEntityType,
+        employer_entity_id: employerEntityId,
       },
       relatedProjectId: job_posting_id,
     })
@@ -215,4 +273,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

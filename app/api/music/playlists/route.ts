@@ -47,7 +47,23 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ data: data || [] })
+    const rows = (data || []).map((playlist: any) => ({
+      ...playlist,
+      music_playlist_items: Array.isArray(playlist.music_playlist_items)
+        ? playlist.music_playlist_items.map((item: any) => ({
+            ...item,
+            artist_music: item.artist_music
+              ? {
+                  ...item.artist_music,
+                  file_url: `/api/music/stream?trackId=${item.music_track_id}`,
+                  stream_url: `/api/music/stream?trackId=${item.music_track_id}`,
+                }
+              : item.artist_music,
+          }))
+        : playlist.music_playlist_items,
+    }))
+
+    return NextResponse.json({ data: rows })
   } catch (error) {
     console.error("Unexpected playlists GET error", error)
     return jsonError({

@@ -11,6 +11,10 @@ const sendMessageSchema = z.object({
   recipients: z.array(z.string().uuid()).default([]),
   requires_acknowledgment: z.boolean().default(false),
   venue_id: z.string().uuid().nullable().optional(),
+  event_id: z.string().uuid().nullable().optional(),
+  tour_id: z.string().uuid().nullable().optional(),
+  site_map_id: z.string().uuid().nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).default({}),
 })
 
 export const GET = withAdminAuth(async (request: NextRequest) => {
@@ -21,10 +25,16 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const offset = parseInt(searchParams.get('offset') || '0')
     const type = searchParams.get('type')
     const venueId = searchParams.get('venue_id')
+    const eventId = searchParams.get('event_id')
+    const tourId = searchParams.get('tour_id')
+    const siteMapId = searchParams.get('site_map_id')
 
     let q = svc.from('team_communications').select('*', { count: 'exact' })
 
     if (venueId) q = q.eq('venue_id', venueId)
+    if (eventId) q = q.eq('event_id', eventId)
+    if (tourId) q = q.eq('tour_id', tourId)
+    if (siteMapId) q = q.eq('site_map_id', siteMapId)
 
     if (type && type !== 'all') {
       q = q.eq('message_type', type)
@@ -73,19 +83,31 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
       }
     }
 
+    const insertPayload = {
+      sender_id: user.id,
+      venue_id: validated.venue_id ?? null,
+      event_id: validated.event_id ?? null,
+      tour_id: validated.tour_id ?? null,
+      site_map_id: validated.site_map_id ?? null,
+      subject: validated.subject,
+      content: validated.content,
+      message_type: validated.message_type,
+      priority: validated.priority,
+      recipients: validated.recipients,
+      requires_acknowledgment: validated.requires_acknowledgment,
+      metadata: {
+        ...validated.metadata,
+        context: 'logistics',
+        event_id: validated.event_id ?? undefined,
+        tour_id: validated.tour_id ?? undefined,
+        site_map_id: validated.site_map_id ?? undefined,
+      },
+      sent_at: new Date().toISOString(),
+    }
+
     const { data, error } = await svc
       .from('team_communications')
-      .insert({
-        sender_id: user.id,
-        venue_id: validated.venue_id ?? null,
-        subject: validated.subject,
-        content: validated.content,
-        message_type: validated.message_type,
-        priority: validated.priority,
-        recipients: validated.recipients,
-        requires_acknowledgment: validated.requires_acknowledgment,
-        sent_at: new Date().toISOString(),
-      })
+      .insert(insertPayload)
       .select()
       .single()
 

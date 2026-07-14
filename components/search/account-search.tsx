@@ -29,6 +29,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { useAccountSearch, type SearchResult } from '@/hooks/use-account-search'
+import { resolvePublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { cn } from '@/lib/utils'
 
 interface AccountSearchProps {
@@ -109,14 +110,11 @@ export function AccountSearch({
   }, [results])
 
   const getProfilePath = (result: SearchResult): string => {
-    switch (result.account_type) {
-      case 'artist':
-        return `/profile/${result.username}`
-      case 'venue':
-        return `/profile/${result.username}`
-      default:
-        return `/profile/${result.username}`
-    }
+    return resolvePublicProfilePath({
+      id: result.id,
+      username: result.username,
+      account_type: result.account_type,
+    }) || `/profile/${result.username}`
   }
 
   const getAccountIcon = (accountType: string) => {

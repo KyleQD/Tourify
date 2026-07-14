@@ -70,15 +70,15 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   })
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   const body = await request.json()
   const parsed = createVenueSchema.safeParse(body)
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 })
 
   const { data, error } = await supabase
     .from('venue_profiles')
-    .insert(parsed.data)
-    .select('id, venue_name, city, state, capacity')
+    .insert({ ...parsed.data, user_id: user.id })
+    .select('id, venue_name, address, city, state, capacity')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -1,5 +1,8 @@
 import type Stripe from 'stripe'
 import { getFailedPaymentPatch, getPaidLifecycleTransition, getRefundPatch } from '@/lib/marketplace/order-lifecycle'
+import { ensurePrintfulFulfillmentRequests } from '@/lib/marketplace/printful-fulfillment'
+import { buildInventoryDecrementPatch } from '@/lib/marketplace/inventory'
+import { recordMusicEvent } from '@/lib/music/music-access'
 
 export async function handleMarketplaceStripeEvent({
   event,
@@ -50,7 +53,7 @@ async function handleCheckoutSessionCompleted({
   const paymentReference = (session.payment_intent as string) || session.id
   const { data: existingOrder } = await supabase
     .from('marketplace_orders')
-    .select('id, payment_status')
+    .select('id, payment_status, shipping_address, metadata')
     .eq('id', orderId)
     .maybeSingle()
 
@@ -60,9 +63,17 @@ async function handleCheckoutSessionCompleted({
   })
   if (!transition.shouldApplyPaidTransition || !transition.orderPatch || !transition.payoutPatch) return
 
+  const shippingFromStripe = extractShippingAddressFromSession(session)
+  const orderPatch = {
+    ...transition.orderPatch,
+    ...(shippingFromStripe && !existingOrder?.shipping_address
+      ? { shipping_address: shippingFromStripe }
+      : {}),
+  }
+
   const { error: orderError } = await supabase
     .from('marketplace_orders')
-    .update(transition.orderPatch)
+    .update(orderPatch)
     .eq('id', orderId)
 
   if (orderError) {
@@ -74,6 +85,8 @@ async function handleCheckoutSessionCompleted({
     throw new Error('Order update failed')
   }
 
+  await decrementInventoryForOrder({ supabase, orderId })
+
   await ensureDigitalEntitlements({
     supabase,
     orderId,
@@ -81,6 +94,7 @@ async function handleCheckoutSessionCompleted({
     sellerUserId: session.metadata?.seller_user_id || null,
     amountTotal: session.amount_total || null,
   })
+  await ensurePrintfulFulfillmentRequests({ supabase, orderId })
 
   const { error: payoutError } = await supabase
     .from('marketplace_payout_ledger')
@@ -93,6 +107,89 @@ async function handleCheckoutSessionCompleted({
       error: payoutError.message,
     })
     throw new Error('Payout ledger update failed')
+  }
+}
+
+function extractShippingAddressFromSession(session: Stripe.Checkout.Session) {
+  type CheckoutShippingDetails = NonNullable<
+    NonNullable<Stripe.Checkout.Session['collected_information']>['shipping_details']
+  > & {
+    phone?: string | null
+  }
+  const sessionWithLegacyShipping = session as Stripe.Checkout.Session & {
+    shipping_details?: CheckoutShippingDetails | null
+  }
+  const details = (
+    sessionWithLegacyShipping.shipping_details ||
+    session.collected_information?.shipping_details
+  ) as CheckoutShippingDetails | null | undefined
+  if (!details?.address) return null
+  return {
+    name: details.name || null,
+    phone: details.phone || null,
+    line1: details.address.line1 || null,
+    line2: details.address.line2 || null,
+    city: details.address.city || null,
+    state: details.address.state || null,
+    postal_code: details.address.postal_code || null,
+    country: details.address.country || null,
+  }
+}
+
+async function decrementInventoryForOrder({
+  supabase,
+  orderId,
+}: {
+  supabase: any
+  orderId: string
+}) {
+  const { data: items } = await supabase
+    .from('marketplace_order_items')
+    .select('listing_id, variant_id, quantity')
+    .eq('order_id', orderId)
+
+  for (const item of items || []) {
+    const quantity = Number(item.quantity || 0)
+    if (!item.listing_id || quantity <= 0) continue
+
+    if (item.variant_id) {
+      const { data: variant } = await supabase
+        .from('marketplace_listing_variants')
+        .select('id, inventory_count')
+        .eq('id', item.variant_id)
+        .maybeSingle()
+      if (variant && variant.inventory_count != null) {
+        const patch = buildInventoryDecrementPatch({
+          currentCount: variant.inventory_count,
+          quantity,
+        })
+        if (patch) {
+          await supabase
+            .from('marketplace_listing_variants')
+            .update({ inventory_count: patch.inventory_count })
+            .eq('id', variant.id)
+        }
+      }
+    }
+
+    const { data: listing } = await supabase
+      .from('marketplace_listings')
+      .select('id, inventory_count, has_unlimited_inventory')
+      .eq('id', item.listing_id)
+      .maybeSingle()
+
+    if (!listing || listing.has_unlimited_inventory || listing.inventory_count == null) continue
+
+    const patch = buildInventoryDecrementPatch({
+      currentCount: listing.inventory_count,
+      quantity,
+    })
+    if (!patch) continue
+
+    await supabase
+      .from('marketplace_listings')
+      .update(patch)
+      .eq('id', listing.id)
   }
 }
 
@@ -205,6 +302,22 @@ async function ensureDigitalEntitlements({
         })
         throw new Error('User music library upsert failed')
       }
+
+      await recordMusicEvent({
+        supabase,
+        musicId: item.music_track_id,
+        artistUserId: sellerUserId,
+        actorUserId: buyerUserId,
+        eventType: 'purchase',
+        accessLevel: 'full',
+        source: 'marketplace_webhook',
+        metadata: {
+          order_id: orderId,
+          order_item_id: item.id,
+          listing_id: item.listing_id,
+          amount_total: amountTotal,
+        },
+      })
     }
   }
 

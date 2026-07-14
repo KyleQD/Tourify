@@ -19,12 +19,6 @@ export default function GlobalError({
   const isChunkError = useMemo(() => isChunkLoadError(error), [error])
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'a162f6'},body:JSON.stringify({sessionId:'a162f6',location:'global-error.tsx:mount',message:'GlobalError mounted',data:{resetType:typeof reset,isChunkError,errorName:error?.name,errorMessage:error?.message?.slice(0,200)},timestamp:Date.now(),hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-  }, [error, reset, isChunkError])
-
-  useEffect(() => {
     if (isPrivacyError) return
     Sentry.captureException(error)
   }, [error, isPrivacyError])

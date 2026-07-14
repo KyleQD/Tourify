@@ -1224,7 +1224,11 @@ export default function EnhancedApplicationReview({
               {/* Form Responses */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">Application Responses</h3>
-                <ApplicationResponsesList responses={selectedApplication.form_responses} compact={true} />
+                <ApplicationResponsesList
+                  responses={selectedApplication.form_responses}
+                  compact={true}
+                  applicationId={selectedApplication.id}
+                />
               </div>
 
               {/* Actions */}

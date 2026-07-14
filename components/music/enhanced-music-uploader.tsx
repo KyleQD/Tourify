@@ -45,6 +45,7 @@ interface UploadFile {
 
 export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading = false, progress = 0 }: EnhancedMusicUploaderProps) {
   const [musicFile, setMusicFile] = useState<UploadFile | null>(null)
+  const [previewFile, setPreviewFile] = useState<UploadFile | null>(null)
   const [coverFile, setCoverFile] = useState<UploadFile | null>(null)
   const [formData, setFormData] = useState({
     title: '',
@@ -61,12 +62,15 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
     soundcloud_url: '',
     youtube_url: '',
     upload_variant: 'full' as 'full' | 'snippet',
+    preview_duration_seconds: 15,
     full_track_url: '',
     is_for_sale: false,
     buy_url: '',
     price: '',
     currency: 'USD',
     allow_download: false,
+    allow_library_add: true,
+    allow_profile_feature: true,
     rights_confirmed: false
   })
   const [newTag, setNewTag] = useState('')
@@ -120,29 +124,10 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         progress: 0,
         status: 'completed'
       })
-      // Immediate auto-start upload using current form defaults
+
       const filenameTitle = file.name.replace(/\.[^.]+$/, '').replace(/[._-]+/g, ' ').trim()
-      const initial = {
-        ...formData,
-        title: formData.title || filenameTitle,
-      }
-      onUploadComplete({
-        ...initial,
-        musicFile: file,
-        coverFile: coverFile?.file,
-        shareAsPost,
-        postContent,
-        rights_confirmed: initial.rights_confirmed,
-        rights_confirmed_at: initial.rights_confirmed ? new Date().toISOString() : null,
-        metadata: {
-          preview_type: initial.upload_variant === 'snippet' ? 'file' : 'full',
-          full_track_url: initial.full_track_url || undefined,
-          buy_url: initial.is_for_sale ? initial.buy_url : undefined,
-          price: initial.is_for_sale ? initial.price : undefined,
-          currency: initial.is_for_sale ? initial.currency : undefined,
-          allow_download: initial.allow_download || false,
-        }
-      })
+      setFormData(prev => ({ ...prev, title: prev.title || filenameTitle }))
+
       // Attempt to parse ID3v1 tags (no external deps)
       ;(async () => {
         const meta = await parseID3v1(file)
@@ -225,28 +210,52 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
       return
     }
 
+    if (formData.upload_variant === 'snippet' && !previewFile?.file) {
+      toast.error('Please provide a separate preview audio file for sample playback')
+      return
+    }
+
     if (!formData.rights_confirmed) {
       toast.error('You must confirm that you own the rights to this content before uploading')
       return
     }
 
+    if (formData.is_for_sale) {
+      const price = Number(formData.price)
+      if (!Number.isFinite(price) || price <= 0) {
+        toast.error('Enter a price greater than 0 to offer this track for sale')
+        return
+      }
+    }
+
     try {
+      const salePrice = formData.is_for_sale ? Number(formData.price) : undefined
       const trackData = {
         ...formData,
         musicFile: musicFile.file,
+        previewFile: previewFile?.file,
         coverFile: coverFile?.file,
         shareAsPost,
         postContent,
         rights_confirmed: true,
         rights_confirmed_at: new Date().toISOString(),
+        price: salePrice,
+        currency: formData.is_for_sale ? formData.currency : undefined,
         metadata: {
           preview_type: formData.upload_variant === 'snippet' ? 'file' : 'full',
+          preview_duration_seconds: formData.preview_duration_seconds,
           full_track_url: formData.full_track_url || undefined,
           buy_url: formData.is_for_sale ? formData.buy_url : undefined,
-          price: formData.is_for_sale ? formData.price : undefined,
+          price: salePrice,
           currency: formData.is_for_sale ? formData.currency : undefined,
           allow_download: formData.allow_download || false,
-        }
+        },
+        access_mode: formData.is_for_sale ? 'paid' : 'free',
+        preview_mode: formData.upload_variant === 'snippet' ? 'clip' : 'full',
+        preview_duration_seconds: formData.preview_duration_seconds,
+        allow_downloads: formData.allow_download,
+        allow_library_add: formData.allow_library_add,
+        allow_profile_feature: formData.allow_profile_feature,
       }
 
       onUploadComplete(trackData)
@@ -319,6 +328,22 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
                     </SelectContent>
                   </Select>
                 </div>
+                {formData.upload_variant === 'snippet' && (
+                  <div className="mt-3">
+                    <Label htmlFor="preview_duration_seconds" className="text-gray-300 font-medium">
+                      Sample Length
+                    </Label>
+                    <Input
+                      id="preview_duration_seconds"
+                      type="number"
+                      min={1}
+                      max={600}
+                      value={formData.preview_duration_seconds}
+                      onChange={(e) => setFormData(prev => ({ ...prev, preview_duration_seconds: Math.max(1, Math.min(600, Number(e.target.value) || 15)) }))}
+                      className="bg-slate-800 border-slate-700 text-white mt-2 rounded-xl"
+                    />
+                  </div>
+                )}
                 {!musicFile ? (
                   <div
                     {...getMusicRootProps()}
@@ -394,6 +419,49 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
                         </div>
                       </div>
                     )}
+                  </div>
+                )}
+                {formData.upload_variant === 'snippet' && (
+                  <div className="rounded-2xl border border-slate-700 bg-slate-800/40 p-4">
+                    <Label htmlFor="preview-file" className="text-gray-300 font-medium">
+                      Preview Audio File
+                    </Label>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Upload the short sample listeners can hear before adding or buying the full track.
+                    </p>
+                    <Input
+                      id="preview-file"
+                      type="file"
+                      accept="audio/*,.mp3,.wav,.flac,.aac,.m4a,.ogg"
+                      className="mt-3 bg-slate-800 border-slate-700 text-white rounded-xl"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        if (!file) return
+                        if (!file.type.startsWith('audio/')) {
+                          toast.error('Please select a valid preview audio file')
+                          return
+                        }
+                        if (file.size > 25 * 1024 * 1024) {
+                          toast.error('Preview file size must be less than 25MB')
+                          return
+                        }
+                        setPreviewFile({ file, progress: 0, status: 'completed' })
+                      }}
+                    />
+                    {previewFile ? (
+                      <div className="mt-3 flex items-center justify-between rounded-xl bg-purple-500/10 px-3 py-2 text-sm text-purple-200">
+                        <span className="truncate">{previewFile.file.name}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-purple-200"
+                          onClick={() => setPreviewFile(null)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </CardContent>
@@ -602,6 +670,22 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
               />
               <Label htmlFor="allow_download" className="text-gray-300">Allow Download</Label>
             </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="allow_library_add"
+                checked={formData.allow_library_add}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_library_add: checked }))}
+              />
+              <Label htmlFor="allow_library_add" className="text-gray-300">Library Adds</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="allow_profile_feature"
+                checked={formData.allow_profile_feature}
+                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, allow_profile_feature: checked }))}
+              />
+              <Label htmlFor="allow_profile_feature" className="text-gray-300">Profile Features</Label>
+            </div>
           </div>
 
           {/* External Links & Commerce */}
@@ -714,4 +798,4 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
 </div>
 </div>
   )
-} 
+}

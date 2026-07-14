@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
+import { getSiteMapAccess, requireSiteMapAccess, siteMapError } from '@/lib/site-map/access'
 
 const priorityRankMap: Record<string, number> = {
   low: 1,
@@ -35,6 +36,10 @@ function toPriorityLabel(priority?: number | null): string {
   return priorityLabelMap[priority] ?? 'medium'
 }
 
+function isUuid(value?: string | null): value is string {
+  return Boolean(value && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -43,7 +48,11 @@ export async function GET(
     const { id: siteMapId } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    if (!user) return siteMapError('Unauthorized', 401)
+
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
 
     const { data, error } = await supabase
       .from('map_task_assignments')
@@ -53,12 +62,17 @@ export async function GET(
         element_id,
         element_type,
         assigned_user_id,
+        assigned_team_id,
+        assigned_role,
         task_type,
         title,
         task_description,
         priority,
         status,
         due_date,
+        coordinate,
+        checklist,
+        blocker_reason,
         scheduled_start_time,
         scheduled_end_time,
         actual_start_time,
@@ -95,6 +109,12 @@ export async function GET(
         status: task.status,
         dueDate: task.due_date,
         assignedTo: task.assigned_user_id,
+        assignedUserId: task.assigned_user_id,
+        assignedTeamId: task.assigned_team_id,
+        assignedRole: task.assigned_role,
+        coordinate: task.coordinate,
+        checklist: task.checklist || [],
+        blockerReason: task.blocker_reason,
         assignedToName: assignedUser?.full_name || assignedUser?.username || null,
         createdBy: creator?.full_name || creator?.username || 'Unknown',
         createdAt: task.created_at,
@@ -118,7 +138,7 @@ export async function POST(
     const { id: siteMapId } = await params
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+    if (!user) return siteMapError('Unauthorized', 401)
 
     const body = await request.json()
     const {
@@ -128,11 +148,42 @@ export async function POST(
       priority = 'medium',
       status,
       assignedTo,
+      assignedUserId,
+      assignedTeamId,
+      assignedRole,
       assignedToName,
       elementId,
+      elementType = 'element',
       taskId,
       dueDate,
+      coordinate,
+      checklist = [],
+      blockerReason,
     } = body
+    const resolvedAssignedUserId = assignedUserId || assignedTo || null
+    const resolvedAssignedTeamId = isUuid(assignedTeamId) ? assignedTeamId : null
+    const resolvedAssignedRole = assignedRole || (!resolvedAssignedTeamId && assignedTeamId ? assignedTeamId : null)
+
+    if (action !== 'ASSIGN_TASK' && !taskId) {
+      return siteMapError('taskId is required for task updates', 400)
+    }
+
+    const access = await getSiteMapAccess(supabase, siteMapId, user.id)
+    const accessCheck = requireSiteMapAccess(access, action === 'ASSIGN_TASK' ? 'edit' : 'completeTask')
+    if (!accessCheck.ok) return siteMapError(accessCheck.error, accessCheck.status)
+
+    if (action !== 'ASSIGN_TASK' && !access.canEdit) {
+      const { data: existingTask } = await supabase
+        .from('map_task_assignments')
+        .select('id, assigned_user_id')
+        .eq('id', taskId)
+        .eq('site_map_id', siteMapId)
+        .single()
+
+      if (!existingTask || existingTask.assigned_user_id !== user.id) {
+        return siteMapError('Forbidden', 403)
+      }
+    }
 
     if (action === 'ASSIGN_TASK' && !title?.trim()) {
       return NextResponse.json({ error: 'Task title is required' }, { status: 400 })
@@ -150,14 +201,19 @@ export async function POST(
         .insert({
           site_map_id: siteMapId,
           element_id: elementId || null,
-          element_type: 'element',
-          assigned_user_id: assignedTo || null,
+          element_type: elementType || 'element',
+          assigned_user_id: resolvedAssignedUserId,
+          assigned_team_id: resolvedAssignedTeamId,
+          assigned_role: resolvedAssignedRole,
           task_type: 'site_map',
           title: title?.trim(),
           task_description: description || null,
           priority: taskPriority,
           status: taskStatus,
           due_date: dueDate || null,
+          coordinate: coordinate || null,
+          checklist: Array.isArray(checklist) ? checklist : [],
+          blocker_reason: blockerReason || null,
           created_by: user.id,
         })
         .select('id')
@@ -190,7 +246,7 @@ export async function POST(
             org_id: eventRow?.org_id || null,
             title: title?.trim(),
             description: description || null,
-            assignee_id: assignedTo || null,
+            assignee_id: resolvedAssignedUserId,
             due_at: dueDate || null,
             status: mapTaskStatusToEventTaskStatus[taskStatus] || 'todo',
             priority: priority in priorityRankMap ? priority : 'medium',
@@ -209,13 +265,13 @@ export async function POST(
         }
       }
 
-      if (assignedTo) {
+      if (resolvedAssignedUserId) {
         await supabase
           .from('site_map_collaborators')
           .upsert(
             {
               site_map_id: siteMapId,
-              user_id: assignedTo,
+              user_id: resolvedAssignedUserId,
               can_edit: false,
               can_manage_tents: false,
               can_manage_zones: false,
@@ -233,11 +289,22 @@ export async function POST(
         return NextResponse.json({ error: 'taskId is required for task updates' }, { status: 400 })
       }
 
-      const nextStatus = action === 'COMPLETE_TASK' ? 'completed' : status || 'in_progress'
-      const updates: Record<string, any> = { status: nextStatus }
+      const nextStatus =
+        action === 'COMPLETE_TASK'
+          ? 'completed'
+          : action === 'BLOCK_TASK'
+            ? 'blocked'
+            : status || (action === 'UPDATE_CHECKLIST' ? undefined : 'in_progress')
+      const updates: Record<string, any> = {}
+      if (nextStatus) updates.status = nextStatus
       if (action === 'COMPLETE_TASK') updates.actual_end_time = new Date().toISOString()
       if (dueDate) updates.due_date = dueDate
+      if (blockerReason !== undefined || action === 'BLOCK_TASK') updates.blocker_reason = blockerReason || null
+      if (Array.isArray(checklist)) updates.checklist = checklist
 
+      if (Object.keys(updates).length === 0) {
+        return NextResponse.json({ error: 'No updates provided' }, { status: 400 })
+      }
       const { data: updatedTask, error } = await supabase
         .from('map_task_assignments')
         .update(updates)
@@ -258,7 +325,7 @@ export async function POST(
         await supabase
           .from('tasks')
           .update({
-            status: mapTaskStatusToEventTaskStatus[nextStatus] || 'doing',
+            status: mapTaskStatusToEventTaskStatus[nextStatus || 'in_progress'] || 'doing',
             ...(dueDate ? { due_at: dueDate } : {}),
           })
           .eq('id', eventTaskId)
@@ -278,16 +345,23 @@ export async function POST(
           title,
           description,
           priority,
-          assignedTo,
+          assignedTo: resolvedAssignedUserId,
+          assignedUserId: resolvedAssignedUserId,
+          assignedTeamId: resolvedAssignedTeamId,
+          assignedRole: resolvedAssignedRole,
           assignedToName,
+          elementType,
           status: action === 'COMPLETE_TASK' ? 'completed' : status || 'pending',
           dueDate: dueDate || null,
+          coordinate: coordinate || null,
+          checklist: Array.isArray(checklist) ? checklist : [],
+          blockerReason: blockerReason || null,
           eventTaskId,
         },
       })
 
     // Send notification to the assigned staff member
-    if (action === 'ASSIGN_TASK' && assignedTo) {
+    if (action === 'ASSIGN_TASK' && resolvedAssignedUserId) {
       try {
         // Fetch assigner's name for the notification
         const { data: assignerProfile } = await supabase
@@ -306,7 +380,7 @@ export async function POST(
           .single()
 
         await OptimizedNotificationService.createNotification({
-          userId: assignedTo,
+          userId: resolvedAssignedUserId,
           type: 'site_map_task_assigned',
           title: 'New Task Assigned',
           content: `${assignerName} assigned you a task: "${title}" on site map "${siteMap?.name || 'Unknown'}"`,
@@ -328,7 +402,7 @@ export async function POST(
     }
 
     // Notification for task completion
-    if (action === 'COMPLETE_TASK' && assignedTo && assignedTo !== user.id) {
+    if (action === 'COMPLETE_TASK' && resolvedAssignedUserId && resolvedAssignedUserId !== user.id) {
       try {
         const { data: completerProfile } = await supabase
           .from('profiles')
@@ -337,7 +411,7 @@ export async function POST(
           .single()
 
         await OptimizedNotificationService.createNotification({
-          userId: assignedTo,
+          userId: resolvedAssignedUserId,
           type: 'site_map_task_completed',
           title: 'Task Completed',
           content: `${completerProfile?.full_name || 'Someone'} completed the task: "${title}"`,

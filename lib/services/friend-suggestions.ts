@@ -1,5 +1,4 @@
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import type { SupabaseClient } from '@supabase/supabase-js'
 import type { 
   FriendSuggestion, 
   FriendSuggestionParams, 
@@ -8,11 +7,13 @@ import type {
 } from '@/lib/types/social'
 
 export class FriendSuggestionService {
-  private _supabase: SupabaseClient | null = null
+  private supabaseClient: ReturnType<typeof createServiceRoleClient> | null = null
 
   private get supabase() {
-    if (!this._supabase) this._supabase = createServiceRoleClient()
-    return this._supabase
+    if (!this.supabaseClient) {
+      this.supabaseClient = createServiceRoleClient()
+    }
+    return this.supabaseClient
   }
 
   /**
@@ -136,7 +137,8 @@ export class FriendSuggestionService {
           is_verified,
           followers_count,
           following_count,
-          created_at
+          created_at,
+          account_type
         )
       `)
       .in('follower_id', await this.getUserFollowingIds(userId))
@@ -193,7 +195,8 @@ export class FriendSuggestionService {
         is_verified,
         followers_count,
         following_count,
-        created_at
+        created_at,
+        account_type
       `)
       .not('id', 'in', `(${excludedIds.join(',')})`)
       .not('username', 'is', null)
@@ -234,7 +237,8 @@ export class FriendSuggestionService {
         is_verified,
         followers_count,
         following_count,
-        created_at
+        created_at,
+        account_type
       `)
       .not('id', 'in', `(${excludedIds.join(',')})`)
       .not('username', 'is', null)
@@ -292,7 +296,8 @@ export class FriendSuggestionService {
         is_verified,
         followers_count,
         following_count,
-        created_at
+        created_at,
+        account_type
       `)
       .not('id', 'in', `(${excludedIds.join(',')})`)
       .not('username', 'is', null)

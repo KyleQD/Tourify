@@ -27,10 +27,10 @@ export async function GET(req: Request) {
 
   if (!res.ok) {
     const err = await res.text()
-    return NextResponse.redirect(url.origin + `/artist/content?oauth_error=${encodeURIComponent(err)}`)
+    return NextResponse.redirect(url.origin + `/artist/content?tab=socials&oauth_error=${encodeURIComponent(err)}`)
   }
 
-  return NextResponse.redirect(url.origin + '/artist/content?connected=1')
+  return NextResponse.redirect(url.origin + '/artist/content?tab=socials&connected=1')
 }
 
 

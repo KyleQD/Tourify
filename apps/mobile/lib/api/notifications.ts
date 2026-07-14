@@ -7,6 +7,14 @@ export interface NotificationItem {
   type: string
   created_at: string
   read_at?: string | null
+  is_read?: boolean
+  action_url?: string | null
+  metadata?: Record<string, unknown> | null
+}
+
+export function isNotificationUnread(item: NotificationItem): boolean {
+  if (typeof item.is_read === "boolean") return !item.is_read
+  return !item.read_at
 }
 
 export async function getNotifications() {

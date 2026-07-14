@@ -38,11 +38,12 @@ import {
   Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { useJukeboxOptional, type JukeboxTrack } from "@/contexts/jukebox-context"
+import { useJukeboxOptional, type JukeboxTab, type JukeboxTrack } from "@/contexts/jukebox-context"
 import { getTheme } from "@/lib/jukebox/visual-themes"
 import { VisualizerBackground } from "./visualizers"
 import { AlbumArtVisual } from "./album-art-visual"
 import { ThemeSelector } from "./theme-selector"
+import { PlayerSocialActions } from "./player-actions"
 import {
   fetchDiscoverTracks,
   fetchFollowingTracks,
@@ -52,11 +53,11 @@ import {
   createPlaylist,
   deletePlaylist,
   playlistItemsToTracks,
-  toggleLike,
   type JukeboxPlaylist,
 } from "@/lib/services/jukebox.service"
 import { TrackCard } from "./track-card"
 import { toast } from "sonner"
+import { prefetchSocialStatus } from "@/lib/jukebox/track-social-cache"
 
 export function FullPlayerView() {
   const ctx = useJukeboxOptional()
@@ -85,7 +86,7 @@ export function FullPlayerView() {
 
 function FullPlayerContent() {
   const ctx = useJukeboxOptional()
-  const [activeTab, setActiveTab] = useState("now-playing")
+  const [activeTab, setActiveTab] = useState<JukeboxTab>("now-playing")
   const [playlists, setPlaylists] = useState<JukeboxPlaylist[]>([])
 
   const loadPlaylists = useCallback(async () => {
@@ -96,6 +97,16 @@ function FullPlayerContent() {
   useEffect(() => {
     loadPlaylists()
   }, [loadPlaylists])
+
+  useEffect(() => {
+    if (!ctx?.state.initialTab) return
+    setActiveTab(ctx.state.initialTab)
+    ctx.clearInitialTab()
+  }, [ctx?.state.initialTab, ctx])
+
+  useEffect(() => {
+    if (ctx && !ctx.state.isPlayerExpanded) setActiveTab("now-playing")
+  }, [ctx?.state.isPlayerExpanded, ctx])
 
   if (!ctx) return null
 
@@ -124,39 +135,41 @@ function FullPlayerContent() {
 
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={(value) => setActiveTab(value as JukeboxTab)}
         className="flex flex-1 flex-col overflow-hidden"
       >
-        <TabsList className="mx-4 grid w-auto grid-cols-7 bg-white/5 border border-white/10">
-          <TabsTrigger value="now-playing" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            <Disc3 className="h-3 w-3" />
-            <span className="hidden sm:inline">Playing</span>
-          </TabsTrigger>
-          <TabsTrigger value="queue" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            <ListMusic className="h-3 w-3" />
-            <span className="hidden sm:inline">Queue</span>
-          </TabsTrigger>
-          <TabsTrigger value="favorites" className="text-xs gap-1 data-[state=active]:bg-red-500/20 data-[state=active]:text-red-300">
-            <Heart className="h-3 w-3" />
-            <span className="hidden sm:inline">Favorites</span>
-          </TabsTrigger>
-          <TabsTrigger value="discover" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            <Compass className="h-3 w-3" />
-            <span className="hidden sm:inline">Discover</span>
-          </TabsTrigger>
-          <TabsTrigger value="following" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            <Users className="h-3 w-3" />
-            <span className="hidden sm:inline">Following</span>
-          </TabsTrigger>
-          <TabsTrigger value="playlists" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            <ListMusic className="h-3 w-3" />
-            <span className="hidden sm:inline">Playlists</span>
-          </TabsTrigger>
-          <TabsTrigger value="library" className="text-xs gap-1 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
-            <Library className="h-3 w-3" />
-            <span className="hidden sm:inline">Library</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="mx-4 overflow-x-auto scrollbar-none">
+          <TabsList className="inline-flex w-max min-w-full justify-start gap-1 bg-white/5 border border-white/10 h-auto p-1">
+            <TabsTrigger value="now-playing" className="text-xs gap-1 shrink-0 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+              <Disc3 className="h-3 w-3" />
+              <span>Playing</span>
+            </TabsTrigger>
+            <TabsTrigger value="queue" className="text-xs gap-1 shrink-0 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+              <ListMusic className="h-3 w-3" />
+              <span>Queue</span>
+            </TabsTrigger>
+            <TabsTrigger value="favorites" className="text-xs gap-1 shrink-0 data-[state=active]:bg-red-500/20 data-[state=active]:text-red-300">
+              <Heart className="h-3 w-3" />
+              <span>Liked</span>
+            </TabsTrigger>
+            <TabsTrigger value="discover" className="text-xs gap-1 shrink-0 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+              <Compass className="h-3 w-3" />
+              <span>Discover</span>
+            </TabsTrigger>
+            <TabsTrigger value="following" className="text-xs gap-1 shrink-0 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+              <Users className="h-3 w-3" />
+              <span>Following</span>
+            </TabsTrigger>
+            <TabsTrigger value="playlists" className="text-xs gap-1 shrink-0 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+              <ListMusic className="h-3 w-3" />
+              <span>Playlists</span>
+            </TabsTrigger>
+            <TabsTrigger value="library" className="text-xs gap-1 shrink-0 data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-300">
+              <Library className="h-3 w-3" />
+              <span>Library</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="now-playing" className="flex-1 overflow-hidden mt-0">
           <NowPlayingTab />
@@ -196,7 +209,6 @@ function FullPlayerContent() {
 
 function NowPlayingTab() {
   const ctx = useJukeboxOptional()
-  const [isLiked, setIsLiked] = useState(false)
 
   if (!ctx) return null
   const {
@@ -218,15 +230,6 @@ function NowPlayingTab() {
     const mins = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
     return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
-
-  async function handleLike() {
-    if (!track) return
-    const result = await toggleLike(track.id)
-    if (result) {
-      setIsLiked(result.liked)
-      toast.success(result.liked ? "Added to likes" : "Removed from likes")
-    }
   }
 
   if (!track) {
@@ -258,6 +261,7 @@ function NowPlayingTab() {
       <div className="relative mb-6 sm:mb-8 z-10">
         <AlbumArtVisual
           coverUrl={track.cover_art_url}
+          trackId={track.id}
           variant={theme.artVariant}
           isPlaying={state.isPlaying}
         />
@@ -359,21 +363,14 @@ function NowPlayingTab() {
         </Button>
       </div>
 
-      {/* Volume + Like */}
+      {/* Volume + Like / Library */}
       <div className="mt-4 flex w-full max-w-sm items-center justify-between gap-4 z-10">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8"
-          onClick={handleLike}
-        >
-          <Heart
-            className={cn(
-              "h-4 w-4",
-              isLiked ? "fill-red-500 text-red-500" : "text-slate-400"
-            )}
-          />
-        </Button>
+        <PlayerSocialActions
+          trackId={track.id}
+          initialInLibrary={track.in_library}
+          size="md"
+          showLabels
+        />
 
         <div className="flex items-center gap-2">
           <Button
@@ -519,6 +516,7 @@ function DiscoverTab({
       limit: 50,
     })
     setTracks(data)
+    prefetchSocialStatus(data.map((t) => t.id))
     setIsLoading(false)
   }, [sortBy, genre])
 
@@ -654,6 +652,7 @@ function FollowingTab({
     setIsLoading(true)
     const result = await fetchFollowingTracks({ sortBy, limit: 50 })
     setTracks(result.data)
+    prefetchSocialStatus(result.data.map((t) => t.id))
     setIsLoading(false)
   }, [sortBy])
 
@@ -928,6 +927,7 @@ function LibraryTab({
       setIsLoading(true)
       const data = await fetchLibraryTracks()
       setTracks(data)
+      prefetchSocialStatus(data.map((t) => t.id))
       setIsLoading(false)
     }
     load()
@@ -937,7 +937,7 @@ function LibraryTab({
     <div className="flex flex-1 flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3">
         <h3 className="text-sm font-medium text-white">
-          Purchased tracks{" "}
+          Your Library{" "}
           <span className="text-slate-500">({tracks.length})</span>
         </h3>
         {tracks.length > 0 && ctx && (
@@ -961,10 +961,10 @@ function LibraryTab({
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Library className="mb-3 h-10 w-10 text-slate-600" />
             <p className="text-sm text-slate-400">
-              No purchased tracks yet
+              No saved tracks yet
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Browse Discover to find music to buy
+              Add free tracks to your library from Discover or artist pages
             </p>
           </div>
         ) : (
@@ -1004,6 +1004,7 @@ function FavoritesTab({
       setIsLoading(true)
       const result = await fetchFavoriteTracks({ limit: 100 })
       setTracks(result.data)
+      prefetchSocialStatus(result.data.map((t) => t.id))
       setIsLoading(false)
     }
     load()

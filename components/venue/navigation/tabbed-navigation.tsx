@@ -110,7 +110,7 @@ export function TabbedNavigation() {
       },
     ],
     business: [
-      { title: "Merchandise", icon: ShoppingBag, href: "/merch", description: "Sell your merchandise" },
+      { title: "Merchandise", icon: ShoppingBag, href: "/venue/dashboard/store", description: "Sell your merchandise" },
       { title: "Jobs", icon: Briefcase, href: "/jobs", description: "Find and post music industry jobs" },
       { title: "Promotions", icon: Zap, href: "/promotions", description: "Create promotional campaigns" },
       { title: "Payments", icon: DollarSign, href: "/payments", description: "Manage your payments", badge: "Pro" },

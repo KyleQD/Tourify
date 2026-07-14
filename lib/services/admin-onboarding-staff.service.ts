@@ -1,5 +1,14 @@
 import { supabase } from '@/lib/supabase'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
+
+/**
+ * Read methods accept an optional Supabase client so server callers can pass an
+ * authenticated (cookie-session) or service-role client. Staffing tables enforce
+ * `auth.role() = 'authenticated'` on SELECT, so the default browser/anon client
+ * only returns rows when a user session is present (i.e. in the browser).
+ */
+type StaffServiceClient = SupabaseClient<any, any, any>
 import type {
   JobPostingTemplate,
   ApplicationFormTemplate,
@@ -41,6 +50,42 @@ import {
   enforceHiringEligibilityGate,
   isHiringEligibilityGateError,
 } from '@/lib/services/hiring-eligibility.service'
+
+function getEmptyDashboardStats(): {
+  onboarding: OnboardingStats
+  job_postings: JobPostingStats
+  staff_management: StaffManagementStats
+} {
+  return {
+    onboarding: {
+      total_candidates: 0,
+      pending: 0,
+      in_progress: 0,
+      completed: 0,
+      rejected: 0,
+      approved: 0,
+      avg_progress: 0,
+    },
+    job_postings: {
+      total_postings: 0,
+      published: 0,
+      draft: 0,
+      paused: 0,
+      closed: 0,
+      total_applications: 0,
+      pending_reviews: 0,
+    },
+    staff_management: {
+      total_staff: 0,
+      active_staff: 0,
+      on_leave: 0,
+      terminated: 0,
+      departments: 0,
+      avg_rating: 0,
+      recent_hires: 0,
+    },
+  }
+}
 
 // Enhanced Zod schemas for validation
 const createJobPostingSchema = z.object({
@@ -163,9 +208,9 @@ const updatePerformanceMetricsSchema = z.object({
 })
 
 // Helper function to check if table exists
-async function checkTableExists(tableName: string): Promise<boolean> {
+async function checkTableExists(tableName: string, client: StaffServiceClient = supabase): Promise<boolean> {
   try {
-    const { error } = await supabase
+    const { error } = await client
       .from(tableName)
       .select('*')
       .limit(1)
@@ -496,21 +541,18 @@ export class AdminOnboardingStaffService {
   /**
    * Get all job postings for a venue
    */
-  static async getJobPostings(venueId: string): Promise<JobPostingTemplate[]> {
+  static async getJobPostings(venueId: string, client: StaffServiceClient = supabase): Promise<JobPostingTemplate[]> {
     try {
       // Check if table exists
-      const tableExists = await checkTableExists('job_posting_templates')
+      const tableExists = await checkTableExists('job_posting_templates', client)
       if (!tableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] job_posting_templates table does not exist, returning fallback data')
-        throw new Error("Failed to load job postings from database")
+        console.warn('⚠️ [Admin Onboarding Staff Service] job_posting_templates table does not exist, returning empty job postings')
+        return []
       }
 
-      let query = supabase
+      let query = client
         .from('job_posting_templates')
-        .select(`
-          *,
-          application_form_template:application_form_templates(*)
-        `)
+        .select('*')
         .order('created_at', { ascending: false })
 
       // If the provided venueId is a valid UUID, filter by it or null; otherwise avoid UUID comparison
@@ -520,10 +562,42 @@ export class AdminOnboardingStaffService {
       const { data, error } = await query
 
       if (error) throw error
-      return data || []
+      const postings = (data || []) as Array<Record<string, any>>
+      const formIds = Array.from(
+        new Set(postings.map((posting) => posting.application_form_template_id).filter(Boolean))
+      ) as string[]
+
+      if (formIds.length === 0) {
+        return postings.map((posting) => ({ ...posting, application_form_template: null })) as unknown as JobPostingTemplate[]
+      }
+
+      try {
+        const formsTableExists = await checkTableExists('application_form_templates', client)
+        if (!formsTableExists) {
+          return postings.map((posting) => ({ ...posting, application_form_template: null })) as unknown as JobPostingTemplate[]
+        }
+
+        const { data: forms, error: formsError } = await client
+          .from('application_form_templates')
+          .select('*')
+          .in('id', formIds)
+
+        if (formsError) throw formsError
+
+        const formById = new Map((forms || []).map((form: any) => [form.id, form]))
+        return postings.map((posting) => ({
+          ...posting,
+          application_form_template: posting.application_form_template_id
+            ? formById.get(posting.application_form_template_id) ?? null
+            : null,
+        })) as unknown as JobPostingTemplate[]
+      } catch (formError) {
+        console.warn('⚠️ [Admin Onboarding Staff Service] Error hydrating application form templates, continuing without forms:', formError)
+        return postings.map((posting) => ({ ...posting, application_form_template: null })) as unknown as JobPostingTemplate[]
+      }
     } catch (error) {
-      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job postings, returning fallback:', error)
-      throw new Error("Failed to load job postings from database")
+      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job postings, returning empty job postings:', error)
+      return []
     }
   }
 
@@ -577,36 +651,77 @@ export class AdminOnboardingStaffService {
   /**
    * Get all applications for a venue
    */
-  static async getJobApplications(venueId: string): Promise<JobApplication[]> {
+  static async getJobApplications(venueId: string, client: StaffServiceClient = supabase): Promise<JobApplication[]> {
     try {
       // Check if table exists
-      const tableExists = await checkTableExists('job_applications')
+      const tableExists = await checkTableExists('job_applications', client)
       if (!tableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] job_applications table does not exist, returning fallback data')
-        throw new Error("Failed to load applications from database")
+        console.warn('⚠️ [Admin Onboarding Staff Service] job_applications table does not exist, returning empty applications')
+        return []
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('job_applications')
-        .select(`
-          *,
-          job_posting:job_posting_templates(title, department, position)
-        `)
+        .select('*')
         .eq('venue_id', venueId)
         .order('applied_at', { ascending: false })
 
       if (error) throw error
 
-      const applicationRows = data || []
+      const applicationRows: Array<Record<string, any> & { job_posting: any; evidence_request_status: any }> = ((data || []) as Array<Record<string, any>>).map((application) => ({
+        ...application,
+        job_posting: null,
+        evidence_request_status: null,
+      }))
       const applicationIds = applicationRows.map((application) => application.id).filter(Boolean)
-      if (applicationIds.length === 0) return applicationRows
+      const jobPostingIds = Array.from(
+        new Set(applicationRows.map((application) => application.job_posting_id).filter(Boolean))
+      ) as string[]
 
-      const { data: evidenceRequestRows } = await supabase
-        .from('hiring_audit_events')
-        .select('application_id, actor_user_id, content, metadata, created_at')
-        .in('application_id', applicationIds)
-        .eq('action', 'request_evidence')
-        .order('created_at', { ascending: false })
+      if (jobPostingIds.length > 0) {
+        try {
+          const postingsTableExists = await checkTableExists('job_posting_templates', client)
+          if (postingsTableExists) {
+            const { data: jobPostings, error: jobPostingsError } = await client
+              .from('job_posting_templates')
+              .select('id, title, department, position')
+              .in('id', jobPostingIds)
+
+            if (jobPostingsError) throw jobPostingsError
+
+            const jobPostingById = new Map((jobPostings || []).map((posting: any) => [posting.id, posting]))
+            applicationRows.forEach((application) => {
+              if (application.job_posting_id) {
+                application.job_posting = jobPostingById.get(application.job_posting_id) ?? null
+              }
+            })
+          }
+        } catch (jobPostingError) {
+          console.warn('⚠️ [Admin Onboarding Staff Service] Error hydrating application job postings, continuing without postings:', jobPostingError)
+        }
+      }
+
+      if (applicationIds.length === 0) return applicationRows as unknown as JobApplication[]
+
+      const evidenceRequestRows = await (async () => {
+        try {
+          const auditTableExists = await checkTableExists('hiring_audit_events', client)
+          if (!auditTableExists) return []
+
+          const { data: rows, error: evidenceError } = await client
+            .from('hiring_audit_events')
+            .select('application_id, actor_user_id, content, metadata, created_at')
+            .in('application_id', applicationIds)
+            .eq('action', 'request_evidence')
+            .order('created_at', { ascending: false })
+
+          if (evidenceError) throw evidenceError
+          return rows || []
+        } catch (evidenceError) {
+          console.warn('⚠️ [Admin Onboarding Staff Service] Error hydrating evidence requests, continuing without evidence status:', evidenceError)
+          return []
+        }
+      })()
 
       const latestEvidenceRequestByApplication = new Map<string, any>()
       ;(evidenceRequestRows || []).forEach((row: any) => {
@@ -626,10 +741,10 @@ export class AdminOnboardingStaffService {
               }
             : null,
         }
-      })
+      }) as unknown as JobApplication[]
     } catch (error) {
-      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job applications, returning fallback:', error)
-      throw new Error("Failed to load applications from database")
+      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job applications, returning empty applications:', error)
+      return []
     }
   }
 
@@ -749,15 +864,15 @@ export class AdminOnboardingStaffService {
   /**
    * Get all onboarding workflows for a venue
    */
-  static async getOnboardingWorkflows(venueId: string): Promise<OnboardingWorkflow[]> {
+  static async getOnboardingWorkflows(venueId: string, client: StaffServiceClient = supabase): Promise<OnboardingWorkflow[]> {
     try {
-      const tableExists = await checkTableExists('onboarding_workflows')
+      const tableExists = await checkTableExists('onboarding_workflows', client)
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] onboarding_workflows table does not exist, returning empty array')
         return []
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('onboarding_workflows')
         .select(`
           *,
@@ -777,34 +892,72 @@ export class AdminOnboardingStaffService {
   /**
    * Get all onboarding candidates for a venue
    */
-  static async getOnboardingCandidates(venueId: string): Promise<OnboardingCandidate[]> {
+  static async getOnboardingCandidates(venueId: string, client: StaffServiceClient = supabase): Promise<OnboardingCandidate[]> {
     try {
       // Check if table exists
-      const tableExists = await checkTableExists('staff_onboarding_candidates')
+      const tableExists = await checkTableExists('staff_onboarding_candidates', client)
       if (!tableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] staff_onboarding_candidates table does not exist, returning fallback data')
-        throw new Error("Failed to load onboarding candidates from database")
+        console.warn('⚠️ [Admin Onboarding Staff Service] staff_onboarding_candidates table does not exist, returning empty onboarding candidates')
+        return []
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('staff_onboarding_candidates')
-        .select(`
-          *,
-          application:job_applications(*),
-          workflow:onboarding_workflows(*)
-        `)
+        .select('*')
         .eq('venue_id', venueId)
         .order('application_date', { ascending: false })
 
       if (error) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] Database error, returning fallback data:', error)
-        throw new Error("Failed to load onboarding candidates from database")
+        console.warn('⚠️ [Admin Onboarding Staff Service] Database error, returning empty onboarding candidates:', error)
+        return []
       }
-      
-      return data || []
+
+      const candidates = (data || []) as Array<Record<string, any>>
+      if (candidates.length === 0) return candidates as OnboardingCandidate[]
+
+      // Related rows are hydrated separately because staff_onboarding_candidates has no
+      // reliable declared FK to job_applications across environments (embed joins fail).
+      const jobApplicationIds = Array.from(
+        new Set(candidates.map((row) => row.job_application_id).filter(Boolean))
+      ) as string[]
+      const candidateIds = Array.from(new Set(candidates.map((row) => row.id).filter(Boolean))) as string[]
+
+      const [applicationsResult, workflowsResult] = await Promise.allSettled([
+        jobApplicationIds.length
+          ? client.from('job_applications').select('*').in('id', jobApplicationIds)
+          : Promise.resolve({ data: [] as Array<Record<string, any>>, error: null }),
+        candidateIds.length
+          ? client.from('onboarding_workflows').select('*').in('candidate_id', candidateIds)
+          : Promise.resolve({ data: [] as Array<Record<string, any>>, error: null }),
+      ])
+
+      const applicationRows =
+        applicationsResult.status === 'fulfilled' && !applicationsResult.value.error
+          ? applicationsResult.value.data ?? []
+          : []
+      const workflowRows =
+        workflowsResult.status === 'fulfilled' && !workflowsResult.value.error
+          ? workflowsResult.value.data ?? []
+          : []
+
+      if (applicationsResult.status === 'rejected' || (applicationsResult.status === 'fulfilled' && applicationsResult.value.error)) {
+        console.warn('⚠️ [Admin Onboarding Staff Service] Error hydrating candidate applications, continuing without applications:', applicationsResult.status === 'rejected' ? applicationsResult.reason : applicationsResult.value.error)
+      }
+      if (workflowsResult.status === 'rejected' || (workflowsResult.status === 'fulfilled' && workflowsResult.value.error)) {
+        console.warn('⚠️ [Admin Onboarding Staff Service] Error hydrating candidate workflows, continuing without workflows:', workflowsResult.status === 'rejected' ? workflowsResult.reason : workflowsResult.value.error)
+      }
+
+      const applicationById = new Map(applicationRows.map((item) => [item.id, item]))
+      const workflowByCandidate = new Map(workflowRows.map((item) => [item.candidate_id, item]))
+
+      return candidates.map((row) => ({
+        ...row,
+        application: row.job_application_id ? applicationById.get(row.job_application_id) ?? null : null,
+        workflow: workflowByCandidate.get(row.id) ?? null,
+      })) as unknown as OnboardingCandidate[]
     } catch (error) {
-      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching onboarding candidates, returning fallback:', error)
-      throw new Error("Failed to load onboarding candidates from database")
+      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching onboarding candidates, returning empty onboarding candidates:', error)
+      return []
     }
   }
 
@@ -916,7 +1069,7 @@ export class AdminOnboardingStaffService {
 
       // If candidate came from a job posting application, create a default crew assignment in staff_shifts
       try {
-        const applicationId = candidate.application_id
+        const applicationId = candidate.job_application_id ?? candidate.application_id
         if (applicationId) {
           const { data: application } = await supabase
             .from('job_applications')
@@ -1055,16 +1208,16 @@ export class AdminOnboardingStaffService {
   /**
    * Get all staff members for a venue
    */
-  static async getStaffMembers(venueId: string): Promise<StaffMember[]> {
+  static async getStaffMembers(venueId: string, client: StaffServiceClient = supabase): Promise<StaffMember[]> {
     try {
       // Check if table exists
-      const tableExists = await checkTableExists('staff_members')
+      const tableExists = await checkTableExists('staff_members', client)
       if (!tableExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] staff_members table does not exist, returning fallback data')
         throw new Error("Failed to load staff members from database")
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('staff_members')
         .select('*')
         .eq('venue_id', venueId)
@@ -1200,11 +1353,11 @@ export class AdminOnboardingStaffService {
   /**
    * Get team communications for a venue
    */
-  static async getTeamCommunications(venueId: string): Promise<TeamCommunication[]> {
+  static async getTeamCommunications(venueId: string, client: StaffServiceClient = supabase): Promise<TeamCommunication[]> {
     try {
-      const teamCommsExists = await checkTableExists('team_communications')
+      const teamCommsExists = await checkTableExists('team_communications', client)
       if (teamCommsExists) {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from('team_communications')
           .select('*')
           .eq('venue_id', venueId)
@@ -1214,13 +1367,13 @@ export class AdminOnboardingStaffService {
         return (data || []) as TeamCommunication[]
       }
 
-      const legacyExists = await checkTableExists('staff_messages')
+      const legacyExists = await checkTableExists('staff_messages', client)
       if (!legacyExists) {
         console.warn('⚠️ [Admin Onboarding Staff Service] No team_communications or staff_messages table, returning empty array')
         return []
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('staff_messages')
         .select('*')
         .eq('venue_id', venueId)
@@ -1237,80 +1390,108 @@ export class AdminOnboardingStaffService {
   /**
    * Get comprehensive dashboard statistics
    */
-  static async getDashboardStats(venueId: string): Promise<{
+  static async getDashboardStats(venueId: string, client: StaffServiceClient = supabase): Promise<{
     onboarding: OnboardingStats
     job_postings: JobPostingStats
     staff_management: StaffManagementStats
   }> {
+    const emptyStats = getEmptyDashboardStats()
+
     try {
       // Check if tables exist
-      const onboardingTableExists = await checkTableExists('staff_onboarding_candidates')
-      const jobPostingsTableExists = await checkTableExists('job_posting_templates')
-      const staffTableExists = await checkTableExists('staff_members')
+      const onboardingTableExists = await checkTableExists('staff_onboarding_candidates', client)
+      const jobPostingsTableExists = await checkTableExists('job_posting_templates', client)
+      const staffTableExists = await checkTableExists('staff_members', client)
 
       if (!onboardingTableExists || !jobPostingsTableExists || !staffTableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] Some tables do not exist, returning fallback stats')
-        throw new Error("Failed to load data from database")
+        console.warn('⚠️ [Admin Onboarding Staff Service] Some dashboard tables do not exist, returning zero stats for missing slices')
       }
 
       // Get onboarding stats
-      const { data: candidates, error: candidatesError } = await supabase
-        .from('staff_onboarding_candidates')
-        .select('status, onboarding_progress')
-        .eq('venue_id', venueId)
+      const onboardingStats: OnboardingStats = onboardingTableExists
+        ? await (async () => {
+            try {
+              const { data: candidates, error: candidatesError } = await client
+                .from('staff_onboarding_candidates')
+                .select('status, onboarding_progress')
+                .eq('venue_id', venueId)
 
-      if (candidatesError) throw candidatesError
+              if (candidatesError) throw candidatesError
 
-      const onboardingStats: OnboardingStats = {
-        total_candidates: candidates?.length || 0,
-        pending: candidates?.filter(c => c.status === 'pending').length || 0,
-        in_progress: candidates?.filter(c => c.status === 'in_progress').length || 0,
-        completed: candidates?.filter(c => c.status === 'completed').length || 0,
-        rejected: candidates?.filter(c => c.status === 'rejected').length || 0,
-        approved: candidates?.filter(c => c.status === 'approved').length || 0,
-        avg_progress: candidates?.length ? 
-          Math.round(candidates.reduce((sum, c) => sum + (c.onboarding_progress || 0), 0) / candidates.length) : 0
-      }
+              return {
+                total_candidates: candidates?.length || 0,
+                pending: candidates?.filter(c => c.status === 'pending').length || 0,
+                in_progress: candidates?.filter(c => c.status === 'in_progress').length || 0,
+                completed: candidates?.filter(c => c.status === 'completed').length || 0,
+                rejected: candidates?.filter(c => c.status === 'rejected').length || 0,
+                approved: candidates?.filter(c => c.status === 'approved').length || 0,
+                avg_progress: candidates?.length ?
+                  Math.round(candidates.reduce((sum, c) => sum + (c.onboarding_progress || 0), 0) / candidates.length) : 0
+              }
+            } catch (sliceError) {
+              console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching onboarding stats, using zero stats:', sliceError)
+              return emptyStats.onboarding
+            }
+          })()
+        : emptyStats.onboarding
 
       // Get job posting stats
-      const { data: jobPostings, error: jobPostingsError } = await supabase
-        .from('job_posting_templates')
-        .select('status, applications_count')
-        .eq('venue_id', venueId)
+      const jobPostingStats: JobPostingStats = jobPostingsTableExists
+        ? await (async () => {
+            try {
+              const { data: jobPostings, error: jobPostingsError } = await client
+                .from('job_posting_templates')
+                .select('status, applications_count')
+                .eq('venue_id', venueId)
 
-      if (jobPostingsError) throw jobPostingsError
+              if (jobPostingsError) throw jobPostingsError
 
-      const jobPostingStats: JobPostingStats = {
-        total_postings: jobPostings?.length || 0,
-        published: jobPostings?.filter(j => j.status === 'published').length || 0,
-        draft: jobPostings?.filter(j => j.status === 'draft').length || 0,
-        paused: jobPostings?.filter(j => j.status === 'paused').length || 0,
-        closed: jobPostings?.filter(j => j.status === 'closed').length || 0,
-        total_applications: jobPostings?.reduce((sum, j) => sum + (j.applications_count || 0), 0) || 0,
-        pending_reviews: 0 // This would need a separate query to applications table
-      }
+              return {
+                total_postings: jobPostings?.length || 0,
+                published: jobPostings?.filter(j => j.status === 'published').length || 0,
+                draft: jobPostings?.filter(j => j.status === 'draft').length || 0,
+                paused: jobPostings?.filter(j => j.status === 'paused').length || 0,
+                closed: jobPostings?.filter(j => j.status === 'closed').length || 0,
+                total_applications: jobPostings?.reduce((sum, j) => sum + (j.applications_count || 0), 0) || 0,
+                pending_reviews: 0
+              }
+            } catch (sliceError) {
+              console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching job posting stats, using zero stats:', sliceError)
+              return emptyStats.job_postings
+            }
+          })()
+        : emptyStats.job_postings
 
       // Get staff management stats
-      const { data: staffMembers, error: staffError } = await supabase
-        .from('staff_members')
-        .select('status, hire_date')
-        .eq('venue_id', venueId)
+      const staffManagementStats: StaffManagementStats = staffTableExists
+        ? await (async () => {
+            try {
+              const { data: staffMembers, error: staffError } = await client
+                .from('staff_members')
+                .select('status, hire_date')
+                .eq('venue_id', venueId)
 
-      if (staffError) throw staffError
+              if (staffError) throw staffError
 
-      const staffManagementStats: StaffManagementStats = {
-        total_staff: staffMembers?.length || 0,
-        active_staff: staffMembers?.filter(s => s.status === 'active').length || 0,
-        on_leave: staffMembers?.filter(s => s.status === 'on_leave').length || 0,
-        terminated: staffMembers?.filter(s => s.status === 'terminated').length || 0,
-        departments: 0, // This would need a separate query
-        avg_rating: 0, // This would need a separate query
-        recent_hires: staffMembers?.filter(s => {
-          const hireDate = new Date(s.hire_date)
-          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-          return hireDate > thirtyDaysAgo
-        }).length || 0
-      }
+              return {
+                total_staff: staffMembers?.length || 0,
+                active_staff: staffMembers?.filter(s => s.status === 'active').length || 0,
+                on_leave: staffMembers?.filter(s => s.status === 'on_leave').length || 0,
+                terminated: staffMembers?.filter(s => s.status === 'terminated').length || 0,
+                departments: 0,
+                avg_rating: 0,
+                recent_hires: staffMembers?.filter(s => {
+                  const hireDate = new Date(s.hire_date)
+                  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+                  return hireDate > thirtyDaysAgo
+                }).length || 0
+              }
+            } catch (sliceError) {
+              console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching staff management stats, using zero stats:', sliceError)
+              return emptyStats.staff_management
+            }
+          })()
+        : emptyStats.staff_management
 
       return {
         onboarding: onboardingStats,
@@ -1318,8 +1499,8 @@ export class AdminOnboardingStaffService {
         staff_management: staffManagementStats
       }
     } catch (error) {
-      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching dashboard stats, returning fallback:', error)
-      throw new Error("Failed to load data from database")
+      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching dashboard stats, returning zero stats:', error)
+      return emptyStats
     }
   }
 
@@ -1791,15 +1972,15 @@ export class AdminOnboardingStaffService {
   /**
    * Get staff shifts
    */
-  static async getStaffShifts(venueId: string, filters?: any): Promise<StaffShift[]> {
+  static async getStaffShifts(venueId: string, filters?: any, client: StaffServiceClient = supabase): Promise<StaffShift[]> {
     try {
-      const tableExists = await checkTableExists('staff_shifts')
+      const tableExists = await checkTableExists('staff_shifts', client)
       if (!tableExists) {
-        console.warn('⚠️ [Admin Onboarding Staff Service] staff_shifts table does not exist, returning fallback data')
-        throw new Error("Failed to load shifts from database")
+        console.warn('⚠️ [Admin Onboarding Staff Service] staff_shifts table does not exist, returning empty shifts')
+        return []
       }
 
-      let query = supabase
+      let query = client
         .from('staff_shifts')
         .select('*')
         .eq('venue_id', venueId)
@@ -1817,8 +1998,8 @@ export class AdminOnboardingStaffService {
       if (error) throw error
       return data || []
     } catch (error) {
-      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching staff shifts, returning fallback:', error)
-      throw new Error("Failed to load shifts from database")
+      console.warn('⚠️ [Admin Onboarding Staff Service] Error fetching staff shifts, returning empty shifts:', error)
+      return []
     }
   }
 
@@ -1923,14 +2104,15 @@ export class AdminOnboardingStaffService {
     const { data: existing } = await supabase
       .from('staff_onboarding_candidates')
       .select('*')
-      .eq('application_id', applicationId)
+      .eq('job_application_id', applicationId)
       .maybeSingle()
 
     if (existing) return existing as unknown as OnboardingCandidate
 
     const insertData = {
       venue_id: application.venue_id,
-      application_id: application.id,
+      job_application_id: application.id,
+      job_posting_id: application.job_posting?.id ?? application.job_posting_id ?? null,
       user_id: application.applicant_id,
       name: application.applicant_name,
       email: application.applicant_email,

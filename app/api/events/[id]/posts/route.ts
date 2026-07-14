@@ -127,6 +127,7 @@ export async function POST(
         event_id: reference.id,
         event_table: reference.table,
         user_id: user.id,
+        author_id: user.id,
         content: content.trim(),
         type,
         media_urls: media_urls.length > 0 ? media_urls : null,
@@ -136,16 +137,7 @@ export async function POST(
         likes_count: 0,
         comments_count: 0
       })
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          username,
-          full_name,
-          avatar_url,
-          is_verified
-        )
-      `)
+      .select('*')
       .single()
 
     if (error) {
@@ -156,7 +148,24 @@ export async function POST(
       )
     }
 
-    return NextResponse.json({ post: newPost })
+    const { data: authorProfile } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, is_verified')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    return NextResponse.json({
+      post: {
+        ...newPost,
+        user: authorProfile || {
+          id: user.id,
+          username: user.user_metadata?.username || 'user',
+          full_name: user.user_metadata?.full_name || 'User',
+          avatar_url: user.user_metadata?.avatar_url,
+          is_verified: false,
+        },
+      },
+    })
   } catch (error) {
     console.error('Error in event posts API:', error)
     return NextResponse.json(

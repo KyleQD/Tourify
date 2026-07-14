@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   Calendar, 
   Clock, 
@@ -54,7 +54,13 @@ import {
   BookOpen,
   Clipboard,
   CalendarDays,
-  Clock4
+  Clock4,
+  LayoutDashboard,
+  Briefcase,
+  ListTodo,
+  Wallet,
+  Radio,
+  Command,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -72,11 +78,7 @@ import { EventTaskManager } from "@/components/admin/event-task-manager"
 import { EventLocationsTab } from "@/components/admin/event-locations-tab"
 import { EventParticipantsTab } from "@/components/admin/event-participants-tab"
 import { EntityAccessAudit } from "@/components/admin/entity-access-audit"
-import { EventStaffManager } from "@/components/admin/event-staff-manager"
-import { EventVendorManager } from "@/components/admin/event-vendor-manager"
 import { EventVendorRequests } from "@/components/admin/event-vendor-requests"
-import { EventJobPosting } from "@/components/admin/event-job-posting"
-import { EventJobsList } from "@/components/admin/event-jobs-list"
 import { EventSiteMapTab } from "./components/event-site-map-tab"
 import { EventCommunicationHub } from "@/components/admin/event-communication-hub"
 import { LogisticsDynamicManager } from "@/components/admin/logistics-dynamic-manager"
@@ -115,22 +117,38 @@ import {
 } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { EventTicketManager } from "@/components/admin/event-ticket-manager"
-import { EventFinanceManager } from "@/components/admin/event-finance-manager"
 import { TravelCoordinationHub } from "@/components/admin/travel-coordination-hub"
+import {
+  OperationsCommandShell,
+  OperationsTabPanel,
+} from "@/components/admin/operations/operations-command-shell"
+import { buildAdminHiringHref, buildAdminLogisticsHref, buildAdminRosterHref, buildAdminSiteMapHref, resolveEmployerFromEventRow } from "@/lib/admin/admin-ops-context"
+import {
+  EventStaffPanel,
+  EventVendorPanel,
+  EventJobsPanel,
+  EventJobPostingPanel,
+  EventTicketPanel,
+  EventFinancePanel,
+} from "@/components/admin/events/panels"
+import { WorkforceMetricCard, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import { LifecycleStrip } from "@/components/admin/operations/lifecycle-strip"
+import { EventPartiesPanel } from "@/components/admin/event-parties-panel"
 
 interface Event {
   id: string
   name: string
   description?: string
   tour_id?: string
+  org_id?: string | null
+  venue_id?: string | null
   venue_name: string
   venue_address?: string
   event_date: string
   event_time?: string
   doors_open?: string
   duration_minutes?: number
-  status: 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
+  status: 'draft' | 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
   capacity: number
   tickets_sold: number
   ticket_price?: number
@@ -147,6 +165,7 @@ interface Event {
   special_requirements?: string
   load_in_time?: string
   sound_check_time?: string
+  settings?: Record<string, unknown> | null
   tour?: {
     id: string
     name: string
@@ -198,6 +217,8 @@ function normalizeEventDetails(input: any, eventId: string): Event {
     name: normalized.name || input?.name || input?.title || "Event",
     description: normalized.description || input?.description || "",
     tour_id: input?.tour_id || undefined,
+    org_id: input?.org_id || null,
+    venue_id: input?.venue_id || null,
     venue_name: normalized.venue_name || input?.venue_name || "Venue TBD",
     venue_address: input?.venue_address || "",
     event_date: normalized.event_date || input?.event_date || "",
@@ -221,6 +242,7 @@ function normalizeEventDetails(input: any, eventId: string): Event {
     special_requirements: input?.special_requirements || "",
     load_in_time: input?.load_in_time || "",
     sound_check_time: input?.sound_check_time || "",
+    settings: input?.settings && typeof input.settings === "object" ? input.settings : {},
     tour: input?.tour,
   }
 }
@@ -389,19 +411,33 @@ function EventIncidentsTab({ eventId }: { eventId: string }) {
 export default function EventManagementPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const eventId = params.id as string
   
   // State management
   const [event, setEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('overview')
-  const [isEditing, setIsEditing] = useState(false)
+
+  const TAB_ALIASES: Record<string, string> = {
+    staff: "people",
+    participants: "people",
+    locations: "people",
+    finances: "money",
+    "site-map": "logistics",
+    incidents: "tasks",
+    comms: "communications",
+  }
+
+  function normalizeEventTab(tab: string | null) {
+    if (!tab) return "overview"
+    return TAB_ALIASES[tab] || tab
+  }
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   
   // Quick actions state
   const [showAddTaskDialog, setShowAddTaskDialog] = useState(false)
-  const [showAddStaffDialog, setShowAddStaffDialog] = useState(false)
-  const [showAddVendorDialog, setShowAddVendorDialog] = useState(false)
   const [showTicketsDialog, setShowTicketsDialog] = useState(false)
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
@@ -412,6 +448,8 @@ export default function EventManagementPage() {
   // Event data state
   const [tasks, setTasks] = useState<Task[]>([])
   const [staff, setStaff] = useState<Staff[]>([])
+  const [advancingSummary, setAdvancingSummary] = useState<any>(null)
+  const [daySheetSummary, setDaySheetSummary] = useState<any>(null)
   const [vendors, setVendors] = useState<Vendor[]>([])
   const [ticketSales, setTicketSales] = useState<any[]>([])
   const [expenses, setExpenses] = useState<any[]>([])
@@ -422,6 +460,11 @@ export default function EventManagementPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false)
   const [analyticsRange, setAnalyticsRange] = useState('30d')
 
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab) setActiveTab(normalizeEventTab(tab))
+  }, [searchParams])
+
   // Fetch event data
   useEffect(() => {
     const fetchEventData = async () => {
@@ -429,7 +472,7 @@ export default function EventManagementPage() {
         setIsLoading(true)
         
         // Fetch event details
-        const response = await fetch(`/api/events/${eventId}`, buildNoStoreInit())
+        const response = await fetch(`/api/admin/events/${eventId}`, buildNoStoreInit())
         if (!response.ok) {
           throw new Error('Failed to fetch event data')
         }
@@ -439,12 +482,21 @@ export default function EventManagementPage() {
         setEvent(normalizedEvent)
         setEditForm(normalizedEvent)
 
-        const [tasksRes, staffRes, vendorsRes, financesRes] = await Promise.allSettled([
+        const [tasksRes, staffRes, vendorsRes, financesRes, advancingRes, daySheetRes] = await Promise.allSettled([
           fetch(`/api/events/${eventId}/tasks`, buildNoStoreInit()).then(r => r.json()),
           fetch(`/api/events/${eventId}/staff`, buildNoStoreInit()).then(r => r.json()),
           fetch(`/api/events/${eventId}/vendors`, buildNoStoreInit()).then(r => r.json()),
           fetch(`/api/events/${eventId}/finances`, buildNoStoreInit()).then(r => r.json()),
+          fetch(`/api/admin/events/${eventId}/advancing`, buildNoStoreInit()).then(r => r.json()),
+          fetch(`/api/admin/events/${eventId}/day-sheet`, buildNoStoreInit()).then(r => r.json()),
         ])
+
+        if (advancingRes.status === 'fulfilled' && advancingRes.value?.advancing) {
+          setAdvancingSummary(advancingRes.value.advancing)
+        }
+        if (daySheetRes.status === 'fulfilled' && (daySheetRes.value?.day_sheet || daySheetRes.value?.daySheet)) {
+          setDaySheetSummary(daySheetRes.value.day_sheet || daySheetRes.value.daySheet)
+        }
 
         if (tasksRes.status === 'fulfilled' && tasksRes.value?.tasks) {
           setTasks(tasksRes.value.tasks.map((t: any) => ({
@@ -539,7 +591,7 @@ export default function EventManagementPage() {
   }
 
   const handleManageStaff = () => {
-    setActiveTab('staff')
+    setActiveTab('people')
     // Staff tab has full team management UI
   }
 
@@ -570,18 +622,20 @@ export default function EventManagementPage() {
       const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
 
       const response = await fetch(
-        '/api/events',
+        '/api/admin/events',
         buildNoStoreInit({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: `${event.name} (Copy)`,
+            name: `${event.name} (Copy)`,
             description: event.description || '',
             start_at: startAt,
             end_at: endAt,
-            venue_id: null,
+            venue_name: event.venue_name,
             capacity: event.capacity ?? null,
             status: 'draft',
+            creation_source: 'admin_event_duplicate',
           }),
         })
       )
@@ -589,8 +643,9 @@ export default function EventManagementPage() {
       if (!response.ok) throw new Error('Failed to duplicate event')
       
       const newEvent = await response.json()
+      const duplicatedId = newEvent.event?.id || newEvent.id
       toast.success("Event duplicated successfully")
-      router.push(`/admin/dashboard/events/${newEvent.event.id}`)
+      router.push(`/admin/dashboard/events/${duplicatedId}`)
     } catch (error) {
       toast.error("Failed to duplicate event")
     }
@@ -601,7 +656,7 @@ export default function EventManagementPage() {
     
     try {
       const response = await fetch(
-        `/api/events/${eventId}`,
+        `/api/admin/events/${eventId}`,
         buildNoStoreInit({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -613,7 +668,6 @@ export default function EventManagementPage() {
       
       const updatedEvent = await response.json()
       setEvent(normalizeEventDetails(updatedEvent.event, eventId))
-      setIsEditing(false)
       toast.success("Event updated successfully")
     } catch (error) {
       toast.error("Failed to update event")
@@ -625,7 +679,7 @@ export default function EventManagementPage() {
     
     try {
       const response = await fetch(
-        `/api/events/${eventId}`,
+        `/api/admin/events/${eventId}`,
         buildNoStoreInit({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -644,7 +698,7 @@ export default function EventManagementPage() {
 
   const handleDeleteEvent = async () => {
     try {
-      const response = await fetch(`/api/events/${eventId}`, buildNoStoreInit({ method: 'DELETE' }))
+      const response = await fetch(`/api/admin/events/${eventId}`, buildNoStoreInit({ method: 'DELETE' }))
       
       if (!response.ok) throw new Error('Failed to delete event')
       
@@ -657,6 +711,7 @@ export default function EventManagementPage() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case 'draft': return 'bg-slate-500/20 text-slate-300'
       case 'scheduled': return 'bg-blue-500/20 text-blue-400'
       case 'confirmed': return 'bg-green-500/20 text-green-400'
       case 'in_progress': return 'bg-yellow-500/20 text-yellow-400'
@@ -713,169 +768,140 @@ export default function EventManagementPage() {
   const hasValidEventDate = parsedEventDate && !Number.isNaN(parsedEventDate.getTime())
   const daysUntilEvent = hasValidEventDate ? differenceInDays(parsedEventDate, new Date()) : 0
   const ticketSalesPercentage = event.capacity > 0 ? (event.tickets_sold / event.capacity) * 100 : 0
+  const employerParams = resolveEmployerFromEventRow({
+    org_id: event.org_id,
+    venue_id: event.venue_id,
+    settings: event.settings,
+  })
+  const venueAccountId =
+    typeof event.settings?.venue_account_id === "string" ? event.settings.venue_account_id : null
+  const artistAccountIds = Array.isArray(event.settings?.artist_account_ids)
+    ? (event.settings.artist_account_ids as unknown[]).filter((id): id is string => typeof id === "string")
+    : []
+  const rosterHref = buildAdminRosterHref({ eventId, ...employerParams })
+  const hiringHref = buildAdminHiringHref({ eventId, ...employerParams })
   const revenuePercentage = event.expected_revenue > 0 ? (event.actual_revenue / event.expected_revenue) * 100 : 0
 
+  const EVENT_TABS = [
+    { value: "overview", label: "Overview", icon: LayoutDashboard },
+    { value: "people", label: "People", icon: Users },
+    { value: "vendors", label: "Vendors", icon: Briefcase },
+    { value: "tasks", label: "Tasks", icon: ListTodo },
+    { value: "tickets", label: "Tickets", icon: Ticket },
+    { value: "money", label: "Money", icon: Wallet },
+    { value: "logistics", label: "Logistics", icon: Truck },
+    { value: "advancing", label: "Advance", icon: FileText },
+    { value: "day-sheet", label: "Day Sheet", icon: Clipboard },
+    { value: "travel", label: "Travel", icon: MapPin },
+    { value: "communications", label: "Comms", icon: MessageSquare },
+    { value: "analytics", label: "Analytics", icon: BarChart3 },
+    { value: "access", label: "Access", icon: Shield },
+  ]
+
+  const justPublished = searchParams.get("published") === "1"
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-purple-950/20 p-6">
-      <div className="container mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Button 
-              variant="ghost" 
-              onClick={() => router.push('/admin/dashboard/events')}
-              className="text-slate-400 hover:text-white"
-            >
-              <ChevronLeft className="mr-2 h-4 w-4" />
-              Back to Events
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold text-white">{event.name}</h1>
-              <div className="flex items-center space-x-4 mt-2 text-slate-400">
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-1" />
-                  {formatSafeDate(event.event_date)}
-                  {event.event_time && ` at ${event.event_time}`}
-                </div>
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  {event.venue_name}
-                </div>
-                <Badge className={getStatusColor(event.status)}>
-                  {event.status.replace('_', ' ')}
-                </Badge>
-              </div>
-            </div>
+    <WorkforcePageShell className="px-0 sm:px-0 lg:px-0">
+      <div className="container mx-auto space-y-6 px-4 sm:px-6">
+        {justPublished ? (
+          <div className="rounded-[1.25rem] border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            Your event is live. Continue advancing, staffing, logistics, or open Event HQ for day-of ops.
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white" onClick={() => router.push(`/admin/dashboard/events/${eventId}/hq`)}>
-              <Zap className="mr-2 h-4 w-4" />
-              Event HQ
-            </Button>
-            <Button
-              variant="outline"
-              className="border-green-700/50 text-green-400 hover:bg-green-950/30"
-              onClick={() => window.open(`/admin/dashboard/events/${eventId}/check-in`, '_blank')}
-            >
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Check-In
-            </Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300" onClick={handleShare}>
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-            <Button variant="outline" className="border-slate-700 text-slate-300" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="border-slate-700 text-slate-300">
-                  <Settings className="mr-2 h-4 w-4" />
-                  Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-                <DropdownMenuItem onClick={() => setIsEditing(true)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit Event
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDuplicateEvent}>
-                  <Copy className="mr-2 h-4 w-4" />
-                  Duplicate Event
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={() => setShowDeleteDialog(true)}
-                  className="text-red-400 focus:text-red-400"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete Event
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+        ) : null}
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => router.push('/admin/dashboard/events')}
+            className="text-slate-400 hover:text-white"
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Back to Events
+          </Button>
+          <LifecycleStrip kind="event" status={event.status} />
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Days Until Event</p>
-                  <p className="text-2xl font-bold text-white">{daysUntilEvent}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Ticket Sales</p>
-                  <p className="text-2xl font-bold text-white">{formatSafeNumber(event.tickets_sold)}</p>
-                  <p className="text-sm text-slate-400">of {formatSafeNumber(event.capacity)}</p>
-                </div>
-                <Ticket className="h-8 w-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Revenue</p>
-                  <p className="text-2xl font-bold text-white">{formatSafeCurrency(event.actual_revenue)}</p>
-                  <p className="text-sm text-slate-400">of {formatSafeCurrency(event.expected_revenue)}</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-slate-400">Staff</p>
-                  <p className="text-2xl font-bold text-white">{staff.length}</p>
-                  <p className="text-sm text-slate-400">Confirmed</p>
-                </div>
-                <Users2 className="h-8 w-8 text-yellow-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <OperationsCommandShell
+          eyebrow="Event operations"
+          title={event.name}
+          description={`${formatSafeDate(event.event_date)}${event.event_time ? ` at ${event.event_time}` : ""} · ${event.venue_name}`}
+          badge={event.status.replace('_', ' ')}
+          tabs={EVENT_TABS}
+          activeTab={activeTab}
+          onTabChange={(value) => {
+            setActiveTab(value)
+            const url = new URL(window.location.href)
+            url.searchParams.set('tab', value)
+            window.history.replaceState({}, '', url.toString())
+          }}
+          tabColsClassName="md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+          metrics={
+            <>
+              <WorkforceMetricCard label="Days until" value={daysUntilEvent} icon={Calendar} accent="purple" />
+              <WorkforceMetricCard label="Tickets sold" value={formatSafeNumber(event.tickets_sold)} description={`of ${formatSafeNumber(event.capacity)}`} icon={Ticket} accent="green" />
+              <WorkforceMetricCard label="Revenue" value={formatSafeCurrency(event.actual_revenue)} description={`of ${formatSafeCurrency(event.expected_revenue)}`} icon={DollarSign} accent="blue" />
+              <WorkforceMetricCard label="Staff" value={staff.length} description="Confirmed" icon={Users} accent="amber" />
+            </>
+          }
+          actions={
+            <>
+              <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white" onClick={() => router.push(`/admin/dashboard/events/${eventId}/hq`)}>
+                <Zap className="mr-2 h-4 w-4" />
+                Event HQ
+              </Button>
+              <Button variant="outline" className="border-cyan-700/50 text-cyan-300 hover:bg-cyan-950/30" onClick={() => router.push(`/admin/dashboard/events/${eventId}/command-center`)}>
+                <Command className="mr-2 h-4 w-4" />
+                Command
+              </Button>
+              <Button variant="outline" className="border-green-700/50 text-green-400 hover:bg-green-950/30" onClick={() => window.open(`/admin/dashboard/events/${eventId}/check-in`, '_blank')}>
+                <CheckCircle className="mr-2 h-4 w-4" />
+                Check-In
+              </Button>
+              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(`/admin/dashboard/events/create?id=${eventId}`)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="border-slate-700 text-slate-300">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Actions
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
+                  <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/events/create?id=${eventId}`)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit in Producer Console
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleDuplicateEvent}>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Duplicate Event
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleShare}>
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteDialog(true)}
+                    className="text-red-400 focus:text-red-400"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete Event
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          }
+        >
 
-        {/* Main Content Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="flex w-full overflow-x-auto bg-slate-800/60 backdrop-blur-sm p-1 rounded-sm border border-slate-700/30">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Overview</TabsTrigger>
-            <TabsTrigger value="tasks" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tasks</TabsTrigger>
-            <TabsTrigger value="staff" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Staff</TabsTrigger>
-            <TabsTrigger value="vendors" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Vendors</TabsTrigger>
-            <TabsTrigger value="tickets" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Tickets</TabsTrigger>
-            <TabsTrigger value="finances" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Finances</TabsTrigger>
-            <TabsTrigger value="logistics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Logistics</TabsTrigger>
-            <TabsTrigger value="site-map" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Site Map</TabsTrigger>
-            <TabsTrigger value="communications" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Communications</TabsTrigger>
-            <TabsTrigger value="incidents" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Incidents</TabsTrigger>
-            <TabsTrigger value="advancing" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Advancing</TabsTrigger>
-            <TabsTrigger value="day-sheet" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Day Sheet</TabsTrigger>
-            <TabsTrigger value="travel" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Travel</TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Analytics</TabsTrigger>
-            <TabsTrigger value="locations" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Locations</TabsTrigger>
-            <TabsTrigger value="participants" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Participants</TabsTrigger>
-            <TabsTrigger value="access" className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600/80 data-[state=active]:to-blue-600/80 data-[state=active]:text-white data-[state=active]:shadow-lg data-[state=active]:shadow-purple-500/10 rounded-sm text-sm transition-all duration-200">Access</TabsTrigger>
-          </TabsList>
 
           {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+          <OperationsTabPanel value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 {/* Event Details */}
@@ -909,6 +935,23 @@ export default function EventManagementPage() {
                     </div>
                   </CardContent>
                 </Card>
+
+                <EventPartiesPanel
+                  eventId={eventId}
+                  orgId={event.org_id}
+                  venueAccountId={venueAccountId}
+                  venueName={event.venue_name}
+                  artistAccountIds={artistAccountIds}
+                  employerParams={employerParams}
+                  onPartiesChanged={() => {
+                    void fetch(`/api/admin/events/${eventId}`, buildNoStoreInit())
+                      .then((res) => res.json())
+                      .then((data) => {
+                        if (data?.event) setEvent(normalizeEventDetails(data.event, eventId))
+                      })
+                      .catch(() => undefined)
+                  }}
+                />
 
                 {/* Progress Tracking */}
                 <Card className="bg-slate-900/50 border-slate-700/50">
@@ -962,8 +1005,40 @@ export default function EventManagementPage() {
                       <MessageSquare className="mr-2 h-4 w-4" />
                       Communications Hub
                     </Button>
+                    <Button
+                      className="w-full justify-start"
+                      variant="outline"
+                      onClick={() => router.push(buildAdminLogisticsHref({ eventId }))}
+                    >
+                      <Truck className="mr-2 h-4 w-4" />
+                      Open Logistics
+                    </Button>
+                    <Button
+                      className="w-full justify-start"
+                      variant="outline"
+                      onClick={() => router.push(buildAdminSiteMapHref({ eventId }))}
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      Site Maps
+                    </Button>
+                    <Button
+                      className="w-full justify-start"
+                      variant="outline"
+                      onClick={() => router.push(rosterHref)}
+                    >
+                      <Users2 className="mr-2 h-4 w-4" />
+                      Open Roster
+                    </Button>
+                    <Button
+                      className="w-full justify-start"
+                      variant="outline"
+                      onClick={() => router.push(hiringHref)}
+                    >
+                      <Briefcase className="mr-2 h-4 w-4" />
+                      Open Hiring
+                    </Button>
                     <Separator className="bg-slate-700" />
-                    <EventJobPosting
+                    <EventJobPostingPanel
                       eventId={eventId}
                       eventName={event.name}
                       eventDate={event.event_date}
@@ -986,6 +1061,7 @@ export default function EventManagementPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-slate-800 border-slate-700">
+                        <SelectItem value="draft">Draft</SelectItem>
                         <SelectItem value="scheduled">Scheduled</SelectItem>
                         <SelectItem value="confirmed">Confirmed</SelectItem>
                         <SelectItem value="in_progress">In Progress</SelectItem>
@@ -1041,25 +1117,26 @@ export default function EventManagementPage() {
                 </Card>
               </div>
             </div>
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Tasks Tab */}
-          <TabsContent value="tasks" className="space-y-6">
+          <OperationsTabPanel value="tasks" className="space-y-6">
             <EventTaskManager
               eventId={eventId}
               tasks={tasks}
               onTasksUpdate={setTasks}
             />
-          </TabsContent>
+            <EventIncidentsTab eventId={eventId} />
+          </OperationsTabPanel>
 
           {/* Staff Tab */}
-          <TabsContent value="staff" className="space-y-6">
+          <OperationsTabPanel value="people" className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-white">Event Staff</h2>
                 <p className="text-slate-400">Manage staff and post jobs for this event</p>
               </div>
-              <EventJobPosting
+              <EventJobPostingPanel
                 eventId={eventId}
                 eventName={event.name}
                 eventDate={event.event_date}
@@ -1069,7 +1146,7 @@ export default function EventManagementPage() {
                 }}
               />
             </div>
-            <EventStaffManager
+            <EventStaffPanel
               eventId={eventId}
               staff={staff}
               onStaffUpdate={setStaff}
@@ -1077,31 +1154,42 @@ export default function EventManagementPage() {
             
             <Separator className="bg-slate-700" />
             
-            <EventJobsList eventId={eventId} />
-          </TabsContent>
+            <EventJobsPanel eventId={eventId} />
+            <Separator className="bg-slate-700" />
+            <EventParticipantsTab eventId={eventId} />
+            <EventLocationsTab eventId={eventId} />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(hiringHref)}>
+                Open hiring
+              </Button>
+              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(rosterHref)}>
+                Open roster
+              </Button>
+            </div>
+          </OperationsTabPanel>
 
           {/* Vendors Tab */}
-          <TabsContent value="vendors" className="space-y-6">
+          <OperationsTabPanel value="vendors" className="space-y-6">
             <EventVendorRequests eventId={eventId} />
-            <EventVendorManager
+            <EventVendorPanel
               eventId={eventId}
               vendors={vendors}
               onVendorsUpdate={setVendors}
             />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Tickets Tab */}
-          <TabsContent value="tickets" className="space-y-6">
-            <EventTicketManager eventId={eventId} />
-          </TabsContent>
+          <OperationsTabPanel value="tickets" className="space-y-6">
+            <EventTicketPanel eventId={eventId} />
+          </OperationsTabPanel>
 
           {/* Finances Tab */}
-          <TabsContent value="finances" className="space-y-6">
-            <EventFinanceManager eventId={eventId} />
-          </TabsContent>
+          <OperationsTabPanel value="money" className="space-y-6">
+            <EventFinancePanel eventId={eventId} />
+          </OperationsTabPanel>
 
           {/* Logistics Tab */}
-          <TabsContent value="logistics" className="space-y-6">
+          <OperationsTabPanel value="logistics" className="space-y-6">
             <Card className="bg-slate-900/50 border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white">Logistics & Requirements</CardTitle>
@@ -1147,38 +1235,71 @@ export default function EventManagementPage() {
               autoSave={true}
               showFilters={true}
             />
-          </TabsContent>
-
-          {/* Site Map Tab */}
-          <TabsContent value="site-map" className="space-y-6">
             <EventSiteMapTab eventId={eventId} eventName={event.name} />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Communications Tab */}
-          <TabsContent value="communications" className="space-y-6">
+          <OperationsTabPanel value="communications" className="space-y-6">
             <EventCommunicationHub eventId={eventId} eventName={event.name} />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Advancing Tab */}
-          <TabsContent value="advancing" className="space-y-6">
+          <OperationsTabPanel value="advancing" className="space-y-6">
             <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
               <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
-                <p className="text-slate-300">Fill in the technical rider, hospitality, contacts, and settlement for this show.</p>
+                <div className="space-y-1">
+                  <p className="text-slate-300">Fill in the technical rider, hospitality, contacts, and settlement for this show.</p>
+                  <p className="text-xs text-slate-500">Status: {advancingSummary?.status || 'not loaded'}{advancingSummary?.share_token ? ' · share link ready' : ''}</p>
+                </div>
                 <Button
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
                   onClick={() => router.push(`/admin/dashboard/events/${eventId}/advancing`)}
                 >
                   Open Advancing Workspace
                 </Button>
+                {venueAccountId && event.venue_contact_email ? (
+                  <Button
+                    variant="outline"
+                    className="border-slate-600 text-slate-300"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/admin/events/${eventId}/advancing`, {
+                          method: "POST",
+                          credentials: "include",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            status: "sent",
+                            venue_contact_email: event.venue_contact_email,
+                          }),
+                        })
+                        const data = await res.json().catch(() => ({}))
+                        if (!res.ok) throw new Error(data?.error || "Notify failed")
+                        toast.success("Venue account notified")
+                        if (data?.advancing) setAdvancingSummary(data.advancing)
+                      } catch (error: any) {
+                        toast.error(error?.message || "Notify failed")
+                      }
+                    }}
+                  >
+                    Notify venue account
+                  </Button>
+                ) : null}
               </CardContent>
             </Card>
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Day Sheet Tab */}
-          <TabsContent value="day-sheet" className="space-y-6">
+          <OperationsTabPanel value="day-sheet" className="space-y-6">
             <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
               <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
-                <p className="text-slate-300">Auto-generate and distribute the day sheet for this show.</p>
+                <div className="space-y-1">
+                  <p className="text-slate-300">Auto-generate and distribute the day sheet for this show.</p>
+                  <p className="text-xs text-slate-500">
+                    {daySheetSummary?.distributed_at
+                      ? `Last distributed ${formatSafeDate(daySheetSummary.distributed_at)} · v${daySheetSummary.version || 1}`
+                      : 'Not distributed yet'}
+                  </p>
+                </div>
                 <Button
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
                   onClick={() => router.push(`/admin/dashboard/events/${eventId}/day-sheet`)}
@@ -1187,15 +1308,15 @@ export default function EventManagementPage() {
                 </Button>
               </CardContent>
             </Card>
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Travel Tab */}
-          <TabsContent value="travel" className="space-y-6">
+          <OperationsTabPanel value="travel" className="space-y-6">
             <TravelCoordinationHub eventId={eventId} />
-          </TabsContent>
+          </OperationsTabPanel>
 
           {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
+          <OperationsTabPanel value="analytics" className="space-y-6">
             {/* Range selector */}
             <div className="flex items-center gap-2">
               {(['7d','30d','90d','all'] as const).map((r) => (
@@ -1301,136 +1422,15 @@ export default function EventManagementPage() {
                 )}
               </>
             )}
-          </TabsContent>
+          </OperationsTabPanel>
 
-          {/* Locations Tab */}
-          <TabsContent value="locations" className="space-y-6">
-            <EventLocationsTab eventId={eventId} />
-          </TabsContent>
-
-          {/* Participants Tab */}
-          <TabsContent value="participants" className="space-y-6">
-            <EventParticipantsTab eventId={eventId} />
-          </TabsContent>
-
-          {/* Incidents Tab */}
-          <TabsContent value="incidents" className="space-y-6">
-            <EventIncidentsTab eventId={eventId} />
-          </TabsContent>
 
           {/* Access & Audit Tab */}
-          <TabsContent value="access" className="space-y-6">
+          <OperationsTabPanel value="access" className="space-y-6">
             <EntityAccessAudit entityType="Event" entityId={eventId} />
-          </TabsContent>
-        </Tabs>
+          </OperationsTabPanel>
+        </OperationsCommandShell>
       </div>
-
-      {/* Edit Event Dialog */}
-      <Dialog open={isEditing} onOpenChange={setIsEditing}>
-        <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Event</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Update event details and information.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="name" className="text-slate-300">Event Name</Label>
-                <Input
-                  id="name"
-                  value={editForm.name || ''}
-                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="venue" className="text-slate-300">Venue Name</Label>
-                <Input
-                  id="venue"
-                  value={editForm.venue_name || ''}
-                  onChange={(e) => setEditForm({ ...editForm, venue_name: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="description" className="text-slate-300">Description</Label>
-              <Textarea
-                id="description"
-                value={editForm.description || ''}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                className="bg-slate-700 border-slate-600 text-white"
-                rows={3}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="date" className="text-slate-300">Event Date</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={editForm.event_date || ''}
-                  onChange={(e) => setEditForm({ ...editForm, event_date: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="time" className="text-slate-300">Event Time</Label>
-                <Input
-                  id="time"
-                  type="time"
-                  value={editForm.event_time || ''}
-                  onChange={(e) => setEditForm({ ...editForm, event_time: e.target.value })}
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="capacity" className="text-slate-300">Capacity</Label>
-                <Input
-                  id="capacity"
-                  type="number"
-                  value={editForm.capacity || 0}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      capacity: Number.isNaN(parseInt(e.target.value, 10)) ? 0 : parseInt(e.target.value, 10),
-                    })
-                  }
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-              <div>
-                <Label htmlFor="ticket_price" className="text-slate-300">Ticket Price</Label>
-                <Input
-                  id="ticket_price"
-                  type="number"
-                  step="0.01"
-                  value={editForm.ticket_price || 0}
-                  onChange={(e) =>
-                    setEditForm({
-                      ...editForm,
-                      ticket_price: Number.isNaN(parseFloat(e.target.value)) ? 0 : parseFloat(e.target.value),
-                    })
-                  }
-                  className="bg-slate-700 border-slate-600 text-white"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditing(false)} className="border-slate-600 text-slate-300">
-              Cancel
-            </Button>
-            <Button onClick={handleSaveEvent} className="bg-purple-600 hover:bg-purple-700">
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Share Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
@@ -1465,6 +1465,7 @@ export default function EventManagementPage() {
             <div>
               <Label className="text-slate-300">Share via Email</Label>
               <Input
+                id="share-email"
                 placeholder="Enter email addresses"
                 className="bg-slate-700 border-slate-600 text-white"
               />
@@ -1475,7 +1476,17 @@ export default function EventManagementPage() {
               Close
             </Button>
             <Button onClick={() => {
-              toast.success("Event shared successfully")
+              const input = document.getElementById("share-email") as HTMLInputElement | null
+              const emails = (input?.value || "").trim()
+              const link = `${window.location.origin}/admin/dashboard/events/${eventId}`
+              if (emails) {
+                const subject = encodeURIComponent(`Event: ${event?.name || "Tourify event"}`)
+                const body = encodeURIComponent(`Sharing this event with you:\n\n${link}`)
+                window.location.href = `mailto:${emails}?subject=${subject}&body=${body}`
+              } else {
+                navigator.clipboard.writeText(link)
+                toast.success("Event link copied to clipboard")
+              }
               setShowShareDialog(false)
             }} className="bg-purple-600 hover:bg-purple-700">
               Share Event
@@ -1602,6 +1613,6 @@ export default function EventManagementPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </WorkforcePageShell>
   )
 }

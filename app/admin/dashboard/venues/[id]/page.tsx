@@ -188,7 +188,7 @@ export default function VenueDetailPage() {
           <div className="flex items-center gap-2">
             {isSaving && <Loader2 className="h-4 w-4 animate-spin text-slate-400" />}
             <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" asChild>
-              <Link href="/admin/dashboard/network">
+              <Link href="/admin/dashboard/venues">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Link>
@@ -348,7 +348,7 @@ export default function VenueDetailPage() {
               <Map className="h-10 w-10 text-slate-500" />
               <p className="text-slate-400 text-sm">Site maps for this venue are managed in the Logistics module.</p>
               <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800" asChild>
-                <Link href="/admin/dashboard/logistics/site-maps-enhanced">
+                <Link href="/admin/dashboard/logistics?tab=site-maps">
                   <Map className="h-4 w-4 mr-2" />
                   Go to Site Maps
                 </Link>

@@ -2,7 +2,15 @@
 // ADMIN ONBOARDING & STAFF MANAGEMENT TYPES
 // =============================================================================
 
-export interface JobPostingTemplate {
+import type { HiringEntityType } from '@/types/hiring-entity'
+
+/** Polymorphic employer scope — populated after Phase 1 migration backfill. */
+export interface EmployerScopedFields {
+  employer_entity_type?: HiringEntityType
+  employer_entity_id?: string
+}
+
+export interface JobPostingTemplate extends EmployerScopedFields {
   id: string
   venue_id: string
   title: string
@@ -71,9 +79,12 @@ export interface ApplicationFormField {
     custom?: string
   }
   order: number
+  // Quick Apply: when true the field is auto-filled from the applicant's general
+  // profile and hidden from the screening step of the Quick Apply flow.
+  profileField?: boolean
 }
 
-export interface JobApplication {
+export interface JobApplication extends EmployerScopedFields {
   id: string
   job_posting_id: string
   applicant_id: string
@@ -118,7 +129,7 @@ export interface AutoScreeningResult {
   screened_by?: string
 }
 
-export interface OnboardingWorkflow {
+export interface OnboardingWorkflow extends EmployerScopedFields {
   id: string
   venue_id: string
   name: string
@@ -155,7 +166,7 @@ export interface OnboardingStep {
   updated_at: string
 }
 
-export interface OnboardingCandidate {
+export interface OnboardingCandidate extends EmployerScopedFields {
   id: string
   venue_id: string
   application_id?: string
@@ -218,7 +229,7 @@ export interface OnboardingActivity {
   created_at: string
 }
 
-export interface StaffMember {
+export interface StaffMember extends EmployerScopedFields {
   id: string
   venue_id: string
   user_id?: string
@@ -252,6 +263,82 @@ export interface StaffMember {
   assigned_zones: string[]
   preferred_shifts: string[]
   availability_schedule: Record<string, any>
+}
+
+export interface StaffInvitation extends EmployerScopedFields {
+  id: string
+  candidate_id: string
+  token: string
+  email: string
+  status: 'pending' | 'opened' | 'completed' | 'expired' | 'revoked' | 'accepted'
+  template_id?: string | null
+  expires_at?: string | null
+  completed_at?: string | null
+  created_at: string
+  updated_at?: string
+  venue_id?: string
+}
+
+export interface StaffOnboardingTemplate extends EmployerScopedFields {
+  id: string
+  name: string
+  description?: string | null
+  department?: string | null
+  position?: string | null
+  employment_type?: 'full_time' | 'part_time' | 'contractor' | 'volunteer' | 'intern' | null
+  fields: ApplicationFormField[]
+  estimated_days?: number | null
+  required_documents?: string[]
+  assignees?: string[]
+  tags?: string[]
+  is_default?: boolean
+  parent_template_id?: string | null
+  use_count?: number
+  created_at: string
+  updated_at?: string
+  venue_id?: string
+}
+
+export interface HiringAuditEvent extends EmployerScopedFields {
+  id: string
+  actor_id?: string | null
+  subject_user_id?: string | null
+  application_id?: string | null
+  candidate_id?: string | null
+  event_type: string
+  previous_status?: string | null
+  next_status?: string | null
+  metadata?: Record<string, unknown> | null
+  created_at: string
+  updated_at?: string
+  venue_id?: string
+}
+
+export interface HiringEligibilitySnapshot extends EmployerScopedFields {
+  id: string
+  application_id?: string | null
+  candidate_id?: string | null
+  is_eligible: boolean
+  mode: 'off' | 'shadow' | 'enforce'
+  checklist: Record<string, unknown>
+  blocking_reasons?: string[]
+  created_at: string
+  updated_at?: string
+  venue_id?: string
+}
+
+export interface EmploymentAssignment extends EmployerScopedFields {
+  id: string
+  user_id: string
+  role_template_id?: string | null
+  position: string
+  department?: string | null
+  permissions: Record<string, unknown>
+  status: 'pending' | 'active' | 'inactive' | 'revoked'
+  source: 'hiring_onboarding' | 'manual' | 'import'
+  created_at: string
+  updated_at?: string
+  venue_id?: string
 }
 
 export interface TeamCommunication {

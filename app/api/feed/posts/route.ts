@@ -1,50 +1,372 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import { getAccountAuthor, getAccountAuthorPath, type AccountAuthor } from '@/lib/accounts/account-author'
+import {
+  resolveAccountAuthorSnapshotsBatch,
+  resolveActingAccountSnapshot,
+} from '@/lib/accounts/acting-account-snapshot'
+import { fetchFeedPostsWithFallback, getFollowingFeedUserIds, profileIdsFromFollowedAccounts } from '@/lib/feed/feed-posts-query'
+import {
+  fetchTrackPreviews,
+  getMusicTrackIdFromPost,
+  getStoredTrackPreview,
+  isMusicFeedPost,
+} from '@/lib/feed/music-post-preview'
+import { hydratePostsWithPolls } from '@/lib/polls/hydrate-polls'
+import { startRouteTiming } from '@/lib/observability/route-timing'
+
+const GENERIC_AUTHOR_NAMES = new Set(['Community Member', 'Artist', 'Venue', 'Organization'])
+
+const ARTICLE_PREVIEW_SELECT = `
+  id,
+  title,
+  slug,
+  excerpt,
+  content,
+  featured_image_url,
+  tags,
+  categories,
+  published_at,
+  created_at
+`
+
+function unique(values: Array<string | null | undefined>) {
+  return Array.from(new Set(values.filter(Boolean) as string[]))
+}
+
+function firstRelated<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
+
+async function safeSelectProfileIds(
+  supabase: any,
+  table: string,
+  column: string,
+  ownerIds: string[]
+) {
+  if (ownerIds.length === 0) return []
+
+  try {
+    const { data, error } = await supabase
+      .from(table)
+      .select('id')
+      .in(column, ownerIds)
+
+    if (error) {
+      console.warn(`[Feed Posts API] Failed to read ${table}.${column} profile ids:`, error)
+      return []
+    }
+
+    return (data || []).map((row: any) => row.id).filter(Boolean)
+  } catch (error) {
+    console.warn(`[Feed Posts API] Failed to read ${table}.${column} profile ids:`, error)
+    return []
+  }
+}
+
+async function getAccountProfileIdsForUsers(supabase: any, ownerIds: string[]) {
+  const safeOwnerIds = unique(ownerIds)
+  if (safeOwnerIds.length === 0) return []
+
+  const [
+    artistIds,
+    venueUserIds,
+    venueMainProfileIds,
+    organizerIds,
+  ] = await Promise.all([
+    safeSelectProfileIds(supabase, 'artist_profiles', 'user_id', safeOwnerIds),
+    safeSelectProfileIds(supabase, 'venue_profiles', 'user_id', safeOwnerIds),
+    safeSelectProfileIds(supabase, 'venue_profiles', 'main_profile_id', safeOwnerIds),
+    safeSelectProfileIds(supabase, 'organizer_accounts', 'user_id', safeOwnerIds),
+  ])
+
+  return unique([
+    ...artistIds,
+    ...venueUserIds,
+    ...venueMainProfileIds,
+    ...organizerIds,
+  ])
+}
+
+async function createFeedReadClient(authResult: Awaited<ReturnType<typeof authenticateApiRequest>>) {
+  const fallbackSupabase = authResult?.supabase || await (async () => {
+    const { createClient } = await import('@/lib/supabase/server')
+    return createClient()
+  })()
+
+  try {
+    const { createServiceRoleClient } = await import('@/lib/supabase/service-role')
+    return createServiceRoleClient()
+  } catch (error) {
+    console.warn('[Feed Posts API] Service read client unavailable; using request-scoped Supabase client.', error)
+    return fallbackSupabase
+  }
+}
+
+function authorNeedsRefresh(post: any) {
+  const ownerProfile = firstRelated(post.profiles)
+  return (
+    !post.account_display_name ||
+    GENERIC_AUTHOR_NAMES.has(post.account_display_name) ||
+    !post.account_username ||
+    !ownerProfile
+  )
+}
+
+async function fetchOwnerProfiles(supabase: any, posts: any[]) {
+  const userIds = Array.from(
+    new Set(posts.map(post => post?.user_id).filter(Boolean))
+  )
+
+  if (userIds.length === 0) return new Map<string, any>()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, avatar_url, is_verified')
+    .in('id', userIds)
+
+  if (error) {
+    console.warn('[Feed Posts API] Failed to enrich owner profiles:', error)
+    return new Map<string, any>()
+  }
+
+  return new Map((data || []).map((profile: any) => [profile.id, profile]))
+}
+
+async function resolveAuthorsForPosts(supabase: any, posts: any[]) {
+  const keys = Array.from(
+    new Set(
+      posts
+        .filter(authorNeedsRefresh)
+        .map(post => {
+          const profileId = post.posted_as_profile_id || post.user_id
+          const accountType = post.posted_as_type || 'general'
+          return profileId ? `${accountType}:${profileId}:${post.user_id || ''}` : null
+        })
+        .filter(Boolean) as string[]
+    )
+  )
+
+  return resolveAccountAuthorSnapshotsBatch(supabase, keys)
+}
+
+function normalizeArticlePreview(row: any) {
+  const content = String(row?.content || '')
+  const slug = String(row?.slug || '')
+
+  return {
+    id: row?.id,
+    slug,
+    url: slug ? `/blog/${slug}` : null,
+    title: row?.title || 'Untitled article',
+    excerpt: row?.excerpt || content.slice(0, 220),
+    featuredImageUrl: row?.featured_image_url || null,
+    categories: Array.isArray(row?.categories) ? row.categories : [],
+    tags: Array.isArray(row?.tags) ? row.tags : [],
+    readingTime: Math.max(1, Math.ceil(content.trim().split(/\s+/).filter(Boolean).length / 200)),
+    publishedAt: row?.published_at || row?.created_at || null,
+  }
+}
+
+async function fetchArticlePreviews(supabase: any, posts: any[]) {
+  const articleIds = unique(
+    posts
+      .filter(post => post?.content_ref_type === 'article')
+      .map(post => post?.content_ref_id)
+  )
+
+  if (articleIds.length === 0) return new Map<string, any>()
+
+  const { data, error } = await supabase
+    .from('artist_blog_posts')
+    .select(ARTICLE_PREVIEW_SELECT)
+    .in('id', articleIds)
+    .eq('status', 'published')
+
+  if (error) {
+    console.warn('[Feed Posts API] Failed to enrich article previews:', error)
+    return new Map<string, any>()
+  }
+
+  return new Map((data || []).map((article: any) => [article.id, normalizeArticlePreview(article)]))
+}
+
+function getStoredArticlePreview(post: any) {
+  const metadata = post?.metadata && typeof post.metadata === 'object' ? post.metadata : null
+  const preview = metadata?.article_preview
+  if (!preview || typeof preview !== 'object') return null
+
+  const slug = String(preview.slug || '')
+  const url = typeof preview.url === 'string' ? preview.url : (slug ? `/blog/${slug}` : null)
+
+  return {
+    id: preview.id || post.content_ref_id || null,
+    slug,
+    url,
+    title: preview.title || 'Untitled article',
+    excerpt: preview.excerpt || '',
+    featuredImageUrl: preview.featuredImageUrl || null,
+    categories: Array.isArray(preview.categories) ? preview.categories : [],
+    tags: Array.isArray(preview.tags) ? preview.tags : [],
+    readingTime: Number(preview.readingTime || 1),
+    publishedAt: preview.publishedAt || post.created_at || null,
+  }
+}
+
+function getStoredListingPreview(post: any) {
+  const metadata = post?.metadata && typeof post.metadata === 'object' ? post.metadata : null
+  const preview = metadata?.listing_preview
+  if (!preview || typeof preview !== 'object') return null
+  return {
+    id: preview.id || post.content_ref_id || null,
+    title: preview.title || 'Listing',
+    description: preview.description || null,
+    price: preview.price ?? null,
+    currency: preview.currency || 'USD',
+    coverImageUrl: preview.coverImageUrl || null,
+    category: preview.category || null,
+    productType: preview.productType || null,
+    url: preview.url || (preview.id ? `/marketplace/listings/${preview.id}` : null),
+  }
+}
+
+function getStoredEventPreview(post: any) {
+  const metadata = post?.metadata && typeof post.metadata === 'object' ? post.metadata : null
+  const preview = metadata?.event_preview
+  if (!preview || typeof preview !== 'object') return null
+  const id = preview.id || post.content_ref_id || null
+  const slug = preview.slug || null
+  return {
+    id,
+    slug,
+    title: preview.title || 'Untitled event',
+    url: preview.url || (slug || id ? `/events/${slug || id}` : null),
+    eventDate: preview.eventDate || null,
+    venueName: preview.venueName || null,
+    location: preview.location || null,
+    posterUrl: preview.posterUrl || null,
+  }
+}
+
+async function enrichFeedPosts(
+  supabase: any,
+  posts: any[] | null | undefined,
+  viewerUserId?: string | null
+) {
+  const safePosts = posts || []
+  if (safePosts.length === 0) return []
+
+  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls] = await Promise.all([
+    fetchOwnerProfiles(supabase, safePosts),
+    resolveAuthorsForPosts(supabase, safePosts),
+    fetchArticlePreviews(supabase, safePosts),
+    fetchTrackPreviews(supabase, safePosts),
+    hydratePostsWithPolls({ supabase, posts: safePosts, viewerUserId }),
+  ])
+
+  return withPolls.map(post => {
+    const profile = firstRelated(post.profiles) || ownerProfiles.get(post.user_id) || null
+    const profileId = post.posted_as_profile_id || post.user_id
+    const accountType = post.posted_as_type || 'general'
+    const resolvedAuthor = resolvedAuthors.get(`${accountType}:${profileId}:${post.user_id || ''}`) || null
+    const articlePreview = post.content_ref_type === 'article'
+      ? articlePreviews.get(post.content_ref_id) || getStoredArticlePreview(post)
+      : null
+    const listingPreview = post.content_ref_type === 'marketplace_listing'
+      ? getStoredListingPreview(post)
+      : null
+    const eventPreview =
+      post.content_ref_type === 'event' || post.content_ref_type === 'event_update'
+        ? post.event_preview || getStoredEventPreview(post)
+        : null
+    const trackId = getMusicTrackIdFromPost(post)
+    const trackPreview = isMusicFeedPost(post)
+      ? (trackId ? trackPreviews.get(trackId) : null) || getStoredTrackPreview(post)
+      : null
+
+    return {
+      ...post,
+      profiles: post.profiles || profile,
+      resolved_author: resolvedAuthor,
+      article_preview: articlePreview,
+      listing_preview: listingPreview,
+      event_preview: eventPreview,
+      track_preview: trackPreview,
+    }
+  })
+}
+
+function normalizeFeedPost(post: any) {
+  const author = getAccountAuthor(post)
+  const ownerProfile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
+  const profile = {
+    id: author.id || post.user_id,
+    username: author.username || ownerProfile?.username || 'user',
+    full_name: author.name,
+    avatar_url: author.avatarUrl || ownerProfile?.avatar_url || '',
+    is_verified: author.isVerified || Boolean(ownerProfile?.is_verified),
+    account_context: {
+      type: author.type,
+      profile_id: author.id || post.user_id,
+      display_name: author.name,
+      profile_path: getAccountAuthorPath(author),
+    },
+  }
+
+  return {
+    id: post.id,
+    user_id: post.user_id,
+    content: post.content,
+    type: post.type || 'text',
+    visibility: post.visibility || 'public',
+    location: post.location || null,
+    hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    media_urls: Array.isArray(post.media_urls) ? post.media_urls : [],
+    likes_count: post.likes_count || 0,
+    comments_count: post.comments_count || 0,
+    shares_count: post.shares_count || 0,
+    is_pinned: Boolean(post.is_pinned),
+    created_at: post.created_at,
+    updated_at: post.updated_at,
+    posted_as_profile_id: author.id || post.posted_as_profile_id || post.user_id,
+    posted_as_type: author.type,
+    account_display_name: author.name,
+    account_username: author.username,
+    account_avatar_url: author.avatarUrl,
+    content_ref_type: post.content_ref_type || null,
+    content_ref_id: post.content_ref_id || null,
+    article_preview: post.article_preview || null,
+    listing_preview: post.listing_preview || null,
+    event_preview: post.event_preview || null,
+    track_preview: post.track_preview || null,
+    metadata: post.metadata || null,
+    poll_ends_at: post.poll_ends_at || null,
+    poll_total_votes: post.poll_total_votes || post.poll?.totalVotes || 0,
+    poll: post.poll || null,
+    profiles: profile,
+    user: profile,
+    is_liked: false,
+    like_count: post.likes_count || 0,
+  }
+}
 
 export async function GET(request: NextRequest) {
+  const endTiming = startRouteTiming('/api/feed/posts')
   try {
-    
+
     const authResult = await authenticateApiRequest(request)
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'all'
     const user_id = searchParams.get('user_id')
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
-    
-    // Use the authenticated supabase client if available, otherwise create a service client
-    let supabase
-    if (authResult) {
-      supabase = authResult.supabase
-    } else {
-      // For public feed viewing, we can use a service client
-      const { createClient } = await import('@/lib/supabase/server')
-      supabase = await createClient()
-    }
 
-    
-    // Get all user accounts for multi-account feed
-    let userAccountIds: string[] = []
-    if (authResult?.user) {
-      try {
-        // Try to fetch from user_accounts table if it exists
-        const { data: accounts, error: accountsError } = await supabase
-          .from('user_accounts')
-          .select('profile_id')
-          .eq('user_id', authResult.user.id)
-        
-        if (accountsError) {
-          // Continue without multi-account support
-        } else if (accounts) {
-          userAccountIds = accounts.map((acc: any) => acc.profile_id)
-        }
-      } catch (error) {
-        // Continue without multi-account support
-      }
-    }
+    const supabase = await createFeedReadClient(authResult)
 
     // Check if posts table exists and has the correct structure
     try {
-      const { data: tableCheck, error: tableError } = await supabase
+      const { error: tableError } = await supabase
         .from('posts')
         .select('id, user_id')
         .limit(1)
@@ -57,85 +379,81 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // Build a SAFE base query that does not rely on implicit FK joins or optional columns
-      // Select only guaranteed columns to prevent "column does not exist" errors
-      let baseQuery = supabase
-        .from('posts')
-        .select(`
-          id,
-          user_id,
-          content,
-          media_urls,
-          likes_count,
-          comments_count,
-          shares_count,
-          is_pinned,
-          created_at,
-          updated_at,
-          type,
-          visibility,
-          location,
-          hashtags
-        `)
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(limit)
-        .range(offset, offset + limit - 1)
-
       // Filter by user when explicitly requested.
       // Support ?profile_id= to show only posts made by a specific entity account.
+      // attribution=strict → posted_as_profile_id only (no other owned-account posts).
       const profileIdFilter = searchParams.get('profile_id')
-      if (type === 'user' && user_id) {
-        if (profileIdFilter) {
-          baseQuery = baseQuery.eq('posted_as_profile_id', profileIdFilter)
-        } else {
-          baseQuery = baseQuery.eq('user_id', user_id)
-        }
-      } else if (type === 'all' && authResult?.user) {
-        // For 'all' feed, include posts from all user accounts plus followed accounts
-        const allUserIds = [authResult.user.id, ...userAccountIds]
-        if (allUserIds.length > 1) {
-          baseQuery = baseQuery.in('user_id', allUserIds)
-        }
-      }
-      
-      // Handle following feed - only show posts from users the current user follows
+      const attributionParam = searchParams.get('attribution')
+      const attribution = attributionParam === 'strict' ? 'strict' as const : 'legacy' as const
+      let followingUserIds: string[] | undefined
+      let followingProfileIds: string[] | undefined
+      let ownedProfileIds: string[] | undefined
+
+      // Handle following feed - friends (user follows) + account follows (persona updates)
       if (type === 'following' && authResult?.user) {
-        
-        // Get the list of users the current user follows
-        const { data: followingData, error: followingError } = await supabase
-          .from('follows')
-          .select('following_id')
-          .eq('follower_id', authResult.user.id)
+        const [{ data: followingData, error: followingError }, { data: accountFollowRows }] =
+          await Promise.all([
+            supabase
+              .from('follows')
+              .select('following_id')
+              .eq('follower_id', authResult.user.id),
+            supabase
+              .from('account_follows')
+              .select('account_id')
+              .eq('follower_user_id', authResult.user.id),
+          ])
 
         if (followingError) {
           console.error('[Feed Posts API] Error fetching following relationships:', followingError)
-          return NextResponse.json(
-            { success: false, error: { code: 'following_lookup_failed', message: 'Failed to fetch following relationships' }, data: [] },
-            { status: 500 }
-          )
-        }
-
-        if (followingData && followingData.length > 0) {
-          const followingIds = followingData.map((f: { following_id: string }) => f.following_id)
-          // Include posts from followed users AND user's own accounts
-          const allFollowingIds = Array.from(new Set([...followingIds, ...userAccountIds]))
-          baseQuery = baseQuery.in('user_id', allFollowingIds)
-        } else if (userAccountIds.length > 0) {
-          // If not following anyone but has other accounts, show posts from own accounts
-          baseQuery = baseQuery.in('user_id', userAccountIds)
-        } else {
           return NextResponse.json({
             success: true,
             data: [],
-            message: "You're not following anyone yet. Start following other users to see their posts in your feed!",
+            message: "Your following feed isn't ready yet. Discover posts while your network catches up.",
+            warning: { code: 'following_lookup_failed', message: 'Failed to fetch following relationships' },
           })
         }
+
+        followingUserIds = getFollowingFeedUserIds(authResult.user.id, followingData)
+        ownedProfileIds = unique([
+          searchParams.get('profile_id'),
+          ...(await getAccountProfileIdsForUsers(supabase, [authResult.user.id])),
+        ])
+
+        const followedAccountIds = unique(
+          (accountFollowRows || []).map((row: any) => row.account_id).filter(Boolean)
+        )
+
+        let accountProfileIds: string[] = []
+        if (followedAccountIds.length > 0) {
+          const { data: followedAccounts } = await supabase
+            .from('accounts')
+            .select('id, profile_id, owner_user_id')
+            .in('id', followedAccountIds)
+
+          accountProfileIds = profileIdsFromFollowedAccounts(followedAccounts)
+        }
+
+        // Persona posts come from account_follows only (not expand-all-personas from user follows).
+        followingProfileIds = unique([...accountProfileIds, ...(ownedProfileIds || [])])
       }
-      
+
       // Ignore non-post "types" like 'network' to avoid bad filters
 
-      const { data: basePosts, error: baseError } = await baseQuery
+      const { data: basePosts, error: baseError } = await fetchFeedPostsWithFallback(
+        supabase,
+        {
+          type,
+          userIdParam: user_id,
+          profileIdFilter,
+          authUserId: authResult?.user?.id || null,
+          followingUserIds,
+          followingProfileIds,
+          ownedProfileIds,
+          attribution,
+        },
+        limit,
+        offset
+      )
 
       if (baseError) {
         console.error('[Feed Posts API] Error fetching base posts:', baseError)
@@ -145,58 +463,54 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      const posts = basePosts || []
+      const enrichedPosts = await enrichFeedPosts(supabase, basePosts, authResult?.user?.id || null)
+      let normalized = enrichedPosts.map(normalizeFeedPost)
 
-      // Enrich with profile data in a separate, RLS-safe query
-      const userIds = Array.from(new Set(posts.map((p: any) => p.user_id).filter(Boolean)))
-      let profileById: Record<string, any> = {}
-      if (userIds.length > 0) {
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, username, full_name, avatar_url, is_verified')
-          .in('id', userIds as string[])
+      // Additive: merge organizer event updates for attending users (not Your Posts).
+      const canMergeAttendingUpdates =
+        Boolean(authResult?.user) &&
+        type !== 'user' &&
+        offset === 0
 
-        if (!profilesError && profilesData) {
-          profileById = profilesData.reduce((acc: Record<string, any>, p: any) => {
-            acc[p.id] = p
-            return acc
-          }, {})
-        } else if (profilesError) {
-          console.warn('[Feed Posts API] Profiles join failed; continuing with defaults:', profilesError.message)
+      if (canMergeAttendingUpdates && authResult?.user) {
+        try {
+          const {
+            fetchAttendingEventFeedPosts,
+            mergeAttendingEventPostsIntoFeed,
+          } = await import('@/lib/feed/attending-event-posts')
+
+          const attendingUpdates = await fetchAttendingEventFeedPosts({
+            supabase,
+            userId: authResult.user.id,
+            limit,
+          })
+
+          const merged = mergeAttendingEventPostsIntoFeed({
+            posts: normalized,
+            eventPosts: attendingUpdates,
+            limit,
+            offset,
+          })
+
+          normalized = merged.map((post) =>
+            post.content_ref_type === 'event_update'
+              ? normalizeFeedPost(post)
+              : post
+          )
+        } catch (mergeError) {
+          console.warn('[Feed Posts API] Attending event merge skipped:', mergeError)
         }
       }
 
-      // Normalize shape for DashboardFeed which expects a `profiles` field
-      const normalized = posts.map((p: any) => ({
-        id: p.id,
-        user_id: p.user_id,
-        content: p.content,
-        type: p.type || 'text',
-        visibility: p.visibility || 'public',
-        location: p.location || null,
-        hashtags: Array.isArray(p.hashtags) ? p.hashtags : [],
-        media_urls: Array.isArray(p.media_urls) ? p.media_urls : [],
-        likes_count: p.likes_count || 0,
-        comments_count: p.comments_count || 0,
-        shares_count: p.shares_count || 0,
-        is_pinned: Boolean(p.is_pinned),
-        created_at: p.created_at,
-        updated_at: p.updated_at,
-        profiles: profileById[p.user_id] || {
-          id: p.user_id,
-          username: 'user',
-          full_name: 'User',
-          avatar_url: '',
-          is_verified: false
-        },
-        // Provide a consistent like flag expected by some UIs
-        is_liked: false,
-        like_count: p.likes_count || 0
-      }))
-
+      endTiming({
+        userId: authResult?.user?.id,
+        rowCount: normalized.length,
+        metadata: { type, limit, offset },
+      })
       return NextResponse.json({ success: true, data: normalized })
     } catch (error) {
       console.error('[Feed Posts API] Posts table error:', error)
+      endTiming({ metadata: { error: true, stage: 'table' } })
       return NextResponse.json(
         { success: false, error: { code: 'feed_query_failed', message: 'Failed to fetch feed posts' }, data: [] },
         { status: 500 }
@@ -204,6 +518,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     console.error('[Feed Posts API] Error:', error)
+    endTiming({ metadata: { error: true } })
     return NextResponse.json(
       { success: false, error: { code: 'internal_error', message: 'Internal server error' }, data: [] },
       { status: 500 }
@@ -214,7 +529,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const authResult = await authenticateApiRequest(request)
-    
+
     if (!authResult) {
       return NextResponse.json(
         { success: false, data: null, error: { code: 'unauthorized', message: 'Unauthorized' } },
@@ -228,49 +543,37 @@ export async function POST(request: NextRequest) {
 
     // Handle network posts request
     if (body.following_ids) {
-      
-      const { data: posts, error: postsError } = await supabase
-        .from('posts')
-        .select(`
-          id,
-          content,
-          type,
-          visibility,
-          location,
-          hashtags,
-          media_urls,
-          likes_count,
-          comments_count,
-          shares_count,
-          is_pinned,
-          created_at,
-          updated_at,
-          user_id,
-          account_username,
-          account_avatar_url,
-          profiles:user_id (
-            id,
-            username,
-            avatar_url,
-            full_name,
-            is_verified
-          )
-        `)
-        .in('user_id', body.following_ids)
-        .eq('visibility', 'public') // Only show public posts
-        .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(parseInt(body.limit) || 30)
+      const followingIds = Array.isArray(body.following_ids)
+        ? body.following_ids.map((id: unknown) => String(id)).filter(Boolean)
+        : []
 
-      if (postsError) {
-        console.error('[Feed Posts API] Error fetching network posts:', postsError)
+      if (followingIds.length === 0) {
+        return NextResponse.json({ success: true, data: [], error: null })
+      }
+
+      const { data: posts, error: resolvedPostsError } = await fetchFeedPostsWithFallback(
+        supabase,
+        {
+          type: 'following',
+          userIdParam: null,
+          profileIdFilter: null,
+          authUserId: user.id,
+          followingUserIds: followingIds,
+        },
+        parseInt(body.limit) || 30,
+        0
+      )
+
+      if (resolvedPostsError) {
+        console.error('[Feed Posts API] Error fetching network posts:', resolvedPostsError)
         return NextResponse.json(
           { success: false, data: [], error: { code: 'network_posts_failed', message: 'Failed to fetch network posts' } },
           { status: 500 }
         )
       }
 
-      return NextResponse.json({ success: true, data: posts || [], error: null })
+      const enrichedPosts = await enrichFeedPosts(supabase, posts, authResult?.user?.id || null)
+      return NextResponse.json({ success: true, data: enrichedPosts.map(normalizeFeedPost), error: null })
     }
 
     // Handle post creation — resolve acting entity from session/headers
@@ -279,17 +582,22 @@ export async function POST(request: NextRequest) {
     if (actingCtx instanceof NextResponse) return actingCtx
 
     const { userId: actingUserId, accountType, profileId } = actingCtx
+    const author = await resolveActingAccountSnapshot(actingCtx)
 
     const {
       content,
       type = 'text',
-      visibility = 'public',
       location,
       hashtags = [],
       media_urls = [],
+      poll_options: rawPollOptions,
+      poll_duration: rawPollDuration,
     } = body
 
-    // Allow posts with either content or media
+    const isPoll = type === 'poll'
+    const visibility = body.visibility || (isPoll ? 'followers' : 'public')
+
+    // Allow posts with either content or media (polls always need content/question)
     if (!content?.trim() && (!media_urls || media_urls.length === 0)) {
       return NextResponse.json(
         { success: false, data: null, error: { code: 'content_required', message: 'Content or media is required' } },
@@ -297,7 +605,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const postData = {
+    let pollEndsAtIso: string | null = null
+    let pollOptionTexts: string[] = []
+    if (isPoll) {
+      const {
+        isValidPollOptionCount,
+        normalizePollOptions,
+        resolvePollEndsAt,
+      } = await import('@/lib/polls/poll-duration')
+
+      pollOptionTexts = normalizePollOptions(rawPollOptions)
+      if (!isValidPollOptionCount(pollOptionTexts)) {
+        return NextResponse.json(
+          { success: false, data: null, error: { code: 'invalid_poll', message: 'Polls require 2–4 non-empty options' } },
+          { status: 400 }
+        )
+      }
+      const endsAt = resolvePollEndsAt({ duration: rawPollDuration || '7d' })
+      if (!endsAt) {
+        return NextResponse.json(
+          { success: false, data: null, error: { code: 'invalid_poll_duration', message: 'Invalid poll duration' } },
+          { status: 400 }
+        )
+      }
+      pollEndsAtIso = endsAt.toISOString()
+    }
+
+    const postData: Record<string, unknown> = {
       user_id: actingUserId,
       content: content?.trim() || (media_urls && media_urls.length > 0 ? 'Shared a photo' : null),
       type: type || (media_urls && media_urls.length > 0 ? 'image' : 'text'),
@@ -305,9 +639,16 @@ export async function POST(request: NextRequest) {
       location,
       hashtags,
       media_urls,
-      // Acting-entity attribution
-      posted_as_type:       accountType,
+      posted_as_type: accountType,
       posted_as_profile_id: profileId,
+      account_display_name: author.name,
+      account_username: author.username,
+      account_avatar_url: author.avatarUrl,
+    }
+
+    if (isPoll && pollEndsAtIso) {
+      postData.poll_ends_at = pollEndsAtIso
+      postData.poll_total_votes = 0
     }
 
     const { data: post, error } = await supabase
@@ -324,33 +665,42 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: profileRow, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url, is_verified')
-      .eq('id', actingUserId)
-      .maybeSingle()
+    let pollPayload = null
+    if (isPoll) {
+      const optionRows = pollOptionTexts.map((text, index) => ({
+        post_id: post.id,
+        text,
+        position: index,
+        vote_count: 0,
+      }))
+      const { data: options, error: optionsError } = await supabase
+        .from('poll_options')
+        .insert(optionRows)
+        .select('id, text, position, vote_count')
 
-    if (profileError) {
-      console.warn('[Feed Posts API] Profile fetch after create (continuing):', profileError.message)
+      if (optionsError) {
+        await supabase.from('posts').delete().eq('id', post.id)
+        return NextResponse.json(
+          { success: false, data: null, error: { code: 'create_poll_failed', message: optionsError.message } },
+          { status: 500 }
+        )
+      }
+
+      const { buildPollPayload } = await import('@/lib/polls/hydrate-polls')
+      pollPayload = buildPollPayload({
+        question: post.content,
+        options: options || [],
+        endsAt: pollEndsAtIso,
+        totalVotes: 0,
+      })
     }
 
-    const profiles = profileRow
-      ? {
-          username: profileRow.username || 'user',
-          full_name: profileRow.full_name || profileRow.username || 'User',
-          avatar_url: profileRow.avatar_url || '',
-          is_verified: Boolean(profileRow.is_verified)
-        }
-      : { username: 'user', full_name: 'User', avatar_url: '', is_verified: false }
-
-    const normalized = {
+    const normalizedPost = normalizeFeedPost({
       ...post,
-      profiles,
-      is_liked: false,
-      like_count: (post as { likes_count?: number }).likes_count ?? 0
-    }
-
-    return NextResponse.json({ success: true, data: normalized, error: null })
+      resolved_author: author,
+      poll: pollPayload,
+    })
+    return NextResponse.json({ success: true, data: normalizedPost, post: normalizedPost, error: null })
   } catch (error) {
     console.error('API Error:', error)
     return NextResponse.json(
@@ -358,4 +708,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

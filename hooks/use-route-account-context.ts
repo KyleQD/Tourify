@@ -12,7 +12,7 @@ export interface RouteAccountContext {
 /**
  * Hook to detect the current route and return the appropriate account context
  * for posting. This enables route-based multi-account posting where:
- * - /feed → Primary account
+ * - /community → Primary account
  * - /artist/feed → Artist account  
  * - /venue/feed → Venue account
  * - /business/feed → Business account

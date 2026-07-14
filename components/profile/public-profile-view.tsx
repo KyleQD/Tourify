@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Loader2 } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { buildJobDetailHref } from "@/lib/jobs/job-detail-href"
 import { ProfileAchievementsSection } from "@/components/achievements/profile-achievements-section"
 import {
   MessageCircle,
@@ -36,6 +37,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatDistanceToNow } from 'date-fns'
+import { listPublicSocialLinks } from '@/lib/artist/resolve-public-social-url'
 import { useAuth } from "@/contexts/auth-context"
 import { PublicMusicDisplay } from "@/components/music/public-music-display"
 
@@ -56,6 +58,8 @@ interface Comment {
 interface PublicProfileProps {
   profile: {
     id: string
+    author_profile_id?: string | null
+    owner_user_id?: string | null
     account_type: 'general' | 'artist' | 'venue' | 'organization'
     profile_data: any
     username: string
@@ -259,182 +263,69 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
   const fetchProfileData = async () => {
     try {
       setLoading(true)
-      
-      console.log('🔍 Fetching real posts for profile:', profile.id)
-      
-      // First check what posts table structure exists
-      let postsQuery
-      
-      // Try to fetch posts with a simple query first to see the table structure
-      const { data: samplePost, error: sampleError } = await supabase
-        .from('posts')
-        .select('*')
-        .limit(1)
-        .single()
 
-      console.log('Sample post structure:', samplePost)
-      console.log('Sample post error:', sampleError)
+      const authorProfileId = profile.author_profile_id || profile.id
+      const ownerUserId = profile.owner_user_id || profile.id
+      const params = new URLSearchParams({
+        type: 'user',
+        profile_id: authorProfileId,
+        user_id: ownerUserId,
+        limit: '50',
+      })
+      const response = await fetch(`/api/feed/posts?${params.toString()}`, {
+        credentials: 'include',
+      })
 
-      // Try to fetch posts with a minimal set of columns that should exist
-      let posts = null
-      let error = null
-      
-      // First try with the common columns
-      try {
-        const result = await supabase
-          .from('posts')
-          .select(`
-            id,
-            user_id,
-            content,
-            type,
-            visibility,
-            likes_count,
-            comments_count,
-            shares_count,
-            created_at,
-            updated_at
-          `)
-          .eq('user_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(50)
-        
-        posts = result.data
-        error = result.error
-      } catch (initialError) {
-        console.log('Initial query failed, trying even simpler query:', initialError)
-        
-        // Fallback to very basic query
-        try {
-          const result = await supabase
-            .from('posts')
-            .select('*')
-            .eq('user_id', profile.id)
-            .order('created_at', { ascending: false })
-            .limit(50)
-          
-          posts = result.data
-          error = result.error
-        } catch (fallbackError) {
-          console.error('Both queries failed:', fallbackError)
-          posts = null
-          error = fallbackError
-        }
-      }
-
-      if (error) {
-        console.error('Error fetching posts:', error)
-        console.error('Full error object:', JSON.stringify(error, null, 2))
-        
-        // Try a simpler query as fallback
-        const { data: simplePosts, error: simpleError } = await supabase
-          .from('posts')
-          .select('*')
-          .eq('user_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(50)
-          
-        if (simpleError) {
-          console.error('Simple query also failed:', simpleError)
-          setPosts([])
-        } else {
-          console.log(`✅ Loaded ${simplePosts?.length || 0} posts with simple query`)
-          // Transform simple posts
-          const transformedPosts = simplePosts?.map((post: any) => ({
-            id: post.id,
-            content: post.content,
-            type: post.type || post.post_type || 'text',
-            visibility: post.visibility || 'public',
-            media_url: (post.media_urls && post.media_urls.length > 0) ? post.media_urls[0] : 
-                      (post.images && post.images.length > 0) ? post.images[0] : 
-                      post.video_url || null,
-            post_type: post.type || post.post_type || 'text',
-            likes_count: post.likes_count || (post.engagement_stats?.likes) || 0,
-            comments_count: post.comments_count || (post.engagement_stats?.comments) || 0,
-            shares_count: post.shares_count || (post.engagement_stats?.shares) || 0,
-            created_at: post.created_at,
-            user_id: post.user_id,
-            profiles: null // We'll add profile data separately
-          })) || []
-          
-          setPosts(transformedPosts)
-        }
+      if (!response.ok) {
+        console.error('Error fetching profile posts:', response.status)
+        setPosts([])
       } else {
-        console.log(`✅ Loaded ${posts?.length || 0} real posts from database`)
-        console.log('Posts data structure:', posts?.[0])
-        
-        // Transform posts to match expected format - handle variable schema
-        const transformedPosts = posts?.map((post: any) => {
-          // Safely extract media URL from various possible fields
-          let media_url = null
-          if (post.media_urls && Array.isArray(post.media_urls) && post.media_urls.length > 0) {
-            media_url = post.media_urls[0]
-          } else if (post.images && Array.isArray(post.images) && post.images.length > 0) {
-            media_url = post.images[0]
-          } else if (post.video_url) {
-            media_url = post.video_url
-          } else if (post.media_url) {
-            media_url = post.media_url
-          }
+        const result = await response.json()
+        const feedPosts = result.data || result.posts || []
+        const transformedPosts = feedPosts.map((post: any) => ({
+          id: post.id,
+          content: post.content || '',
+          type: post.type || post.post_type || 'text',
+          visibility: post.visibility || 'public',
+          media_url:
+            Array.isArray(post.media_urls) && post.media_urls.length > 0
+              ? post.media_urls[0]
+              : post.media_url || null,
+          post_type: post.type || post.post_type || 'text',
+          likes_count: post.likes_count || post.like_count || 0,
+          comments_count: post.comments_count || 0,
+          shares_count: post.shares_count || 0,
+          created_at: post.created_at,
+          user_id: post.user_id,
+          profiles: post.profiles || post.user || null,
+          is_liked: Boolean(post.is_liked),
+        }))
 
-          // Safely extract engagement stats
-          const likes_count = post.likes_count || 
-                             (post.engagement_stats && post.engagement_stats.likes) || 
-                             post.likes || 
-                             0
-          const comments_count = post.comments_count || 
-                                (post.engagement_stats && post.engagement_stats.comments) || 
-                                post.comments || 
-                                0
-          const shares_count = post.shares_count || 
-                              (post.engagement_stats && post.engagement_stats.shares) || 
-                              post.shares || 
-                              0
-
-          return {
-            id: post.id,
-            content: post.content || '',
-            type: post.type || post.post_type || 'text',
-            visibility: post.visibility || 'public',
-            media_url,
-            post_type: post.type || post.post_type || 'text',
-            likes_count,
-            comments_count,
-            shares_count,
-            created_at: post.created_at,
-            user_id: post.user_id,
-            profiles: null // No join data available
-          }
-        }) || []
-        
         setPosts(transformedPosts)
-        
-        // Check which posts are liked by the current user
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+
         if (currentUser && transformedPosts.length > 0) {
           const likedPostIds = new Set<string>()
-          
+          transformedPosts.forEach((post: any) => {
+            if (post.is_liked) likedPostIds.add(post.id)
+          })
+
           try {
-            // Try to get liked posts for current user
             const { data: likes, error: likesError } = await supabase
               .from('post_likes')
               .select('post_id')
               .eq('user_id', currentUser.id)
-              .in('post_id', transformedPosts.map(p => p.id))
-            
-            if (likesError) {
-              console.log('Post likes table not available:', likesError)
-              // Continue without likes data
-            } else if (likes) {
-              likes.forEach((like: any) => {
-                likedPostIds.add(like.post_id)
-              })
+              .in('post_id', transformedPosts.map((post: any) => post.id))
+
+            if (!likesError && likes) {
+              likes.forEach((like: any) => likedPostIds.add(like.post_id))
             }
           } catch (error) {
             console.log('Error fetching likes, continuing without like data:', error)
           }
-          
+
           setLikedPosts(likedPostIds)
+        } else {
+          setLikedPosts(new Set())
         }
       }
 
@@ -892,58 +783,20 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-4">
-                    {profile.social_links.instagram && (
+                    {listPublicSocialLinks(profile.social_links as Record<string, string>).map(link => (
                       <a
-                        href={profile.social_links.instagram}
+                        key={`${link.platform}-${link.url}`}
+                        href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 text-gray-300 hover:text-pink-400 transition-colors group"
                       >
                         <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Instagram className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="font-medium">Instagram</span>
-                      </a>
-                    )}
-                    {profile.social_links.twitter && (
-                      <a
-                        href={profile.social_links.twitter}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-gray-300 hover:text-blue-400 transition-colors group"
-                      >
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Twitter className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="font-medium">Twitter</span>
-                      </a>
-                    )}
-                    {profile.social_links.website && (
-                      <a
-                        href={profile.social_links.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-gray-300 hover:text-green-400 transition-colors group"
-                      >
-                        <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-green-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
                           <Globe className="h-4 w-4 text-white" />
                         </div>
-                        <span className="font-medium">Website</span>
+                        <span className="font-medium">{link.label}</span>
                       </a>
-                    )}
-                    {profile.social_links.spotify && (
-                      <a
-                        href={profile.social_links.spotify}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-gray-300 hover:text-green-400 transition-colors group"
-                      >
-                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Headphones className="h-4 w-4 text-white" />
-                        </div>
-                        <span className="font-medium">Spotify</span>
-                      </a>
-                    )}
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -1356,8 +1209,15 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                       <div className="text-center py-8 text-gray-300">No current openings</div>
                     ) : (
                       <div className="grid gap-4">
-                        {jobs.map((job: any) => (
-                          <a key={job.id} href={`/jobs/${job.template_id || job.id}`} className="block group">
+                        {jobs.map((job: any) => {
+                          // Job-board rows map to venue templates via `template_id`; only
+                          // link when it resolves so orphaned board IDs never 404.
+                          const href = buildJobDetailHref({
+                            id: job.id,
+                            templateId: job.template_id,
+                            source: "venue",
+                          })
+                          const cardBody = (
                             <div className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2 text-white font-semibold">
@@ -1380,8 +1240,17 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                                 )}
                               </div>
                             </div>
-                          </a>
-                        ))}
+                          )
+                          return href ? (
+                            <a key={job.id} href={href} className="block group">
+                              {cardBody}
+                            </a>
+                          ) : (
+                            <div key={job.id} className="block cursor-default">
+                              {cardBody}
+                            </div>
+                          )
+                        })}
                       </div>
                     )}
                   </CardContent>

@@ -24,6 +24,13 @@ import {
 import { format, addDays, differenceInDays, isToday, isTomorrow } from "date-fns"
 import Link from "next/link"
 import { cn } from "@/utils"
+import {
+  ARTIST_CARD,
+  ARTIST_ICON_WELL,
+  ARTIST_INSET,
+  ARTIST_OUTLINE_BTN,
+  ARTIST_PRIMARY_BTN,
+} from "@/components/dashboard/artist-tokens"
 
 interface ActionItem {
   id: string
@@ -131,16 +138,18 @@ export function ArtistActionItems({
 
   if (isLoading) {
     return (
-      <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+      <Card className={ARTIST_CARD}>
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <Target className="h-5 w-5 text-orange-400" />
+          <CardTitle className="flex items-center gap-2 tracking-tight text-white">
+            <div className={cn(ARTIST_ICON_WELL, 'inline-flex h-8 w-8 items-center justify-center p-1.5')}>
+              <Target className="h-4 w-4" />
+            </div>
             Action Items
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-400"></div>
+            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-purple-400" />
           </div>
         </CardContent>
       </Card>
@@ -148,51 +157,51 @@ export function ArtistActionItems({
   }
 
   return (
-    <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
+    <Card className={ARTIST_CARD}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Target className="h-5 w-5 text-orange-400" />
+            <CardTitle className="flex items-center gap-2 tracking-tight text-white">
+              <div className={cn(ARTIST_ICON_WELL, 'inline-flex h-8 w-8 items-center justify-center p-1.5')}>
+                <Target className="h-4 w-4" />
+              </div>
               Action Items
             </CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-slate-400">
               Tasks that need your attention
             </CardDescription>
           </div>
           <Button 
             variant="outline" 
             size="sm" 
-            className="border-slate-700 text-gray-300 hover:text-white"
+            className={ARTIST_OUTLINE_BTN}
             onClick={onViewAll}
             asChild
           >
-            <Link href="/artist/tasks">
-              <ArrowRight className="h-4 w-4 mr-2" />
+            <Link href="/artist#needs-attention">
+              <ArrowRight className="mr-2 h-4 w-4" />
               View All
             </Link>
           </Button>
         </div>
       </CardHeader>
       <CardContent>
-        {/* Summary Stats */}
-        <div className="grid grid-cols-3 gap-4 mb-6">
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-orange-400">{items.length}</div>
-            <div className="text-sm text-gray-400">Total Tasks</div>
+        <div className="mb-6 grid grid-cols-3 gap-3">
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-white">{items.length}</div>
+            <div className="text-sm text-slate-400">Total Tasks</div>
           </div>
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-red-400">{highPriorityCount}</div>
-            <div className="text-sm text-gray-400">High Priority</div>
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-red-400">{highPriorityCount}</div>
+            <div className="text-sm text-slate-400">High Priority</div>
           </div>
-          <div className="text-center p-3 bg-slate-800/50 rounded-lg">
-            <div className="text-2xl font-bold text-red-400">{overdueCount}</div>
-            <div className="text-sm text-gray-400">Overdue</div>
+          <div className={cn(ARTIST_INSET, 'p-3 text-center')}>
+            <div className="text-2xl font-bold tracking-tight text-amber-400">{overdueCount}</div>
+            <div className="text-sm text-slate-400">Overdue</div>
           </div>
         </div>
 
-        {/* Priority Filter */}
-        <div className="flex gap-2 mb-4">
+        <div className="mb-4 flex flex-wrap gap-2">
           {[
             { key: 'all', label: 'All', count: items.length },
             { key: 'high', label: 'High', count: items.filter(i => i.priority === 'high').length },
@@ -203,50 +212,49 @@ export function ArtistActionItems({
               key={priority.key}
               variant={selectedPriority === priority.key ? "default" : "outline"}
               size="sm"
-              onClick={() => setSelectedPriority(priority.key as any)}
+              onClick={() => setSelectedPriority(priority.key as typeof selectedPriority)}
               className={cn(
                 selectedPriority === priority.key 
-                  ? "bg-orange-600 hover:bg-orange-700" 
-                  : "border-slate-700 text-gray-300 hover:text-white"
+                  ? ARTIST_PRIMARY_BTN
+                  : ARTIST_OUTLINE_BTN
               )}
             >
               {priority.label}
-              <Badge variant="secondary" className="ml-2 bg-slate-700/50 text-white">
+              <Badge variant="secondary" className="ml-2 border-0 bg-black/40 text-white">
                 {priority.count}
               </Badge>
             </Button>
           ))}
         </div>
 
-        {/* Action Items List */}
         <div className="space-y-3">
           {sortedItems.length > 0 ? (
             sortedItems.map((item, index) => (
               <motion.div
                 key={item.id}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-start gap-3 p-3 bg-slate-800/30 rounded-lg hover:bg-slate-800/50 transition-colors"
+                transition={{ delay: index * 0.05 }}
+                className={cn(ARTIST_INSET, 'flex items-start gap-3 p-3 transition-colors hover:border-purple-500/30')}
               >
-                <div className={cn("p-2 rounded-lg", getTypeColor(item.type))}>
+                <div className={cn(ARTIST_ICON_WELL, 'inline-flex h-8 w-8 shrink-0 items-center justify-center p-1.5')}>
                   {getTypeIcon(item.type)}
                 </div>
                 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-white text-sm">{item.title}</h4>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <h4 className="text-sm font-medium text-white">{item.title}</h4>
                     <div className="flex items-center gap-2">
                       <Badge className={getPriorityColor(item.priority)}>
                         {item.priority}
                       </Badge>
                       {item.status === 'completed' && (
-                        <CheckCircle className="h-4 w-4 text-green-400" />
+                        <CheckCircle className="h-4 w-4 text-emerald-400" />
                       )}
                     </div>
                   </div>
                   
-                  <p className="text-gray-400 text-xs mb-3">{item.description}</p>
+                  <p className="mb-3 text-xs text-slate-400">{item.description}</p>
                   
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
@@ -255,17 +263,17 @@ export function ArtistActionItems({
                       </span>
                       {item.progress !== undefined && (
                         <div className="flex items-center gap-2">
-                          <Progress value={item.progress} className="w-20 h-2" />
-                          <span className="text-xs text-gray-400">{item.progress}%</span>
+                          <Progress value={item.progress} className="h-2 w-20" />
+                          <span className="text-xs text-slate-400">{item.progress}%</span>
                         </div>
                       )}
                     </div>
                     
                     <div className="flex items-center gap-2">
                       {item.actionUrl ? (
-                        <Button size="sm" variant="outline" asChild>
+                        <Button size="sm" variant="outline" className={ARTIST_OUTLINE_BTN} asChild>
                           <Link href={item.actionUrl}>
-                            <Zap className="h-3 w-3 mr-1" />
+                            <Zap className="mr-1 h-3 w-3" />
                             Action
                           </Link>
                         </Button>
@@ -273,10 +281,11 @@ export function ArtistActionItems({
                         <Button 
                           size="sm" 
                           variant="outline"
+                          className={ARTIST_OUTLINE_BTN}
                           onClick={() => onComplete?.(item.id)}
                           disabled={item.status === 'completed'}
                         >
-                          <CheckCircle className="h-3 w-3 mr-1" />
+                          <CheckCircle className="mr-1 h-3 w-3" />
                           Complete
                         </Button>
                       )}
@@ -286,43 +295,42 @@ export function ArtistActionItems({
               </motion.div>
             ))
           ) : (
-            <div className="text-center py-8">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <p className="text-gray-400 mb-4">All caught up! No pending tasks.</p>
+            <div className="py-8 text-center">
+              <CheckCircle className="mx-auto mb-4 h-12 w-12 text-emerald-500" />
+              <p className="mb-4 text-slate-400">All caught up! No pending tasks.</p>
               <Button 
-                className="bg-purple-600 hover:bg-purple-700"
+                className={ARTIST_PRIMARY_BTN}
                 asChild
               >
-                <Link href="/artist/tasks">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Task
+                <Link href="/artist/profile">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Review Profile
                 </Link>
               </Button>
             </div>
           )}
         </div>
 
-        {/* Quick Actions */}
-        <div className="flex gap-2 mt-6">
+        <div className="mt-6 flex gap-2">
           <Button 
             size="sm" 
-            className="bg-orange-600 hover:bg-orange-700 flex-1"
+            className={cn(ARTIST_PRIMARY_BTN, 'flex-1')}
             asChild
           >
-            <Link href="/artist/tasks">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Task
+            <Link href="/artist/profile">
+              <User className="mr-2 h-4 w-4" />
+              Edit Profile
             </Link>
           </Button>
           <Button 
             size="sm" 
             variant="outline" 
-            className="border-slate-700 text-gray-300 hover:text-white"
+            className={ARTIST_OUTLINE_BTN}
             asChild
           >
-            <Link href="/artist/tasks/calendar">
-              <Calendar className="h-4 w-4 mr-2" />
-              Calendar
+            <Link href="/artist/events">
+              <Calendar className="mr-2 h-4 w-4" />
+              Events
             </Link>
           </Button>
         </div>

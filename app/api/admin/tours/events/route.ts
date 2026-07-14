@@ -1,35 +1,73 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { NextRequest, NextResponse } from "next/server"
 
-export const POST = withAdminAuth(async (req: NextRequest, { supabase }) => {
-  const body = await req.json()
-  const { tour_id, event_id, ordinal } = body
-  if (!tour_id || !event_id)
-    return NextResponse.json({ error: 'tour_id and event_id required' }, { status: 400 })
+import { withAdminAuth } from "@/lib/auth/api-auth"
+import {
+  AdminTourEventOperationsService,
+  getAdminTourEventErrorStatus,
+  tourAssignmentInputSchema,
+} from "@/lib/admin/tour-event-operations.service"
 
-  const { data, error } = await supabase
-    .from('tour_events')
-    .insert({ tour_id, event_id, ordinal: ordinal ?? null })
-    .select('*')
-    .single()
+export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  try {
+    const body = await request.json().catch(() => ({}))
+    const tourId = body.tour_id
+    const eventId = body.event_id
+    if (!tourId || !eventId) {
+      return NextResponse.json({ success: false, error: "tour_id and event_id required" }, { status: 400 })
+    }
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ data })
+    const tour = await AdminTourEventOperationsService.getTour({ supabase, userId: user.id, tourId })
+    const orgId = (tour as any).org_id
+    if (!orgId) return NextResponse.json({ success: false, error: "Tour organization could not be resolved" }, { status: 400 })
+
+    const assignment = tourAssignmentInputSchema.parse({
+      tour_id: tourId,
+      ordinal: body.ordinal,
+      is_primary: body.is_primary,
+      leg_name: body.leg_name,
+      market: body.market,
+      advance_status: body.advance_status,
+      routing_notes: body.routing_notes,
+    })
+
+    const data = await AdminTourEventOperationsService.addTourAssignment({
+      supabase,
+      orgId,
+      eventId,
+      assignment,
+    })
+
+    return NextResponse.json({ success: true, data, assignment: data }, { status: 201 })
+  } catch (error: any) {
+    const status = getAdminTourEventErrorStatus(error, 500)
+    return NextResponse.json({ success: false, error: error.message || "Failed to attach event to tour" }, { status })
+  }
 })
 
-export const DELETE = withAdminAuth(async (req: NextRequest, { supabase }) => {
-  const params = new URL(req.url).searchParams
-  const tourId = params.get('tour_id')
-  const eventId = params.get('event_id')
-  if (!tourId || !eventId)
-    return NextResponse.json({ error: 'tour_id and event_id required' }, { status: 400 })
+export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  try {
+    const params = new URL(request.url).searchParams
+    const body = await request.json().catch(() => ({}))
+    const tourId = params.get("tour_id") || body.tour_id
+    const eventId = params.get("event_id") || body.event_id
+    if (!tourId || !eventId) {
+      return NextResponse.json({ success: false, error: "tour_id and event_id required" }, { status: 400 })
+    }
 
-  const { error } = await supabase
-    .from('tour_events')
-    .delete()
-    .eq('tour_id', tourId)
-    .eq('event_id', eventId)
+    const tour = await AdminTourEventOperationsService.getTour({ supabase, userId: user.id, tourId })
+    const orgId = (tour as any).org_id
+    if (!orgId) return NextResponse.json({ success: false, error: "Tour organization could not be resolved" }, { status: 400 })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 400 })
-  return NextResponse.json({ success: true })
+    const result = await AdminTourEventOperationsService.detachTourAssignment({
+      supabase,
+      eventId,
+      tourId,
+      orgId,
+    })
+
+    return NextResponse.json(result)
+  } catch (error: any) {
+    const status = getAdminTourEventErrorStatus(error, 500)
+    return NextResponse.json({ success: false, error: error.message || "Failed to detach event from tour" }, { status })
+  }
 })

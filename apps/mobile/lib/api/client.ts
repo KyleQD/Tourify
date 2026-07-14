@@ -8,6 +8,7 @@ interface ApiRequestOptions extends RequestInit {
   queueOnOffline?: boolean
   preferCachedOnOffline?: boolean
   skipOfflineQueue?: boolean
+  cacheResponse?: boolean
 }
 
 export class ApiError extends Error {
@@ -206,7 +207,7 @@ export async function apiRequest<T>(path: string, options?: ApiRequestOptions): 
   }
 
   const payload = await response.text()
-  if (method === "GET" && payload) await writeCachedResponse(path, payload)
+  if (method === "GET" && payload && options?.cacheResponse !== false) await writeCachedResponse(path, payload)
   return parseJsonPayload<T>(payload)
 }
 

@@ -57,57 +57,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
     if (error) {
       console.error('[Tour Planner Artists API] Error fetching artists:', error)
       if (error.code === '42P01') {
-        // Table doesn't exist, return mock data
-        return NextResponse.json({
-          artists: [
-            {
-              id: 'artist-1',
-              display_name: 'John Smith',
-              bio: 'Acclaimed singer-songwriter with 10+ years of experience',
-              location: 'Los Angeles, CA',
-              avatar_url: null,
-              primary_genres: ['Rock', 'Folk'],
-              account_tier: 'established',
-              verification_status: 'verified',
-              contact_email: 'john@example.com',
-              total_events: 45,
-              total_revenue: 125000,
-              rating: 4.8,
-              follower_count: 15000
-            },
-            {
-              id: 'artist-2',
-              display_name: 'Sarah Johnson',
-              bio: 'Jazz vocalist and pianist with a unique style',
-              location: 'New York, NY',
-              avatar_url: null,
-              primary_genres: ['Jazz', 'Blues'],
-              account_tier: 'emerging',
-              verification_status: 'verified',
-              contact_email: 'sarah@example.com',
-              total_events: 23,
-              total_revenue: 45000,
-              rating: 4.6,
-              follower_count: 8500
-            },
-            {
-              id: 'artist-3',
-              display_name: 'Mike Davis',
-              bio: 'Electronic music producer and DJ',
-              location: 'Austin, TX',
-              avatar_url: null,
-              primary_genres: ['Electronic', 'House'],
-              account_tier: 'established',
-              verification_status: 'verified',
-              contact_email: 'mike@example.com',
-              total_events: 67,
-              total_revenue: 180000,
-              rating: 4.9,
-              follower_count: 25000
-            }
-          ],
-          total: 3
-        })
+        return NextResponse.json({ artists: [], total: 0, error: 'artist profiles table unavailable' })
       }
       return NextResponse.json({ error: 'Failed to fetch artists' }, { status: 500 })
     }

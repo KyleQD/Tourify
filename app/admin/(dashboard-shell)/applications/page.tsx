@@ -1005,7 +1005,10 @@ export default function ApplicationsPage() {
                   <CardTitle className="text-white">Application Responses</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ApplicationResponsesList responses={selectedApplication.form_responses} />
+                  <ApplicationResponsesList
+                    responses={selectedApplication.form_responses}
+                    applicationId={selectedApplication.id}
+                  />
                 </CardContent>
               </Card>
 

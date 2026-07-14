@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ArrowLeft, Loader2, Map } from "lucide-react"
+import { PublicSiteMapViewer } from "@/components/site-maps/public-site-map-viewer"
 import { SiteMapEditor } from "@/components/admin/logistics/site-map/site-map-editor"
 
 interface VenueSiteMapViewerProps {
@@ -13,21 +14,8 @@ interface VenueSiteMapViewerProps {
   onBack: () => void
 }
 
-interface SiteMapData {
-  id: string
-  name: string
-  description: string
-  width: number
-  height: number
-  created_at: string
-  status: string
-  backgroundColor?: string
-  gridEnabled?: boolean
-  gridSize?: number
-}
-
 export function VenueSiteMapViewer({ siteMapId, siteMapName, canEdit = false, onBack }: VenueSiteMapViewerProps) {
-  const [siteMap, setSiteMap] = useState<SiteMapData | null>(null)
+  const [siteMap, setSiteMap] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -35,21 +23,10 @@ export function VenueSiteMapViewer({ siteMapId, siteMapName, canEdit = false, on
     async function load() {
       setIsLoading(true)
       try {
-        const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}`, { credentials: 'include' })
+        const resp = await fetch(`/api/venue/site-maps/${siteMapId}`, { credentials: 'include' })
         const data = await resp.json()
         if (data.success && data.data) {
-          setSiteMap({
-            id: data.data.id,
-            name: data.data.name,
-            description: data.data.description || '',
-            width: data.data.width || 1200,
-            height: data.data.height || 900,
-            created_at: data.data.created_at,
-            status: data.data.status || 'published',
-            backgroundColor: data.data.background_color,
-            gridEnabled: data.data.grid_enabled,
-            gridSize: data.data.grid_size
-          })
+          setSiteMap(data.data)
         } else {
           setError('Could not load site map')
         }
@@ -88,11 +65,34 @@ export function VenueSiteMapViewer({ siteMapId, siteMapName, canEdit = false, on
     )
   }
 
+  if (canEdit) {
+    return (
+      <SiteMapEditor
+        siteMap={{
+          id: siteMap.id,
+          name: siteMap.name || siteMapName,
+          description: siteMap.description || '',
+          width: siteMap.width || 1200,
+          height: siteMap.height || 900,
+          created_at: siteMap.created_at,
+          status: siteMap.status || 'published',
+          backgroundColor: siteMap.background_color,
+          gridEnabled: siteMap.grid_enabled,
+          gridSize: siteMap.grid_size,
+        }}
+        onClose={onBack}
+        isReadOnly={false}
+      />
+    )
+  }
+
   return (
-    <SiteMapEditor
-      siteMap={siteMap}
-      onClose={onBack}
-      isReadOnly={!canEdit}
-    />
+    <div className="space-y-3">
+      <Button variant="ghost" onClick={onBack} className="text-slate-400">
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        Back
+      </Button>
+      <PublicSiteMapViewer siteMap={siteMap} />
+    </div>
   )
 }

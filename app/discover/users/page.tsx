@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { Suspense, useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EnhancedSearch } from "@/components/search/enhanced-search"
+import { resolvePublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { 
   Users, 
   Music, 
@@ -33,6 +35,22 @@ interface DiscoveryStats {
 }
 
 export default function UserDiscoveryPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 text-white">
+          Loading discovery...
+        </div>
+      }
+    >
+      <UserDiscoveryPageContent />
+    </Suspense>
+  )
+}
+
+function UserDiscoveryPageContent() {
+  const searchParams = useSearchParams()
+  const initialQuery = searchParams.get("q")?.trim() || ""
   const [selectedTab, setSelectedTab] = useState("search")
   const [stats, setStats] = useState<DiscoveryStats>({
     totalUsers: 0,
@@ -69,8 +87,13 @@ export default function UserDiscoveryPage() {
   }
 
   const handleUserSelect = (user: any) => {
-    // Navigate to user profile
-    window.location.href = `/profile/${user.username}`
+    const accountType = user.account_type || user.type
+    const path = resolvePublicProfilePath({
+      id: user.id,
+      username: user.urlSlug || user.url_slug || user.username,
+      account_type: accountType,
+    }) || `/profile/${user.username}`
+    window.location.href = path
   }
 
   return (
@@ -230,6 +253,7 @@ export default function UserDiscoveryPage() {
                     showFilters={true}
                     showRecommendations={true}
                     placeholder="Search for artists, venues, or users..."
+                    initialQuery={initialQuery}
                   />
                 </CardContent>
               </Card>

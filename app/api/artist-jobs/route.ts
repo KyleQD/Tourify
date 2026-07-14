@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { validate as validateUuid } from 'uuid'
 import { createClient } from '@/lib/supabase/server'
 import { getPostgrestErrorCode, getPostgrestErrorMessage } from '@/lib/supabase/postgrest-error'
+import { resolveArtistJobCategoryId } from '@/lib/artist-jobs/categories'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 interface JsonRecord {
   [key: string]: any
@@ -19,6 +20,30 @@ function parseCsv(value: string | null): string[] | undefined {
 function normalizeBoolean(value: string | null): boolean | undefined {
   if (value === null) return undefined
   return value === 'true'
+}
+
+function sanitizePublicJob(row: JsonRecord): JsonRecord {
+  const {
+    contact_email: _contactEmail,
+    contact_phone: _contactPhone,
+    ...safe
+  } = row
+
+  return {
+    ...safe,
+    required_skills: Array.isArray(safe.required_skills) ? safe.required_skills : [],
+    required_equipment: Array.isArray(safe.required_equipment) ? safe.required_equipment : [],
+    required_genres: Array.isArray(safe.required_genres) ? safe.required_genres : [],
+    instruments_needed: Array.isArray(safe.instruments_needed) ? safe.instruments_needed : [],
+    benefits: Array.isArray(safe.benefits) ? safe.benefits : [],
+    attachments: safe.attachments && typeof safe.attachments === 'object' ? safe.attachments : {},
+    collaboration_details:
+      safe.collaboration_details && typeof safe.collaboration_details === 'object'
+        ? safe.collaboration_details
+        : {},
+    applications_count: Number(safe.applications_count ?? 0),
+    views_count: Number(safe.views_count ?? 0),
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -49,8 +74,32 @@ export async function GET(request: NextRequest) {
     const maxPayment = searchParams.get('max_payment')
     const sortBy = searchParams.get('sort_by') || 'created_at'
     const sortOrder = searchParams.get('sort_order') === 'asc'
+    const shouldUseUserScopedRead = postedByMe || includeAllStatuses
+    let readClient = supabase
+    if (!shouldUseUserScopedRead) {
+      try {
+        readClient = createServiceRoleClient()
+      } catch (error) {
+        console.warn('[GET /api/artist-jobs] Service read client unavailable; using request-scoped client.', error)
+      }
+    }
 
-    let queryBuilder = supabase
+    if (postedByMe && !user?.id) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          jobs: [],
+          total_count: 0,
+          page,
+          per_page: perPage,
+          total_pages: 0,
+          has_next: false,
+          has_previous: false,
+        },
+      })
+    }
+
+    let queryBuilder = readClient
       .from('artist_jobs')
       .select('*, category:artist_job_categories(*)', { count: 'exact' })
 
@@ -82,7 +131,9 @@ export async function GET(request: NextRequest) {
     const { data: jobs, error, count } = await queryBuilder
     if (error) throw error
 
-    const jobRows = (jobs || []) as JsonRecord[]
+    const jobRows = shouldUseUserScopedRead
+      ? ((jobs || []) as JsonRecord[])
+      : ((jobs || []) as JsonRecord[]).map(sanitizePublicJob)
     if (user?.id && jobRows.length > 0) {
       const jobIds = jobRows.map((job) => job.id)
 
@@ -151,23 +202,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
 
-    const categoryId = String(body.category_id)
-    if (!validateUuid(categoryId))
+    const categoryId = await resolveArtistJobCategoryId(supabase, String(body.category_id))
+    if (!categoryId)
       return NextResponse.json({ success: false, error: 'Invalid category_id format' }, { status: 400 })
-
-    const { data: categoryRow, error: categoryError } = await supabase
-      .from('artist_job_categories')
-      .select('id')
-      .eq('id', categoryId)
-      .eq('is_active', true)
-      .maybeSingle()
-
-    if (categoryError) throw categoryError
-    if (!categoryRow)
-      return NextResponse.json(
-        { success: false, error: 'Invalid or inactive job category' },
-        { status: 400 }
-      )
 
     // Derive the posted_by_type from the verified acting context
     const resolvedPostedByType = getPostedByType(accountType)
@@ -179,6 +216,7 @@ export async function POST(request: NextRequest) {
       posted_by: userId,
       posted_by_type: resolvedPostedByType,
       posted_by_profile_id: profileId,
+      poster_profile_id: profileId,
       job_type: body.job_type || 'one_time',
       payment_type: body.payment_type || 'paid',
       payment_amount: body.payment_amount || null,
@@ -208,7 +246,8 @@ export async function POST(request: NextRequest) {
       status: body.status || 'open',
     }
 
-    const { data: created, error } = await supabase
+    const serviceSupabase = createServiceRoleClient()
+    const { data: created, error } = await serviceSupabase
       .from('artist_jobs')
       .insert(insertPayload)
       .select('*, category:artist_job_categories(*)')

@@ -11,6 +11,14 @@
 
 export const ACCOUNT_PARAM = 'account'
 
+function tryDecode(value: string): string {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
 /**
  * Return `basePath?account=<profileId>` if profileId is non-empty.
  * For general accounts the param is omitted (general is always the default).
@@ -27,11 +35,42 @@ export function buildAccountScopedPath(
 
 /**
  * Extract the `?account=` value from a URLSearchParams or raw search string.
- * Returns null when absent.
+ * Handles legacy organizer IDs that contain unencoded `&` characters.
  */
 export function readAccountFromSearch(search: string | URLSearchParams): string | null {
-  const params = typeof search === 'string' ? new URLSearchParams(search) : search
-  return params.get(ACCOUNT_PARAM) ?? null
+  if (typeof search !== 'string') {
+    const fromParams = search.get(ACCOUNT_PARAM)
+    if (fromParams) return fromParams
+    search = search.toString()
+  }
+
+  const raw = search.startsWith('?') ? search.slice(1) : search
+  const prefix = `${ACCOUNT_PARAM}=`
+  const start = raw.indexOf(prefix)
+  if (start === -1) return null
+
+  const after = raw.slice(start + prefix.length)
+  if (!after) return null
+
+  // Standard encoded value (no raw & in the id)
+  if (!after.includes('&')) return tryDecode(after)
+
+  // Try URLSearchParams first (works when account id was encodeURIComponent'd)
+  const params = new URLSearchParams(raw)
+  const fromParams = params.get(ACCOUNT_PARAM)
+  if (fromParams && fromParams.length > after.split('&')[0].length) {
+    return fromParams
+  }
+
+  // Legacy: unencoded & inside the account id — rejoin until a real key=value param
+  const segments = after.split('&')
+  let rebuilt = tryDecode(segments[0])
+  for (let i = 1; i < segments.length; i++) {
+    if (segments[i].includes('=')) break
+    rebuilt += '&' + segments[i]
+  }
+
+  return tryDecode(rebuilt)
 }
 
 /**

@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { motion, AnimatePresence } from "framer-motion"
-import { useTourEventContext } from "@/app/admin/dashboard/components/tour-event-provider"
+import { TourEventProvider, useTourEventContext } from "@/app/admin/dashboard/components/tour-event-provider"
 import {
   DndContext,
   closestCenter,
@@ -185,6 +185,14 @@ function SortableWidget({ widget, isCustomizing, onRemove, onToggleVisibility, o
 }
 
 export function CustomizableDashboard({ userId, onWidgetUpdate, className = "" }: CustomizableDashboardProps) {
+  return (
+    <TourEventProvider>
+      <CustomizableDashboardInner userId={userId} onWidgetUpdate={onWidgetUpdate} className={className} />
+    </TourEventProvider>
+  )
+}
+
+function CustomizableDashboardInner({ userId, onWidgetUpdate, className = "" }: CustomizableDashboardProps) {
   const [widgets, setWidgets] = useState<DashboardWidget[]>([])
   const [availableWidgets, setAvailableWidgets] = useState<WidgetTemplate[]>([])
   const [isCustomizing, setIsCustomizing] = useState(false)

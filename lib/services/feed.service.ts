@@ -43,6 +43,27 @@ export interface ExtendedComment extends Comment {
 export class FeedService {
   private supabase = supabaseClient
 
+  private async attachOwnerProfiles<T extends { user_id?: string | null }>(posts: T[]): Promise<Array<T & { profiles: ExtendedPost['profiles'] }>> {
+    const userIds = Array.from(new Set(posts.map(post => post.user_id).filter(Boolean) as string[]))
+    if (userIds.length === 0) return posts.map(post => ({ ...post, profiles: null }))
+
+    const { data, error } = await this.supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, is_verified')
+      .in('id', userIds)
+
+    if (error) {
+      console.warn('Error enriching feed profiles:', error)
+      return posts.map(post => ({ ...post, profiles: null }))
+    }
+
+    const profilesById = new Map((data || []).map(profile => [profile.id, profile]))
+    return posts.map(post => ({
+      ...post,
+      profiles: post.user_id ? profilesById.get(post.user_id) ?? null : null,
+    }))
+  }
+
   // Posts Management
   async createPost(data: {
     content: string
@@ -139,12 +160,6 @@ export class FeedService {
         .from('posts')
         .select(`
           *,
-          profiles (
-            username,
-            full_name,
-            avatar_url,
-            is_verified
-          ),
           post_media (
             id,
             type,
@@ -177,14 +192,15 @@ export class FeedService {
       const { data: posts, error } = await query
 
       if (error) throw error
+      const postsWithProfiles = await this.attachOwnerProfiles(posts || [])
 
       // Add is_liked flag and other computed fields
-      const extendedPosts = posts?.map(post => ({
+      const extendedPosts = postsWithProfiles.map(post => ({
         ...post,
         is_liked: user ? post.post_likes.some((like: any) => like.user_id === user.id) : false,
         is_following: false, // Will be computed in a separate query if needed
         hashtags_data: [] // Will be populated if needed
-      })) || []
+      }))
 
       return { data: extendedPosts, error: null }
     } catch (error) {
@@ -201,12 +217,6 @@ export class FeedService {
         .from('posts')
         .select(`
           *,
-          profiles (
-            username,
-            full_name,
-            avatar_url,
-            is_verified
-          ),
           post_media (
             id,
             type,
@@ -223,10 +233,11 @@ export class FeedService {
         .single()
 
       if (error) throw error
+      const [postWithProfile] = await this.attachOwnerProfiles(post ? [post] : [])
 
       const extendedPost = {
-        ...post,
-        is_liked: user ? post.post_likes.some((like: any) => like.user_id === user.id) : false
+        ...postWithProfile,
+        is_liked: user ? postWithProfile.post_likes.some((like: any) => like.user_id === user.id) : false
       }
 
       return { data: extendedPost, error: null }
@@ -456,12 +467,6 @@ export class FeedService {
         .from('posts')
         .select(`
           *,
-          profiles (
-            username,
-            full_name,
-            avatar_url,
-            is_verified
-          ),
           post_media (
             id,
             type,
@@ -479,11 +484,12 @@ export class FeedService {
         .range(page * limit, (page + 1) * limit - 1)
 
       if (error) throw error
+      const postsWithProfiles = await this.attachOwnerProfiles(posts || [])
 
-      const extendedPosts = posts?.map(post => ({
+      const extendedPosts = postsWithProfiles.map(post => ({
         ...post,
         is_liked: user ? post.post_likes.some((like: any) => like.user_id === user.id) : false
-      })) || []
+      }))
 
       return { data: extendedPosts, error: null }
     } catch (error) {

@@ -9,7 +9,7 @@ export async function GET(
     const supabase = await createClient()
     const { id: jobId } = await context.params
 
-    const { data: jobPosting, error: jobError } = await supabase
+    let { data: jobPosting, error: jobError } = await supabase
       .from('job_posting_templates')
       .select(`
         *,
@@ -18,6 +18,17 @@ export async function GET(
       .eq('id', jobId)
       .eq('status', 'published')
       .single()
+
+    if (jobError?.code === 'PGRST200') {
+      const retry = await supabase
+        .from('job_posting_templates')
+        .select('*')
+        .eq('id', jobId)
+        .eq('status', 'published')
+        .single()
+      jobPosting = retry.data
+      jobError = retry.error
+    }
 
     if (jobError) {
       console.error('Error fetching job posting:', jobError)

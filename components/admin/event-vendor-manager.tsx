@@ -125,6 +125,41 @@ export function EventVendorManager({ eventId, vendors, onVendorsUpdate }: EventV
     setIsDeleteDialogOpen(true)
   }
 
+  const createVendorPayload = () => {
+    const noteParts = [
+      formData.contact_name ? `Contact: ${formData.contact_name}` : '',
+      formData.requirements || '',
+      formData.notes || '',
+    ].filter(Boolean)
+
+    return {
+      vendor_name: formData.name,
+      service_type: formData.type,
+      contact_email: formData.contact_email || undefined,
+      contact_phone: formData.contact_phone || undefined,
+      status: formData.status === 'declined' ? 'declined' : formData.status === 'confirmed' ? 'confirmed' : 'pending',
+      notes: noteParts.join('\n') || undefined,
+    }
+  }
+
+  const presentVendor = (row: any): Vendor => ({
+    id: row.id,
+    name: row.vendor_name || row.name || '',
+    type: row.service_type || row.type || '',
+    contact_name: row.contact_name || (typeof row.notes === 'string' && row.notes.startsWith('Contact: ')
+      ? row.notes.replace(/^Contact:\s*/, '').split('\n')[0]
+      : '') || '',
+    contact_email: row.contact_email || '',
+    contact_phone: row.contact_phone || undefined,
+    status: row.status === 'confirmed' ? 'confirmed' : row.status === 'declined' ? 'declined' : 'pending',
+    arrival_time: row.arrival_time,
+    departure_time: row.departure_time,
+    requirements: row.requirements,
+    notes: row.notes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  })
+
   const handleSaveVendor = async () => {
     if (!formData.name || !formData.type || !formData.contact_name || !formData.contact_email) {
       toast.error("Please fill in all required fields")
@@ -133,21 +168,16 @@ export function EventVendorManager({ eventId, vendors, onVendorsUpdate }: EventV
 
     setIsLoading(true)
     try {
-      const vendorData = {
-        ...formData,
-        event_id: eventId
-      }
-
       const response = await fetch(`/api/events/${eventId}/vendors`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(vendorData)
+        body: JSON.stringify(createVendorPayload())
       })
 
       if (!response.ok) throw new Error('Failed to create vendor')
 
       const newVendor = await response.json()
-      onVendorsUpdate([...vendors, newVendor.vendor])
+      onVendorsUpdate([...vendors, presentVendor(newVendor.vendor)])
       setIsCreateDialogOpen(false)
       toast.success("Vendor added successfully")
     } catch (error) {
@@ -168,13 +198,13 @@ export function EventVendorManager({ eventId, vendors, onVendorsUpdate }: EventV
       const response = await fetch(`/api/events/${eventId}/vendors/${selectedVendor.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(createVendorPayload())
       })
 
       if (!response.ok) throw new Error('Failed to update vendor')
 
       const updatedVendor = await response.json()
-      onVendorsUpdate(vendors.map(v => v.id === selectedVendor.id ? updatedVendor.vendor : v))
+      onVendorsUpdate(vendors.map(v => v.id === selectedVendor.id ? presentVendor(updatedVendor.vendor) : v))
       setIsEditDialogOpen(false)
       setSelectedVendor(null)
       toast.success("Vendor updated successfully")

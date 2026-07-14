@@ -33,6 +33,15 @@ interface MusicItem {
   user_id: string
   moderation_status: string
   is_visible: boolean
+  is_public: boolean
+  rights_confirmed: boolean
+  access_mode: string
+  preview_mode: string
+  preview_status: string
+  storage_ready: boolean
+  preview_ready: boolean
+  listing_sync_status?: string | null
+  reports_count: number
   author_name?: string
 }
 
@@ -266,6 +275,33 @@ export default function ContentPage() {
                             <p className="text-sm font-medium text-white">{track.title || 'Untitled Track'}</p>
                             {track.genre && <p className="text-xs text-slate-400">{track.genre}</p>}
                           </div>
+                          {track.reports_count > 0 && (
+                            <Badge className="text-xs bg-orange-500/20 text-orange-300 border-orange-500/30">
+                              {track.reports_count} report{track.reports_count === 1 ? '' : 's'}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-1.5">
+                          <Badge className={`text-xs ${track.is_public ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'bg-slate-500/20 text-slate-400 border-slate-500/30'}`}>
+                            {track.is_public ? 'Public' : 'Draft'}
+                          </Badge>
+                          <Badge className={`text-xs ${track.rights_confirmed ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}`}>
+                            {track.rights_confirmed ? 'Rights confirmed' : 'Rights missing'}
+                          </Badge>
+                          <Badge className="text-xs bg-slate-500/20 text-slate-300 border-slate-500/30">
+                            {track.access_mode === 'paid' ? 'Paid' : 'Free'}
+                          </Badge>
+                          <Badge className={`text-xs ${track.storage_ready ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-red-500/20 text-red-300 border-red-500/30'}`}>
+                            {track.storage_ready ? 'Full audio ready' : 'Full audio missing'}
+                          </Badge>
+                          <Badge className={`text-xs ${track.preview_ready ? 'bg-green-500/20 text-green-300 border-green-500/30' : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30'}`}>
+                            {track.preview_mode === 'clip' ? `Sample ${track.preview_status}` : 'Full preview'}
+                          </Badge>
+                          {track.listing_sync_status && (
+                            <Badge className="text-xs bg-violet-500/20 text-violet-300 border-violet-500/30">
+                              Listing {track.listing_sync_status}
+                            </Badge>
+                          )}
                         </div>
                         <div className="mt-2 flex items-center justify-between flex-wrap gap-2">
                           <div className="flex items-center gap-2">

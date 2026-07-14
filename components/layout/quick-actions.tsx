@@ -180,7 +180,7 @@ const quickActionsConfig: Record<string, QuickAction[]> = {
       id: 'update-epk',
       label: 'Update EPK',
       icon: Music,
-      href: '/artist/epk/edit',
+      href: '/artist/epk',
       description: 'Electronic press kit',
       color: 'text-pink-400'
     },

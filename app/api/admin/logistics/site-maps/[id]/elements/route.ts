@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { getSiteMapAccess, requireSiteMapAccess } from "@/lib/site-map/access"
 
 export async function GET(
   request: NextRequest,
@@ -11,6 +12,11 @@ export async function GET(
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id } = await params
+    const access = await getSiteMapAccess(supabase, id, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'read')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
 
     const { data: elements, error } = await supabase
       .from('site_map_elements')
@@ -40,6 +46,11 @@ export async function POST(
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
 
     const { id } = await params
+    const access = await getSiteMapAccess(supabase, id, user.id)
+    const accessCheck = requireSiteMapAccess(access, 'edit')
+    if (!accessCheck.ok) {
+      return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
+    }
 
     const body = await request.json()
 

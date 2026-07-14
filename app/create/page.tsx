@@ -30,8 +30,13 @@ import {
   Zap,
   ChevronRight,
   Crown,
-  Briefcase
+  Briefcase,
+  ExternalLink
 } from "lucide-react"
+import Link from "next/link"
+import { isOrganizationType } from "@/lib/accounts/account-types"
+import { getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
+import { slugifyOrganizationName, normalizeOrganizationSubtype } from "@/lib/organizations/org-subtypes"
 
 interface CreateOption {
   id: string
@@ -73,8 +78,8 @@ const createOptions: CreateOption[] = [
   },
   {
     id: 'organizer-account',
-    title: 'Organizer Account',
-    description: 'For event organizers, tour managers, and agencies',
+    title: 'Organization Account',
+    description: 'For bands, labels, promoters, agencies, and production companies',
     icon: Crown,
     gradient: 'from-amber-500 via-orange-500 to-red-500',
     features: [
@@ -100,6 +105,7 @@ export default function CreatePage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [orgSuccessPaths, setOrgSuccessPaths] = useState<{ publicPath: string | null; adminPath: string } | null>(null)
   
   // Form data
   const [artistData, setArtistData] = useState({
@@ -136,6 +142,7 @@ export default function CreatePage() {
     organization_name: '',
     description: '',
     organization_type: '',
+    url_slug: '',
     contact_info: {
       phone: '',
       email: '',
@@ -166,6 +173,8 @@ export default function CreatePage() {
           setSelectedOption('venue-account')
           break
         case 'admin':
+        case 'organization':
+        case 'organizer':
           setSelectedOption('organizer-account')
           break
       }
@@ -250,6 +259,7 @@ export default function CreatePage() {
     e.preventDefault()
     setError(null)
     setSuccess(null)
+    setOrgSuccessPaths(null)
     setIsSubmitting(true)
 
     try {
@@ -263,10 +273,18 @@ export default function CreatePage() {
         })
         setSuccess('Venue account created successfully! 🏢')
       } else if (selectedOption === 'organizer-account') {
-        console.log('🚀 [Create Page] Creating organizer account...')
-        await createOrganizerAccount(organizerData)
-        console.log('✅ [Create Page] Organizer account creation completed')
-        setSuccess('Organizer account created successfully! 👑 You can now access it from your account switcher.')
+        const slug =
+          organizerData.url_slug.trim() ||
+          slugifyOrganizationName(organizerData.organization_name)
+        const subtype = normalizeOrganizationSubtype(organizerData.organization_type)
+        await createOrganizerAccount({
+          ...organizerData,
+          url_slug: slug,
+          subtype,
+        })
+        const publicPath = getOrganizationPublicProfilePath(slug)
+        setOrgSuccessPaths({ publicPath, adminPath: '/admin/dashboard' })
+        setSuccess('Organization account created. Open your public page or Admin Work Mode from the links below.')
       }
       
       // Give a moment for the accounts to refresh before showing success
@@ -293,6 +311,7 @@ export default function CreatePage() {
         organization_name: '',
         description: '',
         organization_type: '',
+        url_slug: '',
         contact_info: { phone: '', email: '', website: '' },
         social_links: { instagram: '', linkedin: '', website: '' },
         specialties: []
@@ -406,8 +425,23 @@ export default function CreatePage() {
           {success && (
             <Alert className="mb-8 bg-green-500/20 border-green-500/50 backdrop-blur-sm">
               <CheckCircle className="h-5 w-5 text-green-400" />
-              <AlertDescription className="text-green-200">
-                {success}
+              <AlertDescription className="text-green-200 space-y-3">
+                <p>{success}</p>
+                {orgSuccessPaths && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {orgSuccessPaths.publicPath && (
+                      <Button asChild size="sm" variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
+                        <Link href={orgSuccessPaths.publicPath}>
+                          View public page
+                          <ExternalLink className="ml-1.5 h-3.5 w-3.5" />
+                        </Link>
+                      </Button>
+                    )}
+                    <Button asChild size="sm" className="bg-amber-500/90 text-white hover:bg-amber-500">
+                      <Link href={orgSuccessPaths.adminPath}>Open Admin dashboard</Link>
+                    </Button>
+                  </div>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -451,6 +485,11 @@ export default function CreatePage() {
                           'from-indigo-500 to-blue-500',
                           'from-cyan-500 to-teal-500'
                         ],
+                        organization: [
+                          'from-amber-500 to-orange-500',
+                          'from-orange-500 to-red-500',
+                          'from-yellow-500 to-amber-500'
+                        ],
                         admin: [
                           'from-amber-500 to-orange-500',
                           'from-orange-500 to-red-500',
@@ -458,7 +497,8 @@ export default function CreatePage() {
                         ],
                         general: ['from-gray-500 to-slate-500']
                       }
-                      const typeGradients = gradients[accountType as keyof typeof gradients] || gradients.general
+                      const typeKey = isOrganizationType(accountType) ? 'organization' : accountType
+                      const typeGradients = gradients[typeKey as keyof typeof gradients] || gradients.general
                       return typeGradients[index % typeGradients.length]
                     }
 
@@ -474,7 +514,7 @@ export default function CreatePage() {
                           <div className={`w-10 h-10 bg-gradient-to-br ${getAccountGradient(account.account_type, index)} rounded-lg flex items-center justify-center`}>
                             {account.account_type === 'artist' && <Music className="h-5 w-5 text-white" />}
                             {account.account_type === 'venue' && <Building className="h-5 w-5 text-white" />}
-                            {account.account_type === 'admin' && <Crown className="h-5 w-5 text-white" />}
+                            {isOrganizationType(account.account_type) && <Crown className="h-5 w-5 text-white" />}
                             {account.account_type === 'general' && <User className="h-5 w-5 text-white" />}
                           </div>
                           <div className="flex-1">
@@ -486,7 +526,7 @@ export default function CreatePage() {
                             </h4>
                             <div className="flex items-center gap-2 mt-1">
                               <p className="text-xs text-gray-400 capitalize">
-                                {account.account_type === 'admin' ? 'Organizer' : account.account_type}
+                                {isOrganizationType(account.account_type) ? 'Organization' : account.account_type}
                               </p>
                               {accountTypeCount > 1 && (
                                 <Badge variant="outline" className="text-xs px-1.5 py-0 bg-white/10 border-white/20 text-gray-300">
@@ -509,9 +549,9 @@ export default function CreatePage() {
                             {account.profile_data.address}
                           </p>
                         )}
-                        {account.account_type === 'admin' && account.profile_data?.organization_type && (
+                        {isOrganizationType(account.account_type) && (account.profile_data?.subtype || account.profile_data?.organization_type) && (
                           <p className="text-xs text-gray-400 mb-2 capitalize">
-                            {account.profile_data.organization_type.replace('_', ' ')}
+                            {String(account.profile_data?.subtype || account.profile_data?.organization_type).replace(/_/g, ' ')}
                           </p>
                         )}
                         
@@ -567,13 +607,13 @@ export default function CreatePage() {
                 <h2 className="text-3xl font-bold text-white mb-2">
                   {selectedOption === 'artist-account' ? 'Create Artist Account' : 
                    selectedOption === 'venue-account' ? 'Create Venue Account' : 
-                   'Create Organizer Account'}
+                   'Create Organization Account'}
                 </h2>
                 <p className="text-gray-400">
                   Fill out the information below to set up your {
                     selectedOption === 'artist-account' ? 'artist' : 
                     selectedOption === 'venue-account' ? 'venue' : 
-                    'organizer'
+                    'organization'
                   } account
                 </p>
               </div>
@@ -780,14 +820,48 @@ export default function CreatePage() {
                             required
                           >
                             <option value="" className="bg-slate-800 text-white">Select type...</option>
-                            <option value="event_management" className="bg-slate-800 text-white">Event Management Company</option>
-                            <option value="talent_agency" className="bg-slate-800 text-white">Talent Agency</option>
-                            <option value="tour_management" className="bg-slate-800 text-white">Tour Management</option>
-                            <option value="booking_agency" className="bg-slate-800 text-white">Booking Agency</option>
-                            <option value="festival_organizer" className="bg-slate-800 text-white">Festival Organizer</option>
+                            <option value="band" className="bg-slate-800 text-white">Band</option>
+                            <option value="label" className="bg-slate-800 text-white">Record Label</option>
+                            <option value="promoter" className="bg-slate-800 text-white">Promoter</option>
+                            <option value="performance_agency" className="bg-slate-800 text-white">Performance / Talent Agency</option>
+                            <option value="staffing_agency" className="bg-slate-800 text-white">Staffing Agency</option>
                             <option value="production_company" className="bg-slate-800 text-white">Production Company</option>
-                            <option value="other" className="bg-slate-800 text-white">Other</option>
+                            <option value="rental_company" className="bg-slate-800 text-white">Rental Company</option>
+                            <option value="event_management" className="bg-slate-800 text-white">Event Management</option>
+                            <option value="festival_organizer" className="bg-slate-800 text-white">Festival Organizer</option>
+                            <option value="generic" className="bg-slate-800 text-white">Organization (other)</option>
                           </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="url_slug" className="text-white font-medium">
+                            Public URL slug
+                          </Label>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-gray-400 shrink-0">/organization/</span>
+                            <Input
+                              id="url_slug"
+                              value={organizerData.url_slug}
+                              onChange={(e) =>
+                                setOrganizerData({
+                                  ...organizerData,
+                                  url_slug: e.target.value
+                                    .toLowerCase()
+                                    .replace(/[^a-z0-9-]/g, '')
+                                    .slice(0, 40),
+                                })
+                              }
+                              className="bg-white/10 border-white/20 text-white placeholder-gray-400 backdrop-blur-sm focus:border-purple-500 focus:ring-purple-500/50"
+                              placeholder={
+                                organizerData.organization_name
+                                  ? slugifyOrganizationName(organizerData.organization_name)
+                                  : 'your-org-slug'
+                              }
+                            />
+                          </div>
+                          <p className="text-xs text-gray-400">
+                            Optional. Leave blank to generate from the organization name.
+                          </p>
                         </div>
 
                         <div className="space-y-2">

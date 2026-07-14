@@ -627,7 +627,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     async (profileId: string, accountType: string): Promise<boolean> => {
       const targetAccount = applyActiveAccount(profileId, accountType)
       if (!targetAccount) {
-        setError(`No account found with id ${profileId} and type ${accountType}`)
+        console.warn(`[MultiAccount] No account found with id ${profileId} and type ${accountType}`)
         return false
       }
 

@@ -1,15 +1,13 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
+import { useParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
-import { ArrowLeft, Loader2, Map } from 'lucide-react'
-import { SiteMapEditor } from '@/components/admin/logistics/site-map/site-map-editor'
+import { Loader2, Map } from 'lucide-react'
+import { PublicSiteMapViewer } from '@/components/site-maps/public-site-map-viewer'
 
 export default function SharedSiteMapPage() {
   const params = useParams()
-  const router = useRouter()
   const token = params.token as string
   const [isLoading, setIsLoading] = useState(true)
   const [siteMap, setSiteMap] = useState<any | null>(null)
@@ -55,15 +53,5 @@ export default function SharedSiteMapPage() {
     )
   }
 
-  return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="p-3">
-        <Button variant="ghost" className="text-slate-300" onClick={() => router.back()}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      </div>
-      <SiteMapEditor siteMap={siteMap} onClose={() => router.back()} isReadOnly={true} />
-    </div>
-  )
+  return <PublicSiteMapViewer siteMap={siteMap} />
 }

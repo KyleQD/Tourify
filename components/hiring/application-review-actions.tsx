@@ -1,4 +1,4 @@
-import { CheckCircle, MessageSquare, Star, XCircle } from "lucide-react"
+import { CheckCircle, ListChecks, MessageSquare, XCircle } from "lucide-react"
 import type { MouseEvent } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -42,7 +42,9 @@ export function ApplicationReviewActions({
         variant={approveVariant}
         onClick={onApprove}
         className={cn(
-          approveVariant === "default" ? "bg-green-600 hover:bg-green-700" : undefined,
+          approveVariant === "default"
+            ? "rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-emerald-500"
+            : undefined,
           approveClassName
         )}
       >
@@ -53,19 +55,40 @@ export function ApplicationReviewActions({
         size={size}
         variant={rejectVariant}
         onClick={onReject}
-        className={cn(rejectClassName)}
+        className={cn(
+          rejectVariant === "destructive"
+            ? "rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 text-white shadow-lg shadow-rose-500/20 hover:from-rose-500 hover:to-rose-600"
+            : undefined,
+          rejectClassName
+        )}
       >
         <XCircle className={cn("h-4 w-4", iconOnly ? "" : "mr-2")} />
         {iconOnly ? null : "Reject"}
       </Button>
       {onShortlist ? (
-        <Button size={size} variant="outline" onClick={onShortlist} className={cn(shortlistClassName)}>
-          <Star className={cn("h-4 w-4", iconOnly ? "" : "mr-2")} />
+        <Button
+          size={size}
+          variant="outline"
+          onClick={onShortlist}
+          className={cn(
+            "rounded-xl border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white",
+            shortlistClassName
+          )}
+        >
+          <ListChecks className={cn("h-4 w-4", iconOnly ? "" : "mr-2")} />
           {iconOnly ? null : "Shortlist"}
         </Button>
       ) : null}
       {onMessage ? (
-        <Button size={size} variant="outline" onClick={onMessage} className={cn(messageClassName)}>
+        <Button
+          size={size}
+          variant="outline"
+          onClick={onMessage}
+          className={cn(
+            "rounded-xl border-white/15 bg-white/5 text-slate-200 hover:bg-white/10 hover:text-white",
+            messageClassName
+          )}
+        >
           <MessageSquare className={cn("h-4 w-4", iconOnly ? "" : "mr-2")} />
           {iconOnly ? null : "Send Message"}
         </Button>

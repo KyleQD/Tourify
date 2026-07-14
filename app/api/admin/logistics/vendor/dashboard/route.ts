@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { checkAdminPermissions } from "@/lib/auth/api-auth"
 
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const isAdmin = await checkAdminPermissions(user)
+    if (!isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+
     const { searchParams } = new URL(request.url)
     const vendorId = searchParams.get("vendorId")
     const siteMapId = searchParams.get("siteMapId")

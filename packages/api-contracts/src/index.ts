@@ -85,7 +85,12 @@ const discoverIntentSchema = z.union([
 const discoverProfileSchema = z.object({
   id: z.string(),
   username: z.string(),
-  account_type: z.union([z.literal("artist"), z.literal("venue"), z.literal("general")]),
+  account_type: z.union([
+    z.literal("artist"),
+    z.literal("venue"),
+    z.literal("organization"),
+    z.literal("general"),
+  ]),
   display_name: z.string(),
   avatar_url: z.string().nullable().optional(),
   bio: z.string().optional(),
@@ -101,6 +106,8 @@ const discoverProfileSchema = z.object({
   creator_type: z.string().nullable().optional(),
   service_offerings: z.array(z.string()).optional(),
   available_for_hire: z.boolean().optional(),
+  owner_user_id: z.string().nullable().optional(),
+  account_id: z.string().nullable().optional(),
 })
 
 const discoverEventSchema = z.object({
@@ -183,6 +190,7 @@ const discoverMusicTrackSchema = z.object({
   title: z.string(),
   artist_name: z.string(),
   artist_id: z.string().optional(),
+  artist_username: z.string().nullable().optional(),
   cover_art_url: z.string().nullable().optional(),
   file_url: z.string().optional(),
   genre: z.string().nullable().optional(),
@@ -200,6 +208,7 @@ export const discoverResponseSchema = z.object({
     people: z.array(discoverProfileSchema),
     artists: z.array(discoverProfileSchema).optional(),
     venues: z.array(discoverProfileSchema).optional(),
+    organizations: z.array(discoverProfileSchema).optional(),
     suggestions: z.array(discoverProfileSchema).optional(),
     hire_matches: z.array(discoverProfileSchema).optional(),
     new_music: z.array(discoverMusicTrackSchema).optional(),

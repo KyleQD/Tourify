@@ -65,38 +65,93 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const runInitialSessionCheck = useCallback(async () => {
     const started = typeof performance !== 'undefined' ? performance.now() : 0
     authDevLog('[Auth] Checking initial auth...')
+    let sessionHydrated = false
+    const AUTH_CHECK_TIMEOUT_MS = 8_000
+
+    function withTimeout<T>(promise: PromiseLike<T>, label: string): Promise<T> {
+      return new Promise<T>((resolve, reject) => {
+        const timeoutId = globalThis.setTimeout(() => {
+          reject(new Error(`[Auth] ${label} timed out after ${AUTH_CHECK_TIMEOUT_MS}ms`))
+        }, AUTH_CHECK_TIMEOUT_MS)
+        Promise.resolve(promise).then(
+          (value) => {
+            globalThis.clearTimeout(timeoutId)
+            resolve(value)
+          },
+          (error) => {
+            globalThis.clearTimeout(timeoutId)
+            reject(error)
+          },
+        )
+      })
+    }
+
     try {
-      // No artificial timeout: real accounts must not fail a slow cold refresh / Safari.
-      // `onAuthStateChange` + `authListenerHydratedRef` handle races if this is slow.
-      const { data: { user: nextUser }, error } = await supabase.auth.getUser()
+      // Seed from local/cookie session first so nav and account UI hydrate immediately.
+      // getUser() still validates with the auth server afterward.
+      const { data: { session: existingSession }, error: sessionError } =
+        await withTimeout(supabase.auth.getSession(), 'getSession')
+
+      if (sessionError)
+        console.warn('[Auth] getSession warning:', sessionError.message)
+
+      if (existingSession?.user) {
+        sessionHydrated = true
+        authListenerHydratedRef.current = true
+        setSession(existingSession)
+        setUser(existingSession.user)
+        setAuthError(null)
+        setLoading(false)
+        authDevLog(
+          '[Auth] Session seeded:',
+          `User ${existingSession.user.id}`,
+          `(${(performance.now() - started).toFixed(0)}ms)`,
+        )
+      }
+
+      const { data: { user: nextUser }, error } = await withTimeout(
+        supabase.auth.getUser(),
+        'getUser',
+      )
 
       if (error) {
         console.error('[Auth] Auth check error:', error)
-        if (authListenerHydratedRef.current) {
+        if (authListenerHydratedRef.current || sessionHydrated) {
           console.warn(
-            '[Auth] getUser reported error but listener already hydrated; keeping auth state:',
+            '[Auth] getUser reported error but session already hydrated; keeping auth state:',
             error.message,
           )
           setAuthError(null)
         } else {
           setAuthError(error.message)
+          setSession(null)
           setUser(null)
         }
-      } else {
+      } else if (nextUser) {
         setAuthError(null)
+        authListenerHydratedRef.current = true
+        setUser(nextUser)
+        if (!existingSession)
+          setSession((prev) => prev ?? null)
         authDevLog(
           '[Auth] Initial auth:',
-          nextUser ? `User ${nextUser.id}` : 'No user',
+          `User ${nextUser.id}`,
           `(${(performance.now() - started).toFixed(0)}ms)`,
         )
-        setUser(nextUser)
-        if (nextUser) authListenerHydratedRef.current = true
+      } else if (!sessionHydrated && !authListenerHydratedRef.current) {
+        setAuthError(null)
+        setSession(null)
+        setUser(null)
+        authDevLog(
+          '[Auth] Initial auth: No user',
+          `(${(performance.now() - started).toFixed(0)}ms)`,
+        )
       }
     } catch (error) {
       console.error('[Auth] Auth check failed:', error)
-      if (authListenerHydratedRef.current) {
+      if (authListenerHydratedRef.current || sessionHydrated) {
         console.warn(
-          '[Auth] getUser failed or timed out but listener already hydrated session; keeping user',
+          '[Auth] getUser failed or timed out but session already hydrated; keeping user',
         )
         setAuthError(null)
       } else {
@@ -105,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? error.message
             : 'Unable to verify your session. Try refreshing the page.',
         )
+        setSession(null)
         setUser(null)
       }
     } finally {
@@ -119,11 +175,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [runInitialSessionCheck])
 
   useEffect(() => {
-    // Register listener before getUser so INITIAL_SESSION can hydrate the UI
-    // (and authListenerHydratedRef) before a slow or timing-out getUser completes.
+    let cancelled = false
+
+    // Sync callback only — async work inside onAuthStateChange deadlocks the auth lock
+    // (getSession/from hang; EPK/music client queries never return).
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       authDevLog('[Auth] State change:', event, session ? `User ${session.user?.id}` : 'No session')
 
       authListenerHydratedRef.current = Boolean(session)
@@ -131,19 +189,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null)
       if (session) setAuthError(null)
 
-      // Unblock the app as soon as the listener reports state — `getUser()` can lag
-      // while INITIAL_SESSION / SIGNED_IN already applied the session.
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || session) {
         setLoading(false)
       }
 
-      // Don't automatically redirect on sign in - let components handle this
-      // The middleware will handle protecting routes and the login page will redirect after successful sign in
-
       if (event === 'SIGNED_OUT') {
         authListenerHydratedRef.current = false
         authDevLog('[Auth] User signed out, clearing local data')
-        // Safari strict privacy modes can block storage APIs.
         try {
           localStorage.removeItem('onboardingData')
         } catch (storageError) {
@@ -161,9 +213,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    void runInitialSessionCheck()
+    // Validate after the listener is registered so we do not race initialize/lock.
+    queueMicrotask(() => {
+      if (!cancelled) {
+        runInitialSessionCheck().catch(() => {})
+      }
+    })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      cancelled = true
+      subscription.unsubscribe()
+    }
   }, [router, runInitialSessionCheck])
 
   const signIn = async (email: string, password: string) => {

@@ -34,6 +34,30 @@ export interface ActingContext {
 
 type OwnershipResult = { owned: boolean; reason?: string }
 
+async function verifyDelegatedAccess(
+  supabase: any,
+  userId: string,
+  profileId: string,
+  accountType: ProfileType
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('account_relationships')
+      .select('permissions')
+      .eq('owned_profile_id', profileId)
+      .eq('owner_user_id', userId)
+      .maybeSingle()
+
+    if (!data) return false
+    const canPost = (data.permissions as Record<string, unknown> | null | undefined)?.can_post
+    if (canPost === false) return false
+    if (accountType === 'general') return false
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function verifyOwnership(
   supabase: any,
   userId: string,
@@ -51,7 +75,8 @@ async function verifyOwnership(
       .eq('id', profileId)
       .eq('user_id', userId)
       .maybeSingle()
-    return { owned: Boolean(data) }
+    if (data) return { owned: true }
+    return { owned: await verifyDelegatedAccess(supabase, userId, profileId, accountType) }
   }
 
   if (accountType === 'venue') {
@@ -61,17 +86,41 @@ async function verifyOwnership(
       .eq('id', profileId)
       .eq('user_id', userId)
       .maybeSingle()
-    return { owned: Boolean(data) }
+    if (data) return { owned: true }
+    return { owned: await verifyDelegatedAccess(supabase, userId, profileId, accountType) }
   }
 
   if (isOrganizationType(accountType)) {
     const { data } = await supabase
       .from('organizer_accounts')
-      .select('id')
+      .select('id, ops_org_id')
       .eq('id', profileId)
-      .eq('user_id', userId)
       .maybeSingle()
-    return { owned: Boolean(data) }
+
+    if (data) {
+      const { data: owned } = await supabase
+        .from('organizer_accounts')
+        .select('id')
+        .eq('id', profileId)
+        .eq('user_id', userId)
+        .maybeSingle()
+      if (owned) return { owned: true }
+
+      if (data.ops_org_id) {
+        const { data: member } = await supabase
+          .from('org_members')
+          .select('role')
+          .eq('org_id', data.ops_org_id)
+          .eq('user_id', userId)
+          .maybeSingle()
+        if (member && ['owner', 'admin', 'tour_manager', 'production'].includes(String(member.role)))
+          return { owned: true }
+      }
+
+      return { owned: await verifyDelegatedAccess(supabase, userId, profileId, accountType) }
+    }
+
+    return { owned: await verifyDelegatedAccess(supabase, userId, profileId, accountType) }
   }
 
   return { owned: false, reason: `Unknown account type: ${accountType}` }
@@ -203,3 +252,6 @@ export async function recordActingSnapshot(
     // Audit is best-effort; never block the mutation.
   }
 }
+
+export { resolveHiringEntity, createLegacyVenueHiringEntity } from '@/lib/auth/hiring-entity-resolver'
+export type { ResolveHiringEntityArgs } from '@/lib/auth/hiring-entity-resolver'

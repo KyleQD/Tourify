@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
+import { recordMusicEvent } from "@/lib/music/music-access"
 
 const reportSchema = z.object({
   musicId: z.string().uuid(),
@@ -64,6 +65,16 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create content report:", insertError)
       return NextResponse.json({ error: "Failed to submit report" }, { status: 500 })
     }
+
+    await recordMusicEvent({
+      supabase,
+      musicId: payload.musicId,
+      artistUserId: track.user_id,
+      actorUserId: user.id,
+      eventType: "report",
+      source: "api_music_report",
+      metadata: { reason: payload.reason },
+    })
 
     return NextResponse.json({
       success: true,

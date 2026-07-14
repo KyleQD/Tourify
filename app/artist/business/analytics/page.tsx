@@ -48,6 +48,7 @@ import {
   ComposedChart
 } from "recharts"
 import Link from "next/link"
+import { isMarketplaceMerchAnalyticsEnabled } from "@/lib/marketplace/feature-flags"
 
 interface BusinessAnalytics {
   overview: {
@@ -191,13 +192,35 @@ export default function BusinessAnalytics() {
         other: sumByType(tx, ['income'])
       }
 
-      // Top products heuristic: active merch sorted by price desc
-      const topProducts = (merchRes.data || []).slice(0, 5).map((item: any) => ({
+      // Top products heuristic: active merch sorted by price desc (legacy default)
+      let topProducts = (merchRes.data || []).slice(0, 5).map((item: any) => ({
         name: item.name || 'Product',
         revenue: Number(item.price) || 0,
         units: item.inventory_count || 0,
         growth: 0
       }))
+
+      if (isMarketplaceMerchAnalyticsEnabled()) {
+        try {
+          const analyticsRes = await fetch("/api/marketplace/analytics?range=90d", {
+            credentials: "include",
+            cache: "no-store",
+          })
+          const analyticsBody = await analyticsRes.json().catch(() => ({}))
+          if (analyticsRes.ok && analyticsBody.data) {
+            revenueStreams.merchandise = Number(analyticsBody.data.grossRevenue || 0)
+            totalRevenue = Math.max(totalRevenue, Number(analyticsBody.data.grossRevenue || 0) + revenueStreams.events + revenueStreams.streaming + revenueStreams.licensing + revenueStreams.other)
+            topProducts = (analyticsBody.data.topListings || []).slice(0, 5).map((item: any) => ({
+              name: item.title || "Listing",
+              revenue: Number(item.revenue || 0),
+              units: Number(item.unitsSold || 0),
+              growth: 0,
+            }))
+          }
+        } catch (error) {
+          console.warn("Marketplace merch analytics unavailable; using legacy merchandise metrics", error)
+        }
+      }
 
       const campaigns = campaignsRes.data || []
       const marketingROI = campaigns.map((c: { name?: string; spent?: unknown; budget?: unknown }) => {

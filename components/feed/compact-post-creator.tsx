@@ -22,6 +22,7 @@ import { Database } from '@/lib/database.types'
 import { toast } from 'sonner'
 import { useRouteAccountContext } from '@/hooks/use-route-account-context'
 import { useActingContext } from '@/hooks/use-acting-context'
+import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 
 interface CompactPostCreatorProps {
   onPostCreated?: (post: any) => void
@@ -243,6 +244,7 @@ export function CompactPostCreator({
         </Avatar>
         
         <div className="flex-1 space-y-4">
+          <PostingAccountSelector className="border-slate-700/50 bg-slate-900/40" />
           {/* Artist Info */}
           <div className="flex items-center gap-2">
             <span className="font-medium text-white">

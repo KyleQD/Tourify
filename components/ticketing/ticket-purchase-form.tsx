@@ -1,14 +1,16 @@
 "use client"
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { useToast } from '@/components/ui/use-toast'
-import { Loader2, Ticket, CreditCard, CheckCircle, AlertCircle, Tag, Users, Share2, Gift } from 'lucide-react'
+import { Loader2, Ticket, CreditCard, CheckCircle, AlertCircle, Tag, Share2, Gift } from 'lucide-react'
 import { ticketingService } from '@/lib/services/ticketing.service'
 import { type TicketType, type PromoCode } from '@/types/ticketing'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
@@ -20,6 +22,13 @@ interface Event {
   location: string
 }
 
+interface EventTicketingConfig {
+  refund_policy: string | null
+  terms_text: string | null
+  transfer_policy: string | null
+  resale_enabled: boolean
+}
+
 interface TicketPurchaseFormProps {
   eventId: string
   event: Event
@@ -27,7 +36,9 @@ interface TicketPurchaseFormProps {
 }
 
 export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchaseFormProps) {
+  const { toast } = useToast()
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
+  const [ticketingConfig, setTicketingConfig] = useState<EventTicketingConfig | null>(null)
   const [selectedTicketType, setSelectedTicketType] = useState<TicketType | null>(null)
   const [quantity, setQuantity] = useState(1)
   const [customerInfo, setCustomerInfo] = useState({
@@ -38,12 +49,12 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
   const [promoCode, setPromoCode] = useState('')
   const [referralCode, setReferralCode] = useState('')
   const [validatedPromoCode, setValidatedPromoCode] = useState<PromoCode | null>(null)
+  const [showPromoSection, setShowPromoSection] = useState(false)
+  const [showReferralSection, setShowReferralSection] = useState(false)
+  const [termsAccepted, setTermsAccepted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [purchasing, setPurchasing] = useState(false)
   const [availability, setAvailability] = useState<{ available: number; can_purchase: boolean } | null>(null)
-  const [showPromoSection, setShowPromoSection] = useState(false)
-  const [showReferralSection, setShowReferralSection] = useState(false)
-  const { toast } = useToast()
 
   useEffect(() => {
     fetchTicketTypes()
@@ -63,6 +74,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
 
       if (response.ok) {
         setTicketTypes(data.ticket_types || [])
+        setTicketingConfig(data.ticketing_config ?? null)
       } else {
         toast({
           title: 'Error',
@@ -100,9 +112,13 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
       const data = await response.json()
 
       if (response.ok) {
-        setAvailability(data.availability)
+        setAvailability({
+          available: data.available ?? 0,
+          can_purchase: Boolean(data.can_purchase),
+        })
       } else {
         console.error('Availability check failed:', data.error)
+        setAvailability(null)
       }
     } catch (error) {
       console.error('Error checking availability:', error)
@@ -166,6 +182,15 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
       return
     }
 
+    if (!termsAccepted) {
+      toast({
+        title: 'Terms required',
+        description: 'Please accept the Ticket Buyer Terms and organizer policies to continue',
+        variant: 'destructive'
+      })
+      return
+    }
+
     setPurchasing(true)
 
     try {
@@ -178,10 +203,16 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
         quantity,
         promo_code: promoCode || undefined,
         referral_code: referralCode || undefined,
-        social_media_share: true // Enable social sharing by default
+        social_media_share: true,
+        terms_accepted: true,
       }
 
       const result = await ticketingService.purchaseTickets(purchaseData)
+
+      if ((result as any).checkout_url) {
+        window.location.href = (result as any).checkout_url
+        return
+      }
 
       toast({
         title: 'Purchase Successful!',
@@ -196,6 +227,7 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
       setReferralCode('')
       setValidatedPromoCode(null)
       setAvailability(null)
+      setTermsAccepted(false)
 
       onSuccess?.(result.order_number)
 
@@ -204,11 +236,20 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
 
     } catch (error: any) {
       console.error('Purchase error:', error)
-      toast({
-        title: 'Purchase Failed',
-        description: error.message || 'Failed to complete purchase. Please try again.',
-        variant: 'destructive'
-      })
+      const message = String(error.message || '')
+      if (message.includes('Sign in') || message.includes('AUTH_REQUIRED') || message.includes('401')) {
+        toast({
+          title: 'Sign in required',
+          description: 'Please sign in to purchase tickets so they appear in your wallet.',
+          variant: 'destructive',
+        })
+      } else {
+        toast({
+          title: 'Purchase Failed',
+          description: error.message || 'Failed to complete purchase. Please try again.',
+          variant: 'destructive'
+        })
+      }
     } finally {
       setPurchasing(false)
     }
@@ -233,8 +274,22 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
       (validatedPromoCode.discount_type === 'percentage' 
         ? (subtotal * validatedPromoCode.discount_value / 100)
         : validatedPromoCode.discount_value) : 0
-    
-    return Math.max(0, subtotal - discount)
+
+    const afterDiscount = Math.max(0, subtotal - discount)
+    // Default $1/ticket platform fee + ~3% processing (matches server when v2 on)
+    const platformFee = quantity * 1
+    const processingFee = Math.round((afterDiscount + platformFee) * 0.03 * 100) / 100
+    return Math.max(0, afterDiscount + platformFee + processingFee)
+  }
+
+  const getFeePreviewLines = () => {
+    if (!selectedTicketType) return null
+    const subtotal = selectedTicketType.price * quantity
+    const discount = getDiscountAmount()
+    const afterDiscount = Math.max(0, subtotal - discount)
+    const platformFee = quantity * 1
+    const processingFee = Math.round((afterDiscount + platformFee) * 0.03 * 100) / 100
+    return { subtotal, discount, platformFee, processingFee, total: afterDiscount + platformFee + processingFee }
   }
 
   const getDiscountAmount = () => {
@@ -507,6 +562,23 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
                   </div>
                 )}
 
+                {(() => {
+                  const fees = getFeePreviewLines()
+                  if (!fees) return null
+                  return (
+                    <>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Platform fee</span>
+                        <span>{formatPrice(fees.platformFee)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Processing fee</span>
+                        <span>{formatPrice(fees.processingFee)}</span>
+                      </div>
+                    </>
+                  )
+                })()}
+
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
@@ -535,12 +607,50 @@ export function TicketPurchaseForm({ eventId, event, onSuccess }: TicketPurchase
             </CardContent>
           </Card>
 
+          {/* Organizer terms & platform buyer terms */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Terms &amp; Policies</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {ticketingConfig?.refund_policy ? (
+                <div className="rounded-md border border-border bg-muted/40 p-3 text-sm">
+                  <p className="font-medium mb-1">Organizer refund policy</p>
+                  <p className="text-muted-foreground whitespace-pre-wrap">{ticketingConfig.refund_policy}</p>
+                </div>
+              ) : null}
+              {ticketingConfig?.terms_text ? (
+                <div className="rounded-md border border-border bg-muted/40 p-3 text-sm max-h-40 overflow-y-auto">
+                  <p className="font-medium mb-1">Organizer terms</p>
+                  <p className="text-muted-foreground whitespace-pre-wrap">{ticketingConfig.terms_text}</p>
+                </div>
+              ) : null}
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="ticket-terms-accepted"
+                  checked={termsAccepted}
+                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                />
+                <Label htmlFor="ticket-terms-accepted" className="text-sm leading-relaxed cursor-pointer">
+                  I agree to the{' '}
+                  <Link href="/legal/ticket-buyer-terms" target="_blank" className="text-primary underline">
+                    Ticket Buyer Terms
+                  </Link>
+                  {ticketingConfig?.terms_text || ticketingConfig?.refund_policy
+                    ? ' and the organizer policies shown above'
+                    : ''}
+                  .
+                </Label>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Purchase Button */}
           <Button
             type="submit"
             size="lg"
             className="w-full"
-            disabled={!availability?.can_purchase || purchasing}
+            disabled={!availability?.can_purchase || purchasing || !termsAccepted}
           >
             {purchasing ? (
               <>

@@ -1,29 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { buildUniqueEventSlug } from '../../_lib/events-v2-admin'
+import {
+  ensureAdminOrgScope,
+  ensureEventOrganizerRole,
+  verifyEventsV2Row,
+} from '../../_lib/admin-event-persistence'
 import { logAuditEvent } from '@/lib/audit'
-
-async function resolveOrgId(
-  supabase: { from: (t: string) => any },
-  userId: string,
-  tourId?: string | null,
-): Promise<string | null> {
-  if (tourId) {
-    const { data: tour } = await supabase
-      .from('tours')
-      .select('org_id')
-      .eq('id', tourId)
-      .maybeSingle()
-    if (tour?.org_id) return tour.org_id as string
-  }
-  const { data: membership } = await supabase
-    .from('org_members')
-    .select('org_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle()
-  return membership?.org_id ?? null
-}
 
 function combineDateTimeToIso(date?: string, time?: string): string {
   if (!date?.trim()) return new Date().toISOString()
@@ -60,17 +43,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const orgId = await resolveOrgId(auth.supabase, auth.user.id, plannerData.tour_id)
-    if (!orgId) {
-      return NextResponse.json(
-        { error: 'No organization found for user. Please set up your organizer account first.' },
-        { status: 400 },
-      )
-    }
+    const tourId = typeof plannerData.tour_id === 'string' && plannerData.tour_id.trim()
+      ? plannerData.tour_id.trim()
+      : null
+    const orgId = await ensureAdminOrgScope(auth.supabase, auth.user.id, tourId)
 
     const startAt = combineDateTimeToIso(firstVenue?.selectedDate, firstVenue?.selectedTime)
     const endAt = new Date(new Date(startAt).getTime() + 2 * 60 * 60 * 1000).toISOString()
     const capacity = firstVenue?.capacity ? Number(firstVenue.capacity) : null
+    const plannerSettings = {
+      ...plannerData,
+      _planner_draft: false,
+      venue_label: firstVenue?.name ?? '',
+      venue_address: firstVenue?.address ?? '',
+      description: plannerData.description ?? '',
+    }
 
     let eventRecord: any
 
@@ -84,12 +71,7 @@ export async function POST(request: NextRequest) {
           start_at: startAt,
           end_at: endAt,
           capacity,
-          settings: {
-            ...plannerData,
-            _planner_draft: false,
-            venue_label: firstVenue?.name ?? '',
-            description: plannerData.description ?? '',
-          },
+          settings: plannerSettings,
           updated_at: new Date().toISOString(),
         })
         .eq('id', event_id)
@@ -102,7 +84,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
       if (!data) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      eventRecord = data
+      eventRecord = await verifyEventsV2Row(auth.supabase, data.id, auth.user.id)
     } else {
       // Create a brand-new confirmed event from the planner data
       const slug = await buildUniqueEventSlug(auth.supabase as any, orgId, title)
@@ -119,42 +101,70 @@ export async function POST(request: NextRequest) {
           capacity,
           timezone: 'UTC',
           created_by: auth.user.id,
-          settings: {
-            ...plannerData,
-            _planner_draft: false,
-            venue_label: firstVenue?.name ?? '',
-            description: plannerData.description ?? '',
-          },
+          settings: plannerSettings,
         })
-        .select()
+        .select('id')
         .single()
 
-      if (error) {
+      if (error || !data?.id) {
         console.error('[Event Planner Publish] insert error:', error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json(
+          { error: error?.message || 'Failed to create event' },
+          { status: 500 },
+        )
       }
-      eventRecord = data
+      eventRecord = await verifyEventsV2Row(auth.supabase, data.id, auth.user.id)
+    }
+
+    await ensureEventOrganizerRole(auth.user.id, eventRecord.id)
+
+    if (tourId) {
+      const { data: existingLink, error: linkLookupError } = await auth.supabase
+        .from('tour_events')
+        .select('id')
+        .eq('tour_id', tourId)
+        .eq('event_id', eventRecord.id)
+        .maybeSingle()
+
+      if (linkLookupError) {
+        console.error('[Event Planner Publish] tour link lookup error:', linkLookupError)
+      } else if (!existingLink) {
+        const { error: linkError } = await auth.supabase
+          .from('tour_events')
+          .insert({ tour_id: tourId, event_id: eventRecord.id })
+        if (linkError) console.error('[Event Planner Publish] tour link insert error:', linkError)
+      }
     }
 
     // Create ticket types in ticket_types table
     if (Array.isArray(plannerData.ticketTypes) && plannerData.ticketTypes.length > 0) {
-      const ticketInserts = plannerData.ticketTypes.map((t: any) => ({
-        event_id: eventRecord.id,
-        name: t.name || 'General Admission',
-        description: t.description ?? null,
-        price: Number(t.price) || 0,
-        quantity_available: Number(t.quantity) || 100,
-        quantity_sold: 0,
-        category: t.type ?? 'general',
-        is_active: true,
-      }))
-
-      const { error: ticketError } = await auth.supabase
+      const { data: existingTicketTypes, error: ticketLookupError } = await auth.supabase
         .from('ticket_types')
-        .insert(ticketInserts)
+        .select('id')
+        .eq('event_id', eventRecord.id)
+        .limit(1)
 
-      if (ticketError) {
-        console.error('[Event Planner Publish] ticket_types insert error:', ticketError)
+      if (ticketLookupError) {
+        console.error('[Event Planner Publish] ticket_types lookup error:', ticketLookupError)
+      } else if (!existingTicketTypes || existingTicketTypes.length === 0) {
+        const ticketInserts = plannerData.ticketTypes.map((t: any) => ({
+          event_id: eventRecord.id,
+          name: t.name || 'General Admission',
+          description: t.description ?? null,
+          price: Number(t.price) || 0,
+          quantity_available: Number(t.quantity) || 100,
+          quantity_sold: 0,
+          category: t.type ?? 'general',
+          is_active: true,
+        }))
+
+        const { error: ticketError } = await auth.supabase
+          .from('ticket_types')
+          .insert(ticketInserts)
+
+        if (ticketError) {
+          console.error('[Event Planner Publish] ticket_types insert error:', ticketError)
+        }
       }
     }
 

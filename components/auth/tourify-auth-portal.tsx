@@ -289,6 +289,9 @@ export function TourifyAuthPortal({
       setSuccess("Successfully signed in! Redirecting…")
       // Ensure SSR cookie chunking / storage flushes before full page load (avoids empty session on next document).
       await supabase.auth.getSession()
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("tourify:login_submit"))
+      }
       const validRedirectTo = normalizePostLoginRedirect(redirectTo)
       window.location.assign(validRedirectTo)
     } catch (err) {

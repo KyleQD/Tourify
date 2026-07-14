@@ -3,19 +3,19 @@ import type { HelpArticle } from "../types"
 export const generalHelpArticles: HelpArticle[] = [
   {
     id: "pulse-feed",
-    title: "Pulse community feed",
+    title: "Community feed",
     description: "Stay on top of what the community publishes",
     category: "Discovery",
     contentHtml: `
-        <h3>Pulse</h3>
-        <p>Pulse is the global activity feed. Use it to follow artists and venues you care about, react to drops, and jump into conversations.</p>
+        <h3>Community</h3>
+        <p>Community is the global activity feed. Use it to follow artists and venues you care about, react to drops, and jump into conversations.</p>
       `,
-    keywords: ["pulse", "feed", "community"],
+    keywords: ["community", "feed", "posts"],
     difficulty: "beginner",
     lastUpdated: "2026-04-12",
     relatedTopicIds: ["discover-network"],
     audiences: ["all"],
-    relatedRoutePrefixes: ["/feed"],
+    relatedRoutePrefixes: ["/community"],
   },
   {
     id: "discover-network",

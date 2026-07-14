@@ -42,8 +42,11 @@ import {
   Download,
   Edit,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
+  Shield,
 } from "lucide-react"
+import { useMultiAccount } from "@/hooks/use-multi-account"
+import { isOrganizationType } from "@/lib/accounts/account-types"
 
 interface NavigationItem {
   href: string
@@ -70,11 +73,12 @@ export function UnifiedMobileNavigation({
   const { isMobile } = useIsMobile()
   const { triggerHaptic } = useHapticFeedback()
   const isTouchDevice = useTouchDevice()
+  const { currentAccount } = useMultiAccount()
   
   const [isOpen, setIsOpen] = useState(false)
   const [activeSection, setActiveSection] = useState<'primary' | 'secondary' | 'tertiary'>('primary')
 
-  // Get navigation items based on user role
+  // Get navigation items based on user role / active account
   const getNavigationItems = (): NavigationItem[] => {
     const baseItems: NavigationItem[] = [
       { href: "/dashboard", label: "Home", icon: Home, section: 'primary' },
@@ -105,12 +109,14 @@ export function UnifiedMobileNavigation({
         { href: "/venue/analytics", label: "Analytics", icon: Settings, section: 'tertiary' },
         { href: "/venue/settings", label: "Settings", icon: Settings, section: 'tertiary' }
       )
-    } else if (user?.role === 'admin') {
+    } else if (
+      isOrganizationType(currentAccount?.account_type) ||
+      user?.role === 'admin'
+    ) {
       baseItems.push(
-        { href: "/admin/dashboard", label: "Admin", icon: Settings, section: 'secondary' },
-        { href: "/admin/users", label: "Users", icon: Users, section: 'secondary' },
-        { href: "/admin/events", label: "Events", icon: Calendar, section: 'secondary' },
-        { href: "/admin/analytics", label: "Analytics", icon: Settings, section: 'tertiary' }
+        { href: "/admin/dashboard", label: "Admin", icon: Shield, section: 'secondary' },
+        { href: "/admin/dashboard/events", label: "Events", icon: Calendar, section: 'secondary' },
+        { href: "/admin/dashboard/settings", label: "Settings", icon: Settings, section: 'tertiary' }
       )
     }
 

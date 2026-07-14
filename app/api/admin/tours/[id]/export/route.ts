@@ -1,14 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  adminAccessErrorResponse,
+  assertAdminTourAccess,
+} from '@/lib/admin/admin-tour-event-access'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  try {
   const url = new URL(request.url)
   const segments = url.pathname.split('/')
   const idIndex = segments.indexOf('tours') + 1
   const id = segments[idIndex]
   const format = url.searchParams.get('format') || 'pdf'
+  const sectionsParam = url.searchParams.get('sections') || 'tourInfo,events,team,vendors,finances'
+  const sections = new Set(sectionsParam.split(',').map((part) => part.trim()).filter(Boolean))
 
   if (!id) return NextResponse.json({ error: 'Missing tour id' }, { status: 400 })
+  await assertAdminTourAccess({ supabase, userId: user.id, tourId: id })
 
   // Fetch tour data
   const { data: tour } = await supabase
@@ -20,11 +28,13 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   if (!tour) return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
 
   // Fetch tour events
-  const { data: tourEvents } = await supabase
-    .from('tour_events')
-    .select('event_id, events_v2(id, title, start_at, venue_id, capacity, settings)')
-    .eq('tour_id', id)
-    .order('event_id')
+  const { data: tourEvents } = sections.has('events') || sections.has('tourInfo')
+    ? await supabase
+        .from('tour_events')
+        .select('event_id, events_v2(id, title, start_at, venue_id, capacity, settings)')
+        .eq('tour_id', id)
+        .order('event_id')
+    : { data: [] as any[] }
 
   const events: any[] = []
   for (const te of tourEvents || []) {
@@ -43,17 +53,21 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   events.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
 
   // Fetch team
-  const { data: teamRows } = await supabase
-    .from('tour_team_members')
-    .select('user_id, role, profiles(full_name, username)')
-    .eq('tour_id', id)
-    .limit(50)
+  const { data: teamRows } = sections.has('team')
+    ? await supabase
+        .from('tour_team_members')
+        .select('user_id, role, profiles(full_name, username)')
+        .eq('tour_id', id)
+        .limit(50)
+    : { data: [] as any[] }
 
   // Fetch financials
-  const { data: transactions } = await supabase
-    .from('financial_transactions')
-    .select('type, amount, category')
-    .eq('tour_id', id)
+  const { data: transactions } = sections.has('finances')
+    ? await supabase
+        .from('financial_transactions')
+        .select('type, amount, category')
+        .eq('tour_id', id)
+    : { data: [] as any[] }
 
   const totalIncome = (transactions || []).filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
   const totalExpenses = (transactions || []).filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
@@ -82,8 +96,8 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
 </style>
 </head>
 <body>
-${tour.cover_image_url ? `<img class="cover" src="${tour.cover_image_url}" alt="${tour.name}" />` : ''}
-<h1>${tour.name}</h1>
+${sections.has('tourInfo') && tour.cover_image_url ? `<img class="cover" src="${tour.cover_image_url}" alt="${tour.name}" />` : ''}
+${sections.has('tourInfo') ? `<h1>${tour.name}</h1>
 <p class="meta">${tour.main_artist || ''} ${tour.genre ? `· ${tour.genre}` : ''} · ${startLabel} – ${endLabel}</p>
 ${tour.description ? `<p style="color:#374151;margin-bottom:16px">${tour.description}</p>` : ''}
 
@@ -93,9 +107,9 @@ ${tour.description ? `<p style="color:#374151;margin-bottom:16px">${tour.descrip
   <div class="stat"><div class="stat-value">${(teamRows || []).length}</div><div class="stat-label">Team Members</div></div>
   <div class="stat"><div class="stat-value">$${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Revenue</div></div>
   <div class="stat"><div class="stat-value">$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Expenses</div></div>
-</div>
+</div>` : `<h1>${tour.name}</h1>`}
 
-${events.length > 0 ? `
+${sections.has('events') && events.length > 0 ? `
 <h2>Shows (${events.length})</h2>
 <table>
 <tr><th>#</th><th>Date</th><th>Title</th><th>Venue</th><th>Capacity</th></tr>
@@ -103,13 +117,21 @@ ${events.map((e, i) => `<tr><td>${i + 1}</td><td>${new Date(e.start_at).toLocale
 </table>
 ` : ''}
 
-${(teamRows || []).length > 0 ? `
+${sections.has('team') && (teamRows || []).length > 0 ? `
 <h2>Team Roster</h2>
 <table>
 <tr><th>Name</th><th>Role</th></tr>
 ${(teamRows || []).map((m: any) => `<tr><td>${m.profiles?.full_name || m.profiles?.username || '—'}</td><td>${m.role || '—'}</td></tr>`).join('')}
 </table>
 ` : ''}
+
+${sections.has('vendors') ? `<h2>Vendors</h2><p class="meta">Vendor details are managed per show in the event hub.</p>` : ''}
+
+${sections.has('finances') ? `<h2>Financials</h2>
+<div>
+  <div class="stat"><div class="stat-value">$${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Revenue</div></div>
+  <div class="stat"><div class="stat-value">$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Expenses</div></div>
+</div>` : ''}
 
 <p style="margin-top:40px;color:#9ca3af;font-size:11px">Generated by Tourify · ${new Date().toLocaleString()}</p>
 </body></html>`
@@ -124,6 +146,14 @@ ${(teamRows || []).map((m: any) => `<tr><td>${m.profiles?.full_name || m.profile
   }
 
   if (format === 'csv') {
+    if (!sections.has('events')) {
+      return new NextResponse('section,note\nevents,not selected', {
+        headers: {
+          'Content-Type': 'text/csv',
+          'Content-Disposition': `attachment; filename="${(tour.name || 'tour').replace(/\s/g, '-')}-export.csv"`,
+        },
+      })
+    }
     const rows = events.map((e, i) => [
       i + 1,
       `"${e.title}"`,
@@ -142,4 +172,8 @@ ${(teamRows || []).map((m: any) => `<tr><td>${m.profiles?.full_name || m.profile
   }
 
   return NextResponse.json({ error: 'Invalid format. Use: pdf, csv' }, { status: 400 })
+  } catch (error: any) {
+    const { status, message } = adminAccessErrorResponse(error, 'Failed to export tour', 400)
+    return NextResponse.json({ error: message }, { status })
+  }
 })

@@ -5,42 +5,25 @@ import type { EPKData } from "@/lib/services/epk.service"
 import { epkFontClass } from "@/components/epk/epk-preview-fonts"
 import {
   BoldEpkTemplate,
+  CinemaEpkTemplate,
   ClassicEpkTemplate,
+  CoastalEpkTemplate,
+  GalleryEpkTemplate,
+  LuxeEpkTemplate,
   MinimalEpkTemplate,
   ModernEpkTemplate,
+  PosterEpkTemplate,
 } from "@/components/epk/epk-template-variants"
+import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
 import { Music } from "lucide-react"
+
+export { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
 
 export interface EPKPreviewProps {
   data: EPKData
   template?: string
   /** Show labeled placeholders for empty fields (default: true so the layout is always scannable). */
   showPlaceholder?: boolean
-}
-
-/** Maps editor template ids (and legacy ids) to the four built-in preview layouts. */
-export function resolveEpkPreviewTemplateId(
-  template: string | undefined
-): "modern" | "classic" | "minimal" | "bold" {
-  const t = String(template || "modern").toLowerCase()
-  switch (t) {
-    case "modern":
-      return "modern"
-    case "classic":
-      return "classic"
-    case "minimal":
-      return "minimal"
-    case "bold":
-      return "bold"
-    case "black":
-      return "minimal"
-    case "neon":
-      return "bold"
-    case "sunset":
-      return "classic"
-    default:
-      return "modern"
-  }
 }
 
 export default function EPKPreview({
@@ -76,6 +59,16 @@ export default function EPKPreview({
       return <MinimalEpkTemplate {...props} />
     case "bold":
       return <BoldEpkTemplate {...props} />
+    case "cinema":
+      return <CinemaEpkTemplate {...props} />
+    case "gallery":
+      return <GalleryEpkTemplate {...props} />
+    case "luxe":
+      return <LuxeEpkTemplate {...props} />
+    case "poster":
+      return <PosterEpkTemplate {...props} />
+    case "coastal":
+      return <CoastalEpkTemplate {...props} />
     default:
       return <ModernEpkTemplate {...props} />
   }

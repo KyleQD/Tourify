@@ -42,8 +42,8 @@ export function TourEventProvider({ children }: { children: ReactNode }) {
       setError(null)
 
       const [toursResponse, eventsResponse] = await Promise.all([
-        fetch('/api/tours', buildNoStoreInit()).catch(() => ({ ok: false, json: async () => ({ tours: [] }) })),
-        fetch('/api/events', buildNoStoreInit()).catch(() => ({ ok: false, json: async () => ({ events: [] }) }))
+        fetch('/api/admin/tours', buildNoStoreInit()).catch(() => ({ ok: false, json: async () => ({ tours: [] }) })),
+        fetch('/api/admin/events', buildNoStoreInit()).catch(() => ({ ok: false, json: async () => ({ events: [] }) }))
       ])
 
       let toursData: Tour[] = []

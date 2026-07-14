@@ -1,4 +1,5 @@
 export type AdminEventStatusUi =
+  | "draft"
   | "scheduled"
   | "confirmed"
   | "in_progress"
@@ -24,6 +25,8 @@ export interface AdminEventNormalized {
 
 export function mapAdminEventStatus(status?: string): AdminEventStatusUi {
   const normalizedStatus = (status || "").toLowerCase()
+  if (normalizedStatus === "draft" || normalizedStatus === "inquiry" || normalizedStatus === "hold" || normalizedStatus === "offer")
+    return "draft"
   if (normalizedStatus === "scheduled") return "scheduled"
   if (normalizedStatus === "confirmed") return "confirmed"
   if (normalizedStatus === "in_progress" || normalizedStatus === "onsite") return "in_progress"
@@ -32,8 +35,6 @@ export function mapAdminEventStatus(status?: string): AdminEventStatusUi {
   if (normalizedStatus === "cancelled") return "cancelled"
   if (normalizedStatus === "postponed") return "postponed"
   if (normalizedStatus === "advancing") return "confirmed"
-  if (normalizedStatus === "inquiry" || normalizedStatus === "hold" || normalizedStatus === "offer")
-    return "scheduled"
   return "scheduled"
 }
 
@@ -103,7 +104,7 @@ export function normalizeAdminEvent(input: any): AdminEventNormalized {
 
 export function isUpcomingAdminEvent(input: { status?: string; event_date?: string }) {
   if (!input?.event_date) return false
-  if (input.status === "cancelled") return false
+  if (input.status === "cancelled" || input.status === "draft") return false
   const eventDate = new Date(input.event_date)
   if (Number.isNaN(eventDate.getTime())) return false
   const startOfToday = new Date()

@@ -3,7 +3,6 @@
 import { supabase } from "@/lib/supabase"
 import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useArtist } from "@/contexts/artist-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -15,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { format } from "date-fns"
+import { ArtistEventOpsPanel } from "@/app/artist/events/components/artist-event-ops-panel"
 import { 
   ArrowLeft,
   Calendar, 
@@ -35,10 +35,21 @@ import {
   Copy,
   ExternalLink
 } from "lucide-react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import Image from "next/image"
+import { getArtistEventVisibility } from "@/lib/artist/artist-event-visibility"
+import { EventShareMenu } from "@/components/events/event-share-menu"
+import { EventPageTemplateSelector } from "@/components/events/event-page-template-selector"
+import type { EventPageSkinId } from "@/lib/events/event-skin-tokens"
+
+function isValidNextImageSrc(value?: string | null): value is string {
+  if (!value || typeof value !== "string") return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  return /^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")
+}
 
 // Animation variants
 const fadeIn = {
@@ -63,8 +74,10 @@ const staggerContainer = {
 interface Event {
   id: string
   title: string
+  name?: string
   description?: string
   type: 'concert' | 'festival' | 'tour' | 'recording' | 'interview' | 'other'
+  event_type?: string
   venue_name?: string
   venue_address?: string
   venue_city?: string
@@ -79,9 +92,19 @@ interface Event {
   ticket_price_max?: number
   capacity?: number
   expected_attendance?: number
-  status: 'upcoming' | 'in_progress' | 'completed' | 'cancelled' | 'postponed'
+  status: 'draft' | 'published' | 'cancelled' | string
   is_public: boolean
   poster_url?: string
+  slug?: string
+  promoted_event_v2_id?: string | null
+  producer_settings?: {
+    visibility?: string
+    share_blurb?: string
+    marketing_notes?: string
+    lineup_notes?: string
+    page_template?: string
+    supporting_artists?: Array<{ id?: string; label?: string }>
+  } | null
   setlist?: string[]
   notes?: string
   created_at: string
@@ -143,12 +166,15 @@ interface BookingRequest {
 }
 
 export default function EventDetailPage() {
-  const { user } = useArtist()
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   
   const [event, setEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [showPublishedBanner, setShowPublishedBanner] = useState(false)
+  const [showShareMenu, setShowShareMenu] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [selectedTab, setSelectedTab] = useState("overview")
@@ -175,35 +201,39 @@ export default function EventDetailPage() {
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [venueSearchQuery, setVenueSearchQuery] = useState('')
   const [bookingMessage, setBookingMessage] = useState('')
+  const [isSavingPageTemplate, setIsSavingPageTemplate] = useState(false)
 
   const eventId = params.id as string
 
   useEffect(() => {
-    if (user && eventId) {
-      loadEvent()
-      loadTasks()
-      loadExpenses()
-      loadCrewMembers()
-      loadVenues()
-      loadBookingRequests()
-    }
-  }, [user, eventId])
+    if (searchParams.get("published") === "1") setShowPublishedBanner(true)
+  }, [searchParams])
+
+  useEffect(() => {
+    if (!eventId) return
+    void loadEvent()
+    void loadTasks()
+    void loadExpenses()
+    void loadCrewMembers()
+    void loadVenues()
+    void loadBookingRequests()
+  }, [eventId])
 
   const loadEvent = async () => {
-    if (!user || !eventId) return
+    if (!eventId) return
 
     try {
       setIsLoading(true)
-      const { data, error } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .eq('artist_id', user.id)
-        .single()
+      const response = await fetch(`/api/artist/events/${eventId}`, {
+        credentials: "include",
+        cache: "no-store",
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || "Failed to load event")
 
-      if (error) throw error
-      
+      const data = payload.event
       if (data) {
+        const visibility = getArtistEventVisibility(data)
         setEvent({
           ...data,
           title: data.name || data.title,
@@ -212,7 +242,8 @@ export default function EventDetailPage() {
           venue_city: data.city || data.venue_city,
           venue_state: data.state || data.venue_state,
           venue_country: data.country || data.venue_country,
-          is_public: data.is_public ?? (data.status === 'published'),
+          is_public: data.is_public ?? visibility !== "private",
+          producer_settings: data.producer_settings || {},
         })
       } else {
         toast.error('Event not found')
@@ -354,17 +385,18 @@ export default function EventDetailPage() {
   }
 
   const updateEventStatus = async (newStatus: Event['status']) => {
-    if (!event || !user) return
+    if (!event) return
 
     try {
-      const { error } = await supabase
-        .from('events')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq('id', event.id)
-        .eq('artist_id', user.id)
+      const response = await fetch(`/api/artist/events/${event.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || "Failed to update status")
 
-      if (error) throw error
-      
       setEvent(prev => prev ? { ...prev, status: newStatus } : prev)
       toast.success(`Event marked as ${newStatus}`)
     } catch (error) {
@@ -373,18 +405,107 @@ export default function EventDetailPage() {
     }
   }
 
+  const savePageTemplate = async (template: EventPageSkinId) => {
+    if (!event) return
+    setIsSavingPageTemplate(true)
+    try {
+      const nextSettings = {
+        ...(event.producer_settings || {}),
+        page_template: template,
+      }
+      const response = await fetch(`/api/artist/events/${event.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ producer_settings: nextSettings }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || "Failed to save page style")
+
+      setEvent((prev) =>
+        prev
+          ? {
+              ...prev,
+              producer_settings: {
+                ...(prev.producer_settings || {}),
+                page_template: template,
+              },
+            }
+          : prev
+      )
+      toast.success("Page style saved")
+    } catch (error) {
+      console.error("Error saving page template:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to save page style")
+    } finally {
+      setIsSavingPageTemplate(false)
+    }
+  }
+
+  const publishEvent = async () => {
+    if (!event) return
+    setIsPublishing(true)
+    try {
+      const response = await fetch(`/api/artist/events/${event.id}/publish`, {
+        method: "POST",
+        credentials: "include",
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload?.error || "Failed to publish")
+
+      const published = payload.event
+      setEvent(prev => prev ? {
+        ...prev,
+        ...published,
+        title: published?.title || published?.name || prev.title,
+        status: "published",
+        slug: published?.slug || prev.slug,
+      } : prev)
+      setShowPublishedBanner(true)
+      toast.success("Event published")
+    } catch (error) {
+      console.error("Error publishing event:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to publish event")
+    } finally {
+      setIsPublishing(false)
+    }
+  }
+
+  const publicEventPath = event ? `/events/${event.slug || event.id}` : ""
+
   const copyEventLink = () => {
-    const link = `${window.location.origin}/events/${event?.id}`
+    if (!event) return
+    const link = `${window.location.origin}${publicEventPath}`
     navigator.clipboard.writeText(link)
     toast.success('Event link copied to clipboard')
   }
 
+  const handleExternalShare = async (platform: "twitter" | "facebook" | "copy") => {
+    if (!event) return
+    const url = `${window.location.origin}${publicEventPath}`
+    const text = `Check out ${event.title}!`
+
+    if (platform === "twitter") {
+      window.open(
+        `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+      )
+    } else if (platform === "facebook") {
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`)
+    } else {
+      await navigator.clipboard.writeText(url)
+      toast.success("Link copied to clipboard")
+    }
+    setShowShareMenu(false)
+  }
+
   const getStatusColor = (status: Event['status']) => {
     switch (status) {
+      case 'published': return 'bg-emerald-600/20 text-emerald-300 border-emerald-500/30'
+      case 'draft': return 'bg-amber-600/20 text-amber-300 border-amber-500/30'
+      case 'cancelled': return 'bg-red-600/20 text-red-300 border-red-500/30'
       case 'upcoming': return 'bg-blue-600/20 text-blue-300 border-blue-500/30'
       case 'in_progress': return 'bg-green-600/20 text-green-300 border-green-500/30'
       case 'completed': return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
-      case 'cancelled': return 'bg-red-600/20 text-red-300 border-red-500/30'
       case 'postponed': return 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30'
       default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
     }
@@ -453,20 +574,51 @@ export default function EventDetailPage() {
   const sendBookingRequest = async () => {
     if (!selectedVenue || !bookingMessage.trim()) return
 
-    const request: BookingRequest = {
-      id: Date.now().toString(),
-      venue_id: selectedVenue.id,
-      event_id: eventId,
-      message: bookingMessage,
-      status: 'pending',
-      created_at: new Date().toISOString()
-    }
+    try {
+      const response = await fetch("/api/booking-requests", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venueId: selectedVenue.id,
+          eventId: eventId,
+          eventName: event?.title || event?.name || "Artist event",
+          eventDate: event?.event_date,
+          expectedAttendance: event?.capacity || event?.expected_attendance,
+          bookingDetails: {
+            performanceType: event?.event_type || event?.type || "concert",
+            description: bookingMessage,
+            performanceDate: event?.event_date || new Date().toISOString().slice(0, 10),
+            venue: selectedVenue.name,
+            location: [selectedVenue.city, selectedVenue.state].filter(Boolean).join(", ") || "TBD",
+            compensation: "To be discussed",
+            additionalNotes: bookingMessage,
+          },
+          requestType: "performance",
+          status: "pending",
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data?.error || "Failed to send booking request")
 
-    setBookingRequests(prev => [...prev, request])
-    setBookingMessage('')
-    setShowBookingModal(false)
-    setSelectedVenue(null)
-    toast.success('Booking request sent successfully')
+      const request: BookingRequest = {
+        id: String(data?.data?.id || data?.venueBookingRequest?.id || Date.now()),
+        venue_id: selectedVenue.id,
+        event_id: eventId,
+        message: bookingMessage,
+        status: "pending",
+        created_at: new Date().toISOString(),
+      }
+
+      setBookingRequests((prev) => [...prev, request])
+      setBookingMessage("")
+      setShowBookingModal(false)
+      setSelectedVenue(null)
+      toast.success("Booking request sent successfully")
+    } catch (error) {
+      console.error("Booking request failed:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to send booking request")
+    }
   }
 
   const getStatusBadgeColor = (status: string) => {
@@ -543,6 +695,25 @@ export default function EventDetailPage() {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="flex items-center gap-3"
             >
+              {event.status === "draft" ? (
+                <Button
+                  onClick={() => void publishEvent()}
+                  disabled={isPublishing}
+                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {isPublishing ? "Publishing…" : "Publish"}
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
+                  className="border-slate-700/50 text-slate-300 hover:bg-slate-800/50 backdrop-blur-sm"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View public page
+                </Button>
+              )}
               <Button 
                 variant="outline" 
                 onClick={copyEventLink}
@@ -553,13 +724,14 @@ export default function EventDetailPage() {
               </Button>
               <Button 
                 variant="outline"
+                onClick={() => setShowShareMenu(true)}
                 className="border-slate-700/50 text-slate-300 hover:bg-slate-800/50 backdrop-blur-sm"
               >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
               <Button 
-                onClick={() => router.push(`/artist/events/${event.id}/edit`)}
+                onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
                 className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg"
               >
                 <Edit className="h-4 w-4 mr-2" />
@@ -571,6 +743,52 @@ export default function EventDetailPage() {
       </div>
 
       <div className="p-6 space-y-8 relative">{/* Spacer for content */}
+
+      {showPublishedBanner && event.status === "published" ? (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium text-emerald-200">Your event is published</p>
+            <p className="text-sm text-emerald-200/70">Share the public page so fans can find your show.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-emerald-500/40 text-emerald-100 hover:bg-emerald-500/20"
+              onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open public page
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-emerald-500/40 text-emerald-100 hover:bg-emerald-500/20"
+              onClick={() => setShowShareMenu(true)}
+            >
+              <Share2 className="h-4 w-4 mr-2" />
+              Share
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-emerald-500/40 text-emerald-100 hover:bg-emerald-500/20"
+              onClick={copyEventLink}
+            >
+              <Copy className="h-4 w-4 mr-2" />
+              Copy link
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-emerald-200/70 hover:text-emerald-100"
+              onClick={() => setShowPublishedBanner(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Event Header */}
       <motion.div
@@ -589,9 +807,14 @@ export default function EventDetailPage() {
                   <Badge className={`${getStatusColor(event.status)} border border-current/30 backdrop-blur-sm`}>
                     {event.status.replace('_', ' ')}
                   </Badge>
-                  {!event.is_public && (
+                  {getArtistEventVisibility(event) === "private" && (
                     <Badge variant="outline" className="border-gray-500/30 text-gray-400 bg-gray-500/5 backdrop-blur-sm">
                       Private
+                    </Badge>
+                  )}
+                  {getArtistEventVisibility(event) === "unlisted" && (
+                    <Badge variant="outline" className="border-amber-500/30 text-amber-300 bg-amber-500/5 backdrop-blur-sm">
+                      Unlisted
                     </Badge>
                   )}
                 </div>
@@ -654,6 +877,44 @@ export default function EventDetailPage() {
           </div>
 
           {/* Quick Actions */}
+          {event.status === 'draft' && (
+            <div className="flex gap-2 pt-4 border-t border-slate-700">
+              <Button
+                size="sm"
+                onClick={() => void publishEvent()}
+                disabled={isPublishing}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isPublishing ? "Publishing…" : "Publish event"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+              >
+                Continue editing
+              </Button>
+            </div>
+          )}
+          {event.status === 'published' && (
+            <div className="flex gap-2 pt-4 border-t border-slate-700">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
+              >
+                View public page
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => updateEventStatus('cancelled')}
+                className="text-red-400 border-red-400 hover:bg-red-400/10"
+              >
+                Cancel Event
+              </Button>
+            </div>
+          )}
           {event.status === 'upcoming' && (
             <div className="flex gap-2 pt-4 border-t border-slate-700">
               <Button
@@ -788,6 +1049,13 @@ export default function EventDetailPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
+          <ArtistEventOpsPanel
+            eventId={eventId}
+            promotedEventV2Id={event?.promoted_event_v2_id}
+            onPromoted={(id) => {
+              setEvent((prev) => (prev ? { ...prev, promoted_event_v2_id: id } : prev))
+            }}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Event Details */}
             <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl">
@@ -838,6 +1106,29 @@ export default function EventDetailPage() {
                       </a>
                     </div>
                   )}
+
+                  {event.producer_settings?.share_blurb ? (
+                    <div>
+                      <Label className="text-gray-400 text-sm">Share blurb</Label>
+                      <p className="text-white whitespace-pre-wrap">{event.producer_settings.share_blurb}</p>
+                    </div>
+                  ) : null}
+
+                  {event.producer_settings?.lineup_notes ? (
+                    <div>
+                      <Label className="text-gray-400 text-sm">Lineup notes</Label>
+                      <p className="text-white whitespace-pre-wrap">{event.producer_settings.lineup_notes}</p>
+                    </div>
+                  ) : null}
+
+                  {isValidNextImageSrc(event.poster_url) ? (
+                    <div>
+                      <Label className="text-gray-400 text-sm">Poster</Label>
+                      <div className="relative mt-2 h-32 w-24 overflow-hidden rounded border border-slate-700">
+                        <Image src={event.poster_url} alt="Event poster" fill className="object-cover" />
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
@@ -1218,17 +1509,100 @@ export default function EventDetailPage() {
 
         <TabsContent value="marketing">
           <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-white">Marketing Materials</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <CardTitle className="text-white">Marketing & share</CardTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                className="border-slate-700 text-slate-300"
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit in composer
+              </Button>
             </CardHeader>
-            <CardContent className="text-center py-12">
-              <div className="space-y-4">
-                <ImageIcon className="h-12 w-12 text-gray-500 mx-auto" />
-                <h3 className="text-lg font-semibold text-white">Marketing Tools Coming Soon</h3>
-                <p className="text-gray-400">
-                  Create posters, social media posts, and promotional materials for your event.
-                </p>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Share blurb</p>
+                  <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                    {event.producer_settings?.share_blurb || "No share blurb yet."}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Ticket link</p>
+                  {event.ticket_url ? (
+                    <a
+                      href={event.ticket_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-cyan-300 hover:underline break-all"
+                    >
+                      {event.ticket_url}
+                    </a>
+                  ) : (
+                    <p className="text-sm text-slate-400">No ticket URL set.</p>
+                  )}
+                  {(event.ticket_price_min || event.ticket_price_max) && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      ${event.ticket_price_min ?? "—"}
+                      {event.ticket_price_max && event.ticket_price_max !== event.ticket_price_min
+                        ? ` – $${event.ticket_price_max}`
+                        : ""}
+                    </p>
+                  )}
+                </div>
+                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4 md:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Lineup notes</p>
+                  <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                    {event.producer_settings?.lineup_notes || "No lineup notes yet."}
+                  </p>
+                  {Array.isArray(event.producer_settings?.supporting_artists) &&
+                  event.producer_settings.supporting_artists.length > 0 ? (
+                    <p className="text-xs text-slate-500 mt-2">
+                      Supporting:{" "}
+                      {event.producer_settings.supporting_artists
+                        .map((artist) => artist.label)
+                        .filter(Boolean)
+                        .join(", ")}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4 md:col-span-2">
+                  <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Marketing notes</p>
+                  <p className="text-sm text-slate-200 whitespace-pre-wrap">
+                    {event.producer_settings?.marketing_notes || "No marketing notes yet."}
+                  </p>
+                </div>
+                {isValidNextImageSrc(event.poster_url) ? (
+                  <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4 md:col-span-2">
+                    <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Poster</p>
+                    <div className="relative h-48 w-full max-w-sm overflow-hidden rounded-lg border border-slate-700">
+                      <Image src={event.poster_url} alt="Event poster" fill className="object-cover" />
+                    </div>
+                  </div>
+                ) : null}
               </div>
+              {event.status === "published" ? (
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowShareMenu(true)}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Share
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={copyEventLink}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copy public link
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    View public page
+                  </Button>
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </TabsContent>
@@ -1259,14 +1633,28 @@ export default function EventDetailPage() {
             <CardHeader>
               <CardTitle className="text-white">Event Settings</CardTitle>
             </CardHeader>
-            <CardContent className="text-center py-12">
-              <div className="space-y-4">
-                <AlertCircle className="h-12 w-12 text-gray-500 mx-auto" />
-                <h3 className="text-lg font-semibold text-white">Advanced Settings</h3>
-                <p className="text-gray-400">
-                  Manage event permissions, integrations, and advanced configurations.
-                </p>
-              </div>
+            <CardContent className="space-y-6 py-6">
+              <EventPageTemplateSelector
+                selectedTemplate={event.producer_settings?.page_template || "modern"}
+                onTemplateChange={(template) => {
+                  if (isSavingPageTemplate) return
+                  void savePageTemplate(template)
+                }}
+              />
+              {isSavingPageTemplate ? (
+                <p className="text-xs text-slate-400">Saving page style…</p>
+              ) : null}
+              <p className="text-sm text-slate-400">
+                More advanced permissions and integrations will land here later. Use{" "}
+                <button
+                  type="button"
+                  className="text-purple-300 underline-offset-2 hover:underline"
+                  onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                >
+                  Event Producer
+                </button>{" "}
+                to edit full event details.
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1513,6 +1901,23 @@ export default function EventDetailPage() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showShareMenu} onOpenChange={setShowShareMenu}>
+        <DialogContent className="bg-slate-950/80 backdrop-blur-xl border border-white/15 rounded-2xl shadow-2xl shadow-purple-500/10 max-w-md max-h-[85vh] overflow-hidden p-0 gap-0 [&>button]:right-4 [&>button]:top-4 [&>button]:text-white/60 [&>button]:hover:text-white">
+          <div className="h-1 w-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500" />
+          <div className="p-6 overflow-y-auto max-h-[calc(85vh-4px)]">
+            {event ? (
+              <EventShareMenu
+                eventId={event.id}
+                eventTitle={event.title}
+                eventSlug={event.slug}
+                onClose={() => setShowShareMenu(false)}
+                onExternalShare={(platform) => void handleExternalShare(platform)}
+              />
+            ) : null}
+          </div>
         </DialogContent>
       </Dialog>
       </div>

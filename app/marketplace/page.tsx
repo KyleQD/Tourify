@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -29,11 +30,14 @@ function getApiErrorMessage(payload: any, fallback: string) {
 export default function MarketplacePage() {
   const searchParams = useSearchParams()
   const sellerUsername = searchParams.get("seller")?.trim() || ""
+  const checkoutStatus = searchParams.get("checkout")
+  const orderId = searchParams.get("order_id")
   const [items, setItems] = useState<MarketplaceDiscoverItem[]>([])
   const [query, setQuery] = useState("")
   const [category, setCategory] = useState("all")
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [selectedVariantByListing, setSelectedVariantByListing] = useState<Record<string, string>>({})
 
   useEffect(() => {
     void loadListings({ q: "", category: "all", sellerUsername })
@@ -64,7 +68,17 @@ export default function MarketplacePage() {
         setItems([])
         return
       }
-      setItems(Array.isArray(body.data) ? body.data : [])
+      const nextItems = Array.isArray(body.data) ? body.data : []
+      setItems(nextItems)
+      setSelectedVariantByListing(prev => {
+        const next = { ...prev }
+        for (const item of nextItems as MarketplaceDiscoverItem[]) {
+          if (next[item.id]) continue
+          const first = item.marketplace_listing_variants?.[0]
+          if (first?.id) next[item.id] = first.id
+        }
+        return next
+      })
     } finally {
       setLoading(false)
     }
@@ -72,12 +86,13 @@ export default function MarketplacePage() {
 
   async function checkout(item: MarketplaceDiscoverItem) {
     setErrorMessage(null)
-    const defaultVariant = item.marketplace_listing_variants?.[0]
+    const variants = item.marketplace_listing_variants || []
+    const selectedVariantId = selectedVariantByListing[item.id] || variants[0]?.id
     const response = await fetch("/api/marketplace/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        lines: [{ listingId: item.id, variantId: defaultVariant?.id, quantity: 1 }],
+        lines: [{ listingId: item.id, variantId: selectedVariantId, quantity: 1 }],
       }),
     })
     const body = await response.json()
@@ -85,6 +100,10 @@ export default function MarketplacePage() {
       if (response.status === 401) {
         const redirectTo = `${window.location.pathname}${window.location.search}`
         window.location.href = `/login?tab=signin&redirectTo=${encodeURIComponent(redirectTo)}`
+        return
+      }
+      if (body?.error?.code === "seller_payouts_not_ready") {
+        setErrorMessage("This seller is finishing payout setup and cannot accept purchases yet.")
         return
       }
       setErrorMessage(getApiErrorMessage(body, "Checkout failed"))
@@ -97,7 +116,12 @@ export default function MarketplacePage() {
     <main className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black px-4 py-8 text-white">
       <div className="mx-auto max-w-7xl space-y-6">
         <header className="space-y-2">
-          <h1 className="text-3xl font-bold">Creator Marketplace</h1>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-3xl font-bold">Creator Marketplace</h1>
+            <Button asChild variant="outline" size="sm" className="border-slate-700 text-white">
+              <Link href="/marketplace/purchases">My purchases</Link>
+            </Button>
+          </div>
           {sellerUsername ? (
             <p className="text-xs text-emerald-300">Showing storefront for @{sellerUsername}</p>
           ) : null}
@@ -105,6 +129,20 @@ export default function MarketplacePage() {
             Discover music, art, photography, tickets, merch, rentals, and creative services from creators and venues.
           </p>
         </header>
+
+        {checkoutStatus === "success" ? (
+          <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            Payment successful{orderId ? ` for order ${orderId}` : ""}.{" "}
+            <Link href="/marketplace/purchases" className="underline">
+              View your purchases
+            </Link>
+          </div>
+        ) : null}
+        {checkoutStatus === "cancelled" ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            Checkout was cancelled. Your card was not charged.
+          </div>
+        ) : null}
 
         <section className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -138,33 +176,51 @@ export default function MarketplacePage() {
           <div className="text-sm text-slate-300">No listings found for this filter.</div>
         ) : (
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {items.map(item => (
-              <article key={item.id} className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
-                <div className="aspect-square bg-black/30">
-                  {item.cover_image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.cover_image_url} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
-                  )}
-                </div>
-                <div className="space-y-2 p-3">
-                  <div className="line-clamp-1 font-medium">{item.title}</div>
-                  <div className="line-clamp-2 text-xs text-slate-300">{item.description || "Creator listing"}</div>
-                  <div className="flex items-center justify-between">
-                    <Badge variant="secondary" className="bg-slate-800 text-slate-200">
-                      {item.category}
-                    </Badge>
-                    <div className="text-sm font-semibold">
-                      {item.base_price !== null ? `${item.currency || "USD"} ${Number(item.base_price).toFixed(2)}` : "Custom"}
-                    </div>
+            {items.map(item => {
+              const variants = item.marketplace_listing_variants || []
+              return (
+                <article key={item.id} className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/70">
+                  <div className="aspect-square bg-black/30">
+                    {item.cover_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={item.cover_image_url} alt={item.title} className="h-full w-full object-cover" loading="lazy" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-xs text-slate-400">No image</div>
+                    )}
                   </div>
-                  <Button className="w-full" size="sm" onClick={() => void checkout(item)}>
-                    Buy now
-                  </Button>
-                </div>
-              </article>
-            ))}
+                  <div className="space-y-2 p-3">
+                    <div className="line-clamp-1 font-medium">{item.title}</div>
+                    <div className="line-clamp-2 text-xs text-slate-300">{item.description || "Creator listing"}</div>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="secondary" className="bg-slate-800 text-slate-200">
+                        {item.category}
+                      </Badge>
+                      <div className="text-sm font-semibold">
+                        {item.base_price !== null ? `${item.currency || "USD"} ${Number(item.base_price).toFixed(2)}` : "Custom"}
+                      </div>
+                    </div>
+                    {variants.length > 1 ? (
+                      <select
+                        className="h-9 w-full rounded-md border border-slate-700 bg-slate-950 px-2 text-xs"
+                        value={selectedVariantByListing[item.id] || variants[0]?.id || ""}
+                        onChange={event =>
+                          setSelectedVariantByListing(prev => ({ ...prev, [item.id]: event.target.value }))
+                        }
+                      >
+                        {variants.map(variant => (
+                          <option key={variant.id} value={variant.id}>
+                            {variant.title} — {item.currency || "USD"} {Number(variant.price).toFixed(2)}
+                          </option>
+                        ))}
+                      </select>
+                    ) : null}
+                    <Button className="w-full" size="sm" onClick={() => void checkout(item)}>
+                      Buy now
+                    </Button>
+                  </div>
+                </article>
+              )
+            })}
           </section>
         )}
       </div>

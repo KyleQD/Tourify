@@ -28,6 +28,10 @@ export function EventSelect({ onSelect, placeholder = "Select an event", classNa
   const onSelectRef = useRef(onSelect)
   useEffect(() => { onSelectRef.current = onSelect }, [onSelect])
 
+  useEffect(() => {
+    setSelectedId(defaultEventId)
+  }, [defaultEventId])
+
   useEffect(function loadEvents() {
     let isActive = true
     async function run() {

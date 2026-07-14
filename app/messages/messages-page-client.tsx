@@ -33,6 +33,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { GroupCreateDialog } from '@/components/messages/group-create-dialog'
+import { MessagesSkeleton } from './messages-skeleton'
 
 interface Message {
   id: string
@@ -146,7 +147,11 @@ const EMPTY_COPY: Record<TabId, { title: string; body: string }> = {
   },
 }
 
-export function MessagesPageClient() {
+interface MessagesPageClientProps {
+  serverUserId?: string
+}
+
+export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {}) {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -161,7 +166,10 @@ export function MessagesPageClient() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [respondingTo, setRespondingTo] = useState<string | null>(null)
 
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, loading: authLoading } = useAuth()
+  const hasServerSession = Boolean(serverUserId)
+  const effectiveUserId = user?.id ?? serverUserId ?? null
+  const canAccessMessages = Boolean(effectiveUserId) && (isAuthenticated || hasServerSession)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -176,7 +184,7 @@ export function MessagesPageClient() {
   }, [tabParam])
 
   const fetchConversations = useCallback(async () => {
-    if (!user) return
+    if (!effectiveUserId) return
     try {
       setLoading(true)
       const response = await fetch(`/api/messages?tab=${activeTab}`, { credentials: 'include' })
@@ -199,13 +207,13 @@ export function MessagesPageClient() {
     } finally {
       setLoading(false)
     }
-  }, [user, activeTab])
+  }, [effectiveUserId, activeTab])
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (canAccessMessages) {
       void fetchConversations()
     }
-  }, [isAuthenticated, fetchConversations])
+  }, [canAccessMessages, fetchConversations])
 
   const loadUnifiedList = useCallback(async () => {
     try {
@@ -219,12 +227,12 @@ export function MessagesPageClient() {
   }, [])
 
   useEffect(() => {
-    if (!isAuthenticated || activeTab !== 'work') {
+    if (!canAccessMessages || activeTab !== 'work') {
       setUnifiedList([])
       return
     }
     void loadUnifiedList()
-  }, [isAuthenticated, activeTab, loadUnifiedList])
+  }, [canAccessMessages, activeTab, loadUnifiedList])
 
   useEffect(() => {
     if (!conversationParam || conversations.length === 0) return
@@ -326,7 +334,7 @@ export function MessagesPageClient() {
   }, [])
 
   useEffect(() => {
-    if (!user || !isAuthenticated || !selectedConversation) return
+    if (!effectiveUserId || !canAccessMessages || !selectedConversation) return
 
     const messagesChannel = supabase
       .channel(`messages-${selectedConversation}`)
@@ -340,7 +348,7 @@ export function MessagesPageClient() {
         },
         (payload) => {
           const incoming = payload.new as any
-          if (incoming.sender_id === user.id) return
+          if (incoming.sender_id === effectiveUserId) return
 
           const cached = profileCacheRef.current.get(incoming.sender_id)
           const senderShell: ConversationProfile = cached || {
@@ -369,13 +377,13 @@ export function MessagesPageClient() {
     return () => {
       void supabase.removeChannel(messagesChannel)
     }
-  }, [user, isAuthenticated, selectedConversation, fetchSenderDetails])
+  }, [effectiveUserId, canAccessMessages, selectedConversation, fetchSenderDetails])
 
   useEffect(() => {
-    if (!user || !isAuthenticated) return
+    if (!effectiveUserId || !canAccessMessages) return
 
     const conversationsChannel = supabase
-      .channel(`conversations-${user.id}`)
+      .channel(`conversations-${effectiveUserId}`)
       .on(
         'postgres_changes',
         {
@@ -405,7 +413,7 @@ export function MessagesPageClient() {
     return () => {
       void supabase.removeChannel(conversationsChannel)
     }
-  }, [user, isAuthenticated])
+  }, [effectiveUserId, canAccessMessages])
 
   const acceptConversationRequest = useCallback(async () => {
     if (!selectedConversation) return
@@ -473,13 +481,13 @@ export function MessagesPageClient() {
   }, [selectedConversation, conversations])
 
   const sendMessage = useCallback(async () => {
-    if (!newMessage.trim() || !selectedConversation || !user) return
+    if (!newMessage.trim() || !selectedConversation || !effectiveUserId) return
 
     const conversation = conversations.find((c) => c.id === selectedConversation)
     if (!conversation) return
 
     const recipientId =
-      conversation.participant_1 === user.id ? conversation.participant_2 : conversation.participant_1
+      conversation.participant_1 === effectiveUserId ? conversation.participant_2 : conversation.participant_1
 
     setSending(true)
     const messageContent = newMessage.trim()
@@ -505,7 +513,7 @@ export function MessagesPageClient() {
                     id: result.message.id,
                     content: messageContent,
                     created_at: result.message.created_at,
-                    sender_id: user.id,
+                    sender_id: effectiveUserId,
                   },
                   updated_at: new Date().toISOString(),
                 }
@@ -524,7 +532,7 @@ export function MessagesPageClient() {
     } finally {
       setSending(false)
     }
-  }, [newMessage, selectedConversation, user, conversations])
+  }, [newMessage, selectedConversation, effectiveUserId, conversations])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -535,12 +543,12 @@ export function MessagesPageClient() {
 
   const getOtherParticipant = useCallback(
     (conversation: Conversation): ConversationProfile | undefined => {
-      if (!user) return undefined
-      return conversation.participant_1 === user.id
+      if (!effectiveUserId) return undefined
+      return conversation.participant_1 === effectiveUserId
         ? conversation.participant_2_profile
         : conversation.participant_1_profile
     },
-    [user],
+    [effectiveUserId],
   )
 
   const filteredConversations = useMemo(() => {
@@ -565,14 +573,14 @@ export function MessagesPageClient() {
     selected &&
       selected.trust_tier === 'request' &&
       !selected.accepted_at &&
-      firstMessageSenderId === user?.id,
+      firstMessageSenderId === effectiveUserId,
   )
   const viewerIsRequestRecipient = Boolean(
     selected &&
       selected.trust_tier === 'request' &&
       !selected.accepted_at &&
       firstMessageSenderId &&
-      firstMessageSenderId !== user?.id,
+      firstMessageSenderId !== effectiveUserId,
   )
 
   const handleTabChange = (next: TabId) => {
@@ -603,7 +611,11 @@ export function MessagesPageClient() {
   const isComposerDisabled =
     !viewer.canSend || sending || viewerIsRequestSender || viewerIsRequestRecipient
 
-  if (!isAuthenticated) {
+  if (authLoading && !user && !hasServerSession) {
+    return <MessagesSkeleton />
+  }
+
+  if (!user && !hasServerSession) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
         <Card className="w-full max-w-md mx-auto bg-slate-900 border-slate-700">
@@ -712,7 +724,7 @@ export function MessagesPageClient() {
 
                     const isSelected = selectedConversation === conversation.id
                     const lastMessage = conversation.last_message
-                    const isUnread = lastMessage && lastMessage.sender_id !== user?.id
+                    const isUnread = lastMessage && lastMessage.sender_id !== effectiveUserId
 
                     return (
                       <button
@@ -753,7 +765,7 @@ export function MessagesPageClient() {
                                   isUnread ? 'text-white font-medium' : 'text-gray-400',
                                 )}
                               >
-                                {lastMessage.sender_id === user?.id ? 'You: ' : ''}
+                                {lastMessage.sender_id === effectiveUserId ? 'You: ' : ''}
                                 {lastMessage.content}
                               </p>
                             )}
@@ -884,7 +896,7 @@ export function MessagesPageClient() {
                   ) : (
                     <div className="space-y-4">
                       {messages.map((message) => {
-                        const isOwnMessage = message.sender_id === user?.id
+                        const isOwnMessage = message.sender_id === effectiveUserId
                         const taskCard = parseTaskCard(message.content)
 
                         return (

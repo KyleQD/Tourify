@@ -29,6 +29,7 @@ import {
 import { format } from "date-fns"
 import Link from "next/link"
 import Image from "next/image"
+import { formatEventTime } from "@/lib/events/format-event-time"
 
 interface Event {
   id: string
@@ -384,10 +385,10 @@ export default function EventsDiscoveryPage() {
                           <span>{format(new Date(event.event_date), 'EEEE, MMMM d, yyyy')}</span>
                         </div>
 
-                        {event.start_time && (
+                        {event.start_time && formatEventTime(event.start_time) && (
                           <div className="flex items-center gap-2 text-white/60">
                             <Clock className="h-4 w-4" />
-                            <span>{event.start_time}</span>
+                            <span>{formatEventTime(event.start_time)}</span>
                           </div>
                         )}
 

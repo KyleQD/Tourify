@@ -296,9 +296,9 @@ export function ArtistBusinessInsights({
             className="border-slate-700 text-gray-300 hover:text-white"
             asChild
           >
-            <Link href="/artist/business/recommendations">
+            <Link href="/artist/business">
               <Lightbulb className="h-4 w-4 mr-2" />
-              Recommendations
+              Business Hub
             </Link>
           </Button>
         </div>

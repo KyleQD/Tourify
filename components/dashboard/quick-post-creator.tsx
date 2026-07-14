@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { PhotoUpload } from '@/components/ui/photo-upload'
@@ -11,11 +11,12 @@ import { Send, Globe, Users, Lock, Loader2 } from 'lucide-react'
 import { uploadFeedPhotos } from '@/lib/utils/feed-photo-upload'
 import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
+import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
 
 export function QuickPostCreator() {
   const { user } = useAuth()
-  const { actingHeaders } = useActingContext()
+  const { actingHeaders, isActingReady } = useActingContext()
   const [content, setContent] = useState('')
   const [visibility, setVisibility] = useState('public')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -23,6 +24,8 @@ export function QuickPostCreator() {
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({ completed: 0, total: 0 })
   const { toast } = useToast()
+  const isPostEmpty = !content.trim() && selectedFiles.length === 0
+  const isSubmitDisabled = isSubmitting || isUploadingMedia || !isActingReady || isPostEmpty
 
   const handlePhotosSelected = (files: File[]) => {
     setSelectedFiles(files)
@@ -36,6 +39,15 @@ export function QuickPostCreator() {
       toast({
         title: 'Sign in required',
         description: 'You must be signed in to post.',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    if (!isActingReady) {
+      toast({
+        title: 'Posting account loading',
+        description: 'Please wait a moment for your posting account to finish loading.',
         variant: 'destructive'
       })
       return
@@ -95,16 +107,14 @@ export function QuickPostCreator() {
         content: content.trim(),
         type: mediaUrls.length > 0 ? 'media' : 'text',
         visibility,
-        media_urls: mediaUrls,
-        accountId: user.id
+        media_urls: mediaUrls
       }
 
       console.log('[QuickPostCreator] POST /api/feed/posts payload (sanitized):', {
         contentLength: payload.content.length,
         type: payload.type,
         visibility: payload.visibility,
-        mediaUrlsCount: payload.media_urls.length,
-        accountId: payload.accountId
+        mediaUrlsCount: payload.media_urls.length
       })
 
       const response = await fetch('/api/feed/posts', {
@@ -119,11 +129,11 @@ export function QuickPostCreator() {
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to create post')
+        throw new Error(errorData?.error?.message || errorData?.error || 'Failed to create post')
       }
 
       const data = await response.json()
-      const created = data?.data
+      const created = data?.data || data?.post
 
       toast({
         title: "Post Created! 🎉",
@@ -169,14 +179,9 @@ export function QuickPostCreator() {
 
   return (
     <Card className="rounded-2xl border-slate-700/60 bg-slate-900/50 backdrop-blur-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-lg text-white flex items-center gap-2">
-          <Send className="h-5 w-5 text-purple-400" />
-          Quick Post
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
+      <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <PostingAccountSelector />
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
@@ -186,6 +191,11 @@ export function QuickPostCreator() {
             disabled={isSubmitting || isUploadingMedia}
             maxLength={2000}
           />
+          {isPostEmpty ? (
+            <p className="text-sm text-slate-400">
+              Add a caption or photo to enable posting.
+            </p>
+          ) : null}
 
           {/* Photo Upload Section */}
           <div className="space-y-3">
@@ -193,7 +203,7 @@ export function QuickPostCreator() {
               onPhotosSelected={handlePhotosSelected}
               maxFiles={5}
               maxSize={5}
-              disabled={isSubmitting || isUploadingMedia}
+              disabled={isSubmitting || isUploadingMedia || !isActingReady}
               showPreview={true}
             />
             
@@ -243,7 +253,7 @@ export function QuickPostCreator() {
               </span>
               <Button
                 type="submit"
-                disabled={isSubmitting || isUploadingMedia || (!content.trim() && selectedFiles.length === 0)}
+                disabled={isSubmitDisabled}
                 className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
               >
                 {isSubmitting || isUploadingMedia ? (

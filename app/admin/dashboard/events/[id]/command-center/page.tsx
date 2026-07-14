@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
+import { OpsWorkspaceChrome } from "@/components/admin/operations/ops-workspace-chrome"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -93,6 +94,7 @@ export default function EventCommandCenterPage() {
   const [loading, setLoading] = useState(true)
   const [hq, setHq] = useState<HqPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [broadcasting, setBroadcasting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -111,10 +113,33 @@ export default function EventCommandCenterPage() {
       }
     }
     void load()
+    const interval = window.setInterval(load, 15000)
     return () => {
       cancelled = true
+      window.clearInterval(interval)
     }
   }, [eventId])
+
+  async function broadcastToTeam() {
+    setBroadcasting(true)
+    try {
+      await fetch(`/api/admin/events/${eventId}/work-mode`, buildNoStoreInit({
+        method: 'POST',
+        body: JSON.stringify({
+          publication_type: 'command_broadcast',
+          title: hq?.event?.title ? `Command center update: ${hq.event.title}` : 'Command center update',
+          payload: {
+            bulletins: bulletinsCount,
+            tasks: tasksCount,
+            documents: docsCount,
+            last_activity_at: lastActivityMs ? new Date(lastActivityMs).toISOString() : new Date().toISOString(),
+          },
+        }),
+      }))
+    } finally {
+      setBroadcasting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -155,23 +180,31 @@ export default function EventCommandCenterPage() {
   const lastActivityMs = hq ? computeLastActivityMs(hq) : null
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => router.push(`/admin/dashboard/events/${eventId}/hq`)}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Event HQ
-        </Button>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-white">
-          <LayoutDashboard className="h-7 w-7 text-cyan-400" />
-          Command center
-        </h1>
-      </div>
-      <p className="text-slate-400">
-        {hq?.event?.title ? `Event: ${hq.event.title}` : `Event id: ${eventId}`}
-        {hq?.userRole ? ` · Your role: ${hq.userRole}` : null}
-        {lastActivityMs ? ` · Last activity: ${formatRelativeTime(lastActivityMs)}` : null}
-      </p>
-
+    <OpsWorkspaceChrome
+      eventId={eventId}
+      backHref={`/admin/dashboard/events/${eventId}`}
+      backLabel="Back to event hub"
+      title="Command center"
+      description={
+        hq?.event?.title
+          ? `Live ops aggregation for ${hq.event.title}${hq?.userRole ? ` · role: ${hq.userRole}` : ""}${lastActivityMs ? ` · last activity ${formatRelativeTime(lastActivityMs)}` : ""}`
+          : `Event ops aggregation${lastActivityMs ? ` · last activity ${formatRelativeTime(lastActivityMs)}` : ""}`
+      }
+      badge={hq?.userRole || undefined}
+      actions={
+        <>
+          <Button variant="outline" size="sm" className="border-slate-700 text-slate-300" asChild>
+            <Link href={`/admin/dashboard/events/${eventId}/hq`}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Event HQ
+            </Link>
+          </Button>
+          <Button size="sm" className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white" onClick={broadcastToTeam} disabled={broadcasting}>
+            {broadcasting ? "Broadcasting..." : "Broadcast to Work Mode"}
+          </Button>
+        </>
+      }
+    >
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Card className="border-slate-700 bg-slate-900/60">
           <CardHeader className="pb-2">
@@ -328,6 +361,6 @@ export default function EventCommandCenterPage() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </OpsWorkspaceChrome>
   )
 }

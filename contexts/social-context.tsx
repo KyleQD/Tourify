@@ -202,12 +202,16 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const sendConnectionRequest = async (userId: string) => {
     try {
-      const response = await fetch("/api/friends/request", {
+      const response = await fetch("/api/social/follow-request", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId }),
+        body: JSON.stringify({ targetUserId: userId, action: "send" }),
       })
-      if (!response.ok) throw new Error("Failed to send connection request")
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to send connection request")
+      }
       toast({ title: "Success", description: "Connection request sent!" })
     } catch (err) {
       setError(err instanceof Error ? err : new Error("Failed to send connection request"))
@@ -267,11 +271,16 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const removeConnection = async (userId: string) => {
     try {
-      const response = await fetch(`/api/friends/${userId}`, {
-        method: "DELETE",
+      const response = await fetch("/api/social/follow-request", {
+        method: "POST",
         credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: userId, action: "remove" }),
       })
-      if (!response.ok) throw new Error("Failed to remove connection")
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || "Failed to remove connection")
+      }
 
       setUsers(prev => prev.map(user => {
         if (!user.connections?.includes(userId)) return user

@@ -42,39 +42,39 @@ const musicFeatures: FeatureCard[] = [
     title: "Music Upload",
     description: "Upload and manage your tracks",
     icon: Upload,
-    href: "/artist/features/music/upload"
+    href: "/artist/music?upload=1"
   },
   {
     title: "Music Library",
     description: "Browse and organize your music",
     icon: Library,
-    href: "/artist/features/music/library"
+    href: "/artist/music"
   },
   {
     title: "Music Analytics",
     description: "Track performance and insights",
     icon: LineChart,
-    href: "/artist/features/music/analytics"
+    href: "/artist/business/analytics"
   },
   {
     title: "Distribution",
     description: "Distribute to major platforms",
     icon: Share2,
-    href: "/artist/features/distribution",
+    href: "/artist/content",
     isPro: true
   },
   {
     title: "EPK",
     description: "Electronic Press Kit",
     icon: FileSpreadsheet,
-    href: "/artist/features/epk",
+    href: "/artist/epk",
     isPro: true
   },
   {
     title: "Events",
     description: "Manage your events",
     icon: Calendar,
-    href: "/dashboard/events"
+    href: "/artist/events"
   },
 ]
 
@@ -83,13 +83,13 @@ const contentFeatures: FeatureCard[] = [
     title: "Videos",
     description: "Upload and manage videos",
     icon: Video,
-    href: "/artist/features/videos"
+    href: "/artist/content"
   },
   {
     title: "Photos",
     description: "Manage and select your photo gallery",
     icon: ImageIcon,
-    href: "/artist/features/photos"
+    href: "/artist/content"
   },
   {
     title: "Blog",
@@ -104,7 +104,7 @@ const businessFeatures: FeatureCard[] = [
     title: "Merchandise",
     description: "Sell your merchandise",
     icon: ShoppingBag,
-    href: "/artist/features/merchandise"
+    href: "/artist/store?tab=listings&type=merch"
   },
   {
     title: "Jobs",
@@ -122,7 +122,7 @@ const businessFeatures: FeatureCard[] = [
     title: "Payments",
     description: "Manage your payments",
     icon: DollarSign,
-    href: "/artist/features/payments",
+    href: "/artist/store?tab=payments",
     isPro: true
   },
   {
@@ -213,4 +213,4 @@ export default function FeaturesPage() {
       <FeatureGroup title="Business" features={businessFeatures} />
     </div>
   )
-} 
+}

@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import type { ElementStatus } from "@/types/site-map"
 import { useSiteMapRealtime } from "@/hooks/use-site-map-realtime"
+import { useAuth } from "@/contexts/auth-context"
 
 interface CollabPanelProps {
   siteMapId: string
@@ -85,9 +86,20 @@ export function SiteMapCollaborationPanel({
   const [viewers, setViewers] = useState<ViewerInfo[]>([])
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [tasks, setTasks] = useState<any[]>([])
+  const [issues, setIssues] = useState<any[]>([])
   const [showTaskForm, setShowTaskForm] = useState(false)
   const notesEndRef = useRef<HTMLDivElement>(null)
   const { presenceCount, activityVersion, tasksVersion } = useSiteMapRealtime({ siteMapId })
+  const { user } = useAuth()
+  const openTasks = tasks.filter(task => task.status !== 'completed' && task.status !== 'cancelled')
+  const myTasks = user ? tasks.filter(task => task.assignedUserId === user.id || task.assignedTo === user.id) : []
+  const overdueTasks = openTasks.filter(task => task.dueDate && new Date(task.dueDate).getTime() < Date.now())
+  const blockedTasks = tasks.filter(task => task.status === 'blocked')
+  const readyTasks = tasks.filter(task => task.status === 'completed')
+  const recentlyChangedTasks = tasks.filter(task => {
+    const updatedAt = task.updatedAt ? new Date(task.updatedAt).getTime() : 0
+    return updatedAt > Date.now() - 24 * 60 * 60 * 1000
+  })
 
   const loadNotes = useCallback(async () => {
     try {
@@ -113,6 +125,14 @@ export function SiteMapCollaborationPanel({
     } catch {}
   }, [siteMapId])
 
+  const loadIssues = useCallback(async () => {
+    try {
+      const resp = await fetch(`/api/admin/logistics/site-maps/issues?siteMapId=${siteMapId}`, { credentials: 'include' })
+      const data = await resp.json()
+      if (data.success) setIssues(data.data || [])
+    } catch {}
+  }, [siteMapId])
+
   // Register presence
   useEffect(() => {
     const registerPresence = async () => {
@@ -135,15 +155,16 @@ export function SiteMapCollaborationPanel({
   // Load data once on mount
   useEffect(() => {
     setIsLoading(true)
-    Promise.all([loadNotes(), loadActivity(), loadTasks()]).finally(() => setIsLoading(false))
-  }, [loadNotes, loadActivity, loadTasks])
+    Promise.all([loadNotes(), loadActivity(), loadTasks(), loadIssues()]).finally(() => setIsLoading(false))
+  }, [loadNotes, loadActivity, loadTasks, loadIssues])
 
   // React to realtime activity updates
   useEffect(() => {
     if (activityVersion === 0) return
     void loadNotes()
     void loadActivity()
-  }, [activityVersion, loadNotes, loadActivity])
+    void loadIssues()
+  }, [activityVersion, loadNotes, loadActivity, loadIssues])
 
   // React to realtime task updates
   useEffect(() => {
@@ -228,7 +249,9 @@ export function SiteMapCollaborationPanel({
     priority: string,
     assignedTo?: string,
     assignedToName?: string,
-    dueDate?: string
+    dueDate?: string,
+    assignedTeamId?: string,
+    assignedRole?: string
   ) => {
     try {
       const resp = await fetch(`/api/admin/logistics/site-maps/${siteMapId}/tasks`, {
@@ -242,6 +265,8 @@ export function SiteMapCollaborationPanel({
           priority,
           assignedTo,
           assignedToName,
+          assignedTeamId,
+          assignedRole,
           dueDate,
           elementId: selectedElementId || undefined
         })
@@ -276,20 +301,29 @@ export function SiteMapCollaborationPanel({
 
   const reportIssue = async (title: string, severity: string, description: string) => {
     try {
-      await fetch(`/api/admin/logistics/site-maps/${siteMapId}/activity`, {
+      const resp = await fetch(`/api/admin/logistics/site-maps/issues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          action: 'REPORT_ISSUE',
-          entityType: 'issue',
-          entityId: selectedElementId || undefined,
-          newValues: { title, severity, description, status: 'open' }
+          siteMapId,
+          issueType: 'logistics',
+          severity,
+          title,
+          description,
+          x: Math.round(selectedElementPosition?.x ?? 0),
+          y: Math.round(selectedElementPosition?.y ?? 0),
+          notes: selectedElementId ? `Linked to ${selectedElementId}` : undefined,
         })
       })
+      const data = await resp.json()
+      if (!resp.ok || data.success === false) throw new Error(data.error || 'Failed to report issue')
       toast({ title: "Issue Reported", description: "The issue has been logged" })
+      loadIssues()
       loadActivity()
-    } catch {}
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" })
+    }
   }
 
   const timeAgo = (dateStr: string) => {
@@ -561,6 +595,21 @@ export function SiteMapCollaborationPanel({
               </div>
             )}
 
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { label: 'My Tasks', count: myTasks.filter(task => task.status !== 'completed').length, tone: 'text-blue-300 border-blue-500/30 bg-blue-500/10' },
+                { label: 'Overdue', count: overdueTasks.length, tone: 'text-red-300 border-red-500/30 bg-red-500/10' },
+                { label: 'Blocked', count: blockedTasks.length, tone: 'text-amber-300 border-amber-500/30 bg-amber-500/10' },
+                { label: 'Ready', count: readyTasks.length, tone: 'text-green-300 border-green-500/30 bg-green-500/10' },
+                { label: 'Changed', count: recentlyChangedTasks.length, tone: 'text-purple-300 border-purple-500/30 bg-purple-500/10' },
+              ].map(bucket => (
+                <div key={bucket.label} className={cn("rounded-lg border px-2 py-1.5", bucket.tone)}>
+                  <div className="text-[15px] font-semibold leading-none">{bucket.count}</div>
+                  <div className="text-[9px] uppercase tracking-wide mt-1">{bucket.label}</div>
+                </div>
+              ))}
+            </div>
+
             {/* Task list */}
             <div className="flex items-center justify-between">
               <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
@@ -612,6 +661,12 @@ export function SiteMapCollaborationPanel({
                               {task.assignedToName}
                             </span>
                           )}
+                          {task.assignedRole && <span>{task.assignedRole}</span>}
+                          {task.dueDate && (
+                            <span className={new Date(task.dueDate).getTime() < Date.now() && !isComplete ? "text-red-400" : ""}>
+                              Due {new Date(task.dueDate).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            </span>
+                          )}
                           <span>{timeAgo(task.createdAt)}</span>
                           {task.completedAt && <span className="text-green-500">Done {timeAgo(task.completedAt)}</span>}
                         </div>
@@ -638,14 +693,14 @@ export function SiteMapCollaborationPanel({
         {/* Issues Tab */}
         <TabsContent value="issues" className="flex-1 flex flex-col mt-0 min-h-0">
           <div className="flex-1 overflow-y-auto px-3 py-2 space-y-2">
-            {activity.filter(a => a.action === 'REPORT_ISSUE').length === 0 ? (
+            {issues.length === 0 ? (
               <div className="text-center py-8 text-slate-500 text-sm">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-30" />
                 No issues reported.
               </div>
             ) : (
-              activity.filter(a => a.action === 'REPORT_ISSUE').map(item => {
-                const severity = item.new_values?.severity || 'medium'
+              issues.map(issue => {
+                const severity = issue.severity || 'medium'
                 const sevColors: Record<string, string> = {
                   low: 'bg-blue-500/20 text-blue-300 border-blue-500/30',
                   medium: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
@@ -653,22 +708,22 @@ export function SiteMapCollaborationPanel({
                   critical: 'bg-red-500/20 text-red-300 border-red-500/30'
                 }
                 return (
-                  <div key={item.id} className="p-2.5 rounded-xl border border-slate-700/30 bg-slate-800/30">
+                  <div key={issue.id} className="p-2.5 rounded-xl border border-slate-700/30 bg-slate-800/30">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-1.5">
                         <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
-                        <span className="text-xs font-medium text-white">{item.new_values?.title}</span>
+                        <span className="text-xs font-medium text-white">{issue.title}</span>
                       </div>
                       <Badge className={cn("text-[9px] px-1.5 py-0 border", sevColors[severity])}>
                         {severity}
                       </Badge>
                     </div>
-                    {item.new_values?.description && (
-                      <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">{item.new_values.description}</p>
+                    {issue.description && (
+                      <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">{issue.description}</p>
                     )}
                     <div className="flex items-center justify-between mt-2 text-[9px] text-slate-500">
-                      <span>{item.user?.full_name || 'User'}</span>
-                      <span>{timeAgo(item.created_at)}</span>
+                      <span>{issue.reported_by_user?.full_name || issue.reported_by_user?.username || 'User'}</span>
+                      <span>{timeAgo(issue.created_at)}</span>
                     </div>
                   </div>
                 )
@@ -755,7 +810,7 @@ function IssueReporter({ onSubmit }: { onSubmit: (title: string, severity: strin
 }
 
 function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
-  onSubmit: (title: string, description: string, priority: string, assignedTo?: string, assignedToName?: string, dueDate?: string) => void
+  onSubmit: (title: string, description: string, priority: string, assignedTo?: string, assignedToName?: string, dueDate?: string, assignedTeamId?: string, assignedRole?: string) => void
   onCancel: () => void
   eventId?: string
   elementId?: string | null
@@ -768,6 +823,8 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
   const [assigneeSearch, setAssigneeSearch] = useState('')
   const [assigneeResults, setAssigneeResults] = useState<any[]>([])
   const [selectedAssignee, setSelectedAssignee] = useState<{ id: string; name: string } | null>(null)
+  const [assignedRole, setAssignedRole] = useState('')
+  const [assignedTeamId, setAssignedTeamId] = useState('')
   const [isSearching, setIsSearching] = useState(false)
 
   useEffect(() => {
@@ -776,18 +833,16 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
       setIsSearching(true)
       try {
         if (eventId) {
-          const staffResp = await fetch(`/api/events/${eventId}/staff`, { credentials: 'include' })
-          const staffData = await staffResp.json()
-          const roster = (staffData.availableMembers || []).filter((member: any) => {
-            const searchable = `${member.name || ''} ${member.email || ''}`.toLowerCase()
-            return searchable.includes(assigneeSearch.toLowerCase())
-          })
-          setAssigneeResults(roster.slice(0, 8).map((member: any) => ({
-            id: member.id,
-            full_name: member.name,
-            username: member.name,
-            avatar_url: null,
-          })))
+          const rosterResp = await fetch(`/api/hiring/roster?event_id=${encodeURIComponent(eventId)}&search=${encodeURIComponent(assigneeSearch)}`, { credentials: 'include' })
+          const rosterData = await rosterResp.json()
+          const members = rosterData.data || rosterData.members || []
+          setAssigneeResults(members.slice(0, 8).map((member: any) => ({
+            id: member.userId || member.user_id || member.id,
+            full_name: member.name || member.fullName || member.full_name || 'Crew member',
+            username: member.email || member.name || '',
+            avatar_url: member.avatarUrl || member.avatar_url || null,
+            department: member.department || null,
+          })).filter((member: any) => member.id))
         } else {
           const resp = await fetch(`/api/social/suggested?search=${encodeURIComponent(assigneeSearch)}&limit=5`, { credentials: 'include' })
           const data = await resp.json()
@@ -800,11 +855,20 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
       }
     }, 300)
     return () => clearTimeout(timer)
-  }, [assigneeSearch])
+  }, [assigneeSearch, eventId])
 
   const submit = () => {
     if (!title.trim()) return
-    onSubmit(title.trim(), description.trim(), priority, selectedAssignee?.id, selectedAssignee?.name, dueDate || undefined)
+    onSubmit(
+      title.trim(),
+      description.trim(),
+      priority,
+      selectedAssignee?.id,
+      selectedAssignee?.name,
+      dueDate || undefined,
+      assignedTeamId.trim() || undefined,
+      assignedRole.trim() || undefined
+    )
   }
 
   return (
@@ -850,6 +914,21 @@ function TaskCreator({ onSubmit, onCancel, eventId, elementId, siteMapId }: {
         onChange={(e) => setDueDate(e.target.value)}
         className="text-xs h-7 bg-slate-800/50 border-slate-700/50 text-white"
       />
+
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          value={assignedRole}
+          onChange={e => setAssignedRole(e.target.value)}
+          placeholder="Crew role..."
+          className="text-xs h-7 bg-slate-800/50 border-slate-700/50 text-white"
+        />
+        <Input
+          value={assignedTeamId}
+          onChange={e => setAssignedTeamId(e.target.value)}
+          placeholder="Team/department..."
+          className="text-xs h-7 bg-slate-800/50 border-slate-700/50 text-white"
+        />
+      </div>
 
       {/* Assignee search */}
       <div className="space-y-1">

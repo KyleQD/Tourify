@@ -12,12 +12,19 @@ const isDev = process.env.NODE_ENV !== 'production'
 function parseAuthFromCookies(request: NextRequest) {
   try {
     const cookies = request.cookies.getAll()
-    if (isDev) console.log('[Middleware] All cookies:', cookies.map((c) => `${c.name}: ${c.value.length} chars`))
+    // Avoid dumping every cookie on every request (dev hot-path noise).
+    if (isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1') {
+      console.log('[Middleware] All cookies:', cookies.map((c) => `${c.name}: ${c.value.length} chars`))
+    }
     const user = parseUserFromCookieNameValueList(cookies)
-    if (isDev && user) console.log('[Middleware] User from cookie:', user.id)
+    if (isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1' && user) {
+      console.log('[Middleware] User from cookie:', user.id)
+    }
     return user
   } catch (error) {
-    if (isDev) console.log('[Middleware] Error parsing auth from cookies:', error)
+    if (isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1') {
+      console.log('[Middleware] Error parsing auth from cookies:', error)
+    }
     return null
   }
 }
@@ -57,33 +64,31 @@ export async function updateSession(request: NextRequest) {
   )
 
   try {
-    if (isDev) console.log(`[Middleware] Checking auth for path: ${request.nextUrl.pathname}`)
-    
-    if (isDev) {
+    const debugMiddleware = isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1'
+    if (debugMiddleware) {
+      console.log(`[Middleware] Checking auth for path: ${request.nextUrl.pathname}`)
       const allCookies = request.cookies.getAll()
-      const authCookies = allCookies.filter(cookie => 
-        cookie.name.includes('supabase') || 
+      const authCookies = allCookies.filter(cookie =>
+        cookie.name.includes('supabase') ||
         cookie.name.includes('sb-') ||
         cookie.name.includes('tourify-auth')
       )
       console.log(`[Middleware] Found ${authCookies.length} auth-related cookies:`, authCookies.map(c => c.name))
     }
-    
+
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
-    if (isDev && userError) {
+
+    if (debugMiddleware && userError) {
       console.log(`[Middleware] Supabase auth error:`, userError.message)
     }
 
-    if (isDev) console.log(`[Middleware] Supabase method - User exists: ${!!user}`)
-    
     let finalUser = user
     if (!user) {
-      if (isDev) console.log(`[Middleware] Supabase method failed, trying manual cookie parsing...`)
+      if (debugMiddleware) console.log(`[Middleware] Supabase method failed, trying manual cookie parsing...`)
       finalUser = parseAuthFromCookies(request)
     }
-    
-    if (isDev) {
+
+    if (debugMiddleware) {
       console.log(`[Middleware] Final result - User exists: ${!!finalUser}`)
       console.log(`[Middleware] User ID: ${finalUser?.id || 'none'}`)
     }
@@ -91,8 +96,7 @@ export async function updateSession(request: NextRequest) {
     return { supabaseResponse, user: finalUser, supabase }
   } catch (error) {
     console.error('[Middleware] Error in updateSession:', error)
-    
-    if (isDev) console.log('[Middleware] Exception occurred, trying manual fallback...')
+
     const fallbackUser = parseAuthFromCookies(request)
     return { supabaseResponse, user: fallbackUser, supabase }
   }

@@ -1,4 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
+import {
+  getTrackFullStoragePath,
+  getTrackPreviewStoragePath,
+  getTrackStorageBucket,
+  recordMusicEvent,
+  resolveMusicAccess,
+} from "@/lib/music/music-access"
 import { NextRequest, NextResponse } from "next/server"
 
 export const dynamic = "force-dynamic"
@@ -13,7 +20,23 @@ export async function GET(request: NextRequest) {
 
     const { data: track, error: trackError } = await supabase
       .from("artist_music")
-      .select("id, file_url, is_public, user_id")
+      .select(`
+        id,
+        user_id,
+        storage_bucket,
+        storage_path,
+        preview_storage_bucket,
+        preview_storage_path,
+        preview_status,
+        file_url,
+        preview_file_url,
+        is_public,
+        is_visible,
+        moderation_status,
+        access_mode,
+        preview_mode,
+        rights_confirmed
+      `)
       .eq("id", trackId)
       .single()
 
@@ -21,55 +44,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Track not found" }, { status: 404 })
 
     const { data: { user } } = await supabase.auth.getUser()
-    const isOwner = user?.id === track.user_id
 
-    if (!track.is_public && !isOwner) {
-      if (!user)
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    const access = await resolveMusicAccess({
+      supabase,
+      track,
+      viewerUserId: user?.id || null,
+    })
 
-      const { data: libraryEntry } = await supabase
-        .from("user_music_library")
-        .select("id")
-        .eq("buyer_user_id", user.id)
-        .eq("music_track_id", trackId)
-        .maybeSingle()
-
-      if (!libraryEntry)
-        return NextResponse.json({ error: "Access denied" }, { status: 403 })
+    if (!access.allowed) {
+      const status = access.reason === "auth_required" ? 401 : 403
+      return NextResponse.json({ error: "Access denied", accessLevel: access.accessLevel }, { status })
     }
 
-    if (!track.file_url)
+    const storagePath =
+      access.accessLevel === "preview"
+        ? getTrackPreviewStoragePath(track)
+        : getTrackFullStoragePath(track)
+
+    if (!storagePath)
       return NextResponse.json({ error: "No audio file" }, { status: 404 })
 
-    const storagePath = extractStoragePath(track.file_url)
-    if (!storagePath)
-      return NextResponse.json({ url: track.file_url })
-
+    const bucket = getTrackStorageBucket(track, access.accessLevel)
     const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-      .from("artist-music")
+      .from(bucket)
       .createSignedUrl(storagePath, 3600)
 
     if (signedUrlError || !signedUrlData?.signedUrl) {
-      return NextResponse.json({ url: track.file_url })
+      console.error("Failed to sign music stream URL", signedUrlError)
+      return NextResponse.json({ error: "Unable to generate stream URL" }, { status: 500 })
     }
 
-    const response = NextResponse.json({ url: signedUrlData.signedUrl, expiresIn: 3600 })
+    await recordMusicEvent({
+      supabase,
+      musicId: track.id,
+      artistUserId: track.user_id,
+      actorUserId: user?.id || null,
+      eventType: "stream_issued",
+      accessLevel: access.accessLevel,
+      source: "api_music_stream",
+      metadata: { bucket, storage_path: storagePath },
+    })
+
+    const response = NextResponse.json({
+      url: signedUrlData.signedUrl,
+      accessLevel: access.accessLevel,
+      expiresIn: 3600,
+    })
     response.headers.set("Cache-Control", "private, max-age=3000")
     return response
   } catch (error) {
     console.error("Stream URL error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-}
-
-function extractStoragePath(fileUrl: string): string | null {
-  try {
-    const url = new URL(fileUrl)
-    const match = url.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/artist-music\/(.+)/)
-    if (match?.[1]) return decodeURIComponent(match[1])
-
-    const renderMatch = url.pathname.match(/\/storage\/v1\/render\/image\/public\/artist-music\/(.+)/)
-    if (renderMatch?.[1]) return decodeURIComponent(renderMatch[1])
-  } catch {}
-  return null
 }
