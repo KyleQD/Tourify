@@ -2,7 +2,7 @@
 
 import { supabase } from "@/lib/supabase"
 import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -24,12 +24,9 @@ import {
   DollarSign,
   Edit,
   Share2,
-  Download,
   Music,
-  Image as ImageIcon,
   FileText,
   CheckCircle,
-  AlertCircle,
   Plus,
   Trash2,
   Copy,
@@ -37,38 +34,20 @@ import {
 } from "lucide-react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import Image from "next/image"
 import { getArtistEventVisibility } from "@/lib/artist/artist-event-visibility"
 import { EventShareMenu } from "@/components/events/event-share-menu"
-import { EventPageTemplateSelector } from "@/components/events/event-page-template-selector"
+import { EventPageDesignPanel } from "@/components/events/event-page-design-panel"
+import { artistEventStatusClass, artistEventTone, artistEventUI } from "@/components/events/artist-event-ui"
+import { normalizeEventPageLayout, type EventPageLayout } from "@/lib/events/event-page-layout"
 import type { EventPageSkinId } from "@/lib/events/event-skin-tokens"
+import { cn } from "@/lib/utils"
 
 function isValidNextImageSrc(value?: string | null): value is string {
   if (!value || typeof value !== "string") return false
   const trimmed = value.trim()
   if (!trimmed) return false
   return /^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")
-}
-
-// Animation variants
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 }
-}
-
-const floatingAnimation = {
-  y: [0, -10, 0]
-}
-
-const staggerContainer = {
-  initial: {},
-  animate: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
 }
 
 interface Event {
@@ -103,6 +82,7 @@ interface Event {
     marketing_notes?: string
     lineup_notes?: string
     page_template?: string
+    page_layout?: EventPageLayout
     supporting_artists?: Array<{ id?: string; label?: string }>
   } | null
   setlist?: string[]
@@ -201,7 +181,7 @@ export default function EventDetailPage() {
   const [showBookingModal, setShowBookingModal] = useState(false)
   const [venueSearchQuery, setVenueSearchQuery] = useState('')
   const [bookingMessage, setBookingMessage] = useState('')
-  const [isSavingPageTemplate, setIsSavingPageTemplate] = useState(false)
+  const [isSavingPageDesign, setIsSavingPageDesign] = useState(false)
 
   const eventId = params.id as string
 
@@ -405,13 +385,20 @@ export default function EventDetailPage() {
     }
   }
 
-  const savePageTemplate = async (template: EventPageSkinId) => {
+  const savePageDesign = async ({
+    template,
+    pageLayout,
+  }: {
+    template?: EventPageSkinId
+    pageLayout?: EventPageLayout
+  }) => {
     if (!event) return
-    setIsSavingPageTemplate(true)
+    setIsSavingPageDesign(true)
     try {
       const nextSettings = {
         ...(event.producer_settings || {}),
-        page_template: template,
+        page_template: template || event.producer_settings?.page_template || "modern",
+        page_layout: normalizeEventPageLayout(pageLayout || event.producer_settings?.page_layout),
       }
       const response = await fetch(`/api/artist/events/${event.id}`, {
         method: "PATCH",
@@ -428,17 +415,18 @@ export default function EventDetailPage() {
               ...prev,
               producer_settings: {
                 ...(prev.producer_settings || {}),
-                page_template: template,
+                page_template: nextSettings.page_template,
+                page_layout: nextSettings.page_layout,
               },
             }
           : prev
       )
-      toast.success("Page style saved")
+      toast.success("Page design saved")
     } catch (error) {
-      console.error("Error saving page template:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to save page style")
+      console.error("Error saving page design:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to save page design")
     } finally {
-      setIsSavingPageTemplate(false)
+      setIsSavingPageDesign(false)
     }
   }
 
@@ -496,19 +484,6 @@ export default function EventDetailPage() {
       toast.success("Link copied to clipboard")
     }
     setShowShareMenu(false)
-  }
-
-  const getStatusColor = (status: Event['status']) => {
-    switch (status) {
-      case 'published': return 'bg-emerald-600/20 text-emerald-300 border-emerald-500/30'
-      case 'draft': return 'bg-amber-600/20 text-amber-300 border-amber-500/30'
-      case 'cancelled': return 'bg-red-600/20 text-red-300 border-red-500/30'
-      case 'upcoming': return 'bg-blue-600/20 text-blue-300 border-blue-500/30'
-      case 'in_progress': return 'bg-green-600/20 text-green-300 border-green-500/30'
-      case 'completed': return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
-      case 'postponed': return 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30'
-      default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
-    }
   }
 
   const getCompletionProgress = () => {
@@ -621,68 +596,48 @@ export default function EventDetailPage() {
     }
   }
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'accepted': return 'bg-green-600/20 text-green-300 border-green-500/30'
-      case 'invited': return 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30'
-      case 'declined': return 'bg-red-600/20 text-red-300 border-red-500/30'
-      case 'pending': return 'bg-blue-600/20 text-blue-300 border-blue-500/30'
-      default: return 'bg-gray-600/20 text-gray-300 border-gray-500/30'
-    }
-  }
+  const getStatusBadgeColor = (status: string) => artistEventStatusClass(status)
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+      <div className="flex min-h-[400px] items-center justify-center">
+        <div className={cn(artistEventUI.panelPadded, "flex items-center gap-3")}>
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-cyan-400 border-t-transparent" />
+          <span className="text-slate-200">Loading event workspace...</span>
+        </div>
       </div>
     )
   }
 
   if (!event) {
     return (
-      <div className="text-center py-8">
-        <p className="text-gray-400">Event not found</p>
+      <div className="py-8">
+        <div className={artistEventUI.empty}>
+          <Calendar className="mb-4 h-12 w-12 text-slate-500" />
+          <p className="text-slate-400">Event not found</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-black via-slate-950 to-black text-white relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <motion.div
-          className="absolute top-20 left-20 w-96 h-96 bg-gradient-to-r from-purple-500/8 to-pink-500/8 rounded-full blur-3xl"
-          animate={floatingAnimation}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-        />
-        <motion.div
-          className="absolute bottom-20 right-20 w-80 h-80 bg-gradient-to-r from-blue-500/8 to-cyan-500/8 rounded-full blur-3xl"
-          animate={floatingAnimation}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-        />
-        <motion.div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-emerald-500/5 to-teal-500/5 rounded-full blur-3xl"
-          animate={floatingAnimation}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-        />
-      </div>
+    <div className={artistEventUI.page}>
+      <div className={artistEventUI.pageGlow} />
 
       {/* Header */}
-      <div className="border-b border-slate-800/50 bg-black/40 backdrop-blur-xl sticky top-0 z-50 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-transparent to-blue-500/5" />
-        <div className="px-6 py-4 relative">
-          <div className="flex items-center justify-between">
+      <div className="sticky top-0 z-50 border-b border-slate-800/70 bg-slate-950/88 backdrop-blur-xl">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
-              className="flex items-center gap-4"
+              className="flex items-center gap-3"
             >
               <Button
                 variant="ghost"
                 onClick={() => router.push('/artist/events')}
-                className="text-gray-400 hover:text-white hover:bg-white/10 backdrop-blur-sm"
+                className={artistEventUI.buttonGhost}
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Events
@@ -693,13 +648,13 @@ export default function EventDetailPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="flex items-center gap-3"
+              className="flex flex-wrap items-center gap-2 lg:justify-end"
             >
               {event.status === "draft" ? (
                 <Button
                   onClick={() => void publishEvent()}
                   disabled={isPublishing}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 shadow-lg"
+                  className={cn(artistEventUI.buttonAccent, "from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500")}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   {isPublishing ? "Publishing…" : "Publish"}
@@ -708,7 +663,7 @@ export default function EventDetailPage() {
                 <Button
                   variant="outline"
                   onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
-                  className="border-slate-700/50 text-slate-300 hover:bg-slate-800/50 backdrop-blur-sm"
+                  className={artistEventUI.buttonOutline}
                 >
                   <ExternalLink className="h-4 w-4 mr-2" />
                   View public page
@@ -717,7 +672,7 @@ export default function EventDetailPage() {
               <Button 
                 variant="outline" 
                 onClick={copyEventLink}
-                className="border-slate-700/50 text-slate-300 hover:bg-slate-800/50 backdrop-blur-sm"
+                className={artistEventUI.buttonOutline}
               >
                 <Copy className="h-4 w-4 mr-2" />
                 Copy Link
@@ -725,14 +680,14 @@ export default function EventDetailPage() {
               <Button 
                 variant="outline"
                 onClick={() => setShowShareMenu(true)}
-                className="border-slate-700/50 text-slate-300 hover:bg-slate-800/50 backdrop-blur-sm"
+                className={artistEventUI.buttonOutline}
               >
                 <Share2 className="h-4 w-4 mr-2" />
                 Share
               </Button>
               <Button 
                 onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
-                className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg"
+                className={artistEventUI.buttonPrimary}
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Event
@@ -742,10 +697,10 @@ export default function EventDetailPage() {
         </div>
       </div>
 
-      <div className="p-6 space-y-8 relative">{/* Spacer for content */}
+      <div className={artistEventUI.shell}>{/* Spacer for content */}
 
       {showPublishedBanner && event.status === "published" ? (
-        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className={cn(artistEventUI.panelPadded, "flex flex-col gap-3 border-emerald-500/30 bg-emerald-500/10 sm:flex-row sm:items-center sm:justify-between")}>
           <div>
             <p className="font-medium text-emerald-200">Your event is published</p>
             <p className="text-sm text-emerald-200/70">Share the public page so fans can find your show.</p>
@@ -754,7 +709,7 @@ export default function EventDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              className="border-emerald-500/40 text-emerald-100 hover:bg-emerald-500/20"
+              className={cn(artistEventUI.buttonOutline, artistEventTone("emerald"))}
               onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
             >
               <ExternalLink className="h-4 w-4 mr-2" />
@@ -763,7 +718,7 @@ export default function EventDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              className="border-emerald-500/40 text-emerald-100 hover:bg-emerald-500/20"
+              className={cn(artistEventUI.buttonOutline, artistEventTone("emerald"))}
               onClick={() => setShowShareMenu(true)}
             >
               <Share2 className="h-4 w-4 mr-2" />
@@ -772,7 +727,7 @@ export default function EventDetailPage() {
             <Button
               size="sm"
               variant="outline"
-              className="border-emerald-500/40 text-emerald-100 hover:bg-emerald-500/20"
+              className={cn(artistEventUI.buttonOutline, artistEventTone("emerald"))}
               onClick={copyEventLink}
             >
               <Copy className="h-4 w-4 mr-2" />
@@ -781,7 +736,7 @@ export default function EventDetailPage() {
             <Button
               size="sm"
               variant="ghost"
-              className="text-emerald-200/70 hover:text-emerald-100"
+              className="text-emerald-200/70 hover:bg-emerald-500/10 hover:text-emerald-100"
               onClick={() => setShowPublishedBanner(false)}
             >
               Dismiss
@@ -796,70 +751,70 @@ export default function EventDetailPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
       >
-        <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl shadow-2xl">
+        <Card className={cn(artistEventUI.panel, "overflow-hidden")}>
           <CardContent className="p-8">
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
               <div className="flex-1">
-                <div className="flex items-center gap-4 mb-4">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
                     {event.title}
                   </h1>
-                  <Badge className={`${getStatusColor(event.status)} border border-current/30 backdrop-blur-sm`}>
+                  <Badge variant="outline" className={cn("capitalize", artistEventStatusClass(event.status))}>
                     {event.status.replace('_', ' ')}
                   </Badge>
                   {getArtistEventVisibility(event) === "private" && (
-                    <Badge variant="outline" className="border-gray-500/30 text-gray-400 bg-gray-500/5 backdrop-blur-sm">
+                    <Badge variant="outline" className={artistEventStatusClass("private")}>
                       Private
                     </Badge>
                   )}
                   {getArtistEventVisibility(event) === "unlisted" && (
-                    <Badge variant="outline" className="border-amber-500/30 text-amber-300 bg-amber-500/5 backdrop-blur-sm">
+                    <Badge variant="outline" className={artistEventStatusClass("draft")}>
                       Unlisted
                     </Badge>
                   )}
                 </div>
               
               {event.description && (
-                <p className="text-gray-400 mb-4">{event.description}</p>
+                <p className="text-slate-400 mb-4">{event.description}</p>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="flex items-center gap-2 text-gray-300">
-                  <Calendar className="h-5 w-5 text-blue-400" />
+                <div className="flex items-center gap-2 text-slate-300">
+                  <Calendar className="h-5 w-5 text-cyan-300" />
                   <div>
                     <p className="font-medium">{format(new Date(event.event_date), 'PPP')}</p>
                     {event.start_time && (
-                      <p className="text-sm text-gray-400">{event.start_time}</p>
+                      <p className="text-sm text-slate-400">{event.start_time}</p>
                     )}
                   </div>
                 </div>
 
                 {event.venue_name && (
-                  <div className="flex items-center gap-2 text-gray-300">
+                  <div className="flex items-center gap-2 text-slate-300">
                     <MapPin className="h-5 w-5 text-red-400" />
                     <div>
                       <p className="font-medium">{event.venue_name}</p>
                       {event.venue_city && (
-                        <p className="text-sm text-gray-400">{event.venue_city}, {event.venue_state}</p>
+                        <p className="text-sm text-slate-400">{event.venue_city}, {event.venue_state}</p>
                       )}
                     </div>
                   </div>
                 )}
 
                 {event.capacity && (
-                  <div className="flex items-center gap-2 text-gray-300">
+                  <div className="flex items-center gap-2 text-slate-300">
                     <Users className="h-5 w-5 text-purple-400" />
                     <div>
                       <p className="font-medium">{event.capacity.toLocaleString()} capacity</p>
                       {event.expected_attendance && (
-                        <p className="text-sm text-gray-400">{event.expected_attendance.toLocaleString()} expected</p>
+                        <p className="text-sm text-slate-400">{event.expected_attendance.toLocaleString()} expected</p>
                       )}
                     </div>
                   </div>
                 )}
 
                 {event.ticket_price_min && (
-                  <div className="flex items-center gap-2 text-gray-300">
+                  <div className="flex items-center gap-2 text-slate-300">
                     <DollarSign className="h-5 w-5 text-green-400" />
                     <div>
                       <p className="font-medium">
@@ -868,7 +823,7 @@ export default function EventDetailPage() {
                           ` - $${event.ticket_price_max}`
                         }
                       </p>
-                      <p className="text-sm text-gray-400">Ticket price</p>
+                      <p className="text-sm text-slate-400">Ticket price</p>
                     </div>
                   </div>
                 )}
@@ -878,12 +833,12 @@ export default function EventDetailPage() {
 
           {/* Quick Actions */}
           {event.status === 'draft' && (
-            <div className="flex gap-2 pt-4 border-t border-slate-700">
+            <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700">
               <Button
                 size="sm"
                 onClick={() => void publishEvent()}
                 disabled={isPublishing}
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className={cn(artistEventUI.buttonAccent, "from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500")}
               >
                 {isPublishing ? "Publishing…" : "Publish event"}
               </Button>
@@ -891,17 +846,19 @@ export default function EventDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                className={artistEventUI.buttonOutline}
               >
                 Continue editing
               </Button>
             </div>
           )}
           {event.status === 'published' && (
-            <div className="flex gap-2 pt-4 border-t border-slate-700">
+            <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
+                className={artistEventUI.buttonOutline}
               >
                 View public page
               </Button>
@@ -909,18 +866,19 @@ export default function EventDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => updateEventStatus('cancelled')}
-                className="text-red-400 border-red-400 hover:bg-red-400/10"
+                className={artistEventUI.buttonDanger}
               >
                 Cancel Event
               </Button>
             </div>
           )}
           {event.status === 'upcoming' && (
-            <div className="flex gap-2 pt-4 border-t border-slate-700">
+            <div className="flex flex-wrap gap-2 pt-4 border-t border-slate-700">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => updateEventStatus('in_progress')}
+                className={artistEventUI.buttonOutline}
               >
                 Mark as In Progress
               </Button>
@@ -928,6 +886,7 @@ export default function EventDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => updateEventStatus('completed')}
+                className={artistEventUI.buttonOutline}
               >
                 Mark as Completed
               </Button>
@@ -935,7 +894,7 @@ export default function EventDetailPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => updateEventStatus('cancelled')}
-                className="text-red-400 border-red-400 hover:bg-red-400/10"
+                className={artistEventUI.buttonDanger}
               >
                 Cancel Event
               </Button>
@@ -956,12 +915,12 @@ export default function EventDetailPage() {
           whileHover={{ y: -4, scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl hover:border-green-500/30 transition-all duration-300 group">
+          <Card className={cn(artistEventUI.panel, artistEventUI.interactive, "group")}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Progress</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+                  <p className="text-sm text-slate-400">Progress</p>
+                  <p className="text-3xl font-bold text-emerald-300">
                     {getCompletionProgress()}%
                   </p>
                 </div>
@@ -976,12 +935,12 @@ export default function EventDetailPage() {
           whileHover={{ y: -4, scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl hover:border-blue-500/30 transition-all duration-300 group">
+          <Card className={cn(artistEventUI.panel, artistEventUI.interactive, "group")}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Tasks</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  <p className="text-sm text-slate-400">Tasks</p>
+                  <p className="text-3xl font-bold text-cyan-300">
                     {tasks.filter(t => t.completed).length}/{tasks.length}
                   </p>
                 </div>
@@ -995,12 +954,12 @@ export default function EventDetailPage() {
           whileHover={{ y: -4, scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl hover:border-red-500/30 transition-all duration-300 group">
+          <Card className={cn(artistEventUI.panel, artistEventUI.interactive, "group")}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Expenses</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">
+                  <p className="text-sm text-slate-400">Expenses</p>
+                  <p className="text-3xl font-bold text-red-300">
                     ${getTotalExpenses().toLocaleString()}
                   </p>
                 </div>
@@ -1014,12 +973,12 @@ export default function EventDetailPage() {
           whileHover={{ y: -4, scale: 1.02 }}
           transition={{ type: "spring", stiffness: 400, damping: 17 }}
         >
-          <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl hover:border-emerald-500/30 transition-all duration-300 group">
+          <Card className={cn(artistEventUI.panel, artistEventUI.interactive, "group")}>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Projected Revenue</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">
+                  <p className="text-sm text-slate-400">Projected Revenue</p>
+                  <p className="text-3xl font-bold text-emerald-300">
                     ${getProjectedRevenue().toLocaleString()}
                   </p>
                 </div>
@@ -1037,15 +996,16 @@ export default function EventDetailPage() {
         transition={{ duration: 0.6, delay: 0.4 }}
       >
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsList className="grid grid-cols-7 gap-2 bg-gradient-to-r from-slate-800/50 via-slate-700/50 to-slate-800/50 backdrop-blur-xl border border-slate-700/30 p-2 w-full">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="crew">Crew</TabsTrigger>
-          <TabsTrigger value="venues">Venues</TabsTrigger>
-          <TabsTrigger value="tasks">Tasks</TabsTrigger>
-          <TabsTrigger value="budget">Budget</TabsTrigger>
-          <TabsTrigger value="marketing">Marketing</TabsTrigger>
-          <TabsTrigger value="site-map">Site Map</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsList className={artistEventUI.tabsList}>
+          <TabsTrigger value="overview" className={artistEventUI.tabsTrigger}>Overview</TabsTrigger>
+          <TabsTrigger value="public-page" className={artistEventUI.tabsTrigger}>Public Page</TabsTrigger>
+          <TabsTrigger value="crew" className={artistEventUI.tabsTrigger}>Crew</TabsTrigger>
+          <TabsTrigger value="venues" className={artistEventUI.tabsTrigger}>Venues</TabsTrigger>
+          <TabsTrigger value="tasks" className={artistEventUI.tabsTrigger}>Tasks</TabsTrigger>
+          <TabsTrigger value="budget" className={artistEventUI.tabsTrigger}>Budget</TabsTrigger>
+          <TabsTrigger value="marketing" className={artistEventUI.tabsTrigger}>Marketing</TabsTrigger>
+          <TabsTrigger value="site-map" className={artistEventUI.tabsTrigger}>Site Map</TabsTrigger>
+          <TabsTrigger value="settings" className={artistEventUI.tabsTrigger}>Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -1058,23 +1018,23 @@ export default function EventDetailPage() {
           />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Event Details */}
-            <Card className="bg-gradient-to-br from-slate-900/60 via-slate-800/40 to-slate-900/60 border border-slate-700/30 backdrop-blur-xl">
+            <Card className={artistEventUI.panel}>
               <CardHeader>
-                <CardTitle className="text-xl bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-purple-400" />
+                <CardTitle className="flex items-center gap-2 text-xl text-white">
+                  <Calendar className="h-5 w-5 text-cyan-300" />
                   Event Details
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-gray-400 text-sm">Type</Label>
+                    <Label className="text-slate-400 text-sm">Type</Label>
                     <p className="text-white">{event.type.charAt(0).toUpperCase() + event.type.slice(1)}</p>
                   </div>
                   
                   {event.venue_address && (
                     <div>
-                      <Label className="text-gray-400 text-sm">Full Address</Label>
+                      <Label className="text-slate-400 text-sm">Full Address</Label>
                       <p className="text-white">
                         {event.venue_address}<br />
                         {event.venue_city}, {event.venue_state} {event.venue_country}
@@ -1084,7 +1044,7 @@ export default function EventDetailPage() {
                   
                   {event.doors_open && (
                     <div>
-                      <Label className="text-gray-400 text-sm">Schedule</Label>
+                      <Label className="text-slate-400 text-sm">Schedule</Label>
                       <div className="text-white space-y-1">
                         <p>Doors open: {event.doors_open}</p>
                         <p>Show starts: {event.start_time}</p>
@@ -1095,7 +1055,7 @@ export default function EventDetailPage() {
                   
                   {event.ticket_url && (
                     <div>
-                      <Label className="text-gray-400 text-sm">Tickets</Label>
+                      <Label className="text-slate-400 text-sm">Tickets</Label>
                       <a 
                         href={event.ticket_url} 
                         target="_blank" 
@@ -1109,21 +1069,21 @@ export default function EventDetailPage() {
 
                   {event.producer_settings?.share_blurb ? (
                     <div>
-                      <Label className="text-gray-400 text-sm">Share blurb</Label>
+                      <Label className="text-slate-400 text-sm">Share blurb</Label>
                       <p className="text-white whitespace-pre-wrap">{event.producer_settings.share_blurb}</p>
                     </div>
                   ) : null}
 
                   {event.producer_settings?.lineup_notes ? (
                     <div>
-                      <Label className="text-gray-400 text-sm">Lineup notes</Label>
+                      <Label className="text-slate-400 text-sm">Lineup notes</Label>
                       <p className="text-white whitespace-pre-wrap">{event.producer_settings.lineup_notes}</p>
                     </div>
                   ) : null}
 
                   {isValidNextImageSrc(event.poster_url) ? (
                     <div>
-                      <Label className="text-gray-400 text-sm">Poster</Label>
+                      <Label className="text-slate-400 text-sm">Poster</Label>
                       <div className="relative mt-2 h-32 w-24 overflow-hidden rounded border border-slate-700">
                         <Image src={event.poster_url} alt="Event poster" fill className="object-cover" />
                       </div>
@@ -1134,15 +1094,15 @@ export default function EventDetailPage() {
             </Card>
 
             {/* Notes */}
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className={artistEventUI.panel}>
               <CardHeader>
                 <CardTitle className="text-white">Notes</CardTitle>
               </CardHeader>
               <CardContent>
                 {event.notes ? (
-                  <p className="text-gray-300 whitespace-pre-wrap">{event.notes}</p>
+                  <p className="text-slate-300 whitespace-pre-wrap">{event.notes}</p>
                 ) : (
-                  <p className="text-gray-500 italic">No notes added yet.</p>
+                  <p className="text-slate-500 italic">No notes added yet.</p>
                 )}
               </CardContent>
             </Card>
@@ -1150,7 +1110,7 @@ export default function EventDetailPage() {
 
           {/* Setlist */}
           {event.setlist && event.setlist.length > 0 && (
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className={artistEventUI.panel}>
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <Music className="h-5 w-5" />
@@ -1161,7 +1121,7 @@ export default function EventDetailPage() {
                 <div className="space-y-2">
                   {event.setlist.map((song, index) => (
                     <div key={index} className="flex items-center gap-3 p-2 bg-slate-800/50 rounded">
-                      <span className="text-gray-400 w-8">{index + 1}.</span>
+                      <span className="text-slate-400 w-8">{index + 1}.</span>
                       <span className="text-white">{song}</span>
                     </div>
                   ))}
@@ -1171,10 +1131,64 @@ export default function EventDetailPage() {
           )}
         </TabsContent>
 
+        <TabsContent value="public-page" className="space-y-6">
+          <Card className={artistEventUI.panel}>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-white">Public Page Design</CardTitle>
+                <p className="mt-1 text-sm text-slate-400">
+                  Customize the event page fans see when they open your public link.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
+                className={artistEventUI.buttonOutline}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                Edit details
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <EventPageDesignPanel
+                selectedTemplate={event.producer_settings?.page_template || "modern"}
+                layout={normalizeEventPageLayout(event.producer_settings?.page_layout)}
+                previewData={{
+                  title: event.title || event.name || "Untitled event",
+                  type: event.event_type || event.type,
+                  status: event.status,
+                  description: event.description,
+                  posterUrl: event.poster_url,
+                  eventDate: event.event_date,
+                  startTime: event.start_time,
+                  venueName: event.venue_name,
+                  city: event.venue_city,
+                  state: event.venue_state,
+                  ticketUrl: event.ticket_url,
+                  capacity: event.capacity,
+                }}
+                onTemplateChange={(template) => void savePageDesign({ template })}
+                onLayoutChange={(pageLayout) => void savePageDesign({ pageLayout })}
+                onSave={() =>
+                  void savePageDesign({
+                    template: (event.producer_settings?.page_template || "modern") as EventPageSkinId,
+                    pageLayout: normalizeEventPageLayout(event.producer_settings?.page_layout),
+                  })
+                }
+                isSaving={isSavingPageDesign}
+                publicPath={publicEventPath}
+                onCopyPublicLink={copyEventLink}
+                onOpenPublicPage={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="crew" className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-white">Crew Management</h2>
-            <Button onClick={() => setShowInviteModal(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => setShowInviteModal(true)} className={artistEventUI.buttonPrimary}>
               <Plus className="h-4 w-4 mr-2" />
               Invite Crew Member
             </Button>
@@ -1183,12 +1197,12 @@ export default function EventDetailPage() {
           {/* Crew Members List */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {crewMembers.map((member) => (
-              <Card key={member.id} className="bg-slate-900/50 border-slate-700/50">
+              <Card key={member.id} className={artistEventUI.panel}>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h3 className="font-semibold text-white">{member.name}</h3>
-                      <p className="text-sm text-gray-400">{member.email}</p>
+                      <p className="text-sm text-slate-400">{member.email}</p>
                       <p className="text-sm font-medium text-purple-300 mt-1">{member.role}</p>
                     </div>
                     <Badge variant="outline" className={getStatusBadgeColor(member.status)}>
@@ -1198,7 +1212,7 @@ export default function EventDetailPage() {
                   
                   {member.permissions.length > 0 && (
                     <div className="mb-3">
-                      <p className="text-xs text-gray-500 mb-1">Permissions:</p>
+                      <p className="text-xs text-slate-500 mb-1">Permissions:</p>
                       <div className="flex flex-wrap gap-1">
                         {member.permissions.map((permission, index) => (
                           <Badge key={index} variant="secondary" className="text-xs">
@@ -1216,7 +1230,7 @@ export default function EventDetailPage() {
                           size="sm" 
                           variant="outline" 
                           onClick={() => updateCrewStatus(member.id, 'accepted')}
-                          className="text-green-400 border-green-400 hover:bg-green-400/10"
+                          className={cn(artistEventUI.buttonOutline, artistEventTone("emerald"))}
                         >
                           Accept
                         </Button>
@@ -1224,7 +1238,7 @@ export default function EventDetailPage() {
                           size="sm" 
                           variant="outline"
                           onClick={() => updateCrewStatus(member.id, 'declined')}
-                          className="text-red-400 border-red-400 hover:bg-red-400/10"
+                          className={artistEventUI.buttonDanger}
                         >
                           Decline
                         </Button>
@@ -1234,7 +1248,8 @@ export default function EventDetailPage() {
                       size="sm" 
                       variant="ghost" 
                       onClick={() => removeCrewMember(member.id)}
-                      className="text-gray-400 hover:text-red-400"
+                      className={artistEventUI.buttonGhost}
+                      aria-label={`Remove ${member.name}`}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -1245,12 +1260,12 @@ export default function EventDetailPage() {
           </div>
 
           {crewMembers.length === 0 && (
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardContent className="p-12 text-center">
-                <Users className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+            <Card className={artistEventUI.panel}>
+              <CardContent className={artistEventUI.empty}>
+                <Users className="h-12 w-12 text-slate-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">No crew members yet</h3>
-                <p className="text-gray-400 mb-4">Start building your event team by inviting crew members.</p>
-                <Button onClick={() => setShowInviteModal(true)} className="bg-purple-600 hover:bg-purple-700">
+                <p className="text-slate-400 mb-4">Start building your event team by inviting crew members.</p>
+                <Button onClick={() => setShowInviteModal(true)} className={artistEventUI.buttonPrimary}>
                   <Plus className="h-4 w-4 mr-2" />
                   Invite First Crew Member
                 </Button>
@@ -1262,7 +1277,7 @@ export default function EventDetailPage() {
         <TabsContent value="venues" className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-white">Venue Management</h2>
-            <Button onClick={() => setShowVenueSearch(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => setShowVenueSearch(true)} className={artistEventUI.buttonPrimary}>
               <MapPin className="h-4 w-4 mr-2" />
               Find Venues
             </Button>
@@ -1276,14 +1291,14 @@ export default function EventDetailPage() {
                 {bookingRequests.map((request) => {
                   const venue = venues.find(v => v.id === request.venue_id)
                   return (
-                    <Card key={request.id} className="bg-slate-900/50 border-slate-700/50">
+                    <Card key={request.id} className={artistEventUI.panel}>
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <h4 className="font-semibold text-white">{venue?.name || 'Unknown Venue'}</h4>
-                            <p className="text-sm text-gray-400">{venue?.address}, {venue?.city}</p>
-                            <p className="text-sm text-gray-300 mt-2">{request.message}</p>
-                            <p className="text-xs text-gray-500 mt-2">
+                            <p className="text-sm text-slate-400">{venue?.address}, {venue?.city}</p>
+                            <p className="text-sm text-slate-300 mt-2">{request.message}</p>
+                            <p className="text-xs text-slate-500 mt-2">
                               Sent: {format(new Date(request.created_at), 'PPP')}
                             </p>
                           </div>
@@ -1304,26 +1319,26 @@ export default function EventDetailPage() {
             <h3 className="text-lg font-semibold text-white mb-4">Available Venues</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {venues.filter(venue => venue.booking_status === 'available').map((venue) => (
-                <Card key={venue.id} className="bg-slate-900/50 border-slate-700/50">
+                <Card key={venue.id} className={artistEventUI.panel}>
                   <CardContent className="p-4">
                     <div className="mb-3">
                       <h4 className="font-semibold text-white">{venue.name}</h4>
-                      <p className="text-sm text-gray-400">{venue.address}</p>
-                      <p className="text-sm text-gray-400">{venue.city}, {venue.state}</p>
+                      <p className="text-sm text-slate-400">{venue.address}</p>
+                      <p className="text-sm text-slate-400">{venue.city}, {venue.state}</p>
                     </div>
                     
                     <div className="space-y-2 mb-4">
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Type:</span>
+                        <span className="text-slate-400">Type:</span>
                         <span className="text-white">{venue.venue_type}</span>
                       </div>
                       <div className="flex justify-between text-sm">
-                        <span className="text-gray-400">Capacity:</span>
+                        <span className="text-slate-400">Capacity:</span>
                         <span className="text-white">{venue.capacity.toLocaleString()}</span>
                       </div>
                       {venue.price_range && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-gray-400">Price Range:</span>
+                          <span className="text-slate-400">Price Range:</span>
                           <span className="text-white">${venue.price_range.min.toLocaleString()} - ${venue.price_range.max.toLocaleString()}</span>
                         </div>
                       )}
@@ -1331,7 +1346,7 @@ export default function EventDetailPage() {
                     
                     {venue.amenities.length > 0 && (
                       <div className="mb-4">
-                        <p className="text-xs text-gray-500 mb-2">Amenities:</p>
+                        <p className="text-xs text-slate-500 mb-2">Amenities:</p>
                         <div className="flex flex-wrap gap-1">
                           {venue.amenities.map((amenity, index) => (
                             <Badge key={index} variant="secondary" className="text-xs">
@@ -1347,7 +1362,7 @@ export default function EventDetailPage() {
                         setSelectedVenue(venue)
                         setShowBookingModal(true)
                       }}
-                      className="w-full bg-purple-600 hover:bg-purple-700"
+                      className={cn("w-full", artistEventUI.buttonPrimary)}
                     >
                       Request Booking
                     </Button>
@@ -1358,12 +1373,12 @@ export default function EventDetailPage() {
           </div>
 
           {venues.filter(venue => venue.booking_status === 'available').length === 0 && (
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardContent className="p-12 text-center">
-                <MapPin className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+            <Card className={artistEventUI.panel}>
+              <CardContent className={artistEventUI.empty}>
+                <MapPin className="h-12 w-12 text-slate-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">No venues available</h3>
-                <p className="text-gray-400 mb-4">Search for venues that match your event requirements.</p>
-                <Button onClick={() => setShowVenueSearch(true)} className="bg-purple-600 hover:bg-purple-700">
+                <p className="text-slate-400 mb-4">Search for venues that match your event requirements.</p>
+                <Button onClick={() => setShowVenueSearch(true)} className={artistEventUI.buttonPrimary}>
                   <MapPin className="h-4 w-4 mr-2" />
                   Search Venues
                 </Button>
@@ -1373,9 +1388,9 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-white">Event Tasks</h2>
-            <Button onClick={() => setShowTaskModal(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => setShowTaskModal(true)} className={artistEventUI.buttonPrimary}>
               <Plus className="h-4 w-4 mr-2" />
               Add Task
             </Button>
@@ -1383,7 +1398,7 @@ export default function EventDetailPage() {
 
           <div className="space-y-3">
             {tasks.map((task) => (
-              <Card key={task.id} className="bg-slate-900/50 border-slate-700/50">
+              <Card key={task.id} className={artistEventUI.panel}>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 flex-1">
@@ -1392,26 +1407,26 @@ export default function EventDetailPage() {
                         className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
                           task.completed 
                             ? 'bg-green-600 border-green-600' 
-                            : 'border-gray-400 hover:border-green-400'
+                            : 'border-slate-500 hover:border-green-400'
                         }`}
                       >
                         {task.completed && <CheckCircle className="h-3 w-3 text-white" />}
                       </button>
                       <div className="flex-1">
-                        <h3 className={`font-medium ${task.completed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                        <h3 className={`font-medium ${task.completed ? 'text-slate-400 line-through' : 'text-white'}`}>
                           {task.title}
                         </h3>
                         {task.description && (
-                          <p className="text-sm text-gray-400">{task.description}</p>
+                          <p className="text-sm text-slate-400">{task.description}</p>
                         )}
                         {task.due_date && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-slate-500 mt-1">
                             Due: {format(new Date(task.due_date), 'PPP')}
                           </p>
                         )}
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-red-400">
+                    <Button variant="ghost" size="icon" className={artistEventUI.buttonGhost} aria-label={`Delete task ${task.title}`}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1421,12 +1436,12 @@ export default function EventDetailPage() {
           </div>
 
           {tasks.length === 0 && (
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardContent className="p-12 text-center">
-                <FileText className="h-12 w-12 text-gray-500 mx-auto mb-4" />
+            <Card className={artistEventUI.panel}>
+              <CardContent className={artistEventUI.empty}>
+                <FileText className="h-12 w-12 text-slate-500 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-white mb-2">No tasks yet</h3>
-                <p className="text-gray-400 mb-4">Add tasks to keep track of event preparation.</p>
-                <Button onClick={() => setShowTaskModal(true)} className="bg-purple-600 hover:bg-purple-700">
+                <p className="text-slate-400 mb-4">Add tasks to keep track of event preparation.</p>
+                <Button onClick={() => setShowTaskModal(true)} className={artistEventUI.buttonPrimary}>
                   <Plus className="h-4 w-4 mr-2" />
                   Add First Task
                 </Button>
@@ -1436,9 +1451,9 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="budget" className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-xl font-semibold text-white">Budget Tracking</h2>
-            <Button onClick={() => setShowExpenseModal(true)} className="bg-purple-600 hover:bg-purple-700">
+            <Button onClick={() => setShowExpenseModal(true)} className={artistEventUI.buttonPrimary}>
               <Plus className="h-4 w-4 mr-2" />
               Add Expense
             </Button>
@@ -1446,26 +1461,26 @@ export default function EventDetailPage() {
 
           {/* Budget Summary */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className={artistEventUI.panel}>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <p className="text-sm text-gray-400">Total Expenses</p>
+                  <p className="text-sm text-slate-400">Total Expenses</p>
                   <p className="text-2xl font-bold text-red-400">${getTotalExpenses().toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className={artistEventUI.panel}>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <p className="text-sm text-gray-400">Projected Revenue</p>
+                  <p className="text-sm text-slate-400">Projected Revenue</p>
                   <p className="text-2xl font-bold text-green-400">${getProjectedRevenue().toLocaleString()}</p>
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-slate-900/50 border-slate-700/50">
+            <Card className={artistEventUI.panel}>
               <CardContent className="p-4">
                 <div className="text-center">
-                  <p className="text-sm text-gray-400">Projected Profit</p>
+                  <p className="text-sm text-slate-400">Projected Profit</p>
                   <p className={`text-2xl font-bold ${getProjectedRevenue() - getTotalExpenses() >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                     ${(getProjectedRevenue() - getTotalExpenses()).toLocaleString()}
                   </p>
@@ -1475,7 +1490,7 @@ export default function EventDetailPage() {
           </div>
 
           {/* Expenses List */}
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <Card className={artistEventUI.panel}>
             <CardHeader>
               <CardTitle className="text-white">Expenses</CardTitle>
             </CardHeader>
@@ -1483,10 +1498,10 @@ export default function EventDetailPage() {
               {expenses.length > 0 ? (
                 <div className="space-y-3">
                   {expenses.map((expense) => (
-                    <div key={expense.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded">
+                    <div key={expense.id} className={cn(artistEventUI.inset, "flex items-center justify-between p-3")}>
                       <div className="flex-1">
                         <h4 className="font-medium text-white">{expense.description}</h4>
-                        <div className="flex items-center gap-4 text-sm text-gray-400">
+                        <div className="flex items-center gap-4 text-sm text-slate-400">
                           <span>{expense.category}</span>
                           <span>{format(new Date(expense.date), 'PPP')}</span>
                         </div>
@@ -1498,9 +1513,9 @@ export default function EventDetailPage() {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <DollarSign className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-                  <p className="text-gray-400">No expenses tracked yet.</p>
+                <div className={artistEventUI.empty}>
+                  <DollarSign className="h-12 w-12 text-slate-500 mx-auto mb-4" />
+                  <p className="text-slate-400">No expenses tracked yet.</p>
                 </div>
               )}
             </CardContent>
@@ -1508,14 +1523,14 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="marketing">
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <Card className={artistEventUI.panel}>
             <CardHeader className="flex flex-row items-center justify-between gap-4">
               <CardTitle className="text-white">Marketing & share</CardTitle>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => router.push(`/artist/events/create?id=${event.id}`)}
-                className="border-slate-700 text-slate-300"
+                className={artistEventUI.buttonOutline}
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit in composer
@@ -1523,13 +1538,13 @@ export default function EventDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4">
+                <div className={cn(artistEventUI.inset, "p-4")}>
                   <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Share blurb</p>
                   <p className="text-sm text-slate-200 whitespace-pre-wrap">
                     {event.producer_settings?.share_blurb || "No share blurb yet."}
                   </p>
                 </div>
-                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4">
+                <div className={cn(artistEventUI.inset, "p-4")}>
                   <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Ticket link</p>
                   {event.ticket_url ? (
                     <a
@@ -1552,7 +1567,7 @@ export default function EventDetailPage() {
                     </p>
                   )}
                 </div>
-                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4 md:col-span-2">
+                <div className={cn(artistEventUI.inset, "p-4 md:col-span-2")}>
                   <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Lineup notes</p>
                   <p className="text-sm text-slate-200 whitespace-pre-wrap">
                     {event.producer_settings?.lineup_notes || "No lineup notes yet."}
@@ -1568,14 +1583,14 @@ export default function EventDetailPage() {
                     </p>
                   ) : null}
                 </div>
-                <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4 md:col-span-2">
+                <div className={cn(artistEventUI.inset, "p-4 md:col-span-2")}>
                   <p className="text-xs uppercase tracking-wide text-slate-500 mb-1">Marketing notes</p>
                   <p className="text-sm text-slate-200 whitespace-pre-wrap">
                     {event.producer_settings?.marketing_notes || "No marketing notes yet."}
                   </p>
                 </div>
                 {isValidNextImageSrc(event.poster_url) ? (
-                  <div className="rounded-lg border border-slate-700/60 bg-slate-950/40 p-4 md:col-span-2">
+                  <div className={cn(artistEventUI.inset, "p-4 md:col-span-2")}>
                     <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">Poster</p>
                     <div className="relative h-48 w-full max-w-sm overflow-hidden rounded-lg border border-slate-700">
                       <Image src={event.poster_url} alt="Event poster" fill className="object-cover" />
@@ -1585,17 +1600,18 @@ export default function EventDetailPage() {
               </div>
               {event.status === "published" ? (
                 <div className="flex flex-wrap gap-2 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowShareMenu(true)}>
+                  <Button variant="outline" size="sm" className={artistEventUI.buttonOutline} onClick={() => setShowShareMenu(true)}>
                     <Share2 className="h-4 w-4 mr-2" />
                     Share
                   </Button>
-                  <Button variant="outline" size="sm" onClick={copyEventLink}>
+                  <Button variant="outline" size="sm" className={artistEventUI.buttonOutline} onClick={copyEventLink}>
                     <Copy className="h-4 w-4 mr-2" />
                     Copy public link
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
+                    className={artistEventUI.buttonOutline}
                     onClick={() => window.open(publicEventPath, "_blank", "noopener,noreferrer")}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -1608,10 +1624,10 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="site-map">
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
-              <div className="p-4 bg-gradient-to-r from-purple-500/20 to-blue-500/20 rounded-2xl border border-purple-500/30">
-                <MapPin className="h-10 w-10 text-purple-300" />
+          <Card className={artistEventUI.panel}>
+            <CardContent className={cn(artistEventUI.empty, "gap-4")}>
+              <div className={cn(artistEventUI.iconWell, "h-16 w-16")}>
+                <MapPin className="h-10 w-10" />
               </div>
               <h3 className="text-lg font-semibold text-white">Event Site Map</h3>
               <p className="text-slate-400 text-sm text-center max-w-md">
@@ -1619,7 +1635,7 @@ export default function EventDetailPage() {
               </p>
               <Button
                 onClick={() => router.push(`/artist/events/${eventId}/site-map`)}
-                className="bg-gradient-to-r from-purple-500 to-blue-500 text-white"
+                className={artistEventUI.buttonAccent}
               >
                 <MapPin className="h-4 w-4 mr-2" />
                 Open Site Map
@@ -1629,23 +1645,21 @@ export default function EventDetailPage() {
         </TabsContent>
 
         <TabsContent value="settings">
-          <Card className="bg-slate-900/50 border-slate-700/50">
+          <Card className={artistEventUI.panel}>
             <CardHeader>
               <CardTitle className="text-white">Event Settings</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6 py-6">
-              <EventPageTemplateSelector
-                selectedTemplate={event.producer_settings?.page_template || "modern"}
-                onTemplateChange={(template) => {
-                  if (isSavingPageTemplate) return
-                  void savePageTemplate(template)
-                }}
-              />
-              {isSavingPageTemplate ? (
-                <p className="text-xs text-slate-400">Saving page style…</p>
-              ) : null}
               <p className="text-sm text-slate-400">
-                More advanced permissions and integrations will land here later. Use{" "}
+                Page design now lives in the{" "}
+                <button
+                  type="button"
+                  className="text-purple-300 underline-offset-2 hover:underline"
+                  onClick={() => setSelectedTab("public-page")}
+                >
+                  Public Page
+                </button>{" "}
+                tab. More advanced permissions and integrations will land here later. Use{" "}
                 <button
                   type="button"
                   className="text-purple-300 underline-offset-2 hover:underline"
@@ -1663,46 +1677,46 @@ export default function EventDetailPage() {
 
       {/* Add Task Modal */}
       <Dialog open={showTaskModal} onOpenChange={setShowTaskModal}>
-        <DialogContent className="bg-slate-800 border-slate-700">
+        <DialogContent className={artistEventUI.dialog}>
           <DialogHeader>
             <DialogTitle className="text-white">Add New Task</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="task_title" className="text-gray-300">Title *</Label>
+              <Label htmlFor="task_title" className="text-slate-300">Title *</Label>
               <Input
                 id="task_title"
                 value={newTask.title}
                 onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
                 placeholder="Task title..."
-                className="bg-slate-900 border-slate-700 text-white"
+                className={artistEventUI.input}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="task_description" className="text-gray-300">Description</Label>
+              <Label htmlFor="task_description" className="text-slate-300">Description</Label>
               <Textarea
                 id="task_description"
                 value={newTask.description}
                 onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Task description..."
-                className="bg-slate-900 border-slate-700 text-white"
+                className={artistEventUI.textarea}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="task_due_date" className="text-gray-300">Due Date</Label>
+              <Label htmlFor="task_due_date" className="text-slate-300">Due Date</Label>
               <Input
                 id="task_due_date"
                 type="date"
                 value={newTask.due_date}
                 onChange={(e) => setNewTask(prev => ({ ...prev, due_date: e.target.value }))}
-                className="bg-slate-900 border-slate-700 text-white"
+                className={artistEventUI.input}
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowTaskModal(false)}>
+              <Button variant="outline" className={artistEventUI.buttonOutline} onClick={() => setShowTaskModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={addTask} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={addTask} className={artistEventUI.buttonPrimary}>
                 Add Task
               </Button>
             </div>
@@ -1712,24 +1726,24 @@ export default function EventDetailPage() {
 
       {/* Add Expense Modal */}
       <Dialog open={showExpenseModal} onOpenChange={setShowExpenseModal}>
-        <DialogContent className="bg-slate-800 border-slate-700">
+        <DialogContent className={artistEventUI.dialog}>
           <DialogHeader>
             <DialogTitle className="text-white">Add New Expense</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="expense_description" className="text-gray-300">Description *</Label>
+              <Label htmlFor="expense_description" className="text-slate-300">Description *</Label>
               <Input
                 id="expense_description"
                 value={newExpense.description}
                 onChange={(e) => setNewExpense(prev => ({ ...prev, description: e.target.value }))}
                 placeholder="Expense description..."
-                className="bg-slate-900 border-slate-700 text-white"
+                className={artistEventUI.input}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="expense_amount" className="text-gray-300">Amount *</Label>
+                <Label htmlFor="expense_amount" className="text-slate-300">Amount *</Label>
                 <Input
                   id="expense_amount"
                   type="number"
@@ -1737,35 +1751,35 @@ export default function EventDetailPage() {
                   value={newExpense.amount || ''}
                   onChange={(e) => setNewExpense(prev => ({ ...prev, amount: parseFloat(e.target.value) || 0 }))}
                   placeholder="0.00"
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className={artistEventUI.input}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="expense_category" className="text-gray-300">Category</Label>
+                <Label htmlFor="expense_category" className="text-slate-300">Category</Label>
                 <Input
                   id="expense_category"
                   value={newExpense.category}
                   onChange={(e) => setNewExpense(prev => ({ ...prev, category: e.target.value }))}
                   placeholder="Category..."
-                  className="bg-slate-900 border-slate-700 text-white"
+                  className={artistEventUI.input}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="expense_date" className="text-gray-300">Date</Label>
+              <Label htmlFor="expense_date" className="text-slate-300">Date</Label>
               <Input
                 id="expense_date"
                 type="date"
                 value={newExpense.date}
                 onChange={(e) => setNewExpense(prev => ({ ...prev, date: e.target.value }))}
-                className="bg-slate-900 border-slate-700 text-white"
+                className={artistEventUI.input}
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowExpenseModal(false)}>
+              <Button variant="outline" className={artistEventUI.buttonOutline} onClick={() => setShowExpenseModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={addExpense} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={addExpense} className={artistEventUI.buttonPrimary}>
                 Add Expense
               </Button>
             </div>
@@ -1775,37 +1789,37 @@ export default function EventDetailPage() {
 
       {/* Crew Invitation Modal */}
       <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className={artistEventUI.dialog}>
           <DialogHeader>
             <DialogTitle className="text-white">Invite Crew Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-gray-300">Name</Label>
+              <Label className="text-slate-300">Name</Label>
               <Input
                 value={newCrewMember.name}
                 onChange={(e) => setNewCrewMember(prev => ({ ...prev, name: e.target.value }))}
                 placeholder="Enter crew member name"
-                className="bg-slate-800 border-slate-600 text-white"
+                className={artistEventUI.input}
               />
             </div>
             <div>
-              <Label className="text-gray-300">Email</Label>
+              <Label className="text-slate-300">Email</Label>
               <Input
                 type="email"
                 value={newCrewMember.email}
                 onChange={(e) => setNewCrewMember(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="Enter email address"
-                className="bg-slate-800 border-slate-600 text-white"
+                className={artistEventUI.input}
               />
             </div>
             <div>
-              <Label className="text-gray-300">Role</Label>
+              <Label className="text-slate-300">Role</Label>
               <Select onValueChange={(value: string) => setNewCrewMember(prev => ({ ...prev, role: value }))}>
-                <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                <SelectTrigger className={artistEventUI.select}>
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent className="bg-slate-800 border-slate-600">
+                <SelectContent className="border-slate-700 bg-slate-950 text-white">
                   {availableRoles.map((role) => (
                     <SelectItem key={role} value={role} className="text-white">
                       {role}
@@ -1815,7 +1829,7 @@ export default function EventDetailPage() {
               </Select>
             </div>
             <div>
-              <Label className="text-gray-300">Permissions</Label>
+              <Label className="text-slate-300">Permissions</Label>
               <div className="grid grid-cols-2 gap-2 mt-2">
                 {['backstage_access', 'equipment_access', 'admin_access', 'full_access'].map((permission) => (
                   <div key={permission} className="flex items-center space-x-2">
@@ -1837,7 +1851,7 @@ export default function EventDetailPage() {
                         }
                       }}
                     />
-                    <Label htmlFor={permission} className="text-sm text-gray-300">
+                    <Label htmlFor={permission} className="text-sm text-slate-300">
                       {permission.replace('_', ' ')}
                     </Label>
                   </div>
@@ -1845,10 +1859,10 @@ export default function EventDetailPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowInviteModal(false)}>
+              <Button variant="outline" className={artistEventUI.buttonOutline} onClick={() => setShowInviteModal(false)}>
                 Cancel
               </Button>
-              <Button onClick={addCrewMember} className="bg-purple-600 hover:bg-purple-700">
+              <Button onClick={addCrewMember} className={artistEventUI.buttonPrimary}>
                 Send Invitation
               </Button>
             </div>
@@ -1858,23 +1872,23 @@ export default function EventDetailPage() {
 
       {/* Venue Booking Modal */}
       <Dialog open={showBookingModal} onOpenChange={setShowBookingModal}>
-        <DialogContent className="bg-slate-900 border-slate-700">
+        <DialogContent className={artistEventUI.dialog}>
           <DialogHeader>
             <DialogTitle className="text-white">Request Booking</DialogTitle>
           </DialogHeader>
           {selectedVenue && (
             <div className="space-y-4">
-              <div className="bg-slate-800 p-4 rounded-lg">
+              <div className={cn(artistEventUI.inset, "p-4")}>
                 <h3 className="font-semibold text-white">{selectedVenue.name}</h3>
-                <p className="text-sm text-gray-400">{selectedVenue.address}</p>
-                <p className="text-sm text-gray-400">{selectedVenue.city}, {selectedVenue.state}</p>
+                <p className="text-sm text-slate-400">{selectedVenue.address}</p>
+                <p className="text-sm text-slate-400">{selectedVenue.city}, {selectedVenue.state}</p>
                 <div className="flex justify-between mt-2">
-                  <span className="text-sm text-gray-400">Capacity:</span>
+                  <span className="text-sm text-slate-400">Capacity:</span>
                   <span className="text-sm text-white">{selectedVenue.capacity.toLocaleString()}</span>
                 </div>
                 {selectedVenue.price_range && (
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-400">Price Range:</span>
+                    <span className="text-sm text-slate-400">Price Range:</span>
                     <span className="text-sm text-white">
                       ${selectedVenue.price_range.min.toLocaleString()} - ${selectedVenue.price_range.max.toLocaleString()}
                     </span>
@@ -1882,20 +1896,20 @@ export default function EventDetailPage() {
                 )}
               </div>
               <div>
-                <Label className="text-gray-300">Booking Message</Label>
+                <Label className="text-slate-300">Booking Message</Label>
                 <Textarea
                   value={bookingMessage}
                   onChange={(e) => setBookingMessage(e.target.value)}
                   placeholder="Tell the venue about your event and requirements..."
-                  className="bg-slate-800 border-slate-600 text-white mt-2"
+                  className={cn(artistEventUI.textarea, "mt-2")}
                   rows={4}
                 />
               </div>
               <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => setShowBookingModal(false)}>
+                <Button variant="outline" className={artistEventUI.buttonOutline} onClick={() => setShowBookingModal(false)}>
                   Cancel
                 </Button>
-                <Button onClick={sendBookingRequest} className="bg-purple-600 hover:bg-purple-700">
+                <Button onClick={sendBookingRequest} className={artistEventUI.buttonPrimary}>
                   Send Request
                 </Button>
               </div>
@@ -1905,8 +1919,8 @@ export default function EventDetailPage() {
       </Dialog>
 
       <Dialog open={showShareMenu} onOpenChange={setShowShareMenu}>
-        <DialogContent className="bg-slate-950/80 backdrop-blur-xl border border-white/15 rounded-2xl shadow-2xl shadow-purple-500/10 max-w-md max-h-[85vh] overflow-hidden p-0 gap-0 [&>button]:right-4 [&>button]:top-4 [&>button]:text-white/60 [&>button]:hover:text-white">
-          <div className="h-1 w-full bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500" />
+        <DialogContent className={cn(artistEventUI.dialog, "max-h-[85vh] max-w-md overflow-hidden p-0 gap-0 [&>button]:right-4 [&>button]:top-4 [&>button]:text-white/60 [&>button]:hover:text-white")}>
+          <div className="h-1 w-full bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500" />
           <div className="p-6 overflow-y-auto max-h-[calc(85vh-4px)]">
             {event ? (
               <EventShareMenu
@@ -1923,4 +1937,4 @@ export default function EventDetailPage() {
       </div>
     </div>
   )
-} 
+}

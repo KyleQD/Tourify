@@ -37,8 +37,21 @@ describe("artist event producer builder", () => {
       date: "2026-08-01",
       venueName: "Hall",
       pageTemplate: "cinema",
+      pageLayout: {
+        section_order: ["hero", "media", "overview", "posts", "attendance", "details"],
+        section_visibility: {
+          hero: true,
+          overview: true,
+          posts: false,
+          attendance: true,
+          details: true,
+          media: true,
+        },
+      },
     })
     expect(payload.producer_settings.page_template).toBe("cinema")
+    expect(payload.producer_settings.page_layout.section_order[1]).toBe("media")
+    expect(payload.producer_settings.page_layout.section_visibility.posts).toBe(false)
   })
 
   it("hydrates form from event row", () => {
@@ -52,6 +65,10 @@ describe("artist event producer builder", () => {
       producer_settings: {
         share_blurb: "Come through",
         page_template: "luxe",
+        page_layout: {
+          section_order: ["hero", "details", "overview"],
+          section_visibility: { media: false },
+        },
         supporting_artists: [{ id: "1", label: "Opener" }],
       },
     })
@@ -61,6 +78,8 @@ describe("artist event producer builder", () => {
     expect(form.time).toBe("20:00")
     expect(form.shareBlurb).toBe("Come through")
     expect(form.pageTemplate).toBe("luxe")
+    expect(form.pageLayout.section_order.slice(0, 3)).toEqual(["hero", "details", "overview"])
+    expect(form.pageLayout.section_visibility.media).toBe(false)
     expect(form.supportingArtists).toHaveLength(1)
   })
 

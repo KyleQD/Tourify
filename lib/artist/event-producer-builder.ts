@@ -1,3 +1,8 @@
+import {
+  normalizeEventPageLayout,
+  type EventPageLayout,
+} from "@/lib/events/event-page-layout"
+
 export interface ArtistProducerSelection {
   id: string
   label: string
@@ -36,6 +41,7 @@ export interface ArtistEventProducerFormState {
   marketingNotes: string
   shareBlurb: string
   pageTemplate: string
+  pageLayout: EventPageLayout
 }
 
 export const initialArtistEventProducerForm: ArtistEventProducerFormState = {
@@ -70,6 +76,7 @@ export const initialArtistEventProducerForm: ArtistEventProducerFormState = {
   marketingNotes: "",
   shareBlurb: "",
   pageTemplate: "modern",
+  pageLayout: normalizeEventPageLayout(null),
 }
 
 export function parseList(value: string) {
@@ -153,6 +160,7 @@ export function hydrateArtistEventProducerForm(event: any): ArtistEventProducerF
     marketingNotes: settings.marketing_notes || "",
     shareBlurb: settings.share_blurb || "",
     pageTemplate: settings.page_template || "modern",
+    pageLayout: normalizeEventPageLayout(settings.page_layout),
   }
 }
 
@@ -201,6 +209,7 @@ export function buildArtistEventProducerPayload(
       marketing_notes: form.marketingNotes,
       share_blurb: form.shareBlurb,
       page_template: form.pageTemplate || "modern",
+      page_layout: normalizeEventPageLayout(form.pageLayout),
       set_times: setTimes.map((label) => ({ label })),
     },
   }
