@@ -134,13 +134,16 @@ export function OrgTeamGrantsPanel({
           String(row.username || '').toLowerCase() === artistQuery.trim().toLowerCase() ||
           String(row.displayName || '').toLowerCase() === artistQuery.trim().toLowerCase()
       )
-      // enhanced search id for artists is often accounts.id; prefer profile id from owner mapping
-      resolvedArtistId = String(match?.profileId || match?.id || '')
+      resolvedArtistId = String(match?.artistProfileId || '')
     }
     if (!resolvedArtistId) {
       toast.error('Select an artist from search results')
       return
     }
+    await sendArtistInvite(resolvedArtistId, artistRole)
+  }
+
+  async function sendArtistInvite(resolvedArtistId: string, resolvedRole: string) {
     setIsSavingArtist(true)
     try {
       const res = await fetch('/api/organization/artist-members', {
@@ -154,7 +157,7 @@ export function OrgTeamGrantsPanel({
         body: JSON.stringify({
           organizerAccountId,
           artistProfileId: resolvedArtistId,
-          role: artistRole,
+          role: resolvedRole,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -280,7 +283,7 @@ export function OrgTeamGrantsPanel({
                         type="button"
                         className="w-full text-left px-2 py-1.5 text-xs hover:bg-white/5"
                         onClick={() => {
-                          setArtistProfileId(String(hit.id))
+                          setArtistProfileId(String(hit.artistProfileId || ''))
                           setArtistQuery(String(hit.displayName || hit.username || ''))
                           setArtistHits([])
                         }}
@@ -323,7 +326,21 @@ export function OrgTeamGrantsPanel({
                     <Button size="sm" variant="ghost" onClick={() => void removeMembership(row.id)}>
                       Remove
                     </Button>
-                  ) : null}
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={isSavingArtist}
+                      onClick={() =>
+                        void sendArtistInvite(
+                          String(row.artist_profile_id),
+                          String(row.role || 'member')
+                        )
+                      }
+                    >
+                      Reinvite
+                    </Button>
+                  )}
                 </li>
               ))}
             </ul>

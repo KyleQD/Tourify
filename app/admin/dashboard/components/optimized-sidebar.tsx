@@ -156,7 +156,13 @@ export function OptimizedSidebar() {
   const { stats } = useAdminStats()
 
   const profile = currentAccount?.profile_data as
-    | { display_name?: string; username?: string; organization_name?: string }
+    | {
+        display_name?: string
+        username?: string
+        organization_name?: string
+        subtype?: string
+        organization_type?: string
+      }
     | undefined
   const sidebarHeaderTitle =
     (currentAccount as { display_name?: string } | null)?.display_name ||
@@ -165,6 +171,13 @@ export function OptimizedSidebar() {
     profile?.username ||
     profile?.organization_name ||
     "Organizer"
+  const activeOrganizationSubtype =
+    typeof profile?.subtype === "string"
+      ? profile.subtype
+      : typeof profile?.organization_type === "string"
+        ? profile.organization_type
+        : null
+  const isBandAccount = isOrganizationType(currentAccount?.account_type) && activeOrganizationSubtype === "band"
 
   // ─── Navigation structure: Dashboard + 6 collapsible categories ───────────
   const navItems: NavItem[] = useMemo(
@@ -263,10 +276,12 @@ export function OptimizedSidebar() {
             description: "Team roster and Work Mode assignments",
           },
           {
-            label: "Organization team",
+            label: isBandAccount ? "Band Hub" : "Organization team",
             href: "/admin/dashboard/organization",
-            icon: Building,
-            description: "Tour manager grants and artist roster",
+            icon: isBandAccount ? Music : Building,
+            description: isBandAccount
+              ? "Band page, member roster and manager access"
+              : "Tour manager grants and artist roster",
           },
           {
             label: "Roles & Permissions",
@@ -465,7 +480,7 @@ export function OptimizedSidebar() {
         ],
       },
     ],
-    [currentAccount, stats],
+    [currentAccount, stats, isBandAccount],
   )
 
   // ─── Collect all shortcut-bearing leaf items for keyboard handler ──────────

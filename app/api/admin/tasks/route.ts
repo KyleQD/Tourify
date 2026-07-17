@@ -9,6 +9,7 @@ import {
   endOfWeek
 } from 'date-fns'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 function isLogisticsTasksUnavailableError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false
@@ -43,10 +44,15 @@ function dueDateRangeFilter(range: string | null): { from: string; to: string } 
 export const GET = withAdminAuth(async (request: NextRequest, auth) => {
   const { searchParams } = new URL(request.url)
   const range = searchParams.get('range')
+  const scope = await resolveAdminWorkspaceScope(request, auth)
+  if (scope instanceof NextResponse) return scope
+  const orgId = requireOpsOrgId(scope)
+  if (orgId instanceof NextResponse) return orgId
 
   let query = auth.supabase
     .from('logistics_tasks')
-    .select('id, title, description, status, priority, due_date, assigned_to_user_id, created_at, type')
+    .select('id, title, description, status, priority, due_date, assigned_to_user_id, created_at, type, org_id')
+    .eq('org_id', orgId)
     .order('due_date', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
 
@@ -59,6 +65,8 @@ export const GET = withAdminAuth(async (request: NextRequest, auth) => {
 
   if (error) {
     if (isLogisticsTasksUnavailableError(error))
+      return NextResponse.json({ success: true, tasks: [] })
+    if (error.code === '42703')
       return NextResponse.json({ success: true, tasks: [] })
     return NextResponse.json({ success: false, error: 'Failed to fetch tasks' }, { status: 500 })
   }
@@ -79,6 +87,11 @@ export const GET = withAdminAuth(async (request: NextRequest, auth) => {
 })
 
 export const PATCH = withAdminAuth(async (request: NextRequest, auth) => {
+  const scope = await resolveAdminWorkspaceScope(request, auth)
+  if (scope instanceof NextResponse) return scope
+  const orgId = requireOpsOrgId(scope)
+  if (orgId instanceof NextResponse) return orgId
+
   let body: { taskIds?: string[]; updates?: { status?: string; priority?: string } }
   try {
     body = await request.json()
@@ -106,6 +119,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, auth) => {
     .from('logistics_tasks')
     .update(patch)
     .in('id', taskIds)
+    .eq('org_id', orgId)
     .select('id')
 
   if (error) {

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasEventPermission } from '../../../_lib/event-permissions'
 import { resolveEventReference } from '../../../_lib/event-reference'
+import { syncEmploymentAssignmentForShift } from '@/lib/services/staff-shift-assignment-sync'
 
 const updateShiftSchema = z.object({
   staff_member_id: z.string().uuid().optional(),
@@ -71,7 +72,7 @@ export async function PATCH(
         .update(patch)
         .eq('id', shiftId)
         .eq('event_id', reference.id)
-        .select('*, staff_members(id, name, email, role, status)')
+        .select('*')
         .single()
 
       if (error) {
@@ -79,7 +80,23 @@ export async function PATCH(
         return NextResponse.json({ error: 'Failed to update staff shift' }, { status: 500 })
       }
 
-      return NextResponse.json({ success: true, shift: data, staff: presentShiftAsStaff(data) })
+      const memberResult = data.staff_member_id
+        ? await supabase
+            .from('staff_members')
+            .select('id, name, email, phone, role, status')
+            .eq('id', data.staff_member_id)
+            .maybeSingle()
+        : { data: null }
+
+      const shift = { ...data, staff_members: memberResult.data ?? null }
+      const sync = await syncEmploymentAssignmentForShift({
+        supabase,
+        shift: data,
+        notify: Boolean(validated.staff_member_id || mappedStatus),
+        actorUserId: user.id,
+      })
+
+      return NextResponse.json({ success: true, shift, staff: presentShiftAsStaff(shift), sync })
     } catch (err) {
       if (err instanceof z.ZodError) {
         return NextResponse.json({ error: 'Validation error', details: err.errors }, { status: 400 })

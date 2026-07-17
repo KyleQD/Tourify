@@ -70,6 +70,7 @@ interface EventParticipant {
   role?: string | null
   display_name?: string
   avatar_url?: string | null
+  source?: string
 }
 
 interface EventTaskManagerProps {
@@ -132,20 +133,33 @@ function buildApiPayload(formData: {
 }
 
 async function notifyAssignee(eventId: string, assigneeId: string, taskTitle: string) {
-  await fetch('/api/admin/notifications', {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      user_id: assigneeId,
-      title: 'Task assigned',
-      content: `You have been assigned: ${taskTitle}`,
-      type: 'task_assignment',
-      link: `/admin/dashboard/events/${eventId}/hq`,
-      related_content_id: eventId,
-      related_content_type: 'event',
-    }),
-  })
+  try {
+    await fetch('/api/admin/notifications', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: assigneeId,
+        title: 'Task assigned',
+        content: `You have been assigned: ${taskTitle}`,
+        type: 'task_assignment',
+        link: `/admin/dashboard/events/${eventId}/hq`,
+        related_content_id: eventId,
+        related_content_type: 'event',
+      }),
+    })
+  } catch (error) {
+    console.warn('Task saved, but assignee notification failed:', error)
+  }
+}
+
+async function getTaskResponseError(response: Response, fallback: string) {
+  try {
+    const data = await response.json()
+    return data?.error || fallback
+  } catch {
+    return fallback
+  }
 }
 
 export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate }: EventTaskManagerProps) {
@@ -172,7 +186,7 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
 
   const fetchParticipants = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/events/${eventId}/participants?role=staff`, { credentials: 'include' })
+      const res = await fetch(`/api/admin/events/${eventId}/participants`, { credentials: 'include' })
       if (!res.ok) return
       const data = await res.json()
       setParticipants(data.participants || [])
@@ -301,7 +315,7 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
           body: JSON.stringify(payload),
         })
 
-        if (!response.ok) throw new Error('Failed to update task')
+        if (!response.ok) throw new Error(await getTaskResponseError(response, 'Failed to update task'))
 
         const updatedTask = await response.json()
         const mapped = mapApiTaskToUi(updatedTask.task as ApiTask)
@@ -318,7 +332,7 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
           body: JSON.stringify(payload),
         })
 
-        if (!response.ok) throw new Error('Failed to create task')
+        if (!response.ok) throw new Error(await getTaskResponseError(response, 'Failed to create task'))
 
         const newTask = await response.json()
         const mapped = mapApiTaskToUi(newTask.task as ApiTask)
@@ -334,7 +348,7 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
       setSelectedTask(null)
     } catch (error) {
       console.error('Error saving task:', error)
-      toast.error('Failed to save task')
+      toast.error(error instanceof Error ? error.message : 'Failed to save task')
     }
   }
 
@@ -343,7 +357,8 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
 
     try {
       const response = await fetch(`/api/events/${eventId}/tasks/${selectedTask.id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       if (!response.ok) throw new Error('Failed to delete task')
@@ -583,7 +598,18 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
       </div>
 
       {/* Create/Edit Task Dialog */}
-      <Dialog open={isCreateDialogOpen || isEditDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <Dialog
+        open={isCreateDialogOpen || isEditDialogOpen}
+        onOpenChange={(open) => {
+          if (open) {
+            setIsCreateDialogOpen(true)
+            return
+          }
+          setIsCreateDialogOpen(false)
+          setIsEditDialogOpen(false)
+          setSelectedTask(null)
+        }}
+      >
         <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl">
           <DialogHeader>
             <DialogTitle className="text-white">
@@ -700,6 +726,11 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
                       {participant.role ? ` (${participant.role})` : ""}
                     </SelectItem>
                   ))}
+                  {participants.length === 0 && (
+                    <SelectItem value="no-team-members" disabled>
+                      Add onboarded team members first
+                    </SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -730,7 +761,7 @@ export function EventTaskManager({ eventId, tasks: externalTasks, onTasksUpdate 
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Task</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete "{selectedTask?.name}"? This action cannot be undone.
+              Are you sure you want to delete &quot;{selectedTask?.name}&quot;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

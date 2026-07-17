@@ -5,14 +5,19 @@ import {
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
 import { withAdminAuth } from "@/lib/auth/api-auth"
+import { requireOpsOrgId, resolveAdminWorkspaceScope } from "@/lib/admin/workspace-scope"
 
 export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
     const { searchParams } = new URL(request.url)
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
     const tours = await AdminTourEventOperationsService.listTours({
       supabase,
       userId: user.id,
-      orgId: searchParams.get("org_id"),
+      orgId,
       status: searchParams.get("status"),
     })
     return NextResponse.json({ success: true, tours })
@@ -32,11 +37,16 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
 
 export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
     const body = await request.json().catch(() => null)
     const tour = await AdminTourEventOperationsService.createTour({
       supabase,
       userId: user.id,
       input: body,
+      orgId,
     })
     return NextResponse.json({ success: true, tour }, { status: 201 })
   } catch (error: any) {

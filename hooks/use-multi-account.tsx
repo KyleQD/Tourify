@@ -275,6 +275,7 @@ interface MultiAccountContextType {
   accountsFetchFailed: boolean
   switchAccount: (profileId: string, accountType: string) => Promise<boolean>
   switchAccountAndNavigate: (profileId: string, accountType: string) => Promise<boolean>
+  activateAccountAfterCreate: (profileId: string, accountType: string) => Promise<boolean>
   createArtistAccount: (data: any) => Promise<string>
   createVenueAccount: (data: any) => Promise<string>
   createOrganizerAccount: (data: any) => Promise<string>
@@ -508,6 +509,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
 
       const userAccounts = body.accounts
 
+      accountsRef.current = userAccounts
       setAccounts(userAccounts)
       const session = body.activeSession ?? null
       setActiveSession(session)
@@ -525,10 +527,12 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
           resolved.account_type !== activeAccountRef.current?.account_type)
       ) {
         setActiveAccount(resolved)
+        activeAccountRef.current = resolved
         writeStoredActiveAccount(userId, resolved.profile_id, resolved.account_type)
         syncVenueScopeForAccount(resolved)
       } else if (resolved && !activeAccountRef.current) {
         setActiveAccount(resolved)
+        activeAccountRef.current = resolved
         writeStoredActiveAccount(userId, resolved.profile_id, resolved.account_type)
         syncVenueScopeForAccount(resolved)
       }
@@ -616,6 +620,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       if (!targetAccount) return null
       setError(null)
       setActiveAccount(targetAccount)
+      activeAccountRef.current = targetAccount
       writeStoredActiveAccount(ownerId, targetAccount.profile_id, targetAccount.account_type)
       syncVenueScopeForAccount(targetAccount)
       return targetAccount
@@ -669,6 +674,48 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       return true
     },
     [applyActiveAccount, persistActiveAccount, router]
+  )
+
+  const activateAccountAfterCreate = useCallback(
+    async (profileId: string, accountType: string): Promise<boolean> => {
+      const resolveTarget = () =>
+        findAccountStrict(accountsRef.current, profileId, accountType) ??
+        findAccountByProfileId(accountsRef.current, profileId, accountType as ProfileType)
+
+      let targetAccount = resolveTarget()
+      for (let attempt = 0; !targetAccount && attempt < 4; attempt += 1) {
+        await refreshAccounts()
+        targetAccount = resolveTarget()
+        if (!targetAccount) {
+          await new Promise(resolve => setTimeout(resolve, 150 * (attempt + 1)))
+        }
+      }
+
+      if (!targetAccount) {
+        const errorMessage = 'Created account was saved, but could not be loaded as the active workspace. Refresh and select it from the account switcher.'
+        setError(errorMessage)
+        toast.error(errorMessage)
+        return false
+      }
+
+      setError(null)
+      setActiveAccount(targetAccount)
+      activeAccountRef.current = targetAccount
+
+      const ownerId = resolveOwnerUserId(userRef.current, accountsRef.current, ownerUserIdRef)
+      if (ownerId) {
+        writeStoredActiveAccount(ownerId, targetAccount.profile_id, targetAccount.account_type)
+      }
+      syncVenueScopeForAccount(targetAccount)
+
+      await Promise.race([
+        persistActiveAccount(targetAccount),
+        new Promise<void>(resolve => setTimeout(resolve, 1200)),
+      ])
+
+      return true
+    },
+    [persistActiveAccount, refreshAccounts]
   )
 
   const hasAccountType = useCallback(
@@ -785,6 +832,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       contact_info?: any
       social_links?: any
       specialties?: string[]
+      is_public?: boolean
     }): Promise<string> => {
       if (!user?.id) throw new Error('You must be logged in to create an organization account')
 
@@ -864,6 +912,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       accountsFetchFailed,
       switchAccount,
       switchAccountAndNavigate,
+      activateAccountAfterCreate,
       createArtistAccount,
       createVenueAccount,
       createOrganizerAccount,
@@ -883,6 +932,7 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
       accountsFetchFailed,
       switchAccount,
       switchAccountAndNavigate,
+      activateAccountAfterCreate,
       createArtistAccount,
       createVenueAccount,
       createOrganizerAccount,

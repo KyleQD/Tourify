@@ -21,6 +21,7 @@ export interface EventProducerFormState {
   curfew: string
   setTimes: string
   venueName: string
+  venueAccountId: string
   venueId: string
   room: string
   capacity: string
@@ -79,6 +80,7 @@ export const initialEventProducerForm: EventProducerFormState = {
   curfew: "",
   setTimes: "",
   venueName: "",
+  venueAccountId: "",
   venueId: "",
   room: "",
   capacity: "",
@@ -146,6 +148,12 @@ export function combineIso(date: string, time: string) {
   return Number.isNaN(timestamp) ? "" : new Date(timestamp).toISOString()
 }
 
+function readSettings(event: any): Record<string, unknown> {
+  return event?.settings && typeof event.settings === "object" && !Array.isArray(event.settings)
+    ? event.settings
+    : {}
+}
+
 export function defaultEndIso(date: string, startTime: string, endTime: string) {
   if (endTime) return combineIso(date, endTime)
   const start = combineIso(date, startTime)
@@ -182,6 +190,7 @@ function asSelectionList(value: unknown, fallbackLabel: string): ProducerSelecti
 export function hydrateEventProducerForm(event: any): EventProducerFormState {
   const start = isoToDateAndTime(event?.start_at || event?.event_date)
   const end = isoToDateAndTime(event?.end_at)
+  const settings = readSettings(event)
   const tours = Array.isArray(event?.tours) ? event.tours : []
   const selectedTourIds = tours.map((tour: any) => String(tour.id)).filter(Boolean)
   const primaryTour = tours.find((tour: any) => tour.is_primary) || tours[0]
@@ -208,6 +217,7 @@ export function hydrateEventProducerForm(event: any): EventProducerFormState {
       ? event.set_times.map((item: any) => item?.label || item).filter(Boolean).join(", ")
       : "",
     venueName: event?.venue_name || "",
+    venueAccountId: String(settings.venue_account_id || settings.venue_profile_id || ""),
     venueId: event?.venue_id || "",
     room: event?.venue_room || event?.location || "",
     capacity: event?.capacity != null ? String(event.capacity) : "",
@@ -257,6 +267,7 @@ export function buildEventProducerPayload(
   const readinessScore = options.readinessScore ?? 0
   const startAt = combineIso(form.date, form.time)
   const primaryTourId = form.primaryTourId || form.selectedTourIds[0] || null
+  const venueAccountId = form.venueAccountId || form.venueId || null
 
   return {
     title: form.title.trim() || "Untitled event",
@@ -268,7 +279,7 @@ export function buildEventProducerPayload(
     start_at: startAt,
     end_at: defaultEndIso(form.date, form.time, form.endTime),
     timezone: form.timezone,
-    venue_id: form.venueId || null,
+    venue_id: venueAccountId,
     venue_name: form.venueName,
     venue_address: form.address,
     venue_room: form.room,
@@ -326,6 +337,7 @@ export function buildEventProducerPayload(
       artists: form.selectedArtists,
       crew: form.selectedCrew,
       vendors: form.selectedVendors,
+      venue_account_id: venueAccountId,
       handoff_sections: Object.entries(form.setupChecklist)
         .filter(([, enabled]) => enabled)
         .map(([key]) => key),

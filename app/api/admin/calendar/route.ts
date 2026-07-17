@@ -3,11 +3,12 @@ import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-au
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
 import {
   aggregateAdminCalendarItems,
-  resolveCalendarOrgId,
 } from '@/lib/admin/calendar/aggregate'
+import { AdminTourEventOperationsService } from '@/lib/admin/tour-event-operations.service'
 import { parseCalendarKinds } from '@/lib/admin/calendar/helpers'
 import { getCalendarItemColor } from '@/lib/admin/calendar/helpers'
 import type { AdminCalendarKind, AdminCalendarPriority } from '@/lib/admin/calendar/types'
+import { requireOpsOrgId, resolveOptionalAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,7 +30,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined
     const priority = (searchParams.get('priority') as AdminCalendarPriority | null) || undefined
 
-    const orgId = await resolveCalendarOrgId(supabase, user.id)
+    const scope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = scope ? requireOpsOrgId(scope) : null
+    if (orgId instanceof NextResponse) return orgId
     const { items, summary } = await aggregateAdminCalendarItems({
       supabase,
       userId: user.id,
@@ -106,7 +110,15 @@ export async function POST(request: NextRequest) {
     if (!title || !type || !start)
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 
-    const orgId = await resolveCalendarOrgId(supabase, user.id)
+    const scope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = scope
+      ? requireOpsOrgId(scope)
+      : await AdminTourEventOperationsService.resolveOrgId({ supabase, userId: user.id })
+    if (orgId instanceof NextResponse) return orgId
+    if (!orgId) {
+      return NextResponse.json({ error: 'Organization workspace is missing its operational scope.' }, { status: 409 })
+    }
 
     let insertData: Record<string, unknown> = {
       created_by: user.id,

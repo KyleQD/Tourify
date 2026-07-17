@@ -125,11 +125,11 @@ function EventPageMiniPreviewInner({
   const venueLabel = [data.venueName, data.city, data.state].filter(Boolean).join(" · ") || "Venue TBD"
 
   return (
-    <div className={cn(tokens.page, "min-h-0 rounded-2xl border border-white/10 p-4")}>
+    <div className={cn(tokens.page, "min-h-0 overflow-hidden rounded-2xl border border-white/10 p-3 shadow-2xl shadow-black/20 sm:p-4")}>
       {normalized.section_visibility.hero ? (
         <div className={cn(tokens.heroFrame, "mb-4")}>
           <div
-            className={cn("relative min-h-[230px] overflow-hidden", data.posterUrl ? "bg-cover bg-center" : tokens.heroFallback)}
+            className={cn("relative min-h-[220px] overflow-hidden", data.posterUrl ? "bg-cover bg-center" : tokens.heroFallback)}
             style={data.posterUrl ? { backgroundImage: `url(${data.posterUrl})` } : undefined}
           >
             <div className={tokens.heroScrim} />
@@ -205,7 +205,7 @@ export function EventPageDesignPanel({
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_400px]">
         <div className="space-y-6">
           <EventPageTemplateSelector
             selectedTemplate={activeTemplate}
@@ -242,7 +242,7 @@ export function EventPageDesignPanel({
                   <div
                     key={sectionId}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg border p-3",
+                      "flex items-center gap-3 rounded-xl border p-3 transition",
                       visible
                         ? "border-cyan-400/25 bg-slate-900/70"
                         : "border-slate-800 bg-slate-950/60 opacity-70",
@@ -251,7 +251,7 @@ export function EventPageDesignPanel({
                     <button
                       type="button"
                       className={cn(
-                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border",
+                        "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40 disabled:cursor-not-allowed disabled:opacity-60",
                         visible
                           ? "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
                           : "border-slate-700 bg-slate-900 text-slate-500",
@@ -271,7 +271,7 @@ export function EventPageDesignPanel({
                         type="button"
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-slate-400 hover:bg-white/10 hover:text-white"
+                        className={cn(artistEventUI.buttonGhost, "h-8 w-8")}
                         onClick={() => onLayoutChange(moveSection(normalizedLayout, sectionId, -1))}
                         disabled={isSaving || index === 0}
                         aria-label={`Move ${EVENT_PAGE_SECTION_LABELS[sectionId]} up`}
@@ -282,7 +282,7 @@ export function EventPageDesignPanel({
                         type="button"
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 text-slate-400 hover:bg-white/10 hover:text-white"
+                        className={cn(artistEventUI.buttonGhost, "h-8 w-8")}
                         onClick={() => onLayoutChange(moveSection(normalizedLayout, sectionId, 1))}
                         disabled={isSaving || index === normalizedLayout.section_order.length - 1}
                         aria-label={`Move ${EVENT_PAGE_SECTION_LABELS[sectionId]} down`}
@@ -297,7 +297,7 @@ export function EventPageDesignPanel({
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 2xl:sticky 2xl:top-6 2xl:self-start">
           <div className={cn(artistEventUI.panelPadded, "shadow-none")}>
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -322,21 +322,21 @@ export function EventPageDesignPanel({
             />
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className={cn(artistEventUI.inset, "grid grid-cols-1 gap-2 p-3 sm:grid-cols-3 2xl:grid-cols-1")}>
             {onSave ? (
-              <Button type="button" onClick={onSave} disabled={isSaving} className={artistEventUI.buttonAccent}>
+              <Button type="button" onClick={onSave} disabled={isSaving} className={cn(artistEventUI.buttonAccent, "h-10 justify-center")}>
                 <Save className="mr-2 h-4 w-4" />
                 {isSaving ? "Saving..." : "Save design"}
               </Button>
             ) : null}
             {publicPath && onCopyPublicLink ? (
-              <Button type="button" variant="outline" className={artistEventUI.buttonOutline} onClick={onCopyPublicLink}>
+              <Button type="button" variant="outline" className={cn(artistEventUI.buttonOutline, "h-10 justify-center")} onClick={onCopyPublicLink}>
                 <Copy className="mr-2 h-4 w-4" />
                 Copy link
               </Button>
             ) : null}
             {publicPath && onOpenPublicPage ? (
-              <Button type="button" variant="outline" className={artistEventUI.buttonOutline} onClick={onOpenPublicPage}>
+              <Button type="button" variant="outline" className={cn(artistEventUI.buttonOutline, "h-10 justify-center")} onClick={onOpenPublicPage}>
                 <ExternalLink className="mr-2 h-4 w-4" />
                 Public page
               </Button>

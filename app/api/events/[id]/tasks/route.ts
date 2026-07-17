@@ -3,7 +3,11 @@ import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasEventPermission } from '../../_lib/event-permissions'
 import { resolveEventReference } from '../../_lib/event-reference'
-import { ensureThreadForScope } from '@/lib/workflows/workflow-threads'
+import {
+  EVENT_WORKFLOW_TASK_SELECT,
+  getEventWorkflowContext,
+  recordEventTaskAudit,
+} from '@/lib/events/event-task-workflow'
 
 const createTaskSchema = z.object({
   title: z.string().min(1),
@@ -14,11 +18,6 @@ const createTaskSchema = z.object({
   priority: z.enum(['low', 'medium', 'high', 'critical']).default('medium'),
   labels: z.array(z.string()).default([]),
 })
-
-function isWorkflowTaskBridgeEnabled() {
-  return process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1' &&
-    process.env.FEATURE_WORKFLOW_TASK_BRIDGE === '1'
-}
 
 export async function GET(
   request: NextRequest,
@@ -42,37 +41,20 @@ export async function GET(
         return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
       }
 
-      if (isWorkflowTaskBridgeEnabled()) {
-        const thread = await ensureThreadForScope({
-          supabase,
-          scopeType: 'event',
-          scopeId: reference.id,
-          userId: user.id,
-          title: 'Event workflow',
-        })
-
-        const { data: workflowTasks, error: workflowTasksError } = await supabase
-          .from('workflow_tasks')
-          .select('*')
-          .eq('thread_id', thread.id)
-          .order('due_at', { ascending: true, nullsFirst: false })
-
-        if (workflowTasksError) {
-          console.error('[event tasks GET][workflow bridge]', workflowTasksError)
-          return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
-        }
-
-        return NextResponse.json({ success: true, tasks: workflowTasks || [], source: 'workflow_tasks' })
-      }
-
-      const { data, error } = await supabase.from('tasks').select('*').eq('event_id', reference.id).order('due_at', { ascending: true, nullsFirst: false })
+      const { threadId } = await getEventWorkflowContext({ supabase, reference, userId: user.id })
+      const { data, error } = await supabase
+        .from('workflow_tasks')
+        .select(EVENT_WORKFLOW_TASK_SELECT)
+        .eq('thread_id', threadId)
+        .order('due_at', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: false })
 
       if (error) {
         console.error('[event tasks GET]', error)
         return NextResponse.json({ error: 'Failed to fetch tasks' }, { status: 500 })
       }
 
-      return NextResponse.json({ success: true, tasks: data || [] })
+      return NextResponse.json({ success: true, tasks: data || [], source: 'workflow_tasks' })
     } catch (err) {
       console.error('[event tasks GET]', err)
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
@@ -91,12 +73,6 @@ export async function POST(
       if (!reference) {
         return NextResponse.json({ error: 'Event not found' }, { status: 404 })
       }
-      if (reference.table !== 'events_v2') {
-        return NextResponse.json(
-          { error: 'Task operations currently require an events_v2 event' },
-          { status: 400 }
-        )
-      }
       const canEditTasks = await hasEventPermission({
         supabase,
         eventId: reference.id,
@@ -111,66 +87,29 @@ export async function POST(
       const body = await request.json()
       const validated = createTaskSchema.parse(body)
 
-      const { data: event } = await supabase
-        .from('events_v2')
-        .select('org_id')
-        .eq('id', reference.id)
-        .single()
-
-      if (!event) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      }
-
-      if (isWorkflowTaskBridgeEnabled()) {
-        const thread = await ensureThreadForScope({
-          supabase,
-          scopeType: 'event',
-          scopeId: reference.id,
-          orgId: event.org_id,
-          userId: user.id,
-          title: 'Event workflow',
-        })
-
-        const { data: workflowTask, error: workflowTaskError } = await supabase
-          .from('workflow_tasks')
-          .insert({
-            ...validated,
-            thread_id: thread.id,
-            created_by: user.id,
-          })
-          .select()
-          .single()
-
-        if (workflowTaskError) {
-          console.error('[event tasks POST][workflow bridge]', workflowTaskError)
-          return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })
-        }
-
-        await supabase.from('workflow_events_audit').insert({
-          thread_id: thread.id,
-          actor_user_id: user.id,
-          action: 'task.created.bridge.event',
-          entity_type: 'task',
-          entity_id: workflowTask.id,
-          metadata: { source: 'app/api/events/[id]/tasks/route.ts' },
-        })
-
-        return NextResponse.json({ success: true, task: workflowTask, source: 'workflow_tasks' })
-      }
-
-      const { data, error } = await supabase.from('tasks').insert({
+      const { threadId, orgId } = await getEventWorkflowContext({ supabase, reference, userId: user.id })
+      const { data, error } = await supabase.from('workflow_tasks').insert({
         ...validated,
-        event_id: reference.id,
-        org_id: event.org_id,
+        thread_id: threadId,
+        metadata: { event_id: reference.id, org_id: orgId },
         created_by: user.id,
-      }).select().single()
+      }).select(EVENT_WORKFLOW_TASK_SELECT).single()
 
       if (error) {
         console.error('[event tasks POST]', error)
         return NextResponse.json({ error: 'Failed to create task' }, { status: 500 })
       }
 
-      return NextResponse.json({ success: true, task: data })
+      await recordEventTaskAudit({
+        supabase,
+        threadId,
+        userId: user.id,
+        action: 'task.created.event',
+        taskId: data.id,
+        metadata: { assignee_id: data.assignee_id, priority: data.priority },
+      })
+
+      return NextResponse.json({ success: true, task: data, source: 'workflow_tasks' }, { status: 201 })
     } catch (err) {
       if (err instanceof z.ZodError) {
         return NextResponse.json({ error: 'Validation error', details: err.errors }, { status: 400 })

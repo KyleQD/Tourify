@@ -34,7 +34,18 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
-    const participantIds = (data ?? []).map((row) => row.participant_id as string)
+    const { data: assignmentRows } = roleFilter
+      ? { data: [] }
+      : await supabase
+          .from('employment_assignments')
+          .select('id, user_id, role_title, department, status')
+          .eq('event_id', id)
+          .in('status', ['confirmed', 'active', 'completed'])
+
+    const participantIds = Array.from(new Set([
+      ...(data ?? []).map((row) => row.participant_id as string),
+      ...((assignmentRows ?? []).map((row) => row.user_id as string).filter(Boolean)),
+    ]))
     let profileById: Record<string, { full_name: string | null; username: string | null; avatar_url: string | null; email: string | null }> = {}
 
     if (participantIds.length > 0) {
@@ -53,14 +64,34 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
       }
     }
 
-    const participants = (data ?? []).map((row) => {
+    const participantsById = new Map<string, any>()
+
+    for (const row of data ?? []) {
       const profile = profileById[row.participant_id as string]
-      return {
+      participantsById.set(row.participant_id as string, {
         ...row,
         display_name: profile?.full_name || profile?.username || profile?.email || row.participant_id,
         avatar_url: profile?.avatar_url ?? null,
-      }
-    })
+        source: 'event_participants',
+      })
+    }
+
+    for (const assignment of assignmentRows ?? []) {
+      if (!assignment.user_id || participantsById.has(assignment.user_id as string)) continue
+      const profile = profileById[assignment.user_id as string]
+      participantsById.set(assignment.user_id as string, {
+        id: assignment.id,
+        participant_type: 'Individual',
+        participant_id: assignment.user_id,
+        role: assignment.role_title ?? assignment.department ?? 'Team member',
+        status: assignment.status,
+        display_name: profile?.full_name || profile?.username || profile?.email || assignment.user_id,
+        avatar_url: profile?.avatar_url ?? null,
+        source: 'employment_assignments',
+      })
+    }
+
+    const participants = Array.from(participantsById.values())
 
     return NextResponse.json({ participants })
   } catch (e: any) {
@@ -125,5 +156,4 @@ export async function DELETE(req: Request, context: { params: Promise<{ id: stri
     return NextResponse.json({ error: e?.message || 'Unexpected error' }, { status: 400 })
   }
 }
-
 

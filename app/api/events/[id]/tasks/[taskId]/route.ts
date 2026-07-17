@@ -3,6 +3,11 @@ import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasEventPermission } from '../../../_lib/event-permissions'
 import { resolveEventReference } from '../../../_lib/event-reference'
+import {
+  EVENT_WORKFLOW_TASK_SELECT,
+  getEventWorkflowContext,
+  recordEventTaskAudit,
+} from '@/lib/events/event-task-workflow'
 
 const updateTaskSchema = z.object({
   title: z.string().min(1).optional(),
@@ -23,12 +28,6 @@ export async function PATCH(
     try {
       const reference = await resolveEventReference(supabase as any, eventParam)
       if (!reference) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      if (reference.table !== 'events_v2') {
-        return NextResponse.json(
-          { error: 'Task operations currently require an events_v2 event' },
-          { status: 400 }
-        )
-      }
       const canEditTasks = await hasEventPermission({
         supabase,
         eventId: reference.id,
@@ -40,19 +39,32 @@ export async function PATCH(
 
       const body = await request.json()
       const validated = updateTaskSchema.parse(body)
+      const { threadId } = await getEventWorkflowContext({ supabase, reference, userId: user.id })
 
       const { data, error } = await supabase
-        .from('tasks')
+        .from('workflow_tasks')
         .update(validated)
         .eq('id', taskId)
-        .eq('event_id', reference.id)
-        .select()
+        .eq('thread_id', threadId)
+        .select(EVENT_WORKFLOW_TASK_SELECT)
         .single()
 
-      if (error) return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
+      if (error) {
+        console.error('[event tasks PATCH]', error)
+        return NextResponse.json({ error: 'Failed to update task' }, { status: 500 })
+      }
       if (!data) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
 
-      return NextResponse.json({ success: true, task: data })
+      await recordEventTaskAudit({
+        supabase,
+        threadId,
+        userId: user.id,
+        action: 'task.updated.event',
+        taskId,
+        metadata: validated,
+      })
+
+      return NextResponse.json({ success: true, task: data, source: 'workflow_tasks' })
     } catch (err) {
       if (err instanceof z.ZodError)
         return NextResponse.json({ error: 'Validation error', details: err.errors }, { status: 400 })
@@ -70,12 +82,6 @@ export async function DELETE(
     try {
       const reference = await resolveEventReference(supabase as any, eventParam)
       if (!reference) return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      if (reference.table !== 'events_v2') {
-        return NextResponse.json(
-          { error: 'Task operations currently require an events_v2 event' },
-          { status: 400 }
-        )
-      }
       const canEditTasks = await hasEventPermission({
         supabase,
         eventId: reference.id,
@@ -85,13 +91,26 @@ export async function DELETE(
       })
       if (!canEditTasks) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
 
+      const { threadId } = await getEventWorkflowContext({ supabase, reference, userId: user.id })
       const { error } = await supabase
-        .from('tasks')
+        .from('workflow_tasks')
         .delete()
         .eq('id', taskId)
-        .eq('event_id', reference.id)
+        .eq('thread_id', threadId)
 
-      if (error) return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 })
+      if (error) {
+        console.error('[event tasks DELETE]', error)
+        return NextResponse.json({ error: 'Failed to delete task' }, { status: 500 })
+      }
+
+      await recordEventTaskAudit({
+        supabase,
+        threadId,
+        userId: user.id,
+        action: 'task.deleted.event',
+        taskId,
+      })
+
       return NextResponse.json({ success: true })
     } catch {
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface DataState<T> {
   data: T | null
@@ -88,6 +89,7 @@ export function useOptimizedData<T = any>({
   })
 
   const router = useRouter()
+  const { actingHeaders, actingAccount } = useActingContext()
   const abortControllerRef = useRef<AbortController | null>(null)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -106,7 +108,7 @@ export function useOptimizedData<T = any>({
   const fetchData = useCallback(async (params?: Record<string, any>) => {
     if (!memoizedOptions.enabled) return
 
-    const cacheKey = getCacheKey(memoizedOptions.endpoint, params)
+    const cacheKey = getCacheKey(`${memoizedOptions.endpoint}:${actingAccount?.profile_id || 'none'}`, params)
     const cachedData = getCachedData<T>(cacheKey)
 
     if (cachedData) {
@@ -149,6 +151,7 @@ export function useOptimizedData<T = any>({
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
+          ...actingHeaders,
         }
       })
 
@@ -202,13 +205,13 @@ export function useOptimizedData<T = any>({
 
       memoizedOnError(errorMessage)
     }
-  }, [memoizedOptions, memoizedOnSuccess, memoizedOnError, memoizedTransform])
+  }, [memoizedOptions, memoizedOnSuccess, memoizedOnError, memoizedTransform, actingHeaders, actingAccount?.profile_id])
 
   const refetch = useCallback((params?: Record<string, any>) => {
-    const cacheKey = getCacheKey(memoizedOptions.endpoint, params)
+    const cacheKey = getCacheKey(`${memoizedOptions.endpoint}:${actingAccount?.profile_id || 'none'}`, params)
     dataCache.delete(cacheKey)
     return fetchData(params)
-  }, [memoizedOptions.endpoint, fetchData])
+  }, [memoizedOptions.endpoint, fetchData, actingAccount?.profile_id])
 
   const invalidateCache = useCallback((pattern?: string) => {
     if (pattern) {
@@ -250,7 +253,7 @@ export function useOptimizedData<T = any>({
         abortControllerRef.current.abort()
       }
     }
-  }, [memoizedOptions.enabled]) // Removed fetchData from dependencies
+  }, [memoizedOptions.enabled, actingAccount?.profile_id]) // Account changes must refetch scoped data
 
   // Cleanup on unmount
   useEffect(() => {
@@ -322,4 +325,4 @@ export function useNotificationsData() {
     refetchInterval: 15 * 1000, // 15 seconds
     transform: (data) => data.notifications
   })
-} 
+}

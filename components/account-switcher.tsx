@@ -19,7 +19,7 @@ import { useRouter } from 'next/navigation'
 import type { ProfileType } from '@/lib/accounts/account-types'
 import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account-types'
 import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
-import { getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
+import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { organizationSubtypeLabel } from '@/lib/organizations/org-subtypes'
 
 const accountTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -69,6 +69,15 @@ function getAccountDisplayName(account: { account_type: string; profile_data?: a
   if (norm === 'venue') return pd.venue_name || 'Venue Account'
   if (norm === 'organization') return pd.organization_name || pd.admin_name || 'Organization'
   return pd.full_name || 'Personal Account'
+}
+
+function getOrganizationPublicPath(account: { account_type: string; profile_data?: any }): string | null {
+  if (!isOrganizationType(account.account_type)) return null
+  const slug = account.profile_data?.url_slug
+  const subtype = account.profile_data?.subtype || account.profile_data?.organization_type
+  return subtype === 'band'
+    ? getArtistPublicProfilePath(slug)
+    : getOrganizationPublicProfilePath(slug)
 }
 
 interface AccountSwitcherProps {
@@ -227,13 +236,13 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                       )}
                     </div>
                     {isOrganizationType(account.account_type) &&
-                      getOrganizationPublicProfilePath(account.profile_data?.url_slug) && (
+                      getOrganizationPublicPath(account) && (
                         <button
                           type="button"
                           className="mt-1 flex items-center gap-1 text-xs text-amber-300/90 hover:text-amber-200"
                           onClick={(e) => {
                             e.stopPropagation()
-                            const path = getOrganizationPublicProfilePath(account.profile_data?.url_slug)
+                            const path = getOrganizationPublicPath(account)
                             if (path) router.push(path)
                           }}
                         >
@@ -295,8 +304,8 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                 <Plus className="h-4 w-4 text-amber-400" />
               </div>
               <div>
-                <div className="text-sm font-medium text-white">Create Organization Account</div>
-                <div className="text-xs text-slate-400">Manage events and tours professionally</div>
+                <div className="text-sm font-medium text-white">Create Band / Organization</div>
+                <div className="text-xs text-slate-400">Manage a band, roster, events, or tours</div>
               </div>
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -335,4 +344,4 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
       </DropdownMenu>
     </div>
   )
-} 
+}

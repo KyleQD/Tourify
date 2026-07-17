@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 import { logAuditEvent } from '@/lib/audit'
+import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 const createTransactionSchema = z.object({
   event_id: z.string().uuid().optional(),
@@ -26,16 +27,6 @@ const createBudgetSchema = z.object({
   notes: z.string().optional(),
 })
 
-async function resolveOrgId(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase
-    .from('org_members')
-    .select('org_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle()
-  return data?.org_id ?? null
-}
-
 export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
     const { searchParams } = new URL(request.url)
@@ -45,7 +36,10 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
     const fromDate = searchParams.get('from')
     const toDate = searchParams.get('to')
 
-    const orgId = await resolveOrgId(supabase, user.id)
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
 
     if (type === 'overview') {
       const [txResult, budgetResult] = await Promise.allSettled([
@@ -153,13 +147,10 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     const body = await request.json()
     const { action, ...data } = body
 
-    const orgId = await resolveOrgId(supabase, user.id)
-    if (!orgId) {
-      return NextResponse.json(
-        { error: 'No organization found. Please set up your organizer account first.' },
-        { status: 400 },
-      )
-    }
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
 
     if (action === 'create_transaction') {
       const validated = createTransactionSchema.parse(data)
@@ -221,6 +212,11 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
 
 export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
+
     const body = await request.json()
     const { id, table, ...updates } = body
 
@@ -233,6 +229,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
       .from(tableName)
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq('id', id)
+      .eq('org_id', orgId)
       .select()
       .single()
 
@@ -248,8 +245,13 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
   try {
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
+
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
@@ -258,6 +260,7 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { supabase }) =
       .from('financial_transactions')
       .delete()
       .eq('id', id)
+      .eq('org_id', orgId)
 
     if (error) {
       console.error('[Admin Finances API] Delete error:', error)

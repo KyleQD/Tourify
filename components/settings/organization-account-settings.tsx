@@ -12,8 +12,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Badge } from '@/components/ui/badge'
 import { toast } from '@/components/ui/use-toast'
-import { ExternalLink, Globe, Loader2, Save, Users } from 'lucide-react'
-import { getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
+import { ArrowRight, ExternalLink, Globe, Loader2, Save, Sparkles, Users } from 'lucide-react'
+import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import {
   ORGANIZATION_SUBTYPES,
   ORGANIZATION_SUBTYPE_LABELS,
@@ -35,6 +35,12 @@ interface OrgProfileForm {
   website: string
 }
 
+function getOrgSettingsPublicPath(form: Pick<OrgProfileForm, 'subtype' | 'url_slug'>): string | null {
+  return form.subtype === 'band'
+    ? getArtistPublicProfilePath(form.url_slug)
+    : getOrganizationPublicProfilePath(form.url_slug)
+}
+
 export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSettingsProps) {
   const { currentAccount, refreshAccounts } = useMultiAccount()
   const [isLoading, setIsLoading] = useState(true)
@@ -49,6 +55,7 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
   })
 
   const profileId = currentAccount?.profile_id
+  const isBand = form.subtype === 'band'
 
   useEffect(() => {
     if (!profileId || activeTab !== 'profile') return
@@ -120,19 +127,30 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
 
   if (activeTab === 'team') {
     return (
-      <Card className="bg-white/5 border-white/10">
+      <Card className={isBand ? "rounded-lg border-slate-700/50 bg-slate-950/60 shadow-xl shadow-black/25 backdrop-blur" : "bg-white/5 border-white/10"}>
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Team & grants
+            {isBand ? (
+              <span className="flex h-9 w-9 items-center justify-center rounded-md border border-cyan-300/20 bg-cyan-300/10 text-cyan-100">
+                <Sparkles className="h-4 w-4" />
+              </span>
+            ) : (
+              <Users className="h-5 w-5" />
+            )}
+            {isBand ? 'Band Hub' : 'Team & grants'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-white/70">
           <p className="text-sm">
-            Invite tour managers and manage artist roster from the organization team page.
+            {isBand
+              ? 'Manage public band members, roster invites, launch status, and manager access from the Band Hub.'
+              : 'Invite tour managers and manage artist roster from the organization team page.'}
           </p>
-          <Button asChild>
-            <Link href="/admin/dashboard/organization">Open team panel</Link>
+          <Button asChild className={isBand ? "bg-gradient-to-r from-cyan-500 to-purple-600 text-white hover:from-cyan-400 hover:to-purple-500" : ""}>
+            <Link href="/admin/dashboard/organization">
+              {isBand ? 'Open Band Hub' : 'Open team panel'}
+              {isBand ? <ArrowRight className="ml-2 h-4 w-4" /> : null}
+            </Link>
           </Button>
         </CardContent>
       </Card>
@@ -140,20 +158,22 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
   }
 
   if (activeTab === 'public') {
-    const publicPath = getOrganizationPublicProfilePath(form.url_slug)
+    const publicPath = getOrgSettingsPublicPath(form)
     return (
-      <Card className="bg-white/5 border-white/10">
+      <Card className={isBand ? "rounded-lg border-slate-700/50 bg-slate-950/60 shadow-xl shadow-black/25 backdrop-blur" : "bg-white/5 border-white/10"}>
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             <Globe className="h-5 w-5" />
-            Public visibility
+            {isBand ? 'Band page visibility' : 'Public visibility'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
+          <div className={isBand ? "flex items-center justify-between gap-4 rounded-md border border-cyan-300/15 bg-cyan-300/[0.04] p-3" : "flex items-center justify-between gap-4"}>
             <div>
               <p className="text-white font-medium">Public profile</p>
-              <p className="text-sm text-white/60">When enabled, your organization page is discoverable.</p>
+              <p className="text-sm text-white/60">
+                When enabled, your {form.subtype === 'band' ? 'band page' : 'organization page'} is discoverable.
+              </p>
             </div>
             <Switch
               checked={form.is_public}
@@ -161,7 +181,7 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
             />
           </div>
           {publicPath && (
-            <Button asChild variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
+            <Button asChild variant="secondary" className={isBand ? "bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/25" : "bg-white/10 text-white hover:bg-white/20"}>
               <Link href={publicPath} target="_blank" rel="noreferrer">
                 View public page
                 <ExternalLink className="ml-2 h-4 w-4" />
@@ -195,13 +215,13 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
     )
   }
 
-  const publicPath = getOrganizationPublicProfilePath(form.url_slug)
+  const publicPath = getOrgSettingsPublicPath(form)
 
   return (
     <Card className="bg-white/5 border-white/10">
       <CardHeader className="flex flex-row items-center justify-between gap-4">
         <div>
-          <CardTitle className="text-white">Organization profile</CardTitle>
+          <CardTitle className="text-white">{isBand ? 'Band profile' : 'Organization profile'}</CardTitle>
           <p className="text-sm text-white/60 mt-1">
             {organizationSubtypeLabel(form.subtype)}
             {form.url_slug ? ` · @${form.url_slug}` : ''}
@@ -218,7 +238,7 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label className="text-white">Organization name</Label>
+          <Label className="text-white">{isBand ? 'Band name' : 'Organization name'}</Label>
           <Input
             value={form.organization_name}
             onChange={(e) => setForm((prev) => ({ ...prev, organization_name: e.target.value }))}
@@ -244,7 +264,9 @@ export function OrganizationAccountSettings({ activeTab }: OrganizationAccountSe
         <div className="space-y-2">
           <Label className="text-white">Public URL slug</Label>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-white/50 shrink-0">/organization/</span>
+            <span className="text-sm text-white/50 shrink-0">
+              {form.subtype === 'band' ? '/artist/' : '/organization/'}
+            </span>
             <Input
               value={form.url_slug}
               onChange={(e) =>

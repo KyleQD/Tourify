@@ -9,6 +9,7 @@ import {
 export interface AccountAuthor {
   id: string
   type: string
+  subtype?: string | null
   name: string
   username: string | null
   avatarUrl: string | null
@@ -23,6 +24,7 @@ type AuthorRow = {
   account_username?: string | null
   account_avatar_url?: string | null
   account_is_verified?: boolean | null
+  account_subtype?: string | null
   profiles?: unknown
   resolved_author?: AccountAuthor | null
 }
@@ -96,6 +98,7 @@ export function getAccountAuthor(row: AuthorRow): AccountAuthor {
   return {
     id: row.posted_as_profile_id || profile?.id || row.user_id || '',
     type: normalizedType,
+    subtype: row.account_subtype || profile?.subtype || profile?.organization_type || null,
     name,
     username,
     avatarUrl: row.account_avatar_url || profile?.avatar_url || null,
@@ -103,7 +106,7 @@ export function getAccountAuthor(row: AuthorRow): AccountAuthor {
   }
 }
 
-export function getAccountAuthorPath(author: Pick<AccountAuthor, 'id' | 'type' | 'username'>): string | null {
+export function getAccountAuthorPath(author: Pick<AccountAuthor, 'id' | 'type' | 'username' | 'subtype'>): string | null {
   switch (normalizeAccountType(author.type)) {
     case 'artist':
     case 'service':
@@ -111,6 +114,7 @@ export function getAccountAuthorPath(author: Pick<AccountAuthor, 'id' | 'type' |
     case 'venue':
       return author.id ? getVenuePublicProfilePath({ id: author.id, url_slug: author.username }) : null
     case 'organization':
+      if (author.subtype === 'band') return getArtistPublicProfilePath(author.username)
       return getOrganizationPublicProfilePath(author.username)
     default:
       return getGeneralPublicProfilePath({ username: author.username })

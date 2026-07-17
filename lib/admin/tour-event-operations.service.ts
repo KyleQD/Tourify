@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { buildUniqueEventSlug, mapIncomingStatusToV2, mapV2StatusToUi } from "@/app/api/events/_lib/events-v2-admin"
-import { resolveAdminOrgIdForUser } from "@/app/api/events/_lib/admin-event-persistence"
+import { ensureAdminOrgScope, resolveAdminOrgIdForUser } from "@/app/api/events/_lib/admin-event-persistence"
 import { getEventReadiness, getTourReadiness } from "@/lib/admin/operations-readiness"
 
 type SupabaseLike = SupabaseClient | any
@@ -523,6 +523,7 @@ function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBas
   if (input.venue_id && isUuid(String(input.venue_id))) {
     // Builders attach venue_profiles ids; keep account link even when venues_v2 FK is resolved separately.
     settings.venue_account_id = input.venue_id
+    settings.venue_profile_id = input.venue_id
   }
   if (input.stakeholders) settings.stakeholders = input.stakeholders
   if (input.hospitality_rider) settings.hospitality_rider = input.hospitality_rider
@@ -608,7 +609,15 @@ async function resolveAuthorizedOrgId(args: {
 
   if (requestedOrgId) {
     if (!memberships.includes(requestedOrgId)) {
-      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+      const { data: ownedOrg, error } = await args.supabase
+        .from("organizations")
+        .select("id, created_by")
+        .eq("id", requestedOrgId)
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      if (ownedOrg?.created_by !== args.userId) {
+        throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+      }
     }
     return requestedOrgId
   }
@@ -623,6 +632,8 @@ async function assertUserCanAccessOrg(args: {
   orgId: string | null | undefined
   ownerUserId?: string | null
 }): Promise<string> {
+  if (args.ownerUserId && args.ownerUserId === args.userId) return args.orgId ?? ""
+
   if (args.orgId) {
     const memberships = await listUserOrgIds(args.supabase, args.userId)
     if (!memberships.includes(args.orgId)) {
@@ -630,9 +641,6 @@ async function assertUserCanAccessOrg(args: {
     }
     return args.orgId
   }
-
-  // Legacy rows without org_id remain accessible only to the owning admin.
-  if (args.ownerUserId && args.ownerUserId === args.userId) return ""
 
   throw new AdminTourEventAuthError("Organization is not available to this admin account.")
 }
@@ -719,12 +727,14 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
   return {
     id: row.id,
     org_id: row.org_id,
+    created_by: row.created_by,
     name: row.title,
     title: row.title,
     description: typeof settings.description === "string" ? settings.description : "",
     status: mapV2StatusToUi(String(row.status ?? "inquiry")),
     event_date: row.start_at,
     end_date: row.end_at,
+    timezone: row.timezone,
     venue_id: row.venue_id,
     venue_name: settings.venue_label ?? null,
     venue_address: settings.venue_address ?? null,
@@ -737,6 +747,8 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     tours,
     created_at: row.created_at,
     settings,
+    setup_context: settings.setup_context ?? null,
+    setup_checklist: settings.setup_checklist ?? null,
     readiness: getEventReadiness({
       title: typeof row.title === "string" ? row.title : "",
       start_at: typeof row.start_at === "string" ? row.start_at : null,
@@ -782,7 +794,8 @@ export class AdminTourEventOperationsService {
         requestedOrgId: args.requestedOrgId,
       })
     }
-    return resolveAdminOrgIdForUser(args.supabase, args.userId, args.tourId)
+    const orgId = await resolveAdminOrgIdForUser(args.supabase, args.userId, args.tourId)
+    return orgId ?? ensureAdminOrgScope(args.supabase, args.userId, args.tourId)
   }
 
   static async listEvents(args: { supabase: SupabaseLike; userId: string; orgId?: string | null; status?: string | null }) {
@@ -791,14 +804,15 @@ export class AdminTourEventOperationsService {
       userId: args.userId,
       requestedOrgId: args.orgId,
     })
-    if (!orgId) return []
-
     let query = args.supabase
       .from("events_v2")
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
-      .eq("org_id", orgId)
+      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
       .order("start_at", { ascending: false })
       .limit(200)
+
+    query = orgId
+      ? query.or(`org_id.eq.${orgId},created_by.eq.${args.userId}`)
+      : query.eq("created_by", args.userId)
 
     if (args.status && args.status !== "all") query = query.eq("status", mapIncomingStatusToV2(args.status))
 
@@ -856,7 +870,7 @@ export class AdminTourEventOperationsService {
   static async getEvent(args: { supabase: SupabaseLike; userId: string; eventId: string }) {
     const { data, error } = await args.supabase
       .from("events_v2")
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id, created_by")
+      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
       .eq("id", args.eventId)
       .maybeSingle()
     if (error) throw new Error(error.message)
@@ -878,7 +892,7 @@ export class AdminTourEventOperationsService {
     return presentEvent(data, assignments)
   }
 
-  static async createEvent(args: { supabase: SupabaseLike; userId: string; input: z.infer<typeof adminEventInputSchema> }) {
+  static async createEvent(args: { supabase: SupabaseLike; userId: string; input: z.infer<typeof adminEventInputSchema>; orgId?: string | null }) {
     const input = adminEventInputSchema.parse(args.input)
     const tourId = input.tour_id === "" || !input.tour_id ? null : input.tour_id
     const assignments = normalizeAssignments({
@@ -887,12 +901,13 @@ export class AdminTourEventOperationsService {
       assignments: input.tour_assignments,
       primaryTourId: input.primary_tour_id,
     })
-    const orgId = await resolveAuthorizedOrgId({
+    let orgId = await resolveAuthorizedOrgId({
       supabase: args.supabase,
       userId: args.userId,
+      requestedOrgId: args.orgId,
     })
     if (!orgId) {
-      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+      orgId = await ensureAdminOrgScope(args.supabase, args.userId)
     }
     await assertToursInOrg(args.supabase, orgId, assignments.map((assignment) => assignment.tour_id))
 
@@ -925,7 +940,7 @@ export class AdminTourEventOperationsService {
         created_by: args.userId,
         settings,
       })
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
+      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
       .single()
 
     if (error || !inserted?.id) throw new Error(error?.message || "Failed to create event.")
@@ -977,6 +992,7 @@ export class AdminTourEventOperationsService {
       patch.start_at = args.input.start_at || combineDateTimeToIso(args.input.event_date ?? null, args.input.event_time ?? null)
     }
     if (args.input.end_at) patch.end_at = args.input.end_at
+    if (args.input.timezone) patch.timezone = args.input.timezone
     if ("venue_id" in args.input) {
       const bridgedVenueId = await resolveVenuesV2IdForAccount({
         supabase: args.supabase,
@@ -1015,7 +1031,7 @@ export class AdminTourEventOperationsService {
       .eq("id", args.eventId)
     if (existing.org_id) updateQuery = updateQuery.eq("org_id", existing.org_id)
     const { data, error } = await updateQuery
-      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
+      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
       .single()
     if (error) throw new Error(error.message)
 
@@ -1283,11 +1299,12 @@ export class AdminTourEventOperationsService {
     return presentTour(tour, events)
   }
 
-  static async createTour(args: { supabase: SupabaseLike; userId: string; input: z.input<typeof adminTourInputSchema> }) {
+  static async createTour(args: { supabase: SupabaseLike; userId: string; input: z.input<typeof adminTourInputSchema>; orgId?: string | null }) {
     const input = adminTourInputSchema.parse(args.input)
     const orgId = await resolveAuthorizedOrgId({
       supabase: args.supabase,
       userId: args.userId,
+      requestedOrgId: args.orgId,
     })
     if (!orgId) {
       throw new AdminTourEventAuthError("Organization is not available to this admin account.")

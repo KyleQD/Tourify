@@ -66,6 +66,7 @@ function normalizeTour(raw: any): TourRow {
 export default function ToursPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const eventIdToAttach = searchParams.get("event_id")
   const [filterStatus, setFilterStatus] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [tours, setTours] = useState<TourRow[]>([])
@@ -145,6 +146,20 @@ export default function ToursPage() {
           </Button>
         }
       />
+
+      {eventIdToAttach ? (
+        <div className="flex flex-col gap-3 rounded-[1.25rem] border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium text-cyan-100">Add this event to a tour</p>
+            <p className="text-xs text-slate-400">Open an existing tour to attach the event, or start a new tour with this event already staged.</p>
+          </div>
+          <Button asChild size="sm" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
+            <Link href={`/admin/dashboard/tours/builder?event_id=${eventIdToAttach}`}>
+              Start tour
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       {draftTours.length > 0 ? (
         <div className="flex flex-col gap-3 rounded-[1.25rem] border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

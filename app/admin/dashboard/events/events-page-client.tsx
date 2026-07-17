@@ -169,11 +169,13 @@ export default function EventsPage() {
               Export
             </Button>
             <Button
-              onClick={() => router.push("/admin/dashboard/events/create")}
+              asChild
               className="border-0 bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg shadow-purple-500/20"
             >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Event
+              <Link href="/admin/dashboard/events/create" prefetch={false}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Event
+              </Link>
             </Button>
           </>
         }

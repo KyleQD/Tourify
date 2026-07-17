@@ -119,6 +119,7 @@ describe("admin tour/event operation schemas", () => {
       title: "Opening night",
       date: "2026-08-14",
       venue_name: "The Fonda",
+      venue_account_id: "44444444-4444-4444-8444-444444444444",
       load_in_time: "14:00",
       sound_check_time: "16:00",
       technical_rider: "Console advanced",
@@ -126,6 +127,7 @@ describe("admin tour/event operation schemas", () => {
       security_notes: "Barricade confirmed",
       ticket_price: "35",
       team_count: 3,
+      staff_count: 1,
     })
     expect(ready.score).toBeGreaterThan(missing.score)
     expect(ready.blockers).toHaveLength(0)

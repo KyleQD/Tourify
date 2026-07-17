@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { motion, AnimatePresence } from "framer-motion"
 import { useDebounce } from "@/hooks/use-debounce"
+import { useActingContext } from "@/hooks/use-acting-context"
 import { formatSafeNumber } from "@/lib/format/number-format"
 import {
   Search,
@@ -72,6 +73,7 @@ export function EnhancedGlobalSearch({
   onResultSelect 
 }: EnhancedGlobalSearchProps) {
   const router = useRouter()
+  const { actingHeaders, actingAccount } = useActingContext()
   const [open, setOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState("all")
@@ -95,9 +97,10 @@ export function EnhancedGlobalSearch({
 
     try {
       const q = encodeURIComponent(query)
+      const adminInit: RequestInit = { credentials: 'include', headers: actingHeaders }
       const [toursRes, eventsRes, artistsRes, venuesRes] = await Promise.allSettled([
-        fetch(`/api/admin/tours?search=${q}&limit=5`, { credentials: 'include' }),
-        fetch(`/api/admin/events?search=${q}&limit=5`, { credentials: 'include' }),
+        fetch(`/api/admin/tours?search=${q}&limit=5`, adminInit),
+        fetch(`/api/admin/events?search=${q}&limit=5`, adminInit),
         fetch(`/api/search?q=${q}&type=artists&limit=5`, { credentials: 'include' }),
         fetch(`/api/search?q=${q}&type=venues&limit=5`, { credentials: 'include' }),
       ])
@@ -361,7 +364,7 @@ export function EnhancedGlobalSearch({
 
     setIsSearching(false)
     return categories
-  }, [])
+  }, [actingHeaders, actingAccount?.profile_id])
 
   // Perform search when query changes
   useEffect(() => {
@@ -679,4 +682,4 @@ export function EnhancedGlobalSearch({
       </DialogContent>
     </Dialog>
   )
-} 
+}

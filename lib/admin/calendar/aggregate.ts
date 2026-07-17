@@ -14,7 +14,6 @@ import {
   toIsoOrNull,
 } from './helpers'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnySupabase = any
 
 export interface AggregateCalendarArgs {
@@ -57,7 +56,7 @@ function extractJsonDate(source: unknown, keys: string[]): string | null {
 
 async function resolveOrgEventIds(supabase: AnySupabase, orgId: string | null, userId: string): Promise<string[]> {
   let query = supabase.from('events_v2').select('id')
-  if (orgId) query = query.eq('org_id', orgId)
+  if (orgId) query = query.or(`org_id.eq.${orgId},created_by.eq.${userId}`)
   else query = query.eq('created_by', userId)
   const { data } = await query
   return (data || []).map((row: { id: string }) => row.id)
@@ -89,7 +88,7 @@ export async function aggregateAdminCalendarItems(
         .gte('start_at', startDate)
         .lte('start_at', `${endDate}T23:59:59.999Z`)
 
-      if (orgId) eventsQuery = eventsQuery.eq('org_id', orgId)
+      if (orgId) eventsQuery = eventsQuery.or(`org_id.eq.${orgId},created_by.eq.${userId}`)
       else eventsQuery = eventsQuery.eq('created_by', userId)
       if (status) eventsQuery = eventsQuery.eq('status', status)
 

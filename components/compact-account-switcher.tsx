@@ -268,8 +268,8 @@ export function CompactAccountSwitcher({ onAccountSwitch, className = '' }: Comp
                 <Plus className="h-3 w-3 text-amber-400" />
               </div>
               <div>
-                <div className="text-sm font-medium text-white">Create Organization Account</div>
-                <div className="text-xs text-slate-400">Manage events</div>
+                <div className="text-sm font-medium text-white">Create Band / Organization</div>
+                <div className="text-xs text-slate-400">Manage roster or events</div>
               </div>
             </DropdownMenuItem>
           </DropdownMenuGroup>

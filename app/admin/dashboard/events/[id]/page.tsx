@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, type ComponentType, type ReactNode } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { 
   Calendar, 
@@ -19,6 +19,7 @@ import {
   Users2,
   Truck,
   FileText,
+  Briefcase,
   Bell,
   Edit,
   Trash2,
@@ -54,12 +55,6 @@ import {
   BookOpen,
   Clipboard,
   CalendarDays,
-  Clock4,
-  LayoutDashboard,
-  Briefcase,
-  ListTodo,
-  Wallet,
-  Radio,
   Command,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -122,7 +117,15 @@ import {
   OperationsCommandShell,
   OperationsTabPanel,
 } from "@/components/admin/operations/operations-command-shell"
-import { buildAdminHiringHref, buildAdminLogisticsHref, buildAdminRosterHref, buildAdminSiteMapHref, resolveEmployerFromEventRow } from "@/lib/admin/admin-ops-context"
+import {
+  buildAdminHiringHref,
+  buildAdminLogisticsHref,
+  buildAdminRosterHref,
+  buildAdminSiteMapHref,
+  buildAdminStaffHref,
+  resolveEmployerFromEventRow,
+} from "@/lib/admin/admin-ops-context"
+import { EVENT_OPS_TABS, normalizeEventOpsTab, type EventOpsTab } from "@/lib/admin/event-ops-tabs"
 import {
   EventStaffPanel,
   EventVendorPanel,
@@ -131,9 +134,16 @@ import {
   EventTicketPanel,
   EventFinancePanel,
 } from "@/components/admin/events/panels"
-import { WorkforceMetricCard, WorkforcePageShell } from "@/components/hiring/workforce-ui"
+import {
+  WorkforceEmptyState,
+  WorkforceMetricCard,
+  WorkforcePageShell,
+  WorkforcePanel,
+} from "@/components/hiring/workforce-ui"
 import { LifecycleStrip } from "@/components/admin/operations/lifecycle-strip"
 import { EventPartiesPanel } from "@/components/admin/event-parties-panel"
+import { StaffSchedulingTab } from "@/components/admin/staff-scheduling-tab"
+import type { HiringEntity } from "@/types/hiring-entity"
 
 interface Event {
   id: string
@@ -408,6 +418,73 @@ function EventIncidentsTab({ eventId }: { eventId: string }) {
   )
 }
 
+function OpsPanel({
+  title,
+  description,
+  icon: Icon,
+  action,
+  children,
+  className = "",
+}: {
+  title: string
+  description?: string
+  icon?: ComponentType<{ className?: string }>
+  action?: ReactNode
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <WorkforcePanel className={`p-5 ${className}`}>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-start gap-3">
+          {Icon ? (
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-cyan-400/20 bg-cyan-400/10 text-cyan-200">
+              <Icon className="h-5 w-5" />
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            {description ? <p className="mt-1 text-sm leading-6 text-slate-400">{description}</p> : null}
+          </div>
+        </div>
+        {action ? <div className="flex shrink-0 flex-wrap gap-2">{action}</div> : null}
+      </div>
+      {children}
+    </WorkforcePanel>
+  )
+}
+
+function OpsField({ label, value }: { label: string; value?: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-800/80 bg-slate-950/45 p-4">
+      <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <div className="mt-2 text-sm font-medium text-slate-100">{value || "TBD"}</div>
+    </div>
+  )
+}
+
+function QuickActionButton({
+  icon: Icon,
+  children,
+  onClick,
+}: {
+  icon: ComponentType<{ className?: string }>
+  children: ReactNode
+  onClick: () => void
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="h-auto w-full justify-start border-slate-700/70 bg-slate-950/35 px-3 py-3 text-left text-slate-200 hover:bg-slate-900/80"
+      onClick={onClick}
+    >
+      <Icon className="mr-2 h-4 w-4 shrink-0 text-cyan-300" />
+      <span className="truncate">{children}</span>
+    </Button>
+  )
+}
+
 export default function EventManagementPage() {
   const params = useParams()
   const router = useRouter()
@@ -417,22 +494,7 @@ export default function EventManagementPage() {
   // State management
   const [event, setEvent] = useState<Event | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
-
-  const TAB_ALIASES: Record<string, string> = {
-    staff: "people",
-    participants: "people",
-    locations: "people",
-    finances: "money",
-    "site-map": "logistics",
-    incidents: "tasks",
-    comms: "communications",
-  }
-
-  function normalizeEventTab(tab: string | null) {
-    if (!tab) return "overview"
-    return TAB_ALIASES[tab] || tab
-  }
+  const [activeTab, setActiveTab] = useState<EventOpsTab>("overview")
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   
@@ -462,8 +524,16 @@ export default function EventManagementPage() {
 
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab) setActiveTab(normalizeEventTab(tab))
+    if (tab) setActiveTab(normalizeEventOpsTab(tab))
   }, [searchParams])
+
+  const handleEventTabChange = useCallback((value: string) => {
+    const next = normalizeEventOpsTab(value)
+    setActiveTab(next)
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("tab", next)
+    router.replace(`/admin/dashboard/events/${eventId}?${params.toString()}`, { scroll: false })
+  }, [eventId, router, searchParams])
 
   // Fetch event data
   useEffect(() => {
@@ -586,21 +656,21 @@ export default function EventManagementPage() {
 
   // Quick action handlers — navigate to the relevant tab where the full UI lives
   const handleAddTask = () => {
-    setActiveTab('tasks')
+    handleEventTabChange("tasks")
     // EventTaskManager on the tasks tab has its own add-task button
   }
 
   const handleManageStaff = () => {
-    setActiveTab('people')
+    handleEventTabChange("people")
     // Staff tab has full team management UI
   }
 
   const handleAddVendor = () => {
-    setActiveTab('vendors')
+    handleEventTabChange("vendors")
   }
 
   const handleViewTickets = () => {
-    setActiveTab('tickets')
+    handleEventTabChange("tickets")
     setShowTicketsDialog(true)
   }
 
@@ -778,25 +848,35 @@ export default function EventManagementPage() {
   const artistAccountIds = Array.isArray(event.settings?.artist_account_ids)
     ? (event.settings.artist_account_ids as unknown[]).filter((id): id is string => typeof id === "string")
     : []
-  const rosterHref = buildAdminRosterHref({ eventId, ...employerParams })
-  const hiringHref = buildAdminHiringHref({ eventId, ...employerParams })
+  const eventScopeParams = {
+    eventId,
+    tourId: event.tour_id,
+    ...employerParams,
+    displayName:
+      employerParams.entityType === "venue"
+        ? event.venue_name
+        : event.name,
+  }
+  const eventHiringEntity: HiringEntity | null =
+    eventScopeParams.entityType && eventScopeParams.entityId
+      ? {
+          entityType: eventScopeParams.entityType,
+          entityId: eventScopeParams.entityId,
+          displayName: eventScopeParams.displayName || "Event workforce",
+          scope: {
+            eventId,
+            tourId: event.tour_id,
+            venueId: eventScopeParams.venueId || event.venue_id || undefined,
+          },
+        }
+      : null
+  const rosterHref = buildAdminRosterHref(eventScopeParams)
+  const hiringHref = buildAdminHiringHref(eventScopeParams)
+  const jobsHref = buildAdminHiringHref({ ...eventScopeParams, tab: "jobs" })
+  const staffSchedulingHref = buildAdminStaffHref({ ...eventScopeParams, tab: "scheduling" })
+  const logisticsHref = buildAdminLogisticsHref(eventScopeParams)
+  const siteMapHref = buildAdminSiteMapHref(eventScopeParams)
   const revenuePercentage = event.expected_revenue > 0 ? (event.actual_revenue / event.expected_revenue) * 100 : 0
-
-  const EVENT_TABS = [
-    { value: "overview", label: "Overview", icon: LayoutDashboard },
-    { value: "people", label: "People", icon: Users },
-    { value: "vendors", label: "Vendors", icon: Briefcase },
-    { value: "tasks", label: "Tasks", icon: ListTodo },
-    { value: "tickets", label: "Tickets", icon: Ticket },
-    { value: "money", label: "Money", icon: Wallet },
-    { value: "logistics", label: "Logistics", icon: Truck },
-    { value: "advancing", label: "Advance", icon: FileText },
-    { value: "day-sheet", label: "Day Sheet", icon: Clipboard },
-    { value: "travel", label: "Travel", icon: MapPin },
-    { value: "communications", label: "Comms", icon: MessageSquare },
-    { value: "analytics", label: "Analytics", icon: BarChart3 },
-    { value: "access", label: "Access", icon: Shield },
-  ]
 
   const justPublished = searchParams.get("published") === "1"
 
@@ -826,14 +906,9 @@ export default function EventManagementPage() {
           title={event.name}
           description={`${formatSafeDate(event.event_date)}${event.event_time ? ` at ${event.event_time}` : ""} · ${event.venue_name}`}
           badge={event.status.replace('_', ' ')}
-          tabs={EVENT_TABS}
+          tabs={EVENT_OPS_TABS}
           activeTab={activeTab}
-          onTabChange={(value) => {
-            setActiveTab(value)
-            const url = new URL(window.location.href)
-            url.searchParams.set('tab', value)
-            window.history.replaceState({}, '', url.toString())
-          }}
+          onTabChange={handleEventTabChange}
           tabColsClassName="md:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
           metrics={
             <>
@@ -857,6 +932,14 @@ export default function EventManagementPage() {
                 <CheckCircle className="mr-2 h-4 w-4" />
                 Check-In
               </Button>
+              <Button variant="outline" className="border-cyan-700/50 text-cyan-300 hover:bg-cyan-950/30" onClick={() => router.push(`/admin/dashboard/tours?event_id=${eventId}`)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add to tour
+              </Button>
+              <Button variant="outline" className="border-purple-700/50 text-purple-300 hover:bg-purple-950/30" onClick={() => router.push(`/admin/dashboard/tours/builder?event_id=${eventId}`)}>
+                <CalendarDays className="mr-2 h-4 w-4" />
+                Start tour
+              </Button>
               <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(`/admin/dashboard/events/create?id=${eventId}`)}>
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
@@ -876,6 +959,14 @@ export default function EventManagementPage() {
                   <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/events/create?id=${eventId}`)}>
                     <Edit className="mr-2 h-4 w-4" />
                     Edit in Producer Console
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/tours?event_id=${eventId}`)}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add to tour
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push(`/admin/dashboard/tours/builder?event_id=${eventId}`)}>
+                    <CalendarDays className="mr-2 h-4 w-4" />
+                    Start tour from event
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleDuplicateEvent}>
                     <Copy className="mr-2 h-4 w-4" />
@@ -905,36 +996,31 @@ export default function EventManagementPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
                 {/* Event Details */}
-                <Card className="bg-slate-900/50 border-slate-700/50">
-                  <CardHeader>
-                    <CardTitle className="text-white">Event Details</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <Label className="text-slate-400">Description</Label>
-                      <p className="text-white mt-1">{event.description || 'No description provided'}</p>
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-slate-400">Venue</Label>
-                        <p className="text-white mt-1">{event.venue_name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-slate-400">Address</Label>
-                        <p className="text-white mt-1">{event.venue_address || 'No address provided'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-slate-400">Doors Open</Label>
-                        <p className="text-white mt-1">{event.doors_open || 'TBD'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-slate-400">Duration</Label>
-                        <p className="text-white mt-1">{event.duration_minutes ? `${event.duration_minutes} minutes` : 'TBD'}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <OpsPanel
+                  title="Event Details"
+                  description={event.description || "No description provided yet."}
+                  icon={Calendar}
+                  action={
+                    <Button
+                      variant="outline"
+                      className="border-slate-700 text-slate-300"
+                      onClick={() => router.push(`/admin/dashboard/events/create?id=${eventId}`)}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit event
+                    </Button>
+                  }
+                >
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <OpsField label="Venue" value={event.venue_name} />
+                    <OpsField label="Address" value={event.venue_address || "No address provided"} />
+                    <OpsField label="Doors open" value={event.doors_open || "TBD"} />
+                    <OpsField
+                      label="Duration"
+                      value={event.duration_minutes ? `${event.duration_minutes} minutes` : "TBD"}
+                    />
+                  </div>
+                </OpsPanel>
 
                 <EventPartiesPanel
                   eventId={eventId}
@@ -954,11 +1040,8 @@ export default function EventManagementPage() {
                 />
 
                 {/* Progress Tracking */}
-                <Card className="bg-slate-900/50 border-slate-700/50">
-                  <CardHeader>
-                    <CardTitle className="text-white">Progress Tracking</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
+                <OpsPanel title="Progress Tracking" icon={Target}>
+                  <div className="space-y-6">
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <Label className="text-slate-400">Ticket Sales Progress</Label>
@@ -974,69 +1057,37 @@ export default function EventManagementPage() {
                       </div>
                       <Progress value={revenuePercentage} className="h-2" />
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </OpsPanel>
               </div>
 
               <div className="space-y-6">
                 {/* Quick Actions */}
-                <Card className="bg-slate-900/50 border-slate-700/50">
-                  <CardHeader>
-                    <CardTitle className="text-white">Quick Actions</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button className="w-full justify-start" variant="outline" onClick={handleAddTask}>
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Task
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline" onClick={handleManageStaff}>
-                      <Users2 className="mr-2 h-4 w-4" />
-                      Manage Staff
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline" onClick={handleAddVendor}>
-                      <Truck className="mr-2 h-4 w-4" />
-                      Add Vendor
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline" onClick={handleViewTickets}>
-                      <Ticket className="mr-2 h-4 w-4" />
-                      View Tickets
-                    </Button>
-                    <Button className="w-full justify-start" variant="outline" onClick={() => setActiveTab('communications')}>
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Communications Hub
-                    </Button>
-                    <Button
-                      className="w-full justify-start"
-                      variant="outline"
-                      onClick={() => router.push(buildAdminLogisticsHref({ eventId }))}
-                    >
-                      <Truck className="mr-2 h-4 w-4" />
-                      Open Logistics
-                    </Button>
-                    <Button
-                      className="w-full justify-start"
-                      variant="outline"
-                      onClick={() => router.push(buildAdminSiteMapHref({ eventId }))}
-                    >
-                      <MapPin className="mr-2 h-4 w-4" />
-                      Site Maps
-                    </Button>
-                    <Button
-                      className="w-full justify-start"
-                      variant="outline"
-                      onClick={() => router.push(rosterHref)}
-                    >
-                      <Users2 className="mr-2 h-4 w-4" />
-                      Open Roster
-                    </Button>
-                    <Button
-                      className="w-full justify-start"
-                      variant="outline"
-                      onClick={() => router.push(hiringHref)}
-                    >
-                      <Briefcase className="mr-2 h-4 w-4" />
-                      Open Hiring
-                    </Button>
+                <OpsPanel
+                  title="Coordinator Actions"
+                  description="Jump into the full workflow with this event already selected."
+                  icon={Zap}
+                >
+                  <div className="grid gap-2">
+                    <QuickActionButton icon={Plus} onClick={handleAddTask}>Add task</QuickActionButton>
+                    <QuickActionButton icon={Users2} onClick={handleManageStaff}>Manage people</QuickActionButton>
+                    <QuickActionButton icon={Truck} onClick={handleAddVendor}>Add vendor</QuickActionButton>
+                    <QuickActionButton icon={Ticket} onClick={handleViewTickets}>View tickets</QuickActionButton>
+                    <QuickActionButton icon={MessageSquare} onClick={() => handleEventTabChange("communications")}>
+                      Communications hub
+                    </QuickActionButton>
+                    <QuickActionButton icon={Truck} onClick={() => router.push(logisticsHref)}>
+                      Open logistics
+                    </QuickActionButton>
+                    <QuickActionButton icon={MapPin} onClick={() => router.push(siteMapHref)}>
+                      Site maps
+                    </QuickActionButton>
+                    <QuickActionButton icon={Users2} onClick={() => router.push(staffSchedulingHref)}>
+                      Create shift
+                    </QuickActionButton>
+                    <QuickActionButton icon={Briefcase} onClick={() => router.push(jobsHref)}>
+                      Post job
+                    </QuickActionButton>
                     <Separator className="bg-slate-700" />
                     <EventJobPostingPanel
                       eventId={eventId}
@@ -1047,8 +1098,8 @@ export default function EventManagementPage() {
                         toast.success(`Job "${job.title}" posted successfully!`)
                       }}
                     />
-                  </CardContent>
-                </Card>
+                  </div>
+                </OpsPanel>
 
                 {/* Status Management */}
                 <Card className="bg-slate-900/50 border-slate-700/50">
@@ -1131,41 +1182,98 @@ export default function EventManagementPage() {
 
           {/* Staff Tab */}
           <OperationsTabPanel value="people" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Event Staff</h2>
-                <p className="text-slate-400">Manage staff and post jobs for this event</p>
+            <OpsPanel
+              title="Event Workforce"
+              description="Roster, schedule, job posts, participants, and event-specific people context stay tied to this event."
+              icon={Users}
+              action={
+                <>
+                  <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(staffSchedulingHref)}>
+                    <Clock className="mr-2 h-4 w-4" />
+                    Create shift
+                  </Button>
+                  <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(rosterHref)}>
+                    Open roster
+                  </Button>
+                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white" onClick={() => router.push(hiringHref)}>
+                    Open hiring
+                  </Button>
+                </>
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                <OpsField label="Event scope" value={event.name} />
+                <OpsField label="Venue scope" value={event.venue_name || "Venue required"} />
+                <OpsField
+                  label="Employer scope"
+                  value={eventHiringEntity ? `${eventHiringEntity.displayName} (${eventHiringEntity.entityType})` : "Needs account/venue mapping"}
+                />
               </div>
-              <EventJobPostingPanel
+              {!eventHiringEntity ? (
+                <div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-500/10 p-4">
+                  <p className="text-sm font-semibold text-amber-100">Workforce scope needs repair</p>
+                  <p className="mt-1 text-sm text-amber-100/80">
+                    Add a venue account or organization to this event before assigning live staff shifts.
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      className="border-amber-400/40 text-amber-100 hover:bg-amber-500/10"
+                      onClick={() => router.push(`/admin/dashboard/events/create?id=${eventId}`)}
+                    >
+                      Edit event venue
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-amber-400/40 text-amber-100 hover:bg-amber-500/10"
+                      onClick={() => router.push("/admin/dashboard/venues")}
+                    >
+                      Open venues
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
+            </OpsPanel>
+
+            <OpsPanel
+              title="Schedule Coverage"
+              description="Use the same scheduling workspace from Staff Operations, preloaded for this event when scope is available."
+              icon={Clock}
+            >
+              <StaffSchedulingTab employer={eventHiringEntity ?? undefined} />
+            </OpsPanel>
+
+            <OpsPanel
+              title="Staff Assignments"
+              description="Event-specific assignments and job posts remain available here for coordinators who work from the event page."
+              icon={Users2}
+              action={
+                <EventJobPostingPanel
+                  eventId={eventId}
+                  eventName={event.name}
+                  eventDate={event.event_date}
+                  eventLocation={event.venue_name}
+                  onJobPosted={(job) => {
+                    toast.success(`Job "${job.title}" posted successfully!`)
+                  }}
+                />
+              }
+            >
+              <EventStaffPanel
                 eventId={eventId}
-                eventName={event.name}
-                eventDate={event.event_date}
-                eventLocation={event.venue_name}
-                onJobPosted={(job) => {
-                  toast.success(`Job "${job.title}" posted successfully!`)
-                }}
+                staff={staff}
+                onStaffUpdate={setStaff}
               />
-            </div>
-            <EventStaffPanel
-              eventId={eventId}
-              staff={staff}
-              onStaffUpdate={setStaff}
-            />
-            
-            <Separator className="bg-slate-700" />
-            
-            <EventJobsPanel eventId={eventId} />
-            <Separator className="bg-slate-700" />
-            <EventParticipantsTab eventId={eventId} />
-            <EventLocationsTab eventId={eventId} />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(hiringHref)}>
-                Open hiring
-              </Button>
-              <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(rosterHref)}>
-                Open roster
-              </Button>
-            </div>
+            </OpsPanel>
+
+            <OpsPanel title="Jobs and Participants" icon={Briefcase}>
+              <div className="space-y-6">
+                <EventJobsPanel eventId={eventId} />
+                <Separator className="bg-slate-700" />
+                <EventParticipantsTab eventId={eventId} />
+                <EventLocationsTab eventId={eventId} />
+              </div>
+            </OpsPanel>
           </OperationsTabPanel>
 
           {/* Vendors Tab */}
@@ -1190,44 +1298,30 @@ export default function EventManagementPage() {
 
           {/* Logistics Tab */}
           <OperationsTabPanel value="logistics" className="space-y-6">
-            <Card className="bg-slate-900/50 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-white">Logistics & Requirements</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-slate-400">Sound Requirements</Label>
-                    <p className="text-white mt-1">{event.sound_requirements || 'No specific requirements'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-slate-400">Lighting Requirements</Label>
-                    <p className="text-white mt-1">{event.lighting_requirements || 'No specific requirements'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-slate-400">Stage Requirements</Label>
-                    <p className="text-white mt-1">{event.stage_requirements || 'No specific requirements'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-slate-400">Special Requirements</Label>
-                    <p className="text-white mt-1">{event.special_requirements || 'No special requirements'}</p>
-                  </div>
-                </div>
-                
-                <Separator className="bg-slate-700" />
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <Label className="text-slate-400">Load-in Time</Label>
-                    <p className="text-white mt-1">{event.load_in_time || 'TBD'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-slate-400">Sound Check Time</Label>
-                    <p className="text-white mt-1">{event.sound_check_time || 'TBD'}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <OpsPanel
+              title="Logistics and Requirements"
+              description="Production requirements, site maps, equipment, and vendor movement all stay scoped to this event."
+              icon={Truck}
+              action={
+                <>
+                  <Button variant="outline" className="border-slate-700 text-slate-300" onClick={() => router.push(logisticsHref)}>
+                    Open logistics
+                  </Button>
+                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white" onClick={() => router.push(siteMapHref)}>
+                    Open site maps
+                  </Button>
+                </>
+              }
+            >
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <OpsField label="Sound" value={event.sound_requirements || "No specific requirements"} />
+                <OpsField label="Lighting" value={event.lighting_requirements || "No specific requirements"} />
+                <OpsField label="Stage" value={event.stage_requirements || "No specific requirements"} />
+                <OpsField label="Special requirements" value={event.special_requirements || "No special requirements"} />
+                <OpsField label="Load-in" value={event.load_in_time || "TBD"} />
+                <OpsField label="Sound check" value={event.sound_check_time || "TBD"} />
+              </div>
+            </OpsPanel>
 
             <LogisticsDynamicManager
               eventId={eventId}
@@ -1245,22 +1339,28 @@ export default function EventManagementPage() {
 
           {/* Advancing Tab */}
           <OperationsTabPanel value="advancing" className="space-y-6">
-            <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
-              <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
-                <div className="space-y-1">
-                  <p className="text-slate-300">Fill in the technical rider, hospitality, contacts, and settlement for this show.</p>
-                  <p className="text-xs text-slate-500">Status: {advancingSummary?.status || 'not loaded'}{advancingSummary?.share_token ? ' · share link ready' : ''}</p>
-                </div>
+            <OpsPanel
+              title="Advance Workspace"
+              description="Fill in the technical rider, hospitality, contacts, and settlement for this show."
+              icon={FileText}
+              action={
                 <Button
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
                   onClick={() => router.push(`/admin/dashboard/events/${eventId}/advancing`)}
                 >
                   Open Advancing Workspace
                 </Button>
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                <OpsField label="Status" value={advancingSummary?.status || "Not loaded"} />
+                <OpsField label="Share link" value={advancingSummary?.share_token ? "Ready" : "Not ready"} />
+                <OpsField label="Venue contact" value={event.venue_contact_email || "Missing"} />
+              </div>
                 {venueAccountId && event.venue_contact_email ? (
                   <Button
                     variant="outline"
-                    className="border-slate-600 text-slate-300"
+                    className="mt-4 border-slate-600 text-slate-300"
                     onClick={async () => {
                       try {
                         const res = await fetch(`/api/admin/events/${eventId}/advancing`, {
@@ -1284,30 +1384,33 @@ export default function EventManagementPage() {
                     Notify venue account
                   </Button>
                 ) : null}
-              </CardContent>
-            </Card>
+            </OpsPanel>
           </OperationsTabPanel>
 
           {/* Day Sheet Tab */}
           <OperationsTabPanel value="day-sheet" className="space-y-6">
-            <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
-              <CardContent className="flex flex-col items-center justify-center py-10 text-center gap-4">
-                <div className="space-y-1">
-                  <p className="text-slate-300">Auto-generate and distribute the day sheet for this show.</p>
-                  <p className="text-xs text-slate-500">
-                    {daySheetSummary?.distributed_at
-                      ? `Last distributed ${formatSafeDate(daySheetSummary.distributed_at)} · v${daySheetSummary.version || 1}`
-                      : 'Not distributed yet'}
-                  </p>
-                </div>
+            <OpsPanel
+              title="Day Sheet"
+              description="Auto-generate and distribute the run sheet for the show day."
+              icon={Clipboard}
+              action={
                 <Button
                   className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0"
                   onClick={() => router.push(`/admin/dashboard/events/${eventId}/day-sheet`)}
                 >
                   Open Day Sheet
                 </Button>
-              </CardContent>
-            </Card>
+              }
+            >
+              <div className="grid gap-3 md:grid-cols-3">
+                <OpsField
+                  label="Distribution"
+                  value={daySheetSummary?.distributed_at ? `Last distributed ${formatSafeDate(daySheetSummary.distributed_at)}` : "Not distributed yet"}
+                />
+                <OpsField label="Version" value={daySheetSummary?.version ? `v${daySheetSummary.version}` : "v1"} />
+                <OpsField label="Event date" value={formatSafeDate(event.event_date)} />
+              </div>
+            </OpsPanel>
           </OperationsTabPanel>
 
           {/* Travel Tab */}
@@ -1335,16 +1438,20 @@ export default function EventManagementPage() {
             </div>
 
             {analyticsLoading ? (
-              <div className="flex items-center justify-center py-16">
+              <WorkforcePanel className="flex min-h-[220px] items-center justify-center p-8">
                 <RefreshCw className="h-6 w-6 animate-spin text-purple-400" />
-              </div>
+              </WorkforcePanel>
             ) : !analyticsData ? (
-              <Card className="bg-slate-900/60 border-slate-700/50 rounded-sm">
-                <CardContent className="text-center py-12">
-                  <BarChart3 className="h-10 w-10 text-slate-400 mx-auto mb-3" />
-                  <p className="text-slate-400">No analytics data yet. Sell tickets to see data here.</p>
-                </CardContent>
-              </Card>
+              <WorkforceEmptyState
+                icon={BarChart3}
+                title="No analytics data yet"
+                description="Sell tickets, check in guests, or add finance activity to populate event performance."
+                action={
+                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 text-white" onClick={() => handleEventTabChange("tickets")}>
+                    Open tickets
+                  </Button>
+                }
+              />
             ) : (
               <>
                 {/* KPI Cards */}
@@ -1583,7 +1690,7 @@ export default function EventManagementPage() {
             </Button>
             <Button onClick={() => {
               setShowTicketsDialog(false)
-              setActiveTab('tickets')
+              handleEventTabChange("tickets")
             }} className="bg-purple-600 hover:bg-purple-700">
               Manage Tickets
             </Button>

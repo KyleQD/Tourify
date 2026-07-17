@@ -36,6 +36,7 @@ export const createOrganizationAction = action.schema(createOrgSchema).action(as
     p_specialties: [],
     p_subtype: organizationType,
     p_url_slug: slug || null,
+    p_is_public: true,
   })
 
   if (error) return { ok: false, error: 'create_failed' }
@@ -108,5 +109,4 @@ export const createInviteAction = action.schema(inviteSchema).action(async ({ pa
 
   return { ok: true }
 })
-
 

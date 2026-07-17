@@ -176,6 +176,9 @@ function SchedulingWorkspace({ employer }: { employer: HiringEntity | null }) {
   const isOrgEmployer = employer?.entityType === "organization" || employer?.entityType === "artist"
   const criticalConflicts = data.conflicts.filter((c) => c.severity === "critical").length
   const openShiftCount = data.openShifts.length
+  const scopedEvent = data.eventId && data.eventId !== "all"
+    ? data.events.find((event) => event.id === data.eventId)
+    : null
   const weekEnd = new Date(data.weekStart)
   weekEnd.setDate(weekEnd.getDate() + 6)
   const weekLabel = `${data.weekStart.toLocaleDateString("en-US", {
@@ -525,6 +528,31 @@ function SchedulingWorkspace({ employer }: { employer: HiringEntity | null }) {
                   : "No venues found on your events yet. Open an event with a venue to continue."}
               </p>
             )}
+            <div className="mt-5 flex flex-wrap justify-center gap-2">
+              {scopedEvent ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/admin/dashboard/events/create?id=${scopedEvent.id}`)}
+                >
+                  Edit event venue
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => router.push("/admin/dashboard/events?status=draft")}
+              >
+                Open event drafts
+              </Button>
+              <Button
+                size="sm"
+                className="bg-neon-purple text-primary-foreground hover:bg-neon-purple/85"
+                onClick={() => router.push("/admin/dashboard/events/create")}
+              >
+                Create event with venue
+              </Button>
+            </div>
           </div>
         ) : view === "board" ? (
           <BoardView />

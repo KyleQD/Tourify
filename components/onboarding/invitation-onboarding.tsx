@@ -145,6 +145,16 @@ export default function InvitationOnboarding() {
       const data = await response.json()
       
       if (data.success) {
+        if (data.needsEmailConfirmation) {
+          toast({
+            title: "Confirm your email",
+            description: data.message || "We sent a confirmation link. Open it before signing in.",
+          })
+          const emailQuery = data.user?.email ? `&email=${encodeURIComponent(data.user.email)}` : ""
+          router.push(`/login?tab=signin&message=account_created${emailQuery}`)
+          return
+        }
+
         setAccountCreated(true)
         setCompletedSteps(prev => new Set([...prev, currentStep]))
         toast({

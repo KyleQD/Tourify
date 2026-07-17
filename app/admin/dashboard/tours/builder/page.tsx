@@ -181,6 +181,7 @@ export default function TourBuilderPage() {
   const [eventQuery, setEventQuery] = React.useState("")
   const [events, setEvents] = React.useState<ExistingEventOption[]>([])
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(false)
+  const pendingEventAttachRef = React.useRef(false)
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -278,6 +279,22 @@ export default function TourBuilderPage() {
     if (form.attachedEventIds.includes(eventId)) return
     updateForm({ attachedEventIds: [...form.attachedEventIds, eventId] })
   }
+
+  React.useEffect(() => {
+    if (isHydrating || pendingEventAttachRef.current) return
+    const eventId = new URLSearchParams(window.location.search).get("event_id")
+    if (!eventId) return
+    pendingEventAttachRef.current = true
+    setForm((current) => current.attachedEventIds.includes(eventId)
+      ? current
+      : { ...current, attachedEventIds: [...current.attachedEventIds, eventId] })
+    setActiveMode("plan")
+    setActiveSection("events")
+    setSaveStatus("unsaved")
+    sonnerToast.info("Event staged for this tour", {
+      description: "Save the tour draft to keep this event attached.",
+    })
+  }, [isHydrating])
 
   const readiness = React.useMemo(() => getTourReadiness({
     name: form.name,

@@ -67,7 +67,7 @@ import Link from "next/link"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useActingContext } from "@/hooks/use-acting-context"
 import { isOrganizationType } from "@/lib/accounts/account-types"
-import { getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
+import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { WidgetsRow } from "./apple-widgets"
 import { AdminStatCard } from "./admin-stat-card"
 import { statusBadgeClass } from "./admin-badge-utils"
@@ -153,7 +153,15 @@ export default function OptimizedDashboardClient() {
       (currentAccount?.profile_data as { url_slug?: string } | undefined)?.url_slug ||
       (currentAccount?.profile_data as { username?: string } | undefined)?.username ||
       null
-    setOrganizerPublicPath(getOrganizationPublicProfilePath(slug))
+    const subtype =
+      (currentAccount?.profile_data as { subtype?: string; organization_type?: string } | undefined)?.subtype ||
+      (currentAccount?.profile_data as { organization_type?: string } | undefined)?.organization_type ||
+      null
+    setOrganizerPublicPath(
+      subtype === "band"
+        ? getArtistPublicProfilePath(slug)
+        : getOrganizationPublicProfilePath(slug)
+    )
   }, [isOrgAccount, currentAccount?.profile_data])
 
   const { openHelp, startTour } = useProductEducation()
@@ -1038,4 +1046,4 @@ export default function OptimizedDashboardClient() {
       </div>
     </ErrorBoundary>
   )
-} 
+}

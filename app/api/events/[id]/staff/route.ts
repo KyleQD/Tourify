@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { withAuth } from '@/lib/auth/api-auth'
 import { hasEventPermission } from '../../_lib/event-permissions'
 import { resolveEventReference } from '../../_lib/event-reference'
+import { syncEmploymentAssignmentForShift } from '@/lib/services/staff-shift-assignment-sync'
 
 const assignStaffSchema = z.object({
   staff_member_id: z.string().uuid(),
@@ -39,7 +40,7 @@ export async function GET(
       const [shiftsResult, membersResult] = await Promise.allSettled([
         supabase
           .from('staff_shifts')
-          .select('*, staff_members(id, name, email, role, status)')
+          .select('*')
           .eq('event_id', reference.id)
           .order('shift_date', { ascending: true }),
         supabase
@@ -49,8 +50,17 @@ export async function GET(
           .limit(200),
       ])
 
-      const shifts = shiftsResult.status === 'fulfilled' ? (shiftsResult.value.data || []) : []
+      const shiftRows = shiftsResult.status === 'fulfilled' ? (shiftsResult.value.data || []) : []
       const availableMembers = membersResult.status === 'fulfilled' ? (membersResult.value.data || []) : []
+      const memberIds = Array.from(new Set(shiftRows.map((shift: any) => shift.staff_member_id).filter(Boolean)))
+      const memberRowsResult = memberIds.length
+        ? await supabase.from('staff_members').select('id, name, email, role, status').in('id', memberIds)
+        : { data: [] }
+      const membersById = new Map((memberRowsResult.data || []).map((member: any) => [member.id, member]))
+      const shifts = shiftRows.map((shift: any) => ({
+        ...shift,
+        staff_members: shift.staff_member_id ? membersById.get(shift.staff_member_id) ?? null : null,
+      }))
 
       return NextResponse.json({
         success: true,
@@ -98,7 +108,7 @@ export async function POST(
           created_by: user.id,
           status: 'scheduled',
         })
-        .select('*, staff_members(id, name, email, role)')
+        .select('*')
         .single()
 
       if (error) {
@@ -106,7 +116,21 @@ export async function POST(
         return NextResponse.json({ error: 'Failed to assign staff' }, { status: 500 })
       }
 
-      return NextResponse.json({ success: true, shift: data })
+      const memberResult = await supabase
+        .from('staff_members')
+        .select('id, name, email, role')
+        .eq('id', data.staff_member_id)
+        .maybeSingle()
+
+      const sync = await syncEmploymentAssignmentForShift({
+        supabase,
+        shift: data,
+        notify: false,
+        actorUserId: user.id,
+        assignmentStatus: 'invited',
+      })
+
+      return NextResponse.json({ success: true, shift: { ...data, staff_members: memberResult.data ?? null }, sync })
     } catch (err) {
       if (err instanceof z.ZodError) {
         return NextResponse.json({ error: 'Validation error', details: err.errors }, { status: 400 })

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 import { startRouteTiming } from '@/lib/observability/route-timing'
+import { requireOpsOrgId, resolveOptionalAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 const emptyStats = {
   totalTours: 0, activeTours: 0, totalEvents: 0, upcomingEvents: 0,
@@ -18,20 +19,51 @@ const emptyStats = {
 export const GET = withAdminAuth(async (_request, { user, supabase }) => {
   const endTiming = startRouteTiming('/api/admin/dashboard/stats')
   try {
-    // Resolve the calling user's org to scope all queries
-    const { data: orgMember } = await supabase
-      .from('org_members')
-      .select('org_id')
-      .eq('user_id', user.id)
-      .limit(1)
-      .maybeSingle()
+    const scope = await resolveOptionalAdminWorkspaceScope(_request, { user, supabase })
+    if (scope instanceof NextResponse) return scope
+    const orgId = scope ? requireOpsOrgId(scope) : null
+    if (orgId instanceof NextResponse) return orgId
 
-    const orgId = orgMember?.org_id
+    let orgEventsQuery = supabase
+      .from('events_v2')
+      .select('id')
+      .limit(1000)
+    orgEventsQuery = orgId
+      ? orgEventsQuery.or(`org_id.eq.${orgId},created_by.eq.${user.id}`)
+      : orgEventsQuery.eq('created_by', user.id)
+    const { data: orgEvents } = await orgEventsQuery
+    const eventIds = (orgEvents || []).map((event: { id: string }) => event.id)
+
+    let eventsV2Query = supabase.from('events_v2').select('id, status, start_at, capacity').limit(500)
+    eventsV2Query = orgId
+      ? eventsV2Query.or(`org_id.eq.${orgId},created_by.eq.${user.id}`)
+      : eventsV2Query.eq('created_by', user.id)
+
+    const staffQuery = eventIds.length > 0
+      ? orgId
+        ? supabase
+            .from('staff_members')
+            .select('id')
+            .or(`and(entity_type.eq.org,entity_id.eq.${orgId}),and(entity_type.eq.event,entity_id.in.(${eventIds.join(',')}))`)
+            .limit(500)
+        : supabase
+            .from('staff_members')
+            .select('id')
+            .eq('entity_type', 'event')
+            .in('entity_id', eventIds)
+            .limit(500)
+      : orgId
+        ? supabase
+            .from('staff_members')
+            .select('id')
+            .eq('entity_type', 'org')
+            .eq('entity_id', orgId)
+            .limit(500)
+        : Promise.resolve({ data: [] })
 
     const [
       toursResult,
       eventsV2Result,
-      legacyEventsResult,
       staffResult,
       logisticsResult,
       ticketsResult,
@@ -45,35 +77,25 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
     ] = await Promise.allSettled([
       orgId
         ? supabase.from('tours').select('id, status, revenue').eq('org_id', orgId).limit(500)
-        : supabase.from('tours').select('id, status, revenue').limit(500),
-      orgId
-        ? supabase.from('events_v2').select('id, status, start_at, capacity').eq('org_id', orgId).limit(500)
-        : supabase.from('events_v2').select('id, status, start_at, capacity').limit(500),
-      supabase.from('events').select('id, status, start_date, capacity').limit(200),
-      supabase.from('staff_members').select('id').limit(500),
-      supabase.from('logistics_tasks').select('id, status, type').limit(500),
-      supabase.from('ticket_sales').select('id, quantity, total_amount').limit(1000),
-      supabase.from('venue_booking_requests').select('id, status').limit(200),
+        : supabase.from('tours').select('id, status, revenue').or(`user_id.eq.${user.id},created_by.eq.${user.id}`).limit(500),
+      eventsV2Query,
+      staffQuery,
+      orgId ? supabase.from('logistics_tasks').select('id, status, type').eq('org_id', orgId).limit(500) : Promise.resolve({ data: [] }),
+      eventIds.length > 0
+        ? supabase.from('ticket_sales').select('id, quantity, total_amount').in('event_id', eventIds).limit(1000)
+        : Promise.resolve({ data: [] }),
+      orgId ? supabase.from('venue_booking_requests').select('id, status').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'artist'),
       supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('account_type', 'venue'),
-      orgId
-        ? supabase.from('financial_transactions').select('amount, type').eq('org_id', orgId).gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()).limit(1000)
-        : supabase.from('financial_transactions').select('amount, type').gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()).limit(1000),
-      supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members').limit(200),
-      supabase.from('lodging_bookings').select('id, status, total_amount').limit(200),
-      supabase.from('rental_agreements').select('id, status, total_amount').limit(200),
+      orgId ? supabase.from('financial_transactions').select('amount, type').eq('org_id', orgId).gte('created_at', new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()).limit(1000) : Promise.resolve({ data: [] }),
+      orgId ? supabase.from('travel_groups').select('id, status, coordination_status, total_members, confirmed_members').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
+      orgId ? supabase.from('lodging_bookings').select('id, status, total_amount').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
+      orgId ? supabase.from('rental_agreements').select('id, status, total_amount').eq('org_id', orgId).limit(200) : Promise.resolve({ data: [] }),
     ])
 
     const tours = toursResult.status === 'fulfilled' ? (toursResult.value.data || []) : []
     const eventsV2 = eventsV2Result.status === 'fulfilled' ? (eventsV2Result.value.data || []) : []
-    const legacyEvents = legacyEventsResult.status === 'fulfilled' ? (legacyEventsResult.value.data || []) : []
-    const events = [
-      ...eventsV2,
-      ...legacyEvents.map((event: any) => ({
-        ...event,
-        start_at: event.start_date || null,
-      })),
-    ]
+    const events = eventsV2
     const staff = staffResult.status === 'fulfilled' ? (staffResult.value.data || []) : []
     const logistics = logisticsResult.status === 'fulfilled' ? (logisticsResult.value.data || []) : []
     const tickets = ticketsResult.status === 'fulfilled' ? (ticketsResult.value.data || []) : []
@@ -146,7 +168,7 @@ export const GET = withAdminAuth(async (_request, { user, supabase }) => {
         activeRentalAgreements: rentalAgreements.filter((r: any) => r.status === 'active').length,
       },
     })
-    endTiming({ userId: user.id, queryCount: 13 })
+    endTiming({ userId: user.id, queryCount: 13, metadata: { orgId, organizerAccountId: scope?.organizerAccountId } })
     return response
   } catch (error) {
     endTiming({ userId: user.id, metadata: { error: true } })

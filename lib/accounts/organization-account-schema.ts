@@ -14,6 +14,7 @@ export const OrganizerAccountSchema = z.object({
   contact_info: z.record(z.unknown()).optional(),
   social_links: z.record(z.string()).optional(),
   specialties: z.array(z.string()).optional(),
+  is_public: z.boolean().optional(),
 })
 
 /** Alias for Organization naming */

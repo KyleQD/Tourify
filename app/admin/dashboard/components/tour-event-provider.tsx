@@ -1,7 +1,8 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useState, ReactNode } from 'react'
 import type { AdminTour, AdminEvent } from '@/types/admin'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 type Tour = AdminTour
 type Event = AdminEvent
@@ -19,24 +20,26 @@ interface TourEventContextType {
 const TourEventContext = createContext<TourEventContextType | undefined>(undefined)
 
 export function TourEventProvider({ children }: { children: ReactNode }) {
+  const { actingHeaders, actingAccount } = useActingContext()
   const [tours, setTours] = useState<Tour[]>([])
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [initialLoadComplete, setInitialLoadComplete] = useState(false)
 
-  function buildNoStoreInit(): RequestInit {
+  const buildNoStoreInit = useCallback((): RequestInit => {
     return {
       credentials: 'include',
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache',
         Pragma: 'no-cache',
+        ...actingHeaders,
       },
     }
-  }
+  }, [actingHeaders])
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -72,11 +75,11 @@ export function TourEventProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       setInitialLoadComplete(true)
     }
-  }
+  }, [buildNoStoreInit])
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData, actingAccount?.profile_id])
 
   // Determine user state based on data
   const hasData = tours.length > 0 || events.length > 0
@@ -105,4 +108,4 @@ export function useTourEventContext() {
     throw new Error('useTourEventContext must be used within a TourEventProvider')
   }
   return context
-} 
+}

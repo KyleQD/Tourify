@@ -14,6 +14,7 @@ describe("event producer builder payload", () => {
       date: "2026-08-12",
       time: "20:00",
       venueName: "The Room",
+      venueAccountId: "44444444-4444-4444-8444-444444444444",
       ticketPrice: "$25",
       selectedArtists: [{ id: "artist-1", label: "The Signals" }],
     })
@@ -21,6 +22,8 @@ describe("event producer builder payload", () => {
     expect(payload.status).toBe("draft")
     expect(payload.title).toBe("Club Night")
     expect(payload.venue_name).toBe("The Room")
+    expect(payload.venue_id).toBe("44444444-4444-4444-8444-444444444444")
+    expect(payload.setup_context.venue_account_id).toBe("44444444-4444-4444-8444-444444444444")
     expect(payload.ticket_price).toBe(25)
     expect(payload.tour_ids).toEqual([])
     expect(payload.tour_assignments).toEqual([])
@@ -61,7 +64,7 @@ describe("event producer readiness", () => {
   it("blocks publish when core event details are missing", () => {
     const readiness = getEventReadiness({})
 
-    expect(readiness.blockers.map((item) => item.id)).toEqual(["basics", "schedule", "venue"])
+    expect(readiness.blockers.map((item) => item.id)).toEqual(["basics", "schedule", "venue", "team"])
   })
 
   it("scores optional producer modules without adding publish blockers", () => {
@@ -69,11 +72,13 @@ describe("event producer readiness", () => {
       title: "Advance Ready",
       date: "2026-08-12",
       venue_name: "The Room",
+      venue_account_id: "44444444-4444-4444-8444-444444444444",
       technical_rider: "Console and inputs confirmed",
       has_logistics: true,
       has_site_map: true,
       has_comms: true,
       team_count: 2,
+      staff_count: 1,
       vendor_count: 1,
       day_sheet_notes: "Settlement after headline set.",
     })

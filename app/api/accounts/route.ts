@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
+import { authenticateRequestWithExplicitJwt } from '@/lib/auth/mobile-request-auth'
 import { AccountManagementService } from '@/lib/services/account-management.service'
 import type { ProfileType } from '@/lib/services/account-management.service'
 import { isOrganizationType } from '@/lib/accounts/account-types'
@@ -7,9 +8,33 @@ import { startRouteTiming } from '@/lib/observability/route-timing'
 import { OrganizerAccountSchema } from '@/lib/accounts/organization-account-schema'
 
 async function authenticateAccountsRequest(request: NextRequest) {
-  const authResult = await ProductionAuthService.authenticateRequest(request)
-  if ('error' in authResult) return null
-  return authResult
+  const [serviceAuthResult, userScopedAuth] = await Promise.all([
+    ProductionAuthService.authenticateRequest(request),
+    authenticateRequestWithExplicitJwt(request),
+  ])
+
+  if ('error' in serviceAuthResult && !userScopedAuth) return null
+
+  if (userScopedAuth && !('error' in serviceAuthResult)) {
+    if (serviceAuthResult.user?.id && serviceAuthResult.user.id !== userScopedAuth.user?.id) {
+      console.error('[Accounts API] Auth user mismatch between service and user-scoped clients', {
+        serviceUserId: serviceAuthResult.user.id,
+        userScopedUserId: userScopedAuth.user?.id,
+      })
+      return null
+    }
+  }
+
+  const user = userScopedAuth?.user || ('error' in serviceAuthResult ? null : serviceAuthResult.user)
+  const supabase = 'error' in serviceAuthResult ? userScopedAuth?.supabase : serviceAuthResult.supabase
+
+  if (!user || !supabase) return null
+  return {
+    user,
+    supabase,
+    userSupabase: userScopedAuth?.supabase || null,
+    userAuthSource: userScopedAuth?.source || null,
+  }
 }
 
 async function verifyProfileOwnership(
@@ -132,7 +157,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { user, supabase } = auth
+    const { user, supabase, userSupabase, userAuthSource } = auth
     const body = await request.json()
     const { action, ...data } = body
 
@@ -166,6 +191,16 @@ export async function POST(request: NextRequest) {
       }
 
       case 'create_organizer': {
+        if (!userSupabase) {
+          console.warn('[Accounts API] create_organizer rejected: missing explicit JWT auth context', {
+            userId: user.id,
+            rpcAuthSource: 'rejected',
+          })
+          return NextResponse.json(
+            { error: 'A verified user session is required to create an organization account' },
+            { status: 401 }
+          )
+        }
         const parsed = OrganizerAccountSchema.safeParse(data)
         if (!parsed.success) {
           return NextResponse.json(
@@ -173,6 +208,10 @@ export async function POST(request: NextRequest) {
             { status: 400 }
           )
         }
+        console.info('[Accounts API] create_organizer auth context', {
+          userId: user.id,
+          rpcAuthSource: userAuthSource || 'unknown',
+        })
         const organizerId = await AccountManagementService.createOrganizerAccount(
           user.id,
           {
@@ -180,7 +219,7 @@ export async function POST(request: NextRequest) {
             url_slug: parsed.data.url_slug || undefined,
             subtype: parsed.data.subtype || parsed.data.organization_type,
           },
-          supabase,
+          userSupabase,
           user
         )
         return NextResponse.json({ organizerId, success: true })
@@ -223,6 +262,19 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('[Accounts API] Error handling account action:', error)
+    if (
+      error instanceof Error &&
+      (
+        error.message.includes('User ID mismatch') ||
+        error.message.includes('Authenticated RPC client required') ||
+        error.message.includes('Authenticated user mismatch')
+      )
+    ) {
+      return NextResponse.json(
+        { error: 'A verified user session is required to create an organization account' },
+        { status: 401 }
+      )
+    }
     return NextResponse.json({ error: 'Failed to process request' }, { status: 500 })
   }
 }

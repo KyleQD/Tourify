@@ -336,6 +336,7 @@ export class AccountManagementService {
                 contact_info: organizer.contact_info,
                 social_links: organizer.social_links,
                 specialties: organizer.specialties,
+                ops_org_id: organizer.ops_org_id,
                 admin_level: organizer.admin_level,
                 display_name: organizer.organization_name,
                 account_display_type: 'Organization',
@@ -761,6 +762,7 @@ const { data: venueProfile, error: venueError } = await clientToUse
       specialties?: string[]
       subtype?: string
       url_slug?: string
+      is_public?: boolean
     },
     authenticatedSupabase?: any,
     authenticatedUser?: any  // New parameter to pass pre-authenticated user
@@ -771,22 +773,24 @@ const { data: venueProfile, error: venueError } = await clientToUse
     try {
       // Use authenticated Supabase client if provided (for API routes), otherwise use default client
       const clientToUse = authenticatedSupabase || supabase
-      
-      let user = authenticatedUser
-      
-      // Only verify authentication if user wasn't pre-authenticated
-      if (!user) {
-        console.log('🔍 [Account Management] No pre-authenticated user, verifying authentication...')
-        const { data: { user: authUser }, error: authError } = await clientToUse.auth.getUser()
-        if (authError || !authUser) {
-          console.error('❌ [Account Management] Authentication failed:', authError)
-          throw new Error('User must be authenticated to create organizer account')
-        }
-        user = authUser
-        console.log('✅ [Account Management] Authentication verified for user:', user.id)
-      } else {
-        console.log('✅ [Account Management] Using pre-authenticated user:', user.id)
+
+      console.log('🔍 [Account Management] Verifying RPC client authentication context...')
+      const { data: { user: rpcClientUser }, error: authError } = await clientToUse.auth.getUser()
+      if (authError || !rpcClientUser) {
+        console.error('❌ [Account Management] RPC client authentication failed:', authError)
+        throw new Error('Authenticated RPC client required to create organizer account')
       }
+
+      if (authenticatedUser?.id && authenticatedUser.id !== rpcClientUser.id) {
+        console.error('❌ [Account Management] Pre-authenticated user does not match RPC client user:', {
+          authenticatedUser: authenticatedUser.id,
+          rpcClientUser: rpcClientUser.id,
+        })
+        throw new Error('Authenticated user mismatch - cannot create account for different user')
+      }
+
+      const user = rpcClientUser
+      console.log('✅ [Account Management] RPC client authentication verified for user:', user.id)
       
       // Ensure the authenticated user matches the provided userId
       if (user.id !== userId) {
@@ -808,6 +812,7 @@ const { data: venueProfile, error: venueError } = await clientToUse
           p_specialties: organizerData.specialties || [],
           p_subtype: organizerData.subtype || organizerData.organization_type || null,
           p_url_slug: organizerData.url_slug || null,
+          p_is_public: organizerData.is_public ?? true,
         })
 
       if (rpcError) {

@@ -1,58 +1,66 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
 
+const ARTIST_PROFILE_FIELDS = `
+  id,
+  user_id,
+  artist_name,
+  bio,
+  genres,
+  url_slug,
+  social_links
+`
+
+const PROFILE_FIELDS = 'id, username, full_name, name, bio, location, avatar_url, email'
+
+function cleanSearch(value: string) {
+  return value.trim().replace(/[,()]/g, ' ').replace(/\s+/g, ' ').slice(0, 120)
+}
+
+function userIdForProfile(profile: any) {
+  return String(profile?.user_id || profile?.id || '')
+}
+
+function mergeUniqueArtists(rows: any[]) {
+  const byId = new Map<string, any>()
+  for (const row of rows) {
+    if (!row?.id) continue
+    byId.set(String(row.id), row)
+  }
+  return Array.from(byId.values())
+}
+
 export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
   try {
-
     const { searchParams } = new URL(request.url)
-    const query = searchParams.get('query') || ''
-    const genre = searchParams.get('genre') || ''
-    const tier = searchParams.get('tier') || ''
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
+    const query = cleanSearch(searchParams.get('query') || '')
+    const genre = cleanSearch(searchParams.get('genre') || '')
+    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50', 10) || 50, 1), 50)
+    const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0)
 
-    // Build query for artists
-    let artistQuery = supabase
-      .from('profiles')
-      .select(`
-        id,
-        display_name,
-        bio,
-        location,
-        avatar_url,
-        primary_genres,
-        created_at,
-        updated_at,
-        artist_profiles!inner(
-          verification_status,
-          account_tier,
-          social_links,
-          contact_email,
-          contact_phone,
-          total_events,
-          total_revenue,
-          rating,
-          follower_count
-        )
-      `)
-      .eq('role', 'artist')
-      .order('display_name')
+    let matchingProfileIds: string[] = []
+    if (query) {
+      const { data: profileMatches } = await supabase
+        .from('profiles')
+        .select(PROFILE_FIELDS)
+        .or(`full_name.ilike.%${query}%,name.ilike.%${query}%,username.ilike.%${query}%,bio.ilike.%${query}%,location.ilike.%${query}%`)
+        .limit(50)
+
+      matchingProfileIds = (profileMatches || []).map(userIdForProfile).filter(Boolean)
+    }
+
+    let directArtistQuery = supabase
+      .from('artist_profiles')
+      .select(ARTIST_PROFILE_FIELDS)
+      .order('artist_name', { ascending: true })
       .range(offset, offset + limit - 1)
 
-    // Apply filters
     if (query) {
-      artistQuery = artistQuery.or(`display_name.ilike.%${query}%,bio.ilike.%${query}%,location.ilike.%${query}%`)
+      directArtistQuery = directArtistQuery.or(`artist_name.ilike.%${query}%,bio.ilike.%${query}%,url_slug.ilike.%${query}%`)
     }
+    if (genre) directArtistQuery = directArtistQuery.contains('genres', [genre])
 
-    if (genre) {
-      artistQuery = artistQuery.contains('primary_genres', [genre])
-    }
-
-    if (tier) {
-      artistQuery = artistQuery.eq('artist_profiles.account_tier', tier)
-    }
-
-    const { data: artists, error } = await artistQuery
+    const { data: directArtists, error } = await directArtistQuery
 
     if (error) {
       console.error('[Tour Planner Artists API] Error fetching artists:', error)
@@ -62,53 +70,79 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase }) => {
       return NextResponse.json({ error: 'Failed to fetch artists' }, { status: 500 })
     }
 
-    // Get total count
-    let countQuery = supabase
-      .from('profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'artist')
+    let profileMatchedArtists: any[] = []
+    if (matchingProfileIds.length > 0) {
+      let profileArtistQuery = supabase
+        .from('artist_profiles')
+        .select(ARTIST_PROFILE_FIELDS)
+        .in('user_id', matchingProfileIds)
+        .limit(limit)
+      if (genre) profileArtistQuery = profileArtistQuery.contains('genres', [genre])
 
-    if (query) {
-      countQuery = countQuery.or(`display_name.ilike.%${query}%,bio.ilike.%${query}%,location.ilike.%${query}%`)
+      const { data } = await profileArtistQuery
+      profileMatchedArtists = data || []
     }
-    if (genre) countQuery = countQuery.contains('primary_genres', [genre])
-    if (tier) countQuery = countQuery.eq('artist_profiles.account_tier', tier)
+
+    const artists = mergeUniqueArtists([...(directArtists || []), ...profileMatchedArtists]).slice(0, limit)
+    const userIds = artists.map((artist) => String(artist.user_id || '')).filter(Boolean)
+
+    const profilesByUserId = new Map<string, any>()
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select(PROFILE_FIELDS)
+        .in('id', userIds)
+
+      for (const profile of profiles || []) {
+        profilesByUserId.set(userIdForProfile(profile), profile)
+      }
+    }
+
+    let countQuery = supabase
+      .from('artist_profiles')
+      .select('id', { count: 'exact', head: true })
+
+    if (query) countQuery = countQuery.or(`artist_name.ilike.%${query}%,bio.ilike.%${query}%,url_slug.ilike.%${query}%`)
+    if (genre) countQuery = countQuery.contains('genres', [genre])
 
     const { count } = await countQuery
 
-    // Transform artists for the planner
-    const transformedArtists = artists?.map((artist: any) => {
-      const artistProfile = artist.artist_profiles[0] || {}
+    const transformedArtists = artists.map((artist: any) => {
+      const userId = String(artist.user_id || '')
+      const profile = profilesByUserId.get(userId) || {}
+      const artistGenres = Array.isArray(artist.genres) ? artist.genres : []
+
       return {
-        id: artist.id,
-        name: artist.display_name,
-        bio: artist.bio,
-        location: artist.location,
-        avatarUrl: artist.avatar_url,
-        genres: artist.primary_genres || [],
-        tier: artistProfile.account_tier || 'emerging',
-        verificationStatus: artistProfile.verification_status || 'unverified',
+        id: String(artist.id),
+        userId,
+        name: artist.artist_name || profile.full_name || profile.name || profile.username || 'Artist',
+        bio: artist.bio || profile.bio || null,
+        location: profile.location || null,
+        avatarUrl: profile.avatar_url || null,
+        genres: artistGenres,
+        urlSlug: artist.url_slug || null,
+        tier: 'emerging',
+        verificationStatus: 'unverified',
         contact: {
-          email: artistProfile.contact_email,
-          phone: artistProfile.contact_phone,
+          email: profile.email || null,
+          phone: null,
         },
         stats: {
-          totalEvents: artistProfile.total_events || 0,
-          totalRevenue: artistProfile.total_revenue || 0,
-          rating: artistProfile.rating || 0,
-          followers: artistProfile.follower_count || 0,
+          totalEvents: 0,
+          totalRevenue: 0,
+          rating: 0,
+          followers: 0,
         },
-        socialLinks: artistProfile.social_links || {}
+        socialLinks: artist.social_links || {},
       }
-    }) || []
+    })
 
     return NextResponse.json({
       artists: transformedArtists,
-      total: count || 0,
+      total: count || transformedArtists.length,
       limit,
-      offset
+      offset,
     })
-
   } catch (error) {
     console.error('[Tour Planner Artists API] Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

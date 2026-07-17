@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
 const createNotificationSchema = z.object({
   user_id: z.string().uuid(),
@@ -17,17 +18,42 @@ export const GET = withAdminAuth(async (request, { user, supabase }) => {
     const { searchParams } = new URL(request.url)
     const eventId = searchParams.get('event_id')
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100)
+    const scope = await resolveAdminWorkspaceScope(request, { user, supabase })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
+
+    const { data: orgEvents, error: eventsError } = await supabase
+      .from('events_v2')
+      .select('id')
+      .eq('org_id', orgId)
+      .limit(1000)
+
+    if (eventsError) {
+      return NextResponse.json({ success: true, notifications: [], timestamp: new Date().toISOString() })
+    }
+
+    const eventIds = (orgEvents || []).map((event: { id: string }) => event.id)
+    if (eventId && !eventIds.includes(eventId)) {
+      return NextResponse.json({ success: false, error: 'Event is not available to this workspace' }, { status: 403 })
+    }
+    if (!eventId && eventIds.length === 0) {
+      return NextResponse.json({ success: true, notifications: [], timestamp: new Date().toISOString() })
+    }
 
     let query = supabase
       .from('notifications')
       .select('id, title, content, type, is_read, created_at, related_user_id, priority')
       .eq('user_id', user.id)
+      .eq('related_content_type', 'event')
       .order('created_at', { ascending: false })
       .limit(limit)
 
     if (eventId) {
       // Filter notifications linked to a specific event via related_content_id
-      query = query.eq('related_content_id', eventId).eq('related_content_type', 'event')
+      query = query.eq('related_content_id', eventId)
+    } else {
+      query = query.in('related_content_id', eventIds)
     }
 
     const { data: notifications, error } = await query
@@ -95,6 +121,22 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { user, supabase
     const { searchParams } = new URL(request.url)
     const markAllRead = searchParams.get('markAllRead') === 'true'
     const eventId = searchParams.get('event_id')
+    const scope = await resolveAdminWorkspaceScope(request, { user, supabase })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
+
+    if (eventId) {
+      const { data: event } = await supabase
+        .from('events_v2')
+        .select('id')
+        .eq('id', eventId)
+        .eq('org_id', orgId)
+        .maybeSingle()
+      if (!event?.id) {
+        return NextResponse.json({ success: false, error: 'Event is not available to this workspace' }, { status: 403 })
+      }
+    }
 
     if (markAllRead) {
       let query = supabase
@@ -102,9 +144,12 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { user, supabase
         .update({ is_read: true })
         .eq('user_id', user.id)
         .eq('is_read', false)
+        .eq('related_content_type', 'event')
 
       if (eventId) {
         query = query.eq('related_content_id', eventId)
+      } else {
+        return NextResponse.json({ success: false, error: 'event_id is required for workspace notification updates' }, { status: 400 })
       }
 
       const { error } = await query

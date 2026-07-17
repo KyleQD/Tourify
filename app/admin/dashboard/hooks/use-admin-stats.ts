@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { AdminDashboardStats } from '@/types/admin'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 const FALLBACK_STATS: AdminDashboardStats = {
   totalTours: 0,
@@ -27,6 +28,7 @@ const FALLBACK_STATS: AdminDashboardStats = {
 }
 
 export function useAdminStats(venueId?: string) {
+  const { actingHeaders, actingAccount } = useActingContext()
   const [stats, setStats] = useState<AdminDashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +42,7 @@ export function useAdminStats(venueId?: string) {
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
           Pragma: 'no-cache',
+          ...actingHeaders,
         },
       }
     }
@@ -72,7 +75,7 @@ export function useAdminStats(venueId?: string) {
     }
 
     fetchStats()
-  }, [venueId])
+  }, [venueId, actingHeaders, actingAccount?.profile_id])
 
   return { stats, isLoading, error }
 }

@@ -21,7 +21,6 @@ import {
 } from "lucide-react"
 
 import {
-  AssignmentPicker,
   AutosaveBar,
   BuilderSection,
   BuilderShell,
@@ -30,9 +29,11 @@ import {
 } from "@/components/admin/operations-builder/primitives"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { toast as sonnerToast } from "sonner"
@@ -45,14 +46,6 @@ import {
   ProducerSelection,
 } from "@/lib/admin/event-producer-builder"
 import { useBuilderAutosave } from "@/lib/admin/use-builder-autosave"
-
-interface TourSummary {
-  id: string
-  name: string
-  status?: string | null
-  artist?: string | null
-  main_artist?: string | null
-}
 
 interface VenueOption {
   id: string
@@ -67,20 +60,19 @@ interface VenueOption {
 const sectionConfig: BuilderSection[] = [
   { id: "basics", label: "Basics", mode: "plan", icon: Music },
   { id: "schedule", label: "Schedule", mode: "plan", icon: CalendarClock },
-  { id: "assignment", label: "Tour context", mode: "plan", icon: Route },
   { id: "venue", label: "Venue advance", mode: "advance", icon: MapPin },
   { id: "team", label: "Team and vendors", mode: "advance", icon: Users },
   { id: "logistics", label: "Logistics and map", mode: "run", icon: Truck },
   { id: "finance", label: "Ticketing and finance", mode: "review", icon: Ticket },
   { id: "daysheet", label: "Day sheet", mode: "run", icon: FileText },
-  { id: "review", label: "Review and publish", mode: "review", icon: ClipboardCheck },
+  { id: "review", label: "Review setup", mode: "review", icon: ClipboardCheck },
 ]
 
 const sectionByReadiness: Record<string, string> = {
   basics: "basics",
   schedule: "schedule",
   venue: "venue",
-  tour_assignment: "assignment",
+  tour_assignment: "review",
   advancing: "venue",
   team: "team",
   logistics: "logistics",
@@ -99,6 +91,95 @@ const handoffOptions = [
   { id: "communications", label: "Comms", icon: MessageSquare },
   { id: "day-sheet", label: "Day sheet", icon: FileText },
 ]
+
+const COMMON_TIMEZONES = [
+  "America/Los_Angeles",
+  "America/Denver",
+  "America/Chicago",
+  "America/New_York",
+  "America/Phoenix",
+  "America/Anchorage",
+  "Pacific/Honolulu",
+  "America/Toronto",
+  "America/Vancouver",
+  "America/Mexico_City",
+  "America/Sao_Paulo",
+  "Europe/London",
+  "Europe/Paris",
+  "Europe/Berlin",
+  "Europe/Madrid",
+  "Africa/Johannesburg",
+  "Asia/Dubai",
+  "Asia/Kolkata",
+  "Asia/Singapore",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "UTC",
+]
+
+const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index * 5).padStart(2, "0"))
+
+const scheduleControlClass =
+  "min-w-0 !h-11 sm:!h-12 !rounded-2xl !border-white/10 !bg-white/[0.065] !px-3 sm:!px-4 !text-sm sm:!text-base !font-semibold !text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_36px_rgba(2,6,23,0.22)] backdrop-blur-xl transition hover:!border-cyan-300/35 hover:!bg-white/[0.095] focus:!ring-2 focus:!ring-cyan-300/35 focus:!ring-offset-0 data-[state=open]:!border-cyan-300/45 data-[state=open]:!bg-white/[0.11]"
+
+const scheduleMenuClass =
+  "max-h-80 rounded-2xl border-white/10 bg-slate-950/95 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur-2xl"
+
+const scheduleItemClass =
+  "rounded-xl text-slate-200 focus:bg-cyan-400/10 focus:text-cyan-100 data-[highlighted]:bg-cyan-400/10 data-[highlighted]:text-cyan-100"
+
+function localDateString(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+function parseLocalDate(value: string): Date | undefined {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!match) return undefined
+  const parsed = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed
+}
+
+function formatDisplayDate(value: string) {
+  const date = parseLocalDate(value)
+  if (!date) return "Select date"
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(date)
+}
+
+function parseTimeParts(value: string) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value || "")
+  if (!match) return { hour: "", minute: "00", period: "PM" }
+  const hour24 = Number(match[1])
+  const hour12 = hour24 % 12 || 12
+  return {
+    hour: String(hour12),
+    minute: match[2],
+    period: hour24 >= 12 ? "PM" : "AM",
+  }
+}
+
+function toTwentyFourHour(hour: string, minute: string, period: string) {
+  if (!hour || hour === "unset") return ""
+  const hour12 = Number(hour)
+  if (!Number.isFinite(hour12)) return ""
+  const base = period === "AM" ? hour12 % 12 : (hour12 % 12) + 12
+  return `${String(base).padStart(2, "0")}:${minute || "00"}`
+}
+
+function browserTimezone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Los_Angeles"
+  } catch {
+    return "America/Los_Angeles"
+  }
+}
 
 function normalizeSelection(item: any, fallback = "Result"): ProducerSelection {
   const label = item?.name || item?.display_name || item?.label || fallback
@@ -120,9 +201,6 @@ export default function CreateEventPage() {
   const [saveStatus, setSaveStatus] = React.useState<"saved" | "saving" | "unsaved" | "error">("unsaved")
   const [isSaving, setIsSaving] = React.useState(false)
   const [handoffTab, setHandoffTab] = React.useState("overview")
-  const [tours, setTours] = React.useState<TourSummary[]>([])
-  const [isLoadingTours, setIsLoadingTours] = React.useState(false)
-  const [tourQuery, setTourQuery] = React.useState("")
   const [venueQuery, setVenueQuery] = React.useState("")
   const [venueResults, setVenueResults] = React.useState<VenueOption[]>([])
   const [isVenueLoading, setIsVenueLoading] = React.useState(false)
@@ -134,6 +212,7 @@ export default function CreateEventPage() {
   const [isCrewLoading, setIsCrewLoading] = React.useState(false)
   const [vendorDraft, setVendorDraft] = React.useState("")
   const [autosaveReady, setAutosaveReady] = React.useState(false)
+  const [timezones, setTimezones] = React.useState(COMMON_TIMEZONES)
   const skipAutosaveRef = React.useRef(true)
 
   React.useEffect(() => {
@@ -178,35 +257,25 @@ export default function CreateEventPage() {
   }, [])
 
   React.useEffect(() => {
+    const currentTimezone = browserTimezone()
+    const supported =
+      typeof (Intl as any).supportedValuesOf === "function"
+        ? ((Intl as any).supportedValuesOf("timeZone") as string[])
+        : COMMON_TIMEZONES
+    setTimezones(Array.from(new Set([currentTimezone, ...COMMON_TIMEZONES, ...supported])).sort())
+    if (!eventId && form.timezone === initialEventProducerForm.timezone && currentTimezone !== form.timezone) {
+      setForm((current) => ({ ...current, timezone: currentTimezone }))
+    }
+  // Run once for new drafts; hydration will preserve a saved event timezone.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  React.useEffect(() => {
     const sectionsForMode = sectionConfig.filter((section) => section.mode === activeMode)
     if (sectionsForMode.length && !sectionsForMode.some((section) => section.id === activeSection)) {
       setActiveSection(sectionsForMode[0].id)
     }
   }, [activeMode, activeSection])
-
-  React.useEffect(() => {
-    let cancelled = false
-    async function loadTours() {
-      setIsLoadingTours(true)
-      try {
-        const response = await fetch("/api/admin/tours?status=planning,active,on_hold", {
-          credentials: "include",
-          cache: "no-store",
-        })
-        const data = await response.json().catch(() => ({}))
-        if (!response.ok) throw new Error(data?.error || "Failed to load tours")
-        if (!cancelled) setTours(data.tours || [])
-      } catch {
-        if (!cancelled) setTours([])
-      } finally {
-        if (!cancelled) setIsLoadingTours(false)
-      }
-    }
-    void loadTours()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   React.useEffect(() => {
     if (venueQuery.trim().length < 2) {
@@ -306,25 +375,13 @@ export default function CreateEventPage() {
     setSaveStatus("unsaved")
   }
 
-  const toggleTour = (tourId: string) => {
-    setForm((current) => {
-      const selected = current.selectedTourIds.includes(tourId)
-      const next = selected ? current.selectedTourIds.filter((id) => id !== tourId) : [...current.selectedTourIds, tourId]
-      return {
-        ...current,
-        selectedTourIds: next,
-        primaryTourId: next.includes(current.primaryTourId) ? current.primaryTourId : next[0] || "",
-      }
-    })
-    setSaveStatus("unsaved")
-  }
-
   const readiness = React.useMemo(() => getEventReadiness({
     title: form.title,
     date: form.date,
     time: form.time,
     venue_name: form.venueName,
     venue_id: form.venueId,
+    venue_account_id: form.venueAccountId,
     capacity: form.capacity,
     tour_ids: form.selectedTourIds,
     primary_tour_id: form.primaryTourId,
@@ -356,12 +413,6 @@ export default function CreateEventPage() {
     return { ...section, status: matchingItem?.state as ReadinessState | undefined }
   }), [readiness.items])
 
-  const filteredTours = React.useMemo(() => {
-    const query = tourQuery.trim().toLowerCase()
-    if (!query) return tours
-    return tours.filter((tour) => [tour.name, tour.artist, tour.main_artist, tour.status].some((value) => String(value || "").toLowerCase().includes(query)))
-  }, [tourQuery, tours])
-
   const moveToReadinessItem = (itemId: string) => {
     const sectionId = sectionByReadiness[itemId] || itemId
     const target = sectionConfig.find((section) => section.id === sectionId)
@@ -373,6 +424,7 @@ export default function CreateEventPage() {
 
   const selectVenue = (venue: VenueOption) => {
     updateForm({
+      venueAccountId: venue.id,
       venueId: venue.id,
       venueName: venue.name,
       address: venue.fullAddress || "",
@@ -392,7 +444,6 @@ export default function CreateEventPage() {
   }
 
   const persistEvent = React.useCallback(async (
-    publish = false,
     { redirect = true, silent = false }: { redirect?: boolean; silent?: boolean } = {}
   ) => {
     const hasTitle = Boolean(form.title?.trim())
@@ -405,7 +456,7 @@ export default function CreateEventPage() {
       }
       return null
     }
-    if (!hasDate && (publish || redirect)) {
+    if (!hasDate && redirect) {
       if (!silent) {
         sonnerToast.error("Schedule required", { description: "Add a date before saving the event." })
         setActiveMode("plan")
@@ -413,24 +464,15 @@ export default function CreateEventPage() {
       }
       return null
     }
-    if (publish && readiness.blockers.length > 0) {
-      const first = readiness.blockers[0]
-      sonnerToast.error("Publish blockers remain", {
-        description: first.detail || "Complete the required setup before publishing.",
-      })
-      moveToReadinessItem(first.id)
-      return null
-    }
-
     setIsSaving(true)
     setSaveStatus("saving")
     try {
       const draftForm = form.date
         ? form
         : { ...form, date: new Date().toISOString().slice(0, 10) }
-      const payload = buildEventProducerPayload(draftForm, { publish, readinessScore: readiness.score })
+      const payload = buildEventProducerPayload(draftForm, { publish: false, readinessScore: readiness.score })
       if (!form.date) {
-        // Placeholder schedule for title-first draft create; user still needs a real date to publish.
+        // Placeholder schedule for title-first draft create; user still needs to set the real date.
         ;(payload as any).settings = {
           ...((payload as any).settings || {}),
           schedule_placeholder: true,
@@ -455,22 +497,9 @@ export default function CreateEventPage() {
         setAutosaveReady(true)
       }
 
-      if (publish && savedId) {
-        const publishRes = await fetch(`/api/admin/events/${savedId}/publish`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        })
-        if (!publishRes.ok) {
-          const publishData = await publishRes.json().catch(() => ({}))
-          throw new Error(publishData?.error || "Event saved but publish fanout failed")
-        }
-      }
-
       setSaveStatus("saved")
       if (!silent) {
-        sonnerToast.success(publish ? "Event published" : "Event draft saved", {
+        sonnerToast.success(redirect ? "Event created" : "Event draft saved", {
           description: redirect
             ? "Opening the management workspace for the next setup step."
             : "Your changes are saved.",
@@ -479,7 +508,6 @@ export default function CreateEventPage() {
 
       if (redirect && savedId) {
         const params = new URLSearchParams()
-        if (publish) params.set("published", "1")
         if (handoffTab !== "overview") params.set("tab", handoffTab)
         const query = params.toString()
         router.push(`/admin/dashboard/events/${savedId}${query ? `?${query}` : ""}`)
@@ -496,11 +524,14 @@ export default function CreateEventPage() {
     } finally {
       setIsSaving(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId, form, handoffTab, readiness.blockers, readiness.score, router])
+  }, [eventId, form, handoffTab, readiness.score, router])
 
-  const saveEvent = async (publish = false) => {
-    await persistEvent(publish, { redirect: true })
+  const createEvent = async () => {
+    await persistEvent({ redirect: true })
+  }
+
+  const saveDraft = async () => {
+    await persistEvent({ redirect: false })
   }
 
   // Create-on-first-change: enable autosave once title/date exists (creates draft if needed)
@@ -516,7 +547,7 @@ export default function CreateEventPage() {
     onSave: async () => {
       if (skipAutosaveRef.current || isSaving) return
       if (!form.title?.trim() && !form.date) return
-      await persistEvent(false, { redirect: false, silent: true })
+      await persistEvent({ redirect: false, silent: true })
     },
   })
 
@@ -560,10 +591,10 @@ export default function CreateEventPage() {
           <AutosaveBar
             status={saveStatus}
             entityLabel="Event"
-            primaryLabel="Publish event"
+            primaryLabel="Create event"
             secondaryLabel="Save draft"
-            onPrimary={() => void saveEvent(true)}
-            onSecondary={() => void saveEvent(false)}
+            onPrimary={() => void createEvent()}
+            onSecondary={() => void saveDraft()}
             disabled={isSaving}
           />
         }
@@ -625,42 +656,41 @@ export default function CreateEventPage() {
 
         {activeSection === "schedule" && (
           <BuilderPanel title="Schedule" icon={CalendarClock}>
-            <div className="grid gap-4 lg:grid-cols-4">
-              <Field label="Date"><Input type="date" value={form.date} onChange={(event) => updateForm({ date: event.target.value })} /></Field>
-              <Field label="Show"><Input type="time" value={form.time} onChange={(event) => updateForm({ time: event.target.value })} /></Field>
-              <Field label="End"><Input type="time" value={form.endTime} onChange={(event) => updateForm({ endTime: event.target.value })} /></Field>
-              <Field label="Timezone"><Input value={form.timezone} onChange={(event) => updateForm({ timezone: event.target.value })} /></Field>
-              <Field label="Doors"><Input type="time" value={form.doorsOpen} onChange={(event) => updateForm({ doorsOpen: event.target.value })} /></Field>
-              <Field label="Load-in"><Input type="time" value={form.loadIn} onChange={(event) => updateForm({ loadIn: event.target.value })} /></Field>
-              <Field label="Soundcheck"><Input type="time" value={form.soundCheck} onChange={(event) => updateForm({ soundCheck: event.target.value })} /></Field>
-              <Field label="Curfew"><Input type="time" value={form.curfew} onChange={(event) => updateForm({ curfew: event.target.value })} /></Field>
-              <div className="lg:col-span-4">
+            <div className="grid min-w-0 gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,17rem),1fr))] sm:gap-5">
+              <Field label="Date">
+                <DatePickerField value={form.date} onChange={(date) => updateForm({ date })} />
+              </Field>
+              <Field label="Show">
+                <TimeDropdown value={form.time} onChange={(time) => updateForm({ time })} />
+              </Field>
+              <Field label="End">
+                <TimeDropdown value={form.endTime} onChange={(endTime) => updateForm({ endTime })} />
+              </Field>
+              <Field label="Timezone">
+                <Select value={form.timezone || browserTimezone()} onValueChange={(timezone) => updateForm({ timezone })}>
+                  <SelectTrigger className={scheduleControlClass}><SelectValue placeholder="Select timezone" /></SelectTrigger>
+                  <SelectContent className={scheduleMenuClass}>
+                    {timezones.map((timezone) => (
+                      <SelectItem key={timezone} value={timezone} className={scheduleItemClass}>{timezone}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Doors">
+                <TimeDropdown value={form.doorsOpen} onChange={(doorsOpen) => updateForm({ doorsOpen })} />
+              </Field>
+              <Field label="Load-in">
+                <TimeDropdown value={form.loadIn} onChange={(loadIn) => updateForm({ loadIn })} />
+              </Field>
+              <Field label="Soundcheck">
+                <TimeDropdown value={form.soundCheck} onChange={(soundCheck) => updateForm({ soundCheck })} />
+              </Field>
+              <Field label="Curfew">
+                <TimeDropdown value={form.curfew} onChange={(curfew) => updateForm({ curfew })} />
+              </Field>
+              <div className="min-w-0 [grid-column:1/-1]">
                 <Field label="Set times"><Textarea value={form.setTimes} onChange={(event) => updateForm({ setTimes: event.target.value })} placeholder="Support 8:00 PM, Headliner 9:15 PM" /></Field>
               </div>
-            </div>
-          </BuilderPanel>
-        )}
-
-        {activeSection === "assignment" && (
-          <BuilderPanel title="Tour context" icon={Route}>
-            <Field label="Filter tours"><Input value={tourQuery} onChange={(event) => setTourQuery(event.target.value)} placeholder="Search active or planning tours" /></Field>
-            <div className="mt-4">
-              {isLoadingTours ? (
-                <p className="text-sm text-slate-400">Loading tours...</p>
-              ) : (
-                <AssignmentPicker
-                  tours={filteredTours}
-                  selectedTourIds={form.selectedTourIds}
-                  primaryTourId={form.primaryTourId}
-                  onToggleTour={toggleTour}
-                  onPrimaryTourChange={(primaryTourId) => updateForm({ primaryTourId })}
-                />
-              )}
-            </div>
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-              <Field label="Route order"><Input value={form.ordinal} onChange={(event) => updateForm({ ordinal: event.target.value })} placeholder="1" /></Field>
-              <Field label="Leg"><Input value={form.legName} onChange={(event) => updateForm({ legName: event.target.value })} placeholder="West Coast" /></Field>
-              <Field label="Market"><Input value={form.market} onChange={(event) => updateForm({ market: event.target.value })} placeholder="Los Angeles" /></Field>
             </div>
           </BuilderPanel>
         )}
@@ -799,7 +829,7 @@ export default function CreateEventPage() {
         )}
 
         {activeSection === "review" && (
-          <BuilderPanel title="Review and publish" icon={ClipboardCheck}>
+          <BuilderPanel title="Review setup" icon={ClipboardCheck}>
             <div className="grid gap-4 md:grid-cols-2">
               {readiness.items.map((item) => (
                 <button key={item.id} type="button" onClick={() => moveToReadinessItem(item.id)} className="rounded-md border border-slate-800 bg-slate-950/60 p-4 text-left hover:bg-slate-900">
@@ -832,11 +862,95 @@ function BuilderPanel({ title, icon: Icon, children }: { title: string; icon: Re
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <Label className="text-slate-300">{label}</Label>
-      <div className="[&_input]:border-slate-700 [&_input]:bg-slate-900 [&_input]:text-white [&_textarea]:border-slate-700 [&_textarea]:bg-slate-900 [&_textarea]:text-white [&_button[role=combobox]]:border-slate-700 [&_button[role=combobox]]:bg-slate-900 [&_button[role=combobox]]:text-white">
+      <div className="min-w-0 [&_input]:border-slate-700 [&_input]:bg-slate-900 [&_input]:text-white [&_textarea]:border-slate-700 [&_textarea]:bg-slate-900 [&_textarea]:text-white [&_button[role=combobox]]:border-slate-700 [&_button[role=combobox]]:bg-slate-900 [&_button[role=combobox]]:text-white">
         {children}
       </div>
+    </div>
+  )
+}
+
+function DatePickerField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const selected = parseLocalDate(value)
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={`${scheduleControlClass} w-full justify-start text-left`}
+        >
+          <CalendarClock className="mr-2 h-4 w-4 shrink-0 text-cyan-200" />
+          <span className="min-w-0 truncate">{formatDisplayDate(value)}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto max-w-[calc(100vw-2rem)] overflow-hidden rounded-3xl border-white/10 bg-slate-950/95 p-2 text-slate-100 shadow-2xl shadow-black/40 backdrop-blur-2xl">
+        <Calendar
+          mode="single"
+          selected={selected}
+          onSelect={(date) => {
+            if (date) onChange(localDateString(date))
+          }}
+          className="rounded-2xl bg-white/[0.03]"
+          classNames={{
+            caption_label: "text-sm font-semibold text-slate-100",
+            nav_button: "h-8 w-8 rounded-full bg-white/[0.06] p-0 text-slate-200 opacity-80 hover:bg-cyan-400/15 hover:text-cyan-100 hover:opacity-100",
+            head_cell: "w-9 rounded-md text-[0.75rem] font-medium text-slate-500",
+            cell: "h-9 w-9 p-0 text-center text-sm",
+            day: "h-9 w-9 rounded-full p-0 text-sm font-medium text-slate-200 hover:bg-white/10 hover:text-white focus:bg-cyan-400/15 focus:text-cyan-100",
+            day_selected: "bg-cyan-400 text-slate-950 hover:bg-cyan-300 hover:text-slate-950 focus:bg-cyan-300 focus:text-slate-950",
+            day_today: "bg-white/10 text-cyan-100",
+            day_outside: "text-slate-600 opacity-60",
+            day_disabled: "text-slate-700 opacity-50",
+          }}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function TimeDropdown({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const parts = parseTimeParts(value)
+  const update = (patch: Partial<typeof parts>) => {
+    const next = { ...parts, ...patch }
+    onChange(toTwentyFourHour(next.hour, next.minute, next.period))
+  }
+
+  return (
+    <div className="grid min-w-0 grid-cols-3 gap-2">
+      <Select value={parts.hour || "unset"} onValueChange={(hour) => update({ hour })}>
+        <SelectTrigger aria-label="Hour" className={scheduleControlClass}>
+          <SelectValue placeholder="Hour" />
+        </SelectTrigger>
+        <SelectContent className={scheduleMenuClass}>
+          <SelectItem value="unset" className={scheduleItemClass}>--</SelectItem>
+          {Array.from({ length: 12 }, (_, index) => String(index + 1)).map((hour) => (
+            <SelectItem key={hour} value={hour} className={scheduleItemClass}>{hour}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={parts.minute} onValueChange={(minute) => update({ minute })}>
+        <SelectTrigger aria-label="Minute" className={scheduleControlClass}>
+          <SelectValue placeholder="Min" />
+        </SelectTrigger>
+        <SelectContent className={scheduleMenuClass}>
+          {MINUTE_OPTIONS.map((minute) => (
+            <SelectItem key={minute} value={minute} className={scheduleItemClass}>{minute}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={parts.period} onValueChange={(period) => update({ period })}>
+        <SelectTrigger aria-label="AM or PM" className={scheduleControlClass}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent className={scheduleMenuClass}>
+          <SelectItem value="AM" className={scheduleItemClass}>AM</SelectItem>
+          <SelectItem value="PM" className={scheduleItemClass}>PM</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
   )
 }

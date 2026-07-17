@@ -28,13 +28,18 @@ export function EventPageTemplateSelector({
 
   return (
     <div className={cn("space-y-3", className)}>
-      <div>
-        <h3 className="text-sm font-semibold text-white">Page style</h3>
-        <p className="mt-1 text-xs text-slate-400">
-          Choose a visual template for your public event page. Same family as EPK skins.
-        </p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Page style</h3>
+          <p className="mt-1 text-xs text-slate-400">
+            Choose a visual template for your public event page. Same family as EPK skins.
+          </p>
+        </div>
+        <span className="w-fit rounded-full border border-purple-400/30 bg-purple-400/10 px-3 py-1 text-xs font-medium text-purple-100">
+          {EVENT_PAGE_TEMPLATE_PREVIEWS.length} styles
+        </span>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {EVENT_PAGE_TEMPLATE_PREVIEWS.map((template) => {
           const isSelected = selected === template.id
           return (
@@ -51,17 +56,18 @@ export function EventPageTemplateSelector({
                 }
               }}
               aria-disabled={disabled}
+              aria-pressed={isSelected}
               className={cn(
-                "group relative overflow-hidden rounded-xl border p-3 text-left transition-all",
+                "group relative min-h-[154px] overflow-hidden rounded-xl border p-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40",
                 disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
                 isSelected
-                  ? "border-cyan-400/60 bg-cyan-500/10 ring-2 ring-cyan-400/25"
-                  : "border-slate-700/80 bg-slate-950/60 hover:border-cyan-400/40 hover:bg-slate-900/70"
+                  ? "border-cyan-400/60 bg-cyan-500/10 shadow-lg shadow-cyan-950/25 ring-2 ring-cyan-400/25"
+                  : "border-slate-700/80 bg-slate-950/60 hover:border-cyan-400/40 hover:bg-slate-900/70 hover:shadow-lg hover:shadow-cyan-950/15"
               )}
             >
               <div
                 className={cn(
-                  "mb-3 h-14 rounded-lg bg-gradient-to-r",
+                  "mb-3 h-16 rounded-lg bg-gradient-to-r shadow-inner shadow-black/20",
                   template.colors.join(" ")
                 )}
               />
@@ -72,6 +78,11 @@ export function EventPageTemplateSelector({
                     <span className="text-sm font-medium text-white">{template.name}</span>
                   </div>
                   <p className="mt-1 text-xs leading-snug text-slate-400">{template.description}</p>
+                  {isSelected ? (
+                    <span className="mt-3 inline-flex rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2.5 py-1 text-[11px] font-medium text-cyan-100">
+                      Applied
+                    </span>
+                  ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   {onPreviewTemplate ? (
@@ -79,7 +90,7 @@ export function EventPageTemplateSelector({
                       type="button"
                       size="icon"
                       variant="ghost"
-                      className={cn(artistEventUI.buttonGhost, "h-7 w-7")}
+                      className={cn(artistEventUI.buttonGhost, "h-8 w-8")}
                       disabled={disabled}
                       onClick={(event) => {
                         event.stopPropagation()

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdminAuth } from '@/lib/auth/api-auth'
+import { requireOpsOrgId, resolveAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
 
-async function resolveOrgId(supabase: any, userId: string): Promise<string | null> {
-  const { data } = await supabase.from('org_members').select('org_id').eq('user_id', userId).limit(1).maybeSingle()
-  return data?.org_id ?? null
+async function getOrgEventIds(supabase: any, orgId: string): Promise<string[]> {
+  const { data } = await supabase.from('events_v2').select('id').eq('org_id', orgId).limit(1000)
+  return (data || []).map((event: { id: string }) => event.id)
+}
+
+function staffScopeFilter(orgId: string, eventIds: string[]) {
+  const filters = [`and(entity_type.eq.org,entity_id.eq.${orgId})`]
+  if (eventIds.length > 0) filters.push(`and(entity_type.eq.event,entity_id.in.(${eventIds.join(',')}))`)
+  return filters.join(',')
 }
 
 export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
@@ -18,6 +25,12 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   const offset = parseInt(searchParams.get('offset') || '0', 10)
 
   try {
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
+    const eventIds = await getOrgEventIds(supabase, orgId)
+
     // Build query from unified view
     let query = supabase
       .from('staff_members')
@@ -27,28 +40,15 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
 
     // Scope by entity
     if (entityType && entityId) {
+      if (entityType === 'event' && !eventIds.includes(entityId))
+        return NextResponse.json({ success: false, error: 'Entity is not available to this workspace' }, { status: 403 })
+      if (entityType === 'org' && entityId !== orgId)
+        return NextResponse.json({ success: false, error: 'Entity is not available to this workspace' }, { status: 403 })
       query = query.eq('entity_type', entityType).eq('entity_id', entityId)
     } else if (venueId) {
       query = query.eq('venue_id', venueId)
     } else {
-      // Default: scope to org members' venues/entities via org_members
-      const orgId = await resolveOrgId(supabase, user.id)
-      if (orgId) {
-        // Get all venues and events for this org
-        const [venueRes, eventRes] = await Promise.allSettled([
-          supabase.from('venue_profiles').select('id').eq('user_id', user.id),
-          supabase.from('events_v2').select('id').eq('org_id', orgId).limit(50),
-        ])
-        const venueIds = venueRes.status === 'fulfilled' ? (venueRes.value.data || []).map((v: any) => v.id) : []
-        const eventIds = eventRes.status === 'fulfilled' ? (eventRes.value.data || []).map((e: any) => e.id) : []
-
-        if (venueIds.length > 0 || eventIds.length > 0) {
-          const filters: string[] = []
-          if (venueIds.length > 0) filters.push(`venue_id.in.(${venueIds.join(',')})`)
-          if (eventIds.length > 0) filters.push(`entity_id.in.(${eventIds.join(',')})`)
-          query = query.or(filters.join(','))
-        }
-      }
+      query = query.or(staffScopeFilter(orgId, eventIds))
     }
 
     if (entityType && !entityId) query = query.eq('entity_type', entityType)
@@ -80,6 +80,12 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   const { action } = body
 
   try {
+    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+    if (scope instanceof NextResponse) return scope
+    const orgId = requireOpsOrgId(scope)
+    if (orgId instanceof NextResponse) return orgId
+    const eventIds = await getOrgEventIds(supabase, orgId)
+
     if (action === 'update_status') {
       const { staff_id, status } = body
       if (!staff_id || !status) return NextResponse.json({ error: 'staff_id and status required' }, { status: 400 })
@@ -88,6 +94,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
         .from('staff_members')
         .update({ status, updated_at: new Date().toISOString() })
         .eq('id', staff_id)
+        .or(staffScopeFilter(orgId, eventIds))
         .select()
         .single()
 
@@ -97,14 +104,21 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
 
     if (action === 'add_member') {
       const { user_id, role, entity_type, entity_id, venue_id, full_name, email } = body
+      const requestedEntityType = entity_type || 'org'
+      const requestedEntityId = entity_id || orgId
+
+      if (requestedEntityType === 'event' && !eventIds.includes(requestedEntityId))
+        return NextResponse.json({ error: 'Entity is not available to this workspace' }, { status: 403 })
+      if (requestedEntityType === 'org' && requestedEntityId !== orgId)
+        return NextResponse.json({ error: 'Entity is not available to this workspace' }, { status: 403 })
 
       const { data, error } = await supabase
         .from('staff_members')
         .insert({
           user_id,
           role,
-          entity_type: entity_type || 'org',
-          entity_id: entity_id || null,
+          entity_type: requestedEntityType,
+          entity_id: requestedEntityId,
           venue_id: venue_id || null,
           full_name,
           email,
@@ -125,7 +139,13 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+  if (scope instanceof NextResponse) return scope
+  const orgId = requireOpsOrgId(scope)
+  if (orgId instanceof NextResponse) return orgId
+  const eventIds = await getOrgEventIds(supabase, orgId)
+
   const { id, ...updates } = await request.json()
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
@@ -133,6 +153,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) =>
     .from('staff_members')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .or(staffScopeFilter(orgId, eventIds))
     .select()
     .single()
 
@@ -140,12 +161,18 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase }) =>
   return NextResponse.json({ success: true, data })
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase }) => {
+export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+  const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
+  if (scope instanceof NextResponse) return scope
+  const orgId = requireOpsOrgId(scope)
+  if (orgId instanceof NextResponse) return orgId
+  const eventIds = await getOrgEventIds(supabase, orgId)
+
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-  const { error } = await supabase.from('staff_members').delete().eq('id', id)
+  const { error } = await supabase.from('staff_members').delete().eq('id', id).or(staffScopeFilter(orgId, eventIds))
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 })
