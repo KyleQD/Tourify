@@ -1,6 +1,8 @@
 import { getPublicArtistProfileDTO } from "@/lib/public-artist/get-public-artist-profile"
 import { PublicArtistPage } from "@/components/public-artist/public-artist-page"
 
+export const dynamic = "force-dynamic"
+
 export default async function ArtistPublicProfilePage({
   params
 }: {

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useArtist } from '@/contexts/artist-context'
-import { epkService, type EPKData } from '@/lib/services/epk.service'
+import { useActingContext } from '@/hooks/use-acting-context'
+import type { EPKData } from '@/lib/services/epk.service'
 import { getDefaultEpkAppearance } from '@/lib/epk/epk-appearance'
 import { useToast } from '@/components/ui/use-toast'
 
@@ -15,14 +16,29 @@ interface ArtistProfileLike {
 
 interface UseEPKSyncReturn {
   epkData: EPKData | null
+  savedEpkData: EPKData | null
+  publicUrl: string | null
+  lastSavedAt: string | null
+  hasSavedEpk: boolean
   isLoading: boolean
   isSaving: boolean
+  isDirty: boolean
+  isPublished: boolean
   needsAuth: boolean
   loadError: string | null
+  saveError: string | null
   updateEPKData: (updates: Partial<EPKData>) => void
-  saveEPKData: () => Promise<void>
+  saveEPKData: (overrides?: Partial<EPKData>, options?: SaveEPKOptions) => Promise<EPKData | null>
+  publishEPK: () => Promise<EPKData | null>
+  unpublishEPK: () => Promise<EPKData | null>
   reloadEPKData: () => Promise<void>
   syncWithProfile: () => Promise<void>
+}
+
+interface SaveEPKOptions {
+  showToast?: boolean
+  successTitle?: string
+  successDescription?: string
 }
 
 function buildDefaultEPKData(profile: ArtistProfileLike | null): EPKData {
@@ -32,6 +48,7 @@ function buildDefaultEPKData(profile: ArtistProfileLike | null): EPKData {
     : ''
 
   return {
+    artistProfileId: profile?.id || null,
     epkSlug,
     artistName,
     bio: profile?.bio || '',
@@ -101,13 +118,19 @@ function buildDefaultEPKData(profile: ArtistProfileLike | null): EPKData {
 
 export function useEPKSync(): UseEPKSyncReturn {
   const { user, profile, isLoading: isArtistLoading, updateProfile } = useArtist()
+  const { actingHeaders } = useActingContext()
   const { toast } = useToast()
 
   const [epkData, setEpkData] = useState<EPKData | null>(null)
+  const [savedEpkData, setSavedEpkData] = useState<EPKData | null>(null)
+  const [publicUrl, setPublicUrl] = useState<string | null>(null)
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
+  const [hasSavedEpk, setHasSavedEpk] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [needsAuth, setNeedsAuth] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [pendingChanges, setPendingChanges] = useState<Partial<EPKData> | null>(null)
 
   const loadEPKData = useCallback(async () => {
@@ -115,6 +138,10 @@ export function useEPKSync(): UseEPKSyncReturn {
 
     if (!user?.id) {
       setEpkData(null)
+      setSavedEpkData(null)
+      setPublicUrl(null)
+      setLastSavedAt(null)
+      setHasSavedEpk(false)
       setNeedsAuth(true)
       setLoadError(null)
       setIsLoading(false)
@@ -132,6 +159,7 @@ export function useEPKSync(): UseEPKSyncReturn {
       const response = await fetch(`/api/artist/epk${query ? `?${query}` : ''}`, {
         credentials: 'include',
         cache: 'no-store',
+        headers: actingHeaders,
       })
       const body = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -139,17 +167,26 @@ export function useEPKSync(): UseEPKSyncReturn {
       }
       const data = body.data
       setEpkData(data)
+      setSavedEpkData(body.hasSavedEpk ? data : null)
+      setPublicUrl(body.hasSavedEpk ? body.publicUrl || null : null)
+      setLastSavedAt(body.hasSavedEpk ? body.lastSavedAt || null : null)
+      setHasSavedEpk(Boolean(body.hasSavedEpk))
+      setSaveError(null)
       setPendingChanges(null)
     } catch (error) {
       console.error('Error loading EPK data:', error)
       setEpkData(buildDefaultEPKData(profile))
+      setSavedEpkData(null)
+      setPublicUrl(null)
+      setLastSavedAt(null)
+      setHasSavedEpk(false)
       setLoadError(
         error instanceof Error ? error.message : 'Failed to load EPK data. Using default template.'
       )
     } finally {
       setIsLoading(false)
     }
-  }, [user?.id, profile?.id, profile, isArtistLoading])
+  }, [user?.id, profile, isArtistLoading, actingHeaders])
 
   useEffect(() => {
     void loadEPKData()
@@ -168,44 +205,6 @@ export function useEPKSync(): UseEPKSyncReturn {
       return updated
     })
   }, [])
-
-  const saveEPKData = useCallback(async () => {
-    if (!user?.id || !epkData) {
-      toast({
-        title: 'Cannot save EPK',
-        description: "Please ensure you're logged in and EPK data is loaded.",
-        variant: 'destructive',
-      })
-      return
-    }
-
-    try {
-      setIsSaving(true)
-
-      const result = await epkService.saveEPKData(user.id, epkData)
-
-      if (result.success) {
-        await syncProfileFromEPK(epkData)
-        setPendingChanges(null)
-
-        toast({
-          title: 'EPK saved successfully',
-          description: 'Your EPK has been updated and changes synced to your profile.',
-        })
-      } else {
-        throw new Error(result.error || 'Failed to save EPK')
-      }
-    } catch (error) {
-      console.error('Error saving EPK:', error)
-      toast({
-        title: 'Error saving EPK',
-        description: error instanceof Error ? error.message : 'There was an error saving your EPK. Please try again.',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsSaving(false)
-    }
-  }, [user?.id, epkData, toast])
 
   const syncProfileFromEPK = useCallback(async (currentEpkData: EPKData) => {
     if (!user?.id || !profile) return
@@ -292,6 +291,114 @@ export function useEPKSync(): UseEPKSyncReturn {
     }
   }, [user?.id, profile, updateProfile])
 
+  const saveEPKData = useCallback(async (
+    overrides: Partial<EPKData> = {},
+    options: SaveEPKOptions = {}
+  ) => {
+    if (!user?.id || !epkData) {
+      toast({
+        title: 'Cannot save EPK',
+        description: "Please ensure you're logged in and EPK data is loaded.",
+        variant: 'destructive',
+      })
+      return null
+    }
+
+    try {
+      setIsSaving(true)
+      setSaveError(null)
+
+      const payload = {
+        ...epkData,
+        ...overrides,
+        artistProfileId: overrides.artistProfileId || epkData.artistProfileId || profile?.id || null,
+      }
+
+      const response = await fetch('/api/artist/epk', {
+        method: 'PUT',
+        credentials: 'include',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          ...actingHeaders,
+        },
+        body: JSON.stringify(payload),
+      })
+
+      const result = await response.json().catch(() => ({}))
+
+      if (response.ok) {
+        const savedData = result.data || payload
+        const nextPublicUrl =
+          result.publicUrl || (savedData.epkSlug ? `/epk/${savedData.epkSlug}` : null)
+        const savedAt = result.lastSavedAt || new Date().toISOString()
+
+        setEpkData(savedData)
+        setSavedEpkData(savedData)
+        setPublicUrl(nextPublicUrl)
+        setLastSavedAt(savedAt)
+        setHasSavedEpk(true)
+        await syncProfileFromEPK(savedData)
+        setPendingChanges(null)
+        setSaveError(null)
+
+        if (options.showToast !== false) {
+          toast({
+            title: options.successTitle || 'EPK saved successfully',
+            description: options.successDescription ||
+              (nextPublicUrl
+                ? `Your EPK has been updated at ${nextPublicUrl}.`
+                : 'Your EPK has been updated and changes synced to your profile.'),
+          })
+        }
+
+        return savedData
+      } else {
+        throw new Error(
+          result?.error?.message ||
+          result?.error ||
+          `Failed to save EPK (${response.status})`
+        )
+      }
+    } catch (error) {
+      console.error('Error saving EPK:', error)
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'There was an error saving your EPK. Please try again.'
+      setSaveError(message)
+      toast({
+        title: 'Error saving EPK',
+        description: message,
+        variant: 'destructive',
+      })
+      return null
+    } finally {
+      setIsSaving(false)
+    }
+  }, [user?.id, epkData, profile?.id, actingHeaders, syncProfileFromEPK, toast])
+
+  const publishEPK = useCallback(async () => {
+    return saveEPKData(
+      { isPublic: true },
+      {
+        successTitle: 'EPK published',
+        successDescription: 'Your live EPK is now available from your public artist profile.',
+      }
+    )
+  }, [saveEPKData])
+
+  const unpublishEPK = useCallback(async () => {
+    return saveEPKData(
+      { isPublic: false },
+      {
+        successTitle: 'EPK unpublished',
+        successDescription: 'Your saved draft is still available here, but it is no longer public.',
+      }
+    )
+  }, [saveEPKData])
+
   const syncWithProfile = useCallback(async () => {
     if (!profile || !epkData) return
 
@@ -377,12 +484,21 @@ export function useEPKSync(): UseEPKSyncReturn {
 
   return {
     epkData,
+    savedEpkData,
+    publicUrl,
+    lastSavedAt,
+    hasSavedEpk,
     isLoading: isLoading || isArtistLoading,
     isSaving,
+    isDirty: Boolean(pendingChanges),
+    isPublished: Boolean(savedEpkData?.isPublic),
     needsAuth,
     loadError,
+    saveError,
     updateEPKData,
     saveEPKData,
+    publishEPK,
+    unpublishEPK,
     reloadEPKData,
     syncWithProfile,
   }

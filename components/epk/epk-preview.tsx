@@ -5,14 +5,24 @@ import type { EPKData } from "@/lib/services/epk.service"
 import { epkFontClass } from "@/components/epk/epk-preview-fonts"
 import {
   BoldEpkTemplate,
+  BandCardEpkTemplate,
   CinemaEpkTemplate,
   ClassicEpkTemplate,
+  CheckerboardEpkTemplate,
   CoastalEpkTemplate,
+  ColorBlockEpkTemplate,
+  DossierEpkTemplate,
+  EditorialEpkTemplate,
   GalleryEpkTemplate,
   LuxeEpkTemplate,
   MinimalEpkTemplate,
   ModernEpkTemplate,
   PosterEpkTemplate,
+  PressGridEpkTemplate,
+  RedColumnEpkTemplate,
+  ScrapbookEpkTemplate,
+  SunburstEpkTemplate,
+  WhitespaceEpkTemplate,
 } from "@/components/epk/epk-template-variants"
 import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
 import { Music } from "lucide-react"
@@ -24,16 +34,19 @@ export interface EPKPreviewProps {
   template?: string
   /** Show labeled placeholders for empty fields (default: true so the layout is always scannable). */
   showPlaceholder?: boolean
+  /** Enables public click telemetry for section-level links. Builder/editor previews keep this off. */
+  trackingEnabled?: boolean
 }
 
 export default function EPKPreview({
   data,
   template = "modern",
   showPlaceholder = true,
+  trackingEnabled = false,
 }: EPKPreviewProps) {
   const fontClass = epkFontClass(data.epkFont ?? "sans")
   const resolved = resolveEpkPreviewTemplateId(template)
-  const props = { data, fontClass, showPlaceholder }
+  const props = { data, fontClass, showPlaceholder, trackingEnabled }
 
   if (!data.artistName?.trim() && !showPlaceholder) {
     return (
@@ -69,6 +82,26 @@ export default function EPKPreview({
       return <PosterEpkTemplate {...props} />
     case "coastal":
       return <CoastalEpkTemplate {...props} />
+    case "scrapbook":
+      return <ScrapbookEpkTemplate {...props} />
+    case "bandcard":
+      return <BandCardEpkTemplate {...props} />
+    case "dossier":
+      return <DossierEpkTemplate {...props} />
+    case "pressgrid":
+      return <PressGridEpkTemplate {...props} />
+    case "redcolumn":
+      return <RedColumnEpkTemplate {...props} />
+    case "checkerboard":
+      return <CheckerboardEpkTemplate {...props} />
+    case "editorial":
+      return <EditorialEpkTemplate {...props} />
+    case "whitespace":
+      return <WhitespaceEpkTemplate {...props} />
+    case "colorblock":
+      return <ColorBlockEpkTemplate {...props} />
+    case "sunburst":
+      return <SunburstEpkTemplate {...props} />
     default:
       return <ModernEpkTemplate {...props} />
   }

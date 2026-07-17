@@ -1,76 +1,294 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from "react"
+import React, { useMemo, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
 import {
-  Link as LinkIcon,
   Globe,
   Save,
-  Sparkles,
-  ExternalLink,
   Download,
   Share2,
   Loader2,
   Layout,
   FileText,
   AlertCircle,
+  Eye,
+  Rocket,
+  LockKeyhole,
+  Clock3,
+  WandSparkles,
 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { useEPKSync } from "@/hooks/use-epk-sync"
 import { EpkBuilderView } from "@/components/epk/epk-builder-view"
-import { EpkEditorTabs } from "@/components/epk/epk-editor-tabs"
+import { EpkEditorTabs, type EpkMediaUploadProgress } from "@/components/epk/epk-editor-tabs"
 import { epkSurface } from "@/components/epk/epk-ui-styles"
 import { supabase } from "@/lib/supabase"
+import type { EPKData } from "@/lib/services/epk.service"
+import {
+  createEpkRenderCtx,
+  EpkPageChrome,
+  contentMaxWidth,
+  renderEpkSection,
+} from "@/components/epk/epk-template-variants"
+import { getDefaultEpkAppearance, resolveEpkAppearanceForRender } from "@/lib/epk/epk-appearance"
+import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
+import { epkFontClass } from "@/components/epk/epk-preview-fonts"
+import { cn } from "@/lib/utils"
 
 type ViewMode = "builder" | "editor"
 
-function QuickActions({
+function formatSavedAt(value: string | null) {
+  if (!value) return "Not saved yet"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "Saved recently"
+  return date.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
+}
+
+function EpkCommandHeader({
+  savedEpkData,
+  publicUrl,
+  lastSavedAt,
+  isDirty,
+  isPublished,
+  isSaving,
+  saveError,
+  onSaveDraft,
+  onPublish,
+  onUnpublish,
+  onViewLive,
+  onCopyUrl,
   onOpenBuilder,
-  onShare,
   onDownload,
-  viewMode,
 }: {
+  savedEpkData: EPKData | null
+  publicUrl: string | null
+  lastSavedAt: string | null
+  isDirty: boolean
+  isPublished: boolean
+  isSaving: boolean
+  saveError: string | null
+  onSaveDraft: () => void
+  onPublish: () => void
+  onUnpublish: () => void
+  onViewLive: () => void
+  onCopyUrl: () => void
   onOpenBuilder: () => void
-  onShare: () => void
   onDownload: () => void
-  viewMode: ViewMode
 }) {
+  const hasSavedEpk = Boolean(savedEpkData)
+  const statusLabel = isPublished ? "Live" : hasSavedEpk ? "Draft saved" : "Unsaved"
+  const statusIcon = isPublished ? (
+    <Globe className="h-4 w-4" />
+  ) : hasSavedEpk ? (
+    <LockKeyhole className="h-4 w-4" />
+  ) : (
+    <Clock3 className="h-4 w-4" />
+  )
+
   return (
-    <Card className={`${epkSurface} sticky top-4 border-white/10`}>
-      <CardContent className="space-y-2 p-4">
-        <div className="mb-2 flex items-center gap-2 text-sm font-semibold tracking-tight text-white">
-          <Sparkles className="h-4 w-4 shrink-0 text-purple-400" />
-          Quick Actions
+    <Card className={`${epkSurface} mb-5 overflow-hidden rounded-[1.75rem] border-white/10 shadow-2xl shadow-black/30`}>
+      <CardContent className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
+          <div className="min-w-0 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant={isPublished ? "default" : "secondary"}
+                className={`rounded-full px-3 py-1 ${isPublished ? "bg-emerald-400 text-black" : hasSavedEpk ? "bg-purple-600 text-white" : "bg-slate-700 text-slate-100"}`}
+              >
+                <span className="mr-1.5 inline-flex">{statusIcon}</span>
+                {statusLabel}
+              </Badge>
+              {isDirty && (
+                <Badge variant="outline" className="rounded-full border-amber-400/40 px-3 py-1 text-amber-200">
+                  Unsaved changes
+                </Badge>
+              )}
+              <Badge variant="outline" className="rounded-full border-white/10 px-3 py-1 text-slate-300">
+                <Clock3 className="mr-1.5 h-3.5 w-3.5" />
+                {formatSavedAt(lastSavedAt)}
+              </Badge>
+              <Badge variant="outline" className="rounded-full border-white/10 px-3 py-1 text-slate-300">
+                Quality {savedEpkData?.quality?.score ?? 0}%
+              </Badge>
+            </div>
+            {saveError && (
+              <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {saveError}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap 2xl:justify-end">
+            <Button
+              onClick={onOpenBuilder}
+              className="rounded-2xl bg-white px-4 text-black hover:bg-slate-200"
+            >
+              <Layout className="mr-2 h-4 w-4" />
+              Open Builder
+            </Button>
+            <Button
+              onClick={onSaveDraft}
+              disabled={isSaving || (!isDirty && hasSavedEpk)}
+              variant="outline"
+              className="rounded-2xl border-white/15 bg-white/5 px-4 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Save Draft
+            </Button>
+            {isPublished ? (
+              <Button
+                onClick={onUnpublish}
+                disabled={isSaving}
+                variant="outline"
+                className="rounded-2xl border-white/15 bg-white/5 px-4 text-white hover:bg-white/10"
+              >
+                <LockKeyhole className="mr-2 h-4 w-4" />
+                Unpublish
+              </Button>
+            ) : (
+              <Button
+                onClick={onPublish}
+                disabled={isSaving}
+                className="rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-500 px-4 text-white shadow-[0_0_24px_rgba(168,85,247,0.28)] hover:brightness-110"
+              >
+                <Rocket className="mr-2 h-4 w-4" />
+                Publish
+              </Button>
+            )}
+            <Button
+              onClick={onViewLive}
+              disabled={!isPublished || !publicUrl}
+              variant="outline"
+              className="rounded-2xl border-white/15 bg-white/5 px-4 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View Live
+            </Button>
+            <Button
+              onClick={onCopyUrl}
+              disabled={!publicUrl}
+              variant="outline"
+              className="rounded-2xl border-white/15 bg-white/5 px-4 text-white hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Share2 className="mr-2 h-4 w-4" />
+              Share URL
+            </Button>
+            <Button
+              onClick={onDownload}
+              variant="outline"
+              className="rounded-2xl border-white/15 bg-white/5 px-4 text-white hover:bg-white/10"
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+          </div>
         </div>
-        {viewMode === "editor" && (
+      </CardContent>
+    </Card>
+  )
+}
+
+function EpkHeaderPreview({
+  epkData,
+  isDirty,
+  onOpenBuilder,
+  activeTab,
+}: {
+  epkData: EPKData
+  isDirty: boolean
+  onOpenBuilder: () => void
+  activeTab: string
+}) {
+  const [hoveredTrack, setHoveredTrack] = useState<string | null>(null)
+  const skin = resolveEpkPreviewTemplateId(epkData.template)
+  const fontClass = epkFontClass(epkData.epkFont ?? "sans")
+  const appearance = epkData.epkAppearance ?? getDefaultEpkAppearance(epkData.template)
+  const resolved = useMemo(
+    () =>
+      resolveEpkAppearanceForRender({
+        skin,
+        appearance,
+      }),
+    [appearance, skin]
+  )
+  const ctx = createEpkRenderCtx(
+    { ...epkData, epkAppearance: appearance },
+    skin,
+    true,
+    hoveredTrack,
+    setHoveredTrack,
+    undefined,
+    resolved
+  )
+  const templateLabel = skin.charAt(0).toUpperCase() + skin.slice(1)
+  const isMediaTab = activeTab === "media"
+
+  return (
+    <Card className={`${epkSurface} mt-5 overflow-hidden rounded-[1.75rem] border-white/10 shadow-2xl shadow-black/30`}>
+      <CardContent className="p-4 sm:p-5">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="rounded-full border-purple-400/30 px-3 py-1 text-purple-200">
+                <WandSparkles className="mr-1.5 h-3.5 w-3.5" />
+                {isMediaTab ? "Press photography preview" : "Header preview"}
+              </Badge>
+              {isDirty && (
+                <Badge variant="outline" className="rounded-full border-amber-400/40 px-3 py-1 text-amber-200">
+                  Unsaved preview
+                </Badge>
+              )}
+            </div>
+            <h2 className="mt-2 text-xl font-bold tracking-tight text-white">
+              {isMediaTab ? "Press Photography" : "Template Preview"}
+            </h2>
+            <p className="mt-1 text-sm text-slate-400">
+              {isMediaTab
+                ? "A compact look at the Press Photography section that will appear on the EPK."
+                : `A compact look at the current ${templateLabel} template header. Full design controls stay in Builder.`}
+            </p>
+          </div>
           <Button
+            type="button"
             onClick={onOpenBuilder}
-            className="w-full rounded-xl bg-purple-600 text-white hover:bg-purple-700"
+            variant="outline"
+            className="rounded-2xl border-white/15 bg-white/5 text-white hover:bg-white/10"
           >
             <Layout className="mr-2 h-4 w-4" />
-            Open Builder
+            Design in Builder
           </Button>
-        )}
-        <Button
-          onClick={onShare}
-          variant="outline"
-          className="w-full rounded-xl border-gray-700/80 bg-transparent text-white hover:bg-white/5"
-        >
-          <Share2 className="mr-2 h-4 w-4" />
-          Share EPK
-        </Button>
-        <Button
-          onClick={onDownload}
-          variant="outline"
-          className="w-full rounded-xl border-gray-700/80 bg-transparent text-white hover:bg-white/5"
-        >
-          <Download className="mr-2 h-4 w-4" />
-          Download PDF
-        </Button>
+        </div>
+
+        <div className="relative h-[360px] overflow-hidden rounded-[1.5rem] border border-white/10 bg-black shadow-2xl shadow-black/30 sm:h-[420px]">
+          <div
+            className={cn(
+              resolved.mergedTokens.page,
+              fontClass,
+              resolved.wrapperClassName,
+              "pointer-events-none relative min-h-[520px] overflow-hidden"
+            )}
+            style={{ ...resolved.rootStyle, ...resolved.styles.page }}
+          >
+            <EpkPageChrome skin={skin} color={resolved.color} styles={resolved.styles} />
+            <div
+              className={cn(
+                "relative mx-auto px-4 pb-16 pt-8 sm:px-6",
+                contentMaxWidth(skin, resolved.contentMaxWidthClass)
+              )}
+            >
+              {renderEpkSection(isMediaTab ? "media" : "hero", ctx)}
+            </div>
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#11131b] to-transparent" />
+        </div>
       </CardContent>
     </Card>
   )
@@ -80,20 +298,36 @@ export default function EPKPage() {
   const { toast } = useToast()
   const {
     epkData,
+    savedEpkData,
+    publicUrl,
+    lastSavedAt,
+    hasSavedEpk,
     isLoading,
     isSaving,
+    isDirty,
+    isPublished,
     needsAuth,
     loadError,
+    saveError,
     updateEPKData,
     saveEPKData,
+    publishEPK,
+    unpublishEPK,
     syncWithProfile,
     reloadEPKData,
   } = useEPKSync()
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const [activeTab, setActiveTab] = useState("overview")
-  const [viewMode, setViewMode] = useState<ViewMode>("builder")
+  const [viewMode, setViewMode] = useState<ViewMode>("editor")
   const [uploadingMedia, setUploadingMedia] = useState(false)
+  const [mediaUploadProgress, setMediaUploadProgress] = useState<EpkMediaUploadProgress>({
+    active: false,
+    completed: 0,
+    total: 0,
+    currentFile: null,
+    currentPercent: 0,
+    errors: [],
+  })
 
   function buildNoStoreInit(input?: RequestInit): RequestInit {
     return {
@@ -109,36 +343,62 @@ export default function EPKPage() {
     }
   }
 
-  useEffect(() => {
-    if (!epkData?.artistName) return
-    const nextSlug = epkData.artistName
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "-")
-    if (!epkData.epkSlug) updateEPKData({ epkSlug: nextSlug })
-  }, [epkData?.artistName, epkData?.epkSlug, updateEPKData])
-
   const handleSave = async () => {
-    await saveEPKData()
+    await saveEPKData(undefined, {
+      successTitle: "Draft saved",
+      successDescription: "Your EPK draft is saved and ready to publish when you are.",
+    })
   }
 
-  const handleShare = () => {
-    if (!epkData?.epkSlug) return
+  const getAbsoluteEpkUrl = (url: string) => {
+    if (url.startsWith("http")) return url
+    return `${window.location.origin}${url.startsWith("/") ? url : `/${url}`}`
+  }
 
-    const url = `${window.location.origin}/epk/${epkData.epkSlug}`
+  const handleCopyUrl = () => {
+    if (!publicUrl) {
+      toast({
+        title: "Save your EPK first",
+        description: "A shareable URL is created after the first draft save.",
+      })
+      return
+    }
+
+    const url = getAbsoluteEpkUrl(publicUrl)
     navigator.clipboard.writeText(url)
     fetch(
       "/api/epk/telemetry",
       buildNoStoreInit({
         method: "POST",
-        body: JSON.stringify({ epkSlug: epkData.epkSlug, eventType: "share_copy" }),
+        body: JSON.stringify({ epkSlug: savedEpkData?.epkSlug || epkData?.epkSlug, eventType: "share_copy" }),
       })
     ).catch(() => null)
     toast({
-      title: "EPK URL copied!",
-      description: "Share this link to showcase your EPK.",
+      title: "EPK URL copied",
+      description: isPublished
+        ? "This live link is ready to share."
+        : "This draft URL is saved, but it will only open publicly after publishing.",
     })
+  }
+
+  const handleViewLive = () => {
+    if (!publicUrl || !isPublished) {
+      toast({
+        title: "Publish your EPK first",
+        description: "Saved drafts are private until you publish them.",
+      })
+      return
+    }
+
+    window.open(getAbsoluteEpkUrl(publicUrl), "_blank", "noopener,noreferrer")
+  }
+
+  const handlePublish = async () => {
+    await publishEPK()
+  }
+
+  const handleUnpublish = async () => {
+    await unpublishEPK()
   }
 
   const handleDownload = async () => {
@@ -217,44 +477,149 @@ export default function EPKPage() {
 
   const handleFileUpload = async (
     e: React.ChangeEvent<HTMLInputElement>,
-    type: "avatar" | "cover" | "photos"
+    type: "photos"
   ) => {
     const files = e.target.files
     if (!files || !epkData) return
+    const selectedFiles = Array.from(files).filter((file) => file.type.startsWith("image/"))
+    if (selectedFiles.length === 0) {
+      toast({
+        title: "No images selected",
+        description: "Choose one or more image files for press photography.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setUploadingMedia(true)
+    setMediaUploadProgress({
+      active: true,
+      completed: 0,
+      total: selectedFiles.length,
+      currentFile: null,
+      currentPercent: 0,
+      errors: [],
+    })
+
     try {
-      const uploadedUrls: string[] = []
-      for (const file of Array.from(files)) {
-        const extension = file.name.split(".").pop() || "jpg"
-        const fileName = `epk-${type}-${Date.now()}-${Math.random().toString(36).slice(2)}.${extension}`
+      const uploadedPhotos: EPKData["photos"] = []
+      const errors: string[] = []
+
+      for (const [index, file] of selectedFiles.entries()) {
+        setMediaUploadProgress((prev) => ({
+          ...prev,
+          currentFile: file.name,
+          currentPercent: 12,
+        }))
+
+        const extension = file.name.split(".").pop()?.toLowerCase() || "jpg"
+        const safeBase = file.name
+          .replace(/\.[^/.]+$/, "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")
+          .slice(0, 48) || "press-photo"
+        const fileName = `epk-${type}-${Date.now()}-${safeBase}-${Math.random().toString(36).slice(2)}.${extension}`
         const path = `${epkData.epkSlug || "artist"}/${fileName}`
-        const { data, error } = await supabase.storage
-          .from("post-media")
-          .upload(path, file, { upsert: false })
-        if (error) throw error
-        const { data: publicUrlData } = supabase.storage.from("post-media").getPublicUrl(data.path)
-        uploadedUrls.push(publicUrlData.publicUrl)
+
+        try {
+          setMediaUploadProgress((prev) => ({ ...prev, currentPercent: 42 }))
+          const { data, error } = await supabase.storage
+            .from("post-media")
+            .upload(path, file, {
+              cacheControl: "3600",
+              contentType: file.type || undefined,
+              upsert: false,
+            })
+
+          if (error) throw error
+
+          setMediaUploadProgress((prev) => ({ ...prev, currentPercent: 86 }))
+          const { data: publicUrlData } = supabase.storage.from("post-media").getPublicUrl(data.path)
+          uploadedPhotos.push({
+            id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2)}`,
+            url: publicUrlData.publicUrl,
+            caption: "",
+            isHero: false,
+          })
+          setMediaUploadProgress((prev) => ({
+            ...prev,
+            completed: prev.completed + 1,
+            currentFile: null,
+            currentPercent: 0,
+          }))
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Upload failed"
+          errors.push(`${file.name}: ${message}`)
+          setMediaUploadProgress((prev) => ({
+            ...prev,
+            completed: prev.completed + 1,
+            currentFile: null,
+            currentPercent: 0,
+            errors: [...prev.errors, `${file.name}: ${message}`],
+          }))
+        }
       }
 
-      if (type === "avatar" && uploadedUrls[0]) updateEPKData({ avatarUrl: uploadedUrls[0] })
-      if (type === "cover" && uploadedUrls[0]) updateEPKData({ coverUrl: uploadedUrls[0] })
-      if (type === "photos") {
-        const nextPhotos = uploadedUrls.map((url) => ({
-          id: `${Date.now()}-${Math.random()}`,
-          url,
-          caption: "",
-          isHero: false,
-        }))
-        updateEPKData({ photos: [...epkData.photos, ...nextPhotos] })
+      if (type === "photos" && uploadedPhotos.length > 0) {
+        const photos = [...epkData.photos, ...uploadedPhotos]
+        updateEPKData({ photos })
+        await saveEPKData(
+          { photos },
+          {
+            showToast: false,
+          },
+        )
+        toast({
+          title: "Press photography uploaded",
+          description: `${uploadedPhotos.length} photo${uploadedPhotos.length === 1 ? "" : "s"} added to your EPK.`,
+        })
       }
-    } catch {
+
+      if (uploadedPhotos.length === 0 && errors.length > 0) {
+        toast({
+          title: "Upload failed",
+          description: "None of the selected images could be uploaded.",
+          variant: "destructive",
+        })
+      }
+
+      setMediaUploadProgress((prev) => ({
+        ...prev,
+        active: false,
+        currentFile: null,
+        currentPercent: 100,
+      }))
+      window.setTimeout(() => {
+        setMediaUploadProgress((prev) =>
+          prev.active
+            ? prev
+            : {
+                active: false,
+                completed: 0,
+                total: 0,
+                currentFile: null,
+                currentPercent: 0,
+                errors: [],
+              },
+        )
+      }, 3500)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not upload selected media."
+      setMediaUploadProgress((prev) => ({
+        ...prev,
+        active: false,
+        currentFile: null,
+        errors: [...prev.errors, message],
+      }))
       toast({
         title: "Upload failed",
-        description: "Could not upload selected media.",
+        description: message,
         variant: "destructive",
       })
     } finally {
       setUploadingMedia(false)
+      e.target.value = ""
     }
   }
 
@@ -311,13 +676,17 @@ export default function EPKPage() {
           epkData={epkData}
           updateEPKData={updateEPKData}
           onSave={handleSave}
-          onShare={handleShare}
+          onShare={handleCopyUrl}
           onExitPreview={() => setViewMode("editor")}
           onNavigateToTab={(tab) => {
             setActiveTab(tab)
             setViewMode("editor")
           }}
           isSaving={isSaving}
+          savedPublicUrl={publicUrl}
+          hasSavedEpk={hasSavedEpk}
+          isDirty={isDirty}
+          isPublished={isPublished}
         />
         <div className="fixed bottom-20 right-4 z-50 flex gap-2 md:bottom-6">
           <Button
@@ -335,88 +704,42 @@ export default function EPKPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#181b23] lg:flex-row">
-      <main className="min-w-0 flex-1 px-4 py-4 sm:px-6 lg:py-5 lg:pl-8 lg:pr-3">
-        <div className="mx-auto max-w-[1200px] xl:max-w-none">
+    <div className="min-h-screen bg-[#181b23]">
+      <main className="min-w-0 px-4 py-4 sm:px-6 lg:px-8 lg:py-6">
+        <div className="mx-auto max-w-[1440px]">
           {loadError && (
             <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
               {loadError}
             </div>
           )}
 
-          <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="mb-4">
             <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Electronic Press Kit
               </h1>
               <p className="mt-0.5 text-sm text-gray-400 sm:text-base">
-                Edit sections, templates, and settings
+                Manage the content that populates your EPK. Design stays in Builder.
               </p>
-            </div>
-            <div className="flex flex-shrink-0 flex-wrap gap-2">
-              <Button
-                onClick={() => setViewMode("builder")}
-                className="rounded-xl bg-purple-600 text-white hover:bg-purple-700"
-              >
-                <Layout className="mr-2 h-4 w-4" />
-                Builder
-              </Button>
-              <Button
-                onClick={() => void syncWithProfile()}
-                variant="outline"
-                className="rounded-xl border-gray-700/80 text-white hover:bg-white/5"
-              >
-                <LinkIcon className="mr-2 h-4 w-4" />
-                Sync with Profile
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => void handleSave()}
-                disabled={isSaving}
-                className="rounded-xl border-gray-700/80 text-white hover:bg-white/5"
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Save Changes
-              </Button>
             </div>
           </div>
 
-          <Card className={`${epkSurface} mb-4 border-white/10`}>
-            <CardContent className="p-3 sm:p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-5 w-5 shrink-0 text-purple-400" />
-                    <span className="text-sm font-medium text-white sm:text-base">Public EPK</span>
-                  </div>
-                  <Switch
-                    checked={epkData.isPublic}
-                    onCheckedChange={(checked) => updateEPKData({ isPublic: checked })}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={epkData.isPublic ? "default" : "secondary"} className="rounded-lg bg-purple-600">
-                    {epkData.isPublic ? "Live" : "Draft"}
-                  </Badge>
-                  {epkData.isPublic && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={handleShare}
-                      className="rounded-xl text-purple-400 hover:bg-white/5 hover:text-purple-300"
-                    >
-                      <ExternalLink className="mr-1 h-4 w-4" />
-                      View Live
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <EpkCommandHeader
+            savedEpkData={savedEpkData}
+            publicUrl={publicUrl}
+            lastSavedAt={lastSavedAt}
+            isDirty={isDirty}
+            isPublished={isPublished}
+            isSaving={isSaving}
+            saveError={saveError}
+            onSaveDraft={() => void handleSave()}
+            onPublish={() => void handlePublish()}
+            onUnpublish={() => void handleUnpublish()}
+            onViewLive={handleViewLive}
+            onCopyUrl={handleCopyUrl}
+            onOpenBuilder={() => setViewMode("builder")}
+            onDownload={handleDownload}
+          />
 
           <EpkEditorTabs
             epkData={epkData}
@@ -426,20 +749,29 @@ export default function EPKPage() {
             syncWithProfile={syncWithProfile}
             onFileUpload={handleFileUpload}
             uploadingMedia={uploadingMedia}
-            fileInputRef={fileInputRef}
+            mediaUploadProgress={mediaUploadProgress}
             onOpenBuilder={() => setViewMode("builder")}
+            publicUrl={publicUrl}
+            lastSavedAt={lastSavedAt}
+            isDirty={isDirty}
+            isPublished={isPublished}
+            isSaving={isSaving}
+            saveError={saveError}
+            onSaveDraft={() => void handleSave()}
+            onPublish={() => void handlePublish()}
+            onUnpublish={() => void handleUnpublish()}
+            onCopyUrl={handleCopyUrl}
+            onViewLive={handleViewLive}
+          />
+
+          <EpkHeaderPreview
+            epkData={epkData}
+            isDirty={isDirty}
+            onOpenBuilder={() => setViewMode("builder")}
+            activeTab={activeTab}
           />
         </div>
       </main>
-
-      <aside className="flex w-full shrink-0 flex-col gap-3 border-t border-gray-800/80 bg-[#181b23] p-4 lg:w-[280px] lg:border-l lg:border-t-0 lg:py-5 lg:pl-3 lg:pr-4">
-        <QuickActions
-          onOpenBuilder={() => setViewMode("builder")}
-          onShare={handleShare}
-          onDownload={handleDownload}
-          viewMode={viewMode}
-        />
-      </aside>
     </div>
   )
 }

@@ -17,6 +17,7 @@ export function PublicArtistHero({
   creatorType,
   isAvailableForHire,
   hasMusic = true,
+  allowBooking = true,
   onBookNow,
   onPlayMusic,
   onMessage,
@@ -26,6 +27,7 @@ export function PublicArtistHero({
   creatorType: string | null
   isAvailableForHire: boolean
   hasMusic?: boolean
+  allowBooking?: boolean
   onBookNow: () => void
   onPlayMusic: () => void
   onMessage?: () => void
@@ -39,13 +41,16 @@ export function PublicArtistHero({
     return () => window.removeEventListener("scroll", onScroll)
   }, [])
 
+  const isBand = hero.profileKind === "band"
+  const editHref = isBand ? "/admin/dashboard/settings" : "/artist/profile"
+
   const subtitle = useMemo(() => {
     const bits = []
     if (creatorType) bits.push(creatorType)
     if (hero.genres.length) bits.push(hero.genres.join(" • "))
     if (hero.location) bits.push(hero.location)
-    return bits.length ? bits.join(" • ") : "Creator • Entrepreneur"
-  }, [hero.genres, hero.location, creatorType])
+    return bits.length ? bits.join(" • ") : isBand ? "Band" : "Creator • Entrepreneur"
+  }, [hero.genres, hero.location, creatorType, isBand])
 
   const handleMessage = () => {
     if (viewer.isOwner) return
@@ -126,7 +131,7 @@ export function PublicArtistHero({
                   <div className="flex flex-wrap gap-2 sm:justify-end">
                     {viewer.isOwner ? (
                       <Button asChild variant="secondary" className={`${paBtnRound} px-5`}>
-                        <Link href="/artist/profile">
+                        <Link href={editHref}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit Profile
                         </Link>
@@ -136,7 +141,8 @@ export function PublicArtistHero({
                         {viewer.isAuthenticated ? (
                           <FollowFriendButton
                             kind="follow"
-                            accountType="artist"
+                            accountType={isBand ? "organization" : "artist"}
+                            targetAccountId={isBand ? hero.publicAccountId : undefined}
                             targetUserId={hero.userId}
                             className={`${paBtnRound} px-5`}
                             size="default"
@@ -164,7 +170,7 @@ export function PublicArtistHero({
                       <Share2 className="mr-2 h-4 w-4" />
                       Share
                     </Button>
-                    {!viewer.isOwner ? (
+                    {!viewer.isOwner && allowBooking ? (
                       <Button onClick={onBookNow} className={`${paBtnRound} px-5`}>
                         <CalendarDays className="mr-2 h-4 w-4" />
                         Hire / Book
@@ -192,20 +198,21 @@ export function PublicArtistHero({
               <div className="truncate text-xs text-white/55">{subtitle}</div>
             </div>
             <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-              {viewer.isOwner ? (
-                <Button asChild size="sm" variant="secondary" className={`${paBtnRound} px-3`}>
-                  <Link href="/artist/profile">Edit</Link>
-                </Button>
-              ) : (
-                <>
-                  {viewer.isAuthenticated ? (
-                    <FollowFriendButton
-                      kind="follow"
-                      accountType="artist"
-                      targetUserId={hero.userId}
-                      className={`${paBtnRound} px-3`}
-                      size="sm"
-                    />
+                  {viewer.isOwner ? (
+                    <Button asChild size="sm" variant="secondary" className={`${paBtnRound} px-3`}>
+                      <Link href={editHref}>Edit</Link>
+                    </Button>
+                  ) : (
+                    <>
+                      {viewer.isAuthenticated ? (
+                        <FollowFriendButton
+                          kind="follow"
+                          accountType={isBand ? "organization" : "artist"}
+                          targetAccountId={isBand ? hero.publicAccountId : undefined}
+                          targetUserId={hero.userId}
+                          className={`${paBtnRound} px-3`}
+                          size="sm"
+                        />
                   ) : (
                     <Button
                       size="sm"
@@ -224,7 +231,7 @@ export function PublicArtistHero({
               <Button size="sm" variant="secondary" onClick={share} className={`${paBtnRound} px-3`}>
                 Share
               </Button>
-              {!viewer.isOwner ? (
+              {!viewer.isOwner && allowBooking ? (
                 <Button size="sm" onClick={onBookNow} className={`${paBtnRound} px-3`}>
                   Hire
                 </Button>

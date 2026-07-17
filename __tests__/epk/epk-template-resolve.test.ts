@@ -1,5 +1,21 @@
 import { describe, expect, it } from "vitest"
-import { resolveEpkPreviewTemplateId } from "@/lib/epk/epk-skin-tokens"
+import {
+  EPK_SKIN_TOKENS,
+  resolveEpkPreviewTemplateId,
+} from "@/lib/epk/epk-skin-tokens"
+
+const REFERENCE_TEMPLATE_IDS = [
+  "scrapbook",
+  "bandcard",
+  "dossier",
+  "pressgrid",
+  "redcolumn",
+  "checkerboard",
+  "editorial",
+  "whitespace",
+  "colorblock",
+  "sunburst",
+] as const
 
 describe("resolveEpkPreviewTemplateId", () => {
   it("maps core skins 1:1", () => {
@@ -15,6 +31,13 @@ describe("resolveEpkPreviewTemplateId", () => {
     expect(resolveEpkPreviewTemplateId("luxe")).toBe("luxe")
     expect(resolveEpkPreviewTemplateId("poster")).toBe("poster")
     expect(resolveEpkPreviewTemplateId("coastal")).toBe("coastal")
+  })
+
+  it("maps reference template skins 1:1", () => {
+    for (const id of REFERENCE_TEMPLATE_IDS) {
+      expect(resolveEpkPreviewTemplateId(id)).toBe(id)
+      expect(EPK_SKIN_TOKENS[id]).toBeDefined()
+    }
   })
 
   it("keeps legacy accent aliases", () => {

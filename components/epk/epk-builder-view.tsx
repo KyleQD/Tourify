@@ -24,6 +24,7 @@ import type { EPKData } from "@/lib/services/epk.service"
 import { isSectionVisible, normalizeEpkLayout, EPK_SECTION_EDITOR_TAB } from "@/lib/epk/epk-preview-utils"
 import {
   getDefaultEpkAppearance,
+  getDefaultEpkAppearanceForTemplate,
   resolveEpkAppearanceForRender,
   type EpkAppearance,
 } from "@/lib/epk/epk-appearance"
@@ -38,6 +39,7 @@ import {
 import { SortableEpkSection, SortableEpkSectionOverlay } from "@/components/epk/sortable-epk-section"
 import { EpkHiddenSectionsPanel } from "@/components/epk/epk-hidden-sections-panel"
 import { EpkBuilderToolbar } from "@/components/epk/epk-builder-toolbar"
+import { epkGlassPanel, epkIconButton, epkStatusPill } from "@/components/epk/epk-ui-styles"
 
 interface StyleSnapshot {
   appearance: EpkAppearance
@@ -53,6 +55,10 @@ interface EpkBuilderViewProps {
   onExitPreview: () => void
   onNavigateToTab: (tab: string) => void
   isSaving: boolean
+  savedPublicUrl?: string | null
+  hasSavedEpk?: boolean
+  isDirty?: boolean
+  isPublished?: boolean
 }
 
 const INLINE_EDITABLE_SECTIONS = new Set(["hero", "one-liner", "bio", "contact"])
@@ -180,6 +186,10 @@ export function EpkBuilderView({
   onExitPreview,
   onNavigateToTab,
   isSaving,
+  savedPublicUrl,
+  hasSavedEpk = false,
+  isDirty = false,
+  isPublished = false,
 }: EpkBuilderViewProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [hoveredTrack, setHoveredTrack] = useState<string | null>(null)
@@ -202,6 +212,19 @@ export function EpkBuilderView({
   const visibleSections = layout.sectionOrder.filter((id) =>
     isSectionVisible(id, layout)
   )
+  const publicUrl = savedPublicUrl || (hasSavedEpk && epkData.epkSlug ? `/epk/${epkData.epkSlug}` : null)
+  const urlLabel = publicUrl || "Save to create URL"
+  const savedStateLabel = isSaving
+    ? "Saving"
+    : isDirty
+      ? "Unsaved changes"
+      : hasSavedEpk
+        ? isPublished
+          ? "Live"
+          : "Draft saved"
+        : "Not saved"
+  const templateLabel = skin.charAt(0).toUpperCase() + skin.slice(1)
+  const qualityScore = epkData.quality?.score ?? 0
 
   const editableField = useCallback(
     (field: string, value: string, placeholder: string, opts?: { multiline?: boolean; className?: string }) => (
@@ -229,6 +252,13 @@ export function EpkBuilderView({
 
   const handleCommitStyle = useCallback(
     (patch: Partial<Pick<EPKData, "epkAppearance" | "epkFont" | "template">>) => {
+      const nextPatch =
+        patch.template && patch.template !== epkData.template && !patch.epkAppearance
+          ? {
+              ...patch,
+              epkAppearance: getDefaultEpkAppearanceForTemplate(patch.template),
+            }
+          : patch
       const snap: StyleSnapshot = {
         appearance: epkData.epkAppearance ?? getDefaultEpkAppearance(epkData.template),
         template: epkData.template,
@@ -237,7 +267,7 @@ export function EpkBuilderView({
       stylePastRef.current.push(snap)
       if (stylePastRef.current.length > 20) stylePastRef.current.shift()
       setCanUndoStyle(true)
-      updateEPKData(patch)
+      updateEPKData(nextPatch)
     },
     [epkData.epkAppearance, epkData.template, epkData.epkFont, updateEPKData]
   )
@@ -255,7 +285,7 @@ export function EpkBuilderView({
 
   const handleResetStyle = useCallback(() => {
     handleCommitStyle({
-      epkAppearance: getDefaultEpkAppearance(epkData.template),
+      epkAppearance: getDefaultEpkAppearanceForTemplate(epkData.template),
       epkFont: "sans",
     })
   }, [epkData.template, handleCommitStyle])
@@ -331,49 +361,71 @@ export function EpkBuilderView({
   )
 
   return (
-    <div className="min-h-screen bg-[#181b23]">
-      <div className="sticky top-0 z-40 border-b border-gray-800/80 bg-[#181b23]/95 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
-              EPK Builder
-            </h1>
-            <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-2.5 py-0.5 text-[11px] font-medium text-purple-300">
-              Drag to reorder
-            </span>
+    <div className="min-h-screen bg-[#070a12] text-white">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(circle_at_18%_0%,rgba(168,85,247,0.22),transparent_32%),radial-gradient(circle_at_82%_0%,rgba(34,211,238,0.16),transparent_30%)]" />
+      <div className="sticky top-0 z-40 border-b border-white/10 bg-[#070a12]/86 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <h1 className="text-lg font-bold tracking-tight text-white sm:text-xl">
+                  EPK Builder
+                </h1>
+                <p className="text-xs text-slate-400">Drag sections, tune the look, then publish the canonical link.</p>
+              </div>
+              <span className="rounded-full border border-purple-300/35 bg-purple-500/12 px-3 py-1 text-[11px] font-semibold text-purple-100 shadow-[0_0_22px_rgba(168,85,247,0.18)]">
+                Drag to reorder
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={onSave}
+                disabled={isSaving}
+                className="rounded-2xl border border-purple-200/20 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-500 px-4 text-white shadow-[0_0_28px_rgba(168,85,247,0.28)] hover:brightness-110"
+                size="sm"
+              >
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Save
+              </Button>
+              <Button
+                onClick={onShare}
+                variant="outline"
+                className={epkIconButton}
+                size="sm"
+              >
+                <Share2 className="mr-2 h-4 w-4" />
+                Share
+              </Button>
+              <Button
+                onClick={onExitPreview}
+                variant="outline"
+                className={epkIconButton}
+                size="sm"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Editor
+              </Button>
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={onSave}
-              disabled={isSaving}
-              className="rounded-xl bg-purple-600 text-white hover:bg-purple-700"
-              size="sm"
-            >
-              {isSaving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-4 w-4" />
-              )}
-              Save
-            </Button>
-            <Button
-              onClick={onShare}
-              variant="outline"
-              className="rounded-xl border-gray-700/80 text-white hover:bg-white/5"
-              size="sm"
-            >
-              <Share2 className="mr-2 h-4 w-4" />
-              Share
-            </Button>
-            <Button
-              onClick={onExitPreview}
-              variant="outline"
-              className="rounded-xl border-gray-700/80 text-white hover:bg-white/5"
-              size="sm"
-            >
-              <X className="mr-2 h-4 w-4" />
-              Editor
-            </Button>
+          <div className={cn(epkGlassPanel, "flex flex-wrap items-center gap-2 px-3 py-2")}>
+            <span className={cn(
+              epkStatusPill,
+              isPublished
+                ? "border-emerald-300/35 text-emerald-200"
+                : isDirty
+                  ? "border-amber-300/35 text-amber-200"
+                  : "border-purple-300/35 text-purple-100"
+            )}>
+              {savedStateLabel}
+            </span>
+            <span className={epkStatusPill}>{hasSavedEpk ? "Canonical link" : "Private draft"}</span>
+            <span className={cn(epkStatusPill, "max-w-full truncate font-mono")}>{urlLabel}</span>
+            <span className={epkStatusPill}>{templateLabel}</span>
+            <span className={epkStatusPill}>Quality {qualityScore}%</span>
           </div>
         </div>
         <EpkBuilderToolbar
@@ -386,22 +438,33 @@ export function EpkBuilderView({
         />
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-4 sm:px-6 lg:px-8">
-        <div className="overflow-hidden rounded-2xl border border-gray-800/80 shadow-2xl">
+      <div className="relative mx-auto max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8">
+        <div className="overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.035] p-2 shadow-2xl shadow-black/45 backdrop-blur-xl">
           <div
             className={cn(
               resolved.mergedTokens.page,
               fontClass,
               resolved.wrapperClassName,
+              "relative rounded-[1.25rem]",
               (skin === "modern" ||
                 skin === "cinema" ||
                 skin === "luxe" ||
-                skin === "poster") &&
+                skin === "poster" ||
+                skin === "scrapbook" ||
+                skin === "bandcard" ||
+                skin === "dossier" ||
+                skin === "pressgrid" ||
+                skin === "redcolumn" ||
+                skin === "checkerboard" ||
+                skin === "editorial" ||
+                skin === "whitespace" ||
+                skin === "colorblock" ||
+                skin === "sunburst") &&
                 "overflow-hidden"
             )}
-            style={resolved.rootStyle}
+            style={{ ...resolved.rootStyle, ...resolved.styles.page }}
           >
-            <EpkPageChrome skin={skin} />
+            <EpkPageChrome skin={skin} color={resolved.color} styles={resolved.styles} />
             <div
               className={cn(
                 "relative mx-auto px-4 pb-16 pt-10 sm:px-6 lg:px-8",

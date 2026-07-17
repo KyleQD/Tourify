@@ -4,8 +4,23 @@ import {
   normalizeHexColor,
   resolveEpkAppearanceForRender,
   DEFAULT_EPK_APPEARANCE,
+  EPK_PALETTE_PRESETS,
+  getDefaultEpkAppearanceForTemplate,
 } from "@/lib/epk/epk-appearance"
 import { normalizeEpkFontId, EPK_FONT_IDS } from "@/lib/epk/epk-preview-utils"
+
+const REFERENCE_TEMPLATE_IDS = [
+  "scrapbook",
+  "bandcard",
+  "dossier",
+  "pressgrid",
+  "redcolumn",
+  "checkerboard",
+  "editorial",
+  "whitespace",
+  "colorblock",
+  "sunburst",
+] as const
 
 describe("normalizeHexColor", () => {
   it("accepts valid 6-digit hex", () => {
@@ -88,6 +103,23 @@ describe("resolveEpkAppearanceForRender", () => {
       appearance: DEFAULT_EPK_APPEARANCE,
     })
     expect(resolved.contentMaxWidthClass).toBe("max-w-3xl")
+  })
+
+  it("includes palette presets for every reference template", () => {
+    for (const id of REFERENCE_TEMPLATE_IDS) {
+      expect(EPK_PALETTE_PRESETS[id]).toHaveLength(2)
+    }
+  })
+
+  it("loads the first palette preset for a selected template", () => {
+    expect(getDefaultEpkAppearanceForTemplate("sunburst")).toMatchObject({
+      accentHex: "#d02d20",
+      secondaryAccentHex: "#1f7a4d",
+      pageBackgroundHex: "#f6c743",
+      textColorCustomHex: "#d02d20",
+      cardBackgroundHex: "#f6c743",
+      borderColorHex: "#d02d20",
+    })
   })
 })
 

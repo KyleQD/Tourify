@@ -27,6 +27,8 @@ export interface PublicArtistBannerDTO {
 export interface PublicArtistHeroDTO {
   artistId: PublicArtistId
   userId: PublicUserId
+  publicAccountId?: string | null
+  profileKind?: 'artist' | 'band'
   artistName: string
   verified: boolean
   genres: string[]
@@ -213,6 +215,8 @@ export interface PublicArtistCreatorDTO {
 
 export interface PublicArtistEPKDTO {
   epk: EPKData | null
+  publicUrl: string | null
+  isPublic: boolean
 }
 
 export interface PublicArtistOrganizationMembershipDTO {
@@ -223,7 +227,18 @@ export interface PublicArtistOrganizationMembershipDTO {
   subtype: string | null
 }
 
+export interface PublicArtistBandMemberDTO {
+  membershipId: string
+  artistProfileId: string
+  artistName: string
+  artistSlug: string | null
+  role: string
+  avatarUrl: string | null
+  genres: string[]
+}
+
 export interface PublicArtistPageDTO {
+  pageKind?: 'artist' | 'band'
   viewer: PublicArtistViewerDTO
   hero: PublicArtistHeroDTO
   about: PublicArtistAboutDTO
@@ -237,4 +252,5 @@ export interface PublicArtistPageDTO {
   creator: PublicArtistCreatorDTO
   epk: PublicArtistEPKDTO
   organizations: PublicArtistOrganizationMembershipDTO[]
+  bandMembers?: PublicArtistBandMemberDTO[]
 }

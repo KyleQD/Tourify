@@ -1,6 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { epkService } from '@/lib/services/epk.service'
-import type { PublicArtistPageDTO, PublicArtistStatsDTO, PublicArtistTrackDTO } from './public-artist-types'
+import type {
+  PublicArtistBandMemberDTO,
+  PublicArtistEventDTO,
+  PublicArtistPageDTO,
+  PublicArtistStatsDTO,
+  PublicArtistTrackDTO,
+} from './public-artist-types'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
 import { getAccountAuthor } from '@/lib/accounts/account-author'
 import { isArtistEventDiscoverable } from '@/lib/artist/artist-event-visibility'
@@ -61,6 +67,276 @@ function buildTrackDTO(trackRow: any, listingByTrackId: Record<string, any> = {}
     allowLibraryAdd: trackRow.allow_library_add !== false,
     allowProfileFeature: trackRow.allow_profile_feature !== false,
     listingId: listing?.id || null
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value))
+    return value as Record<string, unknown>
+  return {}
+}
+
+function mapOrgEvent(row: any): PublicArtistEventDTO {
+  const settings = asRecord(row.settings)
+  return {
+    id: String(row.id),
+    title: row.title ? String(row.title) : null,
+    slug: row.slug ? String(row.slug) : null,
+    eventDate: row.start_at
+      ? String(row.start_at).slice(0, 10)
+      : row.event_date
+        ? String(row.event_date)
+        : '',
+    venueName:
+      row.venue_name
+        ? String(row.venue_name)
+        : typeof settings.venue_name === 'string'
+          ? settings.venue_name
+          : null,
+    location:
+      [settings.city, settings.state, settings.country]
+        .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+        .join(', ') || null,
+    ticketUrl: row.ticket_url ? String(row.ticket_url) : null,
+    status: row.status ? String(row.status) : 'upcoming',
+  }
+}
+
+async function loadBandMembers(
+  supabase: any,
+  organizerAccountId: string
+): Promise<PublicArtistBandMemberDTO[]> {
+  const { data: rows } = await supabase
+    .from('organization_artist_members')
+    .select('id, role, artist_profile_id, artist_profiles(id, artist_name, url_slug, genres, user_id)')
+    .eq('organizer_account_id', organizerAccountId)
+    .eq('status', 'accepted')
+    .order('created_at', { ascending: true })
+
+  if (!rows?.length) return []
+
+  const ownerIds = Array.from(
+    new Set(
+      rows
+        .map((row: any) => row.artist_profiles?.user_id)
+        .filter(Boolean)
+        .map(String)
+    )
+  )
+
+  const { data: profiles } = ownerIds.length
+    ? await supabase.from('profiles').select('id, username, avatar_url').in('id', ownerIds)
+    : { data: [] as any[] }
+
+  const avatarRows = (profiles || []) as Array<{ id: string; username: string | null; avatar_url: string | null }>
+  const avatarByUser = avatarRows.reduce((acc: Record<string, string | null>, row) => {
+    acc[String(row.id)] = row.avatar_url || null
+    return acc
+  }, {})
+  const usernameByUser = avatarRows.reduce((acc: Record<string, string | null>, row) => {
+    acc[String(row.id)] = row.username || null
+    return acc
+  }, {})
+
+  return rows
+    .map((row: any): PublicArtistBandMemberDTO | null => {
+      const artist = row.artist_profiles
+      if (!artist?.id) return null
+      return {
+        membershipId: String(row.id),
+        artistProfileId: String(artist.id),
+        artistName: String(artist.artist_name || 'Artist'),
+        artistSlug: artist.url_slug
+          ? String(artist.url_slug)
+          : usernameByUser[String(artist.user_id)] || null,
+        role: String(row.role || 'member'),
+        avatarUrl: avatarByUser[String(artist.user_id)] || null,
+        genres: Array.isArray(artist.genres) ? artist.genres.map(String) : [],
+      }
+    })
+    .filter(Boolean) as PublicArtistBandMemberDTO[]
+}
+
+async function getPublicBandProfileDTO(params: {
+  supabase: any
+  slug: string
+  userId: string | null
+}): Promise<PublicArtistPageDTO | null> {
+  const { supabase, slug, userId } = params
+
+  const { data: band } = await supabase
+    .from('organizer_accounts')
+    .select(
+      'id, user_id, organization_name, description, contact_info, social_links, specialties, avatar_url, banner_url, url_slug, ops_org_id, is_public, is_active, created_at'
+    )
+    .eq('url_slug', slug)
+    .eq('subtype', 'band')
+    .eq('is_active', true)
+    .maybeSingle()
+
+  if (!band || band.is_public === false) return null
+
+  const [{ data: account }, { data: ownerProfile }, membersResult] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select('id, follower_count, is_verified, avatar_url')
+      .eq('profile_id', band.id)
+      .in('account_type', ['organization', 'organizer', 'business', 'admin'])
+      .maybeSingle(),
+    supabase
+      .from('profiles')
+      .select('avatar_url, cover_image, location, is_verified')
+      .eq('id', band.user_id)
+      .maybeSingle(),
+    loadBandMembers(supabase, band.id),
+  ])
+
+  const today = new Date().toISOString().slice(0, 10)
+  const upcomingEvents: PublicArtistEventDTO[] = []
+
+  if (band.ops_org_id) {
+    const { data: eventRows } = await supabase
+      .from('events_v2')
+      .select('id, title, slug, start_at, status, settings')
+      .eq('org_id', band.ops_org_id)
+      .gte('start_at', today)
+      .order('start_at', { ascending: true })
+      .limit(8)
+
+    upcomingEvents.push(
+      ...(eventRows || [])
+        .map(mapOrgEvent)
+        .filter((event: PublicArtistEventDTO) => event.eventDate)
+    )
+  }
+
+  const { data: postRows } = await supabase
+    .from('posts')
+    .select('id, user_id, content, media_urls, type, visibility, location, hashtags, likes_count, comments_count, shares_count, created_at, is_pinned')
+    .eq('posted_as_profile_id', band.id)
+    .eq('visibility', 'public')
+    .order('is_pinned', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  const postsPublic: PublicArtistPageDTO['posts']['posts'] = (postRows || []).map((post: any) => ({
+    id: String(post.id),
+    authorUserId: String(post.user_id || band.user_id),
+    authorName: String(band.organization_name || 'Band'),
+    createdAt: String(post.created_at || new Date().toISOString()),
+    content: String(post.content || ''),
+    type: String(post.type || 'text'),
+    visibility: post.visibility ? String(post.visibility) : null,
+    location: post.location ? String(post.location) : null,
+    hashtags: Array.isArray(post.hashtags) ? post.hashtags.map(String) : [],
+    mediaUrls: Array.isArray(post.media_urls) ? post.media_urls.map(String) : [],
+    likesCount: Number(post.likes_count || 0),
+    commentsCount: Number(post.comments_count || 0),
+    sharesCount: Number(post.shares_count || 0),
+    isPinned: Boolean(post.is_pinned),
+    poll: null,
+  }))
+
+  const socialLinks = listPublicSocialLinks(
+    asRecord(band.social_links) as Record<string, string>
+  ).map(link => ({
+    platform: link.platform,
+    label: link.label,
+    url: link.url,
+  }))
+
+  const contactInfo = asRecord(band.contact_info)
+  if (
+    typeof contactInfo.website === 'string' &&
+    contactInfo.website.trim() &&
+    !socialLinks.some(link => link.url === contactInfo.website)
+  ) {
+    socialLinks.push({ platform: 'website', label: 'Website', url: contactInfo.website })
+  }
+
+  const specialties = Array.isArray(band.specialties) ? band.specialties.map(String) : []
+  const members = membersResult
+
+  return {
+    pageKind: 'band',
+    viewer: {
+      isAuthenticated: Boolean(userId),
+      userId,
+      isOwner: Boolean(userId && userId === band.user_id),
+      isPublicProfile: band.is_public !== false,
+    },
+    hero: {
+      artistId: String(band.id),
+      userId: String(band.user_id),
+      publicAccountId: account?.id ? String(account.id) : null,
+      profileKind: 'band',
+      artistName: String(band.organization_name || 'Band'),
+      verified: Boolean(account?.is_verified || ownerProfile?.is_verified),
+      genres: specialties,
+      location: ownerProfile?.location ? String(ownerProfile.location) : null,
+      avatarUrl: band.avatar_url || account?.avatar_url || ownerProfile?.avatar_url || null,
+      banner: band.banner_url || ownerProfile?.cover_image
+        ? {
+            kind: 'image',
+            url: String(band.banner_url || ownerProfile?.cover_image),
+            thumbnailUrl: String(band.banner_url || ownerProfile?.cover_image),
+          }
+        : null,
+      followersCount: Number(account?.follower_count || 0),
+      futureMonthlyListeners: members.length,
+    },
+    about: {
+      bio: band.description ? String(band.description) : null,
+    },
+    socialLinks,
+    tracks: {
+      featuredTrack: null,
+      tracks: [],
+      defaultTrackId: null,
+    },
+    events: {
+      upcomingEvents,
+    },
+    media: {
+      items: [],
+    },
+    products: {
+      featuredProducts: [],
+      products: [],
+    },
+    posts: {
+      pinnedPosts: postsPublic.filter((post: PublicArtistPageDTO['posts']['posts'][number]) => post.isPinned),
+      posts: postsPublic.filter((post: PublicArtistPageDTO['posts']['posts'][number]) => !post.isPinned),
+    },
+    stats: {
+      followersCount: Number(account?.follower_count || 0),
+      futureMonthlyListeners: members.length,
+      totalPlays: 0,
+      totalStreams: 0,
+      engagementRate: 0,
+      totalTracks: 0,
+      totalEvents: upcomingEvents.length,
+      totalRevenue: 0,
+    },
+    creator: {
+      primaryCreatorType: 'Band',
+      serviceOfferings: [],
+      productsForSale: [],
+      credentials: [],
+      workHighlights: [],
+      availableForHire: false,
+      collaborationInterest: false,
+      bookingRate: null,
+      availability: null,
+      preferredContact: null,
+    },
+    epk: {
+      epk: null,
+      publicUrl: null,
+      isPublic: false,
+    },
+    organizations: [],
+    bandMembers: members,
   }
 }
 
@@ -148,7 +424,9 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     }
   }
 
-  if (!resolvedProfile || !artistProfileRow) return null
+  if (!resolvedProfile || !artistProfileRow) {
+    return getPublicBandProfileDTO({ supabase, slug: username, userId })
+  }
 
   const artistSettings =
     artistProfileRow.settings && typeof artistProfileRow.settings === 'object'
@@ -332,7 +610,7 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
       .order('is_pinned', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(20),
-    epkService.getPublicEPKData(resolvedProfile.username || artistProfileRow.artist_name)
+    epkService.getPublicEPKDataForUser(artistUserId, supabase, artistId)
   ])
 
   const rpcStats = rpcStatsResult?.data
@@ -535,10 +813,13 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
     .filter(Boolean) as PublicArtistPageDTO['organizations']
 
   return {
+    pageKind: 'artist',
     viewer,
     hero: {
       artistId,
       userId: artistUserId,
+      publicAccountId: null,
+      profileKind: 'artist',
       artistName: String(artistProfileRow.artist_name || resolvedProfile.full_name || resolvedProfile.username),
       verified: Boolean(resolvedProfile.is_verified),
       genres,
@@ -594,7 +875,9 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
       preferredContact
     },
     epk: {
-      epk
+      epk,
+      publicUrl: epk?.epkSlug ? `/epk/${epk.epkSlug}` : null,
+      isPublic: Boolean(epk?.isPublic)
     },
     organizations
   }

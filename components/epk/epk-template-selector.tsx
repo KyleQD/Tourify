@@ -7,6 +7,8 @@ import { Layout, Eye, X, CheckCircle } from "lucide-react"
 import type { EPKData } from "@/lib/services/epk.service"
 import EPKPreview from "@/components/epk/epk-preview"
 import { epkSurface } from "@/components/epk/epk-ui-styles"
+import { EPK_REFERENCE_TEMPLATE_OPTIONS } from "@/lib/epk/epk-reference-template-options"
+import { cn } from "@/lib/utils"
 
 interface EpkTemplateSelectorProps {
   selectedTemplate: string
@@ -14,7 +16,7 @@ interface EpkTemplateSelectorProps {
   epkData: EPKData
 }
 
-const TEMPLATES = [
+const BASE_TEMPLATES = [
   {
     id: 'modern',
     name: 'Modern',
@@ -101,6 +103,13 @@ const TEMPLATES = [
   },
 ] as const
 
+const REFERENCE_TEMPLATES = EPK_REFERENCE_TEMPLATE_OPTIONS.map((template) => ({
+  ...template,
+  accent: "bg-white/70",
+}))
+
+const TEMPLATES = [...BASE_TEMPLATES, ...REFERENCE_TEMPLATES] as const
+
 export function EpkTemplateSelector({
   selectedTemplate,
   onTemplateChange,
@@ -138,7 +147,12 @@ export function EpkTemplateSelector({
               onClick={() => onTemplateChange(template.id)}
             >
               <div
-                className={`relative mb-2 h-20 overflow-hidden rounded-xl bg-gradient-to-br p-2.5 shadow-lg ${template.colors.join(' ')}`}
+                className={cn(
+                  "relative mb-2 h-20 overflow-hidden rounded-xl p-2.5 shadow-lg",
+                  "colors" in template
+                    ? `bg-gradient-to-br ${template.colors.join(" ")}`
+                    : template.previewClassName,
+                )}
               >
                 <div className="mb-2 flex items-center gap-2">
                   <div className="h-5 w-5 rounded-full border-2 border-white/40 bg-white/20 shadow-md" />

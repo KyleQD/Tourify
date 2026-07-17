@@ -26,6 +26,7 @@ export function PublicArtistEPKSection({
   if (!epk.epk) return null
 
   const data = epk.epk
+  const publicUrl = epk.publicUrl || data.customDomain || null
 
   const pdfData = {
     artistName: data.artistName || hero.artistName,
@@ -90,9 +91,9 @@ export function PublicArtistEPKSection({
               </div>
             </div>
 
-            {data.customDomain ? (
+            {publicUrl && epk.isPublic ? (
               <Button asChild variant="secondary" className={`${paBtnRound} shrink-0 px-5`}>
-                <a href={data.customDomain} target="_blank" rel="noreferrer">
+                <a href={publicUrl} target="_blank" rel="noreferrer">
                   View online
                   <ExternalLink className="ml-2 h-4 w-4" />
                 </a>
