@@ -1,5 +1,8 @@
 "use client"
 
+// Deprecated: do not use for new job-posting flows. Extend the canonical
+// shared job-posting shell/adapters and full workforce builder instead.
+
 import { useEffect, useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'

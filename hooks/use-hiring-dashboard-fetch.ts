@@ -1,7 +1,7 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
-import type { HiringDashboardApiResponse } from "@/types/hiring-dashboard"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { buildNoStoreHiringRequestInit, readHiringJson } from "@/lib/api/hiring-client"
 
 interface UseHiringDashboardFetchArgs<TData> {
   url: string
@@ -16,67 +16,65 @@ interface UseHiringDashboardFetchResult<TData> {
   refetch: () => Promise<void>
 }
 
-function getResponseData<TData>(payload: HiringDashboardApiResponse<TData> | TData, fallback: TData): TData {
-  if (payload && typeof payload === "object" && "data" in payload) {
-    return (payload as HiringDashboardApiResponse<TData>).data ?? fallback
-  }
-
-  return (payload as TData) ?? fallback
-}
-
-function getResponseError(payload: unknown): string | null {
-  if (!payload || typeof payload !== "object") return null
-
-  const error = (payload as { error?: unknown }).error
-  if (typeof error === "string") return error
-  if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message
-  }
-
-  const message = (payload as { message?: unknown }).message
-  if (typeof message === "string") return message
-
-  return null
-}
-
 export function useHiringDashboardFetch<TData>({
   url,
   enabled = true,
   initialData,
 }: UseHiringDashboardFetchArgs<TData>): UseHiringDashboardFetchResult<TData> {
+  const isMountedRef = useRef(false)
   const [data, setData] = useState<TData>(initialData)
   const [isLoading, setIsLoading] = useState(enabled)
   const [error, setError] = useState<string | null>(null)
 
-  const refetch = useCallback(async function refetchHiringDashboardData() {
-    if (!enabled || !url) return
+  useEffect(() => {
+    isMountedRef.current = true
+
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const refetch = useCallback(async function refetchHiringDashboardData(signal?: AbortSignal) {
+    if (!enabled || !url) {
+      if (isMountedRef.current) setIsLoading(false)
+      return
+    }
 
     setIsLoading(true)
     setError(null)
 
-    const response = await fetch(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-      },
-      cache: "no-store",
-    })
+    const result = await readHiringJson<TData>(
+      url,
+      buildNoStoreHiringRequestInit({
+        method: "GET",
+        signal,
+      }),
+      {
+        fallbackData: initialData,
+        fallbackErrorMessage: "Failed to load hiring data.",
+      }
+    )
 
-    const payload = await response.json().catch(() => null)
+    if (!isMountedRef.current || (!result.ok && result.error.code === "aborted")) return
 
-    if (!response.ok) {
-      const message = getResponseError(payload) || "Failed to load hiring data."
-      setError(message)
+    if (!result.ok) {
+      setError(result.error.message)
       setIsLoading(false)
       return
     }
 
-    setData(getResponseData<TData>(payload, initialData))
+    setData(result.data)
     setIsLoading(false)
   }, [enabled, initialData, url])
 
   useEffect(() => {
-    void refetch()
+    const controller = new AbortController()
+
+    void refetch(controller.signal)
+
+    return () => {
+      controller.abort()
+    }
   }, [refetch])
 
   return {

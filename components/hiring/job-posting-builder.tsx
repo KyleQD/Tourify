@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { readHiringJson } from "@/lib/api/hiring-client"
 import {
   getDefaultJobPostingValues,
   jobPostingFormSchema,
@@ -60,15 +61,6 @@ function getReadableError(error: unknown): string {
     return JSON.stringify(error)
   } catch {
     return "Unexpected error"
-  }
-}
-
-async function readApiError(response: Response): Promise<string> {
-  try {
-    const payload = (await response.json()) as { error?: { message?: string }; message?: string }
-    return payload.error?.message ?? payload.message ?? `Request failed with ${response.status}`
-  } catch {
-    return `Request failed with ${response.status}`
   }
 }
 
@@ -191,18 +183,22 @@ export function JobPostingBuilder({
       const endpoint = submitEndpoint ?? (mode === "edit" && values.id ? `/api/hiring/job-postings/${values.id}` : "/api/hiring/job-postings")
       const method = mode === "edit" ? "PATCH" : "POST"
 
-      const response = await fetch(endpoint, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
+      const result = await readHiringJson<Record<string, unknown>>(
+        endpoint,
+        {
+          method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+        {
+          fallbackData: {},
+          fallbackErrorMessage: "Unable to save job posting.",
+        }
+      )
 
-      if (!response.ok) {
-        throw new Error(await readApiError(response))
-      }
+      if (!result.ok) throw new Error(result.error.message)
 
-      const responsePayload = (await response.json()) as { data?: Record<string, unknown>; ok?: boolean }
-      const posting = responsePayload.data ?? {}
+      const posting = result.data ?? {}
 
       toast({
         title: mode === "edit" ? "Job posting updated" : "Job posting created",

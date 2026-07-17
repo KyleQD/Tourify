@@ -1,5 +1,9 @@
 "use client"
 
+// Deprecated: new job-posting creation surfaces must use the shared
+// components/job-posting wizard shell or components/hiring/job-posting-builder.
+// Kept temporarily for the legacy /admin/job-postings/new route.
+
 import { useState } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'

@@ -1,5 +1,8 @@
 "use client"
 
+// Deprecated: this venue profile-context modal is not the dashboard hiring flow.
+// New job-posting UI must use components/job-posting shared wizards/adapters.
+
 import type React from "react"
 
 import { useState } from "react"

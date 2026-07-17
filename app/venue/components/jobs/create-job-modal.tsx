@@ -1,25 +1,36 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Briefcase, Loader2, Plus, Send, X } from "lucide-react"
+
+import {
+  JobPostingReviewRow,
+  JobPostingWizardFooter,
+  JobPostingWizardPanel,
+  JobPostingWizardShell,
+  jobPostingChipClass,
+  jobPostingFieldClass,
+  jobPostingFieldLabelClass,
+  jobPostingOutlineButtonClass,
+  jobPostingPrimaryButtonClass,
+  jobPostingSelectClass,
+  jobPostingSelectContentClass,
+} from "@/components/job-posting/job-posting-wizard-shell"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import {
-  Briefcase, MapPin, DollarSign, Users, Plus, X, Loader2, CheckCircle,
-} from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { buildVenueJobPostingPayload } from "@/lib/job-posting/job-posting-adapters"
 
 interface CreateJobModalProps {
   isOpen: boolean
   onClose: () => void
-  onJobCreated?: (job: any) => void
+  onJobCreated?: (job: Record<string, unknown>) => void
 }
 
 const EMPLOYMENT_TYPES = [
@@ -36,10 +47,30 @@ const EXPERIENCE_LEVELS = [
 ]
 
 const DEPARTMENTS = [
-  "Security", "Bar Staff", "Sound & Lighting", "Stage Crew",
-  "Front of House", "Kitchen", "Management", "Marketing",
-  "Box Office", "Maintenance", "Other",
+  "Security",
+  "Bar Staff",
+  "Sound & Lighting",
+  "Stage Crew",
+  "Front of House",
+  "Kitchen",
+  "Management",
+  "Marketing",
+  "Box Office",
+  "Maintenance",
+  "Other",
 ]
+
+const STEPS = [
+  { id: 1, label: "Role basics" },
+  { id: 2, label: "Requirements" },
+  { id: 3, label: "Review" },
+]
+
+function addUnique(value: string, list: string[]) {
+  const trimmed = value.trim()
+  if (!trimmed || list.includes(trimmed)) return list
+  return [...list, trimmed]
+}
 
 export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModalProps) {
   const { venue } = useCurrentVenue()
@@ -58,7 +89,7 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
   const [isUrgent, setIsUrgent] = useState(false)
   const [salaryMin, setSalaryMin] = useState("")
   const [salaryMax, setSalaryMax] = useState("")
-  const [salaryType, setSalaryType] = useState("fixed")
+  const [salaryType, setSalaryType] = useState<"flat" | "hourly" | "salary">("flat")
 
   const [requirements, setRequirements] = useState<string[]>([])
   const [responsibilities, setResponsibilities] = useState<string[]>([])
@@ -69,26 +100,37 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
   const [skillInput, setSkillInput] = useState("")
   const [benefitInput, setBenefitInput] = useState("")
 
+  const canProceedStep1 = title.trim().length > 0 && department.length > 0 && description.trim().length > 0
+
   function resetForm() {
-    setTitle(""); setDepartment(""); setDescription("")
-    setEmploymentType("contractor"); setExperienceLevel("entry")
-    setLocation(""); setNumberOfPositions(1)
-    setIsRemote(false); setIsUrgent(false)
-    setSalaryMin(""); setSalaryMax(""); setSalaryType("fixed")
-    setRequirements([]); setResponsibilities([]); setSkills([]); setBenefits([])
-    setReqInput(""); setRespInput(""); setSkillInput(""); setBenefitInput("")
+    setTitle("")
+    setDepartment("")
+    setDescription("")
+    setEmploymentType("contractor")
+    setExperienceLevel("entry")
+    setLocation("")
+    setNumberOfPositions(1)
+    setIsRemote(false)
+    setIsUrgent(false)
+    setSalaryMin("")
+    setSalaryMax("")
+    setSalaryType("flat")
+    setRequirements([])
+    setResponsibilities([])
+    setSkills([])
+    setBenefits([])
+    setReqInput("")
+    setRespInput("")
+    setSkillInput("")
+    setBenefitInput("")
     setStep(1)
   }
 
-  function addToList(list: string[], setList: (v: string[]) => void, value: string, setInput: (v: string) => void) {
-    const trimmed = value.trim()
-    if (trimmed && !list.includes(trimmed)) {
-      setList([...list, trimmed])
-    }
-    setInput("")
+  function resetAndClose() {
+    if (isSubmitting) return
+    resetForm()
+    onClose()
   }
-
-  const canProceedStep1 = title.trim() && department && description.trim()
 
   async function handleSubmit() {
     if (!venue?.id) {
@@ -98,34 +140,33 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
 
     setIsSubmitting(true)
     try {
-      const payload = {
-        venue_id: venue.id,
-        title: title.trim(),
-        department,
-        description: description.trim(),
-        employment_type: employmentType,
-        experience_level: experienceLevel,
-        location: location.trim() || venue.name || "Venue",
-        number_of_positions: numberOfPositions,
-        remote: isRemote,
-        urgent: isUrgent,
-        salary_range: salaryMin || salaryMax ? {
-          min: Number(salaryMin) || 0,
-          max: Number(salaryMax) || Number(salaryMin) || 0,
-          type: salaryType,
-        } : undefined,
-        requirements,
-        responsibilities,
-        skills,
-        benefits,
-        status: "published",
-      }
-
       const res = await fetch("/api/venue/hiring/job-postings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(payload),
+        body: JSON.stringify(
+          buildVenueJobPostingPayload({
+            venue,
+            values: {
+              title,
+              description,
+              department,
+              employmentType,
+              experienceLevel,
+              location,
+              numberOfPositions,
+              remote: isRemote,
+              urgent: isUrgent,
+              salaryMin,
+              salaryMax,
+              salaryType,
+              requirements,
+              responsibilities,
+              skills,
+              benefits,
+            },
+          })
+        ),
       })
 
       const data = await res.json()
@@ -139,7 +180,6 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
       resetForm()
       onClose()
     } catch (error) {
-      console.error("Error creating job:", error)
       toast({
         title: "Failed to create job",
         description: error instanceof Error ? error.message : "Please try again.",
@@ -151,160 +191,214 @@ export function CreateJobModal({ isOpen, onClose, onJobCreated }: CreateJobModal
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => { if (!isSubmitting) { resetForm(); onClose() } }}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-gray-900 border-gray-800">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-white">
-            <Briefcase className="h-5 w-5 text-purple-400" />
-            {step === 1 ? "Create Job Posting" : "Requirements & Compensation"}
-          </DialogTitle>
-          <div className="flex gap-2 mt-2">
-            <div className={`h-1 flex-1 rounded-full ${step >= 1 ? "bg-purple-500" : "bg-gray-700"}`} />
-            <div className={`h-1 flex-1 rounded-full ${step >= 2 ? "bg-purple-500" : "bg-gray-700"}`} />
-          </div>
-        </DialogHeader>
-
-        {step === 1 && (
-          <div className="space-y-4 mt-2">
+    <JobPostingWizardShell
+      open={isOpen}
+      onOpenChange={(next) => (next ? undefined : resetAndClose())}
+      title="Create job posting"
+      description="Post a venue staffing role while keeping the same venue hiring workflow and applicant intake."
+      icon={<Briefcase className="h-5 w-5 text-cyan-300" />}
+      steps={STEPS}
+      currentStep={step}
+      className="sm:max-w-3xl"
+      footer={
+        <JobPostingWizardFooter
+          step={step}
+          totalSteps={STEPS.length}
+          canContinue={step === 1 ? canProceedStep1 : true}
+          isSubmitting={isSubmitting}
+          onBack={() => setStep((prev) => prev - 1)}
+          onCancel={resetAndClose}
+          onNext={() => setStep((prev) => prev + 1)}
+          actions={
+            <Button type="button" className={jobPostingPrimaryButtonClass} onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+              Publish
+            </Button>
+          }
+        />
+      }
+    >
+      {step === 1 ? (
+        <JobPostingWizardPanel title="Role basics">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label className="text-gray-300">Job Title *</Label>
-              <Input placeholder="e.g., Head of Security, Lead Bartender" value={title} onChange={e => setTitle(e.target.value)} className="bg-gray-800 border-gray-700" />
+              <Label className={jobPostingFieldLabelClass}>Job title *</Label>
+              <Input placeholder="e.g., Head of Security, Lead Bartender" value={title} onChange={(event) => setTitle(event.target.value)} className={jobPostingFieldClass} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label className="text-gray-300">Department *</Label>
+                <Label className={jobPostingFieldLabelClass}>Department *</Label>
                 <Select value={department} onValueChange={setDepartment}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700"><SelectValue placeholder="Select department" /></SelectTrigger>
-                  <SelectContent>
-                    {DEPARTMENTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-300">Employment Type</Label>
-                <Select value={employmentType} onValueChange={setEmploymentType}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EMPLOYMENT_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-300">Description *</Label>
-              <Textarea placeholder="Describe the role, what the person will be doing, and what success looks like..." value={description} onChange={e => setDescription(e.target.value)} rows={4} className="bg-gray-800 border-gray-700 resize-none" />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-gray-300">Experience Level</Label>
-                <Select value={experienceLevel} onValueChange={setExperienceLevel}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EXPERIENCE_LEVELS.map(l => <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-300">Positions Available</Label>
-                <Input type="number" min={1} value={numberOfPositions} onChange={e => setNumberOfPositions(Number(e.target.value) || 1)} className="bg-gray-800 border-gray-700" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-gray-300">Location</Label>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-500" />
-                <Input placeholder={venue?.name || "Venue location"} value={location} onChange={e => setLocation(e.target.value)} className="bg-gray-800 border-gray-700" />
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Switch checked={isRemote} onCheckedChange={setIsRemote} />
-                <Label className="text-gray-300 text-sm">Remote available</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={isUrgent} onCheckedChange={setIsUrgent} />
-                <Label className="text-gray-300 text-sm">Urgent hire</Label>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" className="border-gray-700" onClick={() => { resetForm(); onClose() }}>Cancel</Button>
-              <Button onClick={() => setStep(2)} disabled={!canProceedStep1} className="bg-purple-600 hover:bg-purple-700">Next</Button>
-            </div>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div className="space-y-4 mt-2">
-            <div className="space-y-2">
-              <Label className="text-gray-300">Compensation</Label>
-              <div className="grid grid-cols-3 gap-2">
-                <div>
-                  <Input type="number" placeholder="Min" value={salaryMin} onChange={e => setSalaryMin(e.target.value)} className="bg-gray-800 border-gray-700" />
-                </div>
-                <div>
-                  <Input type="number" placeholder="Max" value={salaryMax} onChange={e => setSalaryMax(e.target.value)} className="bg-gray-800 border-gray-700" />
-                </div>
-                <Select value={salaryType} onValueChange={setSalaryType}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="fixed">Fixed</SelectItem>
-                    <SelectItem value="hourly">Hourly</SelectItem>
-                    <SelectItem value="annual">Annual</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <Separator className="bg-gray-800" />
-
-            {[
-              { label: "Requirements", items: requirements, setItems: setRequirements, input: reqInput, setInput: setReqInput, placeholder: "e.g., 2+ years experience in live events" },
-              { label: "Responsibilities", items: responsibilities, setItems: setResponsibilities, input: respInput, setInput: setRespInput, placeholder: "e.g., Manage front-of-house operations" },
-              { label: "Skills", items: skills, setItems: setSkills, input: skillInput, setInput: setSkillInput, placeholder: "e.g., Crowd management" },
-              { label: "Benefits", items: benefits, setItems: setBenefits, input: benefitInput, setInput: setBenefitInput, placeholder: "e.g., Meals provided" },
-            ].map(({ label, items, setItems, input, setInput, placeholder }) => (
-              <div key={label} className="space-y-2">
-                <Label className="text-gray-300">{label}</Label>
-                <div className="flex gap-2">
-                  <Input placeholder={placeholder} value={input} onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addToList(items, setItems, input, setInput) } }}
-                    className="bg-gray-800 border-gray-700" />
-                  <Button type="button" size="sm" variant="outline" className="border-gray-700 shrink-0"
-                    onClick={() => addToList(items, setItems, input, setInput)} disabled={!input.trim()}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-                {items.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {items.map((item, i) => (
-                      <Badge key={i} variant="secondary" className="bg-gray-800 text-gray-300 pr-1">
+                  <SelectTrigger className={jobPostingSelectClass}>
+                    <SelectValue placeholder="Select department" />
+                  </SelectTrigger>
+                  <SelectContent className={jobPostingSelectContentClass}>
+                    {DEPARTMENTS.map((item) => (
+                      <SelectItem key={item} value={item}>
                         {item}
-                        <X className="h-3 w-3 ml-1 cursor-pointer hover:text-red-400" onClick={() => setItems(items.filter((_, idx) => idx !== i))} />
-                      </Badge>
+                      </SelectItem>
                     ))}
-                  </div>
-                )}
+                  </SelectContent>
+                </Select>
               </div>
-            ))}
+              <div className="space-y-2">
+                <Label className={jobPostingFieldLabelClass}>Employment type</Label>
+                <Select value={employmentType} onValueChange={setEmploymentType}>
+                  <SelectTrigger className={jobPostingSelectClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className={jobPostingSelectContentClass}>
+                    {EMPLOYMENT_TYPES.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-            <div className="flex justify-between gap-2 pt-2">
-              <Button variant="outline" className="border-gray-700" onClick={() => setStep(1)}>Back</Button>
-              <div className="flex gap-2">
-                <Button variant="outline" className="border-gray-700" onClick={() => { resetForm(); onClose() }}>Cancel</Button>
-                <Button onClick={handleSubmit} disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700">
-                  {isSubmitting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Publishing...</> : <><CheckCircle className="h-4 w-4 mr-2" />Publish Job</>}
-                </Button>
+            <div className="space-y-2">
+              <Label className={jobPostingFieldLabelClass}>Description *</Label>
+              <Textarea placeholder="Describe the role, what the person will be doing, and what success looks like..." value={description} onChange={(event) => setDescription(event.target.value)} rows={5} className={jobPostingFieldClass} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label className={jobPostingFieldLabelClass}>Experience level</Label>
+                <Select value={experienceLevel} onValueChange={setExperienceLevel}>
+                  <SelectTrigger className={jobPostingSelectClass}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className={jobPostingSelectContentClass}>
+                    {EXPERIENCE_LEVELS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className={jobPostingFieldLabelClass}>Positions available</Label>
+                <Input type="number" min={1} value={numberOfPositions} onChange={(event) => setNumberOfPositions(Number(event.target.value) || 1)} className={jobPostingFieldClass} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className={jobPostingFieldLabelClass}>Location</Label>
+              <Input placeholder={venue?.name || "Venue location"} value={location} onChange={(event) => setLocation(event.target.value)} className={jobPostingFieldClass} />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                <Label className="text-sm text-slate-200">Remote available</Label>
+                <Switch checked={isRemote} onCheckedChange={setIsRemote} />
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] p-3.5">
+                <Label className="text-sm text-slate-200">Urgent hire</Label>
+                <Switch checked={isUrgent} onCheckedChange={setIsUrgent} />
               </div>
             </div>
           </div>
-        )}
-      </DialogContent>
-    </Dialog>
+        </JobPostingWizardPanel>
+      ) : null}
+
+      {step === 2 ? (
+        <JobPostingWizardPanel title="Requirements & compensation">
+          <div className="space-y-4">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <Input type="number" placeholder="Min" value={salaryMin} onChange={(event) => setSalaryMin(event.target.value)} className={jobPostingFieldClass} />
+              <Input type="number" placeholder="Max" value={salaryMax} onChange={(event) => setSalaryMax(event.target.value)} className={jobPostingFieldClass} />
+              <Select value={salaryType} onValueChange={(value) => setSalaryType(value as typeof salaryType)}>
+                <SelectTrigger className={jobPostingSelectClass}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className={jobPostingSelectContentClass}>
+                  <SelectItem value="flat">Fixed</SelectItem>
+                  <SelectItem value="hourly">Hourly</SelectItem>
+                  <SelectItem value="salary">Annual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <ListEditor title="Requirements" value={reqInput} setValue={setReqInput} list={requirements} setList={setRequirements} placeholder="Add requirement" />
+            <ListEditor title="Responsibilities" value={respInput} setValue={setRespInput} list={responsibilities} setList={setResponsibilities} placeholder="Add responsibility" />
+            <ListEditor title="Skills" value={skillInput} setValue={setSkillInput} list={skills} setList={setSkills} placeholder="Add skill" />
+            <ListEditor title="Benefits" value={benefitInput} setValue={setBenefitInput} list={benefits} setList={setBenefits} placeholder="Add benefit" />
+          </div>
+        </JobPostingWizardPanel>
+      ) : null}
+
+      {step === 3 ? (
+        <JobPostingWizardPanel title={title || "Untitled role"}>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/15 text-cyan-200">
+              {numberOfPositions} position{numberOfPositions > 1 ? "s" : ""}
+            </Badge>
+            <span className={jobPostingChipClass}>{employmentType.replace("_", " ")}</span>
+            <span className={jobPostingChipClass}>{experienceLevel}</span>
+            {isRemote ? <span className={jobPostingChipClass}>Remote</span> : null}
+            {isUrgent ? <span className={jobPostingChipClass}>Urgent</span> : null}
+          </div>
+          <p className="whitespace-pre-line text-sm leading-relaxed text-slate-400">{description}</p>
+          <dl className="grid gap-2.5 text-sm sm:grid-cols-2">
+            <JobPostingReviewRow label="Department" value={department} />
+            <JobPostingReviewRow label="Location" value={location || venue?.name} />
+            <JobPostingReviewRow label="Requirements" value={requirements.length ? requirements.join(", ") : undefined} />
+            <JobPostingReviewRow label="Skills" value={skills.length ? skills.join(", ") : undefined} />
+          </dl>
+        </JobPostingWizardPanel>
+      ) : null}
+    </JobPostingWizardShell>
+  )
+}
+
+function ListEditor({
+  title,
+  value,
+  setValue,
+  list,
+  setList,
+  placeholder,
+}: {
+  title: string
+  value: string
+  setValue: (value: string) => void
+  list: string[]
+  setList: (value: string[]) => void
+  placeholder: string
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className={jobPostingFieldLabelClass}>{title}</Label>
+      <div className="flex gap-2">
+        <Input value={value} onChange={(event) => setValue(event.target.value)} placeholder={placeholder} className={jobPostingFieldClass} />
+        <Button
+          type="button"
+          variant="outline"
+          className={jobPostingOutlineButtonClass}
+          onClick={() => {
+            setList(addUnique(value, list))
+            setValue("")
+          }}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {list.length ? (
+        <div className="flex flex-wrap gap-2">
+          {list.map((item) => (
+            <span key={item} className={jobPostingChipClass}>
+              {item}
+              <button type="button" className="ml-2 text-slate-500 hover:text-white" onClick={() => setList(list.filter((current) => current !== item))}>
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
+    </div>
   )
 }
