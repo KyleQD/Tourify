@@ -8,6 +8,15 @@ import { Button } from '@/components/ui/button'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { useFeed } from '@/hooks/use-feed'
 import { useIntersectionObserver } from '@/hooks/use-intersection-observer'
+import type { Json } from '@/lib/database.types'
+
+function asPostMetadata(metadata: unknown): { [key: string]: Json | undefined } | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return null
+  }
+
+  return metadata as { [key: string]: Json | undefined }
+}
 
 interface FeedListProps {
   feedType?: 'all' | 'following'
@@ -22,7 +31,8 @@ export function FeedList({ feedType = 'all', showPostCreator = true }: FeedListP
     hasMore,
     loadFeed,
     refreshFeed,
-    loadMorePosts
+    loadMorePosts,
+    deletePost
   } = useFeed()
 
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -132,6 +142,7 @@ export function FeedList({ feedType = 'all', showPostCreator = true }: FeedListP
                 <PostCard
                   post={{
                     ...post,
+                    metadata: asPostMetadata(post.metadata),
                     media_urls: post.media_urls || null
                   }}
                   onCommentClick={() => {
@@ -140,6 +151,7 @@ export function FeedList({ feedType = 'all', showPostCreator = true }: FeedListP
                   onShareClick={() => {
                     // TODO: Open share modal
                   }}
+                  onDelete={deletePost}
                 />
               </motion.div>
             ))}
@@ -170,4 +182,4 @@ export function FeedList({ feedType = 'all', showPostCreator = true }: FeedListP
       )}
     </div>
   )
-} 
+}

@@ -11,6 +11,22 @@ import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
 import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
   Heart,
   MessageCircle,
   Share,
@@ -22,13 +38,15 @@ import {
   MapPin,
   Check,
   ArrowRight,
-  Calendar
+  Calendar,
+  Copy,
+  ImageOff,
+  Trash2
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { usePhotoViewer } from '@/hooks/use-photo-viewer'
 import { supabase } from '@/lib/supabase'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { buildFeedPostsUrl, extractFeedErrorMessage } from '@/lib/feed/feed-client'
@@ -40,6 +58,8 @@ import {
   isMusicFeedPost,
   type FeedTrackPreview,
 } from '@/lib/feed/music-post-preview'
+import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
+import { toast } from 'sonner'
 
 interface PostData {
   id: string
@@ -62,6 +82,8 @@ interface PostData {
   event_preview?: EventPreviewData | null
   track_preview?: FeedTrackPreview | null
   metadata?: Record<string, unknown> | null
+  media_unavailable_count?: number
+  viewer_can_manage?: boolean
   profiles: {
     username: string
     full_name: string
@@ -112,7 +134,7 @@ export function DashboardFeed() {
   const [posts, setPosts] = useState<PostData[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('all')
+  const [activeTab, setActiveTab] = useState('following')
   const [page, setPage] = useState(0)
   const [isFetchingMore, setIsFetchingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
@@ -121,6 +143,9 @@ export function DashboardFeed() {
   const [loadingComments, setLoadingComments] = useState<{ [postId: string]: boolean }>({})
   const [feedMessage, setFeedMessage] = useState<string | null>(null)
   const [feedError, setFeedError] = useState<string | null>(null)
+  const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
+  const [deletePostId, setDeletePostId] = useState<string | null>(null)
+  const [isDeletingPost, setIsDeletingPost] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const recentlyCreatedPostsRef = useRef<Map<string, PostData>>(new Map())
   const recentlyCreatedPostTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -128,11 +153,10 @@ export function DashboardFeed() {
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
   const router = useRouter()
-  const photoViewer = usePhotoViewer()
 
   const isPostVisibleInFeed = (post: PostData, feedType: string) => {
     if (feedType === 'all') return post.visibility === 'public'
-    if (feedType === 'following') return post.visibility === 'public'
+    if (feedType === 'following') return post.visibility === 'public' || post.visibility === 'followers'
     if (feedType !== 'personal') return true
 
     const activeProfileId = currentAccount?.profile_id || null
@@ -247,6 +271,74 @@ export function DashboardFeed() {
     setRefreshing(false)
   }
 
+  const handleCopyPostLink = async (postId: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/posts/${postId}`)
+      toast.success('Post link copied')
+    } catch {
+      toast.error('Failed to copy post link')
+    }
+  }
+
+  const handleDeletePost = async () => {
+    if (!deletePostId) return
+
+    const postId = deletePostId
+    const previousPosts = posts
+    const previousComments = comments
+    const previousShowComments = showComments
+    const previousLoadingComments = loadingComments
+    const previousRecentlyCreatedPosts = new Map(recentlyCreatedPostsRef.current)
+    const previousRecentlyCreatedPostTimers = new Map(recentlyCreatedPostTimersRef.current)
+
+    setIsDeletingPost(true)
+    setPosts(prev => prev.filter(post => post.id !== postId))
+    setComments(prev => {
+      const next = { ...prev }
+      delete next[postId]
+      return next
+    })
+    setShowComments(prev => {
+      const next = { ...prev }
+      delete next[postId]
+      return next
+    })
+    setLoadingComments(prev => {
+      const next = { ...prev }
+      delete next[postId]
+      return next
+    })
+    recentlyCreatedPostsRef.current.delete(postId)
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}))
+        throw new Error(result.error || 'Failed to delete post')
+      }
+
+      const timer = recentlyCreatedPostTimersRef.current.get(postId)
+      if (timer) clearTimeout(timer)
+      recentlyCreatedPostTimersRef.current.delete(postId)
+      setDeletePostId(null)
+      toast.success('Post deleted')
+    } catch (error) {
+      setPosts(previousPosts)
+      setComments(previousComments)
+      setShowComments(previousShowComments)
+      setLoadingComments(previousLoadingComments)
+      recentlyCreatedPostsRef.current = previousRecentlyCreatedPosts
+      recentlyCreatedPostTimersRef.current = previousRecentlyCreatedPostTimers
+      toast.error(error instanceof Error ? error.message : 'Failed to delete post')
+    } finally {
+      setIsDeletingPost(false)
+    }
+  }
+
   // Infinite scroll: load next page when sentinel is visible
   useEffect(() => {
     const observer = new IntersectionObserver((entries) => {
@@ -327,7 +419,13 @@ export function DashboardFeed() {
       }
 
       const result = await response.json()
-      setComments(prev => ({ ...prev, [postId]: result.comments || [] }))
+      const loadedComments = result.comments || []
+      setComments(prev => ({ ...prev, [postId]: loadedComments }))
+      setPosts(prev => prev.map(post =>
+        post.id === postId
+          ? { ...post, comments_count: loadedComments.length }
+          : post
+      ))
 
     } catch (error) {
       console.error('Error loading comments:', error)
@@ -453,8 +551,8 @@ export function DashboardFeed() {
         schema: 'public',
         table: 'posts'
       }, (payload) => {
-        // Refresh on public posts to keep feed up to date.
-        if (payload.new.visibility === 'public') {
+        // Refresh on visible social posts to keep the dashboard feed up to date.
+        if (payload.new.visibility === 'public' || payload.new.visibility === 'followers') {
           loadPosts({ feedType: activeTab, pageIndex: 0, append: false }) // Reload to get proper joins
         }
       })
@@ -485,11 +583,12 @@ export function DashboardFeed() {
   }
 
   return (
+    <>
     <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-white flex items-center gap-2">
-            <Globe className="h-5 w-5 text-purple-400" />
+            <Users className="h-5 w-5 text-purple-400" />
             Your Feed
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -533,7 +632,7 @@ export function DashboardFeed() {
           <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm rounded-2xl p-1">
             <TabsTrigger value="following" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-xl">
               <Users className="h-4 w-4 mr-2" />
-              Following
+              Friends
             </TabsTrigger>
             <TabsTrigger value="all" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-xl">
               <Globe className="h-4 w-4 mr-2" />
@@ -612,16 +711,52 @@ export function DashboardFeed() {
                               </div>
                             )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label="More post options (coming soon)"
-                            disabled
-                            title="More options coming soon"
-                            className="h-8 w-8 p-0 opacity-50"
+                          <DropdownMenu
+                            open={openMenuPostId === post.id}
+                            onOpenChange={(open) => setOpenMenuPostId(open ? post.id : null)}
                           >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                aria-label="More post options"
+                                className="h-8 w-8 p-0 text-gray-400 hover:bg-white/10 hover:text-white"
+                              >
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              align="end"
+                              sideOffset={8}
+                              className="w-48 rounded-2xl border border-white/20 bg-purple-950/70 p-1.5 text-slate-100 shadow-2xl shadow-purple-950/30 backdrop-blur-2xl"
+                            >
+                              <DropdownMenuItem
+                                className="h-10 rounded-xl px-3 text-sm font-medium text-slate-100 outline-none transition-colors focus:bg-white/10 focus:text-white"
+                                onSelect={() => void handleCopyPostLink(post.id)}
+                              >
+                                <span className="mr-3 flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 text-slate-200">
+                                  <Copy className="h-4 w-4" />
+                                </span>
+                                <span>Copy link</span>
+                              </DropdownMenuItem>
+                              {post.viewer_can_manage && (
+                                <DropdownMenuItem
+                                  className="h-10 rounded-xl px-3 text-sm font-medium text-red-100 outline-none transition-colors focus:bg-red-500/20 focus:text-red-50"
+                                  onSelect={(event) => {
+                                    event.preventDefault()
+                                    setOpenMenuPostId(null)
+                                    setDeletePostId(post.id)
+                                  }}
+                                >
+                                  <span className="mr-3 flex h-7 w-7 items-center justify-center rounded-lg bg-red-500/20 text-red-200">
+                                    <Trash2 className="h-4 w-4" />
+                                  </span>
+                                  <span>Delete post</span>
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
 
                         {/* Post Content */}
@@ -656,67 +791,24 @@ export function DashboardFeed() {
                                 />
                               )}
 
-                              {/* Media Display — skip cover art when music player is shown */}
-                              {!musicTrack && post.media_urls && post.media_urls.length > 0 && post.media_urls[0] && (
-                                <div className="mt-3">
-                                  {post.media_urls.length === 1 ? (
-                                    // Single image - full width with natural aspect ratio
-                                    <div
-                                      className="relative bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() => {
-                                        if (post.media_urls && post.media_urls.length > 0) {
-                                          photoViewer.openPhotoViewer(post.media_urls, 0, post)
-                                        } else {
-                                          console.error('❌ No media URLs available for this post')
-                                        }
-                                      }}
-                                    >
-                                      <img
-                                        src={post.media_urls?.[0] || ''}
-                                        alt={`${post.profiles.full_name || post.profiles.username} post image`}
-                                        className="w-full h-auto max-h-96 object-cover"
-                                        loading="lazy"
-                                        onError={(e) => {
-                                          e.currentTarget.style.display = 'none'
-                                        }}
-                                      />
-                                    </div>
-                                  ) : (
-                                    // Multiple images - grid layout
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                      {post.media_urls.slice(0, 4).map((url, index) => (
-                                        url && (
-                                          <div
-                                            key={`${post.id}-${url}-${index}`}
-                                            className="relative aspect-square bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity"
-                                            onClick={() => {
-                                              if (post.media_urls && post.media_urls.length > 0) {
-                                                photoViewer.openPhotoViewer(post.media_urls, index, post)
-                                              } else {
-                                                console.error('❌ No media URLs available for this post')
-                                              }
-                                            }}
-                                          >
-                                            <img
-                                              src={url}
-                                              alt={`${post.profiles.full_name || post.profiles.username} post image ${index + 1}`}
-                                              className="w-full h-full object-cover"
-                                              loading="lazy"
-                                              onError={(e) => {
-                                                e.currentTarget.style.display = 'none'
-                                              }}
-                                            />
-                                          </div>
-                                        )
-                                      ))}
+                              {!musicTrack && (
+                                <>
+                                  <FeedMediaGrid
+                                    mediaItems={normalizeMediaData(post)}
+                                    postId={post.id}
+                                    frameClassName="border border-white/10"
+                                  />
+                                  {Number(post.media_unavailable_count || 0) > 0 && (
+                                    <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                                      <ImageOff className="h-4 w-4 shrink-0 text-amber-200" />
+                                      <span>
+                                        {post.media_unavailable_count === 1
+                                          ? '1 photo is unavailable because it was not uploaded.'
+                                          : `${post.media_unavailable_count} photos are unavailable because they were not uploaded.`}
+                                      </span>
                                     </div>
                                   )}
-                                  {post.media_urls.length > 4 && (
-                                    <p className="text-gray-400 text-xs mt-2">
-                                      +{post.media_urls.length - 4} more photos
-                                    </p>
-                                  )}
-                                </div>
+                                </>
                               )}
 
                               {musicTrack && (
@@ -809,7 +901,7 @@ export function DashboardFeed() {
                             ) : (
                               <Users className="h-3 w-3" />
                             )}
-                            <span className="capitalize">{post.visibility}</span>
+                            <span>{post.visibility === 'followers' ? 'Friends' : post.visibility}</span>
                           </div>
                         </div>
 
@@ -918,16 +1010,16 @@ export function DashboardFeed() {
                       <>
                         <Users className="h-8 w-8 mx-auto mb-3 opacity-50" />
                         <p className="text-sm">
-                          {feedMessage || "No posts from people you follow yet."}
+                          {feedMessage || "No posts from friends yet."}
                         </p>
                         <p className="text-xs mt-1">
-                          {feedMessage ? "Try switching to the Discover tab to see all posts!" : "Follow some users to see their posts here!"}
+                          {feedMessage ? "Try switching to the Discover tab to see public posts." : "Follow friends to see their posts here."}
                         </p>
                       </>
                     ) : activeTab === 'personal' ? (
                       <>
                         <MessageCircle className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                        <p className="text-sm">You haven't posted anything yet.</p>
+                        <p className="text-sm">You haven&apos;t posted anything yet.</p>
                         <p className="text-xs mt-1">Share your first post above!</p>
                       </>
                     ) : (
@@ -953,5 +1045,40 @@ export function DashboardFeed() {
       </CardContent>
 
     </Card>
+    <AlertDialog open={Boolean(deletePostId)} onOpenChange={(open) => !open && setDeletePostId(null)}>
+      <AlertDialogContent className="max-w-md overflow-hidden rounded-3xl border border-white/20 bg-purple-950/70 p-0 text-white shadow-2xl shadow-purple-950/40 backdrop-blur-2xl">
+        <div className="bg-gradient-to-br from-white/20 via-white/5 to-purple-500/10 p-6">
+          <AlertDialogHeader className="space-y-3 text-left">
+            <div className="flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-300/20 bg-red-500/20 text-red-100 shadow-lg shadow-red-950/20">
+                <Trash2 className="h-5 w-5" />
+              </span>
+              <AlertDialogTitle className="text-2xl font-semibold tracking-normal text-white">
+                Delete post?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm leading-6 text-slate-300">
+              This removes the post from your feed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-6 gap-2 sm:justify-end">
+            <AlertDialogCancel className="h-11 rounded-2xl border border-white/20 bg-white/10 px-5 font-semibold text-white shadow-lg shadow-black/10 transition-colors hover:bg-white/20 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingPost}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeletePost()
+              }}
+              className="h-11 rounded-2xl border border-red-300/20 bg-gradient-to-r from-red-500 to-rose-500 px-5 font-semibold text-white shadow-lg shadow-red-950/20 transition-colors hover:from-red-400 hover:to-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isDeletingPost ? 'Deleting...' : 'Delete post'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

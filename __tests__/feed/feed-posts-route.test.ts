@@ -205,6 +205,151 @@ describe('feed posts route helpers', () => {
     })
   })
 
+  it('allows public and friend-visible posts in the following feed', async () => {
+    const supabase = new FakeSupabase(() => ({
+      data: [],
+      error: null,
+    }))
+
+    const result = await fetchFeedPostsWithFallback(supabase, {
+      type: 'following',
+      userIdParam: null,
+      profileIdFilter: null,
+      authUserId: 'user-1',
+      followingUserIds: ['user-1', 'friend-1'],
+    }, 20, 0)
+
+    expect(result.error).toBeNull()
+    expect(supabase.queries[0].operations).toContainEqual({
+      method: 'in',
+      column: 'visibility',
+      value: ['public', 'followers'],
+    })
+  })
+
+  it('does not surface friend-visible dashboard posts in all/discover fallback results', async () => {
+    const supabase = new FakeRawSupabase([
+      {
+        id: 'friends-post',
+        user_id: 'friend-1',
+        content: 'Friends only',
+        visibility: 'followers',
+        created_at: '2026-07-03T01:00:00Z',
+      },
+      {
+        id: 'public-post',
+        user_id: 'user-2',
+        content: 'Public',
+        visibility: 'public',
+        created_at: '2026-07-03T00:00:00Z',
+      },
+    ])
+
+    const result = await fetchFeedPostsWithFallback(
+      supabase as any,
+      {
+        type: 'all',
+        userIdParam: null,
+        profileIdFilter: null,
+      },
+      20,
+      0
+    )
+
+    expect(result.error).toBeNull()
+    expect(result.data?.map(post => post.id)).toEqual(['public-post'])
+  })
+
+  it('excludes private profile posts for non-owners', async () => {
+    const supabase = new FakeRawSupabase([
+      {
+        id: 'private-post',
+        user_id: 'owner-user-1',
+        posted_as_profile_id: 'profile-1',
+        content: 'Private',
+        visibility: 'private',
+        created_at: '2026-07-03T02:00:00Z',
+      },
+      {
+        id: 'friends-post',
+        user_id: 'owner-user-1',
+        posted_as_profile_id: 'profile-1',
+        content: 'Friends',
+        visibility: 'followers',
+        created_at: '2026-07-03T01:00:00Z',
+      },
+      {
+        id: 'public-post',
+        user_id: 'owner-user-1',
+        posted_as_profile_id: 'profile-1',
+        content: 'Public',
+        visibility: 'public',
+        created_at: '2026-07-03T00:00:00Z',
+      },
+    ])
+
+    const result = await fetchFeedPostsWithFallback(
+      supabase as any,
+      {
+        type: 'user',
+        userIdParam: 'owner-user-1',
+        profileIdFilter: 'profile-1',
+        authUserId: 'viewer-user-1',
+        viewerCanSeeFollowersPosts: false,
+      },
+      20,
+      0
+    )
+
+    expect(result.error).toBeNull()
+    expect(result.data?.map(post => post.id)).toEqual(['public-post'])
+  })
+
+  it('includes friend-visible posts on public profile reads for non-friends', async () => {
+    const supabase = new FakeRawSupabase([
+      {
+        id: 'private-post',
+        user_id: 'owner-user-1',
+        posted_as_profile_id: 'profile-1',
+        content: 'Private',
+        visibility: 'private',
+        created_at: '2026-07-03T02:00:00Z',
+      },
+      {
+        id: 'friends-post',
+        user_id: 'owner-user-1',
+        posted_as_profile_id: 'profile-1',
+        content: 'Friends',
+        visibility: 'followers',
+        created_at: '2026-07-03T01:00:00Z',
+      },
+      {
+        id: 'public-post',
+        user_id: 'owner-user-1',
+        posted_as_profile_id: 'profile-1',
+        content: 'Public',
+        visibility: 'public',
+        created_at: '2026-07-03T00:00:00Z',
+      },
+    ])
+
+    const result = await fetchFeedPostsWithFallback(
+      supabase as any,
+      {
+        type: 'user',
+        userIdParam: 'owner-user-1',
+        profileIdFilter: 'profile-1',
+        authUserId: 'viewer-user-1',
+        viewerCanSeeFollowersPosts: true,
+      },
+      20,
+      0
+    )
+
+    expect(result.error).toBeNull()
+    expect(result.data?.map(post => post.id)).toEqual(['friends-post', 'public-post'])
+  })
+
   it('orders the all/discover feed by newest posts without global pinned priority', async () => {
     const supabase = new FakeSupabase(() => ({
       data: [],
@@ -524,8 +669,8 @@ describe('feed posts route helpers', () => {
     expect(read('components/unified-navigation.tsx')).toContain("href: '/news'")
   })
 
-  it('loads the dashboard feed from the all posts tab by default', () => {
-    expect(read('components/dashboard/dashboard-feed.tsx')).toContain("useState('all')")
+  it('loads the dashboard feed from the friends tab by default', () => {
+    expect(read('components/dashboard/dashboard-feed.tsx')).toContain("useState('following')")
   })
 
   it('preserves just-created dashboard posts during the first refresh', () => {

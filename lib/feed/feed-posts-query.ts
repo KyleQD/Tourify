@@ -179,6 +179,8 @@ export type FeedQueryScope = {
   followingUserIds?: string[]
   followingProfileIds?: string[]
   ownedProfileIds?: string[]
+  viewerOwnsProfile?: boolean
+  viewerCanSeeFollowersPosts?: boolean
   /** legacy (default): profile_id OR user_id owner posts. strict: posted_as_profile_id only. */
   attribution?: FeedAttributionMode
 }
@@ -270,15 +272,43 @@ function buildBasePostsQuery(
     .range(offset, offset + limit - 1)
 }
 
+function getAllowedVisibilityValues(scope: FeedQueryScope): string[] | null {
+  if (scope.type === 'all') return ['public']
+  if (scope.type === 'following') return ['public', 'followers']
+
+  if (scope.type === 'user') {
+    if (scope.viewerOwnsProfile) return null
+    if (scope.viewerCanSeeFollowersPosts) return ['public', 'followers']
+    return ['public']
+  }
+
+  return null
+}
+
 function applyVisibilityScopeToQuery(query: any, variant: FeedPostSelectVariant, scope: FeedQueryScope) {
-  if (scope.type !== 'all' || !variant.supportsVisibility) return query
-  return query.eq('visibility', 'public')
+  if (!variant.supportsVisibility) return query
+
+  const allowed = getAllowedVisibilityValues(scope)
+  if (!allowed) return query
+  if (allowed.length === 1) return query.eq('visibility', allowed[0])
+  return query.in('visibility', allowed)
 }
 
 function isVisiblePost(row: any, scope: FeedQueryScope) {
-  if (scope.type !== 'all') return true
   if (!('visibility' in (row || {}))) return true
-  return !row.visibility || row.visibility === 'public'
+
+  const visibility = row?.visibility || 'public'
+  if (scope.type === 'all') return visibility === 'public'
+  if (scope.type === 'following') return visibility === 'public' || visibility === 'followers'
+
+  if (scope.type === 'user') {
+    if (scope.viewerOwnsProfile) return true
+    if (visibility === 'private') return false
+    if (visibility === 'followers') return Boolean(scope.viewerCanSeeFollowersPosts)
+    return visibility === 'public'
+  }
+
+  return true
 }
 
 function matchesUserScope(row: any, scope: FeedQueryScope) {

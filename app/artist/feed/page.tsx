@@ -109,6 +109,7 @@ function toArtistFeedPost(post: any, likedPostIds: Set<string>): ArtistFeedPost 
       avatar_url: post.account_avatar_url || userData.avatar_url || null,
       profile_path: userData.account_context?.profile_path || null,
     },
+    owner_user_id: post.user_id || null,
     likes_count: post.likes_count || 0,
     comments_count: post.comments_count || 0,
     shares_count: post.shares_count || 0,
@@ -393,6 +394,35 @@ export default function ArtistFeedPage() {
     )))
   }
 
+  async function handleDelete(postId: string) {
+    const previousArtistPosts = artistPosts
+    const previousOwnedPosts = ownedPosts
+    const previousNetworkPosts = networkPosts
+
+    updateAllLists((list) => list.filter((post) => post.id !== postId))
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}))
+        throw new Error(result.error || 'Failed to delete post')
+      }
+
+      toast.success('Post deleted')
+      void fetchFeedStats()
+    } catch (error) {
+      setArtistPosts(previousArtistPosts)
+      setOwnedPosts(previousOwnedPosts)
+      setNetworkPosts(previousNetworkPosts)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete post')
+      throw error
+    }
+  }
+
   async function loadComments(postId: string) {
     const { data, error } = await supabase
       .from('post_comments')
@@ -589,6 +619,7 @@ export default function ArtistFeedPage() {
                 onShare={handleShare}
                 onFollow={handleFollow}
                 onPin={handlePin}
+                onDelete={handleDelete}
                 onLoadComments={loadComments}
                 onSubmitComment={submitComment}
               />

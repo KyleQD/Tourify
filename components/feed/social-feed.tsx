@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Share,
   MoreHorizontal,
+  Trash2,
   Users,
   Globe,
   RefreshCw,
@@ -23,6 +24,22 @@ import {
   UserPlus,
   Check
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { EnhancedPostCreator } from './enhanced-post-creator'
 import { formatDistanceToNow } from 'date-fns'
 import { supabase } from '@/lib/supabase'
@@ -31,6 +48,7 @@ import { Database } from '@/lib/database.types'
 import { resolvePublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { useAuth } from '@/contexts/auth-context'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { useMultiAccount } from '@/hooks/use-multi-account'
 import { buildFeedPostsUrl, extractFeedErrorMessage } from '@/lib/feed/feed-client'
 import { ArticleFeedPreview, type ArticlePreviewData } from '@/components/feed/article-feed-preview'
@@ -42,6 +60,7 @@ import {
   isMusicFeedPost,
   type FeedTrackPreview,
 } from '@/lib/feed/music-post-preview'
+import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
 
 interface PostData {
   id: string
@@ -138,6 +157,9 @@ export function SocialFeed() {
   const [showComments, setShowComments] = useState<{ [postId: string]: boolean }>({})
   const [loadingComments, setLoadingComments] = useState<{ [postId: string]: boolean }>({})
   const [followingUsers, setFollowingUsers] = useState(new Set<string>())
+  const [openMenuPostId, setOpenMenuPostId] = useState<string | null>(null)
+  const [deletePostId, setDeletePostId] = useState<string | null>(null)
+  const [isDeletingPost, setIsDeletingPost] = useState(false)
 
   const { user } = useAuth()
   const { currentAccount } = useMultiAccount()
@@ -235,6 +257,45 @@ export function SocialFeed() {
     await loadPosts()
     await loadSuggestedUsers()
     setRefreshing(false)
+  }
+
+  const handleCopyPostLink = async (postId: string) => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/posts/${postId}`)
+      toast.success('Post link copied')
+    } catch (error) {
+      console.error('Error copying post link:', error)
+      toast.error('Failed to copy post link')
+    }
+  }
+
+  const handleDeletePost = async () => {
+    if (!deletePostId) return
+    const postId = deletePostId
+    const previousPosts = posts
+    setIsDeletingPost(true)
+    setPosts(prev => prev.filter(post => post.id !== postId))
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}))
+        throw new Error(result.error || 'Failed to delete post')
+      }
+
+      setDeletePostId(null)
+      toast.success('Post deleted')
+    } catch (error) {
+      setPosts(previousPosts)
+      console.error('Error deleting post:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to delete post')
+    } finally {
+      setIsDeletingPost(false)
+    }
   }
 
   const handleLike = async (postId: string) => {
@@ -585,9 +646,43 @@ export function SocialFeed() {
                                     </div>
                                   )}
                                 </div>
-                                <Button variant="ghost" size="sm">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
+                                <DropdownMenu
+                                  open={openMenuPostId === post.id}
+                                  onOpenChange={(open) => setOpenMenuPostId(open ? post.id : null)}
+                                >
+                                  <DropdownMenuTrigger asChild>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(event) => {
+                                        event.preventDefault()
+                                        event.stopPropagation()
+                                      }}
+                                    >
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="border-slate-700 bg-slate-900 text-slate-200">
+                                    <DropdownMenuItem onSelect={() => void handleCopyPostLink(post.id)}>
+                                      <Share className="h-4 w-4 mr-2" />
+                                      Copy link
+                                    </DropdownMenuItem>
+                                    {user?.id === post.user_id && (
+                                      <DropdownMenuItem
+                                        className="text-red-300 focus:text-red-200"
+                                        onSelect={(event) => {
+                                          event.preventDefault()
+                                          setOpenMenuPostId(null)
+                                          setDeletePostId(post.id)
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete post
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
 
                               {/* Post Content */}
@@ -654,6 +749,13 @@ export function SocialFeed() {
                                       onComment={() => toggleComments(post.id)}
                                     />
                                   </div>
+                                )}
+
+                                {!musicTrack && (
+                                  <FeedMediaGrid
+                                    mediaItems={normalizeMediaData(post)}
+                                    postId={post.id}
+                                  />
                                 )}
                               </div>
 
@@ -899,6 +1001,31 @@ export function SocialFeed() {
           </Card>
         </div>
       </div>
+      <AlertDialog open={Boolean(deletePostId)} onOpenChange={(open) => !open && setDeletePostId(null)}>
+        <AlertDialogContent className="border-slate-700 bg-slate-900 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              This removes the post from your feed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeletingPost}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDeletePost()
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeletingPost ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

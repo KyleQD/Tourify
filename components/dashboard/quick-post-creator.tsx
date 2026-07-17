@@ -4,21 +4,21 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent } from '@/components/ui/card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useToast } from '@/components/ui/use-toast'
 import { PhotoUpload } from '@/components/ui/photo-upload'
-import { Send, Globe, Users, Lock, Loader2 } from 'lucide-react'
+import { Send, Users, Loader2 } from 'lucide-react'
 import { uploadFeedPhotos } from '@/lib/utils/feed-photo-upload'
 import { useAuth } from '@/contexts/auth-context'
 import { useActingContext } from '@/hooks/use-acting-context'
 import { PostingAccountSelector } from '@/components/account/posting-account-selector'
 import { dashboardCreatePattern } from '@/components/dashboard/dashboard-create-pattern'
 
+const DASHBOARD_POST_VISIBILITY = 'followers'
+
 export function QuickPostCreator() {
   const { user } = useAuth()
   const { actingHeaders, isActingReady } = useActingContext()
   const [content, setContent] = useState('')
-  const [visibility, setVisibility] = useState('public')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isUploadingMedia, setIsUploadingMedia] = useState(false)
@@ -106,7 +106,7 @@ export function QuickPostCreator() {
       const payload = {
         content: content.trim(),
         type: mediaUrls.length > 0 ? 'media' : 'text',
-        visibility,
+        visibility: DASHBOARD_POST_VISIBILITY,
         media_urls: mediaUrls
       }
 
@@ -136,16 +136,15 @@ export function QuickPostCreator() {
       const created = data?.data || data?.post
 
       toast({
-        title: "Post Created! 🎉",
+        title: "Post shared with friends",
         description: mediaUrls.length > 0 
-          ? `Your post with ${mediaUrls.length} photo(s) has been published!`
-          : "Your post has been published successfully.",
+          ? `Your post with ${mediaUrls.length} photo(s) is visible to your friends.`
+          : "Your post is visible to your friends.",
         className: "bg-green-500 text-white"
       })
       
       setContent('')
       setSelectedFiles([])
-      setVisibility('public')
 
       // Notify dashboard surfaces to refresh without a full page reload.
       window.dispatchEvent(
@@ -166,95 +165,54 @@ export function QuickPostCreator() {
   }
 
 
-  const getVisibilityIcon = (vis: string) => {
-    switch (vis) {
-      case 'private':
-        return <Lock className="h-4 w-4" />
-      case 'followers':
-        return <Users className="h-4 w-4" />
-      default:
-        return <Globe className="h-4 w-4" />
-    }
-  }
-
   return (
-    <Card className="rounded-2xl border-slate-700/60 bg-slate-900/50 backdrop-blur-sm">
-      <CardContent className="pt-6">
+    <Card className="overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-950/45 shadow-2xl shadow-purple-950/10 backdrop-blur-xl">
+      <CardContent className="p-4 sm:p-5">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <PostingAccountSelector />
+          <PostingAccountSelector className="border-white/10 bg-white/[0.04]" />
           <Textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="What's happening? Share your thoughts..."
-            className={`${dashboardCreatePattern.input} resize-none`}
+            className={`${dashboardCreatePattern.input} min-h-[128px] resize-none border-white/10 bg-black/30 px-4 py-4 text-[15px] leading-relaxed shadow-inner shadow-black/20 placeholder:text-slate-500`}
             rows={3}
             disabled={isSubmitting || isUploadingMedia}
             maxLength={2000}
           />
-          {isPostEmpty ? (
-            <p className="text-sm text-slate-400">
-              Add a caption or photo to enable posting.
-            </p>
-          ) : null}
 
           {/* Photo Upload Section */}
-          <div className="space-y-3">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.035] p-3">
             <PhotoUpload
               onPhotosSelected={handlePhotosSelected}
               maxFiles={5}
               maxSize={5}
               disabled={isSubmitting || isUploadingMedia || !isActingReady}
               showPreview={true}
+              className="[&_button]:rounded-xl [&_button]:border [&_button]:border-white/10 [&_button]:bg-white/[0.04] [&_button]:text-slate-300 [&_button:hover]:bg-purple-500/15 [&_button:hover]:text-purple-200"
             />
             
             {isUploadingMedia && (
-              <div className="flex items-center gap-2 text-sm text-purple-300">
+              <div className="mt-3 flex items-center gap-2 rounded-xl border border-purple-400/20 bg-purple-500/10 px-3 py-2 text-sm text-purple-200">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Uploading {uploadProgress.completed}/{uploadProgress.total}...
               </div>
             )}
           </div>
           
-          <div className="flex items-center justify-between">
-            <Select value={visibility} onValueChange={setVisibility} disabled={isSubmitting}>
-              <SelectTrigger className={`w-36 ${dashboardCreatePattern.selectTrigger}`}>
-                <SelectValue>
-                  <div className="flex items-center gap-2">
-                    {getVisibilityIcon(visibility)}
-                    <span className="capitalize">{visibility}</span>
-                  </div>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700 text-white">
-                <SelectItem value="public" className="hover:bg-slate-700">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4" />
-                    Public
-                  </div>
-                </SelectItem>
-                <SelectItem value="followers" className="hover:bg-slate-700">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Followers
-                  </div>
-                </SelectItem>
-                <SelectItem value="private" className="hover:bg-slate-700">
-                  <div className="flex items-center gap-2">
-                    <Lock className="h-4 w-4" />
-                    Private
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-purple-400/25 bg-purple-500/10 px-3 py-2 text-sm font-medium text-purple-100 shadow-inner shadow-white/5">
+              <Users className="h-4 w-4 text-purple-200" />
+              <span>Friends</span>
+            </div>
+
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-400">
+              <span className="min-w-[66px] text-right text-sm tabular-nums text-slate-400">
                 {content.length}/2000
               </span>
               <Button
                 type="submit"
                 disabled={isSubmitDisabled}
-                className="rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-500 hover:to-blue-500"
+                className={`${dashboardCreatePattern.btnPrimary} min-w-[104px] px-5 shadow-lg shadow-purple-950/25 disabled:cursor-not-allowed disabled:opacity-50`}
               >
                 {isSubmitting || isUploadingMedia ? (
                   <>

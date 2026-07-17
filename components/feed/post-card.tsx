@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -16,10 +16,7 @@ import {
   MapPin,
   Clock,
   Verified,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX
+  Trash2,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -27,8 +24,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { formatDistanceToNow } from 'date-fns'
-import { useFeed } from '@/hooks/use-feed'
 import { useAuth } from '@/hooks/use-auth'
 import type { ExtendedPost as BaseExtendedPost } from '@/lib/services/feed.service'
 import { getAccountAuthor, getAccountAuthorPath } from '@/lib/accounts/account-author'
@@ -36,7 +42,6 @@ import { LinkPreview, extractUrls, hasUrls } from '@/components/ui/link-preview'
 import Link from 'next/link'
 import { PollVoteCard } from '@/components/polls/poll-vote-card'
 import type { PollPayload } from '@/lib/polls/hydrate-polls'
-import { useJukeboxOptional } from '@/contexts/jukebox-context'
 import { toast } from 'sonner'
 import { FeedMusicPlayer } from '@/components/feed/feed-music-player'
 import {
@@ -44,6 +49,7 @@ import {
   isMusicFeedPost,
   type FeedTrackPreview,
 } from '@/lib/feed/music-post-preview'
+import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
 
 // Extend the base post with optional account/media fields used by the card UI
 type ExtendedPost = Omit<BaseExtendedPost, 'profiles'> & {
@@ -75,6 +81,7 @@ interface PostCardProps {
   post: ExtendedPost
   onCommentClick?: () => void
   onShareClick?: () => void
+  onDelete?: (postId: string) => Promise<void> | void
 }
 
 function getProfileUrl(post: ExtendedPost) {
@@ -85,20 +92,20 @@ function getProfileUrl(post: ExtendedPost) {
   return getAccountAuthorPath(author) || `/profile/${author.username || 'user'}`
 }
 
-export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) {
+export function PostCard({ post, onCommentClick, onShareClick, onDelete }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.is_liked)
   const [likesCount, setLikesCount] = useState(post.likes_count)
   const [isBookmarked, setIsBookmarked] = useState(false)
-  const jukebox = useJukeboxOptional()
   const [showFullContent, setShowFullContent] = useState(false)
-  const [isMediaPlaying, setIsMediaPlaying] = useState(false)
-  const [isMuted, setIsMuted] = useState(true)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const { likePost, unlikePost } = useFeed()
   const { user } = useAuth()
 
   const isLongContent = post.content.length > 300
   const musicTrack = isMusicFeedPost(post) ? buildFeedMusicTrackFromPost(post) : null
+  const isOwner = Boolean(user?.id && user.id === post.user_id)
 
   const handleLike = async () => {
     if (!user) return
@@ -140,6 +147,30 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
     // TODO: Implement bookmark functionality
   }
 
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/posts/${post.id}`
+    try {
+      await navigator.clipboard.writeText(url)
+      toast.success('Post link copied')
+    } catch {
+      toast.error('Failed to copy link')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!isOwner) return
+    setIsDeleting(true)
+    try {
+      await onDelete?.(post.id)
+      setIsDeleteOpen(false)
+      toast.success('Post deleted')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete post')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const formatContent = (content: string) => {
     const urlRegex = /(https?:\/\/[^\s]+)/g
     const hashtagRegex = /#(\w+)/g
@@ -155,202 +186,16 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
     // Music posts render FeedMusicPlayer separately; cover art must not show as an image.
     if (musicTrack) return null
 
-    // Handle multiple possible media data structures
-    let mediaItems: any[] = []
-    
-    if (post.post_media && Array.isArray(post.post_media)) {
-      mediaItems = post.post_media
-    } else if (post.media_urls && Array.isArray(post.media_urls)) {
-      mediaItems = post.media_urls.map((url: string, index: number) => ({
-        id: `${post.id}-media-${index}`,
-        type: 'image',
-        url: url,
-        alt_text: `Media ${index + 1}`
-      }))
-    } else if (post.media && Array.isArray(post.media)) {
-      mediaItems = post.media
-    } else if (post.media_items && Array.isArray(post.media_items)) {
-      mediaItems = post.media_items
-    }
-
-    if (!mediaItems || mediaItems.length === 0) return null
-
-    return (
-      <div className="mt-4">
-        {mediaItems.length === 1 ? (
-          // Single image/video - full width
-          <div className="relative rounded-xl overflow-hidden">
-            {mediaItems[0].type === 'image' || !mediaItems[0].type ? (
-              <img
-                src={mediaItems[0].url}
-                alt={mediaItems[0].alt_text || mediaItems[0].alt || 'Post media'}
-                className="w-full h-auto max-h-96 object-cover"
-                loading="lazy"
-              />
-            ) : mediaItems[0].type === 'video' ? (
-              <video
-                src={mediaItems[0].url}
-                poster={mediaItems[0].thumbnail_url ?? undefined}
-                className="w-full h-auto max-h-96 object-cover"
-                controls
-              />
-            ) : mediaItems[0].type === 'audio' ? (
-              <div className="rounded-lg border border-slate-700/50 bg-slate-900/70 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium text-white truncate">
-                      {post.content?.slice(0, 48) || 'Audio'}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="rounded-full bg-white text-black hover:bg-white/90"
-                    onClick={() => {
-                      const audioUrl = mediaItems[0]?.url
-                      const trackId = mediaItems[0]?.id || `${post.id}-audio`
-                      if (!jukebox || !audioUrl) {
-                        toast.error('Music player is unavailable')
-                        return
-                      }
-                      const player = jukebox
-                      const isCurrent =
-                        player.state.currentTrack?.id === trackId && player.state.isPlaying
-                      if (isCurrent) {
-                        player.pause()
-                        return
-                      }
-                      player.play(
-                        {
-                          id: String(trackId),
-                          title: post.content?.slice(0, 48) || 'Audio',
-                          artist_name: post.profiles?.full_name || 'Artist',
-                          artist_id: post.profiles?.id || undefined,
-                          file_url: audioUrl,
-                        },
-                        { source: 'feed_post' }
-                      )
-                    }}
-                  >
-                    {Boolean(
-                      jukebox?.state.currentTrack?.id ===
-                        (mediaItems[0]?.id || `${post.id}-audio`) &&
-                        jukebox?.state.isPlaying
-                    ) ? (
-                      <Pause className="h-4 w-4" />
-                    ) : (
-                      <Play className="h-4 w-4 ml-0.5" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        ) : mediaItems.length === 2 ? (
-          // Two images/videos - side by side
-          <div className="grid grid-cols-2 gap-2">
-            {mediaItems.slice(0, 2).map((media, index) => (
-              <div key={media.id || index} className="relative rounded-xl overflow-hidden">
-                {media.type === 'image' || !media.type ? (
-                  <img
-                    src={media.url}
-                    alt={media.alt_text || media.alt || 'Post media'}
-                    className="w-full h-48 object-cover"
-                    loading="lazy"
-                  />
-                ) : media.type === 'video' ? (
-                <video
-                  src={media.url}
-                    poster={media.thumbnail_url ?? undefined}
-                    className="w-full h-48 object-cover"
-                    controls
-                  />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : mediaItems.length === 3 ? (
-          // Three images/videos - 2 on top, 1 on bottom
-          <div className="grid grid-cols-2 gap-2">
-            <div className="row-span-2">
-              {mediaItems[0].type === 'image' || !mediaItems[0].type ? (
-                <img
-                  src={mediaItems[0].url}
-                  alt={mediaItems[0].alt_text || mediaItems[0].alt || 'Post media'}
-                  className="w-full h-full object-cover rounded-xl"
-                  loading="lazy"
-                />
-              ) : mediaItems[0].type === 'video' ? (
-                <video
-                  src={mediaItems[0].url}
-                  poster={mediaItems[0].thumbnail_url ?? undefined}
-                  className="w-full h-full object-cover rounded-xl"
-                  controls
-                />
-              ) : null}
-            </div>
-            <div className="space-y-2">
-              {mediaItems.slice(1, 3).map((media, index) => (
-                <div key={media.id || index} className="relative rounded-xl overflow-hidden">
-                  {media.type === 'image' || !media.type ? (
-                    <img
-                      src={media.url}
-                      alt={media.alt_text || media.alt || 'Post media'}
-                      className="w-full h-24 object-cover"
-                      loading="lazy"
-                    />
-                  ) : media.type === 'video' ? (
-                    <video
-                      src={media.url}
-                      poster={media.thumbnail_url ?? undefined}
-                      className="w-full h-24 object-cover"
-                      controls
-                    />
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          // Four or more images/videos - 2x2 grid with overlay
-          <div className="grid grid-cols-2 gap-2">
-            {mediaItems.slice(0, 4).map((media, index) => (
-              <div key={media.id || index} className="relative rounded-xl overflow-hidden">
-                {media.type === 'image' || !media.type ? (
-                  <img
-                    src={media.url}
-                    alt={media.alt_text || media.alt || 'Post media'}
-                    className="w-full h-48 object-cover"
-                    loading="lazy"
-                  />
-                ) : media.type === 'video' ? (
-                  <video
-                    src={media.url}
-                    poster={media.thumbnail_url ?? undefined}
-                    className="w-full h-48 object-cover"
-                    controls
-                  />
-                ) : null}
-                {index === 3 && mediaItems.length > 4 && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <span className="text-white text-xl font-bold">
-                      +{mediaItems.length - 4}
-                    </span>
-              </div>
-            )}
-          </div>
-        ))}
-          </div>
-        )}
-      </div>
-    )
+    return <FeedMediaGrid mediaItems={normalizeMediaData(post)} postId={post.id} />
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
       <Card className="mb-4 overflow-hidden bg-gradient-to-br from-slate-900/50 to-slate-800/50 backdrop-blur-xl border-slate-700/50 hover:border-slate-600/50 transition-all duration-300">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
@@ -397,28 +242,37 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
               </div>
             </div>
             
-            <DropdownMenu>
+            <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-slate-400 hover:text-white"
+                  onClick={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                  }}
+                >
                   <MoreHorizontal className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-                <DropdownMenuItem className="text-slate-300 hover:text-white">
+                <DropdownMenuItem className="text-slate-300 hover:text-white" onSelect={() => void handleCopyLink()}>
                   Copy link
                 </DropdownMenuItem>
-                <DropdownMenuItem className="text-slate-300 hover:text-white">
-                  Report post
-                </DropdownMenuItem>
-                {user?.id === post.user_id && (
-                  <>
-                    <DropdownMenuItem className="text-slate-300 hover:text-white">
-                      Edit post
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-red-400 hover:text-red-300">
-                      Delete post
-                    </DropdownMenuItem>
-                  </>
+                {isOwner && (
+                  <DropdownMenuItem
+                    className="text-red-400 hover:text-red-300"
+                    onSelect={(event) => {
+                      event.preventDefault()
+                      setIsMenuOpen(false)
+                      setIsDeleteOpen(true)
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete post
+                  </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
@@ -569,6 +423,32 @@ export function PostCard({ post, onCommentClick, onShareClick }: PostCardProps) 
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+      </motion.div>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent className="border-slate-700 bg-slate-900 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              This removes the post from your feed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDelete()
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

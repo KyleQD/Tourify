@@ -20,6 +20,7 @@ import {
   Pin,
   Send,
   Loader2,
+  Trash2,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -27,6 +28,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { formatDistanceToNow } from 'date-fns'
 import { cn } from '@/lib/utils'
 import {
@@ -44,6 +55,7 @@ import {
   isMusicFeedPost,
   type FeedTrackPreview,
 } from '@/lib/feed/music-post-preview'
+import { FeedMediaGrid, normalizeMediaData } from '@/utils/media-utils'
 
 export interface ArtistFeedPost {
   id: string
@@ -63,6 +75,7 @@ export interface ArtistFeedPost {
     avatar_url?: string | null
     profile_path?: string | null
   }
+  owner_user_id?: string | null
   likes_count: number
   comments_count: number
   shares_count: number
@@ -100,6 +113,7 @@ interface ArtistPostCardProps {
   onShare?: (postId: string) => void | Promise<void>
   onFollow?: (userId: string) => void | Promise<void>
   onPin?: (postId: string, isPinned: boolean) => void | Promise<void>
+  onDelete?: (postId: string) => void | Promise<void>
   onLoadComments?: (postId: string) => Promise<ArtistPostComment[]>
   onSubmitComment?: (postId: string, content: string) => Promise<ArtistPostComment | null>
 }
@@ -108,18 +122,6 @@ function visibilityIcon(visibility: string) {
   if (visibility === 'followers') return <Users className="h-3.5 w-3.5" />
   if (visibility === 'private') return <Lock className="h-3.5 w-3.5" />
   return <Globe className="h-3.5 w-3.5" />
-}
-
-function resolveMediaItems(post: ArtistFeedPost): ArtistFeedMediaItem[] {
-  if (post.media_items?.length) return post.media_items
-  if (post.media_urls?.length) {
-    return post.media_urls.map((url, index) => ({
-      id: `${post.id}-media-${index}`,
-      type: 'image',
-      url,
-    }))
-  }
-  return []
 }
 
 export function ArtistPostCard({
@@ -133,6 +135,7 @@ export function ArtistPostCard({
   onShare,
   onFollow,
   onPin,
+  onDelete,
   onLoadComments,
   onSubmitComment,
 }: ArtistPostCardProps) {
@@ -145,8 +148,11 @@ export function ArtistPostCard({
   const [isLoadingComments, setIsLoadingComments] = useState(false)
   const [isSubmittingComment, setIsSubmittingComment] = useState(false)
   const [isPinned, setIsPinned] = useState(Boolean(post.is_pinned))
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  const mediaItems = resolveMediaItems(post)
+  const mediaItems = normalizeMediaData(post)
   const musicTrack = isMusicFeedPost(post)
     ? buildFeedMusicTrackFromPost({
         ...post,
@@ -159,7 +165,10 @@ export function ArtistPostCard({
       })
     : null
   const profileHref = post.user.profile_path || `/artist/${post.user.username}`
-  const isOwner = Boolean(currentUserId && currentUserId === post.user.id)
+  const isOwner = Boolean(
+    currentUserId &&
+    (currentUserId === post.owner_user_id || currentUserId === post.user.id)
+  )
 
   async function handleLike() {
     if (!interactive || !onLike) return
@@ -215,13 +224,25 @@ export function ArtistPostCard({
     }
   }
 
+  async function handleDelete() {
+    if (!interactive || !isOwner || !onDelete) return
+    setIsDeleting(true)
+    try {
+      await onDelete(post.id)
+      setIsDeleteOpen(false)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={cn(ARTIST_CARD_INTERACTIVE, 'overflow-hidden p-5', className)}
-    >
+    <>
+      <motion.article
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className={cn(ARTIST_CARD_INTERACTIVE, 'overflow-hidden p-5', className)}
+      >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0">
           <Link href={profileHref} className="shrink-0">
@@ -278,23 +299,45 @@ export function ArtistPostCard({
           </div>
         </div>
 
-        <DropdownMenu>
+        <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-white/10"
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+              }}
+            >
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="border-white/10 bg-slate-950/95 text-slate-200">
             {canPin && isOwner && (
-              <DropdownMenuItem onClick={handlePin}>
+              <DropdownMenuItem onSelect={() => void handlePin()}>
                 <Pin className="h-4 w-4 mr-2" />
                 {isPinned ? 'Unpin' : 'Pin post'}
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem onClick={() => onShare?.(post.id)}>
+            <DropdownMenuItem onSelect={() => onShare?.(post.id)}>
               <Share2 className="h-4 w-4 mr-2" />
               Copy link
             </DropdownMenuItem>
+            {isOwner && onDelete && (
+              <DropdownMenuItem
+                className="text-red-300 focus:text-red-200"
+                onSelect={(event) => {
+                  event.preventDefault()
+                  setIsMenuOpen(false)
+                  setIsDeleteOpen(true)
+                }}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete post
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -326,44 +369,11 @@ export function ArtistPostCard({
       )}
 
       {!musicTrack && mediaItems.length > 0 && (
-        <div className="mt-4">
-          {mediaItems.length === 1 ? (
-            <div className={cn(ARTIST_INSET, 'overflow-hidden')}>
-              {(mediaItems[0].type === 'video') ? (
-                <video
-                  src={mediaItems[0].url}
-                  poster={mediaItems[0].thumbnail_url}
-                  controls
-                  className="w-full max-h-96 object-cover"
-                />
-              ) : (
-                <img
-                  src={mediaItems[0].url}
-                  alt={mediaItems[0].altText || 'Post media'}
-                  className="w-full max-h-96 object-cover"
-                  loading="lazy"
-                />
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {mediaItems.slice(0, 4).map((item, index) => (
-                <div key={item.id || index} className={cn(ARTIST_INSET, 'relative overflow-hidden')}>
-                  {item.type === 'video' ? (
-                    <video src={item.url} poster={item.thumbnail_url} controls className="h-40 w-full object-cover" />
-                  ) : (
-                    <img src={item.url} alt={item.altText || 'Post media'} className="h-40 w-full object-cover" loading="lazy" />
-                  )}
-                  {index === 3 && mediaItems.length > 4 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-xl font-bold text-white">
-                      +{mediaItems.length - 4}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <FeedMediaGrid
+          mediaItems={mediaItems}
+          postId={post.id}
+          frameClassName="border border-white/10"
+        />
       )}
 
       {post.hashtags && post.hashtags.length > 0 && (
@@ -488,6 +498,32 @@ export function ArtistPostCard({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.article>
+      </motion.article>
+      <AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <AlertDialogContent className="border-slate-700 bg-slate-900 text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete post?</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400">
+              This removes the post from your feed. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-700 bg-slate-800 text-white hover:bg-slate-700">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={(event) => {
+                event.preventDefault()
+                void handleDelete()
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }

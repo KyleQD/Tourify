@@ -10,6 +10,7 @@ import {
   resolvePollEndsAt,
 } from '@/lib/polls/poll-duration'
 import { buildPollPayload } from '@/lib/polls/hydrate-polls'
+import { normalizeFeedMediaUrls } from '@/lib/feed/media-url-utils'
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const visibility = body.visibility || (isPoll ? 'followers' : 'public')
 
     const cleanHashtags = Array.isArray(hashtags) ? hashtags : []
-    const cleanMediaUrls = Array.isArray(media_urls) ? media_urls : []
+    const cleanMediaUrls = normalizeFeedMediaUrls(media_urls)
 
     if (!content?.trim()) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 })

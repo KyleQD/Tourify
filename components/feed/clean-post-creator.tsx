@@ -25,7 +25,6 @@ import {
 import {
   Image, 
   Video, 
-  Music, 
   MapPin, 
   Hash, 
   Send,
@@ -33,27 +32,18 @@ import {
   Globe,
   Users,
   Lock,
-  Link,
-  Upload,
   Plus,
   AlertCircle,
-  CheckCircle,
   Loader2,
-  FileText,
-  Smile,
   Calendar,
-  Clock,
   Settings,
   BarChart3
 } from 'lucide-react'
 import { MediaPreview } from '@/components/ui/media-preview'
 import { DragDropIndicator } from '@/components/ui/drag-drop-indicator'
 import { 
-  useMediaUpload, 
   MediaFile,
-  MediaType,
-  formatFileSize,
-  formatDuration
+  uploadMediaFiles,
 } from '@/lib/utils/enhanced-media-upload'
 import { useDragAndDrop } from '@/hooks/use-drag-and-drop'
 import { useAuth } from '@/contexts/auth-context'
@@ -128,6 +118,7 @@ export function CleanPostCreator({
   const [scheduledDate, setScheduledDate] = useState('')
   const [showMediaUpload, setShowMediaUpload] = useState(false)
   const [isPollMode, setIsPollMode] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [pollOptions, setPollOptions] = useState<string[]>(['', ''])
   const [pollDuration, setPollDuration] = useState<PollDuration>('7d')
 
@@ -138,17 +129,31 @@ export function CleanPostCreator({
   const characterCount = postData.content.length
   const maxCharacters = 280
   const isOverLimit = characterCount > maxCharacters
+  const isUploadingMedia = isSubmitting && uploadProgress > 0 && uploadProgress < 100
+
+  function isFeedMediaFile(file: File) {
+    return file.type.startsWith('image/') || file.type.startsWith('video/')
+  }
 
   // Handle media selection
-  function handleMediaSelected(files: MediaFile[]) {
-    const updatedMediaItems = [...postData.mediaItems, ...files]
+  const handleMediaSelected = useCallback((files: MediaFile[]) => {
+    const acceptedFiles = files.filter((item) => item.type === 'image' || item.type === 'video')
+    const rejectedCount = files.length - acceptedFiles.length
+    const remainingSlots = Math.max(0, maxMediaItems - postData.mediaItems.length)
+
+    if (rejectedCount > 0) {
+      toast.error('Only photos and videos can be attached to feed posts right now')
+    }
+
+    if (acceptedFiles.length === 0 || remainingSlots === 0) return
+
+    const selectedFiles = acceptedFiles.slice(0, remainingSlots)
+    const updatedMediaItems = [...postData.mediaItems, ...selectedFiles]
     setPostData(prev => ({ ...prev, mediaItems: updatedMediaItems }))
     setShowMediaUpload(false)
     
-    if (files.length > 0) {
-      toast.success(`${files.length} file(s) added to post`)
-    }
-  }
+    toast.success(`${selectedFiles.length} file(s) added to post`)
+  }, [maxMediaItems, postData.mediaItems])
 
   // Drag and drop hook
   const {
@@ -160,7 +165,7 @@ export function CleanPostCreator({
   } = useDragAndDrop({
     onFilesSelected: handleMediaSelected,
     maxFiles: maxMediaItems - postData.mediaItems.length,
-    allowedTypes: ['image', 'video', 'audio', 'document']
+    allowedTypes: ['image', 'video']
   })
 
   // Auto-resize textarea
@@ -252,12 +257,16 @@ export function CleanPostCreator({
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files) {
-      const mediaFiles: MediaFile[] = Array.from(files).map((file, index) => ({
+      const incomingFiles = Array.from(files)
+      const rejectedCount = incomingFiles.filter((file) => !isFeedMediaFile(file)).length
+      if (rejectedCount > 0) {
+        toast.error('Only photos and videos can be attached to feed posts right now')
+      }
+
+      const mediaFiles: MediaFile[] = incomingFiles.filter(isFeedMediaFile).map((file, index) => ({
         id: `file-${Date.now()}-${index}`,
         file,
-        type: file.type.startsWith('image/') ? 'image' : 
-              file.type.startsWith('video/') ? 'video' : 
-              file.type.startsWith('audio/') ? 'audio' : 'document',
+        type: file.type.startsWith('video/') ? 'video' : 'image',
         fileSize: file.size,
         altText: file.name
       }))
@@ -265,7 +274,7 @@ export function CleanPostCreator({
     }
     // Reset input
     e.target.value = ''
-  }, [])
+  }, [handleMediaSelected])
 
   // Submit post
   const handleSubmit = useCallback(async () => {
@@ -288,14 +297,23 @@ export function CleanPostCreator({
     }
 
     setIsSubmitting(true)
+    setUploadProgress(0)
 
     try {
       let uploadedMediaUrls: string[] = []
       
       if (!isPollMode && postData.mediaItems.length > 0) {
-        uploadedMediaUrls = postData.mediaItems.map(item => 
-          item.url || URL.createObjectURL(item.file)
-        )
+        const upload = await uploadMediaFiles({
+          userId: user.id,
+          mediaFiles: postData.mediaItems,
+          onProgress: setUploadProgress,
+        })
+
+        if (!upload.success || !upload.mediaItems?.length) {
+          throw new Error(upload.error || 'Failed to upload media')
+        }
+
+        uploadedMediaUrls = upload.mediaItems.map((item) => item.url)
       }
 
       const postPayload: Record<string, unknown> = {
@@ -347,6 +365,7 @@ export function CleanPostCreator({
       setIsExpanded(false)
       setShowMediaUpload(false)
       setIsPollMode(false)
+      setUploadProgress(0)
       setPollOptions(['', ''])
       setPollDuration('7d')
 
@@ -359,6 +378,7 @@ export function CleanPostCreator({
       toast.error(error instanceof Error ? error.message : 'Failed to create post')
     } finally {
       setIsSubmitting(false)
+      setUploadProgress(0)
     }
   }, [user, postData, defaultVisibility, onPostCreated, actingHeaders, isPollMode, pollOptions, pollDuration])
 
@@ -405,7 +425,7 @@ export function CleanPostCreator({
             isDragOver={isDragOver}
             isDragValid={isDragValid}
             errorMessage={errorMessage}
-            allowedTypes={['image', 'video', 'audio', 'document']}
+            allowedTypes={['image', 'video']}
             className="transition-all duration-300"
           >
             <div {...dragHandlers}>
@@ -459,9 +479,12 @@ export function CleanPostCreator({
               className="mt-4"
             >
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-medium text-white">
-                  Media ({postData.mediaItems.length}/{maxMediaItems})
-                </h4>
+                <div>
+                  <h4 className="text-sm font-medium text-white">
+                    Media ({postData.mediaItems.length}/{maxMediaItems})
+                  </h4>
+                  <p className="mt-0.5 text-xs text-slate-500">Local previews. Files upload when you post.</p>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -475,24 +498,41 @@ export function CleanPostCreator({
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {postData.mediaItems.map((mediaItem) => (
-                  <MediaPreview
-                    key={mediaItem.id}
-                    id={mediaItem.id}
-                    type={mediaItem.type}
-                    url={mediaItem.url || URL.createObjectURL(mediaItem.file)}
-                    thumbnailUrl={mediaItem.thumbnailUrl}
-                    altText={mediaItem.altText}
-                    title={mediaItem.file.name}
-                    duration={mediaItem.duration}
-                    fileSize={mediaItem.fileSize}
-                    metadata={mediaItem.metadata}
-                    onRemove={removeMediaItem}
-                    showControls={true}
-                    maxHeight={150}
-                  />
+                  <div key={mediaItem.id} className="space-y-1.5">
+                    <MediaPreview
+                      id={mediaItem.id}
+                      type={mediaItem.type}
+                      url={mediaItem.url || URL.createObjectURL(mediaItem.file)}
+                      thumbnailUrl={mediaItem.thumbnailUrl}
+                      altText={mediaItem.altText}
+                      title={mediaItem.file.name}
+                      duration={mediaItem.duration}
+                      fileSize={mediaItem.fileSize}
+                      metadata={mediaItem.metadata}
+                      onRemove={removeMediaItem}
+                      showControls={true}
+                      maxHeight={150}
+                    />
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Local preview</p>
+                  </div>
                 ))}
               </div>
             </motion.div>
+          )}
+
+          {isUploadingMedia && (
+            <div className="mt-4 rounded-xl border border-purple-400/25 bg-purple-500/10 p-3">
+              <div className="mb-2 flex items-center justify-between text-xs text-purple-100">
+                <span>Uploading media</span>
+                <span>{Math.round(uploadProgress)}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-black/30">
+                <div
+                  className="h-full rounded-full bg-purple-300 transition-all"
+                  style={{ width: `${Math.max(4, uploadProgress)}%` }}
+                />
+              </div>
+            </div>
           )}
 
           {/* Hashtags */}
@@ -676,7 +716,7 @@ export function CleanPostCreator({
                     {isSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {isPollMode ? 'Creating...' : (postData.scheduledFor ? 'Scheduling...' : 'Posting...')}
+                        {isUploadingMedia ? 'Uploading...' : isPollMode ? 'Creating...' : (postData.scheduledFor ? 'Scheduling...' : 'Posting...')}
                       </>
                     ) : (
                       <>
@@ -751,7 +791,7 @@ export function CleanPostCreator({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+            accept="image/*,video/*"
             onChange={handleFileInput}
             className="hidden"
           />

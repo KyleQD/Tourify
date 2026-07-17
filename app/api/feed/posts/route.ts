@@ -14,6 +14,8 @@ import {
 } from '@/lib/feed/music-post-preview'
 import { hydratePostsWithPolls } from '@/lib/polls/hydrate-polls'
 import { startRouteTiming } from '@/lib/observability/route-timing'
+import { countUnavailableFeedMediaUrls, normalizeFeedMediaUrls } from '@/lib/feed/media-url-utils'
+import { getManageablePostIds } from '@/lib/feed/post-management'
 
 const GENERIC_AUTHOR_NAMES = new Set(['Community Member', 'Artist', 'Venue', 'Organization'])
 
@@ -87,6 +89,79 @@ async function getAccountProfileIdsForUsers(supabase: any, ownerIds: string[]) {
     ...venueMainProfileIds,
     ...organizerIds,
   ])
+}
+
+function isPublicProfileAccountSettings(accountSettings: unknown) {
+  const settings = accountSettings && typeof accountSettings === 'object'
+    ? accountSettings as Record<string, any>
+    : {}
+  const privacy = settings.privacy && typeof settings.privacy === 'object'
+    ? settings.privacy as Record<string, any>
+    : {}
+
+  if (typeof privacy.profile_visibility === 'string') {
+    return privacy.profile_visibility === 'public'
+  }
+
+  if (typeof privacy.profile_public === 'boolean') {
+    return privacy.profile_public
+  }
+
+  return true
+}
+
+async function resolveProfileFeedVisibilityAccess({
+  supabase,
+  viewerUserId,
+  ownerUserId,
+  profileId,
+}: {
+  supabase: any
+  viewerUserId?: string | null
+  ownerUserId?: string | null
+  profileId?: string | null
+}) {
+  const visibilityTargetIds = unique([ownerUserId, profileId])
+  const profileSettingsId = ownerUserId || profileId || null
+  const viewerOwnsProfile = Boolean(viewerUserId && visibilityTargetIds.includes(viewerUserId))
+
+  let profileIsPublic = true
+  if (profileSettingsId) {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('id, account_settings')
+        .eq('id', profileSettingsId)
+        .maybeSingle()
+
+      if (!error && profile) {
+        profileIsPublic = isPublicProfileAccountSettings(profile.account_settings)
+      }
+    } catch (error) {
+      console.warn('[Feed Posts API] Failed to read profile visibility settings:', error)
+    }
+  }
+
+  let viewerFollowsProfileOwner = false
+  if (viewerUserId && !viewerOwnsProfile && visibilityTargetIds.length > 0) {
+    try {
+      const { data: follows, error } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', viewerUserId)
+        .in('following_id', visibilityTargetIds)
+        .limit(1)
+
+      viewerFollowsProfileOwner = !error && Boolean(follows?.length)
+    } catch (error) {
+      console.warn('[Feed Posts API] Failed to read profile follow relationship:', error)
+    }
+  }
+
+  return {
+    viewerOwnsProfile,
+    viewerCanSeeFollowersPosts: viewerOwnsProfile || viewerFollowsProfileOwner || profileIsPublic,
+  }
 }
 
 async function createFeedReadClient(authResult: Awaited<ReturnType<typeof authenticateApiRequest>>) {
@@ -192,6 +267,33 @@ async function fetchArticlePreviews(supabase: any, posts: any[]) {
   return new Map((data || []).map((article: any) => [article.id, normalizeArticlePreview(article)]))
 }
 
+async function fetchActualCommentCounts(supabase: any, posts: any[]) {
+  const postIds = unique(posts.map((post) => post?.id))
+  if (postIds.length === 0) return new Map<string, number>()
+
+  try {
+    const { data, error } = await supabase
+      .from('post_comments')
+      .select('post_id')
+      .in('post_id', postIds)
+
+    if (error) {
+      console.warn('[Feed Posts API] Failed to reconcile comment counts:', error)
+      return new Map<string, number>()
+    }
+
+    const counts = new Map<string, number>()
+    for (const row of data || []) {
+      if (!row?.post_id) continue
+      counts.set(row.post_id, (counts.get(row.post_id) || 0) + 1)
+    }
+    return counts
+  } catch (error) {
+    console.warn('[Feed Posts API] Failed to reconcile comment counts:', error)
+    return new Map<string, number>()
+  }
+}
+
 function getStoredArticlePreview(post: any) {
   const metadata = post?.metadata && typeof post.metadata === 'object' ? post.metadata : null
   const preview = metadata?.article_preview
@@ -249,6 +351,19 @@ function getStoredEventPreview(post: any) {
   }
 }
 
+function getMediaUnavailableCount(post: any) {
+  const metadata = post?.metadata && typeof post.metadata === 'object'
+    ? post.metadata as Record<string, any>
+    : {}
+  const explicitCount = Number(metadata.media_unavailable_count || metadata.mediaUnavailableCount || 0)
+  const invalidUrlCount = countUnavailableFeedMediaUrls(post?.media_urls)
+
+  if (explicitCount > 0) return explicitCount
+  if (metadata.media_unavailable === true || metadata.mediaUnavailable === true)
+    return Math.max(1, invalidUrlCount)
+  return invalidUrlCount
+}
+
 async function enrichFeedPosts(
   supabase: any,
   posts: any[] | null | undefined,
@@ -257,12 +372,14 @@ async function enrichFeedPosts(
   const safePosts = posts || []
   if (safePosts.length === 0) return []
 
-  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls] = await Promise.all([
+  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls, actualCommentCounts, manageablePostIds] = await Promise.all([
     fetchOwnerProfiles(supabase, safePosts),
     resolveAuthorsForPosts(supabase, safePosts),
     fetchArticlePreviews(supabase, safePosts),
     fetchTrackPreviews(supabase, safePosts),
     hydratePostsWithPolls({ supabase, posts: safePosts, viewerUserId }),
+    fetchActualCommentCounts(supabase, safePosts),
+    getManageablePostIds({ supabase, posts: safePosts, userId: viewerUserId }),
   ])
 
   return withPolls.map(post => {
@@ -287,6 +404,10 @@ async function enrichFeedPosts(
 
     return {
       ...post,
+      media_urls: normalizeFeedMediaUrls(post.media_urls),
+      media_unavailable_count: getMediaUnavailableCount(post),
+      comments_count: actualCommentCounts.get(post.id) ?? Number(post.comments_count || 0),
+      viewer_can_manage: manageablePostIds.has(post.id),
       profiles: post.profiles || profile,
       resolved_author: resolvedAuthor,
       article_preview: articlePreview,
@@ -300,6 +421,9 @@ async function enrichFeedPosts(
 function normalizeFeedPost(post: any) {
   const author = getAccountAuthor(post)
   const ownerProfile = Array.isArray(post.profiles) ? post.profiles[0] : post.profiles
+  const mediaUrls = normalizeFeedMediaUrls(post.media_urls)
+  const commentsCount = Number(post.comments_count || 0)
+  const mediaUnavailableCount = Number(post.media_unavailable_count || getMediaUnavailableCount(post) || 0)
   const profile = {
     id: author.id || post.user_id,
     username: author.username || ownerProfile?.username || 'user',
@@ -322,9 +446,10 @@ function normalizeFeedPost(post: any) {
     visibility: post.visibility || 'public',
     location: post.location || null,
     hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
-    media_urls: Array.isArray(post.media_urls) ? post.media_urls : [],
+    media_urls: mediaUrls,
+    media_unavailable_count: mediaUnavailableCount > 0 ? mediaUnavailableCount : undefined,
     likes_count: post.likes_count || 0,
-    comments_count: post.comments_count || 0,
+    comments_count: commentsCount,
     shares_count: post.shares_count || 0,
     is_pinned: Boolean(post.is_pinned),
     created_at: post.created_at,
@@ -341,6 +466,7 @@ function normalizeFeedPost(post: any) {
     event_preview: post.event_preview || null,
     track_preview: post.track_preview || null,
     metadata: post.metadata || null,
+    viewer_can_manage: Boolean(post.viewer_can_manage),
     poll_ends_at: post.poll_ends_at || null,
     poll_total_votes: post.poll_total_votes || post.poll?.totalVotes || 0,
     poll: post.poll || null,
@@ -388,6 +514,9 @@ export async function GET(request: NextRequest) {
       let followingUserIds: string[] | undefined
       let followingProfileIds: string[] | undefined
       let ownedProfileIds: string[] | undefined
+      let profileFeedVisibilityAccess:
+        | Awaited<ReturnType<typeof resolveProfileFeedVisibilityAccess>>
+        | undefined
 
       // Handle following feed - friends (user follows) + account follows (persona updates)
       if (type === 'following' && authResult?.user) {
@@ -437,6 +566,15 @@ export async function GET(request: NextRequest) {
         followingProfileIds = unique([...accountProfileIds, ...(ownedProfileIds || [])])
       }
 
+      if (type === 'user') {
+        profileFeedVisibilityAccess = await resolveProfileFeedVisibilityAccess({
+          supabase,
+          viewerUserId: authResult?.user?.id || null,
+          ownerUserId: user_id,
+          profileId: profileIdFilter,
+        })
+      }
+
       // Ignore non-post "types" like 'network' to avoid bad filters
 
       const { data: basePosts, error: baseError } = await fetchFeedPostsWithFallback(
@@ -449,6 +587,8 @@ export async function GET(request: NextRequest) {
           followingUserIds,
           followingProfileIds,
           ownedProfileIds,
+          viewerOwnsProfile: profileFeedVisibilityAccess?.viewerOwnsProfile,
+          viewerCanSeeFollowersPosts: profileFeedVisibilityAccess?.viewerCanSeeFollowersPosts,
           attribution,
         },
         limit,
@@ -593,12 +733,13 @@ export async function POST(request: NextRequest) {
       poll_options: rawPollOptions,
       poll_duration: rawPollDuration,
     } = body
+    const cleanMediaUrls = normalizeFeedMediaUrls(media_urls)
 
     const isPoll = type === 'poll'
     const visibility = body.visibility || (isPoll ? 'followers' : 'public')
 
     // Allow posts with either content or media (polls always need content/question)
-    if (!content?.trim() && (!media_urls || media_urls.length === 0)) {
+    if (!content?.trim() && cleanMediaUrls.length === 0) {
       return NextResponse.json(
         { success: false, data: null, error: { code: 'content_required', message: 'Content or media is required' } },
         { status: 400 }
@@ -633,12 +774,12 @@ export async function POST(request: NextRequest) {
 
     const postData: Record<string, unknown> = {
       user_id: actingUserId,
-      content: content?.trim() || (media_urls && media_urls.length > 0 ? 'Shared a photo' : null),
-      type: type || (media_urls && media_urls.length > 0 ? 'image' : 'text'),
+      content: content?.trim() || (cleanMediaUrls.length > 0 ? 'Shared a photo' : null),
+      type: type || (cleanMediaUrls.length > 0 ? 'image' : 'text'),
       visibility,
       location,
       hashtags,
-      media_urls,
+      media_urls: cleanMediaUrls,
       posted_as_type: accountType,
       posted_as_profile_id: profileId,
       account_display_name: author.name,
@@ -699,6 +840,7 @@ export async function POST(request: NextRequest) {
       ...post,
       resolved_author: author,
       poll: pollPayload,
+      viewer_can_manage: true,
     })
     return NextResponse.json({ success: true, data: normalizedPost, post: normalizedPost, error: null })
   } catch (error) {

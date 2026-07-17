@@ -113,6 +113,27 @@ export function useFeed() {
     }
   }, [])
 
+  const deletePost = useCallback(async (postId: string) => {
+    const previousPosts = posts
+    setPosts(prev => prev.filter(post => post.id !== postId))
+
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}))
+        throw new Error(result.error || 'Failed to delete post')
+      }
+    } catch (err) {
+      setPosts(previousPosts)
+      console.error('Error deleting post:', err)
+      throw err
+    }
+  }, [posts])
+
   const refreshFeed = useCallback(() => {
     loadFeed(true)
   }, [loadFeed])
@@ -158,6 +179,7 @@ export function useFeed() {
     createPost,
     likePost,
     unlikePost,
+    deletePost,
     refreshFeed,
     loadMorePosts
   }
@@ -306,4 +328,4 @@ export function useTrendingHashtags() {
   }, [])
 
   return { hashtags, loading }
-} 
+}
