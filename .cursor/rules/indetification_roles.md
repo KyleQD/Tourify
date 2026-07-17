@@ -3,10 +3,13 @@
  * ---------------------------------
  * Every profile belongs to exactly one category: Person, Place, or Thing.
  * Every user account is an "Individual" (Person) that can own/manage other profiles.
- * Admin is a permission role, not a profile type.
+ * Admin is a permission / Work Mode surface, not a public persona type.
+ * Tour manager is a role/grant on a General user — not a public persona.
+ * Organization subtypes (band, label, promoter, agency, …) share `/organization/{slug}`.
+ * See docs/organization-personas.md.
  */
 
-export type ProfileCategory = "Person" | "Place" | "Thing";n
+export type ProfileCategory = "Person" | "Place" | "Thing";
 
 export interface ProfileTypeConfig {
   key: string;                  // Unique profile type identifier
@@ -32,12 +35,12 @@ export const PROFILE_TYPES: ProfileTypeConfig[] = [
   },
   {
     key: "organizer",
-    category: "Person",
-    displayName: "Organizer",
-    primaryPurpose: "Manages and coordinates events, people, and resources.",
-    layoutTemplate: "personProfile",
+    category: "Thing",
+    displayName: "Organization (legacy alias)",
+    primaryPurpose: "Legacy key for Organization public brand. Prefer organization / subtype keys.",
+    layoutTemplate: "organizationProfile",
     defaultFields: ["bio", "experience", "services", "contactInfo"],
-    discoveryTags: ["organizer", "event manager", "coordinator"]
+    discoveryTags: ["organizer", "organization", "event manager", "coordinator"]
   },
 
   // ----- Thing -----
@@ -49,6 +52,33 @@ export const PROFILE_TYPES: ProfileTypeConfig[] = [
     layoutTemplate: "artistProfile",
     defaultFields: ["bio", "portfolio", "mediaLinks", "upcomingEvents", "members"],
     discoveryTags: ["artist", "musician", "performer", "creative"]
+  },
+  {
+    key: "band",
+    category: "Thing",
+    displayName: "Band",
+    primaryPurpose: "Collective brand that rosters Artist personas while each artist keeps a personal page.",
+    layoutTemplate: "organizationProfile",
+    defaultFields: ["bio", "artistRoster", "upcomingEvents", "contactInfo"],
+    discoveryTags: ["band", "group", "collective", "roster"]
+  },
+  {
+    key: "label",
+    category: "Thing",
+    displayName: "Label",
+    primaryPurpose: "Record label brand with a roster of signed artists.",
+    layoutTemplate: "organizationProfile",
+    defaultFields: ["bio", "artistRoster", "catalog", "contactInfo"],
+    discoveryTags: ["label", "record label", "imprint", "roster"]
+  },
+  {
+    key: "organization",
+    category: "Thing",
+    displayName: "Organization",
+    primaryPurpose: "Generic public brand for companies that do not fit a more specific subtype.",
+    layoutTemplate: "organizationProfile",
+    defaultFields: ["bio", "services", "jobs", "contactInfo"],
+    discoveryTags: ["organization", "company", "brand"]
   },
   {
     key: "performanceAgency",

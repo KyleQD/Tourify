@@ -130,3 +130,6 @@ Admin-driven workflow for:
 ## Summary
 Build a scalable, type-safe, admin-first workflow for managing event staffing. Prioritize performance, security, declarative logic, and modularity. Handle all data via Supabase with RLS and Supabase GraphQL via Genql. Follow defined conventions strictly.
 
+## Real data only
+
+No production component may ship with hardcoded fake staff, fake AI insights, fake activity, fake candidates, fake templates, or local-only dashboard data. Empty states must represent real empty Supabase query results.
