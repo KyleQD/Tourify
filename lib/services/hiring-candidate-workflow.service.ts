@@ -427,15 +427,26 @@ export class HiringCandidateWorkflowService {
 
     const { data: documentRow, error: documentError } = await supabase
       .from("staff_documents")
-      .select("id,candidate_id,staff_onboarding_candidates!inner(employer_entity_type,employer_entity_id)")
+      .select("id,candidate_id,employer_entity_type,employer_entity_id")
       .eq("id", documentId)
       .single()
 
     if (documentError) return { ok: false, error: documentError.message }
 
-    const candidateScope = Array.isArray(documentRow.staff_onboarding_candidates)
-      ? documentRow.staff_onboarding_candidates[0]
-      : documentRow.staff_onboarding_candidates
+    let candidateScope: { employer_entity_type?: string | null; employer_entity_id?: string | null } | null =
+      documentRow
+
+    if (
+      (!candidateScope?.employer_entity_type || !candidateScope?.employer_entity_id) &&
+      documentRow.candidate_id
+    ) {
+      const { data: candidate } = await supabase
+        .from("staff_onboarding_candidates")
+        .select("employer_entity_type,employer_entity_id")
+        .eq("id", documentRow.candidate_id)
+        .maybeSingle()
+      candidateScope = candidate
+    }
 
     if (candidateScope?.employer_entity_type !== employer.entityType || candidateScope?.employer_entity_id !== employer.entityId) {
       return { ok: false, error: "Document does not belong to the active hiring entity." }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { Download, Loader2, Users } from "lucide-react"
+import { Download, Loader2, Plus, Users } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { RosterAssignmentDialog } from "@/components/hiring/roster-assignment-dialog"
+import { RosterAddStaffDialog } from "@/components/hiring/roster-add-staff-dialog"
 import { RosterFilters } from "@/components/hiring/roster-filters"
 import { RosterMemberDetailDrawer } from "@/components/hiring/roster-member-detail-drawer"
 import { WorkforceMetricCard, WorkforcePanel } from "@/components/hiring/workforce-ui"
@@ -60,6 +61,7 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
   const [selectedMember, setSelectedMember] = useState<RosterMember | null>(null)
   const [assignmentMember, setAssignmentMember] = useState<RosterMember | null>(null)
   const [isAssignmentOpen, setIsAssignmentOpen] = useState(false)
+  const [isAddStaffOpen, setIsAddStaffOpen] = useState(false)
 
   const queryParams = useMemo(() => {
     const params = new URLSearchParams()
@@ -114,6 +116,41 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
     await loadRoster()
   }
 
+  async function handleMemberUpdate(member: RosterMember, updates: {
+    name?: string | null
+    email?: string | null
+    phone?: string | null
+    position?: string | null
+    department?: string | null
+    employment_type?: string | null
+    notes?: string | null
+  }) {
+    const response = await fetch(`/api/hiring/roster/${member.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        employer_entity_type: employer.entityType,
+        employer_entity_id: employer.entityId,
+        name: updates.name,
+        email: updates.email,
+        phone: updates.phone,
+        position: updates.position,
+        department: updates.department,
+        employment_type: updates.employment_type,
+        notes: updates.notes,
+      }),
+    })
+
+    const payload = await response.json()
+    if (!response.ok) {
+      setError(payload.error ?? "Failed to update roster member")
+      return
+    }
+
+    setSelectedMember(payload.data)
+    await loadRoster()
+  }
+
   function handleAssign(member: RosterMember) {
     setAssignmentMember(member)
     setIsAssignmentOpen(true)
@@ -142,10 +179,16 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
             Active staff from approved applications, Work Mode access, compliance status, and shift/zone assignments.
           </p>
         </div>
-        <Button variant="outline" onClick={handleExport} disabled={!members.length}>
-          <Download className="mr-2 h-4 w-4" />
-          Export CSV
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setIsAddStaffOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add staff
+          </Button>
+          <Button variant="outline" onClick={handleExport} disabled={!members.length}>
+            <Download className="mr-2 h-4 w-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -255,7 +298,18 @@ export function TeamRosterPanel({ employer, eventId = null, tourId = null }: Tea
           if (!open) setSelectedMember(null)
         }}
         onAssign={handleAssign}
+        onUpdate={handleMemberUpdate}
         onStatusChange={handleStatusChange}
+      />
+
+      <RosterAddStaffDialog
+        employer={employer}
+        open={isAddStaffOpen}
+        onOpenChange={setIsAddStaffOpen}
+        onCreated={(member) => {
+          setSelectedMember(member)
+          void loadRoster()
+        }}
       />
 
       <RosterAssignmentDialog

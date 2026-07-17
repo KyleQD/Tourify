@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import { readJsonBody, resolveHiringActorFromRequest, routeErrorToResponse } from "@/lib/api/hiring-route-helpers"
-import { updateRosterStatusSchema } from "@/lib/hiring/roster-schema"
+import { updateRosterMemberSchema } from "@/lib/hiring/roster-schema"
 import { HiringRosterService } from "@/lib/services/hiring-roster.service"
 import { createHiringServiceClient } from "@/lib/supabase/hiring-service-client"
 
@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: bodyResult.error.message, details: bodyResult.error.details }, { status: 400 })
     }
 
-    const parsed = updateRosterStatusSchema.safeParse(bodyResult.data)
+    const parsed = updateRosterMemberSchema.safeParse(bodyResult.data)
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid roster status payload", details: parsed.error.flatten() }, { status: 400 })
     }
@@ -49,11 +49,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
     const { memberId } = await context.params
     const service = new HiringRosterService({ supabase })
-    const data = await service.updateRosterMemberStatus({
+    const data = await service.updateRosterMember({
       employer: actorResult.data.employer,
       memberId,
       actorUserId: actorResult.data.userId,
       status: parsed.data.status,
+      name: parsed.data.name,
+      email: parsed.data.email,
+      phone: parsed.data.phone,
+      position: parsed.data.position,
+      department: parsed.data.department,
+      employmentType: parsed.data.employment_type,
+      notes: parsed.data.notes,
+      permissions: parsed.data.permissions as any,
       reason: parsed.data.reason,
     })
 

@@ -20,6 +20,16 @@ export interface Database {
           tagged_users: string[] | null
           hashtags: string[] | null
           media_urls: string[] | null
+          posted_as_profile_id: string | null
+          posted_as_type: string | null
+          account_display_name: string | null
+          account_username: string | null
+          account_avatar_url: string | null
+          content_ref_type: string | null
+          content_ref_id: string | null
+          metadata: Json | null
+          poll_ends_at: string | null
+          poll_total_votes: number
           likes_count: number
           comments_count: number
           shares_count: number
@@ -38,6 +48,16 @@ export interface Database {
           tagged_users?: string[] | null
           hashtags?: string[] | null
           media_urls?: string[] | null
+          posted_as_profile_id?: string | null
+          posted_as_type?: string | null
+          account_display_name?: string | null
+          account_username?: string | null
+          account_avatar_url?: string | null
+          content_ref_type?: string | null
+          content_ref_id?: string | null
+          metadata?: Json | null
+          poll_ends_at?: string | null
+          poll_total_votes?: number
           likes_count?: number
           comments_count?: number
           shares_count?: number
@@ -56,6 +76,16 @@ export interface Database {
           tagged_users?: string[] | null
           hashtags?: string[] | null
           media_urls?: string[] | null
+          posted_as_profile_id?: string | null
+          posted_as_type?: string | null
+          account_display_name?: string | null
+          account_username?: string | null
+          account_avatar_url?: string | null
+          content_ref_type?: string | null
+          content_ref_id?: string | null
+          metadata?: Json | null
+          poll_ends_at?: string | null
+          poll_total_votes?: number
           likes_count?: number
           comments_count?: number
           shares_count?: number
@@ -328,4 +358,4 @@ export interface Database {
       [_ in never]: never
     }
   }
-} 
+}

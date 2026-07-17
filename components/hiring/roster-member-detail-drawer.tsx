@@ -1,11 +1,14 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Mail, Phone, ShieldCheck, UserRound } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Sheet,
   SheetContent,
@@ -13,6 +16,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { Textarea } from "@/components/ui/textarea"
 import { WorkModePermissionsCard } from "@/components/hiring/work-mode-permissions-card"
 import type { RosterMember } from "@/types/hiring-roster-work-mode"
 
@@ -21,6 +25,18 @@ interface RosterMemberDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onAssign: (member: RosterMember) => void
+  onUpdate?: (
+    member: RosterMember,
+    updates: {
+      name?: string | null
+      email?: string | null
+      phone?: string | null
+      position?: string | null
+      department?: string | null
+      employment_type?: string | null
+      notes?: string | null
+    }
+  ) => void | Promise<void>
   onStatusChange: (member: RosterMember, status: RosterMember["status"]) => void
 }
 
@@ -39,8 +55,50 @@ export function RosterMemberDetailDrawer({
   open,
   onOpenChange,
   onAssign,
+  onUpdate,
   onStatusChange,
 }: RosterMemberDetailDrawerProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
+  const [position, setPosition] = useState("")
+  const [department, setDepartment] = useState("")
+  const [employmentType, setEmploymentType] = useState("")
+  const [notes, setNotes] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    if (!member) return
+    setIsEditing(false)
+    setName(member.profile.fullName)
+    setEmail(member.profile.email ?? "")
+    setPhone(member.profile.phone ?? "")
+    setPosition(member.position)
+    setDepartment(member.department ?? "")
+    setEmploymentType(member.employmentType ?? "")
+    setNotes(member.notes ?? "")
+  }, [member])
+
+  async function handleSave() {
+    if (!member || !onUpdate) return
+    setIsSaving(true)
+    try {
+      await onUpdate(member, {
+        name,
+        email: email || null,
+        phone: phone || null,
+        position,
+        department: department || null,
+        employment_type: employmentType || null,
+        notes: notes || null,
+      })
+      setIsEditing(false)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-xl">
@@ -83,6 +141,9 @@ export function RosterMemberDetailDrawer({
 
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => onAssign(member)}>Assign shift / zone</Button>
+              <Button variant="outline" onClick={() => setIsEditing((value) => !value)}>
+                {isEditing ? "Cancel edit" : "Edit details"}
+              </Button>
               {member.status !== "active" ? (
                 <Button variant="outline" onClick={() => onStatusChange(member, "active")}>
                   Mark active
@@ -93,7 +154,57 @@ export function RosterMemberDetailDrawer({
                   Mark inactive
                 </Button>
               ) : null}
+              {member.status !== "offboarded" ? (
+                <Button variant="destructive" onClick={() => onStatusChange(member, "offboarded")}>
+                  Offboard
+                </Button>
+              ) : null}
             </div>
+
+            {isEditing ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Edit roster details</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                      <Label htmlFor="roster-name">Name</Label>
+                      <Input id="roster-name" value={name} onChange={(event) => setName(event.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="roster-email">Email</Label>
+                      <Input id="roster-email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="roster-phone">Phone</Label>
+                      <Input id="roster-phone" value={phone} onChange={(event) => setPhone(event.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="roster-position">Position</Label>
+                      <Input id="roster-position" value={position} onChange={(event) => setPosition(event.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="roster-department">Department</Label>
+                      <Input id="roster-department" value={department} onChange={(event) => setDepartment(event.target.value)} />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="roster-employment">Employment type</Label>
+                      <Input id="roster-employment" value={employmentType} onChange={(event) => setEmploymentType(event.target.value)} />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="roster-notes">Notes</Label>
+                    <Textarea id="roster-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSave} disabled={isSaving}>
+                      {isSaving ? "Saving..." : "Save changes"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
 
             <WorkModePermissionsCard
               permissions={member.workModeAssignment?.permissions ?? null}

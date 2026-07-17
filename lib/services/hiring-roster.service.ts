@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type {
   AssignShiftZoneArgs,
   ComplianceStatus,
+  CreateRosterMemberArgs,
   GetRosterMemberArgs,
   ListRosterMembersArgs,
   ListRosterMembersResult,
@@ -12,6 +13,7 @@ import type {
   RosterMemberDocumentSummary,
   RosterMemberProfile,
   RosterMemberStatus,
+  UpdateRosterMemberArgs,
   UpdateRosterMemberStatusArgs,
   UpsertRosterFromApprovalArgs,
   UpsertRosterFromCompletedOnboardingArgs,
@@ -20,6 +22,7 @@ import type {
 import type { HiringEntity } from "@/types/hiring-entity"
 import { canAssignWorkMode, canManageHiring } from "@/lib/auth/hiring-permissions"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
+import { syncEmploymentAssignmentForShift } from "@/lib/services/staff-shift-assignment-sync"
 
 interface HiringRosterServiceArgs {
   supabase: SupabaseClient
@@ -27,7 +30,7 @@ interface HiringRosterServiceArgs {
 
 interface StaffMemberRow {
   id: string
-  user_id: string
+  user_id?: string | null
   employer_entity_type?: "venue" | "organization" | "artist" | null
   employer_entity_id?: string | null
   venue_id?: string | null
@@ -62,6 +65,7 @@ interface EmploymentAssignmentRow {
   employer_entity_id?: string | null
   venue_id?: string | null
   role_template_id?: string | null
+  role_title?: string | null
   position?: string | null
   department?: string | null
   permissions?: Record<string, unknown> | null
@@ -101,7 +105,7 @@ function buildProfile(row: StaffMemberRow): RosterMemberProfile {
     "Unnamed staff member"
 
   return {
-    id: getString(profileSource, ["id"]) ?? row.user_id,
+    id: getString(profileSource, ["id"]) ?? row.user_id ?? row.id,
     fullName,
     email: getString(profileSource, ["email"]) ?? row.email ?? null,
     phone: getString(profileSource, ["phone", "phone_number"]) ?? row.phone ?? null,
@@ -154,14 +158,14 @@ function mapAssignment(row: EmploymentAssignmentRow | null | undefined, employer
     },
     staffMemberId: row.staff_member_id ?? null,
     roleTemplateId: row.role_template_id ?? null,
-    position: row.position ?? "Staff",
+    position: row.position ?? row.role_title ?? "Staff",
     department: row.department ?? null,
     permissions: resolveWorkModePermissions({
       position: row.position,
       department: row.department,
       existingPermissions: row.permissions as Partial<WorkModeAssignment["permissions"]> | null,
     }),
-    status: (row.status as WorkModeAssignment["status"]) ?? "pending",
+    status: (row.status as WorkModeAssignment["status"]) ?? "invited",
     source: (row.source as WorkModeAssignment["source"]) ?? "legacy",
     startsAt: row.starts_at ?? null,
     endsAt: row.ends_at ?? null,
@@ -185,7 +189,7 @@ function mapRosterMember({
 
   return {
     id: row.id,
-    userId: row.user_id,
+    userId: row.user_id ?? row.id,
     employer: resolvedEmployer,
     profile: buildProfile(row),
     position: resolveMemberPosition(row),
@@ -220,6 +224,127 @@ function getComplianceCounts(members: RosterMember[]): Record<string, number> {
     counts[member.complianceStatus] = (counts[member.complianceStatus] ?? 0) + 1
     return counts
   }, {})
+}
+
+function collectIds(values: Array<string | null | undefined>): string[] {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value))))
+}
+
+function generateInvitationToken(): string {
+  return crypto.randomUUID().replaceAll("-", "")
+}
+
+function assignmentStatusForRosterStatus(status?: RosterMemberStatus): EmploymentAssignmentRow["status"] | undefined {
+  if (!status) return undefined
+  if (status === "active") return "active"
+  if (status === "pending") return "invited"
+  if (status === "inactive" || status === "suspended" || status === "offboarded") return "cancelled"
+  return undefined
+}
+
+function mergeProfileIntoRow(row: StaffMemberRow, profile?: Record<string, unknown>): StaffMemberRow {
+  return profile ? { ...row, profile } : row
+}
+
+async function fetchProfilesByUserId(
+  supabase: SupabaseClient,
+  userIds: string[]
+): Promise<Map<string, Record<string, unknown>>> {
+  const profiles = new Map<string, Record<string, unknown>>()
+  if (userIds.length === 0) return profiles
+
+  const addRows = (rows: Array<Record<string, unknown>> | null | undefined) => {
+    for (const row of rows ?? []) {
+      const id = typeof row.id === "string" ? row.id : null
+      const userId = typeof row.user_id === "string" ? row.user_id : null
+      if (id && userIds.includes(id)) profiles.set(id, row)
+      if (userId && userIds.includes(userId)) profiles.set(userId, row)
+    }
+  }
+
+  const byId = await supabase.from("profiles").select("*").in("id", userIds)
+  if (!byId.error) addRows(byId.data as Array<Record<string, unknown>>)
+
+  const byUserId = await supabase.from("profiles").select("*").in("user_id", userIds)
+  if (!byUserId.error) addRows(byUserId.data as Array<Record<string, unknown>>)
+
+  return profiles
+}
+
+async function fetchAssignmentsByUserId({
+  supabase,
+  employer,
+  userIds,
+}: {
+  supabase: SupabaseClient
+  employer: HiringEntity
+  userIds: string[]
+}): Promise<Map<string, EmploymentAssignmentRow>> {
+  const assignmentsByUser = new Map<string, EmploymentAssignmentRow>()
+  if (userIds.length === 0) return assignmentsByUser
+
+  const { data, error } = await supabase
+    .from("employment_assignments")
+    .select("*")
+    .eq("employer_entity_type", employer.entityType)
+    .eq("employer_entity_id", employer.entityId)
+    .in("user_id", userIds)
+    .order("updated_at", { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  for (const assignment of (data ?? []) as EmploymentAssignmentRow[]) {
+    if (!assignment.user_id || assignmentsByUser.has(assignment.user_id)) continue
+    assignmentsByUser.set(assignment.user_id, assignment)
+  }
+
+  return assignmentsByUser
+}
+
+async function fetchDocumentsByMemberId({
+  supabase,
+  memberIds,
+  candidateIdToMemberId,
+}: {
+  supabase: SupabaseClient
+  memberIds: string[]
+  candidateIdToMemberId: Map<string, string>
+}): Promise<Record<string, StaffDocumentRow[]>> {
+  const byMember: Record<string, StaffDocumentRow[]> = {}
+
+  if (memberIds.length > 0) {
+    const { data, error } = await supabase
+      .from("staff_documents")
+      .select("id, staff_member_id, label, document_type, status, expires_at, reviewed_at")
+      .in("staff_member_id", memberIds)
+
+    if (!error) {
+      for (const document of (data ?? []) as Array<StaffDocumentRow & { staff_member_id?: string }>) {
+        if (!document.staff_member_id) continue
+        byMember[document.staff_member_id] = [...(byMember[document.staff_member_id] ?? []), document]
+      }
+    }
+  }
+
+  const candidateIds = Array.from(candidateIdToMemberId.keys())
+  if (candidateIds.length > 0) {
+    const { data, error } = await supabase
+      .from("staff_documents")
+      .select("id, candidate_id, label, document_type, status, expires_at, reviewed_at")
+      .in("candidate_id", candidateIds)
+
+    if (!error) {
+      for (const document of (data ?? []) as Array<StaffDocumentRow & { candidate_id?: string }>) {
+        if (!document.candidate_id) continue
+        const matchingMemberId = candidateIdToMemberId.get(document.candidate_id)
+        if (matchingMemberId) {
+          byMember[matchingMemberId] = [...(byMember[matchingMemberId] ?? []), document]
+        }
+      }
+    }
+  }
+
+  return byMember
 }
 
 export class HiringRosterService {
@@ -265,7 +390,7 @@ export class HiringRosterService {
             .eq("employer_entity_id", args.employer.entityId),
           this.supabase
             .from("staff_shifts")
-            .select("staff_member_id, staff_members(id, user_id)")
+            .select("staff_member_id")
             .in("event_id", eventIds),
         ])
 
@@ -274,9 +399,19 @@ export class HiringRosterService {
         }
         for (const row of shifts || []) {
           if (row.staff_member_id) memberIdSet.add(row.staff_member_id)
-          const member = Array.isArray(row.staff_members) ? row.staff_members[0] : row.staff_members
-          if (member?.user_id) userIdSet.add(member.user_id)
-          if (member?.id) memberIdSet.add(member.id)
+        }
+
+        const shiftMemberIds = Array.from(memberIdSet)
+        if (shiftMemberIds.length > 0) {
+          const { data: shiftMembers } = await this.supabase
+            .from("staff_members")
+            .select("id, user_id")
+            .in("id", shiftMemberIds)
+
+          for (const member of shiftMembers || []) {
+            if (member?.user_id) userIdSet.add(member.user_id)
+            if (member?.id) memberIdSet.add(member.id)
+          }
         }
       }
 
@@ -309,7 +444,7 @@ export class HiringRosterService {
 
     let query = this.supabase
       .from("staff_members")
-      .select("*, profiles:user_id(id, full_name, name, display_name, email, phone, avatar_url)", { count: "exact" })
+      .select("*", { count: "exact" })
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
       .order("created_at", { ascending: false })
@@ -338,68 +473,67 @@ export class HiringRosterService {
 
     const rows = (data ?? []) as StaffMemberRow[]
     const memberIds = rows.map((row) => row.id)
-    const userIds = rows.map((row) => row.user_id)
-
-    const [assignmentsResult, documentsResult] = await Promise.all([
-      memberIds.length
-        ? this.supabase
-            .from("employment_assignments")
-            .select("*")
-            .eq("employer_entity_type", args.employer.entityType)
-            .eq("employer_entity_id", args.employer.entityId)
-            .in("user_id", userIds)
-        : Promise.resolve({ data: [], error: null }),
-      memberIds.length
-        ? this.supabase
-            .from("staff_documents")
-            .select("id, staff_member_id, label, document_type, status, expires_at, reviewed_at")
-            .in("staff_member_id", memberIds)
-        : Promise.resolve({ data: [], error: null }),
-    ])
-
-    if (assignmentsResult.error) throw new Error(assignmentsResult.error.message)
-    if (documentsResult.error) throw new Error(documentsResult.error.message)
-
-    const assignments = ((assignmentsResult.data ?? []) as EmploymentAssignmentRow[]).reduce<Record<string, EmploymentAssignmentRow>>(
-      (map, assignment) => {
-        map[assignment.user_id] = assignment
-        return map
-      },
-      {}
+    const userIds = collectIds(rows.map((row) => row.user_id))
+    const candidateIdToMemberId = new Map<string, string>(
+      rows
+        .filter((row) => row.onboarding_candidate_id)
+        .map((row) => [row.onboarding_candidate_id as string, row.id])
     )
 
-    const documentsByMember = ((documentsResult.data ?? []) as Array<StaffDocumentRow & { staff_member_id?: string }>).reduce<
-      Record<string, StaffDocumentRow[]>
-    >((map, document) => {
-      if (!document.staff_member_id) return map
-      map[document.staff_member_id] = [...(map[document.staff_member_id] ?? []), document]
-      return map
-    }, {})
+    const [profilesByUser, assignments, documentsByMember, countRowsResult] = await Promise.all([
+      fetchProfilesByUserId(this.supabase, userIds),
+      fetchAssignmentsByUserId({
+        supabase: this.supabase,
+        employer: args.employer,
+        userIds,
+      }),
+      fetchDocumentsByMemberId({
+        supabase: this.supabase,
+        memberIds,
+        candidateIdToMemberId,
+      }),
+      this.supabase
+        .from("staff_members")
+        .select("status, compliance_status, department")
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId),
+    ])
 
     const members = rows.map((row) =>
       mapRosterMember({
-        row,
+        row: mergeProfileIntoRow(row, row.user_id ? profilesByUser.get(row.user_id) : undefined),
         employer: args.employer,
-        assignment: assignments[row.user_id],
+        assignment: row.user_id ? assignments.get(row.user_id) : undefined,
         documents: documentsByMember[row.id],
       })
     )
 
-    const departments = Array.from(new Set(members.map((member) => member.department).filter(Boolean))) as string[]
+    const countRows = countRowsResult.error ? rows : ((countRowsResult.data ?? []) as StaffMemberRow[])
+    const departments = Array.from(new Set(countRows.map((member) => member.department).filter(Boolean))) as string[]
+    const statusCounts = countRows.reduce<Record<string, number>>((acc, row) => {
+      const status = normalizeRosterStatus(row.status)
+      acc[status] = (acc[status] ?? 0) + 1
+      return acc
+    }, {})
+    const complianceCounts = countRows.reduce<Record<string, number>>((acc, row) => {
+      const status = row.compliance_status ?? "not_started"
+      acc[status] = (acc[status] ?? 0) + 1
+      return acc
+    }, {})
 
     return {
       members,
       total: count ?? members.length,
       departments,
-      complianceCounts: getComplianceCounts(members),
-      statusCounts: getStatusCounts(members),
+      complianceCounts,
+      statusCounts,
     }
   }
 
   async getRosterMember(args: GetRosterMemberArgs): Promise<RosterMember | null> {
     const { data, error } = await this.supabase
       .from("staff_members")
-      .select("*, profiles:user_id(id, full_name, name, display_name, email, phone, avatar_url)")
+      .select("*")
       .eq("id", args.memberId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
@@ -409,62 +543,311 @@ export class HiringRosterService {
     if (!data) return null
 
     const row = data as StaffMemberRow
+    const candidateIdToMemberId = new Map<string, string>()
+    if (row.onboarding_candidate_id) candidateIdToMemberId.set(row.onboarding_candidate_id, row.id)
 
-    const [assignmentResult, documentsResult] = await Promise.all([
-      this.supabase
-        .from("employment_assignments")
-        .select("*")
-        .eq("user_id", row.user_id)
-        .eq("employer_entity_type", args.employer.entityType)
-        .eq("employer_entity_id", args.employer.entityId)
-        .maybeSingle(),
-      this.supabase
-        .from("staff_documents")
-        .select("id, label, document_type, status, expires_at, reviewed_at")
-        .eq("staff_member_id", args.memberId),
+    const [profilesByUser, assignments, documentsByMember] = await Promise.all([
+      fetchProfilesByUserId(this.supabase, collectIds([row.user_id])),
+      fetchAssignmentsByUserId({
+        supabase: this.supabase,
+        employer: args.employer,
+        userIds: collectIds([row.user_id]),
+      }),
+      fetchDocumentsByMemberId({
+        supabase: this.supabase,
+        memberIds: [row.id],
+        candidateIdToMemberId,
+      }),
     ])
 
-    if (assignmentResult.error) throw new Error(assignmentResult.error.message)
-    if (documentsResult.error) throw new Error(documentsResult.error.message)
-
     return mapRosterMember({
-      row,
+      row: mergeProfileIntoRow(row, row.user_id ? profilesByUser.get(row.user_id) : undefined),
       employer: args.employer,
-      assignment: assignmentResult.data as EmploymentAssignmentRow | null,
-      documents: documentsResult.data as StaffDocumentRow[] | null,
+      assignment: row.user_id ? assignments.get(row.user_id) : undefined,
+      documents: documentsByMember[row.id],
     })
   }
 
-  async updateRosterMemberStatus(args: UpdateRosterMemberStatusArgs): Promise<RosterMember | null> {
+  async createRosterMember(args: CreateRosterMemberArgs): Promise<RosterMember | null> {
+    const canManage = await canManageHiring({ supabase: this.supabase, userId: args.actorUserId, employer: args.employer })
+    if (!canManage.ok || !canManage.data.allowed) throw new Error("You do not have permission to add roster members.")
+
+    const now = new Date().toISOString()
+    const position = args.position?.trim() || "Staff"
+    const department = args.department?.trim() || "General"
+    const venueId = args.employer.entityType === "venue" ? args.employer.entityId : args.employer.scope?.venueId ?? null
+    const permissions = resolveWorkModePermissions({ position, department })
+    let candidateId: string | null = null
+    let invitationId: string | null = null
+
+    if (args.source === "invite") {
+      const token = generateInvitationToken()
+      const candidateInsert = await this.supabase
+        .from("staff_onboarding_candidates")
+        .insert({
+          employer_entity_type: args.employer.entityType,
+          employer_entity_id: args.employer.entityId,
+          venue_id: venueId,
+          user_id: args.userId ?? null,
+          name: args.name?.trim() || args.email?.trim() || "Invited staff member",
+          email: args.email?.trim() || null,
+          phone: args.phone?.trim() || null,
+          position,
+          department,
+          employment_type: args.employmentType || "contractor",
+          status: "pending",
+          stage: "invitation",
+          onboarding_progress: 0,
+          compliance_status: "not_started",
+          template_id: args.onboardingTemplateId ?? null,
+          invitation_token: token,
+          notes: args.notes ?? null,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("id")
+        .single()
+
+      if (candidateInsert.error) throw new Error(candidateInsert.error.message)
+      candidateId = candidateInsert.data.id
+
+      const invitationInsert = await this.supabase
+        .from("staff_invitations")
+        .insert({
+          employer_entity_type: args.employer.entityType,
+          employer_entity_id: args.employer.entityId,
+          venue_id: venueId,
+          token,
+          email: args.email?.trim() || "onboarding@example.test",
+          phone: args.phone?.trim() || null,
+          role: position,
+          origin: "hiring_hub_roster",
+          status: "pending",
+          template_id: args.onboardingTemplateId ?? null,
+          position_details: {
+            candidate_id: candidateId,
+            position,
+            department,
+            employment_type: args.employmentType || "contractor",
+          },
+          created_by: args.actorUserId,
+          created_at: now,
+          updated_at: now,
+        })
+        .select("id")
+        .single()
+
+      if (invitationInsert.error) throw new Error(invitationInsert.error.message)
+      invitationId = invitationInsert.data.id
+    }
+
+    let existing: { id: string } | null = null
+    if (args.userId) {
+      const existingResult = await this.supabase
+        .from("staff_members")
+        .select("id")
+        .eq("user_id", args.userId)
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId)
+        .maybeSingle()
+      if (existingResult.error) throw new Error(existingResult.error.message)
+      existing = existingResult.data as { id: string } | null
+    }
+
+    const memberPayload: Record<string, unknown> = {
+      user_id: args.userId ?? null,
+      employer_entity_type: args.employer.entityType,
+      employer_entity_id: args.employer.entityId,
+      venue_id: venueId,
+      onboarding_candidate_id: candidateId,
+      name: args.name?.trim() || args.email?.trim() || "Staff member",
+      email: args.email?.trim() || null,
+      phone: args.phone?.trim() || null,
+      role: position,
+      position,
+      department,
+      employment_type: args.employmentType || "contractor",
+      status: args.source === "manual" ? "active" : "pending",
+      compliance_status: args.source === "manual" ? "compliant" : "not_started",
+      onboarding_progress: args.source === "manual" ? 100 : 0,
+      started_at: args.source === "manual" ? now : null,
+      notes: args.notes ?? null,
+      permissions,
+      updated_at: now,
+    }
+
+    let memberId: string
+    if (existing?.id) {
+      const { data, error } = await this.supabase
+        .from("staff_members")
+        .update(memberPayload)
+        .eq("id", existing.id)
+        .select("id")
+        .single()
+      if (error) throw new Error(error.message)
+      memberId = data.id
+    } else {
+      const { data, error } = await this.supabase
+        .from("staff_members")
+        .insert({ ...memberPayload, hire_date: now, created_at: now })
+        .select("id")
+        .single()
+      if (error) throw new Error(error.message)
+      memberId = data.id
+    }
+
+    if (args.userId) {
+      const assignmentPayload = {
+        user_id: args.userId,
+        staff_member_id: memberId,
+        employer_entity_type: args.employer.entityType,
+        employer_entity_id: args.employer.entityId,
+        venue_id: venueId,
+        role_title: position,
+        position,
+        department,
+        permissions,
+        status: args.source === "manual" ? "active" : "invited",
+        source: args.source === "manual" ? "manual" : "hiring_onboarding",
+        updated_at: now,
+      }
+
+      const { data: existingAssignment } = await this.supabase
+        .from("employment_assignments")
+        .select("id")
+        .eq("user_id", args.userId)
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId)
+        .maybeSingle()
+
+      if (existingAssignment?.id) {
+        const { error } = await this.supabase
+          .from("employment_assignments")
+          .update(assignmentPayload)
+          .eq("id", existingAssignment.id)
+        if (error) throw new Error(error.message)
+      } else {
+        const { error } = await this.supabase.from("employment_assignments").insert({
+          ...assignmentPayload,
+          starts_at: args.source === "manual" ? now : null,
+          created_at: now,
+        })
+        if (error) throw new Error(error.message)
+      }
+    }
+
+    await this.supabase.from("hiring_audit_events").insert({
+      employer_entity_type: args.employer.entityType,
+      employer_entity_id: args.employer.entityId,
+      actor_user_id: args.actorUserId,
+      event_type: "roster_member_created",
+      subject_type: "staff_member",
+      subject_id: memberId,
+      metadata: {
+        source: args.source,
+        candidate_id: candidateId,
+        invitation_id: invitationId,
+      },
+    })
+
+    return this.getRosterMember({ employer: args.employer, memberId })
+  }
+
+  async updateRosterMember(args: UpdateRosterMemberArgs): Promise<RosterMember | null> {
     const canManage = await canManageHiring({ supabase: this.supabase, userId: args.actorUserId, employer: args.employer })
     if (!canManage.ok || !canManage.data.allowed) throw new Error("You do not have permission to update this roster.")
 
+    const now = new Date().toISOString()
+    const payload: Record<string, unknown> = { updated_at: now }
+
+    if (args.status) payload.status = args.status
+    if (args.name !== undefined) payload.name = args.name
+    if (args.email !== undefined) payload.email = args.email
+    if (args.phone !== undefined) payload.phone = args.phone
+    if (args.position !== undefined) {
+      payload.position = args.position
+      payload.role = args.position
+    }
+    if (args.department !== undefined) payload.department = args.department
+    if (args.employmentType !== undefined) payload.employment_type = args.employmentType
+    if (args.notes !== undefined) payload.notes = args.notes
+    if (args.permissions !== undefined) payload.permissions = args.permissions ?? {}
+    if (args.status === "active") {
+      payload.started_at = now
+      payload.last_active_at = now
+    }
+
+    const { data: existing, error: existingError } = await this.supabase
+      .from("staff_members")
+      .select("id, user_id, position, role, department, permissions")
+      .eq("id", args.memberId)
+      .eq("employer_entity_type", args.employer.entityType)
+      .eq("employer_entity_id", args.employer.entityId)
+      .maybeSingle()
+
+    if (existingError) throw new Error(existingError.message)
+    if (!existing) return null
+
     const { error } = await this.supabase
       .from("staff_members")
-      .update({
-        status: args.status,
-        updated_at: new Date().toISOString(),
-      })
+      .update(payload)
       .eq("id", args.memberId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
 
     if (error) throw new Error(error.message)
 
+    if (existing.user_id) {
+      const assignmentPayload: Record<string, unknown> = { updated_at: now }
+      const nextPosition = args.position ?? existing.position ?? existing.role
+      const nextDepartment = args.department ?? existing.department
+      const nextPermissions =
+        args.permissions ??
+        resolveWorkModePermissions({
+          position: typeof nextPosition === "string" ? nextPosition : null,
+          department: typeof nextDepartment === "string" ? nextDepartment : null,
+          existingPermissions: existing.permissions as Partial<WorkModeAssignment["permissions"]> | null,
+        })
+
+      if (args.position !== undefined) {
+        assignmentPayload.position = args.position
+        assignmentPayload.role_title = args.position
+      }
+      if (args.department !== undefined) assignmentPayload.department = args.department
+      if (args.permissions !== undefined || args.position !== undefined || args.department !== undefined)
+        assignmentPayload.permissions = nextPermissions
+      const assignmentStatus = assignmentStatusForRosterStatus(args.status)
+      if (assignmentStatus) assignmentPayload.status = assignmentStatus
+
+      if (Object.keys(assignmentPayload).length > 1) {
+        await this.supabase
+          .from("employment_assignments")
+          .update(assignmentPayload)
+          .eq("user_id", existing.user_id)
+          .eq("employer_entity_type", args.employer.entityType)
+          .eq("employer_entity_id", args.employer.entityId)
+      }
+    }
+
     await this.supabase.from("hiring_audit_events").insert({
       employer_entity_type: args.employer.entityType,
       employer_entity_id: args.employer.entityId,
       actor_user_id: args.actorUserId,
-      event_type: "roster_member_status_updated",
+      event_type: args.status ? "roster_member_status_updated" : "roster_member_updated",
       subject_type: "staff_member",
       subject_id: args.memberId,
       metadata: {
-        status: args.status,
+        status: args.status ?? null,
         reason: args.reason ?? null,
+        fields: Object.keys(payload).filter((key) => key !== "updated_at"),
       },
     })
 
     return this.getRosterMember({ employer: args.employer, memberId: args.memberId })
+  }
+
+  async updateRosterMemberStatus(args: UpdateRosterMemberStatusArgs): Promise<RosterMember | null> {
+    return this.updateRosterMember(args)
   }
 
   async assignShiftZone(args: AssignShiftZoneArgs): Promise<RosterMember | null> {
@@ -484,6 +867,30 @@ export class HiringRosterService {
       .eq("employer_entity_id", args.employer.entityId)
 
     if (error) throw new Error(error.message)
+
+    if (args.shiftId) {
+      const shiftUpdate = await this.supabase
+        .from("staff_shifts")
+        .update({
+          staff_member_id: args.memberId,
+          zone_assignment: args.zone ?? undefined,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", args.shiftId)
+        .select("*")
+        .maybeSingle()
+
+      if (shiftUpdate.error) throw new Error(shiftUpdate.error.message)
+      if (shiftUpdate.data) {
+        await syncEmploymentAssignmentForShift({
+          supabase: this.supabase,
+          shift: shiftUpdate.data,
+          notify: true,
+          actorUserId: args.actorUserId,
+          assignmentStatus: "invited",
+        })
+      }
+    }
 
     if (args.shiftId || args.eventId) {
       await this.supabase.from("staff_shift_assignments").insert({
@@ -543,11 +950,11 @@ export class HiringRosterService {
       email: args.email?.trim() || existing?.email || null,
       phone: args.phone?.trim() || existing?.phone || null,
       role: position,
+      position,
       department: department || existing?.department || "General",
       employment_type: args.employmentType || existing?.employment_type || "contractor",
-      // staff_members.status check allows active | on_leave | terminated
-      status: "active",
-      compliance_status: completed ? "submitted" : "needs_review",
+      status: completed ? "active" : "pending",
+      compliance_status: completed ? "compliant" : "needs_review",
       permissions,
       updated_at: now,
     }
@@ -605,6 +1012,7 @@ export class HiringRosterService {
       employer_entity_id: args.employer.entityId,
       venue_id: venueId,
       role_title: position,
+      position,
       department,
       permissions,
       status: completed ? "active" : "invited",

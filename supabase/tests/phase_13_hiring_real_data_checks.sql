@@ -70,3 +70,52 @@ from public.staff_documents
 where candidate_id is null
    or employer_entity_type is null
    or employer_entity_id is null;
+
+-- 6. Required Hiring Hub roster columns missing after compatibility migration.
+select 'staff_members_missing_operational_column' as check_name, column_name
+from (
+  values
+    ('onboarding_candidate_id'),
+    ('onboarding_progress'),
+    ('started_at'),
+    ('last_active_at'),
+    ('assigned_zone'),
+    ('assigned_manager_id'),
+    ('notes'),
+    ('position')
+) required(column_name)
+where not exists (
+  select 1
+  from information_schema.columns c
+  where c.table_schema = 'public'
+    and c.table_name = 'staff_members'
+    and c.column_name = required.column_name
+);
+
+-- 7. Roster statuses outside the canonical Hiring Hub lifecycle.
+select 'staff_members_invalid_status' as check_name, id, status
+from public.staff_members
+where status not in ('pending', 'active', 'inactive', 'suspended', 'offboarded');
+
+-- 8. Work Mode statuses outside the canonical assignment lifecycle.
+select 'employment_assignments_invalid_status' as check_name, id, status
+from public.employment_assignments
+where status not in ('invited', 'confirmed', 'active', 'completed', 'cancelled');
+
+-- 9. Completed/approved onboarding candidates without active roster metadata.
+select 'completed_candidate_roster_not_finalized' as check_name,
+       c.id as candidate_id,
+       sm.id as staff_member_id,
+       sm.status as staff_member_status,
+       sm.compliance_status
+from public.staff_onboarding_candidates c
+left join public.staff_members sm
+  on sm.user_id = c.user_id
+ and sm.employer_entity_type = c.employer_entity_type
+ and sm.employer_entity_id = c.employer_entity_id
+where c.status in ('completed', 'approved')
+  and (
+    sm.id is null
+    or sm.status <> 'active'
+    or coalesce(sm.compliance_status, '') not in ('compliant', 'approved', 'submitted')
+  );

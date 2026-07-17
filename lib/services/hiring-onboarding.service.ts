@@ -1847,7 +1847,12 @@ export const HiringOnboardingService = {
     const [jobs, applications, onboarding, roster] = await Promise.all([
       countByStatus({ supabase, tableName: "job_posting_templates", employer: actor.employer, statuses: ["published", "draft", "closed"] }),
       countByStatus({ supabase, tableName: "job_applications", employer: actor.employer, statuses: ["pending", "approved", "rejected", "waitlisted"] }),
-      countByStatus({ supabase, tableName: "staff_onboarding_candidates", employer: actor.employer, statuses: ["pending", "in_progress", "completed", "rejected"] }),
+      countByStatus({
+        supabase,
+        tableName: "staff_onboarding_candidates",
+        employer: actor.employer,
+        statuses: ["pending", "in_progress", "submitted", "needs_revision", "completed", "approved", "rejected"],
+      }),
       countByStatus({ supabase, tableName: "staff_members", employer: actor.employer, statuses: ["active", "inactive"] }),
     ])
 
@@ -1883,8 +1888,8 @@ export const HiringOnboardingService = {
       onboarding: {
         total: candidateTotal,
         pending: onboarding.pending ?? 0,
-        inProgress: onboarding.in_progress ?? 0,
-        completed: onboarding.completed ?? 0,
+        inProgress: (onboarding.in_progress ?? 0) + (onboarding.submitted ?? 0) + (onboarding.needs_revision ?? 0),
+        completed: (onboarding.completed ?? 0) + (onboarding.approved ?? 0),
         rejected: onboarding.rejected ?? 0,
         averageProgress,
       },

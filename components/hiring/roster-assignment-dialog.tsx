@@ -24,6 +24,16 @@ interface ShiftOption {
   label: string
 }
 
+interface EventOption {
+  id: string
+  label: string
+}
+
+interface ManagerOption {
+  id: string
+  label: string
+}
+
 interface RosterAssignmentDialogProps {
   employer: HiringEntity
   member: RosterMember | null
@@ -42,8 +52,10 @@ export function RosterAssignmentDialog({
   contextEventId = null,
 }: RosterAssignmentDialogProps) {
   const [eventId, setEventId] = useState(contextEventId || "")
+  const [events, setEvents] = useState<EventOption[]>([])
   const [shiftId, setShiftId] = useState("")
   const [shifts, setShifts] = useState<ShiftOption[]>([])
+  const [managers, setManagers] = useState<ManagerOption[]>([])
   const [isLoadingShifts, setIsLoadingShifts] = useState(false)
   const [zone, setZone] = useState(member?.assignedZone ?? "")
   const [assignedManagerId, setAssignedManagerId] = useState(member?.assignedManagerId ?? "")
@@ -61,6 +73,63 @@ export function RosterAssignmentDialog({
       setError(null)
     }
   }, [open, contextEventId, member])
+
+  useEffect(() => {
+    if (!open) return
+
+    let cancelled = false
+    async function loadOptions() {
+      try {
+        const [eventsResponse, managersResponse] = await Promise.allSettled([
+          fetch("/api/admin/events", { credentials: "include", cache: "no-store" }),
+          fetch(
+            `/api/hiring/roster?entity_type=${encodeURIComponent(employer.entityType)}&entity_id=${encodeURIComponent(
+              employer.entityId
+            )}&status=active&limit=200`,
+            { credentials: "include", cache: "no-store" }
+          ),
+        ])
+
+        if (cancelled) return
+
+        if (eventsResponse.status === "fulfilled") {
+          const payload = await eventsResponse.value.json().catch(() => ({}))
+          const rows = Array.isArray(payload?.events) ? payload.events : Array.isArray(payload?.data) ? payload.data : []
+          setEvents(
+            rows
+              .map((event: any) => ({
+                id: String(event.id),
+                label: String(event.name ?? event.title ?? "Untitled event"),
+              }))
+              .filter((event: EventOption) => event.id)
+          )
+        }
+
+        if (managersResponse.status === "fulfilled") {
+          const payload = await managersResponse.value.json().catch(() => ({}))
+          const rows = Array.isArray(payload?.data?.members) ? payload.data.members : []
+          setManagers(
+            rows
+              .filter((row: any) => row.id !== member?.id)
+              .map((row: any) => ({
+                id: String(row.userId ?? row.user_id ?? row.id),
+                label: String(row.profile?.fullName ?? row.name ?? row.email ?? "Staff member"),
+              }))
+          )
+        }
+      } catch {
+        if (!cancelled) {
+          setEvents([])
+          setManagers([])
+        }
+      }
+    }
+
+    void loadOptions()
+    return () => {
+      cancelled = true
+    }
+  }, [employer.entityId, employer.entityType, member?.id, open])
 
   useEffect(() => {
     if (!open || !eventId) {
@@ -172,12 +241,19 @@ export function RosterAssignmentDialog({
             {contextEventId ? (
               <Input id="event-id" value={eventId} readOnly />
             ) : (
-              <Input
-                id="event-id"
-                value={eventId}
-                onChange={(event) => setEventId(event.target.value)}
-                placeholder="Event UUID"
-              />
+              <Select value={eventId || "__none__"} onValueChange={(value) => setEventId(value === "__none__" ? "" : value)}>
+                <SelectTrigger id="event-id">
+                  <SelectValue placeholder="Select event" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No event</SelectItem>
+                  {events.map((event) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
           <div className="grid gap-2">
@@ -218,11 +294,22 @@ export function RosterAssignmentDialog({
           </div>
           <div className="grid gap-2">
             <Label htmlFor="manager-id">Assigned manager ID</Label>
-            <Input
-              id="manager-id"
-              value={assignedManagerId}
-              onChange={(event) => setAssignedManagerId(event.target.value)}
-            />
+            <Select
+              value={assignedManagerId || "__none__"}
+              onValueChange={(value) => setAssignedManagerId(value === "__none__" ? "" : value)}
+            >
+              <SelectTrigger id="manager-id">
+                <SelectValue placeholder="Select manager" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">No manager</SelectItem>
+                {managers.map((manager) => (
+                  <SelectItem key={manager.id} value={manager.id}>
+                    {manager.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="assignment-notes">Notes</Label>

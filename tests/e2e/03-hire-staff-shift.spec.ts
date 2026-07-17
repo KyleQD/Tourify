@@ -8,10 +8,10 @@ const ORGANIZER_PASS  = process.env.TEST_ORGANIZER_PASS  ?? "TestPass123!"
 
 test.describe("Flow 3 — Staff hiring", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/login")
-    await page.getByLabel(/email/i).fill(ORGANIZER_EMAIL)
-    await page.getByLabel(/password/i).fill(ORGANIZER_PASS)
-    await page.getByRole("button", { name: /sign in/i }).click()
+    await page.goto("/login?tab=signin")
+    await page.locator("#portal-signin-email").fill(ORGANIZER_EMAIL)
+    await page.locator("#portal-signin-password").fill(ORGANIZER_PASS)
+    await page.getByRole("button", { name: /^sign in$/i }).click()
     await page.waitForURL(/admin|dashboard/, { timeout: 15_000 })
   })
 

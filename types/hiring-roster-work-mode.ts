@@ -16,11 +16,11 @@ export type ComplianceStatus =
   | "expired"
 
 export type EmploymentAssignmentStatus =
-  | "pending"
+  | "invited"
+  | "confirmed"
   | "active"
-  | "paused"
-  | "revoked"
   | "completed"
+  | "cancelled"
 
 export type AccessStaffDocsScope = "own" | "team" | "none"
 export type RunSheetAccess = boolean | "limited"
@@ -126,6 +126,23 @@ export interface ListRosterMembersResult {
   statusCounts: Record<string, number>
 }
 
+export type CreateRosterMemberSource = "invite" | "existing_user" | "manual"
+
+export interface CreateRosterMemberArgs {
+  employer: HiringEntity
+  actorUserId: string
+  source: CreateRosterMemberSource
+  userId?: string | null
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  position?: string | null
+  department?: string | null
+  employmentType?: string | null
+  notes?: string | null
+  onboardingTemplateId?: string | null
+}
+
 export interface GetRosterMemberArgs {
   employer: HiringEntity
   memberId: string
@@ -147,6 +164,22 @@ export interface UpdateRosterMemberStatusArgs {
   memberId: string
   actorUserId: string
   status: RosterMemberStatus
+  reason?: string
+}
+
+export interface UpdateRosterMemberArgs {
+  employer: HiringEntity
+  memberId: string
+  actorUserId: string
+  status?: RosterMemberStatus
+  name?: string | null
+  email?: string | null
+  phone?: string | null
+  position?: string | null
+  department?: string | null
+  employmentType?: string | null
+  notes?: string | null
+  permissions?: Partial<WorkModePermissions> | null
   reason?: string
 }
 
