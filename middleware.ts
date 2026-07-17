@@ -5,73 +5,72 @@ import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
 import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
 
+const authRoutes = [
+  '/login',
+  '/auth/signin',
+]
+
+const protectedRoutes = [
+  '/dashboard',
+  '/onboarding',
+  '/profile',
+  '/settings',
+  '/events',
+  '/messages',
+  '/analytics',
+  '/feed',
+  '/news',
+  '/community',
+  '/music',
+  '/connect',
+  '/create',
+  '/bookings',
+  '/documents',
+  '/projects',
+  '/team',
+  '/admin',
+  '/artist',
+  '/business',
+  '/venue',
+  '/marketplace',
+  '/groups',
+  '/notifications',
+  '/tickets',
+  '/calendar',
+  '/collaboration',
+  '/contracts',
+  '/friends',
+  '/achievements',
+  '/advance',
+  '/epk',
+  '/organization',
+  '/orgs',
+  '/jobs',
+]
+
+const productionBlockedPrefixes = [
+  '/auth-test',
+  '/debug',
+  '/migrations',
+  '/setup',
+  '/admin/debug',
+  '/admin/setup',
+  '/admin/create-tables',
+  '/api/debug',
+  '/api/debug-auth',
+  '/api/auth-debug',
+  '/api/migrations',
+  '/api/setup-storage',
+  '/api/marketplace/migrations',
+]
+
 export async function middleware(request: NextRequest) {
-  const { supabaseResponse, user, supabase } = await updateSession(request)
   const { pathname } = request.nextUrl
-
-  const authRoutes = [
-    '/login',
-    '/auth/signin',
-  ]
-
-  const protectedRoutes = [
-    '/dashboard',
-    '/onboarding',
-    '/profile',
-    '/settings',
-    '/events',
-    '/messages',
-    '/analytics',
-    '/feed',
-    '/news',
-    '/community',
-    '/music',
-    '/connect',
-    '/create',
-    '/bookings',
-    '/documents',
-    '/projects',
-    '/team',
-    '/admin',
-    '/artist',
-    '/business',
-    '/venue',
-    '/marketplace',
-    '/groups',
-    '/notifications',
-    '/tickets',
-    '/calendar',
-    '/collaboration',
-    '/contracts',
-    '/friends',
-    '/achievements',
-    '/advance',
-    '/epk',
-    '/organization',
-    '/orgs',
-    '/jobs',
-  ]
-
-  const productionBlockedPrefixes = [
-    '/auth-test',
-    '/debug',
-    '/migrations',
-    '/setup',
-    '/admin/debug',
-    '/admin/setup',
-    '/admin/create-tables',
-    '/api/debug',
-    '/api/debug-auth',
-    '/api/auth-debug',
-    '/api/migrations',
-    '/api/setup-storage',
-    '/api/marketplace/migrations',
-  ]
-
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAnonymousPublicShareRoute = isPublicShareRoute(pathname)
   const isRootRoute = pathname === '/'
+  const isAdminApiRoute = pathname.startsWith('/api/admin')
 
   const isProduction = process.env.NODE_ENV === 'production'
   const isProductionBlockedRoute = productionBlockedPrefixes.some(prefix =>
@@ -88,6 +87,28 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
+  // Canonical public venue profiles now live under /venues/[slug].
+  // Keep /venue/* reserved for authenticated venue account surfaces.
+  const venueProfileRedirect = getLegacyVenueProfileRedirect(pathname)
+  if (venueProfileRedirect) {
+    const redirectUrl = new URL(venueProfileRedirect, request.url)
+    return NextResponse.redirect(redirectUrl)
+  }
+
+  // Public routes can pass through without touching Supabase auth on the hot path.
+  const requiresSession =
+    isRootRoute ||
+    isAuthRoute ||
+    isAdminApiRoute ||
+    (isProtectedRoute && !isAnonymousPublicShareRoute) ||
+    pathnameRequiresArtistAccount(pathname)
+
+  if (!requiresSession) {
+    return NextResponse.next()
+  }
+
+  const { supabaseResponse, user, supabase } = await updateSession(request)
+
   // Root route should route users to their primary experience:
   // authenticated users -> dashboard, anonymous users -> login.
   if (isRootRoute) {
@@ -97,14 +118,6 @@ export async function middleware(request: NextRequest) {
     }
     // Anonymous users: marketing landing at `/` (aligned with demo.tourify.live); CTAs go to signup.
     return supabaseResponse
-  }
-
-  // Canonical public venue profiles now live under /venues/[slug].
-  // Keep /venue/* reserved for authenticated venue account surfaces.
-  const venueProfileRedirect = getLegacyVenueProfileRedirect(pathname)
-  if (venueProfileRedirect) {
-    const redirectUrl = new URL(venueProfileRedirect, request.url)
-    return NextResponse.redirect(redirectUrl)
   }
 
   // Redirect authenticated users away from auth pages

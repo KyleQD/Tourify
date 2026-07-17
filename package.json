@@ -29,6 +29,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "NODE_OPTIONS='--max-old-space-size=8192' tsc --noEmit",
+    "audit:worktree": "node scripts/audit-worktree.mjs",
+    "audit:data-loading": "node scripts/audit-data-loading.mjs",
     "check:production-debug": "node scripts/check-production-debug-artifacts.mjs",
     "test:hiring-phase-13": "vitest run __tests__/hiring/phase-13-real-data.test.ts",
     "verify:ci": "npm run lint && npm test && NODE_OPTIONS='--max-old-space-size=6144' next build",
