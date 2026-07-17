@@ -16,6 +16,8 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+.cursor/debug-*.log
+.cursor/plans/
 
 # env files
 .env*
@@ -33,6 +35,11 @@ public/audio/*.mp3
 logs/
 .production.pid
 .demo.pid
+
+# local test and audit artifacts
+test-results/
+audit-artifacts/
+.worktree-backups/
 
 # macOS
 .DS_Store
