@@ -231,6 +231,7 @@ export default function SearchPage() {
       id: String(profile.id || ''),
       username,
       account_type: accountType,
+      subtype: (profile as any).subtype,
     })
     router.push(path || `/profile/${profile.username}`)
   }
@@ -814,4 +815,4 @@ export default function SearchPage() {
       </div>
     </div>
   )
-} 
+}

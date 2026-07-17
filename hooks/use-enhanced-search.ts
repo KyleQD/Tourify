@@ -4,12 +4,16 @@ import { useDebounce } from '@/hooks/use-debounce'
 export interface SearchResult {
   id: string
   username: string
-  account_type: 'artist' | 'venue' | 'general'
+  account_type: 'artist' | 'venue' | 'general' | 'organization'
   profile_data?: any
   avatar_url?: string
   verified?: boolean
   bio?: string
   location?: string
+  artistProfileId?: string | null
+  accountId?: string | null
+  ownerUserId?: string | null
+  subtype?: string | null
   stats?: {
     followers?: number
     following?: number
@@ -139,8 +143,10 @@ export function useEnhancedSearch(): UseEnhancedSearchReturn {
           verified: row.verified,
           bio: row.bio,
           location: row.location,
+          artistProfileId: row.artistProfileId,
           accountId: row.accountId,
           ownerUserId: row.ownerUserId,
+          subtype: row.subtype,
         }))
       } else if (data.results) {
         allResults = [

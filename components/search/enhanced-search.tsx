@@ -21,6 +21,10 @@ interface EnhancedSearchResult {
   type: 'artist' | 'venue' | 'user' | 'organization' | 'event' | 'music'
   username: string
   displayName: string
+  artistProfileId?: string | null
+  accountId?: string | null
+  ownerUserId?: string | null
+  subtype?: string | null
   avatar?: string
   bio?: string
   location?: string

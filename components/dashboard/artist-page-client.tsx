@@ -506,21 +506,50 @@ export function ArtistPageClient() {
   const loadAccountSignals = useCallback(async () => {
     if (!user?.id || !isInArtistMode) return
     try {
+      const activeArtistProfileId =
+        currentAccount?.account_type === 'artist' || currentAccount?.account_type === 'service'
+          ? currentAccount.profile_id
+          : profile?.id || null
+
+      const scopedEpkPromise = activeArtistProfileId
+        ? supabase
+            .from('artist_epk_settings')
+            .select('id')
+            .eq('artist_profile_id', activeArtistProfileId)
+            .maybeSingle()
+        : Promise.resolve({ data: null })
+
       const [epkRes, notifRes] = await Promise.all([
-        supabase.from('artist_epk_settings').select('id').eq('user_id', user.id).maybeSingle(),
+        scopedEpkPromise,
         supabase
           .from('notifications')
           .select('id', { count: 'exact', head: true })
           .eq('user_id', user.id)
           .eq('is_read', false),
       ])
-      setHasEpk(Boolean(epkRes.data?.id))
+      if ((epkRes as any).error && String((epkRes as any).error.message || '').includes('artist_profile_id')) {
+        const legacyEpkRes = await supabase
+          .from('artist_epk_settings')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        setHasEpk(Boolean(legacyEpkRes.data?.id))
+      } else if (epkRes.data?.id) {
+        setHasEpk(true)
+      } else {
+        const legacyEpkRes = await supabase
+          .from('artist_epk_settings')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        setHasEpk(Boolean(legacyEpkRes.data?.id))
+      }
       setUnreadNotifications(notifRes.count || 0)
     } catch (error) {
       console.error('Error loading account signals:', error)
       setHasEpk(false)
     }
-  }, [user?.id, isInArtistMode])
+  }, [user?.id, isInArtistMode, currentAccount?.account_type, currentAccount?.profile_id, profile?.id])
 
   useEffect(() => {
     if (profile && !profile.artist_name && user && isInArtistMode) syncArtistName()

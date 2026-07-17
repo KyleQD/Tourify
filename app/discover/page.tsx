@@ -1224,6 +1224,7 @@ function openProfile(router: ReturnType<typeof useRouter>, profile: DiscoverProf
       id: profile.id,
       username: profile.username,
       account_type: profile.account_type,
+      subtype: (profile as any).subtype,
     }) || `/profile/${profile.username}`
   router.push(path)
 }
@@ -1247,6 +1248,7 @@ function openPost(router: ReturnType<typeof useRouter>, post: DiscoverPost) {
     id: String(post.author_profile_id || post.user_id || post.profiles?.id || ''),
     username,
     account_type: post.account_type || post.posted_as_type || 'general',
+    subtype: (post as any).subtype,
   })
   router.push(path || `/profile/${username}`)
 }

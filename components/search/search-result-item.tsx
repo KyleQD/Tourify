@@ -35,6 +35,8 @@ export function SearchResultItem({
         return <Music className="h-4 w-4 text-purple-500" />
       case 'venue':
         return <Building2 className="h-4 w-4 text-blue-500" />
+      case 'organization':
+        return <Building2 className="h-4 w-4 text-amber-500" />
       default:
         return <User className="h-4 w-4 text-gray-500" />
     }
@@ -46,6 +48,8 @@ export function SearchResultItem({
         return 'Artist'
       case 'venue':
         return 'Venue'
+      case 'organization':
+        return (result as any).subtype === 'band' ? 'Band' : 'Organization'
       default:
         return 'User'
     }
@@ -57,6 +61,9 @@ export function SearchResultItem({
     }
     if (result.account_type === 'venue') {
       return result.profile_data?.venue_name || result.profile_data?.name || result.username
+    }
+    if (result.account_type === 'organization') {
+      return result.profile_data?.organization_name || (result as any).display_name || result.username
     }
     return result.profile_data?.name || result.profile_data?.full_name || result.username
   }
@@ -118,6 +125,7 @@ export function SearchResultItem({
                 "text-xs px-2 py-0.5 h-5 font-medium",
                 result.account_type === 'artist' && "bg-purple-100 text-purple-700 border-purple-200",
                 result.account_type === 'venue' && "bg-blue-100 text-blue-700 border-blue-200",
+                result.account_type === 'organization' && "bg-amber-100 text-amber-700 border-amber-200",
                 result.account_type === 'general' && "bg-gray-100 text-gray-700 border-gray-200"
               )}
             >

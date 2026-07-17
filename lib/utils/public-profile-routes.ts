@@ -21,6 +21,7 @@ export interface ResolvePublicProfileInput {
   id: string
   username?: string | null
   account_type?: string | null
+  subtype?: string | null
 }
 
 export function getGeneralPublicProfilePath(input: GeneralProfileInput): string | null {
@@ -75,6 +76,7 @@ export function resolvePublicProfilePath(input: ResolvePublicProfileInput): stri
     case 'venue':
       return getVenuePublicProfilePath({ id: input.id, url_slug: username })
     case 'organization':
+      if (input.subtype === 'band') return getArtistPublicProfilePath(username)
       return getOrganizationPublicProfilePath(username)
     default:
       return getGeneralPublicProfilePath({ username })

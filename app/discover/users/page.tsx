@@ -92,6 +92,7 @@ function UserDiscoveryPageContent() {
       id: user.id,
       username: user.urlSlug || user.url_slug || user.username,
       account_type: accountType,
+      subtype: user.subtype,
     }) || `/profile/${user.username}`
     window.location.href = path
   }

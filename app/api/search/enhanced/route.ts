@@ -22,9 +22,12 @@ interface EnhancedSearchResult {
   updated_at: string
   /** auth.users / profiles id — use for friend requests */
   ownerUserId?: string
+  /** artist_profiles.id — use for roster membership invites */
+  artistProfileId?: string | null
   /** accounts.id — use for account follows (artist/venue/org) */
   accountId?: string | null
   accountType?: string
+  subtype?: string | null
   urlSlug?: string
   recommendations?: {
     reason: string
@@ -90,6 +93,7 @@ function buildArtistResult(params: {
     id: ownerUserId || String(artist.id),
     type: 'artist',
     ownerUserId: ownerUserId || undefined,
+    artistProfileId: String(artist.id),
     accountId: null,
     accountType: 'artist',
     username:
@@ -164,7 +168,7 @@ export async function GET(request: NextRequest) {
     if (isArtistSearch) {
       const { data: artistRows } = await supabase
         .from('artist_profiles')
-        .select('id, user_id, artist_name, bio, genres, settings, verification_status, created_at, updated_at')
+        .select('id, user_id, artist_name, url_slug, bio, genres, settings, verification_status, created_at, updated_at')
         .order('updated_at', { ascending: false })
         .limit(300)
 
@@ -295,6 +299,10 @@ export async function GET(request: NextRequest) {
                 ownerUserId: ownerUserId || undefined,
                 accountId: resultType === 'user' ? null : String(account.id),
                 accountType: rawType,
+                subtype:
+                  resultType === 'organization' && typeof metadata.subtype === 'string'
+                    ? metadata.subtype
+                    : null,
                 username,
                 urlSlug: resultType === 'organization' ? username : undefined,
                 displayName:

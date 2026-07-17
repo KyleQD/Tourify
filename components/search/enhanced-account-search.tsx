@@ -23,6 +23,7 @@ interface SearchResult {
   verified?: boolean
   bio?: string
   location?: string
+  subtype?: string | null
   stats?: {
     followers?: number
     following?: number
@@ -110,6 +111,7 @@ export function EnhancedAccountSearch({
       id: result.id,
       username: result.username,
       account_type: result.account_type,
+      subtype: result.subtype,
     }) || `/profile/${result.username}`
   }
 

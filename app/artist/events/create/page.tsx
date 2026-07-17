@@ -10,6 +10,7 @@ import {
   Megaphone,
   Music,
   Search,
+  Save,
   Ticket,
   Users,
   X,
@@ -55,13 +56,16 @@ interface VenueOption {
 const sectionConfig: BuilderSection[] = [
   { id: "basics", label: "Basics", mode: "plan", icon: Music },
   { id: "schedule", label: "Schedule", mode: "plan", icon: CalendarClock },
+  { id: "page-design", label: "Page Design", mode: "plan", icon: LayoutTemplate },
   { id: "venue", label: "Venue", mode: "advance", icon: MapPin },
   { id: "lineup", label: "Lineup", mode: "advance", icon: Users },
   { id: "ticketing", label: "Ticketing", mode: "review", icon: Ticket },
   { id: "marketing", label: "Marketing", mode: "review", icon: Megaphone },
-  { id: "page-design", label: "Page Design", mode: "review", icon: LayoutTemplate },
   { id: "review", label: "Review", mode: "review", icon: ClipboardCheck },
 ]
+
+const selectContentClass =
+  "border-slate-700/70 bg-slate-950 text-slate-100 shadow-2xl shadow-slate-950/40"
 
 const sectionByReadiness: Record<string, string> = {
   basics: "basics",
@@ -100,9 +104,9 @@ function BuilderPanel({
   children: React.ReactNode
 }) {
   return (
-    <div className={cn(artistEventUI.panelPadded, "space-y-6")}>
-      <div>
-        <h2 className="text-lg font-semibold text-white">{title}</h2>
+    <div className="space-y-6">
+      <div className="border-b border-slate-800/80 pb-4">
+        <h2 className="text-lg font-semibold tracking-tight text-white">{title}</h2>
         {description ? <p className="mt-1 text-sm text-slate-400">{description}</p> : null}
       </div>
       {children}
@@ -408,7 +412,6 @@ export default function ArtistEventCreatePage() {
     } finally {
       setIsSaving(false)
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId, form, readiness.blockers, router])
 
   React.useEffect(() => {
@@ -430,6 +433,10 @@ export default function ArtistEventCreatePage() {
   const visibleSections = sections.filter((section) => section.mode === activeMode)
   const activeSections = visibleSections.length ? visibleSections : sections
   const sharePath = publicSlug ? `/events/${publicSlug}` : eventId ? `/events/${eventId}` : null
+  const openPageDesign = React.useCallback(() => {
+    setActiveMode("plan")
+    setActiveSection("page-design")
+  }, [])
 
   if (isHydrating) {
     return (
@@ -445,7 +452,7 @@ export default function ArtistEventCreatePage() {
   return (
     <div className={artistEventUI.page}>
       <div className={artistEventUI.pageGlow} />
-    <div className={cn(artistEventUI.shell, "pb-28")}>
+    <div className={cn(artistEventUI.shell, "pb-32")}>
       <BuilderShell
         title="Event Producer"
         subtitle="Create a shareable show page with venue, lineup, ticketing links, and marketing — then publish to discover."
@@ -457,6 +464,21 @@ export default function ArtistEventCreatePage() {
         onModeChange={setActiveMode}
         readiness={readiness}
         readinessActions={Object.fromEntries(readiness.items.map((item) => [item.id, () => moveToReadinessItem(item.id)]))}
+        headerActions={
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className={cn(
+              artistEventUI.buttonOutline,
+              "h-9 border-purple-400/35 bg-purple-400/10 text-purple-100 hover:border-cyan-400/45 hover:bg-cyan-400/10",
+            )}
+            onClick={openPageDesign}
+          >
+            <LayoutTemplate className="mr-2 h-4 w-4" />
+            Page Design
+          </Button>
+        }
         summary={
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.16em] text-slate-500">Event summary</p>
@@ -484,7 +506,7 @@ export default function ArtistEventCreatePage() {
           </div>
         }
         bottomBar={
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800/80 bg-slate-950/95 px-4 py-3 backdrop-blur-xl">
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-cyan-400/15 bg-slate-950/95 px-4 py-3 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl">
             <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-sm text-slate-300">
                 <span
@@ -506,20 +528,21 @@ export default function ArtistEventCreatePage() {
                       ? "Unsaved changes"
                       : "Save failed — retry"}
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                 <Button
                   type="button"
                   variant="outline"
-                  className={artistEventUI.buttonOutline}
+                  className={cn(artistEventUI.buttonOutline, "h-11 justify-center")}
                   onClick={() => void persistEvent(false, { redirect: false })}
                   disabled={isSaving}
                 >
+                  <Save className="mr-2 h-4 w-4" />
                   Save draft
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
-                  className={artistEventUI.buttonOutline}
+                  className={cn(artistEventUI.buttonOutline, "h-11 justify-center")}
                   onClick={() => void persistEvent(false, { redirect: true })}
                   disabled={isSaving}
                 >
@@ -527,7 +550,7 @@ export default function ArtistEventCreatePage() {
                 </Button>
                 <Button
                   type="button"
-                  className={artistEventUI.buttonAccent}
+                  className={cn(artistEventUI.buttonAccent, "h-11 justify-center")}
                   onClick={() => void persistEvent(true, { redirect: true })}
                   disabled={isSaving}
                 >
@@ -554,7 +577,7 @@ export default function ArtistEventCreatePage() {
                   <SelectTrigger className={artistEventUI.select}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={selectContentClass}>
                     <SelectItem value="concert">Concert</SelectItem>
                     <SelectItem value="festival">Festival</SelectItem>
                     <SelectItem value="tour">Tour stop</SelectItem>
@@ -569,7 +592,7 @@ export default function ArtistEventCreatePage() {
                   <SelectTrigger className={artistEventUI.select}>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className={selectContentClass}>
                     <SelectItem value="public">Public when published</SelectItem>
                     <SelectItem value="unlisted">Unlisted (link only)</SelectItem>
                     <SelectItem value="private">Private draft</SelectItem>
@@ -678,10 +701,10 @@ export default function ArtistEventCreatePage() {
                       key={venue.id}
                       type="button"
                       onClick={() => selectVenue(venue)}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2 text-left text-sm text-slate-200 transition hover:border-cyan-400/30 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                     >
-                      <span>{venue.name}</span>
-                      <span className="text-xs text-slate-500">
+                      <span className="min-w-0 truncate">{venue.name}</span>
+                      <span className="shrink-0 text-xs text-slate-500">
                         {[venue.city, venue.state].filter(Boolean).join(", ")}
                       </span>
                     </button>
@@ -774,10 +797,10 @@ export default function ArtistEventCreatePage() {
                         setArtistQuery("")
                         setArtistResults([])
                       }}
-                      className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-slate-900"
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-transparent px-3 py-2 text-left text-sm text-slate-200 transition hover:border-cyan-400/30 hover:bg-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/40"
                     >
-                      <span>{artist.label}</span>
-                      <span className="text-xs text-slate-500">{artist.meta}</span>
+                      <span className="min-w-0 truncate">{artist.label}</span>
+                      <span className="shrink-0 text-xs text-slate-500">{artist.meta}</span>
                     </button>
                   ))}
                 </div>
@@ -786,7 +809,7 @@ export default function ArtistEventCreatePage() {
             {form.supportingArtists.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {form.supportingArtists.map((artist) => (
-                  <Badge key={artist.id} variant="outline" className="gap-1 border-cyan-400/30 bg-cyan-400/10 text-cyan-100">
+                  <Badge key={artist.id} variant="outline" className="gap-1 rounded-full border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-cyan-100">
                     {artist.label}
                     <button type="button" onClick={() => removeSupportingArtist(artist.id)} aria-label={`Remove ${artist.label}`}>
                       <X className="h-3 w-3" />
@@ -870,7 +893,7 @@ export default function ArtistEventCreatePage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className={artistEventUI.buttonOutline}
+                  className={cn(artistEventUI.buttonOutline, "h-10")}
                   onClick={() => {
                     void navigator.clipboard.writeText(`${window.location.origin}${sharePath}`)
                     sonnerToast.success("Share link copied")
@@ -878,7 +901,12 @@ export default function ArtistEventCreatePage() {
                 >
                   Copy public link
                 </Button>
-                <Button type="button" variant="outline" className={artistEventUI.buttonOutline} onClick={() => window.open(sharePath, "_blank")}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className={cn(artistEventUI.buttonOutline, "h-10")}
+                  onClick={() => window.open(sharePath, "_blank")}
+                >
                   Preview public page
                 </Button>
               </div>

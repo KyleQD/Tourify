@@ -178,19 +178,33 @@ export async function getPublicEpkPreview(slug: string) {
   const normalizedSlug = createEpkSlug(slug)
 
   let userId: string | null = null
+  let artistProfileId: string | null = null
   let canonicalSlug = normalizedSlug || slug
 
   try {
-    const { data: publicSettings } = await supabase
+    const { data: publicSettings, error: publicSettingsError } = await supabase
       .from('artist_epk_settings')
-      .select('user_id, epk_slug')
+      .select('user_id, artist_profile_id, epk_slug')
       .eq('epk_slug', normalizedSlug)
       .eq('is_public', true)
       .maybeSingle()
 
     if (publicSettings?.user_id) {
       userId = String(publicSettings.user_id)
+      artistProfileId = publicSettings.artist_profile_id ? String(publicSettings.artist_profile_id) : null
       canonicalSlug = String(publicSettings.epk_slug || canonicalSlug)
+    } else if (publicSettingsError && String(publicSettingsError.message || '').includes('artist_profile_id')) {
+      const { data: legacyPublicSettings } = await supabase
+        .from('artist_epk_settings')
+        .select('user_id, epk_slug')
+        .eq('epk_slug', normalizedSlug)
+        .eq('is_public', true)
+        .maybeSingle()
+
+      if (legacyPublicSettings?.user_id) {
+        userId = String(legacyPublicSettings.user_id)
+        canonicalSlug = String(legacyPublicSettings.epk_slug || canonicalSlug)
+      }
     }
   } catch {
     return null
@@ -199,7 +213,7 @@ export async function getPublicEpkPreview(slug: string) {
   if (!userId) {
     const { data: artistProfile } = await supabase
       .from('artist_profiles')
-      .select('user_id, artist_name')
+      .select('id, user_id, artist_name')
       .ilike('artist_name', slug.replace(/-/g, ' '))
       .maybeSingle()
 
@@ -207,14 +221,34 @@ export async function getPublicEpkPreview(slug: string) {
 
     const { data: settings } = await supabase
       .from('artist_epk_settings')
-      .select('is_public, epk_slug')
-      .eq('user_id', artistProfile.user_id)
+      .select('is_public, epk_slug, artist_profile_id')
+      .eq('artist_profile_id', artistProfile.id)
       .maybeSingle()
 
-    if (!settings?.is_public) return null
+    let resolvedSettings = settings
+    if (!resolvedSettings) {
+      const { data: legacySettings } = await supabase
+        .from('artist_epk_settings')
+        .select('is_public, epk_slug, artist_profile_id')
+        .eq('user_id', artistProfile.user_id)
+        .maybeSingle()
+
+      resolvedSettings = legacySettings
+    }
+    if (!resolvedSettings?.is_public) return null
     userId = String(artistProfile.user_id)
-    canonicalSlug = String(settings.epk_slug || canonicalSlug)
+    artistProfileId = resolvedSettings.artist_profile_id
+      ? String(resolvedSettings.artist_profile_id)
+      : String(artistProfile.id)
+    canonicalSlug = String(resolvedSettings.epk_slug || canonicalSlug)
   }
+
+  if (!userId) return null
+
+  const artistQuery = supabase
+    .from('artist_profiles')
+    .select('artist_name, bio, genres')
+    .limit(1)
 
   const [{ data: profile }, { data: artist }] = await Promise.all([
     supabase
@@ -222,12 +256,10 @@ export async function getPublicEpkPreview(slug: string) {
       .select('full_name, username, bio, location, avatar_url, cover_image')
       .eq('id', userId)
       .maybeSingle(),
-    supabase
-      .from('artist_profiles')
-      .select('artist_name, bio, genres')
-      .eq('user_id', userId)
-      .limit(1)
-      .maybeSingle(),
+    (artistProfileId
+      ? artistQuery.eq('id', artistProfileId)
+      : artistQuery.eq('user_id', userId)
+    ).maybeSingle(),
   ])
 
   if (!profile && !artist) return null

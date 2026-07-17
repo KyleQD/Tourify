@@ -657,13 +657,17 @@ export function ArtistProvider({ children }: { children: ReactNode }) {
     if (!user || !profile) return false
 
     try {
-      const { error } = await supabase
+      let updateQuery = supabase
         .from('artist_profiles')
         .update({
           ...data,
           updated_at: new Date().toISOString()
         })
         .eq('user_id', user.id)
+
+      if (profile.id) updateQuery = updateQuery.eq('id', profile.id)
+
+      const { error } = await updateQuery
 
       if (error) throw error
 
