@@ -59,6 +59,28 @@ describe('public preview metadata builders', () => {
     expect(read('app/blog/[slug]/page.tsx')).toContain("DEFAULT_SITE_ORIGIN = 'https://tourify.live'")
   })
 
+  it('keeps global social image routes on the shared logo-only PNG generator', () => {
+    const ogRoute = read('app/opengraph-image.tsx')
+    const twitterRoute = read('app/twitter-image.tsx')
+    const graphic = read('lib/og/tourify-link-preview-graphic.tsx')
+    const rootLayout = read('app/layout.tsx')
+
+    expect(ogRoute).toBe('export { default, size, contentType } from "@/lib/og/tourify-link-preview-graphic"\n')
+    expect(twitterRoute).toBe('export { default, size, contentType } from "@/lib/og/tourify-link-preview-graphic"\n')
+    expect(graphic).toContain('width: 1200')
+    expect(graphic).toContain('height: 630')
+    expect(graphic).toContain('export const contentType = "image/png"')
+    expect(graphic).toContain('width: 920')
+    expect(graphic).toContain('height: 409')
+    expect(graphic).not.toContain('The all-in-one platform for the music industry.')
+    expect(graphic).not.toContain('tourify.live')
+    expect(graphic).not.toContain('Open the link to join the network')
+    expect(graphic).not.toContain('Connect · Create · Tour')
+    expect(rootLayout).toContain('url: "/opengraph-image"')
+    expect(rootLayout).toContain('images: ["/twitter-image"]')
+    expect(rootLayout).toContain('The all-in-one platform for the music industry.')
+  })
+
   it('builds event metadata with a specific image', () => {
     vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://example.test')
 

@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s | Tourify",
   },
   description:
-    "Tourify is the live-music network for artists, venues, and teams — gigs, logistics, messaging, and fan moments in one place.",
+    "The all-in-one platform for the music industry.",
   generator: "Tourify Platform",
   applicationName: "Tourify",
   openGraph: {
@@ -34,14 +34,14 @@ export const metadata: Metadata = {
     siteName: "Tourify",
     title: "Tourify - Connect. Create. Tour.",
     description:
-      "Showcase your work, book shows, run logistics, and keep your crew aligned — built for the people who put rooms in the palm of their hands.",
+      "The all-in-one platform for the music industry.",
     url: "/",
     images: [
       {
         url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "Tourify — live music network for artists, venues, and crews",
+        alt: "Tourify — the all-in-one platform for the music industry",
       },
     ],
   },
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Tourify - Connect. Create. Tour.",
     description:
-      "Showcase your work, book shows, run logistics, and keep your crew aligned — built for the people who put rooms in the palm of their hands.",
+      "The all-in-one platform for the music industry.",
     images: ["/twitter-image"],
   },
   icons: {
