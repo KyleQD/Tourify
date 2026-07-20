@@ -1,0 +1,20 @@
+{
+  "direction": "inbound",
+  "claimant": {
+    "name": "Example claimant",
+    "email": "rights@example.invalid"
+  },
+  "works": [
+    {
+      "title": "Example work"
+    }
+  ],
+  "materialLocations": [
+    "https://tourify.invalid/example"
+  ],
+  "statements": {
+    "goodFaith": true,
+    "accuracyUnderPenaltyOfPerjury": true
+  },
+  "signature": "Example claimant"
+}

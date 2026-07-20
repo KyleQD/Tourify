@@ -1,403 +1,214 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { format } from "date-fns"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { Check, ChevronRight, Music, Plus, Upload, Users, Headphones } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { VenuePageHeader } from "@/components/dashboard/venue-page-header"
+import { VenuePageSkeleton } from "@/components/dashboard/venue-page-skeleton"
+import { VENUE_CARD, VENUE_PRIMARY_BTN, VENUE_SECTION_LABEL } from "@/components/dashboard/venue-tokens"
+import { buildVenueActionItems, type VenueActionItem } from "@/lib/venue/build-action-items"
+import { venueService } from "@/lib/services/venue.service"
+import {
+  AlertCircle,
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  FileText,
+  ListChecks,
+  Package,
+  UserCircle,
+  Users,
+} from "lucide-react"
 
-export default function OnboardingPage() {
-  const router = useRouter()
-  const [step, setStep] = useState(1)
-  const [progress, setProgress] = useState(20)
+const TOTAL_CHECKLIST_STEPS = 8
 
-  // Form state
-  const [formData, setFormData] = useState({
-    fullName: "",
-    username: "",
-    bio: "",
-    location: "",
-    artistType: "",
-    genres: [] as string[],
-    skills: [] as string[],
-    avatar: "/placeholder.svg?height=200&width=200&text=Upload+Photo",
-    coverImage: "/placeholder.svg?height=400&width=800&text=Upload+Cover+Image",
+const priorityStyles: Record<VenueActionItem["priority"], string> = {
+  high: "border-red-500/40 bg-red-500/10 text-red-200",
+  medium: "border-amber-500/40 bg-amber-500/10 text-amber-200",
+  low: "border-zinc-600 bg-zinc-800 text-zinc-300",
+}
+
+const typeIcons: Record<VenueActionItem["type"], typeof ListChecks> = {
+  profile: UserCircle,
+  booking: ClipboardList,
+  event: CalendarDays,
+  staff: Users,
+  documents: FileText,
+  equipment: Package,
+}
+
+export default function VenueOnboardingPage() {
+  const { venue, stats, isLoading, error } = useCurrentVenue()
+  const [documentCount, setDocumentCount] = useState(0)
+  const [equipmentCount, setEquipmentCount] = useState(0)
+  const [isCountsLoading, setIsCountsLoading] = useState(true)
+
+  useEffect(() => {
+    if (!venue?.id) {
+      setIsCountsLoading(false)
+      return
+    }
+
+    let cancelled = false
+
+    async function loadCounts() {
+      setIsCountsLoading(true)
+      try {
+        const [documents, equipment] = await Promise.all([
+          venueService.getVenueDocuments(venue.id),
+          venueService.getVenueEquipment(venue.id),
+        ])
+        if (cancelled) return
+        setDocumentCount(documents.length)
+        setEquipmentCount(equipment.length)
+      } catch {
+        if (!cancelled) {
+          setDocumentCount(0)
+          setEquipmentCount(0)
+        }
+      } finally {
+        if (!cancelled) setIsCountsLoading(false)
+      }
+    }
+
+    void loadCounts()
+    return () => {
+      cancelled = true
+    }
+  }, [venue?.id])
+
+  if (isLoading || isCountsLoading) return <VenuePageSkeleton />
+
+  if (error || !venue) {
+    return (
+      <div className="flex min-h-[55vh] items-center justify-center">
+        <Card className="max-w-lg border-zinc-800 bg-zinc-900 text-zinc-100">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <AlertCircle className="h-5 w-5 text-amber-400" />
+              Venue Not Ready
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-zinc-400">
+            <p>{error || "We could not load a venue profile for this account."}</p>
+            <Button asChild className={VENUE_PRIMARY_BTN}>
+              <Link href="/venue/settings">Open Venue Settings</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const actionItems = buildVenueActionItems({
+    venue: {
+      name: venue.name,
+      capacity: venue.capacity,
+      location: venue.location,
+      description: venue.description,
+      avatar: venue.avatar,
+    },
+    pendingBookings: stats?.pendingRequests ?? 0,
+    upcomingEvents: stats?.upcomingEvents ?? 0,
+    openApplications: 0,
+    documentCount,
+    equipmentCount,
+    hasSiteMap: undefined,
   })
 
-  // Available genres and skills
-  const availableGenres = [
-    "Rock",
-    "Pop",
-    "Hip-Hop",
-    "R&B",
-    "Jazz",
-    "Electronic",
-    "Classical",
-    "Country",
-    "Folk",
-    "Metal",
-    "Indie",
-    "Alternative",
-    "Blues",
-  ]
-
-  const availableSkills = [
-    "Vocals",
-    "Guitar",
-    "Piano",
-    "Drums",
-    "Bass",
-    "Violin",
-    "Saxophone",
-    "Trumpet",
-    "Production",
-    "Songwriting",
-    "Mixing",
-    "Mastering",
-    "DJ",
-  ]
-
-  // Handle input change
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
-
-  // Toggle genre selection
-  const toggleGenre = (genre: string) => {
-    setFormData((prev) => {
-      if (prev.genres.includes(genre)) {
-        return { ...prev, genres: prev.genres.filter((g) => g !== genre) }
-      } else {
-        return { ...prev, genres: [...prev.genres, genre] }
-      }
-    })
-  }
-
-  // Toggle skill selection
-  const toggleSkill = (skill: string) => {
-    setFormData((prev) => {
-      if (prev.skills.includes(skill)) {
-        return { ...prev, skills: prev.skills.filter((s) => s !== skill) }
-      } else {
-        return { ...prev, skills: [...prev.skills, skill] }
-      }
-    })
-  }
-
-  // Go to next step
-  const nextStep = () => {
-    const newStep = step + 1
-    setStep(newStep)
-    setProgress(newStep * 20)
-  }
-
-  // Go to previous step
-  const prevStep = () => {
-    const newStep = step - 1
-    setStep(newStep)
-    setProgress(newStep * 20)
-  }
-
-  // Complete onboarding
-  const completeOnboarding = () => {
-    // In a real app, you would save the data to the server here
-    router.push("/venue/dashboard")
-  }
+  const completedSteps = TOTAL_CHECKLIST_STEPS - actionItems.length
+  const progressPercent = Math.round((completedSteps / TOTAL_CHECKLIST_STEPS) * 100)
+  const isComplete = actionItems.length === 0
 
   return (
-    <div className="mx-auto max-w-3xl min-w-0 px-3 py-10 sm:px-4">
-      <div className="mb-8 text-center">
-        <h1 className="text-3xl font-bold break-words">Welcome to Tourify</h1>
-        <p className="mt-2 text-balance text-gray-400">Let&apos;s set up your artist profile</p>
-      </div>
+    <div className="space-y-6 pb-12">
+      <VenuePageHeader
+        title="Venue setup checklist"
+        subtitle={`Get ${venue.name} ready for bookings, events, and day-of operations.`}
+        icon={ListChecks}
+        actions={
+          <Button asChild variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100">
+            <Link href="/venue/dashboard">Back to dashboard</Link>
+          </Button>
+        }
+      />
 
-      <div className="mb-8 min-w-0">
-        <Progress value={progress} className="h-2 bg-gray-800" />
-        <div className="mt-2 flex flex-wrap justify-between gap-x-2 gap-y-1 text-xs text-gray-400 sm:text-sm">
-          <span className="shrink-0">Basic Info</span>
-          <span className="shrink-0">Artist Type</span>
-          <span className="shrink-0">Genres</span>
-          <span className="shrink-0">Skills</span>
-          <span className="shrink-0">Media</span>
+      <section className={VENUE_CARD + " p-5"}>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <p className={VENUE_SECTION_LABEL}>Setup progress</p>
+          <Badge variant="outline" className="border-zinc-700 text-zinc-300">
+            {completedSteps} of {TOTAL_CHECKLIST_STEPS} complete
+          </Badge>
         </div>
-      </div>
+        <Progress value={progressPercent} className="h-2 bg-zinc-800" />
+        <p className="mt-2 text-sm text-zinc-400">
+          {isComplete
+            ? "Your venue checklist is complete. You can still review operations from the dashboard."
+            : `${actionItems.length} task${actionItems.length === 1 ? "" : "s"} remaining to finish core setup.`}
+        </p>
+      </section>
 
-      {step === 1 && (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Basic Information</CardTitle>
-            <CardDescription>Tell us about yourself</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleInputChange}
-                placeholder="Your full name"
-                className="bg-gray-800 border-gray-700"
-              />
+      {isComplete ? (
+        <Card className="border-emerald-500/30 bg-emerald-500/5 text-zinc-100">
+          <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+            <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+            <div>
+              <p className="text-lg font-medium text-zinc-100">All set for now</p>
+              <p className="mt-1 text-sm text-zinc-400">
+                Core venue setup tasks are done. Head to the dashboard to manage bookings and events.
+              </p>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                name="username"
-                value={formData.username}
-                onChange={handleInputChange}
-                placeholder="Choose a unique username"
-                className="bg-gray-800 border-gray-700"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                placeholder="City, Country"
-                className="bg-gray-800 border-gray-700"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <Textarea
-                id="bio"
-                name="bio"
-                value={formData.bio}
-                onChange={handleInputChange}
-                placeholder="Tell us about yourself and your music"
-                className="bg-gray-800 border-gray-700 min-h-[120px]"
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-end">
-            <Button onClick={nextStep}>
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
+            <Button asChild className={VENUE_PRIMARY_BTN}>
+              <Link href="/venue/dashboard">
+                Open dashboard
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
-          </CardFooter>
+          </CardContent>
         </Card>
-      )}
-
-      {step === 2 && (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Artist Type</CardTitle>
-            <CardDescription>What best describes you?</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div
-                className={`p-4 border rounded-lg cursor-pointer ${
-                  formData.artistType === "solo"
-                    ? "bg-purple-900/30 border-purple-500"
-                    : "bg-gray-800 border-gray-700 hover:border-gray-600"
-                }`}
-                onClick={() => setFormData((prev) => ({ ...prev, artistType: "solo" }))}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <Music className="h-10 w-10 mb-3 text-purple-400" />
-                  <h3 className="font-medium">Solo Artist</h3>
-                  <p className="text-sm text-gray-400 mt-2">You perform and create music as an individual</p>
+      ) : (
+        <ul className="space-y-3">
+          {actionItems.map((item) => {
+            const Icon = typeIcons[item.type]
+            return (
+              <li key={item.id} className={VENUE_CARD + " p-4"}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex min-w-0 gap-3">
+                    <span className="mt-0.5 rounded-md border border-zinc-700 bg-zinc-950 p-2 text-emerald-300">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-zinc-100">{item.title}</p>
+                        <Badge variant="outline" className={priorityStyles[item.priority]}>
+                          {item.priority}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-zinc-400">{item.description}</p>
+                      <p className="mt-2 text-xs text-zinc-500">
+                        Suggested by {format(item.dueDate, "MMM d, yyyy")}
+                      </p>
+                    </div>
+                  </div>
+                  {item.href ? (
+                    <Button asChild size="sm" className={VENUE_PRIMARY_BTN + " shrink-0"}>
+                      <Link href={item.href}>
+                        Complete
+                        <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                      </Link>
+                    </Button>
+                  ) : null}
                 </div>
-              </div>
-
-              <div
-                className={`p-4 border rounded-lg cursor-pointer ${
-                  formData.artistType === "band"
-                    ? "bg-purple-900/30 border-purple-500"
-                    : "bg-gray-800 border-gray-700 hover:border-gray-600"
-                }`}
-                onClick={() => setFormData((prev) => ({ ...prev, artistType: "band" }))}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <Users className="h-10 w-10 mb-3 text-purple-400" />
-                  <h3 className="font-medium">Band</h3>
-                  <p className="text-sm text-gray-400 mt-2">You're part of a group that performs together</p>
-                </div>
-              </div>
-
-              <div
-                className={`p-4 border rounded-lg cursor-pointer ${
-                  formData.artistType === "dj"
-                    ? "bg-purple-900/30 border-purple-500"
-                    : "bg-gray-800 border-gray-700 hover:border-gray-600"
-                }`}
-                onClick={() => setFormData((prev) => ({ ...prev, artistType: "dj" }))}
-              >
-                <div className="flex flex-col items-center text-center">
-                  <Headphones className="h-10 w-10 mb-3 text-purple-400" />
-                  <h3 className="font-medium">DJ / Producer</h3>
-                  <p className="text-sm text-gray-400 mt-2">You create and mix electronic music</p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={prevStep} className="border-gray-700">
-              Back
-            </Button>
-            <Button onClick={nextStep} disabled={!formData.artistType}>
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {step === 3 && (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Music Genres</CardTitle>
-            <CardDescription>Select the genres that best describe your music</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {availableGenres.map((genre) => (
-                <Badge
-                  key={genre}
-                  variant={formData.genres.includes(genre) ? "default" : "outline"}
-                  className={`cursor-pointer ${
-                    formData.genres.includes(genre) ? "bg-purple-600" : "border-gray-700 hover:border-gray-600"
-                  }`}
-                  onClick={() => toggleGenre(genre)}
-                >
-                  {formData.genres.includes(genre) && <Check className="h-3 w-3 mr-1" />}
-                  {genre}
-                </Badge>
-              ))}
-            </div>
-
-            {formData.genres.length === 0 && (
-              <p className="text-sm text-gray-400 mt-4">Select at least one genre to continue</p>
-            )}
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={prevStep} className="border-gray-700">
-              Back
-            </Button>
-            <Button onClick={nextStep} disabled={formData.genres.length === 0}>
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {step === 4 && (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Skills & Instruments</CardTitle>
-            <CardDescription>Select your musical skills and instruments</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {availableSkills.map((skill) => (
-                <Badge
-                  key={skill}
-                  variant={formData.skills.includes(skill) ? "default" : "outline"}
-                  className={`cursor-pointer ${
-                    formData.skills.includes(skill) ? "bg-purple-600" : "border-gray-700 hover:border-gray-600"
-                  }`}
-                  onClick={() => toggleSkill(skill)}
-                >
-                  {formData.skills.includes(skill) && <Check className="h-3 w-3 mr-1" />}
-                  {skill}
-                </Badge>
-              ))}
-            </div>
-
-            <div className="mt-4">
-              <Label htmlFor="customSkill">Add a custom skill</Label>
-              <div className="flex gap-2 mt-1">
-                <Input
-                  id="customSkill"
-                  placeholder="Enter a skill not listed above"
-                  className="bg-gray-800 border-gray-700"
-                />
-                <Button variant="outline" className="border-gray-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={prevStep} className="border-gray-700">
-              Back
-            </Button>
-            <Button onClick={nextStep}>
-              Next
-              <ChevronRight className="ml-2 h-4 w-4" />
-            </Button>
-          </CardFooter>
-        </Card>
-      )}
-
-      {step === 5 && (
-        <Card className="bg-gray-900 border-gray-800">
-          <CardHeader>
-            <CardTitle>Profile Media</CardTitle>
-            <CardDescription>Upload your profile photo and cover image</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label>Profile Photo</Label>
-              <div className="flex items-center gap-4">
-                <Avatar className="h-24 w-24">
-                  <AvatarImage src={formData.avatar} alt="Profile" />
-                  <AvatarFallback>
-                    {formData.fullName
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <Button variant="outline" className="border-gray-700">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Photo
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Cover Image</Label>
-              <div className="border border-dashed border-gray-700 rounded-lg p-6 text-center">
-                <img
-                  src={formData.coverImage || "/placeholder.svg"}
-                  alt="Cover"
-                  className="w-full h-40 object-cover rounded-md mb-4"
-                />
-                <Button variant="outline" className="border-gray-700">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Cover Image
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-          <CardFooter className="flex justify-between">
-            <Button variant="outline" onClick={prevStep} className="border-gray-700">
-              Back
-            </Button>
-            <Button onClick={completeOnboarding}>Complete Setup</Button>
-          </CardFooter>
-        </Card>
+              </li>
+            )
+          })}
+        </ul>
       )}
     </div>
   )

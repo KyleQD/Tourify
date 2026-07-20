@@ -1,0 +1,13 @@
+{
+  "purpose": "aggregate_benchmarking",
+  "version": "1.0",
+  "data_categories": [
+    "registration_quality",
+    "collection_latency"
+  ],
+  "output_classes": [
+    "private_insight",
+    "aggregate_benchmark"
+  ],
+  "expires_at": null
+}

@@ -14,7 +14,6 @@ import {
   Heart,
   Search,
   Filter,
-  Plus,
   TrendingUp,
   UserPlus,
   Zap,
@@ -96,16 +95,6 @@ const communityFeatures: CommunityFeature[] = [
     statsKey: "collaborations",
     category: "professional",
     statsLabel: "projects",
-  },
-  {
-    label: "Project Workspaces",
-    icon: Users,
-    href: "/collaboration/projects",
-    description: "Collaborative project management and file sharing",
-    color: "from-green-500 to-teal-600",
-    statsKey: "projectWorkspaces",
-    category: "professional",
-    statsLabel: "workspaces",
   },
 ]
 
@@ -479,7 +468,6 @@ export default function CommunityDashboard() {
                 {[
                   { label: "Send Message", icon: MessageSquare, href: "/artist/messages" },
                   { label: "Find Collaborators", icon: Users, href: "/artist/collaborations" },
-                  { label: "New Project", icon: Plus, href: "/collaboration/projects/create" },
                   { label: "Browse Opportunities", icon: TrendingUp, href: "/artist/collaborations?tab=browse" },
                 ].map((action) => (
                   <motion.div

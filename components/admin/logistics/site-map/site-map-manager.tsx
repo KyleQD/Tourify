@@ -15,10 +15,11 @@ import { cn } from '@/lib/utils'
 import {
   SiteMapCreateSheet,
   defaultCreateForm,
-  sizePresets,
+  resolveCreateWorldSize,
   type SiteMapCreateFormState,
   type MapTemplateOption,
 } from './site-map-create-sheet'
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from '@/lib/api/feature-unavailable'
 
 interface SiteMapManagerProps {
   eventId?: string
@@ -110,14 +111,14 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
 
     setIsCreating(true)
     try {
-      const preset = sizePresets[createForm.approximateSize as keyof typeof sizePresets] ?? sizePresets.medium
+      const world = resolveCreateWorldSize(createForm)
       const formData = new FormData()
       formData.append('name', createForm.name.trim())
       formData.append('description', createForm.description.trim())
-      formData.append('width', String(preset.width))
-      formData.append('height', String(preset.height))
-      formData.append('scale', createForm.pixelsPerUnit || '1')
-      formData.append('scaleUnit', createForm.scaleUnit)
+      formData.append('width', String(world.width))
+      formData.append('height', String(world.height))
+      formData.append('scale', String(world.scale))
+      formData.append('scaleUnit', world.scaleUnit)
       formData.append('templateId', createForm.templateId)
       formData.append('backgroundColor', '#0f172a')
       formData.append('gridEnabled', 'true')
@@ -312,7 +313,12 @@ export function SiteMapManager({ eventId, tourId, compact = false, eventLabel }:
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
-      toast({ title: data.error || 'Failed to publish site map', variant: 'destructive' })
+      toast({
+        title: isFeatureUnavailableResponse(response.status, data)
+          ? featureUnavailableMessage(data, 'Work Mode publish is temporarily unavailable.')
+          : (data.error || 'Failed to publish site map'),
+        variant: 'destructive',
+      })
       return
     }
 

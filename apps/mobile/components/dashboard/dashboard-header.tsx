@@ -1,4 +1,5 @@
-import { Image, Pressable, Text, View } from "react-native"
+import { Pressable, Text, View } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
 import { useMultiAccount } from "@/providers/multi-account-provider"
@@ -41,6 +42,8 @@ export function DashboardHeader() {
           <Image
             source={{ uri: avatarUrl }}
             style={{ width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: "#334155" }}
+            contentFit="cover"
+            transition={120}
           />
         ) : (
           <View

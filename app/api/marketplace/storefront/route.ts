@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { createClient } from "@/lib/supabase/server"
+import { normalizeUsername } from "@/lib/auth/tourify-auth-helpers"
 
 const externalLinkSchema = z.object({
   label: z.string().min(1).max(100),
@@ -41,6 +42,35 @@ const storefrontSchema = z.object({
 
 export const dynamic = "force-dynamic"
 
+interface SellerProfilePayload {
+  id: string
+  username: string | null
+  avatarUrl: string | null
+  bio: string | null
+  fullName: string | null
+}
+
+async function loadSellerProfile(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sellerUserId: string
+): Promise<SellerProfilePayload | null> {
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, username, avatar_url, bio, full_name")
+    .eq("id", sellerUserId)
+    .maybeSingle()
+
+  if (!profile) return null
+
+  return {
+    id: profile.id,
+    username: profile.username || null,
+    avatarUrl: profile.avatar_url || null,
+    bio: profile.bio || null,
+    fullName: profile.full_name || null,
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -57,19 +87,46 @@ export async function GET(request: NextRequest) {
     }
 
     if (!resolvedSellerId && username) {
-      const { data: profile } = await supabase.from("profiles").select("id").eq("username", username).maybeSingle()
+      const normalizedUsername = normalizeUsername(username)
+      if (!normalizedUsername) {
+        return NextResponse.json(
+          { error: { code: "seller_not_found", message: "Seller not found" } },
+          { status: 404 }
+        )
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", normalizedUsername)
+        .maybeSingle()
+
       resolvedSellerId = profile?.id || null
+      if (!resolvedSellerId) {
+        return NextResponse.json(
+          { error: { code: "seller_not_found", message: "Seller not found" } },
+          { status: 404 }
+        )
+      }
     }
 
     if (!resolvedSellerId) {
-      return NextResponse.json({ error: "Seller not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: { code: "seller_not_found", message: "Seller not found" } },
+        { status: 404 }
+      )
     }
 
-    const { data: storefront, error } = await supabase
-      .from("marketplace_storefronts")
-      .select("*")
-      .eq("seller_user_id", resolvedSellerId)
-      .maybeSingle()
+    const [storefrontResult, seller] = await Promise.all([
+      supabase
+        .from("marketplace_storefronts")
+        .select("*")
+        .eq("seller_user_id", resolvedSellerId)
+        .maybeSingle(),
+      loadSellerProfile(supabase, resolvedSellerId),
+    ])
+
+    const { data: storefront, error } = storefrontResult
 
     if (error) {
       console.error("Failed to load storefront", error)
@@ -80,24 +137,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           data: {
+            seller_user_id: resolvedSellerId,
             sellerUserId: resolvedSellerId,
-            displayName: "My Store",
+            displayName: seller?.fullName || seller?.username || "My Store",
+            display_name: seller?.fullName || seller?.username || "My Store",
             tagline: null,
             slug: null,
             isActive: true,
+            is_active: true,
             themeConfig: {},
+            theme_config: {},
             sections: [],
             external_links: [],
             seller_type: null,
             accepted_seller_agreement_at: null,
             seller_agreement_version: null,
+            rating_average: 0,
+            rating_count: 0,
           },
+          seller,
         },
         { status: 200 }
       )
     }
 
-    return NextResponse.json({ data: storefront })
+    return NextResponse.json({ data: storefront, seller })
   } catch (error) {
     console.error("Unexpected storefront GET error", error)
     return NextResponse.json({ error: "Unexpected error loading storefront" }, { status: 500 })
@@ -138,7 +202,8 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Failed to save storefront" }, { status: 500 })
     }
 
-    return NextResponse.json({ data: storefront })
+    const seller = await loadSellerProfile(supabase, user.id)
+    return NextResponse.json({ data: storefront, seller })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid storefront payload", issues: error.issues }, { status: 400 })

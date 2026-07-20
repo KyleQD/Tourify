@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { ProfilePosts } from "./profile-posts"
 import { ProfileMusicShowcase } from "./profile-music-showcase"
-import { ProfileJukeboxWidget } from "./profile-jukebox-widget"
 import { useProfileColors } from "@/hooks/use-profile-colors"
 import { ProfileAchievementsSection } from "@/components/achievements/profile-achievements-section"
 import { FollowFriendButton } from "@/components/social/follow-friend-button"
@@ -108,6 +107,11 @@ interface MarketplacePreviewItem {
   cover_image_url: string | null
 }
 
+interface MarketplaceStorefrontPreview {
+  displayName: string | null
+  tagline: string | null
+}
+
 interface Skill {
   name: string
   level: number
@@ -200,6 +204,7 @@ export function EnhancedPublicProfileView({
   const [loading, setLoading] = useState(true)
   const [isMarketplaceLoading, setIsMarketplaceLoading] = useState(false)
   const [marketplaceItems, setMarketplaceItems] = useState<MarketplacePreviewItem[]>([])
+  const [marketplaceStorefront, setMarketplaceStorefront] = useState<MarketplaceStorefrontPreview | null>(null)
   const [relationship, setRelationship] = useState<'none' | 'pending' | 'following' | 'friends'>('none')
   const [isChecking, setIsChecking] = useState(false)
 
@@ -495,7 +500,6 @@ export function EnhancedPublicProfileView({
   const isAchievementsVisible = publicVisibility.show_achievements !== false
   const isMarketplaceVisible = publicVisibility.show_marketplace !== false
   const isMusicPlayerVisible = publicVisibility.show_music_player !== false
-  const isJukeboxVisible = publicVisibility.show_jukebox !== false
   const supportLinks = [
     { label: "Tip Jar", url: supportSettings.tip_jar_url },
     { label: "Commissions", url: supportSettings.commission_url },
@@ -507,6 +511,7 @@ export function EnhancedPublicProfileView({
   useEffect(() => {
     if (!isMarketplaceVisible) {
       setMarketplaceItems([])
+      setMarketplaceStorefront(null)
       return
     }
 
@@ -518,12 +523,31 @@ export function EnhancedPublicProfileView({
           sellerUserId: profile.id,
           limit: "4",
         })
-        const response = await fetch(`/api/marketplace/discover?${params.toString()}`)
-        if (!response.ok) return
+        const [discoverResponse, storefrontResponse] = await Promise.all([
+          fetch(`/api/marketplace/discover?${params.toString()}`),
+          fetch(`/api/marketplace/storefront?sellerUserId=${encodeURIComponent(profile.id)}`),
+        ])
 
-        const data = await response.json()
-        if (!isMounted) return
-        setMarketplaceItems(Array.isArray(data.data) ? data.data : [])
+        if (discoverResponse.ok) {
+          const data = await discoverResponse.json()
+          if (isMounted) setMarketplaceItems(Array.isArray(data.data) ? data.data : [])
+        }
+
+        if (storefrontResponse.ok) {
+          const storefrontBody = await storefrontResponse.json()
+          const storefront = storefrontBody.data || {}
+          if (isMounted) {
+            setMarketplaceStorefront({
+              displayName:
+                storefront.display_name ||
+                storefront.displayName ||
+                storefrontBody.seller?.fullName ||
+                profile.username ||
+                null,
+              tagline: storefront.tagline || null,
+            })
+          }
+        }
       } catch (error) {
         console.error("Error loading marketplace preview:", error)
       } finally {
@@ -535,7 +559,7 @@ export function EnhancedPublicProfileView({
     return () => {
       isMounted = false
     }
-  }, [isMarketplaceVisible, profile.id])
+  }, [isMarketplaceVisible, profile.id, profile.username])
 
   return (
     <div className={`min-h-screen ${getBackgroundGradient()}`}>
@@ -760,14 +784,6 @@ export function EnhancedPublicProfileView({
                 userId={profile.id}
                 displayName={getDisplayName()}
                 accountType={profile.account_type}
-              />
-            )}
-
-            {/* Jukebox Widget -- favorites + playlists */}
-            {isJukeboxVisible && (
-              <ProfileJukeboxWidget
-                userId={profile.id}
-                displayName={getDisplayName()}
               />
             )}
 
@@ -1081,6 +1097,25 @@ export function EnhancedPublicProfileView({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
+                    <Avatar className="h-12 w-12 border border-white/20">
+                      <AvatarImage src={profile.avatar_url} alt={getDisplayName()} />
+                      <AvatarFallback className="bg-emerald-500/20 text-emerald-100">
+                        {(marketplaceStorefront?.displayName || getDisplayName()).slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-white">
+                        {marketplaceStorefront?.displayName || `${getDisplayName()}'s Store`}
+                      </p>
+                      <p className="text-xs text-white/50">@{profile.username}</p>
+                      {marketplaceStorefront?.tagline ? (
+                        <p className="mt-1 line-clamp-2 text-xs text-white/65">{marketplaceStorefront.tagline}</p>
+                      ) : profile.bio ? (
+                        <p className="mt-1 line-clamp-2 text-xs text-white/65">{profile.bio}</p>
+                      ) : null}
+                    </div>
+                  </div>
                   {isMarketplaceLoading ? (
                     <p className="text-sm text-white/70">Loading marketplace listings...</p>
                   ) : marketplaceItems.length === 0 ? (

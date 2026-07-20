@@ -22,7 +22,10 @@ interface EntityAccountPickerProps {
   onRemove: (id: string) => void
   multi?: boolean
   queryParam?: string
+  requestHeaders?: Record<string, string>
 }
+
+const EMPTY_REQUEST_HEADERS: Record<string, string> = {}
 
 export function EntityAccountPicker({
   label,
@@ -34,6 +37,7 @@ export function EntityAccountPicker({
   onRemove,
   multi = true,
   queryParam = "query",
+  requestHeaders = EMPTY_REQUEST_HEADERS,
 }: EntityAccountPickerProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<EntityAccountSelection[]>([])
@@ -50,7 +54,10 @@ export function EntityAccountPicker({
         const url = new URL(searchUrl, window.location.origin)
         url.searchParams.set(queryParam, query.trim())
         url.searchParams.set("limit", "12")
-        const response = await fetch(url.pathname + url.search, { credentials: "include" })
+        const response = await fetch(url.pathname + url.search, {
+          credentials: "include",
+          headers: requestHeaders,
+        })
         const data = await response.json().catch(() => ({}))
         const rows =
           data.venues ||
@@ -69,7 +76,7 @@ export function EntityAccountPicker({
       }
     }, 280)
     return () => window.clearTimeout(handle)
-  }, [query, searchUrl, mapResult, queryParam])
+  }, [query, searchUrl, mapResult, queryParam, requestHeaders])
 
   function handleSelect(item: EntityAccountSelection) {
     onSelect(item)

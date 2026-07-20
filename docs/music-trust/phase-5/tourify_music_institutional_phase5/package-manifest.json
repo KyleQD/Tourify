@@ -1,0 +1,293 @@
+{
+  "package": "tourify_music_institutional_phase5",
+  "createdFor": "Tourify",
+  "createdAt": "2026-07-17",
+  "fileCount": 58,
+  "files": [
+    {
+      "path": "00_PHASE_5_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "sha256": "2219b39e6698c9078c660cf0c8bcd579a620f9003ac665979ed257411716d730",
+      "bytes": 3203
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_INSTITUTIONAL_USER_JOURNEYS.md",
+      "sha256": "5a8965461216a49b311f9f08d51c15741030545a3055ccfa440ceae60b6df490",
+      "bytes": 3453
+    },
+    {
+      "path": "02_TRANSACTION_CLASSIFICATION_AND_LEGAL_PATHWAYS.md",
+      "sha256": "889e4b9de4222e0a3072e19ce44fe336016bde73e8046853f36034f65b383139",
+      "bytes": 3005
+    },
+    {
+      "path": "03_INSTITUTIONAL_PARTICIPANTS_ELIGIBILITY_AND_AUTHORITY.md",
+      "sha256": "70cafa9af811bdf2244e3ddeabe565afdc3c9aabe7f1e5d966d4c8893ffb0d54",
+      "bytes": 2304
+    },
+    {
+      "path": "04_CATALOG_SELLER_ISSUER_AND_ASSET_ELIGIBILITY.md",
+      "sha256": "599c3cb72153acd8bf50c8d6d88846b227f54b41a6ec72d79120b5cd5d50d283",
+      "bytes": 2173
+    },
+    {
+      "path": "05_INSTITUTIONAL_DUE_DILIGENCE_FRAMEWORK.md",
+      "sha256": "09df201c0bbc496ec6255d12343466824651c0c98e9acc7a0114baef9df7a3ff",
+      "bytes": 2159
+    },
+    {
+      "path": "06_DATA_ROOM_EVIDENCE_AND_DOCUMENT_GOVERNANCE.md",
+      "sha256": "6185e4f50a073847a9359b1f77111e7b2fcb90d2ef700bc99e6e1e96012529c4",
+      "bytes": 1769
+    },
+    {
+      "path": "07_CATALOG_UNDERWRITING_AND_INVESTMENT_COMMITTEE_WORKFLOW.md",
+      "sha256": "7dd624fc89131f7f332a5f1491fe69a3b2d3e7a662d86867f5617748c132aa0d",
+      "bytes": 1611
+    },
+    {
+      "path": "08_IOIS_BIDS_AUCTIONS_AND_NEGOTIATION.md",
+      "sha256": "0900d25062863c41fcfa82049f479959f5f4861aa9544cb6be20383ed3c5946e",
+      "bytes": 1657
+    },
+    {
+      "path": "09_DIRECT_CATALOG_ASSET_SALES_AND_LICENSE_TRANSFERS.md",
+      "sha256": "64d12ce14f1b282e49173d1589340eb0d0d38463e63d1bc8d96516d93550e239",
+      "bytes": 1632
+    },
+    {
+      "path": "10_PRIVATE_FUNDS_SPVS_AND_ADVISER_BOUNDARIES.md",
+      "sha256": "5e9296f918541dc3e70b1e700a09ca4878bade0aa1569701e5c9a9eb5bbb2319",
+      "bytes": 1756
+    },
+    {
+      "path": "11_CAPITAL_COMMITMENTS_CALLS_SUBSCRIPTIONS_AND_CLOSINGS.md",
+      "sha256": "e542d643541180e4a40cc03df7885adc1eda7535591d6a6c27261b334274d06f",
+      "bytes": 1515
+    },
+    {
+      "path": "12_FUND_ADMIN_NAV_AND_PARTNERSHIP_ACCOUNTING.md",
+      "sha256": "44b64c582c47ff27ea305cd8b5c3506ce6ce2b4a87341499c418f15d2a304637",
+      "bytes": 1589
+    },
+    {
+      "path": "13_CASH_WATERFALL_DISTRIBUTIONS_AND_SERVICING.md",
+      "sha256": "9b28d7a4b75acf3e2608549e63f0102bd4c0990d53deb6029dc054c21d456ca4",
+      "bytes": 1545
+    },
+    {
+      "path": "14_INSTITUTIONAL_PORTFOLIO_ANALYTICS_AND_RISK.md",
+      "sha256": "2af0df9fc706f004260d16e4679d616111734d3326fa4a1b10f1f7ceb2b86fb2",
+      "bytes": 1510
+    },
+    {
+      "path": "15_VALUATION_GOVERNANCE_APPRAISALS_AND_MODEL_RISK.md",
+      "sha256": "b04ce7360fe33465cbc79b851ee132e6ac0d0bc5731a126f18210b8df7503202",
+      "bytes": 1449
+    },
+    {
+      "path": "16_BENCHMARKS_INDICES_AND_REFERENCE_DATA.md",
+      "sha256": "8ce28f32f18baf5b6d88cb263d8444fe9b43fd1198d88243a415787ea4003514",
+      "bytes": 1381
+    },
+    {
+      "path": "17_INSTITUTIONAL_SECONDARIES_TENDERS_AND_CONTINUATION_VEHICLES.md",
+      "sha256": "3caaf47864d2e05182073af3da749dd24712377261fd7208ab7047bb9bc909e4",
+      "bytes": 1256
+    },
+    {
+      "path": "18_SECURITIZATION_AND_STRUCTURED_FINANCE_READINESS.md",
+      "sha256": "864feaf701fea6b6b799cc2c08063cd9812ff411a574b7f14c5160efaf3a676b",
+      "bytes": 1291
+    },
+    {
+      "path": "19_CREDIT_COLLATERAL_AND_LENDING_BOUNDARY.md",
+      "sha256": "85a1752713138e78bf3da5c13a69e5a118eabf642cac590ee10c42ad4cbf4204",
+      "bytes": 1111
+    },
+    {
+      "path": "20_MULTI_VENUE_ROUTING_AND_EXECUTION_QUALITY.md",
+      "sha256": "ad4c583e1155154a56f827443d36da2745884c3ede3a55de7cff6c9470a15c74",
+      "bytes": 1435
+    },
+    {
+      "path": "21_TOKENIZED_INSTITUTIONAL_SETTLEMENT_AND_DTC_BOUNDARIES.md",
+      "sha256": "3f1d28c9ab5beec55c2a85d3a0b1e1309c5e750fe9f5d7bf95f3f2d1a30666a5",
+      "bytes": 1468
+    },
+    {
+      "path": "22_CUSTODY_TRANSFER_AGENT_FUND_ADMIN_AND_BANK_INTEGRATIONS.md",
+      "sha256": "cc57f497a9271b298f1147ae9dfa5be10d7b5202d89f6100ae30df67f9b6b08d",
+      "bytes": 1293
+    },
+    {
+      "path": "23_CROSS_BORDER_REG_S_TAX_SANCTIONS_AND_JURISDICTION_MODULES.md",
+      "sha256": "612ae6ce2cdbf367ca115f40cd140c67e4af6c4c58b238d2b06ead15b76baf46",
+      "bytes": 1516
+    },
+    {
+      "path": "24_INSTITUTIONAL_API_DATA_EXPORTS_AND_INTEGRATIONS.md",
+      "sha256": "6bc6e38d2799201b023872126e7649006968f326a12b39ae2c062b4c5e4e3096",
+      "bytes": 1452
+    },
+    {
+      "path": "25_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sha256": "dd2962fef872f28b93212d26f1dd1e5c29737df04d34e4d5960e3b3e7cd3a3f3",
+      "bytes": 1653
+    },
+    {
+      "path": "26_DATABASE_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "sha256": "6dd89e9353de59fa0fac147284fd18807ab3aafb9443376727eca91387552291",
+      "bytes": 1826
+    },
+    {
+      "path": "27_API_EVENTS_BACKGROUND_JOBS_AND_PARTNER_ADAPTERS.md",
+      "sha256": "66a829dbac4532621dd5c5b77fb3fa2a6589d2a2e3dda2a467e1bb83bfde7158",
+      "bytes": 1678
+    },
+    {
+      "path": "28_ADMIN_INSTITUTIONAL_OPS_COMPLIANCE_AND_APPROVALS.md",
+      "sha256": "eecbd4c533dfb50c64ba33ebd9b237b18755a7ce77bd87653670193d654e7bf2",
+      "bytes": 1376
+    },
+    {
+      "path": "29_SECURITY_PRIVACY_MODEL_RISK_AND_OPERATIONAL_RESILIENCE.md",
+      "sha256": "40935638dfc81173ff709e39ec6df52aae4e0ccf3f21a16eab6de4ded0db0463",
+      "bytes": 1705
+    },
+    {
+      "path": "30_REPORTING_AUDIT_INVESTOR_RELATIONS_AND_REGULATORY_EXPORTS.md",
+      "sha256": "7f08320a999fe93345cbaec340282d763b082ddd721d53dc38d354ba58e21b8a",
+      "bytes": 1569
+    },
+    {
+      "path": "31_TESTING_PILOT_AND_ROLLOUT.md",
+      "sha256": "80089c5db48d2b8d3ce460ab55f445dc93214e21c4275f96ad28bdad10cfc77f",
+      "bytes": 1773
+    },
+    {
+      "path": "32_PHASE_6_GLOBAL_LICENSING_AND_CLEARANCE_EXCHANGE.md",
+      "sha256": "f3c89b879ae9d3b5a4aa58602bfdcd42b6542b6175c73140025a5ee31d6a87c7",
+      "bytes": 978
+    },
+    {
+      "path": "33_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sha256": "5eb75592f050aedf8cc6d9a5dca7c742ba01d6eb2601b94bdf9dc50683dd1da2",
+      "bytes": 1925
+    },
+    {
+      "path": "34_DEFINITION_OF_DONE.md",
+      "sha256": "10faa6a34db14d77ba96084c3516fc5755191c94826664d03a7ea1de820bec77",
+      "bytes": 3789
+    },
+    {
+      "path": "35_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sha256": "057d545ebe6b3040ec1bfba0e7e02b0562ff3ac02976f4caf7c11d6f8bce8691",
+      "bytes": 7391
+    },
+    {
+      "path": "36_CURRENT_STANDARDS_LEGAL_TAX_RESEARCH.md",
+      "sha256": "f4aefcd11210f870e02ba5babd2c1f4c3cc424778c773291d4bf29f67c42a87f",
+      "bytes": 7115
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sha256": "6bc03448759631d074453e715b2b3e3bb4758a5ce74fd434e91dbfd738f1f408",
+      "bytes": 2704
+    },
+    {
+      "path": "README.md",
+      "sha256": "2480fcdd81f8f03ff07dd50d20e0d487acf101d1b8245fc7c70a07ac7b2dece4",
+      "bytes": 3702
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "sha256": "1baaeeae9aaa5c5162a349687aa2c0ee01f8ce019c2fba56543bebbe2b01be5c",
+      "bytes": 89
+    },
+    {
+      "path": "phase-5-execution-plan.schema.json",
+      "sha256": "c376e830342646c9dd87536be17ab12118a757c45f9af89befcf54f1e462e14f",
+      "bytes": 3141
+    },
+    {
+      "path": "phase-5-execution-plan.template.json",
+      "sha256": "36a718137409623ea9fa91cfffc53edd5ec54b5bf84b143e19b6a0aac2986c63",
+      "bytes": 154186
+    },
+    {
+      "path": "reference/api-examples/create-transaction-case.json",
+      "sha256": "6d3f51343981c3a9d79aa37d13123358048bacf1d2d4d1d75a3e153546166cde",
+      "bytes": 245
+    },
+    {
+      "path": "reference/api-examples/fund-admin-nav-webhook.json",
+      "sha256": "ef2816f25fe64532f0c1e2867cb8915d0a8b30aecb183c1b3b73c3d38fadba1e",
+      "bytes": 299
+    },
+    {
+      "path": "reference/api-examples/submit-institutional-ioi.json",
+      "sha256": "72287ab2e58caa5fdf38e8c349c66f9a94db7ba3923323f68c48a2eaebe890f3",
+      "bytes": 284
+    },
+    {
+      "path": "reference/lib/music/institutional/auction-state-machine.ts",
+      "sha256": "c4e04efc6e94ec7b6a26553f2e79f4f60eb3867875f97067adea8f7ac150c960",
+      "bytes": 557
+    },
+    {
+      "path": "reference/lib/music/institutional/fund-waterfall.ts",
+      "sha256": "541567798c01c95ee2f503c5ecaba3ba39b3bd8f3cd9a7d5bc4b0e276b0f22f3",
+      "bytes": 817
+    },
+    {
+      "path": "reference/lib/music/institutional/institutional-domain.ts",
+      "sha256": "63e747fb91fd19f1f308ae33b6526d0743dfa90f36193fdf4c8ef9c73f772a25",
+      "bytes": 840
+    },
+    {
+      "path": "reference/lib/music/institutional/institutional-eligibility.ts",
+      "sha256": "0faf0268469b81faacba38c3d8729e0d009ee707bf3e5fb456d063acb749f6c0",
+      "bytes": 1408
+    },
+    {
+      "path": "reference/lib/music/institutional/nav-reconciliation.ts",
+      "sha256": "36728ae55aa16bd6f885f5e2e94ad17c0c87df7a58b8303356daf79e3d930fa6",
+      "bytes": 708
+    },
+    {
+      "path": "reference/lib/music/institutional/risk-metrics.ts",
+      "sha256": "af1cb3d7d7859fdf067002e2266270686dbb0d21ec1a3797d16507407ac42f42",
+      "bytes": 904
+    },
+    {
+      "path": "reference/lib/music/institutional/transaction-classification.ts",
+      "sha256": "feceb3812cd9ea94be2c9cf22a824e4d26aaaa43cb3fb30f3f7d8b758293fc58",
+      "bytes": 1132
+    },
+    {
+      "path": "reference/lib/music/institutional/underwriting-score.ts",
+      "sha256": "fcd1117915871957a62b5a03a223ced8d9dadbe46d41e001401a04f696c5b0c1",
+      "bytes": 1147
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_institutional_participants_deals_dataroom.sql",
+      "sha256": "0cbb3ccce31a6a827a41f0fa2b98829450a80ef0e6fe982f62e566cb2b9d3e4c",
+      "bytes": 1852
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_diligence_underwriting_bids_closings.sql",
+      "sha256": "8e0c350269c8e431a8db72f4da09827d90b80cdb3a51ccafa11ed7a1b5aae396",
+      "bytes": 2014
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_funds_nav_waterfalls_reporting.sql",
+      "sha256": "ed21d24472c567aefc8cf67b31e6d8dfde3d89721135d8c2392022e16d355737",
+      "bytes": 1805
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_risk_benchmarks_partner_reconciliation.sql",
+      "sha256": "e2d4befa5d7c99cc39742c9004c7b4912761475b35ae03e55bfee649875d9025",
+      "bytes": 1566
+    }
+  ]
+}

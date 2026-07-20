@@ -5,7 +5,7 @@ import { buildNewsFeed } from '@/lib/news/feed-service'
 import { getCachedTimeline, setCachedTimeline } from '@/lib/news/scale/timeline-cache'
 import { trackNewsFeedServed } from '@/lib/news/telemetry'
 import { createClient } from '@/lib/supabase/server'
-import type { NewsCategory } from '@/lib/news/types'
+import type { NewsCategory, NewsSortMode } from '@/lib/news/types'
 
 function normalizeFacet(input: string | null) {
   if (input === 'following') return 'following'
@@ -18,12 +18,19 @@ function normalizeFacet(input: string | null) {
 
 function normalizeCategory(input: string | null): NewsCategory | undefined {
   if (input === 'featured') return 'featured'
+  if (input === 'articles') return 'articles'
   if (input === 'new-music') return 'new-music'
   if (input === 'events') return 'events'
   if (input === 'gossip') return 'gossip'
   if (input === 'editorial') return 'editorial'
   if (input === 'global') return 'global'
   return undefined
+}
+
+function normalizeSort(input: string | null): NewsSortMode {
+  if (input === 'engagement') return 'engagement'
+  if (input === 'recent') return 'recent'
+  return 'score'
 }
 
 export async function GET(request: NextRequest) {
@@ -33,6 +40,7 @@ export async function GET(request: NextRequest) {
   const limit = Number.isFinite(rawLimit) ? rawLimit : 20
   const facet = normalizeFacet(searchParams.get('facet'))
   const category = normalizeCategory(searchParams.get('category'))
+  const sort = normalizeSort(searchParams.get('sort'))
   const cursor = searchParams.get('cursor') || undefined
   const query = searchParams.get('query') || undefined
 
@@ -44,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     let cacheHit = false
     if (shouldReadCache) {
-      const cached = getCachedTimeline({ userId, facet, category, query })
+      const cached = getCachedTimeline({ userId, facet, category, query, sort })
       if (cached && cached.items.length > 0) {
         cacheHit = true
         trackNewsFeedServed({
@@ -63,6 +71,7 @@ export async function GET(request: NextRequest) {
           meta: {
             facet,
             category,
+            sort,
             sourceBreakdown: {},
             cache: 'hit'
           }
@@ -78,7 +87,8 @@ export async function GET(request: NextRequest) {
       cursor,
       facet,
       category,
-      query
+      query,
+      sort
     })
 
     if (shouldReadCache && result.items.length > 0) {
@@ -87,6 +97,7 @@ export async function GET(request: NextRequest) {
         facet,
         category,
         query,
+        sort,
         items: result.items,
         nextCursor: result.nextCursor
       })
@@ -108,6 +119,7 @@ export async function GET(request: NextRequest) {
       meta: {
         facet,
         category,
+        sort,
         sourceBreakdown: result.sourceBreakdown,
         cache: cacheHit ? 'hit' : 'miss'
       }

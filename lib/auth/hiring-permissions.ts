@@ -183,6 +183,69 @@ export async function assertCanManageHiring(
   return ok(true)
 }
 
+/**
+ * Narrower than canManageHiring — owner/admin only may reveal raw hiring PII.
+ */
+export async function canViewHiringPii({
+  supabase,
+  userId,
+  employer,
+}: HiringPermissionArgs): Promise<HiringServiceResult<HiringPermissionResult>> {
+  if (!userId) {
+    return fail({ code: "UNAUTHORIZED", message: "A signed-in user is required." })
+  }
+
+  if (!employer.entityType || !employer.entityId) {
+    return fail({ code: "BAD_REQUEST", message: "A hiring employer entity is required." })
+  }
+
+  const isDirectOwner = await hasDirectEntityOwnership({ supabase, userId, employer })
+  if (isDirectOwner) return ok({ allowed: true })
+
+  const isSelfOwnedOrganizer = employer.entityType === "organization" && employer.entityId === userId
+  if (isSelfOwnedOrganizer) return ok({ allowed: true })
+
+  const { data, error } = await supabase.rpc("can_view_hiring_pii", {
+    p_user_id: userId,
+    p_entity_type: employer.entityType,
+    p_entity_id: employer.entityId,
+  })
+
+  if (!error && Boolean(data)) return ok({ allowed: true })
+
+  if (error && !error.message?.includes("does not exist")) {
+    // Fallback: only direct owners when RPC missing/unavailable — never widen to all hiring managers.
+    return ok({
+      allowed: false,
+      reason: "Unable to verify PII access for this employer.",
+    })
+  }
+
+  return ok({
+    allowed: false,
+    reason: "Only organization owners and admins can view sensitive hiring data.",
+  })
+}
+
+export async function assertCanViewHiringPii(
+  args: HiringPermissionArgs
+): Promise<HiringServiceResult<true>> {
+  const permissionResult = await canViewHiringPii(args)
+
+  if (!permissionResult.ok) return permissionResult
+
+  if (!permissionResult.data.allowed) {
+    return fail({
+      code: "FORBIDDEN",
+      message:
+        permissionResult.data.reason ||
+        "Only organization owners and admins can view sensitive hiring data.",
+    })
+  }
+
+  return ok(true)
+}
+
 /** Legacy venue-only gate — delegates to universal canManageHiring during migration. */
 export async function canManageVenueStaffing(input: { userId: string; venueId: string; supabase?: SupabaseClient }) {
   if (input.supabase) {

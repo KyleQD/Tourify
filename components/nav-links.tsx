@@ -11,15 +11,11 @@ const links = [
   },
   {
     name: "Jobs",
-    href: "/dashboard/jobs",
-  },
-  {
-    name: "Portfolio",
-    href: "/dashboard/profile/portfolio",
+    href: "/jobs",
   },
   {
     name: "Profile",
-    href: "/dashboard/profile",
+    href: "/profile",
   },
 ]
 

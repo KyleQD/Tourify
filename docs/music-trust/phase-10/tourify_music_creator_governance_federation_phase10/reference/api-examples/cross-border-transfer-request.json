@@ -1,0 +1,10 @@
+{
+  "sourceOrganizationId": "org_us",
+  "destinationOrganizationId": "org_eu",
+  "purpose": "approved_aggregate_research",
+  "datasetManifestId": "manifest_uuid",
+  "sourceJurisdiction": "US-NV",
+  "destinationJurisdiction": "EU-DE",
+  "transferMechanism": "AUDIT_REQUIRED",
+  "onwardTransferAllowed": false
+}

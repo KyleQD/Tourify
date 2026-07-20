@@ -1,0 +1,2 @@
+import { describe, expect, it } from 'vitest'; import { evaluateLegalCharacter } from '../../lib/music/creator-interoperability-institution/legal-character-gate';
+describe('legal character',()=>{it('denies specialized agency without relationship',()=>{expect(evaluateLegalCharacter({constitutiveInstrumentEffective:true,intergovernmentalPartiesVerified:true,relationshipAgreementEffective:false,requestedClaim:'specialized_agency'}).allowed).toBe(false);});});

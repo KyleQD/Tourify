@@ -24,7 +24,9 @@ import { Progress } from "@/components/ui/progress"
 import { AchievementCard } from "./achievement-card"
 import { BadgeCard } from "./badge-card"
 import { EndorsementCard } from "./endorsement-card"
-import { achievementService } from "@/lib/services/achievement.service"
+import { EndorsementModal } from "./endorsement-modal"
+import { achievementReads } from "@/lib/achievements/achievement-reads"
+import { formatCategoryCount, humanizeRarity } from "@/lib/achievements/labels"
 import { 
   Achievement, 
   UserAchievement, 
@@ -93,9 +95,9 @@ export function ProfileAchievementsSection({
     setLoadNotice(null)
 
     const [achRes, badgeRes, endRes] = await Promise.allSettled([
-      achievementService.getUserAchievements(userId),
-      achievementService.getUserBadges(userId),
-      achievementService.getUserEndorsements(userId)
+      achievementReads.getUserAchievements(userId),
+      achievementReads.getUserBadges(userId),
+      achievementReads.getUserEndorsements(userId)
     ])
 
     const notices: string[] = []
@@ -162,72 +164,151 @@ export function ProfileAchievementsSection({
     return acc
   }, {})
 
+  const rarityRank: Record<string, number> = {
+    legendary: 5,
+    epic: 4,
+    rare: 3,
+    uncommon: 2,
+    common: 1,
+  }
+
+  const featuredAchievements = [...completedAchievementsList]
+    .sort((a, b) => {
+      const rarityDiff =
+        (rarityRank[b.achievement?.rarity || 'common'] || 0) -
+        (rarityRank[a.achievement?.rarity || 'common'] || 0)
+      if (rarityDiff !== 0) return rarityDiff
+      return new Date(b.completed_at || 0).getTime() - new Date(a.completed_at || 0).getTime()
+    })
+    .slice(0, 3)
+
+  const featuredBadges = [...activeBadges]
+    .sort((a, b) => {
+      const badgeA = badges.find((badge) => badge.id === a.badge_id)
+      const badgeB = badges.find((badge) => badge.id === b.badge_id)
+      return (
+        (rarityRank[badgeB?.rarity || 'common'] || 0) -
+        (rarityRank[badgeA?.rarity || 'common'] || 0)
+      )
+    })
+    .slice(0, 3)
+
+  const verifiedEndorsements = endorsements.filter((e) => e.is_verified).length
+
   if (loading) {
     return (
-      <Card className={className}>
+      <Card className={cn(className, "border-border/60 bg-card/40")}>
         <CardContent className="p-6">
-          <div className="text-center text-gray-500">Loading achievements...</div>
+          <div className="text-center text-muted-foreground">Loading achievements...</div>
         </CardContent>
       </Card>
     )
   }
 
   return (
-    <Card className={className}>
+    <Card className={cn(className, "border-border/60 bg-card/40")}>
       <CardHeader>
         {loadNotice ? (
           <p className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
             {loadNotice}
           </p>
         ) : null}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <CardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-500" />
+            <Trophy className="h-5 w-5 text-amber-400" />
             Achievements & Recognition
           </CardTitle>
-          {isOwnProfile && (
-            <Button variant="outline" size="sm" asChild>
-              <a href="/achievements">
-                <ExternalLink className="h-4 w-4 mr-2" />
-                View All
-              </a>
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {!isOwnProfile && (
+              <EndorsementModal
+                endorseeId={userId}
+                endorseeName="this creator"
+                trigger={
+                  <Button variant="outline" size="sm">
+                    <ThumbsUp className="h-4 w-4 mr-2" />
+                    Endorse
+                  </Button>
+                }
+                onEndorsementCreated={loadAchievementData}
+              />
+            )}
+            {isOwnProfile && (
+              <Button variant="outline" size="sm" asChild>
+                <a href="/achievements">
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  View All
+                </a>
+              </Button>
+            )}
+          </div>
         </div>
         
         {/* Stats Overview */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">{totalPoints}</div>
-            <div className="text-sm text-gray-600">Total Points</div>
+            <div className="text-2xl font-bold text-emerald-400">{totalPoints}</div>
+            <div className="text-sm text-muted-foreground">Total Points</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">{completedAchievements}</div>
-            <div className="text-sm text-gray-600">Achievements</div>
+            <div className="text-2xl font-bold text-sky-400">{completedAchievements}</div>
+            <div className="text-sm text-muted-foreground">Achievements</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">{totalBadges}</div>
-            <div className="text-sm text-gray-600">Badges</div>
+            <div className="text-2xl font-bold text-amber-400">{totalBadges}</div>
+            <div className="text-sm text-muted-foreground">Badges</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">{totalEndorsements}</div>
-            <div className="text-sm text-gray-600">Endorsements</div>
+            <div className="text-2xl font-bold text-orange-400">{totalEndorsements}</div>
+            <div className="text-sm text-muted-foreground">Endorsements</div>
           </div>
         </div>
+
+        <p className="mt-3 text-xs text-muted-foreground">
+          {totalEndorsements} endorsements · {verifiedEndorsements} verified from shared jobs
+        </p>
       </CardHeader>
 
       <CardContent>
+        {(featuredAchievements.length > 0 || featuredBadges.length > 0) && (
+          <div className="mb-6 rounded-xl border border-border/60 bg-muted/20 p-4">
+            <h4 className="mb-3 text-sm font-semibold">Featured</h4>
+            <div className="flex flex-wrap gap-2">
+              {featuredBadges.map((userBadge) => {
+                const badge = badges.find((b) => b.id === userBadge.badge_id)
+                if (!badge) return null
+                return (
+                  <Badge key={userBadge.id} variant="outline" className="gap-1">
+                    <Award className="h-3 w-3" />
+                    {badge.name}
+                    <span className="text-muted-foreground">· {humanizeRarity(badge.rarity)}</span>
+                  </Badge>
+                )
+              })}
+              {featuredAchievements.map((ua) => {
+                const achievement = achievements.find((a) => a.id === ua.achievement_id) || ua.achievement
+                if (!achievement) return null
+                return (
+                  <Badge key={ua.id} variant="secondary" className="gap-1">
+                    <Trophy className="h-3 w-3" />
+                    {achievement.name}
+                  </Badge>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {upcomingAchievements.length ? (
-          <div className="mb-6 rounded-xl border border-slate-700/60 bg-slate-900/40 p-4">
-            <h4 className="mb-3 text-sm font-semibold text-slate-100">Next milestones</h4>
+          <div className="mb-6 rounded-xl border border-border/60 bg-muted/20 p-4">
+            <h4 className="mb-3 text-sm font-semibold">Next milestones</h4>
             <div className="space-y-3">
               {upcomingAchievements.map(({ achievement, current, target, percent }) => (
                 <div key={achievement.id} className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3 text-xs">
-                    <span className="truncate text-slate-200">{achievement.name}</span>
-                    <span className="shrink-0 text-slate-400">{current}/{target}</span>
+                    <span className="truncate">{achievement.name}</span>
+                    <span className="shrink-0 text-muted-foreground">{current}/{target}</span>
                   </div>
-                  <Progress value={percent} className="h-1.5 bg-slate-800" />
+                  <Progress value={percent} className="h-1.5" />
                 </div>
               ))}
             </div>
@@ -237,8 +318,8 @@ export function ProfileAchievementsSection({
         {Object.keys(categoryCounts).length ? (
           <div className="mb-6 flex flex-wrap gap-2">
             {Object.entries(categoryCounts).map(([category, count]) => (
-              <Badge key={category} variant="outline" className="border-slate-600 text-slate-200">
-                {category}: {count}
+              <Badge key={category} variant="outline">
+                {formatCategoryCount(category, count)}
               </Badge>
             ))}
           </div>

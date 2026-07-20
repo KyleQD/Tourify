@@ -121,7 +121,7 @@ export function MobileNavigation() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Venues</h3>
                 {[
                   { href: "/venues", icon: <Building className="h-4 w-4 mr-3" />, label: "Venues" },
-                  { href: "/equipment", icon: <Music className="h-4 w-4 mr-3" />, label: "Equipment" },
+                  { href: "/venue/equipment", icon: <Music className="h-4 w-4 mr-3" />, label: "Equipment" },
                   { href: "/venue/bookings", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Bookings" },
                   { href: "/venue/finances", icon: <Briefcase className="h-4 w-4 mr-3" />, label: "Finances" },
                 ].map((item) => (

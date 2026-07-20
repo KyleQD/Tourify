@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { Calendar, Copy, ExternalLink, Download, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface Props {
   tourId: string
@@ -14,45 +15,83 @@ interface Props {
 }
 
 export function TourCalendarSync({ tourId, tourName }: Props) {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    ...input,
+    headers: { ...actingHeaders, ...(input?.headers || {}) },
+  }), [actingHeaders])
   const [calendarToken, setCalendarToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   // Base URL for the iCal feed — dynamic [id] route, no .ics suffix needed
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
   const icalUrl = `${baseUrl}/api/calendar/tours/${tourId}${calendarToken ? `?token=${calendarToken}` : ''}`
 
-  async function fetchToken() {
+  const fetchToken = useCallback(async () => {
+    if (!isActingReady) return
     setLoading(true)
     try {
-      const res = await fetch(`/api/tours/${tourId}`, { credentials: 'include' })
+      const res = await fetch(`/api/admin/tours/${tourId}`, adminRequest({ credentials: 'include' }))
       if (res.ok) {
         const data = await res.json()
         setCalendarToken(data.tour?.calendar_token || null)
+      } else {
+        setCalendarToken(null)
+        toast.error('Calendar token is unavailable for this account')
       }
+    } catch {
+      setCalendarToken(null)
+      toast.error('Failed to load calendar token')
     } finally {
       setLoading(false)
     }
-  }
+  }, [adminRequest, isActingReady, tourId])
 
-  useEffect(() => { void fetchToken() }, [])
+  useEffect(() => {
+    if (!isActingReady) {
+      setCalendarToken(null)
+      return
+    }
+    void fetchToken()
+  }, [actingContextKey, fetchToken, isActingReady])
 
   function copyLink() {
+    if (!calendarToken) return
     navigator.clipboard.writeText(icalUrl)
     toast.success('Calendar link copied to clipboard')
   }
 
   function subscribeGoogle() {
+    if (!calendarToken) return
     const encoded = encodeURIComponent(icalUrl)
     window.open(`https://calendar.google.com/calendar/r?cid=${encoded}`, '_blank')
   }
 
   function subscribeOutlook() {
+    if (!calendarToken) return
     const encoded = encodeURIComponent(icalUrl)
     window.open(`https://outlook.live.com/calendar/0/addfromweb?url=${encoded}`, '_blank')
   }
 
   function downloadIcs() {
+    if (!calendarToken) return
     window.location.href = icalUrl
+  }
+
+  async function rotateToken() {
+    if (!window.confirm('Rotate this calendar token? Existing subscriptions will stop updating.')) return
+    setLoading(true)
+    try {
+      const response = await fetch(`/api/admin/tours/${tourId}/calendar-token`, adminRequest({ method: 'POST' }))
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload.calendarToken) throw new Error(payload.error || 'Failed to rotate token')
+      setCalendarToken(payload.calendarToken)
+      toast.success('Calendar token rotated')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to rotate calendar token')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -75,7 +114,7 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
             <p className="text-slate-400 text-xs uppercase font-medium tracking-wider">Calendar Feed URL</p>
             <div className="flex gap-2">
               <Input
-                value={loading ? 'Loading...' : icalUrl}
+                value={loading ? 'Loading...' : calendarToken ? icalUrl : 'Calendar token unavailable'}
                 readOnly
                 className="bg-slate-800/50 border-slate-700/50 text-slate-300 text-sm font-mono flex-1"
               />
@@ -84,7 +123,7 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
                 size="sm"
                 onClick={copyLink}
                 className="border-slate-700 text-slate-300 shrink-0"
-                disabled={loading}
+                disabled={loading || !calendarToken}
               >
                 <Copy className="h-4 w-4" />
               </Button>
@@ -100,7 +139,7 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
             <div className="flex flex-wrap gap-2">
               <Button
                 onClick={subscribeGoogle}
-                disabled={loading}
+                disabled={loading || !calendarToken}
                 className="bg-blue-600/20 border border-blue-500/30 text-blue-300 hover:bg-blue-600/30"
                 variant="outline"
                 size="sm"
@@ -110,7 +149,7 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
               </Button>
               <Button
                 onClick={subscribeOutlook}
-                disabled={loading}
+                disabled={loading || !calendarToken}
                 className="bg-blue-900/20 border border-blue-700/30 text-blue-300 hover:bg-blue-900/30"
                 variant="outline"
                 size="sm"
@@ -121,9 +160,9 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
               <Button
                 onClick={() => {
                   const webcal = icalUrl.replace(/^https?:\/\//, 'webcal://')
-                  window.location.href = webcal
+                  if (calendarToken) window.location.href = webcal
                 }}
-                disabled={loading}
+                disabled={loading || !calendarToken}
                 className="bg-slate-700/40 border border-slate-600/40 text-slate-200"
                 variant="outline"
                 size="sm"
@@ -133,7 +172,7 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
               </Button>
               <Button
                 onClick={downloadIcs}
-                disabled={loading}
+                disabled={loading || !calendarToken}
                 className="border-slate-700 text-slate-300"
                 variant="outline"
                 size="sm"
@@ -163,12 +202,12 @@ export function TourCalendarSync({ tourId, tourName }: Props) {
             <Button
               variant="ghost"
               size="sm"
-              onClick={fetchToken}
+              onClick={rotateToken}
               className="text-slate-500 hover:text-slate-300 h-7 text-xs gap-1.5"
               disabled={loading}
             >
               <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
-              Refresh token
+              Rotate calendar token
             </Button>
           </div>
         </CardContent>

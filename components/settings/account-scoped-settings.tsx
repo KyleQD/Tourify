@@ -18,7 +18,6 @@ import {
   CreditCard,
   Lock,
   Palette,
-  Zap,
   Globe,
   Camera,
   Sparkles,
@@ -113,19 +112,27 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
   }
 
   const getSettingsTabs = (accountType: string) => {
+    const profileTab = {
+      value: 'profile',
+      label: 'Profile',
+      icon: User,
+      description: 'Personal information & visibility'
+    }
+    const accountsTab = {
+      value: 'accounts',
+      label: 'Account Management',
+      icon: Users,
+      description: 'Manage your accounts and delete unwanted ones'
+    }
+
+    // Artist settings: Profile + Account Management only
+    if (accountType === 'artist') {
+      return [profileTab, accountsTab]
+    }
+
     const baseTabs = [
-      {
-        value: 'profile',
-        label: 'Profile',
-        icon: User,
-        description: 'Personal information & visibility'
-      },
-      {
-        value: 'accounts',
-        label: 'Account Management',
-        icon: Users,
-        description: 'Manage your accounts and delete unwanted ones'
-      },
+      profileTab,
+      accountsTab,
       {
         value: 'notifications',
         label: 'Notifications',
@@ -166,28 +173,6 @@ export function AccountScopedSettings({ className = '' }: AccountScopedSettingsP
     }
 
     switch (accountType) {
-      case 'artist':
-        return [
-          ...baseTabs,
-          {
-            value: 'music',
-            label: 'Music',
-            icon: Music,
-            description: 'Music & content settings'
-          },
-          {
-            value: 'booking',
-            label: 'Booking',
-            icon: Calendar,
-            description: 'Booking & availability'
-          },
-          {
-            value: 'analytics',
-            label: 'Analytics',
-            icon: Zap,
-            description: 'Performance tracking'
-          }
-        ]
       case 'venue':
         return [
           ...baseTabs,

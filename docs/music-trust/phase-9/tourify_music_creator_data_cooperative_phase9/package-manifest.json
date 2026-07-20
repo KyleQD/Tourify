@@ -1,0 +1,331 @@
+{
+  "package": "tourify_music_creator_data_cooperative_phase9",
+  "generated": "2026-07-17",
+  "files": [
+    {
+      "path": "00_PHASE_9_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 4550,
+      "sha256": "0eec10c2ee14c3222557fa963b8006d3d02337e7167c06a9323116c456807dc5"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_MEMBER_RESEARCHER_JOURNEYS.md",
+      "bytes": 4457,
+      "sha256": "823332a366675976861882af972d48de11784b9b27923ced2f9e54775aa56b90"
+    },
+    {
+      "path": "02_ENTITY_OPTIONS_FIDUCIARY_AND_PLATFORM_BOUNDARIES.md",
+      "bytes": 4439,
+      "sha256": "2d204986cb9b352b08e0a2b549be4fd9e6452c6f0accec802795d03ac985a782"
+    },
+    {
+      "path": "03_MEMBERSHIP_ADMISSION_WITHDRAWAL_AND_MEMBER_RIGHTS.md",
+      "bytes": 4471,
+      "sha256": "a0b7855de60938720b49fb9538670748a1e1871ff1f00f3171063a42bbc8e323"
+    },
+    {
+      "path": "04_GOVERNANCE_BOARD_ELECTIONS_COMMITTEES_AND_CONFLICTS.md",
+      "bytes": 4414,
+      "sha256": "123f5524d9f2c031d81d9e284933bdf3e3b3f99a13aec473c9f39b6450c6b806"
+    },
+    {
+      "path": "05_DATA_CONTRIBUTION_LICENSES_PURPOSES_AND_REVOCATION.md",
+      "bytes": 4475,
+      "sha256": "13aad1bf4b2cc602cce25b0d5f1eee13c8011ee1bd7357654e897ba4f6c6cab2"
+    },
+    {
+      "path": "06_DATA_ASSETS_LINEAGE_CONSENT_AND_SOURCE_MANIFESTS.md",
+      "bytes": 4310,
+      "sha256": "86c1f94a3f866ade6b830147c1a794a696e25dcbe89fda22761615485e2f23bf"
+    },
+    {
+      "path": "07_COOPERATIVE_DATA_VAULT_CUSTODY_AND_ACCESS_MODEL.md",
+      "bytes": 4391,
+      "sha256": "7eef83598233b7f018836f490bebafb66023a8e32aa805f0c4198e34d06d54bf"
+    },
+    {
+      "path": "08_RESEARCH_EXCHANGE_APPLICANTS_PROTOCOLS_AND_ELIGIBILITY.md",
+      "bytes": 4449,
+      "sha256": "0aa5249532f7e87a8973d6d67fc261d5e22f708d106c9e38b081f7d41ae27203"
+    },
+    {
+      "path": "09_RESEARCH_ETHICS_IRB_REVIEW_AND_PARTICIPANT_PROTECTIONS.md",
+      "bytes": 4507,
+      "sha256": "ed3a256b5e0f865beb207d18b7e2f946bc5f0deebc11001f124aae8a501e2190"
+    },
+    {
+      "path": "10_EXTERNAL_RESEARCH_LICENSES_OUTPUT_REVIEW_AND_PUBLICATION.md",
+      "bytes": 4524,
+      "sha256": "49e04c3423631b74bfdf655d657c894602666cda1bce8be61a49883b6ea29b48"
+    },
+    {
+      "path": "11_PRIVACY_ENHANCING_RESEARCH_INFRASTRUCTURE.md",
+      "bytes": 4361,
+      "sha256": "25e411af8b7c3c0b8a478a8b4be1231af272f8b78d737bdf78ad576e36ded332"
+    },
+    {
+      "path": "12_CROSS_PLATFORM_STUDIES_DATA_CLEAN_ROOMS_AND_FEDERATED_ANALYSIS.md",
+      "bytes": 4405,
+      "sha256": "81a6928c5d7504490910143405366cea456eb4817fe8de82975ea6177635244e"
+    },
+    {
+      "path": "13_MEMBER_BENEFIT_ALLOCATION_PATRONAGE_GRANTS_AND_STIPENDS.md",
+      "bytes": 4437,
+      "sha256": "ac3a0384c5924970dd0bf22f5ec29858a4debd32c9006b5609ed228866c1e2f5"
+    },
+    {
+      "path": "14_COOPERATIVE_ECONOMICS_TAX_ACCOUNTING_AND_SECURITIES_BOUNDARY.md",
+      "bytes": 4404,
+      "sha256": "819b583e909961fe43e66f65b3063a9695305676e4e583e0b8bbda873f24b07c"
+    },
+    {
+      "path": "15_GLOBAL_CREATOR_POLICY_OBSERVATORY.md",
+      "bytes": 4374,
+      "sha256": "c893619bf069f4b262cabf442740f61ebfb49a3f496a3755ed80d6fa05625dd7"
+    },
+    {
+      "path": "16_POLICY_PUBLICATION_EDITORIAL_REVIEW_AND_CORRECTIONS.md",
+      "bytes": 4247,
+      "sha256": "c039c5228d619df843236a945024c2cdabf4a334dc87d5a617f0b205e5c618f1"
+    },
+    {
+      "path": "17_STANDARDS_PARTICIPATION_PROPOSALS_AND_IPR.md",
+      "bytes": 4365,
+      "sha256": "10c5e61d8f63fcbb0c07f2adc3e69788c9ce9d09cecc4ff63010c37beacecca1"
+    },
+    {
+      "path": "18_REGULATOR_ENGAGEMENT_PUBLIC_COMMENTS_AND_LOBBYING_BOUNDARY.md",
+      "bytes": 4340,
+      "sha256": "3781e7a00bc9a14d857c2dd33a7ba6b914937bad201533225773a3af9534617b"
+    },
+    {
+      "path": "19_APPROVED_COLLECTIVE_ENTITY_READINESS.md",
+      "bytes": 4381,
+      "sha256": "74d9b9a4d09a5480fb50668d249c75d0672225df8a016f7d01a8c6432dfde54e"
+    },
+    {
+      "path": "20_CROSS_BORDER_GOVERNANCE_DATA_TRANSFERS_AND_LOCALIZATION.md",
+      "bytes": 4362,
+      "sha256": "ee94dcecc81a9bf6c39939d90965934b07b93587a4017dd93bb4924b29a85fff"
+    },
+    {
+      "path": "21_AI_RESEARCH_DATASET_LICENSING_AND_CREATOR_CONTROL.md",
+      "bytes": 4420,
+      "sha256": "b9c7f5f57e06de539fe70de336d34d467992b2b5182eccbb6946176e19b64754"
+    },
+    {
+      "path": "22_OPEN_DATA_PUBLIC_INTEREST_OUTPUTS_AND_IP_LICENSING.md",
+      "bytes": 4325,
+      "sha256": "c641e8ea7e2d975affcbf395a3c00ee6ae445ac5573506aa51c64e4deea052ce"
+    },
+    {
+      "path": "23_MEMBER_COMPLAINTS_APPEALS_INSPECTION_AND_NON_RETALIATION.md",
+      "bytes": 4315,
+      "sha256": "a000fa0ced534bf69a6f9ddc1cd06589c52f602e2e0d88e15185ed7b0a6c7308"
+    },
+    {
+      "path": "24_ENTERPRISE_RESEARCH_APIS_EXPORTS_AND_INTEROPERABILITY.md",
+      "bytes": 4283,
+      "sha256": "cd9060adaebaa36a0574e91b1eca96ea0c03b2291ed810cd5c741ad346cf1161"
+    },
+    {
+      "path": "25_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "bytes": 4289,
+      "sha256": "b7928fd0b6a9bcc7564e130024a599130f5387ff2209cdef386a56a01fe3c265"
+    },
+    {
+      "path": "26_API_EVENTS_BACKGROUND_JOBS_AND_PARTNER_ADAPTERS.md",
+      "bytes": 4274,
+      "sha256": "0eaab40340c5214d6ce26f395e4ffa10d27d30a8290a226145f4dea4a6a6dd6a"
+    },
+    {
+      "path": "27_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 4260,
+      "sha256": "49f5d1a0d587a4cf0991df78085ec6795ac561f17e743f891bfbeabae63ed975"
+    },
+    {
+      "path": "28_ADMIN_COOPERATIVE_RESEARCH_AND_POLICY_OPERATIONS.md",
+      "bytes": 4253,
+      "sha256": "988bd39a7bcbd8458f7fe7f7f518dcf3f4a1b8e54433cef536aa13f476e17269"
+    },
+    {
+      "path": "29_SECURITY_PRIVACY_RESEARCH_MISCONDUCT_AND_INCIDENT_RESPONSE.md",
+      "bytes": 4344,
+      "sha256": "65b839555b2d0f1b4d70cdcd1df336b35fa5a0ca927b93a36b21df82ba8241c6"
+    },
+    {
+      "path": "30_ANALYTICS_TRANSPARENCY_PUBLIC_INTEREST_AND_IMPACT.md",
+      "bytes": 4275,
+      "sha256": "bcfbbeb2b3557607fbe09470acc47b7ed37b8f4bf870d97584a1d9cfdb9d9e05"
+    },
+    {
+      "path": "31_TESTING_PILOT_AND_ROLLOUT.md",
+      "bytes": 4355,
+      "sha256": "2bb6123d802230435e9b0f7a045ee15cab624d975cb97fd623a59673a27da8ba"
+    },
+    {
+      "path": "32_PHASE_10_GLOBAL_CREATOR_GOVERNANCE_FEDERATION.md",
+      "bytes": 4333,
+      "sha256": "3e95417687453365b1612db7e5c6fa28115adae59eb3506e5fa53eb11c1f4c11"
+    },
+    {
+      "path": "33_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 4102,
+      "sha256": "a8f79b8ea755f8ed1f1770847589c160d95b36ef2adef65f7986dff21a571f7e"
+    },
+    {
+      "path": "34_DEFINITION_OF_DONE.md",
+      "bytes": 4224,
+      "sha256": "55c374953f87ef43f2709cfd06a262ccf2e4513827e8ddc7af3727836ce3b518"
+    },
+    {
+      "path": "35_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 7454,
+      "sha256": "61e4ef34230fe876bb5f935933add9c598e917ee0805bedd8ee715b7b166b5ac"
+    },
+    {
+      "path": "36_CURRENT_STANDARDS_LEGAL_TAX_AND_RESEARCH_REVIEW.md",
+      "bytes": 9285,
+      "sha256": "f2a9a5dcdaa8d1efc136871d0fb314ae9439998febb5d4be69c362504e3eddbe"
+    },
+    {
+      "path": "37_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "bytes": 6376,
+      "sha256": "e77859c2e504c6578ac98fa216709afc2fa9dbc6895f1cea5783adae9e52579e"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 21046,
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 2123,
+      "sha256": "d5dbe40700533c3028b2d0386fb656ef21d38ba8c4797a76d2bcb0f4955880ea"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4598,
+      "sha256": "d1bee0ead2834f80ea37a7d956f6cf01e6bd95038528c2df29353def446e9266"
+    },
+    {
+      "path": "SOURCE_PHASE_8_HANDOFF.md",
+      "bytes": 2218,
+      "sha256": "9d3dc14e66c7f2aafd1f5b2e8d5b7af9c7552345bd2d65846303cb4718836680"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "bytes": 141,
+      "sha256": "2042081c4f17a9b5b014250f6ce3822b1b9a996cbdc6b61d107290aa3c2b972d"
+    },
+    {
+      "path": "phase-9-execution-plan.schema.json",
+      "bytes": 3581,
+      "sha256": "63e5e0b394dac114b403e10844846f9b11044f52c8a2042e3bf9f1ea1b0af437"
+    },
+    {
+      "path": "phase-9-execution-plan.template.json",
+      "bytes": 341594,
+      "sha256": "1bc6655f965ada4462b826bd48dbffa55971bddccb1ed182d53c05aa98c60355"
+    },
+    {
+      "path": "reference/api-examples/data-contribution-license.json",
+      "bytes": 491,
+      "sha256": "9303ad324f01ede6c6770b7d827c0df2be80cd110b899ed2a36ebe584f951358"
+    },
+    {
+      "path": "reference/api-examples/membership-application.json",
+      "bytes": 268,
+      "sha256": "5798c7333d9a2ad1ec72d750c5c8f75727fe7723e97611766a6932908e944fa5"
+    },
+    {
+      "path": "reference/api-examples/output-review.json",
+      "bytes": 253,
+      "sha256": "75f71a6d027e7107ff139b29c5a266812e4c07a88c699ec6d4e21705dfec8f81"
+    },
+    {
+      "path": "reference/api-examples/partner-webhook.json",
+      "bytes": 254,
+      "sha256": "466dbfb096f810b8c0ce005de8d19b7e9bd0aaa44d6dbaeff05476f757c5ee33"
+    },
+    {
+      "path": "reference/api-examples/research-application.json",
+      "bytes": 373,
+      "sha256": "9ad82756dfcefa53b776711feb1cc2dde880b392a62b2ddb9c5bf4194799c66c"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/benefit-allocation.ts",
+      "bytes": 693,
+      "sha256": "c4adbfc6d81cb0fbcc4556a368dede052b74a312d1a01f10236b5ac51978ff4f"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/collective-entity-activation.ts",
+      "bytes": 454,
+      "sha256": "1eda70dbb19f39e38ed9ac345e9a10545bcf4258f0d1280bee8e1cf72f53f867"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/creator-cooperative-domain.ts",
+      "bytes": 791,
+      "sha256": "5f41625f047bfaa42dac016ec87e11f24209ae982b34e030f8181eb4b45d6503"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/cross-border-data-policy.ts",
+      "bytes": 777,
+      "sha256": "4416e2a5ccc2cb85ebd770bbfc1abdf0fda9a532f96caf5654491d431d5c24d1"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/data-contribution-license.ts",
+      "bytes": 1262,
+      "sha256": "39495f0cd32c8c7fbcc83f9e090581e236457f0c3d7a0106e8ac61fcc80cfe7b"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/governance-vote-policy.ts",
+      "bytes": 594,
+      "sha256": "e550ab43aa916c7b12ae3c42e7eb33576ac7ed82bde7a80bebbb062f286f4800"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/membership-state-machine.ts",
+      "bytes": 639,
+      "sha256": "2ae23d3244fdec89f16c4ee058c914671710871ad8e9a325f83a7f544c031abe"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/policy-source-validity.ts",
+      "bytes": 428,
+      "sha256": "27ff86f90756f10fccee3930cbe8409c28096fa274b7ddf030fdbac03d938575"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/research-access-policy.ts",
+      "bytes": 1044,
+      "sha256": "11d01dfb224987befa1dfb24a7cefd3617ac89a95e84d4ae7da361b99386a435"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/research-project-state-machine.ts",
+      "bytes": 947,
+      "sha256": "6a3b6e1ac9d82d7ece336861d65931a431a737f250ce8070489e547102f4039e"
+    },
+    {
+      "path": "reference/lib/music/creator-cooperative/standards-proposal-state-machine.ts",
+      "bytes": 490,
+      "sha256": "cc6068aec5ccb74b165bd9eff7dc0a5001d7546cd721422e32d297f29f1e9a4e"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_entity_membership_governance.sql",
+      "bytes": 1517,
+      "sha256": "2c791c334a6d651b5f3f415dd17f177f0e7a13906a706f4cd94c1678ce383c2f"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_data_contributions_lineage_and_vault.sql",
+      "bytes": 1720,
+      "sha256": "95dfcee188a96b14e26a4586a77b766e69c645e94593f2ad8f24a7b6898921f3"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_research_exchange_ethics_and_outputs.sql",
+      "bytes": 1640,
+      "sha256": "4d37d44b433b604c314f0cd9d837e243d5d5ece72d010eea547db058d6ea3fab"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_policy_standards_benefits_collective_readiness.sql",
+      "bytes": 1779,
+      "sha256": "ee4036424785e7ffd22de9d5e50d6170930eb259ff648be55a2263723e62fbce"
+    }
+  ]
+}

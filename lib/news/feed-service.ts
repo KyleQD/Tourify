@@ -4,12 +4,13 @@ import {
   applyCursorPagination,
   decodeNewsCursor,
   rankNewsItem,
-  sortNewsByScore
+  sortNewsItems
 } from '@/lib/news/ranking'
 import { getBlogAccountAuthor } from '@/lib/blog/account-author'
 import { accountAuthorNeedsRefresh } from '@/lib/accounts/account-author'
 import { resolveAccountAuthorSnapshot } from '@/lib/accounts/acting-account-snapshot'
-import type { NewsCategory, NewsFeedItem, NewsFeedQuery, RankedNewsFeedResult } from '@/lib/news/types'
+import { parsePressFormat } from '@/lib/press/formats'
+import type { NewsCategory, NewsFeedItem, NewsFeedQuery, NewsSortMode, RankedNewsFeedResult } from '@/lib/news/types'
 import { chooseFanoutStrategy } from '@/lib/news/scale/hybrid-fanout'
 import { fetchFeedPostsWithFallback } from '@/lib/feed/feed-posts-query'
 
@@ -81,6 +82,7 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
     hasStrictFilter: Boolean(params.category && params.category !== 'featured') || Boolean(params.query?.trim())
   })
 
+  const sortMode: NewsSortMode = params.sort || 'score'
   const ranked = effectiveCandidates.map(item =>
     rankNewsItem({
       item,
@@ -90,12 +92,13 @@ export async function buildNewsFeed(params: BuildNewsFeedParams): Promise<BuildN
       preferredLocations: userSignals.preferredLocations
     })
   )
-  const sorted = sortNewsByScore(ranked)
+  const sorted = sortNewsItems(ranked, sortMode)
   const diversityBalanced = applySourceDiversity(sorted)
   const pagination = applyCursorPagination({
     items: diversityBalanced,
     cursor: decodeNewsCursor(params.cursor),
-    limit: Math.max(1, Math.min(50, params.limit))
+    limit: Math.max(1, Math.min(50, params.limit)),
+    sort: sortMode
   })
 
   const sourceBreakdown = countBySource(pagination.pageItems)
@@ -342,7 +345,7 @@ async function fetchPostCandidates(params: { supabase: SupabaseClient; limit: nu
 
 async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: number }): Promise<NewsFeedItem[]> {
   try {
-    const { data } = await params.supabase
+    let query = params.supabase
       .from('artist_blog_posts')
       .select(`
         id,
@@ -352,6 +355,7 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
         slug,
         tags,
         categories,
+        format,
         featured_image_url,
         stats,
         published_at,
@@ -365,8 +369,43 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
         account_is_verified
       `)
       .eq('status', 'published')
+      .in('format', ['article', 'blog'])
       .order('published_at', { ascending: false })
       .limit(params.limit)
+
+    let { data, error } = await query
+
+    if (error && (error.message?.includes('format') || error.code === '42703' || error.code === 'PGRST204')) {
+      const legacy = await params.supabase
+        .from('artist_blog_posts')
+        .select(`
+          id,
+          title,
+          excerpt,
+          content,
+          slug,
+          tags,
+          categories,
+          featured_image_url,
+          stats,
+          published_at,
+          created_at,
+          user_id,
+          posted_as_profile_id,
+          posted_as_type,
+          account_display_name,
+          account_username,
+          account_avatar_url,
+          account_is_verified
+        `)
+        .eq('status', 'published')
+        .order('published_at', { ascending: false })
+        .limit(params.limit)
+      data = legacy.data
+      error = legacy.error
+    }
+
+    if (error) return []
 
     return Promise.all((data || []).map(async blog => {
       const author = accountAuthorNeedsRefresh(blog)
@@ -378,17 +417,25 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
         })
         : getBlogAccountAuthor(blog)
 
+      const pressFormat = blog.format === undefined || blog.format === null
+        ? 'article' as const
+        : parsePressFormat(blog.format, 'blog') === 'article'
+          ? 'article' as const
+          : 'blog' as const
+      const formatTopics = pressFormat === 'article' ? ['Articles', 'Community'] : ['Blog', 'Community']
+
       return ({
       id: `blog_${blog.id}`,
-      originType: 'internal_blog',
-      sourceType: 'community',
-      sourceName: 'Tourify Editorial',
+      originType: 'internal_blog' as const,
+      sourceType: 'community' as const,
+      sourceName: author.name || (pressFormat === 'article' ? 'Community Article' : 'Community Blog'),
       title: blog.title,
       summary: blog.excerpt || String(blog.content || '').slice(0, 220),
       imageUrl: blog.featured_image_url || undefined,
       url: `/blog/${blog.slug}`,
       publishedAt: blog.published_at || blog.created_at,
-      topics: normalizeTopics([...(blog.categories || []), ...(blog.tags || []), 'Industry']),
+      topics: normalizeTopics([...(blog.categories || []), ...(blog.tags || []), ...formatTopics]),
+      pressFormat,
       author: {
         id: author.id || String(blog.user_id),
         name: author.name,
@@ -403,9 +450,9 @@ async function fetchBlogCandidates(params: { supabase: SupabaseClient; limit: nu
         views: blog.stats?.views || 0
       },
       moderation: {
-        trustLabel: 'community_report',
+        trustLabel: 'community_report' as const,
         confidence: 0.74,
-        moderationState: 'approved'
+        moderationState: 'approved' as const
       },
       relevanceScore: 0,
       score: 0
@@ -436,6 +483,10 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
         artist_username,
         artist_name,
         artist_avatar_url
+        ,origin_status
+        ,certification_status
+        ,certification_level
+        ,certification_public_id
       `)
       .eq('is_public', true)
       .order('created_at', { ascending: false })
@@ -464,6 +515,15 @@ async function fetchMusicCandidates(params: { supabase: SupabaseClient; limit: n
         comments: track.comments_count || 0,
         shares: track.shares_count || 0,
         views: track.play_count || 0
+      },
+      musicTrust: {
+        originStatus: track.origin_status || 'not_recorded',
+        certificationStatus: track.certification_status || 'not_requested',
+        certificationLevel: Number(track.certification_level || 0),
+        certificationPublicId: track.certification_status === 'approved' ? track.certification_public_id || null : null,
+        publicLabel: track.certification_status === 'approved' && Number(track.certification_level || 0) > 0
+          ? 'Human-created certified'
+          : track.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
       },
       moderation: {
         trustLabel: 'community_report',
@@ -703,8 +763,18 @@ function filterByCategory(params: {
   return items.filter(item => itemMatchesCategory(item, category))
 }
 
-function itemMatchesCategory(item: NewsFeedItem, category: NewsCategory): boolean {
+export function itemMatchesCategory(item: NewsFeedItem, category: NewsCategory): boolean {
   const searchable = `${item.id} ${item.originType} ${item.sourceType} ${item.sourceName} ${item.title} ${item.summary} ${item.topics.join(' ')}`.toLowerCase()
+
+  if (category === 'articles') {
+    if (item.pressFormat === 'article') return true
+    if (item.pressFormat === 'blog') return false
+    return (
+      item.originType === 'internal_blog' ||
+      item.id.startsWith('blog_') ||
+      item.topics.some(topic => topic.toLowerCase() === 'articles')
+    )
+  }
 
   if (category === 'new-music') {
     return (
@@ -731,6 +801,7 @@ function itemMatchesCategory(item: NewsFeedItem, category: NewsCategory): boolea
   }
 
   if (category === 'gossip') {
+    if (item.pressFormat === 'blog') return true
     return (
       item.moderation.trustLabel === 'developing_story' ||
       searchable.includes('gossip') ||
@@ -743,7 +814,6 @@ function itemMatchesCategory(item: NewsFeedItem, category: NewsCategory): boolea
 
   if (category === 'editorial') {
     return (
-      item.originType === 'internal_blog' ||
       searchable.includes('editorial') ||
       searchable.includes('review') ||
       searchable.includes('interview') ||

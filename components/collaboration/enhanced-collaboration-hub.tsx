@@ -313,7 +313,7 @@ export function EnhancedCollaborationHub() {
                 </CardDescription>
               </div>
               <div className="flex items-center space-x-3">
-                <Link href="/collaboration/projects/create">
+                <Link href="/artist/collaborations">
                   <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                     <Plus className="mr-2 h-4 w-4" />
                     Start Project
@@ -367,7 +367,7 @@ export function EnhancedCollaborationHub() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-white">Recent Projects</h3>
-                <Link href="/collaboration/projects">
+                <Link href="/artist/collaborations">
                   <Button variant="ghost" size="sm" className="text-purple-400 hover:text-purple-300">
                     View All →
                   </Button>
@@ -389,7 +389,7 @@ export function EnhancedCollaborationHub() {
                   <CardContent className="p-8 text-center">
                     <FolderOpen className="h-12 w-12 mx-auto mb-4 text-slate-600" />
                     <p className="text-slate-400 mb-4">No projects yet</p>
-                    <Link href="/collaboration/projects/create">
+                    <Link href="/artist/collaborations">
                       <Button variant="outline" className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10">
                         <Plus className="mr-2 h-4 w-4" />
                         Create Your First Project
@@ -457,7 +457,7 @@ export function EnhancedCollaborationHub() {
                 <p className="text-slate-400 mb-6 max-w-md mx-auto">
                   Start a collaboration project to manage files, tasks, and team members in one place.
                 </p>
-                <Link href="/collaboration/projects/create">
+                <Link href="/artist/collaborations">
                   <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
                     <Plus className="mr-2 h-4 w-4" />
                     Create Project

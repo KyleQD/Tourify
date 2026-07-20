@@ -1,0 +1,9 @@
+{
+  "catalogScope": {
+    "artistMusicIds": ["AUDIT_REQUIRED"],
+    "rightsPassportVersionIds": ["AUDIT_REQUIRED"]
+  },
+  "proposedObjective": "direct_catalog_sale",
+  "requestedPathwayReview": true,
+  "sellerOrganizationId": "AUDIT_REQUIRED"
+}

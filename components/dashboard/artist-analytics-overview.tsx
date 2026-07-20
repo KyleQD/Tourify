@@ -455,7 +455,7 @@ export function ArtistAnalyticsOverview({
             {showZerosAsUnavailable ? (
               <p className="text-sm text-slate-400">
                 {status === 'unsupported'
-                  ? 'Analytics for this platform are coming soon. Your public link still shows on profile/EPK.'
+                  ? 'Analytics for this platform are not available. Your public link still shows on profile/EPK.'
                   : status === 'needs_oauth' || status === 'handle_only'
                     ? 'Connect OAuth on the Socials tab to sync live metrics.'
                     : 'No synced metrics yet.'}

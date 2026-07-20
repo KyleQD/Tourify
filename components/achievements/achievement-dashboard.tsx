@@ -1,5 +1,9 @@
 "use client"
 
+/**
+ * @deprecated Prefer `/achievements` (`app/achievements/achievements-page-client.tsx`).
+ * Kept for reference; not mounted in the app shell.
+ */
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { 
@@ -33,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AchievementCard } from './achievement-card'
 import { BadgeCard } from './badge-card'
 import { EndorsementCard } from './endorsement-card'
-import { achievementService } from '@/lib/services/achievement.service'
+import { achievementReads } from '@/lib/achievements/achievement-reads'
 import { 
   Achievement, 
   UserAchievement, 
@@ -96,24 +100,24 @@ export function AchievementDashboard({ userId, className }: AchievementDashboard
       setIsLoading(true)
       
       // Load achievements
-      const achievementData = await achievementService.getUserAchievements(userId)
+      const achievementData = await achievementReads.getUserAchievements(userId)
       setAchievements(achievementData.achievements)
       setUserAchievements(achievementData.user_achievements)
 
       // Load badges
-      const badgeData = await achievementService.getUserBadges(userId)
+      const badgeData = await achievementReads.getUserBadges(userId)
       setBadges(badgeData.badges)
       setUserBadges(badgeData.user_badges)
 
       // Load endorsements
-      const endorsementData = await achievementService.getUserEndorsements(userId)
+      const endorsementData = await achievementReads.getUserEndorsements(userId)
       setEndorsements(endorsementData.endorsements)
       setSkills(endorsementData.skills)
 
       // Load stats
-      const achievementStats = await achievementService.getAchievementStats(userId)
-      const badgeStats = await achievementService.getBadgeStats(userId)
-      const endorsementStats = await achievementService.getEndorsementStats(userId)
+      const achievementStats = await achievementReads.getAchievementStats(userId)
+      const badgeStats = await achievementReads.getBadgeStats(userId)
+      const endorsementStats = await achievementReads.getEndorsementStats(userId)
 
       setStats({
         achievement: achievementStats,

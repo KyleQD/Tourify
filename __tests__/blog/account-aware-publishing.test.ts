@@ -242,7 +242,7 @@ describe('account-aware blog publishing contracts', () => {
 
 describe('artist blog management unification', () => {
   it('lists and mutates artist posts through the Pulse articles API', () => {
-    const page = read('app/artist/features/blog/page.tsx')
+    const page = read('app/artist/press/page.tsx')
 
     expect(page).toContain('/api/pulse/articles?mine=1')
     expect(page).toContain("method: 'PATCH'")
@@ -252,12 +252,12 @@ describe('artist blog management unification', () => {
     expect(page).not.toContain("from('artist_blog_posts')")
     expect(page).toContain('openNewPost')
     expect(page).not.toContain("router.push('/blog/new')")
-    expect(page).toContain('/blog/${post.slug}')
+    expect(page).toContain('publicUrlForPressItem')
     expect(page).toContain("searchParams.get('status')")
   })
 
   it('creates and updates articles from the artist editor via Pulse API', () => {
-    const editor = read('app/artist/features/blog/blog-editor.tsx')
+    const editor = read('app/artist/press/press-editor.tsx')
 
     expect(editor).toContain('useActingContext')
     expect(editor).toContain('PostingAccountSelector')
@@ -285,21 +285,45 @@ describe('artist blog management unification', () => {
     expect(publishing).toContain('.delete()')
   })
 
+  it('scopes mine=1 owned article list and mutations to the acting profile', () => {
+    const publishing = read('lib/blog/article-publishing.ts')
+
+    expect(publishing).toContain(".eq('posted_as_profile_id', input.ctx.profileId)")
+    expect(publishing).toContain(".eq('posted_as_profile_id', ctx.profileId)")
+    expect(publishing).toContain('listOwnedArticles')
+    expect(publishing).toContain('fetchOwnedArticleRow')
+  })
+
+  it('persists public article engagement through the engage API', () => {
+    const engage = read('app/api/pulse/articles/[id]/engage/route.ts')
+    const engagement = read('lib/blog/article-engagement.ts')
+    const actionBar = read('components/blog/article-action-bar.tsx')
+    const blogPage = read('app/blog/[slug]/page.tsx')
+
+    expect(engage).toContain("z.enum(['view', 'like', 'unlike', 'share'])")
+    expect(engage).toContain('incrementArticleStat')
+    expect(engagement).toContain('bumpArticleSharesBy')
+    expect(actionBar).toContain('articleId')
+    expect(actionBar).toContain("/api/pulse/articles/${articleId}/engage")
+    expect(blogPage).toContain('ArticleViewTracker')
+    expect(blogPage).toContain('articleId={article.id}')
+  })
+
   it('redirects orphan artist blog id routes to the public slug or management list', () => {
-    const orphan = read('app/artist/features/blog/[id]/page.tsx')
+    const orphan = read('app/artist/press/[id]/page.tsx')
 
     expect(orphan).toContain('/api/pulse/articles/${id}')
     expect(orphan).toContain('router.replace(`/blog/${data.article.slug}`)')
-    expect(orphan).toContain("router.replace('/artist/features/blog')")
+    expect(orphan).toContain('`/artist/press?edit=${encodeURIComponent(id)}`')
   })
 
   it('keeps /blog/new linked back to artist management', () => {
     const composer = read('app/blog/new/page.tsx')
 
     expect(composer).toContain("searchParams.get('from') === 'artist'")
-    expect(composer).toContain('href="/artist/features/blog"')
+    expect(composer).toContain('href="/artist/press"')
     expect(composer).toContain('Manage posts')
-    expect(composer).toContain("router.push('/artist/features/blog')")
+    expect(composer).toContain("router.push('/artist/press')")
   })
 })
 
@@ -324,6 +348,7 @@ describe('getBlogAccountAuthor', () => {
     ).toEqual({
       id: 'artist-id',
       type: 'artist',
+      subtype: null,
       name: 'The Active Artist',
       username: 'active-artist',
       avatarUrl: 'https://example.com/avatar.jpg',
@@ -346,6 +371,7 @@ describe('getBlogAccountAuthor', () => {
     ).toEqual({
       id: 'profile-id',
       type: 'general',
+      subtype: null,
       name: 'Personal User',
       username: 'personal',
       avatarUrl: 'https://example.com/personal.jpg',

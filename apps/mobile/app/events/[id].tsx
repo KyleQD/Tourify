@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
-import * as WebBrowser from "expo-web-browser"
 import * as Linking from "expo-linking"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth/auth-provider"
@@ -39,7 +38,9 @@ interface TicketType {
 
 interface PurchaseResponse {
   checkout_url?: string
+  checkout_session_id?: string
   order_id?: string
+  sale?: { id?: string }
   status?: string
 }
 
@@ -173,30 +174,20 @@ export default function EventDetailScreen() {
         }
       )
 
-      if (response.checkout_url) {
-        await WebBrowser.openBrowserAsync(response.checkout_url)
-      } else if (response.order_id) {
-        router.push({
-          pathname: "/checkout",
-          params: {
-            order_id: response.order_id,
-            event_title: event.title,
-            ticket_name: ticketType.name,
-            amount: String(ticketType.price),
-            status: response.status || "completed",
-          },
-        })
-      } else {
-        router.push({
-          pathname: "/checkout",
-          params: {
-            event_title: event.title,
-            ticket_name: ticketType.name,
-            amount: String(ticketType.price),
-            status: "completed",
-          },
-        })
-      }
+      const orderId = response.order_id || response.sale?.id
+      router.push({
+        pathname: "/checkout",
+        params: {
+          order_id: orderId,
+          checkout_url: response.checkout_url,
+          checkout_session_id: response.checkout_session_id,
+          session_id: response.checkout_session_id,
+          event_title: event.title,
+          ticket_name: ticketType.name,
+          amount: String(ticketType.price),
+          status: response.checkout_url ? "pending" : response.status || "completed",
+        },
+      })
     } catch (error) {
       Alert.alert("Purchase failed", error instanceof Error ? error.message : "Please try again.")
     } finally {

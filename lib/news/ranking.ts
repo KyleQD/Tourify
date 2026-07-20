@@ -1,4 +1,4 @@
-import type { NewsFeedCursor, NewsFeedItem } from '@/lib/news/types'
+import type { NewsFeedCursor, NewsFeedItem, NewsSortMode } from '@/lib/news/types'
 
 const ONE_HOUR_MS = 60 * 60 * 1000
 
@@ -8,6 +8,15 @@ interface RankNewsItemParams {
   subscribedSourceNames: Set<string>
   interactionTopics: Set<string>
   preferredLocations: Set<string>
+}
+
+export function getEngagementValue(item: NewsFeedItem): number {
+  return (
+    item.metrics.likes +
+    item.metrics.comments * 1.25 +
+    item.metrics.shares * 1.5 +
+    item.metrics.views * 0.01
+  )
 }
 
 export function rankNewsItem({
@@ -25,7 +34,7 @@ export function rankNewsItem({
   const sourceAffinity = subscribedSourceNames.has(item.sourceName.toLowerCase()) ? 1 : 0
   const locationAffinity = hasLocationAffinity({ item, preferredLocations }) ? 1 : 0
 
-  const rawEngagement = item.metrics.likes + item.metrics.comments * 1.25 + item.metrics.shares * 1.5 + item.metrics.views * 0.01
+  const rawEngagement = getEngagementValue(item)
   const normalizedEngagement = Math.min(1, rawEngagement / 500)
   const normalizedTopic = Math.min(1, topicMatches / 3)
   const normalizedInteractionTopic = Math.min(1, interactionTopicMatches / 3)
@@ -78,34 +87,85 @@ export function decodeNewsCursor(encodedCursor?: string): NewsFeedCursor | null 
 }
 
 export function sortNewsByScore(items: NewsFeedItem[]): NewsFeedItem[] {
-  return [...items].sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score
-    const byDate = new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    if (byDate !== 0) return byDate
-    return b.id.localeCompare(a.id)
-  })
+  return [...items].sort((a, b) => compareByScore(a, b))
+}
+
+export function sortNewsByEngagement(items: NewsFeedItem[]): NewsFeedItem[] {
+  return [...items].sort((a, b) => compareByEngagement(a, b))
+}
+
+export function sortNewsByRecent(items: NewsFeedItem[]): NewsFeedItem[] {
+  return [...items].sort((a, b) => compareByRecent(a, b))
+}
+
+export function sortNewsItems(items: NewsFeedItem[], sort: NewsSortMode = 'score'): NewsFeedItem[] {
+  if (sort === 'engagement') return sortNewsByEngagement(items)
+  if (sort === 'recent') return sortNewsByRecent(items)
+  return sortNewsByScore(items)
+}
+
+function compareByScore(a: NewsFeedItem, b: NewsFeedItem): number {
+  if (b.score !== a.score) return b.score - a.score
+  return compareByRecent(a, b)
+}
+
+function compareByEngagement(a: NewsFeedItem, b: NewsFeedItem): number {
+  const engagementDelta = getEngagementValue(b) - getEngagementValue(a)
+  if (engagementDelta !== 0) return engagementDelta
+  return compareByRecent(a, b)
+}
+
+function compareByRecent(a: NewsFeedItem, b: NewsFeedItem): number {
+  const byDate = new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+  if (byDate !== 0) return byDate
+  return b.id.localeCompare(a.id)
+}
+
+function isAfterCursor(item: NewsFeedItem, cursor: NewsFeedCursor, sort: NewsSortMode): boolean {
+  if (sort === 'recent') {
+    const itemTime = new Date(item.publishedAt).getTime()
+    const cursorTime = new Date(cursor.publishedAt).getTime()
+    if (itemTime < cursorTime) return true
+    if (itemTime > cursorTime) return false
+    return item.id < cursor.id
+  }
+
+  if (sort === 'engagement') {
+    const itemEngagement = getEngagementValue(item)
+    const cursorEngagement = cursor.sortValue ?? cursor.score
+    if (itemEngagement < cursorEngagement) return true
+    if (itemEngagement > cursorEngagement) return false
+
+    const itemTime = new Date(item.publishedAt).getTime()
+    const cursorTime = new Date(cursor.publishedAt).getTime()
+    if (itemTime < cursorTime) return true
+    if (itemTime > cursorTime) return false
+    return item.id < cursor.id
+  }
+
+  if (item.score < cursor.score) return true
+  if (item.score > cursor.score) return false
+
+  const itemTime = new Date(item.publishedAt).getTime()
+  const cursorTime = new Date(cursor.publishedAt).getTime()
+  if (itemTime < cursorTime) return true
+  if (itemTime > cursorTime) return false
+
+  return item.id < cursor.id
 }
 
 export function applyCursorPagination(params: {
   items: NewsFeedItem[]
   cursor: NewsFeedCursor | null
   limit: number
+  sort?: NewsSortMode
 }): { pageItems: NewsFeedItem[]; nextCursor: string | null } {
   const { items, cursor, limit } = params
+  const sort = params.sort || cursor?.sort || 'score'
 
   const filteredItems = !cursor
     ? items
-    : items.filter(item => {
-        if (item.score < cursor.score) return true
-        if (item.score > cursor.score) return false
-
-        const itemTime = new Date(item.publishedAt).getTime()
-        const cursorTime = new Date(cursor.publishedAt).getTime()
-        if (itemTime < cursorTime) return true
-        if (itemTime > cursorTime) return false
-
-        return item.id < cursor.id
-      })
+    : items.filter(item => isAfterCursor(item, cursor, sort))
 
   const pageItems = filteredItems.slice(0, limit)
   const lastItem = pageItems.at(-1)
@@ -115,7 +175,9 @@ export function applyCursorPagination(params: {
   const nextCursor = encodeNewsCursor({
     id: lastItem.id,
     publishedAt: lastItem.publishedAt,
-    score: lastItem.score
+    score: lastItem.score,
+    sort,
+    sortValue: sort === 'engagement' ? getEngagementValue(lastItem) : undefined
   })
 
   return { pageItems, nextCursor }

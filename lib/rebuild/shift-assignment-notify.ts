@@ -3,6 +3,10 @@
  */
 
 import { OptimizedNotificationService } from "@/lib/services/optimized-notification-service"
+import {
+  entityNotificationTarget,
+  generalNotificationTarget,
+} from "@/lib/notifications/notification-target"
 
 export interface ShiftNotifyBase {
   workerUserId: string
@@ -28,6 +32,8 @@ export interface ShiftResponseNotifyContext {
   roleTitle?: string | null
   shiftDate?: string | null
   assignmentId?: string | null
+  employerEntityType?: string | null
+  employerEntityId?: string | null
 }
 
 function formatShiftWindow(ctx: Pick<ShiftNotifyBase, "shiftDate" | "startTime" | "endTime">): string {
@@ -52,6 +58,7 @@ export async function sendShiftAssignmentNotification(
       title,
       content,
       priority: "high",
+      ...generalNotificationTarget(ctx.workerUserId),
       metadata: {
         shift_id: ctx.shiftId,
         staff_member_id: ctx.staffMemberId ?? null,
@@ -64,7 +71,7 @@ export async function sendShiftAssignmentNotification(
         employer_name: ctx.employerName ?? null,
         employer_entity_type: ctx.employerEntityType ?? null,
         employer_entity_id: ctx.employerEntityId ?? null,
-        link: "/messages?tab=work",
+        link: "/dashboard/staff-ops",
       },
     })
     return { sent: true }
@@ -89,6 +96,7 @@ export async function sendShiftUpdateNotification(
       title,
       content,
       priority: "normal",
+      ...generalNotificationTarget(ctx.workerUserId),
       metadata: {
         shift_id: ctx.shiftId,
         staff_member_id: ctx.staffMemberId ?? null,
@@ -123,6 +131,7 @@ export async function sendShiftCancelledNotification(
       title,
       content,
       priority: "high",
+      ...generalNotificationTarget(ctx.workerUserId),
       metadata: {
         shift_id: ctx.shiftId,
         staff_member_id: ctx.staffMemberId ?? null,
@@ -150,12 +159,18 @@ export async function sendShiftResponseNotification(
   const content = `${worker} ${verb} their shift assignment${role}${date}.`
 
   try {
+    const adminTarget = entityNotificationTarget({
+      entityType: ctx.employerEntityType,
+      entityId: ctx.employerEntityId,
+      fallbackUserId: ctx.adminUserId,
+    })
     await OptimizedNotificationService.createNotification({
       userId: ctx.adminUserId,
       type: "shift_assignment_response",
       title,
       content,
       priority: "normal",
+      ...adminTarget,
       metadata: {
         shift_id: ctx.shiftId,
         staff_member_id: ctx.staffMemberId ?? null,
@@ -163,6 +178,8 @@ export async function sendShiftResponseNotification(
         action: ctx.action,
         role_title: ctx.roleTitle ?? null,
         shift_date: ctx.shiftDate ?? null,
+        employer_entity_type: ctx.employerEntityType ?? null,
+        employer_entity_id: ctx.employerEntityId ?? null,
         link: "/admin/dashboard/staff?tab=scheduling",
       },
     })

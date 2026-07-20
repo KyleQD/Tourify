@@ -1,0 +1,9 @@
+{
+  "idempotencyKey": "p17-amendment-001",
+  "protocolId": "protocol-1",
+  "classification": "formal_amendment",
+  "proposedVersion": "2.0.0",
+  "sourceManifestId": "manifest-2",
+  "compatibilityReportId": "compat-1",
+  "participantApprovalRequired": true
+}

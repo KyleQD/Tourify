@@ -1,0 +1,9 @@
+{
+  "transactionCaseId": "AUDIT_REQUIRED",
+  "disclosureSetId": "AUDIT_REQUIRED",
+  "proposedAmountMinor": "250000000",
+  "currency": "USD",
+  "binding": false,
+  "validUntil": "2026-12-31T23:59:59Z",
+  "conditions": ["satisfactory_chain_of_title", "investment_committee_approval"]
+}

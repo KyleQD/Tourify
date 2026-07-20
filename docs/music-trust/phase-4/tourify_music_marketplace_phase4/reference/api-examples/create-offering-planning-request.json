@@ -1,0 +1,23 @@
+{
+  "issuerId": "uuid",
+  "catalogAssetIds": [
+    "artist_music_uuid"
+  ],
+  "rightsPassportVersionIds": [
+    "uuid"
+  ],
+  "royaltySnapshotIds": [
+    "uuid"
+  ],
+  "valuationRunId": "uuid",
+  "targetRaise": {
+    "amountMinor": "25000000",
+    "currency": "USD"
+  },
+  "planningFacts": {
+    "publicMarketingRequired": true,
+    "includeNonAccreditedInvestors": true,
+    "auditedFinancialsReady": false,
+    "desiredSecondaryLiquidity": true
+  }
+}

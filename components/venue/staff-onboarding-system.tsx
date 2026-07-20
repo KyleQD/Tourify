@@ -672,11 +672,12 @@ export default function StaffOnboardingSystem() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-6">
-            {/* Wizard content would go here - detailed onboarding flow */}
             <div className="text-center py-12">
               <UserCheck className="h-16 w-16 text-blue-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">Onboarding Wizard</h3>
-              <p className="text-slate-400">Comprehensive onboarding flow coming soon...</p>
+              <h3 className="text-xl font-semibold text-white mb-2">Onboarding wizard not available</h3>
+              <p className="text-slate-400">
+                The guided onboarding flow is not available yet. Use staff profiles and roles to continue setup.
+              </p>
             </div>
           </div>
         </DialogContent>

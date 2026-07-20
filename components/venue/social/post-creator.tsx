@@ -222,10 +222,8 @@ export function PostCreator({
     <Card className="bg-gray-900 text-white border-gray-800">
       {showTabs && (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-gray-800">
+          <TabsList className="grid w-full grid-cols-1 bg-gray-800">
             <TabsTrigger value="post">Post</TabsTrigger>
-            <TabsTrigger value="event">Event</TabsTrigger>
-            <TabsTrigger value="poll">Poll</TabsTrigger>
           </TabsList>
         </Tabs>
       )}
@@ -392,19 +390,6 @@ export function PostCreator({
           </div>
         </TabsContent>
 
-        <TabsContent value="event">
-          <div className="py-4 text-center">
-            <h3 className="text-lg font-medium mb-2">Create an Event</h3>
-            <p className="text-gray-400">Event creation coming soon!</p>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="poll">
-          <div className="py-4 text-center">
-            <h3 className="text-lg font-medium mb-2">Create a Poll</h3>
-            <p className="text-gray-400">Poll creation coming soon!</p>
-          </div>
-        </TabsContent>
       </CardContent>
     </Card>
   )

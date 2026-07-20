@@ -3,15 +3,12 @@ import { createClient } from '@supabase/supabase-js'
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { authenticateRequestWithBearerFallback } from '@/lib/auth/mobile-request-auth'
 import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
-
-function parseAuthFromRequestCookies(request: NextRequest) {
-  try {
-    return parseUserFromRequestCookieHeader(request.headers.get('cookie'))
-  } catch {
-    return null
-  }
-}
+import {
+  requireAdminCapability,
+  resolveActingAdminContext,
+  type ActingAdminContext,
+} from '@/lib/auth/admin-context'
+import type { AdminCapability } from '@/lib/auth/admin-capabilities'
 
 /**
  * Create a service role Supabase client for API operations
@@ -34,7 +31,7 @@ function createServiceClient() {
 
 /**
  * Authenticate API request and return user + user-scoped Supabase client.
- * Uses server session first, then falls back to manual cookie parsing.
+ * Only JWT-validated identities (bearer token or supabase.auth.getUser()) are accepted.
  */
 export async function authenticateApiRequest(request?: NextRequest): Promise<{ user: any; supabase: any } | null> {
   try {
@@ -53,11 +50,7 @@ export async function authenticateApiRequest(request?: NextRequest): Promise<{ u
       return { user: sessionUser, supabase }
     }
 
-    // Fallback path while session cookie handling is being stabilized
-    const fallbackUser = parseAuthFromRequestCookies(request)
-    if (!fallbackUser) return null
-
-    return { user: fallbackUser, supabase }
+    return null
   } catch (error) {
     console.error('[API Auth] 💥 Authentication error:', error)
     return null
@@ -152,6 +145,32 @@ export function withAdminAuth(
     }
 
     return handler(request, auth)
+  })
+}
+
+/**
+ * Canonical organization/Admin wrapper for domain commands.
+ *
+ * Unlike `withAdminAuth`, this resolves one explicit acting organization and
+ * enforces an operation-specific capability. New Admin APIs should use this
+ * wrapper; `withAdminAuth` remains only as a compatibility gate while legacy
+ * routes are migrated.
+ */
+export function withAdminCapability(
+  capability: AdminCapability,
+  handler: (
+    request: NextRequest,
+    auth: { user: any; supabase: any; admin: ActingAdminContext },
+  ) => Promise<NextResponse> | NextResponse,
+) {
+  return withAuth(async (request, auth) => {
+    const admin = await resolveActingAdminContext(request, auth)
+    if (admin instanceof NextResponse) return admin
+
+    const denied = requireAdminCapability(admin, capability)
+    if (denied) return denied
+
+    return handler(request, { ...auth, admin })
   })
 }
 

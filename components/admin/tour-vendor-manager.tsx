@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -13,6 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Truck, Mail, Phone, DollarSign, Building2 } from "lucide-react"
 import { toast } from "sonner"
 import { formatSafeCurrency } from "@/lib/format/number-format"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface TourVendor {
   id: string
@@ -35,6 +36,11 @@ interface TourVendorManagerProps {
 }
 
 export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVendorManagerProps) {
+  const { actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    ...input,
+    headers: { ...actingHeaders, ...(input?.headers || {}) },
+  }), [actingHeaders])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -101,17 +107,19 @@ export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVend
   const handleSubmit = async (isEdit: boolean = false) => {
     setIsSubmitting(true)
     try {
-      const url = isEdit 
-        ? `/api/tours/${tourId}/vendors/${selectedVendor?.id}`
-        : `/api/tours/${tourId}/vendors`
+      if (!isActingReady) throw new Error('Select an organization account first')
+      const url = '/api/admin/tours/vendors'
       
       const method = isEdit ? 'PATCH' : 'POST'
       
-      const response = await fetch(url, {
+      const response = await fetch(url, adminRequest({
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+        body: JSON.stringify({
+          ...formData,
+          ...(isEdit ? { id: selectedVendor?.id } : { tour_id: tourId }),
+        })
+      }))
 
       if (!response.ok) {
         throw new Error('Failed to save vendor')
@@ -121,12 +129,12 @@ export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVend
       
       if (isEdit) {
         const updatedVendors = vendors.map(vendor => 
-          vendor.id === selectedVendor?.id ? result.vendor : vendor
+          vendor.id === selectedVendor?.id ? result.data : vendor
         )
         onVendorsUpdate(updatedVendors)
         toast.success('Vendor updated successfully')
       } else {
-        const newVendors = [...vendors, result.vendor]
+        const newVendors = [...vendors, result.data]
         onVendorsUpdate(newVendors)
         toast.success('Vendor added successfully')
       }
@@ -147,9 +155,11 @@ export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVend
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/tours/${tourId}/vendors/${selectedVendor.id}`, {
-        method: 'DELETE'
-      })
+      if (!isActingReady) throw new Error('Select an organization account first')
+      const response = await fetch(
+        `/api/admin/tours/vendors?id=${encodeURIComponent(selectedVendor.id)}&tour_id=${encodeURIComponent(tourId)}`,
+        adminRequest({ method: 'DELETE' }),
+      )
 
       if (!response.ok) {
         throw new Error('Failed to delete vendor')
@@ -618,7 +628,7 @@ export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVend
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Remove Vendor</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-300">
-              Are you sure you want to remove "{selectedVendor?.name}" from the tour vendors? This action cannot be undone.
+              Are you sure you want to remove &ldquo;{selectedVendor?.name}&rdquo; from the tour vendors? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -635,4 +645,4 @@ export function TourVendorManager({ tourId, vendors, onVendorsUpdate }: TourVend
       </AlertDialog>
     </div>
   )
-} 
+}

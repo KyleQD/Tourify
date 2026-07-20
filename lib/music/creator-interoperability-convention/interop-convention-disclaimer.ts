@@ -1,0 +1,2 @@
+export const CREATOR_INTEROP_CONVENTION_DISCLAIMER =
+  "Interoperability-convention readiness sandbox only — not a treaty, not an international organization, and not universal representation authority. Phase 13 constitutional records are inputs only. Phase 14 cannot launch from Phase 13 flags. Formal IO/state participation requires a separate executed approval package. Feature flags are never legal authority."

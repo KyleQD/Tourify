@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
@@ -7,8 +8,33 @@ import { issueTicketsForOrder } from '@/lib/ticketing/issuance'
 import { finalizeInventory } from '@/lib/ticketing/inventory'
 import { emitTicketAnalyticsEvent } from '@/lib/ticketing/analytics'
 import { isTicketingV2Enabled } from '@/lib/ticketing/feature-flag'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
 
 const stripe = getStripeOrNull()
+
+async function getActivePromoCode(eventId: string, code: string) {
+  const service = createServiceRoleClient()
+  const now = new Date().toISOString()
+  return service
+    .from('promo_codes')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('code', code.trim().toUpperCase())
+    .eq('is_active', true)
+    .lte('start_date', now)
+    .gte('end_date', now)
+    .maybeSingle()
+}
+
+async function getActiveReferralCode(eventId: string, code: string) {
+  return createServiceRoleClient()
+    .from('ticket_referrals')
+    .select('*')
+    .eq('event_id', eventId)
+    .eq('referral_code', code.trim().toUpperCase())
+    .eq('is_used', false)
+    .maybeSingle()
+}
 
 // Enhanced validation schemas
 const purchaseTicketSchema = z.object({
@@ -81,12 +107,13 @@ export async function GET(request: NextRequest) {
         .from('ticket_types')
         .select(`
           *,
-          events:event_id (
+          events:events_v2!event_id (
             id,
             title,
-            date,
-            location,
-            description
+            start_at,
+            end_at,
+            timezone,
+            venue_id
           )
         `)
         .eq('event_id', event_id)
@@ -104,14 +131,6 @@ export async function GET(request: NextRequest) {
       // Get active campaigns for this event
       const { data: campaigns } = await supabase
         .from('ticket_campaigns')
-        .select('*')
-        .eq('event_id', event_id)
-        .eq('is_active', true)
-        .gte('end_date', new Date().toISOString())
-
-      // Get active promo codes
-      const { data: promoCodes } = await supabase
-        .from('promo_codes')
         .select('*')
         .eq('event_id', event_id)
         .eq('is_active', true)
@@ -166,7 +185,8 @@ export async function GET(request: NextRequest) {
             }
           : null,
         campaigns: campaigns || [],
-        promo_codes: promoCodes || [],
+        // Promo codes are secrets and are only returned after exact validation.
+        promo_codes: [],
         social_stats: socialStats
       })
 
@@ -180,11 +200,13 @@ export async function GET(request: NextRequest) {
         .from('ticket_types')
         .select(`
           *,
-          events:event_id (
+          events:events_v2!event_id (
             id,
             title,
-            date,
-            location
+            start_at,
+            end_at,
+            timezone,
+            venue_id
           )
         `)
         .eq('id', ticket_type_id)
@@ -338,6 +360,12 @@ export async function POST(request: NextRequest) {
       if (ticketError || !ticketType) {
         return NextResponse.json({ error: 'Ticket type not found or inactive' }, { status: 404 })
       }
+      if (ticketType.event_id !== validatedData.event_id) {
+        return NextResponse.json(
+          { error: 'Ticket type does not belong to this event' },
+          { status: 422 },
+        )
+      }
 
       const remainingTickets = ticketType.quantity_available - ticketType.quantity_sold - (ticketType.quantity_reserved || 0)
       if (validatedData.quantity > remainingTickets) {
@@ -348,13 +376,10 @@ export async function POST(request: NextRequest) {
       let promoCode = null
       let discountAmount = 0
       if (validatedData.promo_code) {
-        const { data: promoCodeData, error: promoError } = await supabase
-          .from('promo_codes')
-          .select('*')
-          .eq('code', validatedData.promo_code)
-          .eq('is_active', true)
-          .gte('end_date', new Date().toISOString())
-          .single()
+        const { data: promoCodeData, error: promoError } = await getActivePromoCode(
+          validatedData.event_id,
+          validatedData.promo_code,
+        )
 
         if (promoError || !promoCodeData) {
           return NextResponse.json({ error: 'Invalid or expired promo code' }, { status: 400 })
@@ -380,12 +405,10 @@ export async function POST(request: NextRequest) {
       // Validate referral code if provided
       let referral = null
       if (validatedData.referral_code) {
-        const { data: referralData, error: referralError } = await supabase
-          .from('ticket_referrals')
-          .select('*')
-          .eq('referral_code', validatedData.referral_code)
-          .eq('status', 'pending')
-          .single()
+        const { data: referralData, error: referralError } = await getActiveReferralCode(
+          validatedData.event_id,
+          validatedData.referral_code,
+        )
 
         if (referralError || !referralData) {
           return NextResponse.json({ error: 'Invalid or expired referral code' }, { status: 400 })
@@ -457,6 +480,7 @@ export async function POST(request: NextRequest) {
             ticket_type_id: validatedData.ticket_type_id,
             platform: validatedData.share_platform,
             share_url: validatedData.share_source,
+            user_id: user?.id ?? null,
             conversion_count: 1,
             revenue_generated: fees.buyerTotal,
           })
@@ -563,16 +587,24 @@ export async function POST(request: NextRequest) {
 
       // Increment promo on successful free checkout only
       if (promoCode) {
-        await supabase
-          .from('promo_codes')
-          .update({ current_uses: promoCode.current_uses + 1 })
-          .eq('id', promoCode.id)
+        const { error: usageError } = await createServiceRoleClient().rpc(
+          'increment_promo_code_usage',
+          {
+            p_promo_id: promoCode.id,
+            p_event_id: validatedData.event_id,
+          },
+        )
+        if (usageError) {
+          console.error('[Enhanced Ticketing API] Promo usage update failed:', usageError)
+        }
       }
       if (referral) {
-        await supabase
+        await createServiceRoleClient()
           .from('ticket_referrals')
-          .update({ status: 'used', used_at: new Date().toISOString() })
+          .update({ is_used: true, used_at: new Date().toISOString() })
           .eq('id', referral.id)
+          .eq('event_id', validatedData.event_id)
+          .eq('is_used', false)
       }
 
       return NextResponse.json({
@@ -585,6 +617,8 @@ export async function POST(request: NextRequest) {
 
     } else if (action === 'share') {
       const validatedData = shareTicketSchema.parse(data)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
 
       // Create share record
       const { data: share, error: shareError } = await supabase
@@ -592,7 +626,7 @@ export async function POST(request: NextRequest) {
         .insert({
           event_id: validatedData.event_id,
           ticket_type_id: validatedData.ticket_type_id,
-          user_id: validatedData.user_id,
+          user_id: user.id,
           platform: validatedData.platform,
           share_url: validatedData.share_url,
           share_text: validatedData.share_text
@@ -609,13 +643,18 @@ export async function POST(request: NextRequest) {
 
     } else if (action === 'create_referral') {
       const validatedData = createReferralSchema.parse(data)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return NextResponse.json({ error: 'Sign in required' }, { status: 401 })
+      if (validatedData.referrer_id !== user.id) {
+        return NextResponse.json({ error: 'Invalid referrer', code: 'referrer_mismatch' }, { status: 403 })
+      }
 
-      const referralCode = `REF${Date.now()}${Math.floor(Math.random() * 1000)}`
+      const referralCode = `REF-${randomUUID()}`
 
       const { data: referral, error: referralError } = await supabase
         .from('ticket_referrals')
         .insert({
-          referrer_id: validatedData.referrer_id,
+          referrer_id: user.id,
           referred_email: validatedData.referred_email,
           event_id: validatedData.event_id,
           referral_code: referralCode,
@@ -634,13 +673,10 @@ export async function POST(request: NextRequest) {
     } else if (action === 'validate_promo_code') {
       const validatedData = validatePromoCodeSchema.parse(data)
 
-      const { data: promoCode, error } = await supabase
-        .from('promo_codes')
-        .select('*')
-        .eq('code', validatedData.code)
-        .eq('is_active', true)
-        .gte('end_date', new Date().toISOString())
-        .single()
+      const { data: promoCode, error } = await getActivePromoCode(
+        validatedData.event_id,
+        validatedData.code,
+      )
 
       if (error || !promoCode) {
         return NextResponse.json({ 
@@ -703,13 +739,10 @@ export async function POST(request: NextRequest) {
       // Check promo code if provided
       let promoCodeInfo = null
       if (validatedData.promo_code) {
-        const { data: promoCode } = await supabase
-          .from('promo_codes')
-          .select('*')
-          .eq('code', validatedData.promo_code)
-          .eq('is_active', true)
-          .gte('end_date', new Date().toISOString())
-          .single()
+        const { data: promoCode } = await getActivePromoCode(
+          ticketType.event_id,
+          validatedData.promo_code,
+        )
 
         if (promoCode) {
           const baseAmount = ticketType.price * validatedData.quantity
@@ -760,4 +793,4 @@ export async function POST(request: NextRequest) {
     console.error('[Enhanced Ticketing API] Unexpected error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-} 
+}

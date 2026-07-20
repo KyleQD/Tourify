@@ -436,9 +436,7 @@ export default function FinancesPage() {
         <TabsList className="h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto p-1 [&>*]:shrink-0">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
-          <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
-          <TabsTrigger value="budgets">Budgets</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
 
@@ -700,24 +698,6 @@ export default function FinancesPage() {
                 </div>
         </TabsContent>
 
-        <TabsContent value="invoices">
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice Management</CardTitle>
-              <CardDescription>Create, send, and track invoices</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Receipt className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-muted-foreground mb-2">Invoice management coming soon</p>
-                <p className="text-sm text-muted-foreground">
-                  Create professional invoices and track payment status
-                  </p>
-                </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="reports">
           <div className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -779,24 +759,6 @@ export default function FinancesPage() {
               ))}
               </div>
           </div>
-        </TabsContent>
-
-        <TabsContent value="budgets">
-          <Card>
-            <CardHeader>
-              <CardTitle>Budget Planning</CardTitle>
-              <CardDescription>Set and track financial goals</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Target className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-muted-foreground mb-2">Budget management coming soon</p>
-                <p className="text-sm text-muted-foreground">
-                  Set revenue targets and expense budgets by category
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="settings">

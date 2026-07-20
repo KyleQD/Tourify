@@ -82,7 +82,14 @@ export async function GET(request: NextRequest) {
       if (ctx instanceof NextResponse) return ctx
 
       const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit') || '50')))
-      const result = await listOwnedArticles({ ctx, limit })
+      const formatParam = searchParams.get('format')
+      const format =
+        formatParam === 'blog' || formatParam === 'article' || formatParam === 'press_release'
+          ? formatParam
+          : formatParam === 'all'
+            ? 'all'
+            : undefined
+      const result = await listOwnedArticles({ ctx, limit, format })
       if (!result.success)
         return NextResponse.json({ success: false, error: result.error }, { status: result.status })
 
@@ -173,6 +180,11 @@ export async function POST(request: NextRequest) {
         seoTitle: body.seoTitle,
         seoDescription: body.seoDescription,
         scheduledFor: body.scheduledFor,
+        format: body.format,
+        subtitle: body.subtitle,
+        boilerplate: body.boilerplate,
+        embargoUntil: body.embargoUntil,
+        distribution: body.distribution,
       },
     })
 

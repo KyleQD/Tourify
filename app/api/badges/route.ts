@@ -84,19 +84,27 @@ export async function POST(request: NextRequest) {
 
         const { data: badge } = await supabase
           .from('badges')
-          .select('name')
+          .select('name, icon, color, rarity, category')
           .eq('id', badge_id)
           .single()
 
         await OptimizedNotificationService.createNotification({
           userId: recipientId,
           type: 'badge_granted',
-          title: 'New Badge Received!',
+          title: `You earned ${badge?.name || 'a new badge'}`,
           content: `${grantor?.full_name || 'A manager'} awarded you the "${badge?.name || 'badge'}" badge${granted_reason ? `: ${granted_reason}` : '.'}`,
           summary: 'Badge granted',
           relatedUserId: user.id,
+          relatedContentId: badge_id,
+          relatedContentType: 'badge',
           metadata: {
+            link: `/achievements?tab=badges&highlight=${badge_id}`,
             badge_id,
+            badge_name: badge?.name,
+            icon: badge?.icon,
+            color: badge?.color,
+            rarity: badge?.rarity,
+            category: badge?.category,
             granted_by: user.id,
             granted_reason,
             user_badge_id: userBadge?.id,

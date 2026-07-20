@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "path": "/api/creator-public-infrastructure/conformance/runs",
+  "body": {
+    "subjectIdentifier": "org:example",
+    "profile": "tourify-rights-reference",
+    "version": "1.0.0"
+  }
+}

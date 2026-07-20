@@ -65,16 +65,13 @@ export function DashboardUpcomingEventsCard() {
           </div>
         ) : items.length === 0 ? (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-3">
-            <p className="text-sm text-white/70 leading-relaxed">
-              Discover events in your area
-            </p>
             <Button
               asChild
               className="w-full rounded-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white"
             >
               <Link href="/discover">
                 <Compass className="h-4 w-4 mr-2" />
-                Discover events in your area
+                Events near you
               </Link>
             </Button>
           </div>

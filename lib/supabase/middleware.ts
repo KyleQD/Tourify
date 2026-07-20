@@ -2,32 +2,11 @@ import { createServerClient } from '@supabase/ssr'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '../database.types'
-import { parseUserFromCookieNameValueList } from '@/lib/supabase/tourify-session-cookie'
 import { mergeAuthCookieOptions } from '@/lib/supabase/auth-cookie-options'
 
 export type MiddlewareSupabase = SupabaseClient<Database>
 
 const isDev = process.env.NODE_ENV !== 'production'
-
-function parseAuthFromCookies(request: NextRequest) {
-  try {
-    const cookies = request.cookies.getAll()
-    // Avoid dumping every cookie on every request (dev hot-path noise).
-    if (isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1') {
-      console.log('[Middleware] All cookies:', cookies.map((c) => `${c.name}: ${c.value.length} chars`))
-    }
-    const user = parseUserFromCookieNameValueList(cookies)
-    if (isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1' && user) {
-      console.log('[Middleware] User from cookie:', user.id)
-    }
-    return user
-  } catch (error) {
-    if (isDev && process.env.PERF_DEBUG_MIDDLEWARE === '1') {
-      console.log('[Middleware] Error parsing auth from cookies:', error)
-    }
-    return null
-  }
-}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -76,28 +55,22 @@ export async function updateSession(request: NextRequest) {
       console.log(`[Middleware] Found ${authCookies.length} auth-related cookies:`, authCookies.map(c => c.name))
     }
 
+    // Authorization decisions must use JWT-validated getUser() only.
+    // Never trust unsigned cookie JSON as a user identity.
     const { data: { user }, error: userError } = await supabase.auth.getUser()
 
     if (debugMiddleware && userError) {
       console.log(`[Middleware] Supabase auth error:`, userError.message)
     }
 
-    let finalUser = user
-    if (!user) {
-      if (debugMiddleware) console.log(`[Middleware] Supabase method failed, trying manual cookie parsing...`)
-      finalUser = parseAuthFromCookies(request)
-    }
-
     if (debugMiddleware) {
-      console.log(`[Middleware] Final result - User exists: ${!!finalUser}`)
-      console.log(`[Middleware] User ID: ${finalUser?.id || 'none'}`)
+      console.log(`[Middleware] Final result - User exists: ${!!user}`)
+      console.log(`[Middleware] User ID: ${user?.id || 'none'}`)
     }
 
-    return { supabaseResponse, user: finalUser, supabase }
+    return { supabaseResponse, user, supabase }
   } catch (error) {
     console.error('[Middleware] Error in updateSession:', error)
-
-    const fallbackUser = parseAuthFromCookies(request)
-    return { supabaseResponse, user: fallbackUser, supabase }
+    return { supabaseResponse, user: null, supabase }
   }
 } 

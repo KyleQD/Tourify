@@ -1,7 +1,10 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
-import { recordMusicEvent } from "@/lib/music/music-access"
+import { getTrustedMusicWriteClient, recordMusicEvent } from "@/lib/music/music-access"
+import { createRateLimiter } from "@/lib/utils/rate-limit"
+
+const reportLimiter = createRateLimiter({ namespace: "music:reports", limit: 5, windowSec: 3600 })
 
 const reportSchema = z.object({
   musicId: z.string().uuid(),
@@ -10,6 +13,11 @@ const reportSchema = z.object({
     "not_original_content",
     "inappropriate",
     "other",
+    "ownership",
+    "impersonation",
+    "likeness",
+    "ai_disclosure",
+    "certification_dispute",
   ]),
   details: z.string().max(2000).optional(),
 })
@@ -24,6 +32,9 @@ export async function POST(request: NextRequest) {
 
     if (authError || !user)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+    if (!(await reportLimiter.check(user.id)).success)
+      return NextResponse.json({ error: "Too many reports. Please try again later." }, { status: 429 })
 
     const payload = reportSchema.parse(await request.json())
 
@@ -51,7 +62,8 @@ export async function POST(request: NextRequest) {
     if (existingReport)
       return NextResponse.json({ error: "You have already reported this content" }, { status: 409 })
 
-    const { error: insertError } = await supabase.from("content_reports").insert({
+    const trusted = await getTrustedMusicWriteClient(supabase)
+    const { data: report, error: insertError } = await trusted.from("content_reports").insert({
       reporter_user_id: user.id,
       content_type: "music",
       content_id: payload.musicId,
@@ -59,12 +71,21 @@ export async function POST(request: NextRequest) {
       reason: payload.reason,
       details: payload.details || null,
       status: "pending",
-    })
+    }).select("id").single()
 
     if (insertError) {
       console.error("Failed to create content report:", insertError)
       return NextResponse.json({ error: "Failed to submit report" }, { status: 500 })
     }
+
+    await trusted.from("content_report_events").insert({
+      report_id: report.id,
+      actor_user_id: user.id,
+      event_type: "report_submitted",
+      from_status: null,
+      to_status: "pending",
+      event_data: { reason: payload.reason },
+    })
 
     await recordMusicEvent({
       supabase,

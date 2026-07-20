@@ -1,0 +1,257 @@
+{
+  "package": "tourify_music_marketplace_phase4",
+  "createdFor": "Tourify",
+  "fileCount": 50,
+  "files": [
+    {
+      "path": "00_PHASE_4_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "sha256": "f37ea0ce8b41e4efdcf16a083a80e5482d993a9eb7bfa4cb59dcf456ac2a2d75",
+      "bytes": 4972
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_USER_JOURNEYS.md",
+      "sha256": "f19aae64338ee92c19a8077306a4f4f8e087c08ff45714bc65e13d20f6b589fe",
+      "bytes": 2767
+    },
+    {
+      "path": "02_REGULATORY_ROLE_AND_ENTITY_BOUNDARIES.md",
+      "sha256": "690e7eff88577b5678a7a97e4c2acde6987134dfbcf937ffab33b8391a1d8b0a",
+      "bytes": 4648
+    },
+    {
+      "path": "03_OFFERING_PATHWAY_DECISION_FRAMEWORK.md",
+      "sha256": "265ddce31af405bbf72387ff3b628090935d9ad96cc6680b113641780645d759",
+      "bytes": 4426
+    },
+    {
+      "path": "04_ISSUER_AND_CATALOG_ELIGIBILITY.md",
+      "sha256": "b625b16ae4c89945247e48ea9521b52c538c0db599f0e999486b6a48d15a0c18",
+      "bytes": 1812
+    },
+    {
+      "path": "05_OFFERING_STRUCTURING_AND_DISCLOSURE_DATA_ROOM.md",
+      "sha256": "8e50a06058742f8256e07e2e6a1d65a4c416d1d62bd57cae9183a576996ec187",
+      "bytes": 1999
+    },
+    {
+      "path": "06_PRIMARY_OFFERING_WORKFLOW.md",
+      "sha256": "93573c61dcfeee4baee75bed8fc97d3f21d4a8808e9d8b59205e94181ad9cbdd",
+      "bytes": 1526
+    },
+    {
+      "path": "07_INVESTOR_ONBOARDING_KYC_ELIGIBILITY_LIMITS.md",
+      "sha256": "7121d74ab9c6b9169469fadc0cc16b35b271b002d4b49feaf7553f96324351d0",
+      "bytes": 1396
+    },
+    {
+      "path": "08_SUBSCRIPTION_ESCROW_CLOSING_AND_REFUNDS.md",
+      "sha256": "e1c3d939c2326a3959425a50d93dcec2b0f61c87eecf167de519c5bd9ffac755",
+      "bytes": 1359
+    },
+    {
+      "path": "09_SECURITYHOLDER_RECORD_AND_TRANSFER_AGENT_INTEGRATION.md",
+      "sha256": "404c74496f103fc54fada066ce07b824f319e2c6591f174224fd5b0336aba3b9",
+      "bytes": 3771
+    },
+    {
+      "path": "10_TOKENIZED_INSTRUMENT_AND_SMART_CONTRACT_LIFECYCLE.md",
+      "sha256": "a9cfa0fc00f63f0d9bfee11592b7f6d4888eb3e5d4b3473372b4134512d1e6ec",
+      "bytes": 1639
+    },
+    {
+      "path": "11_WALLETS_CUSTODY_AND_KEY_RECOVERY.md",
+      "sha256": "288547ea77bcd9b07ed26d5f04cadcdef4a21f9a41ae9834aaa434ceec42dfd5",
+      "bytes": 1337
+    },
+    {
+      "path": "12_SECONDARY_LIQUIDITY_PARTNER_ATS.md",
+      "sha256": "fd200c45baaf141b562a98554580bdae87377e5b241afad0eeccd620e73b9b05",
+      "bytes": 3789
+    },
+    {
+      "path": "13_ORDER_ROUTING_MARKET_DATA_AND_EXECUTION.md",
+      "sha256": "56f11d1444fb941d5ce11dd9cff3ba479e9f6ffd88028c7aed7ffd95cdb833da",
+      "bytes": 1295
+    },
+    {
+      "path": "14_SETTLEMENT_RECONCILIATION_AND_CORPORATE_ACTIONS.md",
+      "sha256": "42cb2dba2cc67522cc8ca797c729bc8e2929817bd437cf82b157cd61407a77eb",
+      "bytes": 1344
+    },
+    {
+      "path": "15_TRANSFER_RESTRICTIONS_HOLDS_AND_REPURCHASES.md",
+      "sha256": "a8670beb6ddd6505c3d0e7b65cb123982110c1d57e363acc34b3dd1553984722",
+      "bytes": 1441
+    },
+    {
+      "path": "16_LIQUIDITY_RISK_PRICE_DISCOVERY_AND_VALUATION_DISPLAY.md",
+      "sha256": "e3e58414d7cc71025fc82d4fc48accc5f1817d4a3d295203adc4ee25e655885b",
+      "bytes": 1487
+    },
+    {
+      "path": "17_MARKET_SURVEILLANCE_MANIPULATION_AND_ABUSE.md",
+      "sha256": "6992530b0913a8a4e62a345df6a8942b0fcefb95631e4283fe0adae064841140",
+      "bytes": 1632
+    },
+    {
+      "path": "18_COMMUNICATIONS_PROMOTIONS_AND_SOCIAL_CONTROLS.md",
+      "sha256": "a1f4fd16454f6c62f6408beb95e2ce852e731d03c98cc1db3ea8b0f2e1087b04",
+      "bytes": 1463
+    },
+    {
+      "path": "19_INVESTOR_PORTFOLIO_STATEMENTS_TAX_REPORTING.md",
+      "sha256": "c5558b8b12f83b05140254ac3560cb40b0e4d4ea1a0aa096329f0ce8bc62c54b",
+      "bytes": 3612
+    },
+    {
+      "path": "20_ISSUER_REPORTING_AND_ONGOING_DISCLOSURES.md",
+      "sha256": "9052da031521c8bd32b4ee846b202ae43e85e876263087b8a6ba78806bae5054",
+      "bytes": 1183
+    },
+    {
+      "path": "21_FAN_UTILITY_AND_SECURITIES_SEPARATION.md",
+      "sha256": "8fe8891b434e510f635503593e0ccb3895714001938781f657bd551678a34e9a",
+      "bytes": 1254
+    },
+    {
+      "path": "22_DATABASE_MIGRATIONS_RLS_AND_STORAGE.md",
+      "sha256": "457643aac9170f16c419c598299d85c34947112f5ea923b63b9bdcb6c63437a2",
+      "bytes": 2261
+    },
+    {
+      "path": "23_API_EVENTS_BACKGROUND_JOBS_PARTNERS.md",
+      "sha256": "c5d74941e4700e520ef13769f9d18df2385b67fdf3a61104be6d2171835703ef",
+      "bytes": 1995
+    },
+    {
+      "path": "24_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sha256": "23c2ffec4cda3fd0e56567cf892ce6646c6b02efe4c2efac0fb8d10eb6035a93",
+      "bytes": 1943
+    },
+    {
+      "path": "25_ADMIN_MARKET_OPS_COMPLIANCE.md",
+      "sha256": "b99d26e2226f8bdaad5d0a7861c199018dab50e89a449371201acbd29c071a31",
+      "bytes": 1410
+    },
+    {
+      "path": "26_SECURITY_PRIVACY_FINANCIAL_CONTROLS.md",
+      "sha256": "d0b2a221a6fd6951a039944a1c6a799ed5f039eacb121fe9a608642251af6abf",
+      "bytes": 1697
+    },
+    {
+      "path": "27_COMPLAINTS_DISPUTES_INCIDENT_RESPONSE.md",
+      "sha256": "d88f66360c398a2b63797185eef50b05125b559c25c411575b3d5926324d590a",
+      "bytes": 1364
+    },
+    {
+      "path": "28_TESTING_PILOT_AND_ROLLOUT.md",
+      "sha256": "dc0e06ba321aa49fd5232f3c1f4c7a09e28ef8c767f3bc90f174a7b104f771e7",
+      "bytes": 1680
+    },
+    {
+      "path": "29_PHASE_5_INSTITUTIONAL_MARKETPLACE.md",
+      "sha256": "20ccf53ab26d9b4bad39cf2c1edddf5b31f492be71f723443d3f7259ed5b5229",
+      "bytes": 1269
+    },
+    {
+      "path": "30_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sha256": "83991ac99b6b59bd44b45fce88fd0214c98e3906547e3585cfcd852e3eea1027",
+      "bytes": 1647
+    },
+    {
+      "path": "31_DEFINITION_OF_DONE.md",
+      "sha256": "9b1adc81b661151f9c92306f452abdf538b1db8c1b1847ac35b73b48d708f98e",
+      "bytes": 3142
+    },
+    {
+      "path": "32_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sha256": "da7ce4973c2eb465bd9ba90651b0ecdc36004c24fae59c2c8ca9094b70aef483",
+      "bytes": 6906
+    },
+    {
+      "path": "33_CURRENT_STANDARDS_LEGAL_TAX_RESEARCH.md",
+      "sha256": "3024e9f191088d9d56d0e28829136723f938a5e71c371f3a387d7111cad4b2a9",
+      "bytes": 5327
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sha256": "85bdbbf48dd295e6c87ee274593d5b1d219cddd6364efa889f6b4d394ad0acde",
+      "bytes": 2381
+    },
+    {
+      "path": "README.md",
+      "sha256": "4563f3ff91e352383f0798cd3adcbe02fa20ad5d3fedc22fab7bd40aef36d269",
+      "bytes": 3039
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "sha256": "6b2514bdba5982e793eaec60aeac161deafaa7c02c180fc27202ec3ccff0f526",
+      "bytes": 88
+    },
+    {
+      "path": "phase-4-execution-plan.schema.json",
+      "sha256": "b5cf7f0bc639d6b3610dc1eecc32e2d068d6bd420aebe2cb924b1c44d13fccc1",
+      "bytes": 3140
+    },
+    {
+      "path": "phase-4-execution-plan.template.json",
+      "sha256": "1f69bf7ef9a24ba446dd8b272516e7beb574f3bbdb97aa97fc68fb4ece2b24a4",
+      "bytes": 106409
+    },
+    {
+      "path": "reference/api-examples/create-offering-planning-request.json",
+      "sha256": "3d0ef29c9786b30336ad6fca80ba962a6f0307d3b9315b0e1fc4259ff103149e",
+      "bytes": 452
+    },
+    {
+      "path": "reference/api-examples/partner-execution-webhook.json",
+      "sha256": "331f957e5433de60c6cde0b8aca5f961c9bcfadb614868723dc7550fb7f17aca",
+      "bytes": 404
+    },
+    {
+      "path": "reference/api-examples/partner-subscription-webhook.json",
+      "sha256": "d9aea5ddab8f8e167eeb9be3fdcc0bc2b82c9376cb1d654769d06531734ab22f",
+      "bytes": 336
+    },
+    {
+      "path": "reference/lib/music/marketplace/marketplace-domain.ts",
+      "sha256": "b89437742915a24515fb9e2372c4143e8d7ceb512da315277fde82a0f92a6405",
+      "bytes": 899
+    },
+    {
+      "path": "reference/lib/music/marketplace/offering-pathway.ts",
+      "sha256": "5f015731aea036eaa638bcaf95f6d389bd4fd4a1f2dcec58a191506e7f663d31",
+      "bytes": 1446
+    },
+    {
+      "path": "reference/lib/music/marketplace/order-state-machine.ts",
+      "sha256": "cacb1a24d999fe4cd1f592ee7e977c87e9d4d273f861583352829541c2eb4c31",
+      "bytes": 1150
+    },
+    {
+      "path": "reference/lib/music/marketplace/settlement-reconciliation.ts",
+      "sha256": "57a24efe8110ed66cd775c8bde385964d34d98793290d183a7f995f35c717b63",
+      "bytes": 613
+    },
+    {
+      "path": "reference/lib/music/marketplace/transfer-eligibility.ts",
+      "sha256": "aebee8067374d71813c0788371db07559aab95e4bc2d556cded1b3103ae8207a",
+      "bytes": 1331
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_offerings_investors_subscriptions.sql",
+      "sha256": "e1192f0443f560c508a12338b567c912032957f903917957659ece4f73f9357c",
+      "bytes": 2455
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_positions_transfers_orders_settlements.sql",
+      "sha256": "6757f1a15d0a4db1d0834ab319baeba85d35fcebc24b4430b0a35d2ce7faf477",
+      "bytes": 2724
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_disclosures_surveillance_compliance.sql",
+      "sha256": "54123919886ca01d67a25c76957c7fc8947877fb9088b9b748d7f340213cbde4",
+      "bytes": 2010
+    }
+  ]
+}

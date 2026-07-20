@@ -1,0 +1,24 @@
+{
+  "memberId": "uuid",
+  "dataCategories": [
+    "historical_royalty_aggregate"
+  ],
+  "sourceIds": [
+    "phase7-approved-extract"
+  ],
+  "permittedPurposes": [
+    "public_interest_research"
+  ],
+  "prohibitedPurposes": [
+    "advertising",
+    "credit_scoring",
+    "ai_training"
+  ],
+  "allowedRecipients": [
+    "research-institution-id"
+  ],
+  "startsAt": "2026-10-01T00:00:00Z",
+  "endsAt": "2027-10-01T00:00:00Z",
+  "aiTrainingAllowed": false,
+  "commercialResearchAllowed": false
+}

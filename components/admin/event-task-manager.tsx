@@ -143,9 +143,13 @@ async function notifyAssignee(eventId: string, assigneeId: string, taskTitle: st
         title: 'Task assigned',
         content: `You have been assigned: ${taskTitle}`,
         type: 'task_assignment',
-        link: `/admin/dashboard/events/${eventId}/hq`,
+        link: `/dashboard/staff-ops`,
         related_content_id: eventId,
         related_content_type: 'event',
+        metadata: {
+          event_id: eventId,
+          link: '/dashboard/staff-ops',
+        },
       }),
     })
   } catch (error) {

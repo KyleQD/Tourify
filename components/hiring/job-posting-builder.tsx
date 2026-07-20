@@ -382,8 +382,11 @@ export function JobPostingBuilder({
                 )}
               />
               <p className="text-xs text-muted-foreground">
-                Leave blank to send the account default (New Staff) at approval, or pick a specific template now.
+                Required to publish. Drafts can omit this and attach a template later before going live.
               </p>
+              {form.formState.errors.onboarding_template_id ? (
+                <p className="text-sm text-destructive">{form.formState.errors.onboarding_template_id.message}</p>
+              ) : null}
             </div>
           </div>
 

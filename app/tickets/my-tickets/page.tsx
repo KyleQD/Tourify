@@ -129,7 +129,7 @@ export default function MyTicketsPage() {
           <CardContent className="py-8 text-center">
             <p className="mb-4">{error}</p>
             <Button asChild>
-              <Link href="/auth/login">Sign in</Link>
+              <Link href="/login">Sign in</Link>
             </Button>
           </CardContent>
         </Card>

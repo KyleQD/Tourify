@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
   Text,
   View
 } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import * as WebBrowser from "expo-web-browser"

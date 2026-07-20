@@ -1,0 +1,9 @@
+{
+  "sourceUrl": "https://example.invalid/content",
+  "candidateAssetId": "AUDIT_REQUIRED",
+  "captureSha256": "AUDIT_REQUIRED",
+  "matchEvidence": {
+    "audioConfidence": 0.94,
+    "manualReviewRequired": true
+  }
+}

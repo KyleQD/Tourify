@@ -128,9 +128,6 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .single()
 
     if (insertError) {
-      if (insertError.code === '42P01') {
-        return NextResponse.json({ error: 'table not yet created — run migration' }, { status: 501 })
-      }
       console.error('[Task Messages] Insert error:', insertError)
       return NextResponse.json({ error: 'Failed to create task message' }, { status: 500 })
     }

@@ -4,7 +4,7 @@ import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
 function extractTourId(url: string): string | null {
   const segments = new URL(url).pathname.split("/")
@@ -12,7 +12,7 @@ function extractTourId(url: string): string | null {
   return index >= 0 ? segments[index + 1] || null : null
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability("tour.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const tourId = extractTourId(request.url)
     if (!tourId) return NextResponse.json({ success: false, error: "Missing tour id" }, { status: 400 })
@@ -20,6 +20,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
       supabase,
       userId: user.id,
       tourId,
+      orgId: admin.orgId,
     })
     return NextResponse.json({ success: true, tour })
   } catch (error: any) {
@@ -28,7 +29,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PATCH = withAdminCapability("tour.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const tourId = extractTourId(request.url)
     if (!tourId) return NextResponse.json({ success: false, error: "Missing tour id" }, { status: 400 })
@@ -38,6 +39,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
       userId: user.id,
       tourId,
       input: body,
+      orgId: admin.orgId,
     })
     return NextResponse.json({ success: true, tour })
   } catch (error: any) {
@@ -46,7 +48,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability("tour.delete", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const tourId = extractTourId(request.url)
     if (!tourId) return NextResponse.json({ success: false, error: "Missing tour id" }, { status: 400 })
@@ -54,6 +56,7 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, use
       supabase,
       userId: user.id,
       tourId,
+      orgId: admin.orgId,
     })
     return NextResponse.json(result)
   } catch (error: any) {

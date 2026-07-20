@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js"
 
+import { templateFromSnapshot } from "@/lib/hiring/template-snapshot"
 import { resolveOnboardingTemplate } from "@/lib/services/onboarding-template-resolver.service"
 import { WorkerOnboardingProfileService } from "@/lib/services/worker-onboarding-profile.service"
 import type { HiringEntity } from "@/types/hiring-entity"
@@ -214,14 +215,24 @@ export async function buildTokenOnboardingPayload({
     readString(job ?? {}, "onboarding_template_id") ??
     null
 
-  const resolved = await resolveOnboardingTemplate({
-    supabase,
-    employer,
-    position,
-    department,
-    templateId,
-    flowType: "onboarding",
-  })
+  const snapshotTemplate =
+    templateFromSnapshot(candidate.template_snapshot) ??
+    templateFromSnapshot(invitation.template_snapshot)
+
+  const resolved = snapshotTemplate
+    ? {
+        template: snapshotTemplate,
+        source: "explicit_template" as const,
+        shouldSeedTemplate: false,
+      }
+    : await resolveOnboardingTemplate({
+        supabase,
+        employer,
+        position,
+        department,
+        templateId,
+        flowType: "onboarding",
+      })
 
   const draftExistingResponses = await findExistingResponses({ supabase, candidate, invitation })
   const templateFields = Array.isArray(resolved.template.fields) ? resolved.template.fields : []
@@ -239,6 +250,8 @@ export async function buildTokenOnboardingPayload({
       ? (candidate.onboarding_responses as Record<string, unknown>)
       : null
 
+  // Prefill non-sensitive answers by default. Sensitive vault decrypt only when the
+  // signed-in session matches the candidate owner (worker profile service enforces this).
   const prefill = await WorkerOnboardingProfileService.resolvePrefill({
     supabase,
     userId: ownerUserId,

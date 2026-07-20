@@ -24,6 +24,7 @@ vi.mock("@/app/api/events/_lib/events-v2-admin", async () => {
 import {
   AdminTourEventAuthError,
   AdminTourEventOperationsService,
+  AdminTourPublishReadinessError,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
 
@@ -33,6 +34,7 @@ const USER_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
 const TOUR_A = "11111111-1111-4111-8111-111111111111"
 const TOUR_B = "22222222-2222-4222-8222-222222222222"
 const EVENT_A = "33333333-3333-4333-8333-333333333333"
+const EVENT_B = "44444444-4444-4444-8444-444444444444"
 
 interface MockState {
   memberships: Array<{ org_id: string }>
@@ -257,6 +259,27 @@ function createMockSupabase(state: MockState) {
 
   return {
     from: vi.fn((table: string) => createBuilder(table)),
+    rpc: vi.fn(async (fn: string, args: Record<string, any>) => {
+      state.ops.push({ table: fn, op: "insert", payload: args })
+      if (fn === "reconcile_admin_tour_events") {
+        const links = Array.isArray(args.p_links) ? args.p_links : []
+        state.tourEvents = state.tourEvents.filter((row) => row.tour_id !== args.p_tour_id)
+        state.tourEvents.push(
+          ...links.map((link: Record<string, unknown>) => ({
+            ...link,
+            tour_id: args.p_tour_id,
+          })),
+        )
+        return { data: state.tourEvents.filter((row) => row.tour_id === args.p_tour_id), error: null }
+      }
+      if (fn === "publish_admin_tour") {
+        state.tours = state.tours.map((tour) =>
+          tour.id === args.p_tour_id ? { ...tour, status: "active" } : tour,
+        )
+        return { data: [{ tour_id: args.p_tour_id, status: "active" }], error: null }
+      }
+      return { data: null, error: null }
+    }),
   }
 }
 
@@ -891,5 +914,238 @@ describe("admin tour/event hardening", () => {
     expect(link?.advance_status).toBe("in_progress")
     expect(state.events[0].title).toBe("Los Angeles")
     expect((state.events[0].settings as any)?.venue_label).toBe("Hollywood Bowl")
+  })
+
+  it("preserves a stop's show time and duration when only its date changes", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [],
+      events: [{
+        id: EVENT_A,
+        org_id: ORG_A,
+        title: "Night Show",
+        status: "inquiry",
+        start_at: "2026-09-03T20:00:00.000Z",
+        end_at: "2026-09-03T22:30:00.000Z",
+        settings: {},
+        created_by: USER_ID,
+      }],
+      tourEvents: [],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await AdminTourEventOperationsService.updateEvent({
+      supabase,
+      userId: USER_ID,
+      orgId: ORG_A,
+      eventId: EVENT_A,
+      input: { event_date: "2026-09-10" },
+    })
+
+    expect(state.events[0].start_at).toBe("2026-09-10T20:00:00.000Z")
+    expect(state.events[0].end_at).toBe("2026-09-10T22:30:00.000Z")
+  })
+
+  it("updates production timing and clears optional settings without resetting unrelated settings", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [],
+      events: [{
+        id: EVENT_A,
+        org_id: ORG_A,
+        title: "Production Show",
+        status: "confirmed",
+        start_at: "2026-09-03T20:00:00.000Z",
+        end_at: "2026-09-03T22:00:00.000Z",
+        settings: { event_type: "festival", public_visibility: "public", doors_open: "18:30" },
+        created_by: USER_ID,
+      }],
+      tourEvents: [],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await AdminTourEventOperationsService.updateEvent({
+      supabase,
+      userId: USER_ID,
+      orgId: ORG_A,
+      eventId: EVENT_A,
+      input: {
+        doors_open: "",
+        duration_minutes: 180,
+        sound_requirements: "48-channel digital console",
+      },
+    })
+
+    expect(state.events[0].end_at).toBe("2026-09-03T23:00:00.000Z")
+    expect(state.events[0].settings).toMatchObject({
+      event_type: "festival",
+      public_visibility: "public",
+      doors_open: null,
+      sound_requirements: "48-channel digital console",
+    })
+  })
+
+  it("updateTour exactly reconciles links and detaches removed stops without deleting events", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [{
+        id: TOUR_A,
+        org_id: ORG_A,
+        name: "Exact Route",
+        status: "planning",
+        settings: {},
+        created_by: USER_ID,
+        user_id: USER_ID,
+      }],
+      events: [
+        {
+          id: EVENT_A,
+          org_id: ORG_A,
+          title: "Keep",
+          status: "inquiry",
+          start_at: "2026-09-01T20:00:00.000Z",
+          settings: { venue_label: "Keep Hall" },
+          created_by: USER_ID,
+        },
+        {
+          id: EVENT_B,
+          org_id: ORG_A,
+          title: "Detach",
+          status: "inquiry",
+          start_at: "2026-09-02T20:00:00.000Z",
+          settings: { venue_label: "Detach Hall" },
+          created_by: USER_ID,
+        },
+      ],
+      tourEvents: [
+        { tour_id: TOUR_A, event_id: EVENT_A, ordinal: 0, is_primary: true },
+        { tour_id: TOUR_A, event_id: EVENT_B, ordinal: 1, is_primary: true },
+      ],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await AdminTourEventOperationsService.updateTour({
+      supabase,
+      userId: USER_ID,
+      orgId: ORG_A,
+      tourId: TOUR_A,
+      input: { event_ids: [EVENT_A] },
+    })
+
+    expect(state.tourEvents.map((link) => link.event_id)).toEqual([EVENT_A])
+    expect(state.events.map((event) => event.id)).toEqual([EVENT_A, EVENT_B])
+    expect(state.ops.some((op) => op.table === "reconcile_admin_tour_events")).toBe(true)
+  })
+
+  it("blocks publish server-side when canonical tour readiness fails", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [{
+        id: TOUR_A,
+        org_id: ORG_A,
+        name: "No Stops",
+        status: "planning",
+        start_date: "2026-09-01",
+        end_date: "2026-09-10",
+        settings: { main_artist: "Artist" },
+        created_by: USER_ID,
+        user_id: USER_ID,
+      }],
+      events: [],
+      tourEvents: [],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await expect(
+      AdminTourEventOperationsService.publishTour({
+        supabase,
+        userId: USER_ID,
+        orgId: ORG_A,
+        tourId: TOUR_A,
+      }),
+    ).rejects.toBeInstanceOf(AdminTourPublishReadinessError)
+    expect(state.ops.some((op) => op.table === "publish_admin_tour")).toBe(false)
+  })
+
+  it("blocks direct activation so readiness cannot be bypassed through updateTour", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [{
+        id: TOUR_A,
+        org_id: ORG_A,
+        name: "Draft Route",
+        status: "planning",
+        settings: {},
+        created_by: USER_ID,
+        user_id: USER_ID,
+      }],
+      events: [],
+      tourEvents: [],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    await expect(
+      AdminTourEventOperationsService.updateTour({
+        supabase,
+        userId: USER_ID,
+        orgId: ORG_A,
+        tourId: TOUR_A,
+        input: { status: "active" },
+      }),
+    ).rejects.toMatchObject({ status: 409 })
+
+    expect(state.tours[0].status).toBe("planning")
+    expect(state.ops.some((op) => op.table === "publish_admin_tour")).toBe(false)
+  })
+
+  it("publishes a ready tour through the transactional command", async () => {
+    const state: MockState = {
+      memberships: [{ org_id: ORG_A }],
+      tours: [{
+        id: TOUR_A,
+        org_id: ORG_A,
+        name: "Ready Route",
+        status: "planning",
+        start_date: "2026-09-01",
+        end_date: "2026-09-10",
+        settings: { main_artist: "Artist", artist_account_id: USER_ID },
+        created_by: USER_ID,
+        user_id: USER_ID,
+      }],
+      events: [{
+        id: EVENT_A,
+        org_id: ORG_A,
+        title: "Opening Night",
+        status: "confirmed",
+        start_at: "2026-09-03T20:00:00.000Z",
+        end_at: "2026-09-03T22:00:00.000Z",
+        settings: { venue_label: "Main Hall" },
+        created_by: USER_ID,
+      }],
+      tourEvents: [{
+        tour_id: TOUR_A,
+        event_id: EVENT_A,
+        ordinal: 0,
+        is_primary: true,
+        advance_status: "ready",
+      }],
+      ops: [],
+    }
+    const supabase = createMockSupabase(state)
+
+    const published = await AdminTourEventOperationsService.publishTour({
+      supabase,
+      userId: USER_ID,
+      orgId: ORG_A,
+      tourId: TOUR_A,
+    })
+
+    expect((published as any).status).toBe("active")
+    expect(state.ops.some((op) => op.table === "publish_admin_tour")).toBe(true)
   })
 })

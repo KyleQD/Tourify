@@ -14,6 +14,10 @@ import { getDashboardPathForAccountType, accountTypeMatchesSection } from '@/lib
 import { navigateToAccountDashboard } from '@/lib/navigation/navigate-to-account-dashboard'
 import { buildAccountScopedPath, readAccountFromSearch } from '@/lib/navigation/account-context-url'
 import { OrganizerAccountSchema } from '@/lib/accounts/organization-account-schema'
+import {
+  PROFILE_IMAGES_UPDATED_EVENT,
+  type ProfileImagesUpdatedDetail,
+} from '@/lib/profile/profile-image-events'
 
 export { OrganizerAccountSchema, OrganizationAccountSchema } from '@/lib/accounts/organization-account-schema'
 
@@ -889,6 +893,47 @@ export function MultiAccountProvider({ children }: MultiAccountProviderProps) {
     if (hasServerSeedRef.current && accountsRef.current.length > 0) return
 
     void refreshAccounts()
+  }, [user?.id, refreshAccounts])
+
+  // Keep sidebar / account switcher avatars in sync after Appearance uploads.
+  useEffect(() => {
+    if (!user?.id) return
+
+    function handleProfileImagesUpdated(event: Event) {
+      const detail = (event as CustomEvent<ProfileImagesUpdatedDetail>).detail
+      if (detail && 'avatarUrl' in detail) {
+        setAccounts((prev) =>
+          prev.map((account) => {
+            if (normalizeAccountType(account.account_type) !== 'general') return account
+            if (account.profile_id !== user.id) return account
+            return {
+              ...account,
+              profile_data: {
+                ...account.profile_data,
+                avatar_url: detail.avatarUrl ?? null,
+              },
+            }
+          })
+        )
+        setActiveAccount((prev) => {
+          if (!prev || normalizeAccountType(prev.account_type) !== 'general') return prev
+          if (prev.profile_id !== user.id) return prev
+          return {
+            ...prev,
+            profile_data: {
+              ...prev.profile_data,
+              avatar_url: detail.avatarUrl ?? null,
+            },
+          }
+        })
+      }
+      void refreshAccounts()
+    }
+
+    window.addEventListener(PROFILE_IMAGES_UPDATED_EVENT, handleProfileImagesUpdated)
+    return () => {
+      window.removeEventListener(PROFILE_IMAGES_UPDATED_EVENT, handleProfileImagesUpdated)
+    }
   }, [user?.id, refreshAccounts])
 
   useEffect(() => {

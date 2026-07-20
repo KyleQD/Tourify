@@ -1,0 +1,15 @@
+{
+  "catalogScope": {
+    "type": "release",
+    "id": "<release-id>"
+  },
+  "valuedInterestSnapshotId": "<issued-rights-interest-snapshot>",
+  "valuationDate": "2026-07-17",
+  "currency": "USD",
+  "modelKey": "tourify_catalog_dcf",
+  "requestedScenarios": [
+    "downside",
+    "base",
+    "upside"
+  ]
+}

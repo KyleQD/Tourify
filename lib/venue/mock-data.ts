@@ -1,4 +1,6 @@
-// This file contains mock data for the application.
+// Quarantined: do not import from production venue ops pages.
+// Prefer live Supabase data via venueService /api/venue/*.
+// This file contains mock data for legacy demos only.
 import type { ProfileData } from "./types"
 
 // Define types for the mock data

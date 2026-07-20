@@ -1,0 +1,8 @@
+{
+  "eventId": "provider-event-123",
+  "eventType": "registration.updated",
+  "idempotencyKey": "provider-event-123",
+  "registrationId": "external-456",
+  "status": "accepted_with_changes",
+  "payloadHash": "AUDIT_REQUIRED"
+}

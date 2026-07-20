@@ -374,6 +374,16 @@ export default function VenueOverviewPage() {
             <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
+          <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-500">
+            <a href="/venue/edit">Edit profile</a>
+          </Button>
+          {(venue.url_slug || venue.username) ? (
+            <Button asChild variant="outline" size="sm">
+              <a href={`/venues/${venue.url_slug || venue.username}`} target="_blank" rel="noreferrer">
+                Public page
+              </a>
+            </Button>
+          ) : null}
         </div>
       </div>
 

@@ -116,6 +116,17 @@ export function TemplateBuilderShell({ employer, templateId }: TemplateBuilderSh
 
   const agreementCount = useMemo(() => fields.filter((field) => isAgreementField(field)).length, [fields])
 
+  const fieldsBySection = useMemo(() => {
+    const groups = new Map<string, Array<{ field: OnboardingFormField; index: number }>>()
+    fields.forEach((field, index) => {
+      const section = field.section?.trim() || "Details"
+      const current = groups.get(section) ?? []
+      current.push({ field, index })
+      groups.set(section, current)
+    })
+    return Array.from(groups.entries())
+  }, [fields])
+
   function addField(item: FieldPaletteItem) {
     setFields((current) => [...current, createFieldFromPalette(item, current)])
   }
@@ -316,23 +327,31 @@ export function TemplateBuilderShell({ employer, templateId }: TemplateBuilderSh
                 </div>
               </div>
 
-              <TabsContent value="build" className="space-y-3">
+              <TabsContent value="build" className="space-y-4">
                 {fields.length === 0 ? (
                   <p className="rounded-xl border border-dashed border-slate-700/60 bg-slate-900/30 p-6 text-center text-sm text-muted-foreground">
                     Add fields from the palette to start building the onboarding form.
                   </p>
                 ) : (
-                  fields.map((field, index) => (
-                    <FieldEditorCard
-                      key={field.id}
-                      field={field}
-                      index={index}
-                      total={fields.length}
-                      readOnly={isReadOnly}
-                      onChange={(next) => updateField(index, next)}
-                      onRemove={() => removeField(index)}
-                      onMove={(direction) => moveField(index, direction)}
-                    />
+                  fieldsBySection.map(([section, sectionFields]) => (
+                    <div key={section} className="space-y-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-semibold text-white">{section}</h3>
+                        <Badge variant="outline">{sectionFields.length}</Badge>
+                      </div>
+                      {sectionFields.map(({ field, index }) => (
+                        <FieldEditorCard
+                          key={field.id}
+                          field={field}
+                          index={index}
+                          total={fields.length}
+                          readOnly={isReadOnly}
+                          onChange={(next) => updateField(index, next)}
+                          onRemove={() => removeField(index)}
+                          onMove={(direction) => moveField(index, direction)}
+                        />
+                      ))}
+                    </div>
                   ))
                 )}
               </TabsContent>

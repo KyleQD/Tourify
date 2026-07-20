@@ -1,0 +1,24 @@
+{
+  "title": "Untitled sports campaign",
+  "productionType": "advertising",
+  "confidentiality": "nda_restricted",
+  "media": [
+    "online_video",
+    "social_paid"
+  ],
+  "territories": [
+    "US",
+    "CA"
+  ],
+  "term": {
+    "value": 12,
+    "unit": "months"
+  },
+  "budget": {
+    "currency": "USD",
+    "minMinor": 500000,
+    "maxMinor": 1500000
+  },
+  "scene": "Athlete training montage",
+  "deadline": "2026-09-15T17:00:00Z"
+}

@@ -14,6 +14,10 @@
 
 import { OptimizedNotificationService } from '@/lib/services/optimized-notification-service'
 import { postApplicantHiringMessage } from '@/lib/rebuild/hiring-applicant-comms'
+import {
+  entityNotificationTarget,
+  generalNotificationTarget,
+} from '@/lib/notifications/notification-target'
 
 export interface ApplicationApprovedContext {
   applicationId: string
@@ -21,6 +25,9 @@ export interface ApplicationApprovedContext {
   /** Onboarding candidate id, used to attribute the onboarding invitation. */
   candidateId?: string | null
   venueId?: string | null
+  /** Hiring employer entity (org/venue/artist) — scopes actor notifications. */
+  employerEntityType?: string | null
+  employerEntityId?: string | null
   jobPostingId?: string | null
   actorUserId: string
   /**
@@ -57,6 +64,8 @@ export async function runStaffApplicationApprovedSideEffects(
     applicantUserId,
     candidateId,
     venueId,
+    employerEntityType,
+    employerEntityId,
     jobPostingId,
     actorUserId,
     onboardingUrl,
@@ -113,11 +122,13 @@ export async function runStaffApplicationApprovedSideEffects(
         : 'Your onboarding instructions are on the way.'
     )
 
+    const applicantTarget = generalNotificationTarget(applicantUserId)
     await OptimizedNotificationService.createNotification({
       userId: applicantUserId,
       type: 'hiring_application_approved',
       title,
       content: instructionLines.join(' '),
+      ...applicantTarget,
       metadata: {
         application_id: applicationId,
         venue_id: venueId ?? null,
@@ -144,14 +155,26 @@ export async function runStaffApplicationApprovedSideEffects(
     }
     if (warnings && warnings.length > 0) actorLines.push(...warnings)
 
+    const resolvedEmployerId = employerEntityId || venueId || null
+    const resolvedEmployerType =
+      employerEntityType || (venueId ? 'venue' : resolvedEmployerId ? 'organization' : null)
+    const actorTarget = entityNotificationTarget({
+      entityType: resolvedEmployerType,
+      entityId: resolvedEmployerId,
+      fallbackUserId: actorUserId,
+    })
+
     await OptimizedNotificationService.createNotification({
       userId: actorUserId,
       type: 'hiring_application_approved_actor',
       title: 'Application approved',
       content: actorLines.join(' '),
+      ...actorTarget,
       metadata: {
         application_id: applicationId,
         venue_id: venueId ?? null,
+        employer_entity_type: resolvedEmployerType,
+        employer_entity_id: resolvedEmployerId,
         job_posting_id: jobPostingId ?? null,
         onboarding_pending: isPending,
         warnings: warnings ?? [],

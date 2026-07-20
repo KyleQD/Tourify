@@ -102,7 +102,7 @@ export function MobileNavigation() {
                   { href: "/", icon: <Home className="h-4 w-4 mr-3" />, label: "Home" },
                   { href: "/dashboard", icon: <Search className="h-4 w-4 mr-3" />, label: "Dashboard" },
                   { href: "/events", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Events" },
-                  { href: "/teams", icon: <Users className="h-4 w-4 mr-3" />, label: "Team" },
+                  { href: "/venue/staff", icon: <Users className="h-4 w-4 mr-3" />, label: "Team" },
                   { href: "/messages", icon: <MessageSquare className="h-4 w-4 mr-3" />, label: "Messages" },
                 ].map((item) => (
                   <Button
@@ -123,9 +123,9 @@ export function MobileNavigation() {
               <div className="space-y-1">
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Collaboration</h3>
                 {[
-                  { href: "/collaboration", icon: <UserPlus className="h-4 w-4 mr-3" />, label: "Overview" },
-                  { href: "/collaboration/projects", icon: <FolderOpen className="h-4 w-4 mr-3" />, label: "Projects" },
-                  { href: "/artist/collaborations", icon: <GitBranch className="h-4 w-4 mr-3" />, label: "Opportunities" },
+                  { href: "/projects", icon: <UserPlus className="h-4 w-4 mr-3" />, label: "Overview" },
+                  { href: "/projects", icon: <FolderOpen className="h-4 w-4 mr-3" />, label: "Projects" },
+                  { href: "/projects", icon: <GitBranch className="h-4 w-4 mr-3" />, label: "Opportunities" },
                 ].map((item) => (
                   <Button
                     key={item.href}
@@ -146,9 +146,9 @@ export function MobileNavigation() {
                 <h3 className="text-sm font-medium text-muted-foreground mb-2">Venues</h3>
                 {[
                   { href: "/venues", icon: <Building className="h-4 w-4 mr-3" />, label: "Venues" },
-                  { href: "/equipment", icon: <Music className="h-4 w-4 mr-3" />, label: "Equipment" },
+                  { href: "/venue/equipment", icon: <Music className="h-4 w-4 mr-3" />, label: "Equipment" },
                   { href: "/bookings", icon: <Calendar className="h-4 w-4 mr-3" />, label: "Bookings" },
-                  { href: "/finances", icon: <Briefcase className="h-4 w-4 mr-3" />, label: "Finances" },
+                  { href: "/venue/finances", icon: <Briefcase className="h-4 w-4 mr-3" />, label: "Finances" },
                 ].map((item) => (
                   <Button
                     key={item.href}

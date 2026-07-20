@@ -77,7 +77,7 @@ export function MainNav() {
       active: pathname.startsWith("/music"),
     },
     {
-      href: "/team",
+      href: "/venue/staff",
       label: "Teams",
       icon: <Users className="h-4 w-4 mr-2" />,
       active: pathname.startsWith("/team"),
@@ -91,17 +91,17 @@ export function MainNav() {
       badge: 2,
     },
     {
-      href: "/equipment",
+      href: "/venue/equipment",
       label: "Equipment",
       icon: <Mic className="h-4 w-4 mr-2" />,
-      active: pathname.startsWith("/equipment"),
+      active: pathname.startsWith("/venue/equipment"),
       isNew: true,
     },
     {
-      href: "/finances",
+      href: "/venue/finances",
       label: "Finances",
       icon: <DollarSign className="h-4 w-4 mr-2" />,
-      active: pathname.startsWith("/finances"),
+      active: pathname.startsWith("/venue/finances"),
       isNew: true,
     },
   ]
@@ -235,7 +235,7 @@ export function MainNav() {
                 <Link href="/settings">Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/billing">Billing</Link>
+                <Link href="/venue/finances">Billing</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem>Log out</DropdownMenuItem>

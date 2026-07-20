@@ -884,10 +884,10 @@ export function DashboardFeed() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  aria-label="Share post (coming soon)"
-                                  disabled
-                                  title="Share is coming soon"
-                                  className="text-gray-400 h-8 px-2 opacity-50"
+                                  aria-label="Share post"
+                                  title="Copy post link"
+                                  className="text-gray-400 hover:text-green-400 h-8 px-2"
+                                  onClick={() => void handleCopyPostLink(post.id)}
                                 >
                                   <Share className="h-4 w-4 mr-1" />
                                   <span className="text-xs">{post.shares_count}</span>
@@ -952,11 +952,12 @@ export function DashboardFeed() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      disabled
-                                      title="Expanded comment thread is coming soon"
-                                      className="text-gray-400 text-xs opacity-50"
+                                      asChild
+                                      className="text-gray-400 hover:text-blue-400 text-xs"
                                     >
-                                      View {comments[post.id].length - 2} more comments
+                                      <Link href={`/posts/${post.id}`}>
+                                        View {comments[post.id].length - 2} more comments
+                                      </Link>
                                     </Button>
                                   </div>
                                 )}

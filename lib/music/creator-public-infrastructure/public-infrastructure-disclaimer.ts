@@ -1,0 +1,2 @@
+export const CREATOR_PUBLIC_INFRASTRUCTURE_DISCLAIMER =
+  "Public-infrastructure readiness sandbox only — not a universal creator identity, not ownership proof, and not licensing/registration/enforcement authority. Identifiers are references; credentials are signed statements; resolver responses are status views. Tourify is an optional technology provider. A separate public-interest entity must steward production commons. Feature flags are never legal authority."

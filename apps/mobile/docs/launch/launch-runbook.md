@@ -17,6 +17,7 @@ Operational runbook for production launch across App Store and Google Play with 
 From `apps/mobile`:
 
 ```bash
+npm run test:unit
 npm run typecheck
 npm run lint
 npm run launch:validate
@@ -78,17 +79,21 @@ Android OTA automation:
 
 All must be true before production release:
 
-- [ ] Crash reporting configured for production build
-- [ ] No P0/P1 defects in booking/auth/notifications flows
+- [ ] Crash reporting configured for production build (`EXPO_PUBLIC_SENTRY_DSN`)
+- [ ] Internal TestFlight + Play Internal smoke of: auth → home → follow → push tap → checkout verify
+- [ ] Password reset deep link and venue booking-requests API verified on device
+- [ ] No P0/P1 defects in booking/auth/notifications/checkout flows
 - [ ] Compliance workbook signed off by legal/security/product
 - [ ] Release manager confirms version/build numbers in both stores
 - [ ] Rollback owner and communication channel confirmed
+- [ ] Preview EAS build green via `mobile-preview-release.yml` or manual `eas build --profile preview`
 
 ## First 72 Hours Operations
 
 ### 0-6 Hours
-- Monitor crash-free sessions and ANR/error rates
-- Monitor booking success rate and auth failure rate
+- Monitor crash-free sessions and ANR/error rates (Sentry)
+- Monitor funnel: auth → home → follow → notification open → checkout verify
+- Monitor venue booking-requests API error rates
 - Triage 1-star and 2-star reviews for urgent regressions
 
 ### 6-24 Hours

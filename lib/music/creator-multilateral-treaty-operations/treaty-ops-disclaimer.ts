@@ -1,0 +1,2 @@
+export const CREATOR_TREATY_OPS_DISCLAIMER =
+  "Multilateral treaty-operations readiness sandbox only — not a live treaty system, formal depositary, Article 102 registration, privilege, assessed contribution, competence expansion, universal identity, or collective authority. Phase 16 institution records are inputs only. Phase 17 cannot launch from Phase 16 flags. Feature flags are never legal authority. Multi-year evidence must be real, not simulated."

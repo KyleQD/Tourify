@@ -16,6 +16,15 @@ function createMockQuery(result: { data: unknown; error: unknown }) {
   ]) {
     query[method] = vi.fn(chain)
   }
+  query.maybeSingle = vi.fn(() => {
+    const single = {
+      data: Array.isArray(result.data) ? (result.data[0] ?? null) : result.data,
+      error: result.error,
+    }
+    return {
+      then: (resolve: (value: unknown) => unknown) => Promise.resolve(resolve(single)),
+    }
+  })
   // Make the query thenable / awaitable like supabase
   query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(resolve(result))
   return query
@@ -43,6 +52,13 @@ describe('aggregateAdminCalendarItems', () => {
                 settings: { venue_label: 'Main Hall', description: 'Headliner' },
               },
             ],
+            error: null,
+          })
+        }
+
+        if (table === 'tour_events') {
+          return createMockQuery({
+            data: [{ event_id: 'evt-1' }],
             error: null,
           })
         }
@@ -92,6 +108,7 @@ describe('aggregateAdminCalendarItems', () => {
                 priority: 'medium',
                 due_date: '2026-07-13',
                 event_id: null,
+                tour_id: 'tour-1',
                 type: 'transport',
               },
             ],
@@ -170,35 +187,34 @@ describe('aggregateAdminCalendarItems', () => {
     }
   })
 
-  it('aggregates all operational kinds for an org window', async () => {
-    const { items, summary } = await aggregateAdminCalendarItems({
+  it('aggregates day-anchored work for org overview without tour span items', async () => {
+    const { items, summary, context } = await aggregateAdminCalendarItems({
       supabase,
       userId: 'user-1',
       orgId: 'org-1',
       filters: {
         startDate: '2026-07-01',
         endDate: '2026-07-31',
+        scope: 'org',
       },
     })
 
     const kinds = new Set(items.map((item) => item.kind))
     expect(kinds.has('event')).toBe(true)
-    expect(kinds.has('tour')).toBe(true)
+    expect(kinds.has('tour')).toBe(false)
     expect(kinds.has('task')).toBe(true)
     expect(kinds.has('shift')).toBe(true)
     expect(kinds.has('production')).toBe(true)
     expect(kinds.has('hiring')).toBe(true)
 
     expect(summary.event).toBeGreaterThanOrEqual(1)
-    expect(summary.tour).toBeGreaterThanOrEqual(1)
+    expect(summary.tour).toBe(0)
     expect(summary.task).toBeGreaterThanOrEqual(2)
     expect(summary.shift).toBeGreaterThanOrEqual(1)
     expect(summary.production).toBeGreaterThanOrEqual(1)
     expect(summary.hiring).toBeGreaterThanOrEqual(1)
 
-    const tour = items.find((item) => item.kind === 'tour')
-    expect(tour?.allDay).toBe(true)
-    expect(tour?.href).toContain('/admin/dashboard/tours/')
+    expect(context?.mode).toBe('org')
   })
 
   it('respects type filters', async () => {
@@ -210,11 +226,83 @@ describe('aggregateAdminCalendarItems', () => {
         startDate: '2026-07-01',
         endDate: '2026-07-31',
         types: ['event'],
+        scope: 'org',
       },
     })
 
     expect(items.every((item) => item.kind === 'event')).toBe(true)
     expect(summary.tour).toBe(0)
     expect(summary.shift).toBe(0)
+  })
+
+  it('tour scope returns shows and tasks without a tour span item', async () => {
+    const { items, summary, context } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'tour',
+        tourId: 'tour-1',
+      },
+    })
+
+    expect(items.some((item) => item.kind === 'tour')).toBe(false)
+    expect(items.some((item) => item.kind === 'event' && item.sourceId === 'evt-1')).toBe(true)
+    expect(items.some((item) => item.kind === 'task' && item.title === 'Confirm riders')).toBe(true)
+    expect(items.some((item) => item.kind === 'task' && item.title === 'Load truck')).toBe(true)
+    expect(items.some((item) => item.kind === 'hiring')).toBe(false)
+
+    expect(summary.tour).toBe(0)
+    expect(context?.mode).toBe('tour')
+    expect(context?.id).toBe('tour-1')
+    expect(context?.eventIds).toContain('evt-1')
+
+    expect(supabase.from).toHaveBeenCalledWith('tour_events')
+  })
+
+  it('event scope filters to that event work and omits hiring', async () => {
+    const { items, context } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'event',
+        eventId: 'evt-1',
+      },
+    })
+
+    expect(items.some((item) => item.kind === 'event')).toBe(false)
+    expect(items.some((item) => item.kind === 'task')).toBe(true)
+    expect(items.some((item) => item.kind === 'shift')).toBe(true)
+    expect(items.some((item) => item.kind === 'production')).toBe(true)
+    expect(items.some((item) => item.kind === 'hiring')).toBe(false)
+
+    expect(context?.mode).toBe('event')
+    expect(context?.id).toBe('evt-1')
+    expect(context?.eventIds).toEqual(['evt-1'])
+  })
+
+  it('includes tour-level logistics tasks via tour_id', async () => {
+    const { items } = await aggregateAdminCalendarItems({
+      supabase,
+      userId: 'user-1',
+      orgId: 'org-1',
+      filters: {
+        startDate: '2026-07-01',
+        endDate: '2026-07-31',
+        scope: 'tour',
+        tourId: 'tour-1',
+        types: ['task'],
+      },
+    })
+
+    const logistics = items.find((item) => item.id === 'logistics-task-lt-1')
+    expect(logistics).toBeTruthy()
+    expect(logistics?.meta?.tourId).toBe('tour-1')
+    expect(logistics?.meta?.source).toBe('logistics_tasks')
   })
 })

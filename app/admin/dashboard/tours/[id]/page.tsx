@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -103,6 +103,8 @@ import {
   TourLogisticsPanel,
 } from "@/components/admin/tours/panels"
 import { LayoutDashboard, Briefcase, Ticket, Wallet, CalendarDays } from "lucide-react"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { GrantTourAdminsPanel } from "@/components/admin/grant-tour-admins-panel"
 
 interface Tour {
   id: string
@@ -211,7 +213,10 @@ function parseWorkflowActivityFilter(value: string | null): WorkflowActivityFilt
   return allowed.includes(value as WorkflowActivityFilter) ? (value as WorkflowActivityFilter) : null
 }
 
-function buildNoStoreInit(input?: RequestInit): RequestInit {
+function buildNoStoreInit(
+  actingHeaders: Record<string, string>,
+  input?: RequestInit,
+): RequestInit {
   return {
     credentials: 'include',
     cache: 'no-store',
@@ -219,6 +224,7 @@ function buildNoStoreInit(input?: RequestInit): RequestInit {
     headers: {
       'Cache-Control': 'no-cache',
       Pragma: 'no-cache',
+      ...actingHeaders,
       ...(input?.headers || {}),
     },
   }
@@ -240,6 +246,11 @@ export default function TourManagementPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback(
+    (input?: RequestInit) => buildNoStoreInit(actingHeaders, input),
+    [actingHeaders],
+  )
   const justPublished = searchParams.get('published') === '1' || searchParams.get('published') === 'true'
   const tourId = params.id as string
 
@@ -301,10 +312,13 @@ export default function TourManagementPage() {
 
   useEffect(() => {
     const fetchTourData = async () => {
+      if (!isActingReady) return
       try {
         setIsLoading(true)
+        setTour(null)
+        setEvents([])
 
-        const tourResponse = await fetch(`/api/admin/tours/${tourId}`, buildNoStoreInit())
+        const tourResponse = await fetch(`/api/admin/tours/${tourId}`, adminRequest())
         if (tourResponse.ok) {
           const tourPayload = await tourResponse.json()
           const tourData = tourPayload.tour || tourPayload
@@ -316,7 +330,7 @@ export default function TourManagementPage() {
           toast.error('Could not load tour')
         }
 
-        const eventsResponse = await fetch(`/api/admin/tours/${tourId}/events`, buildNoStoreInit())
+        const eventsResponse = await fetch(`/api/admin/tours/${tourId}/events`, adminRequest())
         if (eventsResponse.ok) {
           const eventsData = await eventsResponse.json()
           const normalizedEvents = (eventsData.events || []).map((event: any) => {
@@ -356,15 +370,15 @@ export default function TourManagementPage() {
           setEvents([])
         }
 
-        const teamResponse = await fetch(`/api/admin/tours/teams?tour_id=${tourId}`, buildNoStoreInit())
+        const teamResponse = await fetch(`/api/admin/tours/team-members?tour_id=${tourId}`, adminRequest())
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()
-          setMembers(teamData.data || teamData.team_members || [])
+          setMembers(teamData.data || [])
         } else {
           setMembers([])
         }
 
-        const vendorsResponse = await fetch(`/api/admin/tours/vendors?tour_id=${tourId}`, buildNoStoreInit())
+        const vendorsResponse = await fetch(`/api/admin/tours/vendors?tour_id=${tourId}`, adminRequest())
         if (vendorsResponse.ok) {
           const vendorsData = await vendorsResponse.json()
           setVendors(vendorsData.data || vendorsData.vendors || [])
@@ -373,7 +387,7 @@ export default function TourManagementPage() {
         }
 
         try {
-          const finRes = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}`, buildNoStoreInit())
+          const finRes = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}`, adminRequest())
           if (finRes.ok) {
             const finData = await finRes.json()
             setTourFinances(finData.recentTransactions || finData.transactions || [])
@@ -395,7 +409,7 @@ export default function TourManagementPage() {
     if (tourId) {
       fetchTourData()
     }
-  }, [tourId])
+  }, [actingContextKey, adminRequest, isActingReady, tourId])
 
   useEffect(() => {
     async function loadWorkflowSummary() {
@@ -405,7 +419,7 @@ export default function TourManagementPage() {
       try {
         const threadResponse = await fetch(
           '/api/workflows/threads',
-          buildNoStoreInit({
+          adminRequest({
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
@@ -429,9 +443,9 @@ export default function TourManagementPage() {
         }
 
         const [tasksResponse, messagesResponse, eventsResponse] = await Promise.all([
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, buildNoStoreInit()),
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, buildNoStoreInit()),
-          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/events?limit=120`, buildNoStoreInit()),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, adminRequest()),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, adminRequest()),
+          fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/events?limit=120`, adminRequest()),
         ])
 
         const tasksPayload = tasksResponse.ok ? await tasksResponse.json() : { tasks: [] }
@@ -480,24 +494,28 @@ export default function TourManagementPage() {
     }
 
     void loadWorkflowSummary()
-  }, [tourId, members.length, events.length])
+  }, [adminRequest, tourId, members.length, events.length])
 
   const handleStatusChange = async (newStatus: Tour['status']) => {
     try {
+      const isPublish = newStatus === 'active' && tour?.status !== 'active'
       const response = await fetch(
-        `/api/admin/tours/${tourId}`,
-        buildNoStoreInit({
-          method: 'PATCH',
+        isPublish ? `/api/admin/tours/${tourId}/publish` : `/api/admin/tours/${tourId}`,
+        adminRequest({
+          method: isPublish ? 'POST' : 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify(isPublish ? {} : { status: newStatus }),
         })
       )
 
       if (response.ok) {
-        setTour(prev => prev ? { ...prev, status: newStatus } : null)
+        const payload = await response.json().catch(() => ({}))
+        if (payload.tour) setTour(payload.tour)
+        else setTour(prev => prev ? { ...prev, status: newStatus } : null)
         toast.success(`Tour status updated to ${newStatus}`)
       } else {
-        throw new Error('Failed to update tour status')
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error || 'Failed to update tour status')
       }
     } catch (error) {
       console.error('Error updating tour status:', error)
@@ -507,7 +525,7 @@ export default function TourManagementPage() {
 
   const handleDeleteTour = async () => {
     try {
-      const response = await fetch(`/api/admin/tours/${tourId}`, buildNoStoreInit({ method: 'DELETE' }))
+      const response = await fetch(`/api/admin/tours/${tourId}`, adminRequest({ method: 'DELETE' }))
 
       if (response.ok) {
         toast.success('Tour deleted. Linked events were detached, not deleted.')
@@ -525,7 +543,7 @@ export default function TourManagementPage() {
     try {
       const response = await fetch(
         `/api/admin/tours/${tourId}/publish`,
-        buildNoStoreInit({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+        adminRequest({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
       )
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
@@ -558,7 +576,7 @@ export default function TourManagementPage() {
 
       const response = await fetch(
         `/api/admin/tours/${tourId}`,
-        buildNoStoreInit({
+        adminRequest({
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -592,11 +610,43 @@ export default function TourManagementPage() {
     setShowExportDialog(true)
   }
 
+  const downloadTourExport = async (format: 'pdf' | 'csv') => {
+    try {
+      const sections = Object.entries(exportSections)
+        .filter(([, enabled]) => enabled)
+        .map(([key]) => key)
+        .join(',')
+      const response = await fetch(
+        `/api/admin/tours/${tourId}/export?format=${format}&sections=${encodeURIComponent(sections)}`,
+        adminRequest(),
+      )
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        throw new Error(payload.error || 'Failed to export tour')
+      }
+
+      const disposition = response.headers.get('content-disposition') || ''
+      const filename = disposition.match(/filename="?([^";]+)"?/i)?.[1] || `tour-report.${format}`
+      const blobUrl = URL.createObjectURL(await response.blob())
+      const anchor = document.createElement('a')
+      anchor.href = blobUrl
+      anchor.download = filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(blobUrl)
+      setShowExportDialog(false)
+      toast.success(`${format.toUpperCase()} export downloaded`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to export tour')
+    }
+  }
+
   const handleDuplicateTour = async () => {
     try {
       const response = await fetch(
         '/api/admin/tours',
-        buildNoStoreInit({
+        adminRequest({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -951,9 +1001,22 @@ export default function TourManagementPage() {
                 className="bg-gradient-to-r from-purple-600 to-blue-600 text-white"
                 onClick={async () => {
                   try {
-                    const res = await fetch(`/api/admin/tours/${tourId}/publish`, { method: 'POST', credentials: 'include' })
+                    const res = await fetch(
+                      `/api/admin/tours/${tourId}/publish`,
+                      adminRequest({ method: 'POST' }),
+                    )
                     const data = await res.json().catch(() => ({}))
-                    if (!res.ok) throw new Error(data.error || 'Publish failed')
+                    if (!res.ok) {
+                      const blockers = Array.isArray(data?.readiness?.blockers)
+                        ? data.readiness.blockers
+                            .map((item: { label?: string; detail?: string }) => item.label || item.detail)
+                            .filter(Boolean)
+                        : []
+                      const detail = blockers.length
+                        ? blockers.slice(0, 4).join(' · ')
+                        : data.error || 'Publish failed'
+                      throw new Error(detail)
+                    }
                     toast.success('Tour published')
                     router.push(`/admin/dashboard/tours/${tourId}?published=1`)
                   } catch (error: any) {
@@ -1194,6 +1257,7 @@ export default function TourManagementPage() {
 
           {/* Team Tab */}
           <OperationsTabPanel value="team" className="space-y-6">
+            <GrantTourAdminsPanel tourId={tourId} />
             <TourTeamPanel
               tourId={tourId}
               members={members}
@@ -1475,28 +1539,14 @@ export default function TourManagementPage() {
               <div className="flex space-x-2">
                   <Button
                     className="flex-1 bg-purple-600 hover:bg-purple-700"
-                    onClick={() => {
-                      const sections = Object.entries(exportSections)
-                        .filter(([, enabled]) => enabled)
-                        .map(([key]) => key)
-                        .join(",")
-                      window.location.href = `/api/admin/tours/${tourId}/export?format=pdf&sections=${encodeURIComponent(sections)}`
-                      setShowExportDialog(false)
-                    }}
+                    onClick={() => void downloadTourExport('pdf')}
                   >
                     <Download className="mr-2 h-4 w-4" />
-                    HTML Report
+                    Export as PDF
                   </Button>
                   <Button
                     className="flex-1 bg-green-600 hover:bg-green-700"
-                    onClick={() => {
-                      const sections = Object.entries(exportSections)
-                        .filter(([, enabled]) => enabled)
-                        .map(([key]) => key)
-                        .join(",")
-                      window.location.href = `/api/admin/tours/${tourId}/export?format=csv&sections=${encodeURIComponent(sections)}`
-                      setShowExportDialog(false)
-                    }}
+                    onClick={() => void downloadTourExport('csv')}
                   >
                     <Download className="mr-2 h-4 w-4" />
                     Export as CSV

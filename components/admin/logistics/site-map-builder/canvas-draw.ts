@@ -144,3 +144,89 @@ export function drawFittedLabel(ctx: CanvasRenderingContext2D, label: string, x:
   }
   ctx.fillText(fitted, x, y)
 }
+
+export function drawSelectionOutline(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number },
+  color = '#2dd4bf'
+) {
+  ctx.save()
+  ctx.strokeStyle = color
+  ctx.lineWidth = 2
+  ctx.setLineDash([6, 4])
+  ctx.strokeRect(rect.x - 1, rect.y - 1, rect.width + 2, rect.height + 2)
+  ctx.setLineDash([])
+  const handle = 7
+  const corners = [
+    [rect.x, rect.y],
+    [rect.x + rect.width, rect.y],
+    [rect.x, rect.y + rect.height],
+    [rect.x + rect.width, rect.y + rect.height],
+  ]
+  ctx.fillStyle = '#0f172a'
+  ctx.strokeStyle = color
+  for (const [cx, cy] of corners) {
+    ctx.beginPath()
+    ctx.rect(cx - handle / 2, cy - handle / 2, handle, handle)
+    ctx.fill()
+    ctx.stroke()
+  }
+  ctx.restore()
+}
+
+export function drawScaleBarHud(
+  ctx: CanvasRenderingContext2D,
+  {
+    cssWidth,
+    cssHeight,
+    worldLength,
+    screenLength,
+    label,
+  }: {
+    cssWidth: number
+    cssHeight: number
+    worldLength: number
+    screenLength: number
+    label: string
+  }
+) {
+  const barW = Math.max(32, Math.min(160, screenLength))
+  const x = 16
+  const y = cssHeight - 28
+  ctx.save()
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.82)'
+  ctx.strokeStyle = 'rgba(45, 212, 191, 0.55)'
+  ctx.lineWidth = 1
+  roundRect(ctx, x - 8, y - 18, barW + 48, 30, 6)
+  ctx.fill()
+  ctx.stroke()
+  ctx.strokeStyle = '#f59e0b'
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(x, y)
+  ctx.lineTo(x + barW, y)
+  ctx.moveTo(x, y - 4)
+  ctx.lineTo(x, y + 4)
+  ctx.moveTo(x + barW, y - 4)
+  ctx.lineTo(x + barW, y + 4)
+  ctx.stroke()
+  ctx.fillStyle = '#e2e8f0'
+  ctx.font = '600 10px ui-monospace, SFMono-Regular, Menlo, monospace'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(label || `${Math.round(worldLength)}`, x + barW + 8, y)
+  ctx.restore()
+}
+
+export function drawWorldBoundary(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  theme: 'dark' | 'light' = 'dark'
+) {
+  ctx.save()
+  ctx.strokeStyle = theme === 'dark' ? 'rgba(45, 212, 191, 0.35)' : 'rgba(15, 118, 110, 0.4)'
+  ctx.lineWidth = 2
+  ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+  ctx.restore()
+}

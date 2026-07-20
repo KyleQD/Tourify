@@ -1,0 +1,15 @@
+{
+  "request": {
+    "asset_id": "asset_example",
+    "proposed_treatment": "escrow",
+    "receiving_steward_id": "steward_example",
+    "evidence_manifest_id": "manifest_example",
+    "public_notice_days": 45,
+    "rollback_plan_version": "1"
+  },
+  "response": {
+    "proposal_id": "atp_example",
+    "status": "title_review",
+    "irreversible": false
+  }
+}

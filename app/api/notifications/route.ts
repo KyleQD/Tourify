@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { NotificationService } from '@/lib/services/notification-service'
-import { ProductionAuthService } from '@/lib/auth/production-auth'
-import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
+import { resolveActingContext } from '@/lib/auth/acting-context'
+import { generalNotificationTarget } from '@/lib/notifications/notification-target'
 
-// Validation schemas
+/**
+ * Auth model: bearer/cookie via `resolveActingContext` → `authenticateApiRequest` (user-scoped).
+ * NotificationService may use service-role internally for cross-user fanout writes;
+ * this route never elevates the request client to service-role for ownership checks.
+ */
+
 const createNotificationSchema = z.object({
   userId: z.string().uuid(),
   type: z.string(),
@@ -16,43 +21,16 @@ const createNotificationSchema = z.object({
   relatedContentId: z.string().optional(),
   relatedContentType: z.string().optional(),
   priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
-  expiresAt: z.string().optional()
+  expiresAt: z.string().optional(),
+  targetProfileId: z.string().uuid().optional(),
+  targetAccountType: z.enum(['general', 'artist', 'service', 'venue', 'organization']).optional(),
 })
 
-const updatePreferencesSchema = z.object({
-  emailEnabled: z.boolean().optional(),
-  pushEnabled: z.boolean().optional(),
-  smsEnabled: z.boolean().optional(),
-  inAppEnabled: z.boolean().optional(),
-  preferences: z.record(z.object({
-    email: z.boolean(),
-    push: z.boolean(),
-    sms: z.boolean()
-  })).optional(),
-  digestFrequency: z.enum(['never', 'hourly', 'daily', 'weekly']).optional(),
-  quietHoursEnabled: z.boolean().optional(),
-  quietHoursStart: z.string().optional(),
-  quietHoursEnd: z.string().optional()
-})
-
-// Helper function to get authenticated user using unified auth service
-async function getAuthenticatedUser(request: NextRequest) {
-  const authResult = await ProductionAuthService.authenticateRequest(request)
-  
-  if ('error' in authResult) {
-    return null
-  }
-  
-  return authResult.user
-}
-
-// GET /api/notifications - Get user's notifications
+// GET /api/notifications - Get user's notifications for the active account
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')
@@ -60,14 +38,20 @@ export async function GET(request: NextRequest) {
     const unreadOnly = searchParams.get('unreadOnly') === 'true'
     const type = searchParams.get('type') || undefined
 
-    const result = await NotificationService.getUserNotifications(user.id, {
+    const result = await NotificationService.getUserNotifications(ctx.userId, {
       limit,
       offset,
       unreadOnly,
-      type
+      type,
+      targetProfileId: ctx.profileId,
+      accountType: ctx.accountType,
     })
 
-    return NextResponse.json({ notifications: result.notifications, totalCount: result.totalCount, unreadCount: result.unreadCount })
+    return NextResponse.json({
+      notifications: result.notifications,
+      totalCount: result.totalCount,
+      unreadCount: result.unreadCount,
+    })
   } catch (error) {
     console.error('Error fetching notifications:', error)
     return NextResponse.json(
@@ -80,31 +64,33 @@ export async function GET(request: NextRequest) {
 // POST /api/notifications - Create a new notification
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
     const body = await request.json()
     const validatedData = createNotificationSchema.parse(body)
 
-    // Check if user is admin or creating notification for themselves
-    const { data: profile } = await supabase
+    const { data: profile } = await ctx.supabase
       .from('profiles')
       .select('is_admin')
-      .eq('id', user.id)
+      .eq('id', ctx.userId)
       .single()
 
-    if (!profile?.is_admin && validatedData.userId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    if (!profile?.is_admin && validatedData.userId !== ctx.userId) {
+      return NextResponse.json({ error: 'Forbidden', code: 'forbidden' }, { status: 403 })
     }
 
-    const notification = await NotificationService.createNotification(validatedData)
+    const defaultTarget = generalNotificationTarget(validatedData.userId)
+    const notification = await NotificationService.createNotification({
+      ...validatedData,
+      targetProfileId: validatedData.targetProfileId ?? defaultTarget.targetProfileId,
+      targetAccountType: validatedData.targetAccountType ?? defaultTarget.targetAccountType,
+    })
 
     return NextResponse.json({ notification })
   } catch (error) {
     console.error('Error creating notification:', error)
-    
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Validation failed', details: error.errors },
@@ -122,10 +108,8 @@ export async function POST(request: NextRequest) {
 // PATCH /api/notifications - Update notification (mark as read, etc.)
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
     const body = await request.json()
     const { action, notificationId } = body
@@ -135,12 +119,16 @@ export async function PATCH(request: NextRequest) {
         if (!notificationId) {
           return NextResponse.json({ error: 'Notification ID required' }, { status: 400 })
         }
-        await NotificationService.markAsRead(notificationId, user.id)
+        await NotificationService.markAsRead(notificationId, ctx.userId)
         return NextResponse.json({ success: true })
 
-      case 'markAllAsRead':
-        const markedCount = await NotificationService.markAllAsRead(user.id)
+      case 'markAllAsRead': {
+        const markedCount = await NotificationService.markAllAsRead(ctx.userId, {
+          targetProfileId: ctx.profileId,
+          accountType: ctx.accountType,
+        })
         return NextResponse.json({ success: true, count: markedCount })
+      }
 
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
@@ -157,10 +145,8 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/notifications - Delete a notification
 export async function DELETE(request: NextRequest) {
   try {
-    const user = await getAuthenticatedUser(request)
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
     const { searchParams } = new URL(request.url)
     const notificationId = searchParams.get('id')
@@ -169,7 +155,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Notification ID required' }, { status: 400 })
     }
 
-    await NotificationService.deleteNotification(notificationId, user.id)
+    await NotificationService.deleteNotification(notificationId, ctx.userId)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error deleting notification:', error)
@@ -178,4 +164,4 @@ export async function DELETE(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

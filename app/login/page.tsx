@@ -17,6 +17,22 @@ export default function LoginPage() {
   const [appliedLocation, setAppliedLocation] = useState("")
   const [isLocating, setIsLocating] = useState(false)
 
+  // Prevent post-logout auto re-auth from leftover browser storage.
+  useEffect(() => {
+    try {
+      const keys = Object.keys(localStorage).filter(
+        (key) =>
+          key.includes('sb-cloudify-auth') ||
+          key.includes('supabase.auth') ||
+          key === 'sb-cloudify-auth-token' ||
+          key === 'cloudify_remember_session'
+      )
+      for (const key of keys) localStorage.removeItem(key)
+    } catch {
+      /* noop */
+    }
+  }, [])
+
   useEffect(() => {
     let hasMounted = true
 

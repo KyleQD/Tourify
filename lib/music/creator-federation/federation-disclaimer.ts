@@ -1,0 +1,2 @@
+export const CREATOR_FEDERATION_DISCLAIMER =
+  "Federation readiness sandbox only — not federation membership by Tourify account or Phase 9 cooperative membership. Credentials are evidence, not expanded authority. Local sovereignty is default-deny. No automatic data pooling, representation, collective licensing, or bargaining. Feature flags are never legal authority. Tourify is a technical service provider, not the federation entity."

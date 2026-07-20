@@ -133,6 +133,9 @@ describe("shared api contracts", () => {
             event_date: new Date().toISOString(),
             venue_name: "Main Hall",
             venue_city: "Nashville",
+            poster_url: "https://cdn.example.com/poster.jpg",
+            ticket_price_min: 20,
+            ticket_price_max: 45,
           },
         ],
         nearby_events: [
@@ -140,6 +143,9 @@ describe("shared api contracts", () => {
             id: "event-1",
             title: "Launch Show",
             venue_city: "Nashville",
+            poster_url: "https://cdn.example.com/poster.jpg",
+            ticket_price_min: 20,
+            ticket_price_max: 45,
           },
         ],
         people: [
@@ -150,10 +156,25 @@ describe("shared api contracts", () => {
             display_name: "Tourify Artist",
             verified: true,
             location: "Nashville",
+            genres: ["Indie"],
+            top_track: {
+              id: "track-1",
+              title: "Midnight Drive",
+              file_url: "/api/music/stream?trackId=track-1",
+            },
           },
         ],
         artists: [],
-        venues: [],
+        venues: [
+          {
+            id: "venue-1",
+            username: "mainhall",
+            account_type: "venue",
+            display_name: "Main Hall",
+            verified: true,
+            location: "Nashville",
+          },
+        ],
         suggestions: [],
         new_music: [
           {
@@ -164,7 +185,51 @@ describe("shared api contracts", () => {
           },
         ],
         trending_music: [],
-        new_artists: [],
+        top_songs: [
+          {
+            id: "track-1",
+            title: "Midnight Drive",
+            artist_name: "Tourify Artist",
+            artist_username: "tourify",
+            plays: 120,
+            likes: 18,
+          },
+        ],
+        top_albums_by_genre: [
+          {
+            id: "album-1",
+            title: "Night Roads",
+            artist_name: "Tourify Artist",
+            genre: "Indie",
+            plays: 40,
+            likes: 8,
+          },
+        ],
+        tours: [
+          {
+            id: "tour-1",
+            slug: "summer-run",
+            name: "Summer Run",
+            event_count: 4,
+            cities: ["Nashville", "Austin"],
+            artist_names: ["Tourify Artist"],
+          },
+        ],
+        new_artists: [
+          {
+            id: "profile-1",
+            username: "tourify",
+            account_type: "artist",
+            display_name: "Tourify Artist",
+            verified: true,
+            genres: ["Indie"],
+            top_track: {
+              id: "track-1",
+              title: "Midnight Drive",
+              file_url: "/api/music/stream?trackId=track-1",
+            },
+          },
+        ],
       },
       stats: {
         trending_count: 1,
@@ -179,6 +244,12 @@ describe("shared api contracts", () => {
     expect(parsed.success).toBe(true)
     expect(parsed.sections.people).toHaveLength(1)
     expect(parsed.sections.trending[0]?.likes_count).toBe(10)
+    expect(parsed.sections.top_songs?.[0]?.plays).toBe(120)
+    expect(parsed.sections.top_albums_by_genre?.[0]?.genre).toBe("Indie")
+    expect(parsed.sections.new_artists?.[0]?.top_track?.id).toBe("track-1")
+    expect(parsed.sections.upcoming[0]?.ticket_price_min).toBe(20)
+    expect(parsed.sections.venues?.[0]?.account_type).toBe("venue")
+    expect(parsed.sections.tours?.[0]?.slug).toBe("summer-run")
   })
 
   it("accepts valid marketplace checkout payloads", () => {

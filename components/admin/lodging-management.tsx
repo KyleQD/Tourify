@@ -46,6 +46,14 @@ interface LodgingManagementProps {
   tourId?: string
 }
 
+interface WorkforcePersonOption {
+  userId: string
+  name: string
+  email: string | null
+  role: string | null
+  staffMemberId: string | null
+}
+
 export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState("bookings")
@@ -56,6 +64,7 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
   const [isGuestAssignmentDialogOpen, setIsGuestAssignmentDialogOpen] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState<LodgingBooking | null>(null)
   const [selectedProvider, setSelectedProvider] = useState<LodgingProvider | null>(null)
+  const [workforcePeople, setWorkforcePeople] = useState<WorkforcePersonOption[]>([])
 
   // Fetch data
   const { 
@@ -144,6 +153,43 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
     fetchProviders()
     fetchGuestAssignments()
   }, [eventId, tourId, fetchBookings, fetchProviders, fetchGuestAssignments])
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadWorkforcePeople() {
+      if (!eventId && !tourId) {
+        setWorkforcePeople([])
+        return
+      }
+      try {
+        const params = new URLSearchParams()
+        if (eventId) params.set("event_id", eventId)
+        if (tourId) params.set("tour_id", tourId)
+        const response = await fetch(`/api/admin/workforce/people?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        })
+        const payload = await response.json().catch(() => ({}))
+        if (cancelled) return
+        const rows = Array.isArray(payload.people) ? payload.people : Array.isArray(payload.members) ? payload.members : []
+        setWorkforcePeople(
+          rows.map((row: any) => ({
+            userId: String(row.userId ?? row.user_id ?? row.id),
+            name: String(row.name ?? row.full_name ?? "Staff member"),
+            email: row.email ?? null,
+            role: row.role ?? null,
+            staffMemberId: row.staffMemberId ?? row.staff_member_id ?? null,
+          })).filter((row: WorkforcePersonOption) => row.userId)
+        )
+      } catch {
+        if (!cancelled) setWorkforcePeople([])
+      }
+    }
+    void loadWorkforcePeople()
+    return () => {
+      cancelled = true
+    }
+  }, [eventId, tourId])
 
   // Handle form submission
   const handleCreateBooking = async () => {
@@ -421,7 +467,6 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="bookings">Bookings</TabsTrigger>
           <TabsTrigger value="guests">Guest Assignments</TabsTrigger>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
         </TabsList>
 
         {/* Bookings Tab */}
@@ -563,6 +608,44 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
                     </Select>
                   </div>
                   <div className="space-y-2">
+                    <Label>Roster member</Label>
+                    <Select
+                      value={guestAssignmentForm.team_member_id || "__manual__"}
+                      onValueChange={(value) => {
+                        if (value === "__manual__") {
+                          setGuestAssignmentForm({
+                            ...guestAssignmentForm,
+                            team_member_id: "",
+                            staff_id: "",
+                            crew_member_id: "",
+                          })
+                          return
+                        }
+                        const person = workforcePeople.find((row) => row.userId === value)
+                        setGuestAssignmentForm({
+                          ...guestAssignmentForm,
+                          team_member_id: value,
+                          staff_id: person?.staffMemberId || "",
+                          crew_member_id: person?.staffMemberId || "",
+                          guest_name: person?.name || guestAssignmentForm.guest_name,
+                          guest_email: person?.email || guestAssignmentForm.guest_email,
+                        })
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select from roster" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__manual__">Enter manually</SelectItem>
+                        {workforcePeople.map((person) => (
+                          <SelectItem key={person.userId} value={person.userId}>
+                            {person.name}{person.role ? ` · ${person.role}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
                     <Label>Guest Name</Label>
                     <Input 
                       value={guestAssignmentForm.guest_name}
@@ -661,21 +744,6 @@ export function LodgingManagement({ eventId, tourId }: LodgingManagementProps) {
           </div>
         </TabsContent>
 
-        {/* Calendar Tab */}
-        <TabsContent value="calendar" className="space-y-4">
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-slate-100">Lodging Calendar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-12 text-slate-400">
-                <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Calendar integration coming soon</p>
-                <p className="text-sm">View all lodging bookings in a calendar format</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Edit Booking Dialog */}

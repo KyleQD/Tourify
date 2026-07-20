@@ -25,7 +25,6 @@ import {
   HelpCircle,
   Video,
   ShoppingBag,
-  Zap,
   Grid3X3,
   PenTool,
   DollarSign,
@@ -60,13 +59,13 @@ export function SidebarNavigation() {
     },
     {
       title: "Dashboard",
-      href: "/(main)/dashboard",
+      href: "/venue/dashboard",
       icon: <BarChart3 className="h-5 w-5" />,
       tooltip: "View your analytics dashboard",
     },
     {
       title: "Network",
-      href: "/(main)/network",
+      href: "/venue/staff",
       icon: <Users className="h-5 w-5" />,
       tooltip: "Connect with other professionals",
     },
@@ -92,14 +91,8 @@ export function SidebarNavigation() {
       tooltip: "Manage venue bookings and requests",
     },
     {
-      title: "Music",
-      href: "/(main)/music",
-      icon: <Music className="h-5 w-5" />,
-      tooltip: "Upload and manage your music",
-    },
-    {
       title: "Messages",
-      href: "/(main)/messages",
+      href: "/venue/messages",
       icon: <MessageSquare className="h-5 w-5" />,
       badge: 2,
       tooltip: "View your messages and conversations",
@@ -109,28 +102,21 @@ export function SidebarNavigation() {
   const contentNavItems: NavItem[] = [
     {
       title: "Posts",
-      href: "/content/posts",
+      href: "/venue/dashboard",
       icon: <PenTool className="h-5 w-5" />,
       tooltip: "Create and manage your posts",
     },
     {
       title: "Videos",
-      href: "/content/videos",
+      href: "/venue/dashboard",
       icon: <Video className="h-5 w-5" />,
       tooltip: "Upload and manage your videos",
     },
     {
       title: "Photos",
-      href: "/content/photos",
+      href: "/venue/documents",
       icon: <ImageIcon className="h-5 w-5" />,
       tooltip: "Upload and manage your photos",
-    },
-    {
-      title: "EPK",
-      href: "/epk",
-      icon: <FileText className="h-5 w-5" />,
-      badge: "Pro",
-      tooltip: "Create your electronic press kit",
     },
   ]
 
@@ -143,7 +129,7 @@ export function SidebarNavigation() {
     },
     {
       title: "Equipment",
-      href: "/equipment",
+      href: "/venue/equipment",
       icon: <Mic className="h-5 w-5" />,
       isNew: true,
       tooltip: "Manage venue equipment",
@@ -177,12 +163,6 @@ export function SidebarNavigation() {
       tooltip: "Manage your merchandise",
     },
     {
-      title: "Promotions",
-      href: "/promotions",
-      icon: <Zap className="h-5 w-5" />,
-      tooltip: "Create and manage promotions",
-    },
-    {
       title: "Analytics",
       href: "/venue/analytics",
       icon: <BarChart3 className="h-5 w-5" />,
@@ -200,17 +180,17 @@ export function SidebarNavigation() {
   const resourceItems: NavItem[] = [
     {
       title: "Documents",
-      href: "/(main)/documents",
+      href: "/venue/documents",
       icon: <FileText className="h-5 w-5" />,
     },
     {
       title: "Gallery",
-      href: "/(main)/gallery",
+      href: "/venue/documents",
       icon: <ImageIcon className="h-5 w-5" />,
     },
     {
       title: "Messages",
-      href: "/(main)/messages",
+      href: "/venue/messages",
       icon: <MessageSquare className="h-5 w-5" />,
     },
   ]
@@ -303,7 +283,7 @@ export function SidebarNavigation() {
             {/* All Features Button */}
             <div className="px-3 py-2">
               <Link
-                href="/features"
+                href="/venue/dashboard"
                 className="flex items-center justify-center w-full gap-2 py-2.5 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white font-medium hover:from-purple-700 hover:to-blue-700 transition-colors"
               >
                 <Grid3X3 className="h-5 w-5" />
@@ -324,10 +304,10 @@ export function SidebarNavigation() {
             <span>Settings</span>
           </Link>
           <Link
-            href="/help"
+            href="/faq"
             className={cn(
               "flex items-center gap-3 rounded-lg px-3 py-2 mt-1 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50",
-              pathname === "/help" && "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50",
+              pathname === "/faq" && "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50",
             )}
           >
             <HelpCircle className="h-5 w-5" />
@@ -533,10 +513,10 @@ export function SidebarNavigation() {
                 <span>Settings</span>
               </Link>
               <Link
-                href="/help"
+                href="/faq"
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 mt-1 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50",
-                  pathname === "/help" && "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50",
+                  pathname === "/faq" && "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-50",
                 )}
                 onClick={() => setIsOpen(false)}
               >

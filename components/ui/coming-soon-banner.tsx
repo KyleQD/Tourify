@@ -7,8 +7,8 @@ interface ComingSoonBannerProps {
 }
 
 export function ComingSoonBanner({
-  title = "Coming soon",
-  description = "This feature is under active development and will be available in a future release.",
+  title = "Not available",
+  description = "This feature is not available yet.",
   className,
 }: ComingSoonBannerProps) {
   return (

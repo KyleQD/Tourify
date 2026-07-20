@@ -4,12 +4,17 @@ import {
   buildIcsCalendar,
   resolveDoorsOpenTime,
 } from '@/lib/admin/calendar/ics'
+import {
+  getStoredCalendarToken,
+  isValidCalendarFeedToken,
+} from '@/lib/calendar/feed-token'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: eventId } = await params
+  const token = new URL(request.url).searchParams.get('token')
 
   if (!eventId) return new NextResponse('Event not found', { status: 404 })
 
@@ -26,6 +31,15 @@ export async function GET(
   const settings = (event.settings && typeof event.settings === 'object'
     ? event.settings
     : {}) as Record<string, unknown>
+
+  if (!isValidCalendarFeedToken({
+    resourceType: 'event',
+    resourceId: event.id,
+    token,
+    storedToken: getStoredCalendarToken(settings),
+  })) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
   const venueLabel = typeof settings.venue_label === 'string' ? settings.venue_label : ''
   const startAt = new Date(event.start_at)
   const endAt = event.end_at ? new Date(event.end_at) : new Date(startAt.getTime() + 2 * 60 * 60 * 1000)
@@ -89,7 +103,7 @@ export async function GET(
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `attachment; filename="event-${eventId}.ics"`,
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'private, max-age=300',
     },
   })
 }

@@ -1,0 +1,11 @@
+{
+  "eventId": "relationship-status-1",
+  "agreementId": "agreement-1",
+  "counterparty": "external-organization",
+  "status": "effective",
+  "effectiveAt": "2029-01-01T00:00:00Z",
+  "scope": [
+    "technical_liaison"
+  ],
+  "signature": "JWS_PLACEHOLDER"
+}

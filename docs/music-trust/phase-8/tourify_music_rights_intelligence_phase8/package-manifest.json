@@ -1,0 +1,326 @@
+{
+  "package": "tourify_music_rights_intelligence_phase8",
+  "generated_at": "2026-07-18T01:48:17.200881+00:00",
+  "files": [
+    {
+      "path": "00_PHASE_8_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 2827,
+      "sha256": "89147ea108f73a0db6b1a784ae9ebe6171d1563180cc335be03d032bc9123556"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_USER_JOURNEYS.md",
+      "bytes": 2637,
+      "sha256": "512afd0fe27c0d214a2a3284e3941eb7743db0eea08862a71d93f0f587e302a7"
+    },
+    {
+      "path": "02_GOVERNANCE_ENTITY_AND_ROLE_BOUNDARIES.md",
+      "bytes": 2385,
+      "sha256": "0b707fd02745b565bb6623284ecaeed431759dc44a5cccc7bab2fc4e59466fe9"
+    },
+    {
+      "path": "03_CONSENT_PURPOSE_DATA_RIGHTS_AND_OPT_OUT.md",
+      "bytes": 2459,
+      "sha256": "8bb6c0b4b15037f1a261a46b120247454edeab857d242c9035f2ab6418db5552"
+    },
+    {
+      "path": "04_DATA_CLASSIFICATION_LINEAGE_AND_SOURCE_OF_TRUTH.md",
+      "bytes": 2275,
+      "sha256": "3b75337dd71a4385e27de2510bc0e85c3561e6d3e252785391c763c974f102d3"
+    },
+    {
+      "path": "05_PRIVACY_ANONYMIZATION_AND_DIFFERENTIAL_PRIVACY.md",
+      "bytes": 2259,
+      "sha256": "591afd4d060ecd2c974f16e5396b1c372aca8d8486ee2789299a8d2d299a5020"
+    },
+    {
+      "path": "06_AGGREGATION_THRESHOLDS_COHORTS_AND_CONCENTRATION.md",
+      "bytes": 2120,
+      "sha256": "e3193d7ec80cb86e2f3ecef849eb0597987a14a48b3ef4058cb8d209e94d77d1"
+    },
+    {
+      "path": "07_RIGHTS_INTELLIGENCE_METRICS_AND_BENCHMARKS.md",
+      "bytes": 2418,
+      "sha256": "48cddcd3dbed03a0817d42ed12036e325e17408924442d798e0acbf03ca29427"
+    },
+    {
+      "path": "08_POLICY_MONITORING_AND_REGULATORY_KNOWLEDGE.md",
+      "bytes": 2105,
+      "sha256": "b110cc106ce562a6a262e282b194324e6cf4bb977a38b97567e5107f7759ff8d"
+    },
+    {
+      "path": "09_CONTRACT_TERM_INTELLIGENCE_AND_BENCHMARKING.md",
+      "bytes": 2171,
+      "sha256": "0f4d0f3867eca20e91ab3efb37ff50c4f131ccbe4e73789b9fcd7ab5376ce078"
+    },
+    {
+      "path": "10_BENCHMARK_RELEASE_PUBLICATION_AND_DISCLOSURES.md",
+      "bytes": 2062,
+      "sha256": "6a1fcd41a069863985cf0fe2b4e941b920f318ff7ccaadabf3656d55090ac039"
+    },
+    {
+      "path": "11_CREATOR_EDUCATION_RISK_ALERTS_AND_DECISION_SUPPORT.md",
+      "bytes": 2066,
+      "sha256": "ace5b29aa02bbfb30885ca3e150065c65472a47ff300fe3c1a91a375c5eb365b"
+    },
+    {
+      "path": "12_NEGOTIATION_GROUP_FORMATION_AND_ELIGIBILITY.md",
+      "bytes": 2099,
+      "sha256": "2e8361a6272dd939c8488e13ae5929146dcaccf03a761f1f8ac5d88ca17325db"
+    },
+    {
+      "path": "13_ANTITRUST_LABOR_AND_COMPETITION_GUARDRAILS.md",
+      "bytes": 2363,
+      "sha256": "4651cb531d4d0f655b330b8f27a9521cd3339293754870e3257f6cb72e576543"
+    },
+    {
+      "path": "14_INDEPENDENT_PRICING_AND_DECISION_MAKING.md",
+      "bytes": 2195,
+      "sha256": "fdcb50a882a4db0d6b874354bca9694d3f4686782d55395d40bc85feb552b39b"
+    },
+    {
+      "path": "15_REPRESENTATION_MANDATES_AND_AUTHORITY.md",
+      "bytes": 2066,
+      "sha256": "c400a888c613eb34769decf789cf6762ea7eb04439cc8dca363f50731645fd63"
+    },
+    {
+      "path": "16_GROUP_GOVERNANCE_VOTING_AND_RATIFICATION.md",
+      "bytes": 2018,
+      "sha256": "9d897885fef472d1b6a6bc8b438c5b0825479d3ba27b3f8bdd0fd31d708398ca"
+    },
+    {
+      "path": "17_COLLECTIVE_LICENSING_CMO_AND_ENTITY_BOUNDARY.md",
+      "bytes": 2126,
+      "sha256": "f561980a339c1a8ff15469df05151dc67c36119ce4aebaf7c83bf464a839d154"
+    },
+    {
+      "path": "18_PLATFORM_ENGAGEMENT_POLICY_ADVOCACY_AND_STANDARDS.md",
+      "bytes": 2075,
+      "sha256": "e5151a22c7bc7fc5315199464f48dc8268ce7281f84db7d750f69048d50b4dc7"
+    },
+    {
+      "path": "19_AI_DATASET_VOICE_AND_MODEL_NEGOTIATION_READINESS.md",
+      "bytes": 2200,
+      "sha256": "eb7e74c3ea1aad5160c7a448e09c23517d18f5f4bc34c26b5d9ce3556e9252b3"
+    },
+    {
+      "path": "20_ALGORITHMIC_RECOMMENDATIONS_AND_MODEL_RISK.md",
+      "bytes": 2063,
+      "sha256": "1f779b012918ffe21a53356be626b2e6fa46d2a3a8f4f498949feee456dd49ec"
+    },
+    {
+      "path": "21_DATA_CLEAN_ROOMS_SECURE_COMPUTATION_AND_RESEARCH_ACCESS.md",
+      "bytes": 2074,
+      "sha256": "5c9bd70e536ece8143fdaea64954ca0f7935e52aec6519dfe697e0f7bd43746a"
+    },
+    {
+      "path": "22_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "bytes": 2484,
+      "sha256": "33fad6bb02061a848db9611cffaafef226d9a64adee5638aaa860d81a5a76fe6"
+    },
+    {
+      "path": "23_API_EVENTS_BACKGROUND_JOBS_AND_ADAPTERS.md",
+      "bytes": 2203,
+      "sha256": "956bcb530ba8e8c5f2500be533f4b040d3db1eb613867664b74d811222fb7621"
+    },
+    {
+      "path": "24_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 1917,
+      "sha256": "ac8321f0a976441410fb0a724254e153e8685c19f846c966bbce8f9eb5783b74"
+    },
+    {
+      "path": "25_ADMIN_GOVERNANCE_COMPLIANCE_AND_APPROVALS.md",
+      "bytes": 2036,
+      "sha256": "999804b1835732530ba9e05d725f57b0a9c777732a7c44631414b0a0e34e89aa"
+    },
+    {
+      "path": "26_SECURITY_PRIVACY_AUDIT_AND_INCIDENT_RESPONSE.md",
+      "bytes": 2127,
+      "sha256": "b6576060b74f14f7ee8a2a597cad95d52d4031cf574d06ea5d32405e253f01d5"
+    },
+    {
+      "path": "27_TRANSPARENCY_APPEALS_COMPLAINTS_AND_NON_RETALIATION.md",
+      "bytes": 2022,
+      "sha256": "eff9b4f119e745d247d5c25f8544e6c5b6ad4b6474cb5167ff7a3fcfc05818da"
+    },
+    {
+      "path": "28_BUSINESS_MODEL_SERVICE_TIERS_AND_CONFLICTS.md",
+      "bytes": 2026,
+      "sha256": "15c1793c6cd2e0a8549f9c2e9c5b06bedd729585c581d81fc0fb9eb0038e43b0"
+    },
+    {
+      "path": "29_ANALYTICS_EVALUATION_AND_PUBLIC_INTEREST.md",
+      "bytes": 1969,
+      "sha256": "3046f111b6157188a3cb18e1f9923d6c6d9462d31f1f225163d03f4f0f93bbe7"
+    },
+    {
+      "path": "30_TESTING_PILOT_AND_ROLLOUT.md",
+      "bytes": 2170,
+      "sha256": "c17a344d7bdd206464fa6cf1db055cef74ab5fc6e6267086f72d094e6f0acc75"
+    },
+    {
+      "path": "31_PHASE_9_CREATOR_DATA_COOPERATIVE_AND_GLOBAL_POLICY_INFRASTRUCTURE.md",
+      "bytes": 2218,
+      "sha256": "9d3dc14e66c7f2aafd1f5b2e8d5b7af9c7552345bd2d65846303cb4718836680"
+    },
+    {
+      "path": "32_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 2247,
+      "sha256": "ef42389cfd9bb059c72eb357da231088eccb4df029c9839205284b50150fbb0f"
+    },
+    {
+      "path": "33_DEFINITION_OF_DONE.md",
+      "bytes": 2406,
+      "sha256": "6bd2f599f9969dd3b67eda21fdee641a5f674385bff808041b740c77ba8cbce1"
+    },
+    {
+      "path": "34_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 4985,
+      "sha256": "45a8f88dd6bba4c2054242d42720cd29bdfb7a378e1e1e545acdffbb6df995c4"
+    },
+    {
+      "path": "35_CURRENT_STANDARDS_LEGAL_PRIVACY_AND_COMPETITION_RESEARCH.md",
+      "bytes": 4840,
+      "sha256": "1073ff183b3c8de99b2d37da69a32f1fd328d819457efd6110ba4269a2dc1e36"
+    },
+    {
+      "path": "36_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "bytes": 2777,
+      "sha256": "a924ca1fad937792896345743d751baa2346e991c919df7dc427a43540b86d0f"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 21046,
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 1605,
+      "sha256": "6de1a6ca1d962be471f1b2f461555630df9c2412909a54fd6aaeef7e4a55dd24"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4134,
+      "sha256": "a54205c581b108b69b2198ce7f516621c94ce4331f6f0f5806e6da16abd32f94"
+    },
+    {
+      "path": "SOURCE_PHASE_7_HANDOFF.md",
+      "bytes": 3339,
+      "sha256": "6472d0641f2f7c8e7104474f8f7b1db713c5b8e8fc898e81380acc5421254cc6"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "bytes": 221,
+      "sha256": "244b51ac6e044f39377bdb7f52653c33627b52aa13c11843b7cc90bacf29b8ba"
+    },
+    {
+      "path": "phase-8-execution-plan.schema.json",
+      "bytes": 3141,
+      "sha256": "927dc29d993601d9387e6ca6f9f23ca8e5db59ee798fec8169ef6ce9c4bf138e"
+    },
+    {
+      "path": "phase-8-execution-plan.template.json",
+      "bytes": 318383,
+      "sha256": "0b51cb287c5296cab78fb19d8f9d2db1c43e1537f79dfb0bf174f815d4ff93a8"
+    },
+    {
+      "path": "reference/api-examples/activate-intelligence-consent.json",
+      "bytes": 241,
+      "sha256": "0947371d4b21251349ebc1a7b70b804ee3ec559d0bdaf8c3d61a8a8a42c39887"
+    },
+    {
+      "path": "reference/api-examples/approve-benchmark-release.json",
+      "bytes": 267,
+      "sha256": "5a400e1fe0336d2889392386a39575db8ffdba22a12fd889fc496031253aaa2e"
+    },
+    {
+      "path": "reference/api-examples/create-cohort-review.json",
+      "bytes": 344,
+      "sha256": "da668559757511c5a0fa50cb4f06ab2054908cc5c75c783586c58449df4937b6"
+    },
+    {
+      "path": "reference/api-examples/create-negotiation-readiness-group.json",
+      "bytes": 304,
+      "sha256": "b43c0ce2aaacae9024aac468179ee874cd3ef018057138af1e8f0b76f16c13a6"
+    },
+    {
+      "path": "reference/api-examples/withdraw-intelligence-consent.json",
+      "bytes": 140,
+      "sha256": "32cd22f84be79c930a3bde0628b592a1de658a852b3d4fda0a98bb44efed8f37"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/aggregation-policy.ts",
+      "bytes": 1399,
+      "sha256": "aa09fec9e06b89aa38a633b4f4ee9cf23a723d8114b2969131019dc234ed4c41"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/antitrust-guard.ts",
+      "bytes": 567,
+      "sha256": "355f58e36c7bd6a9ace6ac546fe0e29026ad79d9ffeb0bdc347fea8bf2c3dec7"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/benchmark-release.ts",
+      "bytes": 498,
+      "sha256": "c46877612122b8086944f56d114c9f8e4fc8cb7482268c1ad4f447d5c111d076"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/consent-policy.ts",
+      "bytes": 796,
+      "sha256": "d10923d976f673625b0d4aa1b6501bb0dd7a9e87a453c693df3f74a55860d1b2"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/contract-term-taxonomy.ts",
+      "bytes": 534,
+      "sha256": "2898f01f082205f54e06a07d9493c267be469663854b1690ffd5e014297c9e4a"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/data-clean-room-access.ts",
+      "bytes": 561,
+      "sha256": "ad592c58652d00833b25f880e5b0c89ae642ec8f30102c7ccee863ca770b049a"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/negotiation-group-state-machine.ts",
+      "bytes": 842,
+      "sha256": "c11b0130fb1aea86673df8c99e09b91aebef826413a017bf2f4bbc55563eaa89"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/opt-out-propagation.ts",
+      "bytes": 478,
+      "sha256": "09b17349d3e303689b31784f2473b3d9f32afdab4e82f92c78c220b3d1576cf1"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/policy-freshness.ts",
+      "bytes": 397,
+      "sha256": "559f93ba653d783eab30726b65bc1f13b8bbf1ad11247696680210fd2feef99f"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/privacy-budget.ts",
+      "bytes": 377,
+      "sha256": "af8b78a201e926bd87e64dfc201d3e7afc9fda0d97fea6560eb2eed73ff350db"
+    },
+    {
+      "path": "reference/lib/music/rights-intelligence/rights-intelligence-domain.ts",
+      "bytes": 871,
+      "sha256": "2a12fac3b0755904fe27fdb2efd392ae34170c024815da7172f51a371533e6af"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_consents_purposes_datasets_cohorts.sql",
+      "bytes": 1802,
+      "sha256": "4cd6114608e7c2ab2cfcd2109afaff8d6d3eb4434a80c71845ffd672e2936ea4"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_metrics_runs_benchmark_releases.sql",
+      "bytes": 1554,
+      "sha256": "97adf75204bb3f40e7f95e91ceb56a03d6849a1677d684a06745c22e31137290"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_policy_contract_education.sql",
+      "bytes": 1606,
+      "sha256": "41c22469626c232f4e118c57bed32bab67a9bfbe359686f30378260dcacca164"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_negotiation_groups_governance_audit.sql",
+      "bytes": 2200,
+      "sha256": "16323e80e7db283fc91ceefcbbb8f978118222167fc34ad6d0eeac55d7101e76"
+    }
+  ]
+}

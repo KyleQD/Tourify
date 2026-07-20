@@ -6,9 +6,88 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// Generated from the additive Music Trust Phase 1 schema. Kept as an
+// intersection so the repository's older handwritten compatibility types
+// remain available until the complete local schema is regenerated.
+type GeneratedTable<Row extends Record<string, unknown>> = {
+  Row: Row
+  Insert: Partial<Row>
+  Update: Partial<Row>
+}
+
+type GeneratedMusicTrustTables = {
+  music_upload_declarations: GeneratedTable<{
+    id: string; track_id: string; user_id: string; declaration_version: number
+    rights_confirmed: boolean; ai_use_category: string; ai_tools: Json
+    ai_disclosure_details: string | null; synthesized_voice_or_likeness: boolean
+    contributor_disclosures_confirmed: boolean; source_material_available: boolean
+    training_use_policy: string; music_upload_policy_version: string
+    human_music_policy_version: string; accepted_music_upload_policy: boolean
+    accepted_human_music_policy: boolean; statement_text_hash: string
+    idempotency_key: string; declared_at: string; superseded_at: string | null; created_at: string
+  }>
+  music_file_fingerprints: GeneratedTable<{
+    id: string; track_id: string; user_id: string; declaration_id: string | null
+    file_role: string; storage_bucket: string; storage_path: string; sha256: string | null
+    acoustic_fingerprint: string | null; fingerprint_algorithm: string | null
+    byte_size: number | null; mime_type: string | null; technical_metadata: Json
+    match_signals: Json; processing_status: string; attempt_count: number; max_attempts: number
+    next_attempt_at: string; locked_at: string | null; locked_by: string | null
+    processing_error_code: string | null; processing_error: string | null
+    processor_version: string | null; processed_at: string | null
+    idempotency_key: string; created_at: string; updated_at: string
+  }>
+  music_origin_records: GeneratedTable<{
+    id: string; public_id: string; track_id: string; user_id: string
+    declaration_id: string; fingerprint_id: string; version: number; schema_version: string
+    manifest_json: Json; manifest_hash: string; previous_manifest_hash: string | null
+    status: string; is_public: boolean; recorded_at: string
+    superseded_at: string | null; created_at: string
+  }>
+  music_origin_events: GeneratedTable<{
+    id: string; track_id: string; origin_record_id: string | null; actor_user_id: string | null
+    event_type: string; event_data: Json; request_id: string | null; created_at: string
+  }>
+  music_certification_cases: GeneratedTable<{
+    id: string; public_id: string; track_id: string; user_id: string; case_version: number
+    based_on_declaration_id: string; certification_type: string; standard_version: string
+    status: string; requested_level: number; disclosures: Json; contributor_confirmation: boolean
+    idempotency_key: string; submitted_at: string | null; review_started_at: string | null
+    decided_at: string | null; withdrawn_at: string | null; created_at: string; updated_at: string
+  }>
+  music_certification_evidence: GeneratedTable<{
+    id: string; case_id: string; track_id: string; user_id: string; evidence_type: string
+    storage_bucket: string; storage_path: string; original_filename: string | null
+    mime_type: string | null; byte_size: number | null; external_reference: string | null
+    sha256: string | null; metadata: Json; status: string; locked_at: string | null
+    created_at: string; reviewed_at: string | null
+  }>
+  music_certification_reviews: GeneratedTable<{
+    id: string; case_id: string; reviewer_user_id: string | null; decision: string
+    reason_codes: string[]; findings: Json; artist_message: string | null
+    internal_notes: string | null; standard_version: string; idempotency_key: string; created_at: string
+  }>
+  music_certification_events: GeneratedTable<{
+    id: string; case_id: string; actor_user_id: string | null; actor_type: string
+    event_type: string; from_status: string | null; to_status: string | null
+    event_data: Json; artist_visible: boolean; request_id: string | null; created_at: string
+  }>
+  music_certificates: GeneratedTable<{
+    id: string; public_id: string; case_id: string; track_id: string; user_id: string
+    origin_record_id: string | null; certificate_version: number; standard_version: string
+    certification_level: number; manifest_json: Json; manifest_hash: string; status: string
+    issued_at: string; suspended_at: string | null; reactivated_at: string | null
+    revoked_at: string | null; superseded_at: string | null; superseded_by: string | null; created_at: string
+  }>
+  content_report_events: GeneratedTable<{
+    id: string; report_id: string; actor_user_id: string | null; event_type: string
+    from_status: string | null; to_status: string | null; event_data: Json; created_at: string
+  }>
+}
+
 export interface Database {
   public: {
-    Tables: {
+    Tables: GeneratedMusicTrustTables & {
       posts: {
         Row: {
           id: string
@@ -349,7 +428,15 @@ export interface Database {
       }
     }
     Views: {
-      [_ in never]: never
+      music_tracks: {
+        Row: Record<string, unknown> & {
+          id: string; user_id: string; title: string; is_public: boolean; is_visible: boolean
+          moderation_status: string; rights_confirmed: boolean; ai_use_category: string
+          training_use_policy: string; origin_status: string; certification_status: string
+          certification_level: number; certification_public_id: string | null
+          certification_standard_version: string | null; certification_updated_at: string | null
+        }
+      }
     }
     Functions: {
       [_ in never]: never

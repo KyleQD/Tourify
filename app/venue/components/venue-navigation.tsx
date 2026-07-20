@@ -44,7 +44,7 @@ export default function VenueNavigation() {
     },
     {
       title: "Equipment",
-      href: "/equipment",
+      href: "/venue/equipment",
       icon: <Wrench className="h-5 w-5" />,
     },
     {
@@ -86,22 +86,22 @@ export default function VenueNavigation() {
     },
     {
       title: "Integrations",
-      href: "/integrations",
+      href: "/venue/settings",
       icon: <Link2 className="h-5 w-5" />,
       submenu: [
         {
           title: "Overview",
-          href: "/integrations",
+          href: "/venue/settings",
           icon: <Home className="h-4 w-4" />,
         },
         {
           title: "Ticketing",
-          href: "/integrations/ticketing",
+          href: "/venue/dashboard/tickets",
           icon: <Ticket className="h-4 w-4" />,
         },
         {
           title: "Export Data",
-          href: "/integrations/export",
+          href: "/venue/settings",
           icon: <Upload className="h-4 w-4" />,
         },
       ],

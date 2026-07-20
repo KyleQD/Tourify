@@ -7,14 +7,17 @@ interface CreateGroupModalProps {
   onClose: () => void
 }
 
+/** Stub modal kept for URL/import safety — group creation is not advertised. */
 export function CreateGroupModal({ isOpen, onClose }: CreateGroupModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Group (Placeholder)</DialogTitle>
+          <DialogTitle>Groups not available</DialogTitle>
         </DialogHeader>
-        <div className="text-gray-400">Group creation coming soon.</div>
+        <div className="text-muted-foreground text-sm">
+          Creating groups is not available yet.
+        </div>
       </DialogContent>
     </Dialog>
   )

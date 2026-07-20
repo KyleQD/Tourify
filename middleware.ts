@@ -3,7 +3,9 @@ import { updateSession } from '@/lib/supabase/middleware'
 import { getLegacyVenueProfileRedirect } from '@/lib/venue/routing'
 import { userHasAdminSurfaceAccess } from '@/lib/auth/admin'
 import { pathnameRequiresArtistAccount } from '@/lib/artist/protected-routes'
+import { accountTypeMatchesSection } from '@/lib/navigation/account-dashboard-routes'
 import { isPublicShareRoute } from '@/lib/routing/public-share-routes'
+import { handleApiCorsPreflight, withApiCors } from '@/lib/api/cors'
 
 const authRoutes = [
   '/login',
@@ -66,11 +68,15 @@ const productionBlockedPrefixes = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const isApiRoute = pathname.startsWith('/api/')
   const isAuthRoute = authRoutes.includes(pathname)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route))
   const isAnonymousPublicShareRoute = isPublicShareRoute(pathname)
   const isRootRoute = pathname === '/'
   const isAdminApiRoute = pathname.startsWith('/api/admin')
+
+  const corsPreflight = handleApiCorsPreflight(request)
+  if (corsPreflight) return corsPreflight
 
   const isProduction = process.env.NODE_ENV === 'production'
   const isProductionBlockedRoute = productionBlockedPrefixes.some(prefix =>
@@ -104,7 +110,8 @@ export async function middleware(request: NextRequest) {
     pathnameRequiresArtistAccount(pathname)
 
   if (!requiresSession) {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    return isApiRoute ? withApiCors(request, response) : response
   }
 
   const { supabaseResponse, user, supabase } = await updateSession(request)
@@ -138,13 +145,19 @@ export async function middleware(request: NextRequest) {
       const hasAdminAccess = await userHasAdminSurfaceAccess(supabase as never, user.id)
       if (!hasAdminAccess) {
         if (pathname.startsWith('/api/')) {
-          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+          return withApiCors(
+            request,
+            NextResponse.json({ error: 'Forbidden', code: 'forbidden' }, { status: 403 })
+          )
         }
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     } catch {
       if (pathname.startsWith('/api/')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        return withApiCors(
+          request,
+          NextResponse.json({ error: 'Forbidden', code: 'forbidden' }, { status: 403 })
+        )
       }
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
@@ -152,7 +165,10 @@ export async function middleware(request: NextRequest) {
 
   // Block unauthenticated access to /api/admin routes entirely
   if (!user && pathname.startsWith('/api/admin')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return withApiCors(
+      request,
+      NextResponse.json({ error: 'Unauthorized', code: 'unauthorized' }, { status: 401 })
+    )
   }
 
   if (user && pathnameRequiresArtistAccount(pathname)) {
@@ -167,8 +183,10 @@ export async function middleware(request: NextRequest) {
           .maybeSingle(),
       ])
 
+      // Align with getCompatibleAccountTypesForSection('artist') → artist | service
       const hasArtistSurface =
-        Boolean(artistProfile?.id) || accountProfile?.account_type === 'artist'
+        Boolean(artistProfile?.id) ||
+        accountTypeMatchesSection(accountProfile?.account_type, 'artist')
 
       if (!hasArtistSurface) {
         const redirectUrl = new URL('/dashboard', request.url)
@@ -176,7 +194,10 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(redirectUrl)
       }
     } catch {
-      // Allow through; pages may still gate UX
+      // Fail closed: do not grant artist surfaces when the gate cannot be evaluated.
+      const redirectUrl = new URL('/dashboard', request.url)
+      redirectUrl.searchParams.set('error', 'artist-account-required')
+      return NextResponse.redirect(redirectUrl)
     }
   }
 
@@ -200,11 +221,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl)
   }
 
-  return supabaseResponse
+  return isApiRoute ? withApiCors(request, supabaseResponse) : supabaseResponse
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|api/debug/|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Include api/debug so productionBlockedPrefixes can 404 those routes.
+    '/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

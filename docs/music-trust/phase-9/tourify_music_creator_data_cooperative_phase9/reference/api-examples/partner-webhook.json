@@ -1,0 +1,11 @@
+{
+  "eventId": "uuid",
+  "eventType": "research.output.published",
+  "occurredAt": "2026-10-01T00:00:00Z",
+  "idempotencyKey": "partner:project:output:v1",
+  "payload": {
+    "projectId": "uuid",
+    "outputId": "uuid",
+    "manifestHash": "sha256"
+  }
+}

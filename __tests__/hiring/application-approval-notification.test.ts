@@ -24,6 +24,8 @@ interface NotificationPayload {
   title: string
   content: string
   metadata: Record<string, unknown>
+  targetProfileId?: string
+  targetAccountType?: string
 }
 
 function findNotificationFor(userId: string, type?: string): NotificationPayload | undefined {
@@ -63,12 +65,33 @@ describe("runStaffApplicationApprovedSideEffects", () => {
     expect(approval!.content).not.toContain("http")
     expect(approval!.metadata.onboarding_pending).toBe(false)
     expect(approval!.metadata.conversation_id).toBe("conv_1")
+    expect(approval!.targetAccountType).toBe("general")
+    expect(approval!.targetProfileId).toBe("user_applicant")
 
     const onboarding = findNotificationFor("user_applicant", "hiring_onboarding_invite")
     expect(onboarding).toBeDefined()
     expect(onboarding!.content).toContain("Bartender Onboarding")
     expect(onboarding!.content).toContain("https://app.test/onboarding/hire/token123")
     expect(onboarding!.metadata.onboarding_url).toBe("https://app.test/onboarding/hire/token123")
+    expect(onboarding!.targetAccountType).toBe("general")
+    expect(onboarding!.targetProfileId).toBe("user_applicant")
+  })
+
+  it("scopes actor approval notifications to the employer entity inbox", async () => {
+    await runStaffApplicationApprovedSideEffects({
+      applicationId: "app_org",
+      applicantUserId: "user_applicant",
+      actorUserId: "user_admin",
+      employerEntityType: "organization",
+      employerEntityId: "org-soji",
+      onboardingPending: true,
+    })
+
+    const actor = findNotificationFor("user_admin", "hiring_application_approved_actor")
+    expect(actor).toBeDefined()
+    expect(actor!.targetAccountType).toBe("organization")
+    expect(actor!.targetProfileId).toBe("org-soji")
+    expect(actor!.metadata.employer_entity_id).toBe("org-soji")
   })
 
   it("posts the approval message and onboarding task card into the applicant work thread", async () => {

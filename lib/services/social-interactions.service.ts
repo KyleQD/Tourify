@@ -104,15 +104,15 @@ class SocialInteractionsService {
     try {
       if (!userId) return false
 
-      // Use API endpoint to check follow status
-      const response = await fetch(`/api/demo-accounts?action=checkFollow&profileId=${profileId}&userId=${userId}`)
-      
-      if (!response.ok) {
-        return false
-      }
+      const response = await fetch(
+        `/api/social/follow?action=check&followingId=${encodeURIComponent(profileId)}`,
+        { credentials: 'include' },
+      )
+
+      if (!response.ok) return false
 
       const data = await response.json()
-      return data.isFollowing || false
+      return Boolean(data.isFollowing)
     } catch (error) {
       console.error('Error checking follow status:', error)
       return false
@@ -126,17 +126,13 @@ class SocialInteractionsService {
         return { success: false, message: 'Please log in to like posts' }
       }
 
-      // Use API endpoint instead of direct database call
-      const response = await fetch('/api/demo-accounts/posts', {
+      const response = await fetch(`/api/posts/${postId}/likes`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'like',
-          postId,
-          userId
-        })
+        body: JSON.stringify({ action: 'like' }),
       })
 
       if (!response.ok) {
@@ -166,17 +162,13 @@ class SocialInteractionsService {
         return { success: false, message: 'Please log in to unlike posts' }
       }
 
-      // Use API endpoint instead of direct database call
-      const response = await fetch('/api/demo-accounts/posts', {
+      const response = await fetch(`/api/posts/${postId}/likes`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          action: 'unlike',
-          postId,
-          userId
-        })
+        body: JSON.stringify({ action: 'unlike' }),
       })
 
       if (!response.ok) {
@@ -210,23 +202,24 @@ class SocialInteractionsService {
         return { success: false, message: 'Comment cannot be empty' }
       }
 
-      const { data, error } = await supabase
-        .from('demo_comments')
-        .insert({
-          post_id: postId,
-          profile_id: userId,
-          content: content.trim()
-        })
-        .select()
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content.trim() }),
+      })
 
-      if (error) {
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to add comment')
       }
+
+      const data = await response.json()
 
       return { 
         success: true, 
         message: 'Comment added! 💬',
-        data: { action: 'comment', postId, userId, comment: data[0] }
+        data: { action: 'comment', postId, userId, comment: data }
       }
     } catch (error) {
       console.error('Error commenting on post:', error)
@@ -238,15 +231,14 @@ class SocialInteractionsService {
     try {
       if (!userId) return false
 
-      // Use API endpoint to check like status
-      const response = await fetch(`/api/demo-accounts/posts?action=checkLike&postId=${postId}&userId=${userId}`)
-      
-      if (!response.ok) {
-        return false
-      }
+      const response = await fetch(`/api/posts/${postId}/likes`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) return false
 
       const data = await response.json()
-      return data.isLiked || false
+      return Boolean(data.is_liked)
     } catch (error) {
       console.error('Error checking like status:', error)
       return false
@@ -255,22 +247,19 @@ class SocialInteractionsService {
 
   async getPostLikes(postId: string): Promise<{ count: number; isLiked: boolean; userId?: string }> {
     try {
-      const { data, error } = await supabase
-        .from('demo_likes')
-        .select('profile_id')
-        .eq('post_id', postId)
+      const response = await fetch(`/api/posts/${postId}/likes`, {
+        credentials: 'include',
+      })
 
-      if (error) {
-        throw error
-      }
+      if (!response.ok) throw new Error('Failed to fetch likes')
 
+      const data = await response.json()
       const userId = this.getCurrentUserId()
-      const isLiked = userId ? await this.checkLikeStatus(postId, userId) : false
 
       return {
-        count: data?.length || 0,
-        isLiked,
-        userId: userId || undefined
+        count: data.likes_count || 0,
+        isLiked: Boolean(data.is_liked),
+        userId: userId || undefined,
       }
     } catch (error) {
       console.error('Error getting post likes:', error)
@@ -280,26 +269,14 @@ class SocialInteractionsService {
 
   async getPostComments(postId: string): Promise<any[]> {
     try {
-      const { data, error } = await supabase
-        .from('demo_comments')
-        .select(`
-          *,
-          profile:demo_profiles(
-            id,
-            username,
-            avatar_url,
-            verified,
-            profile_data
-          )
-        `)
-        .eq('post_id', postId)
-        .order('created_at', { ascending: true })
+      const response = await fetch(`/api/posts/${postId}/comments`, {
+        credentials: 'include',
+      })
 
-      if (error) {
-        throw error
-      }
+      if (!response.ok) return []
 
-      return data || []
+      const data = await response.json()
+      return Array.isArray(data.comments) ? data.comments : []
     } catch (error) {
       console.error('Error getting post comments:', error)
       return []
@@ -317,23 +294,27 @@ class SocialInteractionsService {
         return { success: false, message: 'Message cannot be empty' }
       }
 
-      const { data, error } = await supabase
-        .from('demo_messages')
-        .insert({
-          sender_id: senderId,
-          recipient_id: recipientId,
-          content: content.trim()
-        })
-        .select()
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientId,
+          content: content.trim(),
+        }),
+      })
 
-      if (error) {
-        throw error
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to send message')
       }
 
-      return { 
-        success: true, 
+      const data = await response.json()
+
+      return {
+        success: true,
         message: 'Message sent! 📩',
-        data: { action: 'message', recipientId, senderId, message: data[0] }
+        data: { action: 'message', recipientId, senderId, message: data },
       }
     } catch (error) {
       console.error('Error sending message:', error)
@@ -344,26 +325,21 @@ class SocialInteractionsService {
   // Sharing
   async shareProfile(profileId: string, platform?: string): Promise<InteractionResponse> {
     try {
-      // Get profile data for sharing
       const { data: profile, error } = await supabase
-        .from('demo_profiles')
-        .select('username, profile_data, bio')
+        .from('profiles')
+        .select('username, full_name, bio')
         .eq('id', profileId)
-        .single()
+        .maybeSingle()
 
       if (error || !profile) {
         throw new Error('Profile not found')
       }
 
-      const displayName = profile.profile_data?.name || 
-                          profile.profile_data?.artist_name || 
-                          profile.profile_data?.venue_name || 
-                          profile.username
-
+      const displayName = profile.full_name || profile.username || 'this profile'
       const shareData = {
         title: `Check out ${displayName} on Tourify`,
         text: profile.bio || `Discover ${displayName} on Tourify`,
-        url: `${window.location.origin}/profile/${profile.username}`
+        url: `${window.location.origin}/profile/${profile.username || profileId}`,
       }
 
       if (navigator.share && !platform) {
@@ -372,10 +348,10 @@ class SocialInteractionsService {
         await navigator.clipboard.writeText(shareData.url)
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Profile shared! 🔗',
-        data: { action: 'share', profileId, shareData }
+        data: { action: 'share', profileId, shareData },
       }
     } catch (error) {
       console.error('Error sharing profile:', error)
@@ -385,41 +361,22 @@ class SocialInteractionsService {
 
   async sharePost(postId: string, platform?: string): Promise<InteractionResponse> {
     try {
-      // Get post data for sharing
-      const { data: post, error } = await supabase
-        .from('demo_posts')
-        .select(`
-          *,
-          profile:demo_profiles(username, profile_data)
-        `)
-        .eq('id', postId)
-        .single()
-
-      if (error || !post) {
-        throw new Error('Post not found')
-      }
-
-      const displayName = post.profile.profile_data?.name || 
-                          post.profile.profile_data?.artist_name || 
-                          post.profile.profile_data?.venue_name || 
-                          post.profile.username
-
       const shareData = {
-        title: `Check out this post from ${displayName}`,
-        text: post.content,
-        url: `${window.location.origin}/profile/${post.profile.username}`
+        title: 'Check out this post on Tourify',
+        text: 'Check out this post on Tourify',
+        url: `${window.location.origin}/posts/${postId}`,
       }
 
       if (navigator.share && !platform) {
         await navigator.share(shareData)
       } else {
-        await navigator.clipboard.writeText(`${shareData.text}\n\n${shareData.url}`)
+        await navigator.clipboard.writeText(shareData.url)
       }
 
-      return { 
-        success: true, 
+      return {
+        success: true,
         message: 'Post shared! 🔗',
-        data: { action: 'share', postId, shareData }
+        data: { action: 'share', postId, shareData },
       }
     } catch (error) {
       console.error('Error sharing post:', error)
@@ -430,7 +387,6 @@ class SocialInteractionsService {
   // Analytics and Stats
   async trackInteraction(interaction: SocialInteraction): Promise<void> {
     try {
-      // In a real app, you'd track analytics here
       console.log('Interaction tracked:', interaction)
     } catch (error) {
       console.error('Error tracking interaction:', error)
@@ -440,16 +396,18 @@ class SocialInteractionsService {
   async getProfileStats(profileId: string): Promise<any> {
     try {
       const { data: profile, error } = await supabase
-        .from('demo_profiles')
-        .select('stats')
+        .from('profiles')
+        .select('followers_count, following_count, posts_count')
         .eq('id', profileId)
-        .single()
+        .maybeSingle()
 
-      if (error) {
-        throw error
+      if (error) throw error
+
+      return {
+        followers: profile?.followers_count || 0,
+        following: profile?.following_count || 0,
+        posts: profile?.posts_count || 0,
       }
-
-      return profile.stats || {}
     } catch (error) {
       console.error('Error getting profile stats:', error)
       return {}

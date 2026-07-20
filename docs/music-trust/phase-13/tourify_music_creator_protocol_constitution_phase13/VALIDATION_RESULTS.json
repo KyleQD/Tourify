@@ -1,0 +1,16 @@
+{
+  "validatedAt": "2026-07-18T03:26:11.634154+00:00",
+  "schemaValid": true,
+  "stageCount": 17,
+  "taskCount": 289,
+  "uniqueTaskIds": true,
+  "dependenciesValid": true,
+  "numberedDocumentCount": 45,
+  "featureFlagCount": 21,
+  "notes": [
+    "Reference SQL files are outlines only.",
+    "Phase 13 production remains blocked pending audit, ratification and independent approvals."
+  ],
+  "zipIntegrity": true,
+  "totalFileCount": 77
+}

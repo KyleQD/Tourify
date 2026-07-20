@@ -140,13 +140,6 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .single()
 
     if (error) {
-      if (error.code === '42P01') {
-        return NextResponse.json({
-          success: false,
-          error: 'event_bulletins table not yet created — run the migration',
-          _migration: 'See event-communications migration'
-        }, { status: 501 })
-      }
       console.error('[Event Communications] Insert error:', error)
       return NextResponse.json({ error: 'Failed to create bulletin' }, { status: 500 })
     }

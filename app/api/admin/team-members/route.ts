@@ -9,6 +9,49 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase: _supab
     const venueId = searchParams.get('venue_id')
     const role = searchParams.get('role')
     const status = searchParams.get('status')
+    const employerEntityType = searchParams.get('employer_entity_type')
+    const employerEntityId = searchParams.get('employer_entity_id')
+    const eventId = searchParams.get('event_id')
+    const tourId = searchParams.get('tour_id')
+
+    // Prefer the unified workforce people graph when employer/event/tour scope is present.
+    if (employerEntityId || eventId || tourId || venueId) {
+      const { listWorkforcePeople } = await import('@/lib/services/admin-workforce-people.service')
+      const people = await listWorkforcePeople({
+        supabase: auth.supabase,
+        employerEntityType:
+          employerEntityType === 'venue' || employerEntityType === 'organization' || employerEntityType === 'artist'
+            ? employerEntityType
+            : venueId
+              ? 'venue'
+              : null,
+        employerEntityId: employerEntityId || venueId || null,
+        eventId,
+        tourId,
+        venueId,
+        includePending: true,
+        limit: 200,
+      })
+
+      const members = people.map((person) => ({
+        id: person.userId,
+        user_id: person.userId,
+        name: person.name,
+        email: person.email,
+        role: person.role,
+        status: person.status,
+        staff_member_id: person.staffMemberId,
+        sources: person.sources,
+        profiles: {
+          id: person.userId,
+          full_name: person.name,
+          email: person.email,
+          avatar_url: null,
+        },
+      }))
+
+      return NextResponse.json({ members, source: 'workforce_people' })
+    }
 
     let query = auth.supabase
       .from('venue_team_members')
@@ -45,7 +88,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase: _supab
       return NextResponse.json({ members: fallback || [], source: 'profiles' })
     }
 
-    return NextResponse.json({ members: data || [] })
+    return NextResponse.json({ members: data || [], source: 'venue_team_members' })
   } catch (error: any) {
     console.error('[Team Members] GET exception:', error)
     return NextResponse.json({ error: 'Failed to fetch team members' }, { status: 500 })

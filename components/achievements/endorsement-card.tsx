@@ -5,19 +5,18 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { 
-  ThumbsUp, 
-  Star, 
-  MessageCircle, 
+import {
+  Star,
   Calendar,
   CheckCircle,
   Edit,
   Trash2,
-  MoreHorizontal
+  MoreHorizontal,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Endorsement } from "@/types/achievements"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { humanizeCategory } from "@/lib/achievements/labels"
 
 interface EndorsementCardProps {
   endorsement: Endorsement
@@ -26,157 +25,137 @@ interface EndorsementCardProps {
   onEdit?: (endorsement: Endorsement) => void
   onDelete?: (endorsementId: string) => void
   className?: string
+  contextLabel?: string
 }
 
-const levelConfig = {
-  1: { color: 'bg-gray-500', text: 'Beginner' },
-  2: { color: 'bg-blue-500', text: 'Intermediate' },
-  3: { color: 'bg-green-500', text: 'Advanced' },
-  4: { color: 'bg-purple-500', text: 'Expert' },
-  5: { color: 'bg-yellow-500', text: 'Master' }
+const levelConfig: Record<number, { color: string; text: string; border: string; textColor: string }> = {
+  1: { color: 'bg-slate-400', text: 'Beginner', border: 'border-slate-400/50', textColor: 'text-slate-300' },
+  2: { color: 'bg-sky-400', text: 'Intermediate', border: 'border-sky-400/50', textColor: 'text-sky-300' },
+  3: { color: 'bg-emerald-400', text: 'Advanced', border: 'border-emerald-400/50', textColor: 'text-emerald-300' },
+  4: { color: 'bg-violet-400', text: 'Expert', border: 'border-violet-400/50', textColor: 'text-violet-300' },
+  5: { color: 'bg-amber-400', text: 'Master', border: 'border-amber-400/50', textColor: 'text-amber-300' },
 }
 
-const categoryConfig = {
-  technical: {
-    color: 'bg-blue-500',
-    borderColor: 'border-blue-400',
-    textColor: 'text-blue-600'
-  },
-  creative: {
-    color: 'bg-purple-500',
-    borderColor: 'border-purple-400',
-    textColor: 'text-purple-600'
-  },
-  business: {
-    color: 'bg-green-500',
-    borderColor: 'border-green-400',
-    textColor: 'text-green-600'
-  },
-  interpersonal: {
-    color: 'bg-orange-500',
-    borderColor: 'border-orange-400',
-    textColor: 'text-orange-600'
-  },
-  leadership: {
-    color: 'bg-red-500',
-    borderColor: 'border-red-400',
-    textColor: 'text-red-600'
-  },
-  specialized: {
-    color: 'bg-indigo-500',
-    borderColor: 'border-indigo-400',
-    textColor: 'text-indigo-600'
-  }
+const categoryConfig: Record<string, { borderColor: string; textColor: string }> = {
+  technical: { borderColor: 'border-sky-400/50', textColor: 'text-sky-300' },
+  creative: { borderColor: 'border-violet-400/50', textColor: 'text-violet-300' },
+  business: { borderColor: 'border-emerald-400/50', textColor: 'text-emerald-300' },
+  interpersonal: { borderColor: 'border-orange-400/50', textColor: 'text-orange-300' },
+  leadership: { borderColor: 'border-rose-400/50', textColor: 'text-rose-300' },
+  specialized: { borderColor: 'border-indigo-400/50', textColor: 'text-indigo-300' },
 }
 
-export function EndorsementCard({ 
-  endorsement, 
-  showEndorser = true, 
+const defaultLevel = levelConfig[3]
+
+export function EndorsementCard({
+  endorsement,
+  showEndorser = true,
   showActions = false,
   onEdit,
   onDelete,
-  className 
+  className,
+  contextLabel,
 }: EndorsementCardProps) {
   const [showActionsMenu, setShowActionsMenu] = useState(false)
-  const level = levelConfig[endorsement.level as keyof typeof levelConfig]
-  const category = endorsement.category ? categoryConfig[endorsement.category as keyof typeof categoryConfig] : null
+  const level = levelConfig[endorsement.level] || defaultLevel
+  const category = endorsement.category
+    ? categoryConfig[endorsement.category] || null
+    : null
 
-  const renderStars = (level: number) => {
+  const hasWorkContext = !!(
+    endorsement.job_id ||
+    endorsement.event_id ||
+    endorsement.collaboration_id ||
+    endorsement.project_id
+  )
+
+  function renderStars(starLevel: number) {
     return Array.from({ length: 5 }, (_, i) => (
       <Star
         key={i}
         className={cn(
           "h-3 w-3",
-          i < level ? "text-yellow-400 fill-current" : "text-gray-300"
+          i < starLevel ? "text-amber-400 fill-current" : "text-white/25"
         )}
       />
     ))
   }
 
   return (
-    <Card className={cn(
-      "relative overflow-hidden transition-all duration-300 hover:shadow-md",
-      endorsement.is_verified && "ring-2 ring-green-500/50",
-      className
-    )}>
-      {/* Verification indicator */}
+    <Card
+      className={cn(
+        "relative overflow-hidden transition-all duration-300",
+        "border-white/10 bg-white/5 text-white backdrop-blur-sm",
+        endorsement.is_verified && "ring-2 ring-emerald-400/40",
+        className
+      )}
+    >
       {endorsement.is_verified && (
-        <div className="absolute top-2 right-2">
-          <CheckCircle className="h-4 w-4 text-green-500" />
+        <div className="absolute top-2 right-2" title="Verified work endorsement">
+          <CheckCircle className="h-4 w-4 text-emerald-400" />
         </div>
+      )}
+
+      {endorsement.is_verified && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
       )}
 
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          {/* Endorser Avatar */}
           {showEndorser && endorsement.endorser && (
             <Avatar className="w-10 h-10 flex-shrink-0">
               <AvatarImage src={endorsement.endorser.avatar_url} />
-              <AvatarFallback className="text-sm">
+              <AvatarFallback className="text-sm bg-white/10">
                 {endorsement.endorser.username?.charAt(0) || 'U'}
               </AvatarFallback>
             </Avatar>
           )}
 
-          {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Header */}
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <h4 className="font-semibold text-sm text-gray-900 truncate">
+                  <h4 className="font-semibold text-sm text-white line-clamp-2" title={endorsement.skill}>
                     {endorsement.skill}
                   </h4>
                   {category && (
-                    <Badge 
-                      variant="outline" 
-                      className={cn(
-                        "text-xs",
-                        category.borderColor,
-                        category.textColor
-                      )}
+                    <Badge
+                      variant="outline"
+                      className={cn("text-xs bg-transparent", category.borderColor, category.textColor)}
                     >
-                      {endorsement.category}
+                      {humanizeCategory(endorsement.category)}
                     </Badge>
                   )}
                 </div>
 
-                {/* Level indicator */}
                 <div className="flex items-center gap-2">
-                  <div className="flex items-center gap-1">
-                    {renderStars(endorsement.level)}
-                  </div>
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "text-xs",
-                      level.color.replace('bg-', 'border-').replace('-500', '-400'),
-                      level.color.replace('bg-', 'text-').replace('-500', '-600')
-                    )}
+                  <div className="flex items-center gap-1">{renderStars(endorsement.level)}</div>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-xs bg-transparent", level.border, level.textColor)}
                   >
                     {level.text}
                   </Badge>
                 </div>
               </div>
 
-              {/* Actions menu */}
               {showActions && (
                 <div className="relative">
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 text-white/60 hover:text-white hover:bg-white/10"
                     onClick={() => setShowActionsMenu(!showActionsMenu)}
                   >
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
 
                   {showActionsMenu && (
-                    <div className="absolute right-0 top-full mt-1 w-32 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                    <div className="absolute right-0 top-full mt-1 w-32 bg-slate-900 border border-white/15 rounded-lg shadow-lg z-10">
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start text-sm"
+                        className="w-full justify-start text-sm text-white/80"
                         onClick={() => {
                           onEdit?.(endorsement)
                           setShowActionsMenu(false)
@@ -188,7 +167,7 @@ export function EndorsementCard({
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full justify-start text-sm text-red-600 hover:text-red-700"
+                        className="w-full justify-start text-sm text-red-300 hover:text-red-200"
                         onClick={() => {
                           onDelete?.(endorsement.id)
                           setShowActionsMenu(false)
@@ -203,62 +182,67 @@ export function EndorsementCard({
               )}
             </div>
 
-            {/* Endorser info */}
             {showEndorser && endorsement.endorser && (
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs text-gray-500">Endorsed by</span>
-                <span className="text-xs font-medium text-gray-700">
+                <span className="text-xs text-white/50">Endorsed by</span>
+                <span className="text-xs font-medium text-white/80">
                   {endorsement.endorser.full_name || endorsement.endorser.username}
                 </span>
               </div>
             )}
 
-            {/* Comment */}
             {endorsement.comment && (
-              <div className="mb-3">
-                <p className="text-sm text-gray-600 italic">
-                  "{endorsement.comment}"
-                </p>
-              </div>
+              <p className="text-sm text-white/65 italic mb-3 line-clamp-3">
+                &ldquo;{endorsement.comment}&rdquo;
+              </p>
             )}
 
-            {/* Context info */}
-            <div className="flex items-center gap-4 text-xs text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-white/50">
               <div className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 {formatSafeDate(endorsement.created_at)}
               </div>
 
-              {/* Context badges */}
-              {endorsement.project_id && (
-                <Badge variant="outline" className="text-xs border-blue-300 text-blue-600">
-                  Project
+              {endorsement.is_verified && (
+                <Badge variant="outline" className="text-xs border-emerald-400/40 text-emerald-300 bg-transparent">
+                  Verified work
                 </Badge>
               )}
-              {endorsement.collaboration_id && (
-                <Badge variant="outline" className="text-xs border-green-300 text-green-600">
-                  Collaboration
+
+              {contextLabel && (
+                <Badge variant="outline" className="text-xs border-white/20 text-white/70 bg-transparent">
+                  {contextLabel}
                 </Badge>
               )}
-              {endorsement.event_id && (
-                <Badge variant="outline" className="text-xs border-purple-300 text-purple-600">
-                  Event
-                </Badge>
-              )}
-              {endorsement.job_id && (
-                <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
-                  Job
-                </Badge>
+
+              {!contextLabel && hasWorkContext && (
+                <>
+                  {endorsement.project_id && (
+                    <Badge variant="outline" className="text-xs border-sky-400/40 text-sky-300 bg-transparent">
+                      Project
+                    </Badge>
+                  )}
+                  {endorsement.collaboration_id && (
+                    <Badge variant="outline" className="text-xs border-emerald-400/40 text-emerald-300 bg-transparent">
+                      Collaboration
+                    </Badge>
+                  )}
+                  {endorsement.event_id && (
+                    <Badge variant="outline" className="text-xs border-violet-400/40 text-violet-300 bg-transparent">
+                      Event
+                    </Badge>
+                  )}
+                  {endorsement.job_id && (
+                    <Badge variant="outline" className="text-xs border-orange-400/40 text-orange-300 bg-transparent">
+                      Job
+                    </Badge>
+                  )}
+                </>
               )}
             </div>
           </div>
         </div>
-
-        {/* Verification bar */}
-        {endorsement.is_verified && (
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-400 to-emerald-600" />
-        )}
       </CardContent>
     </Card>
   )
-} 
+}

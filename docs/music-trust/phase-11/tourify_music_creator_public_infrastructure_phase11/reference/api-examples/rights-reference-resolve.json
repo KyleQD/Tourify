@@ -1,0 +1,11 @@
+{
+  "method": "GET",
+  "path": "/api/creator-public-infrastructure/rights/refs/ref_123?scope=status",
+  "expected": {
+    "status": "active",
+    "sourceType": "rights_passport",
+    "sourceVersion": "3",
+    "freshness": "current",
+    "disputed": false
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "projectId": "uuid",
+  "outputVersion": 1,
+  "artifactHash": "sha256",
+  "checks": {
+    "reproducible": true,
+    "privacyPassed": true,
+    "competitionPassed": true,
+    "ipPassed": true,
+    "editorialPassed": true
+  },
+  "decision": "approve"
+}

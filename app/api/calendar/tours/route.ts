@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { isValidCalendarFeedToken } from '@/lib/calendar/feed-token'
 
 function formatICalDate(d: Date): string {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
@@ -29,9 +30,15 @@ export async function GET(request: NextRequest) {
 
   if (!tour) return new NextResponse('Tour not found', { status: 404 })
 
-  // Verify token if tour has one
-  if (tour.calendar_token && token !== String(tour.calendar_token)) {
-    return new NextResponse('Invalid token', { status: 401 })
+  if (tour.calendar_token) {
+    if (!token || token !== String(tour.calendar_token))
+      return new NextResponse('Unauthorized', { status: 401 })
+  } else if (!isValidCalendarFeedToken({
+    resourceType: 'tour',
+    resourceId: tour.id,
+    token,
+  })) {
+    return new NextResponse('Unauthorized', { status: 401 })
   }
 
   // Fetch tour events

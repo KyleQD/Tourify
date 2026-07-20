@@ -9,7 +9,6 @@ import { Loader2 } from "lucide-react"
 // Import the appropriate onboarding component based on type
 import ArtistVenueOnboarding from "@/components/onboarding/artist-venue-onboarding"
 import StaffOnboarding from "@/components/onboarding/staff-onboarding"
-import InvitationOnboarding from "@/components/onboarding/invitation-onboarding"
 import QuickSignupOnboarding from "@/components/onboarding/quick-signup-onboarding"
 import SocialAccountSetup from "@/components/onboarding/social-account-setup"
 
@@ -38,12 +37,10 @@ export default function OnboardingRouter(props: OnboardingRouterProps) {
 
     if (source === 'social') {
       setOnboardingType('social-account-setup')
-    } else if (token) {
-      router.replace(`/onboarding/hire/${encodeURIComponent(token)}`)
+    } else if (token || invitation) {
+      // Canonical hire-token flow — retire legacy InvitationOnboarding path
+      router.replace(`/onboarding/hire/${encodeURIComponent(token || invitation!)}`)
       return
-    } else if (invitation) {
-      // Invitation-based onboarding
-      setOnboardingType('invitation')
     } else if (type === 'artist' || type === 'venue') {
       // Direct artist/venue onboarding (for creating sub-accounts)
       setOnboardingType(type)
@@ -85,9 +82,6 @@ export default function OnboardingRouter(props: OnboardingRouterProps) {
     
     case 'staff':
       return <StaffOnboarding />
-    
-    case 'invitation':
-      return <InvitationOnboarding />
 
     case 'social-account-setup':
       return <SocialAccountSetup />

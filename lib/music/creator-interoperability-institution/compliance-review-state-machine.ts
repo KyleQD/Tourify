@@ -1,0 +1,3 @@
+export type ComplianceState='report_due'|'submitted'|'validated'|'under_review'|'finding'|'corrective_action'|'verified_closed'|'escalated'
+const next:Record<ComplianceState,ComplianceState[]>={report_due:['submitted'],submitted:['validated'],validated:['under_review'],under_review:['finding','verified_closed'],finding:['corrective_action','escalated'],corrective_action:['under_review','verified_closed','escalated'],verified_closed:[],escalated:['corrective_action','verified_closed']}
+export function mayTransitionCompliance(from:ComplianceState,to:ComplianceState){return next[from].includes(to);}

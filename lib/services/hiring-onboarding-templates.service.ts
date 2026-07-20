@@ -19,7 +19,7 @@ export interface TemplateWriteInput {
 }
 
 const TEMPLATE_COLUMNS =
-  "id,name,description,department,position,employment_type,fields,estimated_days,required_documents,tags,is_default,parent_template_id,employer_entity_type,employer_entity_id,use_count,created_at,updated_at"
+  "id,name,description,department,position,employment_type,fields,estimated_days,required_documents,tags,is_default,parent_template_id,employer_entity_type,employer_entity_id,use_count,version,created_at,updated_at"
 
 function employerColumns(employer: HiringEntity) {
   return {
@@ -163,7 +163,61 @@ export async function updateTemplateForEmployer({
     return { forbidden: true, error: "Template does not belong to the active hiring entity." }
   }
 
-  const payload = { ...normalizeWriteInput(input), updated_at: new Date().toISOString() }
+  // If this template is already attached to published jobs or in-flight candidates,
+  // create a new versioned row instead of mutating the live source.
+  const [{ count: publishedJobCount }, { count: activeCandidateCount }] = await Promise.all([
+    supabase
+      .from("job_posting_templates")
+      .select("id", { count: "exact", head: true })
+      .eq("onboarding_template_id", id)
+      .eq("status", "published"),
+    supabase
+      .from("staff_onboarding_candidates")
+      .select("id", { count: "exact", head: true })
+      .eq("template_id", id)
+      .in("status", ["pending", "in_progress", "submitted", "needs_revision"]),
+  ])
+
+  const isInUse = (publishedJobCount ?? 0) > 0 || (activeCandidateCount ?? 0) > 0
+  const currentVersion = Number(existing.data.version) || 1
+
+  if (isInUse) {
+    const versionedPayload = {
+      ...normalizeWriteInput(input),
+      ...employerColumns(employer),
+      fields: Array.isArray(input.fields)
+        ? input.fields
+        : Array.isArray(existing.data.fields)
+          ? existing.data.fields
+          : [],
+      name:
+        typeof input.name === "string" && input.name.trim()
+          ? input.name.trim()
+          : String(existing.data.name ?? "Untitled template"),
+      parent_template_id: id,
+      version: currentVersion + 1,
+      is_default: Boolean(input.isDefault ?? existing.data.is_default),
+      use_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }
+
+    const { data, error } = await supabase
+      .from("staff_onboarding_templates")
+      .insert(versionedPayload)
+      .select(TEMPLATE_COLUMNS)
+      .single()
+
+    if (error) return { error: error.message }
+    if (data.is_default) await clearOtherDefaults({ supabase, employer, keepId: data.id })
+    return { data }
+  }
+
+  const payload = {
+    ...normalizeWriteInput(input),
+    version: currentVersion,
+    updated_at: new Date().toISOString(),
+  }
 
   const { data, error } = await supabase
     .from("staff_onboarding_templates")

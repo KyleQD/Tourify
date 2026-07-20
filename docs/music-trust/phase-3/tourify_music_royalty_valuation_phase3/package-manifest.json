@@ -1,0 +1,232 @@
+{
+  "package": "tourify_music_royalty_valuation_phase3",
+  "createdAt": "2026-07-17T23:07:57.343123+00:00",
+  "fileCount": 45,
+  "files": [
+    {
+      "path": "00_PHASE_3_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 5033,
+      "sha256": "7ce82981aa2b9c406124501c78d1b9586fa49c635bc852f71f2a53d76a039919"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_USER_JOURNEYS.md",
+      "bytes": 4322,
+      "sha256": "d460f1d47a0ce900bbe0f6bdffcf26d2e210eeb5db5ab11ba7f074892b52f70c"
+    },
+    {
+      "path": "02_BOUNDED_CONTEXTS_AND_SOURCE_OF_TRUTH.md",
+      "bytes": 3489,
+      "sha256": "e94c5d0da5af64e26923db2a7691066af2fe54458b38ebc2967e0405b5583159"
+    },
+    {
+      "path": "03_ROYALTY_SOURCE_INGESTION_AND_CONNECTORS.md",
+      "bytes": 3568,
+      "sha256": "72275039c33687ca26f5ced1e3ee9f733555215b8f694a864ad0baaf757e856d"
+    },
+    {
+      "path": "04_DDEX_AND_STATEMENT_NORMALIZATION.md",
+      "bytes": 3228,
+      "sha256": "b8b4ff1fe334a23fcb7dd794b0a6092e8b528e9dcbbcea2e2095698e1164a16c"
+    },
+    {
+      "path": "05_ROYALTY_LEDGER_AND_ACCOUNTING_MODEL.md",
+      "bytes": 3142,
+      "sha256": "980d0ab2d411151efd86d82c1fbfd01129545795eb244fc84a69fb2eb6a41368"
+    },
+    {
+      "path": "06_MATCHING_RECONCILIATION_AND_DATA_QUALITY.md",
+      "bytes": 2972,
+      "sha256": "f1be6d63fa7c32dfac6afd6a8348c5d3fff65fb19a084eb77a445936596a692f"
+    },
+    {
+      "path": "07_ALLOCATION_ENGINE_RIGHTS_SNAPSHOTS_AND_RECOUPMENT.md",
+      "bytes": 3235,
+      "sha256": "7a970ff3ce020217533a97a7f19a6865b9bb45eb9dc8379e452260be7a1a6df5"
+    },
+    {
+      "path": "08_PAYOUT_READINESS_TAX_KYC_AND_SANCTIONS.md",
+      "bytes": 3220,
+      "sha256": "0cdef59f9ab652365b22aefd188e3a8c6e09f04fe6959172b60770e9a791a2e5"
+    },
+    {
+      "path": "09_PAYOUT_ORCHESTRATION_AND_PROVIDER_INTEGRATION.md",
+      "bytes": 3134,
+      "sha256": "dda68919e33bb479cafb0f3b8f24a46d36b7a69f9b40cb571814935456076bd8"
+    },
+    {
+      "path": "10_PARTICIPANT_STATEMENTS_AND_AUDITABILITY.md",
+      "bytes": 2795,
+      "sha256": "b4f4a5fd985db2fbda4107c1cb6618f4dc550515ea48212369542e39b32e3ff9"
+    },
+    {
+      "path": "11_CATALOG_VALUATION_METHODOLOGY.md",
+      "bytes": 3320,
+      "sha256": "cc2b02295f309ade763a26242190e173260823db514bda7dc154fd2804e89376"
+    },
+    {
+      "path": "12_VALUATION_DATA_MODEL_GOVERNANCE_AND_MODEL_RISK.md",
+      "bytes": 3029,
+      "sha256": "b0d6e197a525eac2d268fa7aeb7e17df2772ecd585e0f850f7a4950077a6be18"
+    },
+    {
+      "path": "13_FORECASTING_SCENARIOS_AND_ANALYTICS.md",
+      "bytes": 2771,
+      "sha256": "7f24ee91b10f87d281503eaefbb88eeada477eda1428e87174ba4f11f3b220b7"
+    },
+    {
+      "path": "14_FAN_UTILITY_COLLECTIBLES.md",
+      "bytes": 2942,
+      "sha256": "9ca0420bfcc75f21cbcd2c1e669b332ad83cd93fca4d5a8b25de658281ebd7f1"
+    },
+    {
+      "path": "15_REGULATED_ROYALTY_PARTICIPATION_PILOT.md",
+      "bytes": 3308,
+      "sha256": "e64d89d752e209170fdc85fcfd8a8a4633d038798524e7189d7bdaa5aae86128"
+    },
+    {
+      "path": "16_OFFERING_LIFECYCLE_AND_PARTNER_ARCHITECTURE.md",
+      "bytes": 2792,
+      "sha256": "9ca807aa721ff25a6c0982a9aebc5a1616ffbfdfee605535534e6a11c8c46dff"
+    },
+    {
+      "path": "17_TOKENIZED_INSTRUMENT_DATA_MODEL_AND_TRANSFER_RESTRICTIONS.md",
+      "bytes": 2951,
+      "sha256": "470d90ec17e791f3f060fc8df7ecf6359a9db6a61575b43cb2e3a7f61bc6b9ac"
+    },
+    {
+      "path": "18_SMART_CONTRACTS_AND_ON_CHAIN_BOUNDARIES.md",
+      "bytes": 3059,
+      "sha256": "bc1005773b4d490a07edc728206c1d4be819c558b15a4e010a3118efa7b1beae"
+    },
+    {
+      "path": "19_SECONDARY_TRADING_AND_MARKETPLACE_BOUNDARY.md",
+      "bytes": 2672,
+      "sha256": "ee9621fbd86322f58803ce653c059400e9d13ce22843d439fab1d915253b0eb7"
+    },
+    {
+      "path": "20_DATABASE_MIGRATIONS_RLS_AND_STORAGE.md",
+      "bytes": 3563,
+      "sha256": "b01fcb63db2f66d05935403bee6d511243e807594d4c13de5117e53dba96a28c"
+    },
+    {
+      "path": "21_API_EVENTS_AND_BACKGROUND_JOBS.md",
+      "bytes": 3026,
+      "sha256": "c7eddc6edb38da9fb02fb53703aeff55a7b1f949986b8ac3ba23a8174d1730ea"
+    },
+    {
+      "path": "22_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 2685,
+      "sha256": "43ffbe06b4a41e39fbf6c908d7c42233a10cb1b640d701fbddcdee3ffd329840"
+    },
+    {
+      "path": "23_ADMIN_FINANCIAL_OPERATIONS_AND_COMPLIANCE.md",
+      "bytes": 2620,
+      "sha256": "97a0eef005014b7e5b2f94891dbb80a136aa7a86b86a40986e2979bc042b4eea"
+    },
+    {
+      "path": "24_SECURITY_FINANCIAL_CONTROLS_AND_AUDIT.md",
+      "bytes": 2904,
+      "sha256": "1647a70a3dc08b58bcffdef8f136f7c437f8b13ebc6247538adce7d9d56ad18c"
+    },
+    {
+      "path": "25_TESTING_PILOT_AND_ROLLOUT.md",
+      "bytes": 2880,
+      "sha256": "1b272ff418a88ef673cd45d753e7886e4b6af4206413266c9284b9b075d4a347"
+    },
+    {
+      "path": "26_PHASE_4_MARKETPLACE_AND_LIQUIDITY_READINESS.md",
+      "bytes": 2697,
+      "sha256": "f182b1466b3e4674f79f461f704a5560e71bf01150b28265dbb8b11de3170257"
+    },
+    {
+      "path": "27_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 2988,
+      "sha256": "6c4ef8cc205e0864678207cd628007e20b158ee365a3473dd568c774ac0afb5d"
+    },
+    {
+      "path": "28_DEFINITION_OF_DONE.md",
+      "bytes": 3729,
+      "sha256": "3007355197ab123480340e0b0ead83f981ecbcf5d36a7fc7b371693168ee7891"
+    },
+    {
+      "path": "29_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 4667,
+      "sha256": "167681a97a72485a298cfd05ba57b953aee61a5b8159a59405629c63a88c47a7"
+    },
+    {
+      "path": "30_CURRENT_STANDARDS_LEGAL_AND_TAX_RESEARCH.md",
+      "bytes": 4266,
+      "sha256": "f5e8a7845c33a4126f0d42936dc185d3ed621f5288d95bb9e9ca39b87ff16e17"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 1395,
+      "sha256": "4655dc103cdfd281a65c567d5ae8e363895fef9ac68dab9ce793c0657206d0f6"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2971,
+      "sha256": "14d8fbd41197eb429c61809151c15fafbaa62ef245357110d5610e20e9fd835f"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "bytes": 65,
+      "sha256": "3cb8649e1eba390db0dc3c427041043d3e97748c0674effd0056ad9512d418b1"
+    },
+    {
+      "path": "phase-3-execution-plan.schema.json",
+      "bytes": 3140,
+      "sha256": "8957eb6768bc6b26186742629f12bab20ed1954c402244afd5f0f3f84d873df6"
+    },
+    {
+      "path": "phase-3-execution-plan.template.json",
+      "bytes": 68559,
+      "sha256": "b3a5ba70c68721829ee07b57858af0ac472ba0a04b0ecc2e321cf9dc729e5735"
+    },
+    {
+      "path": "reference/api-examples/royalty-import-request.json",
+      "bytes": 278,
+      "sha256": "e659e82b35f0b6120c0587b935517c893a9568e92fbfd26e07848a46160e785a"
+    },
+    {
+      "path": "reference/api-examples/valuation-request.json",
+      "bytes": 305,
+      "sha256": "383847ba050e44007ed741ccd2e2d29dae8170bc9494a8d272c91fc0713173b4"
+    },
+    {
+      "path": "reference/lib/music/royalties/allocation-engine.ts",
+      "bytes": 1144,
+      "sha256": "cc32614913ca410103e3103e2cbd89c5a6ebcaf6921dde3c2d9f6d6f4bdfa21d"
+    },
+    {
+      "path": "reference/lib/music/royalties/money.ts",
+      "bytes": 988,
+      "sha256": "1721bea3da3e13f9d1ba122c1fc1420775fa0a466491cf61cfa2ecc1e7369c13"
+    },
+    {
+      "path": "reference/lib/music/royalties/royalty-domain.ts",
+      "bytes": 1114,
+      "sha256": "59807141bdfe06f5dd2fe89c275888f8194c885d27d1a6b735644a31aa888871"
+    },
+    {
+      "path": "reference/lib/music/valuation/catalog-valuation.ts",
+      "bytes": 817,
+      "sha256": "7d4b0f73b42a68540c0aaf0f8371a4390950f32db4d530e89f082fcec1e5e3cb"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_royalty_ingestion_and_ledger.sql",
+      "bytes": 2019,
+      "sha256": "af618a187b7338f2ea46f0cc2be971d7feb170987e80a637cf1a826a373ba485"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_allocations_payouts_and_statements.sql",
+      "bytes": 1770,
+      "sha256": "d72dd31eb8c778be04465e111e031e4d45c83c2d88af505d9b48489c88bbd3fa"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_catalog_valuation.sql",
+      "bytes": 1457,
+      "sha256": "2a822d903525b77d9d110afe006b39bbae94a15bd6e7637c7718582f7cabd6d4"
+    }
+  ]
+}

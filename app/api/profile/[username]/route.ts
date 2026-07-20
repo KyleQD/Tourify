@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
 import { extractCreatorCapabilitiesV1 } from '@/lib/creator/capability-system'
+import { getCustomProfileDesignState } from '@/lib/profile/custom-profile-layout'
 
 export async function GET(
   request: NextRequest,
@@ -38,6 +39,7 @@ export async function GET(
         website,
         profile_data,
         social_links,
+        metadata,
         instagram,
         twitter,
         is_verified,
@@ -68,6 +70,7 @@ export async function GET(
           website,
           profile_data,
           social_links,
+          metadata,
           instagram,
           twitter,
           is_verified,
@@ -296,22 +299,39 @@ export async function GET(
       topSkills = []
     }
 
+    const customDesign = getCustomProfileDesignState((profile as any).metadata)
+    const publishedCustomLayout =
+      accountType === 'general' && customDesign.status === 'published'
+        ? customDesign.published
+        : null
+
+    const resolvedCoverImage =
+      (profile as any).cover_image ||
+      (profile as any).metadata?.header_url ||
+      (profile as any).header_url ||
+      null
+
     const profileWithStats = {
       id: profile.id,
       author_profile_id: authorProfileId,
       owner_user_id: ownerUserId,
       username: profile.username,
       account_type: accountType,
-      profile_data: profileData,
+      profile_data: {
+        ...profileData,
+        avatar_url: profile.avatar_url || (profileData as any)?.avatar_url || null,
+        cover_image: resolvedCoverImage,
+      },
       avatar_url: profile.avatar_url,
-      cover_image: (profile as any).cover_image || (profile as any).header_url || null,
+      cover_image: resolvedCoverImage,
       verified: profile.is_verified,
       bio: profile.bio,
       location: profile.location,
       social_links: socialLinks,
       stats,
       created_at: profile.created_at,
-      updated_at: profile.updated_at
+      updated_at: profile.updated_at,
+      custom_profile_layout: publishedCustomLayout,
     }
 
 
@@ -322,7 +342,8 @@ export async function GET(
       portfolio, 
       experiences, 
       certifications, 
-      top_skills: topSkills 
+      top_skills: topSkills,
+      custom_profile_layout: publishedCustomLayout,
     })
   } catch (error) {
     console.error('[Profile Username API] Error:', error)

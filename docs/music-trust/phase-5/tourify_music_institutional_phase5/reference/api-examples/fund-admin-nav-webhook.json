@@ -1,0 +1,11 @@
+{
+  "eventId": "provider_evt_123",
+  "eventType": "fund.nav.finalized",
+  "occurredAt": "2026-09-30T23:59:59Z",
+  "fundReference": "provider_fund_123",
+  "valuationDate": "2026-09-30",
+  "version": 1,
+  "currency": "USD",
+  "totalNavMinor": "1000000000",
+  "documentReference": "provider_doc_123"
+}

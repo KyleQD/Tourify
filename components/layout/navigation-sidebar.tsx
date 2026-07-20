@@ -122,7 +122,7 @@ const navigationConfig: Record<string, RoleNavConfig> = {
 
   artist: {
     primary: [
-      { label: 'My Dashboard', href: '/artist', icon: Home, description: 'Performance overview' },
+      { label: 'My Dashboard', href: '/artist/overview', icon: Home, description: 'Performance overview' },
       { label: 'Schedule', href: '/artist/events', icon: Calendar, description: 'Upcoming performances' },
       { label: 'Music & Media', href: '/artist/music', icon: Music, description: 'Content management' },
       { label: 'Messages', href: '/artist/messages', icon: MessageSquare, description: 'Communications' }
@@ -184,9 +184,9 @@ const navigationConfig: Record<string, RoleNavConfig> = {
 
   viewer: {
     primary: [
-      { label: 'Browse', href: '/browse', icon: Eye, description: 'Explore content' },
+      { label: 'Browse', href: '/discover', icon: Eye, description: 'Explore content' },
       { label: 'Events', href: '/events', icon: Calendar, description: 'Upcoming events' },
-      { label: 'Artists', href: '/artists', icon: Music, description: 'Artist profiles' }
+      { label: 'Artists', href: '/discover', icon: Music, description: 'Artist profiles' }
     ],
     secondary: [
       { label: 'Venues', href: '/venues', icon: Building2, description: 'Venue directory' }
@@ -332,10 +332,10 @@ export function NavigationSidebar({ user, isOpen, onToggle, roleTheme }: Navigat
             <NavItem item={{ href: "/dashboard", icon: BarChart3, label: "Dashboard" }} />
             <NavItem item={{ href: "/events", icon: Calendar, label: "Events", badge: 3 }} />
             <NavItem item={{ href: "/music", icon: Music, label: "Music" }} />
-            <NavItem item={{ href: "/network", icon: Users, label: "Network" }} />
+            <NavItem item={{ href: "/friends", icon: Users, label: "Network" }} />
             <NavItem item={{ href: "/messages", icon: MessageSquare, label: "Messages", badge: 2 }} />
             <NavItem item={{ href: "/bookings", icon: Clock, label: "Bookings", badge: 5 }} />
-            <NavItem item={{ href: "/teams", icon: Users, label: "Team" }} />
+            <NavItem item={{ href: "/venue/staff", icon: Users, label: "Team" }} />
             <NavItem item={{ href: "/achievements", icon: Trophy, label: "Achievements" }} />
           </NavGroup>
 

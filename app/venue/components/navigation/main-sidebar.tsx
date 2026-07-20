@@ -29,7 +29,6 @@ import {
   Search,
   PlusCircle,
   Clock,
-  Zap,
   Map,
   BookOpen,
 } from "lucide-react"
@@ -214,10 +213,10 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
                 variant="outline"
                 size="sm"
                 className="justify-start gap-1"
-                onClick={handleNavigation("/music/upload")}
+                onClick={handleNavigation("/venue/dashboard/tickets")}
               >
-                <Music className="h-4 w-4" />
-                <span>Upload</span>
+                <Ticket className="h-4 w-4" />
+                <span>Tickets</span>
               </Button>
               <Button
                 variant="outline"
@@ -245,8 +244,7 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
             <NavItem href="/" icon={<Home className="h-4 w-4" />} label="Home" />
             <NavItem href="/dashboard" icon={<BarChart3 className="h-4 w-4" />} label="Dashboard" />
             <NavItem href="/venue/dashboard/events" icon={<Calendar className="h-4 w-4" />} label="Events" badge={3} />
-            <NavItem href="/music" icon={<Music className="h-4 w-4" />} label="Music" />
-            <NavItem href="/network" icon={<Users className="h-4 w-4" />} label="Network" />
+            <NavItem href="/discover" icon={<Users className="h-4 w-4" />} label="Discover" />
             <NavItem href="/messages" icon={<MessageSquare className="h-4 w-4" />} label="Messages" badge={2} />
             <NavItem href="/venue/bookings" icon={<Clock className="h-4 w-4" />} label="Bookings" badge={5} />
             <NavItem href="/venue/staff" icon={<Users className="h-4 w-4" />} label="Team" isNew={true} />
@@ -254,16 +252,15 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
 
           {/* Content */}
           <NavGroup title="Content">
-            <NavItem href="/content/posts" icon={<FileText className="h-4 w-4" />} label="Posts" />
-            <NavItem href="/content/photos" icon={<ImageIcon className="h-4 w-4" />} label="Photos" />
-            <NavItem href="/content/videos" icon={<Video className="h-4 w-4" />} label="Videos" />
-            <NavItem href="/epk" icon={<FileText className="h-4 w-4" />} label="EPK" badge="Free" />
+            <NavItem href="/venue/dashboard" icon={<FileText className="h-4 w-4" />} label="Posts" />
+            <NavItem href="/venue/documents" icon={<ImageIcon className="h-4 w-4" />} label="Photos" />
+            <NavItem href="/venue/dashboard" icon={<Video className="h-4 w-4" />} label="Videos" />
           </NavGroup>
 
           {/* Venues & Events */}
           <NavGroup title="Venues & Events">
             <NavItem href="/venues" icon={<Building className="h-4 w-4" />} label="Venues" />
-            <NavItem href="/equipment" icon={<Mic className="h-4 w-4" />} label="Equipment" isNew={true} />
+            <NavItem href="/venue/equipment" icon={<Mic className="h-4 w-4" />} label="Equipment" isNew={true} />
             <NavItem href="/venue/dashboard/events/map" icon={<Map className="h-4 w-4" />} label="Event Map" />
             <NavItem href="/venue/dashboard/tickets" icon={<Ticket className="h-4 w-4" />} label="Tickets" />
           </NavGroup>
@@ -272,7 +269,6 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
           <NavGroup title="Business">
             <NavItem href="/jobs" icon={<Briefcase className="h-4 w-4" />} label="Jobs" badge={3} />
             <NavItem href="/venue/dashboard/store" icon={<ShoppingBag className="h-4 w-4" />} label="Merchandise" />
-            <NavItem href="/promotions" icon={<Zap className="h-4 w-4" />} label="Promotions" />
             <NavItem href="/venue/analytics" icon={<BarChart3 className="h-4 w-4" />} label="Analytics" />
             <NavItem href="/venue/finances" icon={<DollarSign className="h-4 w-4" />} label="Finances" isNew={true} />
           </NavGroup>
@@ -280,9 +276,9 @@ export function MainSidebar({ open, onOpenChange, className = "" }: MainSidebarP
           {/* Resources */}
           <NavGroup title="Resources">
             <NavItem href="/documents" icon={<FileText className="h-4 w-4" />} label="Documents" />
-            <NavItem href="/gallery" icon={<ImageIcon className="h-4 w-4" />} label="Gallery" />
-            <NavItem href="/help" icon={<HelpCircle className="h-4 w-4" />} label="Help & Support" />
-            <NavItem href="/docs" icon={<BookOpen className="h-4 w-4" />} label="Documentation" />
+            <NavItem href="/venue/documents" icon={<ImageIcon className="h-4 w-4" />} label="Gallery" />
+            <NavItem href="/faq" icon={<HelpCircle className="h-4 w-4" />} label="Help & Support" />
+            <NavItem href="/venue/documents" icon={<BookOpen className="h-4 w-4" />} label="Documentation" />
           </NavGroup>
         </div>
       </ScrollArea>

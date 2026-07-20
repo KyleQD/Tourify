@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { OpsWorkspaceChrome } from "@/components/admin/operations/ops-workspace-chrome"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import { toast } from "sonner"
 
 interface DaySheet {
@@ -180,7 +181,14 @@ export default function DaySheetPage() {
           payload: { version: ds.version || 1, day_sheet: ds },
         }),
       })
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        if (isFeatureUnavailableResponse(res.status, payload)) {
+          toast.error(featureUnavailableMessage(payload, 'Work Mode is temporarily unavailable.'))
+          return
+        }
+        throw new Error(payload?.error || 'Failed to publish')
+      }
       toast.success('Day sheet published to Work Mode')
     } catch (err: any) {
       toast.error(err.message || 'Failed to publish')

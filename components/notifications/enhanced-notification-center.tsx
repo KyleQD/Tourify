@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import {
   Bell, Check, X, Settings, Filter, Search, MoreHorizontal, Heart, MessageSquare,
   User, AlertCircle, Calendar, Star, CheckCircle, Sparkles, TrendingUp, Zap,
-  Briefcase, ClipboardCheck, UserPlus, Users, Clock,
+  Briefcase, ClipboardCheck, UserPlus, Users, Clock, Trophy, Award, ThumbsUp,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +20,9 @@ import { useMultiAccount } from "@/hooks/use-multi-account"
 import {
   fetchUnreadNotificationCount,
   fetchUserNotifications,
+  markAccountNotificationsAsRead,
 } from "@/lib/notifications/fetch-user-notifications"
+import { normalizeAccountType } from "@/lib/accounts/account-types"
 import { FollowRequestsModal } from "@/components/profile/follow-requests-modal"
 import { motion, AnimatePresence } from "framer-motion"
 import { formatDistanceToNow } from "date-fns"
@@ -72,6 +74,9 @@ const notificationIcons: Record<string, { icon: React.ReactNode; color: string; 
   shift_assignment_updated: { icon: <Clock className="h-4 w-4" />, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.1)" },
   shift_assignment_cancelled: { icon: <X className="h-4 w-4" />, color: "#ef4444", bgColor: "rgba(239, 68, 68, 0.1)" },
   shift_assignment_response: { icon: <CheckCircle className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.1)" },
+  achievement_unlocked: { icon: <Trophy className="h-4 w-4" />, color: "#10b981", bgColor: "rgba(16, 185, 129, 0.12)" },
+  badge_granted: { icon: <Award className="h-4 w-4" />, color: "#f59e0b", bgColor: "rgba(245, 158, 11, 0.12)" },
+  endorsement_received: { icon: <ThumbsUp className="h-4 w-4" />, color: "#38bdf8", bgColor: "rgba(56, 189, 248, 0.12)" },
 }
 
 export function EnhancedNotificationCenter({ className = "" }: NotificationCenterProps) {
@@ -94,7 +99,14 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
     isOpenRef.current = isOpen
   }, [isOpen])
 
+  const isPersonalAccount =
+    normalizeAccountType(currentAccount?.account_type || "general") === "general"
+
   const fetchPendingRequestCount = useCallback(async () => {
+    if (!isPersonalAccount) {
+      setPendingRequestCount(0)
+      return
+    }
     try {
       const response = await fetch("/api/social/follow-request?action=pending", {
         credentials: "include",
@@ -108,7 +120,7 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
     } catch {
       setPendingRequestCount(0)
     }
-  }, [])
+  }, [isPersonalAccount])
 
   const refreshUnreadBadge = useCallback(async () => {
     try {
@@ -120,12 +132,14 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       const count = await fetchUnreadNotificationCount({
         supabase,
         userId: session.user.id,
+        targetProfileId: currentAccount?.profile_id,
+        accountType: currentAccount?.account_type,
       })
       setUnreadCount(count)
     } catch {
       // keep prior badge
     }
-  }, [])
+  }, [currentAccount?.account_type, currentAccount?.profile_id])
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -206,6 +220,19 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
     void fetchPendingRequestCount()
   }, [isOpen, fetchNotifications, fetchPendingRequestCount])
 
+  // Re-scope badge + list when the active account changes.
+  useEffect(() => {
+    void refreshUnreadBadge()
+    void fetchPendingRequestCount()
+    if (isOpenRef.current) void fetchNotifications()
+  }, [
+    currentAccount?.account_type,
+    currentAccount?.profile_id,
+    refreshUnreadBadge,
+    fetchPendingRequestCount,
+    fetchNotifications,
+  ])
+
   const markAsRead = async (id: string) => {
     try {
       const { error } = await supabase
@@ -236,14 +263,12 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
 
-      const { error } = await supabase
-        .from("notifications")
-        .update({
-          is_read: true,
-          read_at: new Date().toISOString(),
-        })
-        .eq("user_id", session.user.id)
-        .eq("is_read", false)
+      const { error } = await markAccountNotificationsAsRead({
+        supabase,
+        userId: session.user.id,
+        targetProfileId: currentAccount?.profile_id,
+        accountType: currentAccount?.account_type,
+      })
 
       if (error) {
         toast.error("Failed to mark notifications as read")
@@ -362,6 +387,18 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
         return notification.related_user?.username
           ? `/profile/${notification.related_user.username}`
           : null
+      case "achievement_unlocked":
+        return (notification.metadata?.link as string) ||
+          (notification.metadata?.achievement_id
+            ? `/achievements?tab=achievements&highlight=${notification.metadata.achievement_id}`
+            : "/achievements?tab=achievements")
+      case "badge_granted":
+        return (notification.metadata?.link as string) ||
+          (notification.metadata?.badge_id
+            ? `/achievements?tab=badges&highlight=${notification.metadata.badge_id}`
+            : "/achievements?tab=badges")
+      case "endorsement_received":
+        return (notification.metadata?.link as string) || "/achievements?tab=endorsements"
       default:
         return null
     }
@@ -608,21 +645,23 @@ export function EnhancedNotificationCenter({ className = "" }: NotificationCente
                   </div>
                 </div>
 
-                <Button
-                  variant="ghost"
-                  onClick={openFriendRequests}
-                  className="mt-3 h-9 w-full justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 px-3 text-sm text-purple-200 hover:bg-purple-500/20 hover:text-purple-100"
-                >
-                  <span className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Friend requests
-                  </span>
-                  {pendingRequestCount > 0 && (
-                    <Badge className="border-0 bg-purple-500/30 text-purple-100">
-                      {pendingRequestCount}
-                    </Badge>
-                  )}
-                </Button>
+                {isPersonalAccount && (
+                  <Button
+                    variant="ghost"
+                    onClick={openFriendRequests}
+                    className="mt-3 h-9 w-full justify-between rounded-lg border border-purple-500/20 bg-purple-500/10 px-3 text-sm text-purple-200 hover:bg-purple-500/20 hover:text-purple-100"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Users className="h-4 w-4" />
+                      Friend requests
+                    </span>
+                    {pendingRequestCount > 0 && (
+                      <Badge className="border-0 bg-purple-500/30 text-purple-100">
+                        {pendingRequestCount}
+                      </Badge>
+                    )}
+                  </Button>
+                )}
 
                 <div className="mt-3 space-y-3">
                   <div className="relative">

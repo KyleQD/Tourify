@@ -7,14 +7,17 @@ interface CreatePromotionModalProps {
   onClose: () => void
 }
 
+/** Stub modal kept for URL/import safety — promotions creation is not advertised. */
 export function CreatePromotionModal({ isOpen, onClose }: CreatePromotionModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Promotion (Placeholder)</DialogTitle>
+          <DialogTitle>Promotions not available</DialogTitle>
         </DialogHeader>
-        <div className="text-gray-400">Promotion creation coming soon.</div>
+        <div className="text-muted-foreground text-sm">
+          Creating promotions is not available yet.
+        </div>
       </DialogContent>
     </Dialog>
   )

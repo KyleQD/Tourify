@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
-import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
 function extractEventId(url: string): string | null {
   const segments = new URL(url).pathname.split("/")
@@ -13,13 +12,7 @@ function extractEventId(url: string): string | null {
   return index >= 0 ? segments[index + 1] || null : null
 }
 
-function isAuditLogRlsError(error: unknown) {
-  return error instanceof Error
-    && error.message.includes('row-level security policy')
-    && error.message.includes('"audit_log"')
-}
-
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability("event.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })
@@ -27,6 +20,7 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
       supabase,
       userId: user.id,
       eventId,
+      orgId: admin.orgId,
     })
     return NextResponse.json({ success: true, event })
   } catch (error: any) {
@@ -35,29 +29,18 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PATCH = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })
     const body = await request.json().catch(() => ({}))
-    let event
-    try {
-      event = await AdminTourEventOperationsService.updateEvent({
-        supabase,
-        userId: user.id,
-        eventId,
-        input: body,
-      })
-    } catch (error) {
-      if (!isAuditLogRlsError(error)) throw error
-      console.warn("[Admin Events API] audit_log RLS trigger blocked user-scoped update; retrying with server-scoped writer")
-      event = await AdminTourEventOperationsService.updateEvent({
-        supabase: createServiceRoleClient(),
-        userId: user.id,
-        eventId,
-        input: body,
-      })
-    }
+    const event = await AdminTourEventOperationsService.updateEvent({
+      supabase,
+      userId: user.id,
+      eventId,
+      input: body,
+      orgId: admin.orgId,
+    })
     return NextResponse.json({ success: true, event })
   } catch (error: any) {
     const status = getAdminTourEventErrorStatus(error, 500)
@@ -65,7 +48,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const eventId = extractEventId(request.url)
     if (!eventId) return NextResponse.json({ success: false, error: "Missing event id" }, { status: 400 })
@@ -73,6 +56,7 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, use
       supabase,
       userId: user.id,
       eventId,
+      orgId: admin.orgId,
     })
     return NextResponse.json(result)
   } catch (error: any) {

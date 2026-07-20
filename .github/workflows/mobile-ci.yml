@@ -36,6 +36,10 @@ jobs:
       - name: Contract tests
         run: npm test -- lib/api/__tests__/contracts.test.ts
 
+      - name: Mobile unit smokes
+        working-directory: apps/mobile
+        run: npm run test:unit
+
       - name: Lint mobile app
         working-directory: apps/mobile
         run: npm run lint

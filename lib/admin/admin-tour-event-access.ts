@@ -11,11 +11,13 @@ export async function assertAdminEventAccess(args: {
   supabase: SupabaseLike
   userId: string
   eventId: string
+  orgId?: string
 }) {
   return AdminTourEventOperationsService.getEvent({
     supabase: args.supabase,
     userId: args.userId,
     eventId: args.eventId,
+    orgId: args.orgId,
   })
 }
 
@@ -23,11 +25,13 @@ export async function assertAdminTourAccess(args: {
   supabase: SupabaseLike
   userId: string
   tourId: string
+  orgId?: string
 }) {
   return AdminTourEventOperationsService.getTour({
     supabase: args.supabase,
     userId: args.userId,
     tourId: args.tourId,
+    orgId: args.orgId,
   })
 }
 

@@ -22,7 +22,7 @@ export function QuickAccess({ className }: QuickAccessProps) {
     setFavorites([
       { path: "/dashboard", label: "Dashboard", icon: "dashboard" },
       { path: "/events", label: "Events", icon: "calendar" },
-      { path: "/music", label: "Music", icon: "music" },
+      { path: "/venue/dashboard", label: "Dashboard", icon: "dashboard" },
       { path: "/analytics", label: "Analytics", icon: "chart" },
     ])
   }, [])
@@ -34,7 +34,7 @@ export function QuickAccess({ className }: QuickAccessProps) {
       { path: "/community", label: "Community", timestamp: Date.now() - 1000 * 60 * 5 }, // 5 minutes ago
       { path: "/events/map", label: "Event Map", timestamp: Date.now() - 1000 * 60 * 30 }, // 30 minutes ago
       { path: "/messages", label: "Messages", timestamp: Date.now() - 1000 * 60 * 60 }, // 1 hour ago
-      { path: "/epk", label: "EPK", timestamp: Date.now() - 1000 * 60 * 60 * 3 }, // 3 hours ago
+      { path: "/venue/dashboard", label: "Dashboard", timestamp: Date.now() - 1000 * 60 * 60 * 3 }, // 3 hours ago
     ]
 
     setRecentPages(mockRecentPages)
@@ -72,10 +72,9 @@ export function QuickAccess({ className }: QuickAccessProps) {
   // Quick access items
   const quickAccessItems = [
     { icon: <Calendar className="h-4 w-4" />, label: "Event", path: "/events/create" },
-    { icon: <Music className="h-4 w-4" />, label: "Upload", path: "/music/upload" },
     { icon: <Building className="h-4 w-4" />, label: "Venue", path: "/venues/create" },
     { icon: <Briefcase className="h-4 w-4" />, label: "Job", path: "/jobs/create" },
-    { icon: <Ticket className="h-4 w-4" />, label: "Ticket", path: "/tickets/create" },
+    { icon: <Ticket className="h-4 w-4" />, label: "Ticket", path: "/venue/dashboard/tickets" },
   ]
 
   return (

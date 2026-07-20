@@ -111,7 +111,7 @@ export function TopNavigation({ onSidebarOpen, onCommandOpen }: TopNavigationPro
               <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleNavigation("/help")}>
+            <DropdownMenuItem onClick={() => handleNavigation("/faq")}>
               <HelpCircle className="mr-2 h-4 w-4" />
               Help & Support
             </DropdownMenuItem>

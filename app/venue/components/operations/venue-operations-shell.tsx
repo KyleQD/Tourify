@@ -11,6 +11,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
+import { MobileVenueNav } from "@/components/venue/mobile-venue-nav"
 import {
   Activity,
   BarChart3,
@@ -23,6 +24,7 @@ import {
   FileText,
   Home,
   Menu,
+  MessageSquare,
   Package,
   ScanLine,
   Search,
@@ -37,7 +39,7 @@ interface VenueNavItem {
   label: string
   href: string
   icon: React.ComponentType<{ className?: string }>
-  badge?: string
+  badgeKey?: "pendingRequests" | "upcomingEvents" | "teamMembers"
 }
 
 interface VenueNavGroup {
@@ -45,49 +47,64 @@ interface VenueNavGroup {
   items: VenueNavItem[]
 }
 
-const navGroups: VenueNavGroup[] = [
-  {
-    label: "Command",
-    items: [
-      { label: "Dashboard", href: "/venue/dashboard", icon: Home },
-      { label: "Bookings", href: "/venue/bookings", icon: ClipboardList },
-      { label: "Calendar", href: "/venue/dashboard/calendar", icon: CalendarDays },
-      { label: "Events", href: "/venue/events", icon: Activity },
-    ],
-  },
-  {
-    label: "Commerce",
-    items: [
-      { label: "Tickets", href: "/venue/tickets", icon: Ticket },
-      { label: "Check-In", href: "/venue/tickets?view=check-in", icon: ScanLine },
-      { label: "Finances", href: "/venue/finances", icon: DollarSign },
-      { label: "Analytics", href: "/venue/analytics", icon: BarChart3 },
-    ],
-  },
-  {
-    label: "Workforce",
-    items: [
-      { label: "Staff", href: "/venue/staff", icon: Users },
-      { label: "Hiring", href: "/venue/dashboard/jobs", icon: BriefcaseBusiness },
-      { label: "Scheduling", href: "/venue/staff/scheduling", icon: CalendarDays },
-      { label: "Roles", href: "/venue/staff/roles-permissions", icon: ShieldCheck },
-    ],
-  },
-  {
-    label: "Physical Venue",
-    items: [
-      { label: "Profile", href: "/venue/overview", icon: Building2 },
-      { label: "Documents", href: "/venue/documents", icon: FileText },
-      { label: "Equipment", href: "/venue/equipment", icon: Package },
-      { label: "Site Maps", href: "/venue/site-maps", icon: Wrench },
-      { label: "Settings", href: "/venue/settings", icon: Settings },
-    ],
-  },
-]
+function buildNavGroups(venueId?: string | null): VenueNavGroup[] {
+  const rolesHref = venueId
+    ? `/venue/staff/roles-permissions?venueId=${encodeURIComponent(venueId)}`
+    : "/venue/staff/roles-permissions"
+  const hiringBoardHref = venueId
+    ? `/venue/dashboard/hiring-kanban?venue_id=${encodeURIComponent(venueId)}`
+    : "/venue/dashboard/hiring-kanban"
+
+  return [
+    {
+      label: "Command",
+      items: [
+        { label: "Dashboard", href: "/venue/dashboard", icon: Home },
+        { label: "Bookings", href: "/venue/bookings", icon: ClipboardList, badgeKey: "pendingRequests" },
+        { label: "Calendar", href: "/venue/dashboard/calendar", icon: CalendarDays },
+        { label: "Events", href: "/venue/events", icon: Activity, badgeKey: "upcomingEvents" },
+        { label: "Messages", href: "/venue/messages", icon: MessageSquare },
+      ],
+    },
+    {
+      label: "Commerce",
+      items: [
+        { label: "Tickets", href: "/venue/dashboard/tickets", icon: Ticket },
+        { label: "Check-In", href: "/venue/dashboard/tickets?view=check-in", icon: ScanLine },
+        { label: "Finances", href: "/venue/finances", icon: DollarSign },
+        { label: "Analytics", href: "/venue/analytics", icon: BarChart3 },
+      ],
+    },
+    {
+      label: "Workforce",
+      items: [
+        { label: "Staff", href: "/venue/staff", icon: Users, badgeKey: "teamMembers" },
+        { label: "Hiring / Jobs", href: "/venue/dashboard/jobs", icon: BriefcaseBusiness },
+        { label: "Hiring Board", href: hiringBoardHref, icon: ClipboardList },
+        { label: "Scheduling", href: "/venue/staff/scheduling", icon: CalendarDays },
+        { label: "Roles", href: rolesHref, icon: ShieldCheck },
+      ],
+    },
+    {
+      label: "Physical Venue",
+      items: [
+        { label: "Profile", href: "/venue/overview", icon: Building2 },
+        { label: "Documents", href: "/venue/documents", icon: FileText },
+        { label: "Equipment", href: "/venue/equipment", icon: Package },
+        { label: "Site Maps", href: "/venue/dashboard/site-maps", icon: Wrench },
+        { label: "Settings", href: "/venue/settings", icon: Settings },
+      ],
+    },
+  ]
+}
 
 function isActivePath(pathname: string, href: string) {
   const [path] = href.split("?")
   if (path === "/venue/dashboard") return pathname === path || pathname === "/venue"
+  if (path === "/venue/messages") return pathname === path || pathname.startsWith(`${path}/`)
+  if (path === "/venue/dashboard/jobs")
+    return pathname === path || pathname.startsWith(`${path}/`)
+  if (path === "/venue/dashboard/hiring-kanban") return pathname === path
   return pathname === path || pathname.startsWith(`${path}/`)
 }
 
@@ -111,6 +128,14 @@ function VenueSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { venue, stats } = useCurrentVenue()
   const venueName = venue?.name || "Venue Operations"
   const location = venue?.location || "Physical location"
+  const navGroups = useMemo(() => buildNavGroups(venue?.id), [venue?.id])
+
+  const badgeValue = (key?: VenueNavItem["badgeKey"]) => {
+    if (!key || !stats) return null
+    const value = stats[key]
+    if (!value || value <= 0) return null
+    return String(value)
+  }
 
   return (
     <div className="flex h-full flex-col bg-zinc-950 text-zinc-100">
@@ -151,10 +176,11 @@ function VenueSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 {group.items.map((item) => {
                   const active = isActivePath(pathname, item.href)
                   const Icon = item.icon
+                  const badge = badgeValue(item.badgeKey)
 
                   return (
                     <Link
-                      key={item.href}
+                      key={`${item.label}-${item.href}`}
                       href={item.href}
                       onClick={onNavigate}
                       className={cn(
@@ -168,9 +194,9 @@ function VenueSidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                         <Icon className="h-4 w-4 shrink-0" />
                         <span className="truncate">{item.label}</span>
                       </span>
-                      {item.badge ? (
+                      {badge ? (
                         <Badge variant="secondary" className="ml-2 bg-zinc-800 text-zinc-300">
-                          {item.badge}
+                          {badge}
                         </Badge>
                       ) : null}
                     </Link>
@@ -243,6 +269,9 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
 
             <div className="flex items-center gap-2">
               <Button asChild variant="ghost" size="sm" className="hidden text-zinc-300 hover:text-zinc-100 sm:inline-flex">
+                <Link href="/venue/messages">Messages</Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="hidden text-zinc-300 hover:text-zinc-100 sm:inline-flex">
                 <Link href="/venue/bookings">New Requests</Link>
               </Button>
               <Button asChild size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700">
@@ -251,7 +280,7 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
             </div>
           </header>
 
-          <main id="main-content" className="flex-1 overflow-x-hidden">
+          <main id="main-content" className="flex-1 overflow-x-hidden pb-20 lg:pb-0">
             <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
               {children}
             </div>
@@ -259,6 +288,7 @@ export function VenueOperationsShell({ children }: { children: React.ReactNode }
         </div>
       </div>
       <Separator className="bg-zinc-900" />
+      <MobileVenueNav />
     </div>
   )
 }

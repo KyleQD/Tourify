@@ -79,7 +79,7 @@ export function resolveIntegrationStatus(
   const providerStatus = String(analytics.status || '')
 
   if (providerStatus === 'unsupported') {
-    return { status: 'unsupported', statusLabel: 'Analytics coming soon' }
+    return { status: 'unsupported', statusLabel: 'Analytics not available' }
   }
   if (providerStatus === 'needs_oauth' || !integration.access_token) {
     return { status: 'needs_oauth', statusLabel: 'Connect OAuth to sync' }
@@ -92,7 +92,7 @@ export function resolveIntegrationStatus(
   }
   if (UNSUPPORTED_ANALYTICS.includes(integration.platform) && !analytics.followers && !analytics.subscribers && !analytics.views) {
     if (providerStatus !== 'synced') {
-      return { status: 'unsupported', statusLabel: 'Analytics coming soon' }
+      return { status: 'unsupported', statusLabel: 'Analytics not available' }
     }
   }
   if (integration.last_sync || analytics.followers != null || analytics.impressions != null || analytics.data) {

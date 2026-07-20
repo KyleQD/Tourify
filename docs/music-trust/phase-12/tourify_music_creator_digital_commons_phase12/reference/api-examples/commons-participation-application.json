@@ -1,0 +1,19 @@
+{
+  "request": {
+    "organization_id": "org_example",
+    "requested_scopes": [
+      "protocol_participation",
+      "registry_verification"
+    ],
+    "policy_version": "phase12-participation-1",
+    "acknowledgements": [
+      "not_a_rights_transfer",
+      "not_a_representation_mandate"
+    ]
+  },
+  "response": {
+    "application_id": "cca_example",
+    "status": "applied",
+    "next_review": "governance_and_authority"
+  }
+}

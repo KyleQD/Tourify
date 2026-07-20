@@ -15,12 +15,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import Link from "next/link"
 import { CreateJobModal } from "../../components/jobs/create-job-modal"
+import { VenueHiringKanban } from "@/components/hiring/venue-hiring-kanban"
 import {
   Briefcase, Search, MapPin, DollarSign, Calendar, Filter, AlertCircle,
   MoreHorizontal, PauseCircle, PlayCircle, CheckCircle2, RefreshCw,
   Trash2, Pencil, Share2, Send, Link2, Eye, Users, UserCheck, Star,
-  XCircle, Loader2, Plus,
+  XCircle, Loader2, Plus, ClipboardList,
 } from "lucide-react"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
@@ -328,9 +330,19 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold">Jobs</h1>
           <p className="text-gray-400">Post jobs, hire individuals, and manage your hiring pipeline</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
-          <Briefcase className="h-4 w-4 mr-2" />Post Job
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {venue?.id ? (
+            <Button asChild variant="outline" className="border-gray-700">
+              <Link href={`/venue/dashboard/hiring-kanban?venue_id=${encodeURIComponent(venue.id)}`}>
+                <ClipboardList className="h-4 w-4 mr-2" />
+                Hiring Board
+              </Link>
+            </Button>
+          ) : null}
+          <Button onClick={() => setShowCreateModal(true)}>
+            <Briefcase className="h-4 w-4 mr-2" />Post Job
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
@@ -346,6 +358,7 @@ export default function JobsPage() {
           <TabsTrigger value="available">Available Jobs</TabsTrigger>
           <TabsTrigger value="applications">My Applications</TabsTrigger>
           <TabsTrigger value="hiring">Hiring Pipeline</TabsTrigger>
+          <TabsTrigger value="board">Hiring Board</TabsTrigger>
           <TabsTrigger value="team">Team Roster</TabsTrigger>
           <TabsTrigger value="recognition">Recognition</TabsTrigger>
         </TabsList>
@@ -586,6 +599,19 @@ export default function JobsPage() {
                 </div>
               )}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="board" className="mt-6">
+          {venue?.id ? (
+            <VenueHiringKanban venueId={venue.id} venueName={venue.name} showHeader={false} />
+          ) : (
+            <HiringStateCard
+              title="Venue Required"
+              description="Select a venue to open the hiring board."
+              icon={ClipboardList}
+              className="border-gray-800 bg-gray-900"
+            />
           )}
         </TabsContent>
 

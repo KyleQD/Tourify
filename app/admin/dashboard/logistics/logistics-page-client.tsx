@@ -15,10 +15,14 @@ import { useRentalAgreements, useRentalAnalytics, useEquipmentUtilization } from
 import { useLodging } from "@/hooks/use-lodging"
 import { useTravelCoordination } from "@/hooks/use-travel-coordination"
 import dynamic from "next/dynamic"
-import { TravelCoordinationHub } from "@/components/admin/travel-coordination-hub"
 import { LogisticsCollaboration } from "@/components/admin/logistics-collaboration"
 import { OperationsCommandShell } from "@/components/admin/operations/operations-command-shell"
 import { WorkforceMetricCard } from "@/components/hiring/workforce-ui"
+import { TransportManager } from "@/components/admin/logistics/transport/transport-manager"
+import { TravelOpsHub } from "@/components/admin/logistics/travel/travel-ops-hub"
+import { EquipmentOpsPanel } from "@/components/admin/logistics/equipment-ops-panel"
+import { BacklineOpsPanel } from "@/components/admin/logistics/backline/backline-ops-panel"
+import { CateringOpsPanel } from "@/components/admin/logistics/catering/catering-ops-panel"
 
 const LogisticsDynamicManager = dynamic(
   () =>
@@ -180,13 +184,16 @@ export default function LogisticsPageClient() {
     fetchOnMount: ['bookings', 'analytics', 'utilization'],
   })
 
-  // Fetch travel coordination data
+  // Fetch travel coordination data (scoped to selected event/tour)
   const { 
     groups: travelGroups, 
     flights: travelFlights, 
     transportation: travelTransportation,
     analytics: travelAnalytics,
-  } = useTravelCoordination()
+  } = useTravelCoordination({
+    event_id: selectedEvent || undefined,
+    tour_id: selectedTour || undefined,
+  })
 
   // Fetch real metrics from API
   const [apiMetrics, setApiMetrics] = useState<any>(null)
@@ -222,24 +229,26 @@ export default function LogisticsPageClient() {
       const equipment = logisticsData.equipment || []
       const assignments = logisticsData.assignments || []
 
-      // Transportation metrics
-      const transportTotal = transportation.length
-      const transportCompleted = transportation.filter(t => t.status === 'completed').length
-      const transportPercentage = transportTotal > 0 ? Math.round((transportCompleted / transportTotal) * 100) : 0
-      const transportStatus = transportPercentage === 100 ? 'Completed' : transportPercentage > 50 ? 'In Progress' : 'Not Started'
+      // Prefer API metrics (org-scoped) for task-backed dimensions
+      const apiTransport = apiMetrics?.transportation
+      const apiEquipment = apiMetrics?.equipment
+      const apiBackline = apiMetrics?.backline
 
-      // Equipment metrics
-      const equipTotal = equipment.length
-      const equipAssigned = assignments.length
-      const equipPercentage = equipTotal > 0 ? Math.round((equipAssigned / equipTotal) * 100) : 0
-      const equipStatus = equipPercentage === 100 ? 'Completed' : equipPercentage > 50 ? 'In Progress' : 'Not Started'
+      const transportTotal = apiTransport?.items ?? transportation.length
+      const transportCompleted = apiTransport?.completed ?? transportation.filter(t => t.status === 'completed').length
+      const transportPercentage = apiTransport?.percentage ?? (transportTotal > 0 ? Math.round((transportCompleted / transportTotal) * 100) : 0)
+      const transportStatus = apiTransport?.status ?? (transportPercentage === 100 ? 'Completed' : transportPercentage > 50 ? 'In Progress' : 'Not Started')
 
-      // Backline metrics (filter equipment by backline category)
-      const backlineEquipment = equipment.filter(e => e.category === 'backline' || e.category === 'instruments')
-      const backlineTotal = backlineEquipment.length
-      const backlineAssigned = assignments.filter(a => backlineEquipment.some(e => e.id === a.equipment_id)).length
-      const backlinePercentage = backlineTotal > 0 ? Math.round((backlineAssigned / backlineTotal) * 100) : 0
-      const backlineStatus = backlinePercentage === 100 ? 'Completed' : backlinePercentage > 50 ? 'In Progress' : 'Not Started'
+      const equipTotal = apiEquipment?.items ?? equipment.length
+      const equipAssigned = apiEquipment?.completed ?? assignments.length
+      const equipPercentage = apiEquipment?.percentage ?? (equipTotal > 0 ? Math.round((equipAssigned / equipTotal) * 100) : 0)
+      const equipStatus = apiEquipment?.status ?? (equipPercentage === 100 ? 'Completed' : equipPercentage > 50 ? 'In Progress' : 'Not Started')
+
+      // Backline is its own logistics_tasks type — never filter equipment "category"
+      const backlineTotal = apiBackline?.items ?? 0
+      const backlineAssigned = apiBackline?.completed ?? 0
+      const backlinePercentage = apiBackline?.percentage ?? 0
+      const backlineStatus = apiBackline?.status ?? 'Not Started'
 
       // Rental metrics from real data
       const activeRentals = rentalAgreements?.length || 0
@@ -499,6 +508,10 @@ export default function LogisticsPageClient() {
 
         <TabsContent value="transportation" className="mt-0">
           <div className="space-y-6">
+            <TransportManager
+              eventId={selectedEvent || undefined}
+              tourId={selectedTour || undefined}
+            />
             <LogisticsDynamicManager
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
@@ -511,142 +524,29 @@ export default function LogisticsPageClient() {
         </TabsContent>
 
         <TabsContent value="accommodations" className="mt-0">
-          <TravelCoordinationHub eventId={selectedEvent || undefined} tourId={selectedTour || undefined} />
+          <TravelOpsHub eventId={selectedEvent || undefined} tourId={selectedTour || undefined} />
         </TabsContent>
 
         <TabsContent value="equipment" className="mt-0">
-          <div className="space-y-6">
-            {/* Equipment Management */}
-            <LogisticsDynamicManager 
-              eventId={selectedEvent || undefined}
-              tourId={selectedTour || undefined}
-              type="equipment"
-              enableEditing={true}
-              autoSave={true}
-              showFilters={true}
-            />
-          </div>
+          <EquipmentOpsPanel
+            eventId={selectedEvent || undefined}
+            tourId={selectedTour || undefined}
+          />
         </TabsContent>
 
         <TabsContent value="backline" className="mt-0">
-          <div className="space-y-6">
-            <LogisticsDynamicManager
-              eventId={selectedEvent || undefined}
-              tourId={selectedTour || undefined}
-              type="backline"
-              enableEditing={true}
-              autoSave={true}
-              showFilters={true}
-            />
-
-            {/* Active Rentals */}
-            <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-slate-100 flex items-center text-base">
-                  <Calendar className="mr-2 h-5 w-5 text-purple-500" />
-                  Active Rentals
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {rentalsLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
-                    <span className="ml-2 text-slate-400">Loading rental data...</span>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {rentalAgreements?.map((agreement) => (
-                      <RentalCard
-                        key={agreement.id}
-                        id={agreement.id}
-                        instrument={agreement.rental_agreement_items?.[0]?.equipment?.name || 'Equipment'}
-                        client={agreement.rental_clients?.name || 'Unknown Client'}
-                        startDate={agreement.start_date}
-                        endDate={agreement.end_date}
-                        dailyRate={agreement.rental_agreement_items?.[0]?.daily_rate || 0}
-                        totalAmount={agreement.total_amount}
-                        status={agreement.status === 'active' ? 'active' : agreement.status === 'confirmed' ? 'upcoming' : 'completed'}
-                        onEdit={async (id) => {
-                          const status = window.prompt('Rental status (draft, confirmed, active, completed, cancelled, overdue)', agreement.status)
-                          if (!status) return
-                          await updateAgreement(id, { status } as any)
-                        }}
-                        onExtend={async (id) => {
-                          const nextEndDate = window.prompt('New end date (YYYY-MM-DD)', agreement.end_date)
-                          if (!nextEndDate) return
-                          await updateAgreement(id, { end_date: nextEndDate } as any)
-                        }}
-                        onReturn={async (id) => {
-                          await updateAgreement(id, { status: 'completed', return_date: new Date().toISOString() } as any)
-                        }}
-                      />
-                    ))}
-                    {(!rentalAgreements || rentalAgreements.length === 0) && (
-                      <div className="text-center py-8 text-slate-500">
-                        No active rentals found
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Rental Analytics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-slate-100 text-sm">Revenue This Month</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-400">
-                    {formatSafeCurrency(rentalAnalytics?.[0]?.total_revenue || 0)}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {rentalAnalytics?.[0]?.total_rentals || 0} total rentals
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-slate-100 text-sm">Active Rentals</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-400">
-                    {rentalAnalytics?.[0]?.active_rentals || 0}
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {rentalAnalytics?.[0]?.overdue_rentals || 0} overdue
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="rounded-sm bg-slate-900/60 backdrop-blur-sm border-slate-700/50">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-slate-100 text-sm">Utilization Rate</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-400">
-                    {equipmentUtilization?.length ? Math.round((equipmentUtilization.filter(e => e.current_status === 'Currently Rented').length / equipmentUtilization.length) * 100) : 0}%
-                  </div>
-                  <p className="text-xs text-slate-400 mt-1">
-                    {equipmentUtilization?.filter(e => e.current_status === 'Available').length || 0} items available
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <BacklineOpsPanel
+            eventId={selectedEvent || undefined}
+            tourId={selectedTour || undefined}
+          />
         </TabsContent>
 
         <TabsContent value="catering" className="mt-0">
-          <div className="space-y-6">
-            <LogisticsDynamicManager
-              eventId={selectedEvent || undefined}
-              tourId={selectedTour || undefined}
-              type="catering"
-              enableEditing={true}
-              autoSave={true}
-              showFilters={true}
-            />
-          </div>
+          <CateringOpsPanel
+            eventId={selectedEvent || undefined}
+            tourId={selectedTour || undefined}
+            siteMapId={searchParams.get('siteMapId')}
+          />
         </TabsContent>
 
         <TabsContent value="communication" className="mt-0">
@@ -654,6 +554,7 @@ export default function LogisticsPageClient() {
             <LogisticsCollaboration 
               eventId={selectedEvent || undefined}
               tourId={selectedTour || undefined}
+              siteMapId={searchParams.get('siteMapId') || undefined}
               teamMembers={teamMembers.map(m => ({
                 id: m.user_id || m.profiles?.id || m.id,
                 name: m.profiles?.full_name || m.full_name || 'Team Member',

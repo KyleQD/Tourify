@@ -1,19 +1,13 @@
 import { useCallback, useEffect, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Text, View } from "react-native"
 import * as WebBrowser from "expo-web-browser"
-import { supabase } from "@/lib/supabase"
 import { useAccountMode } from "@/hooks/use-account-mode"
 import { env } from "@/lib/config/env"
-
-interface VenueBookingRequest {
-  id: string
-  event_name: string
-  event_date: string
-  expected_attendance: number | null
-  contact_email: string
-  status: "pending" | "approved" | "rejected" | "accepted" | "declined" | "cancelled"
-  requested_at: string
-}
+import {
+  listVenueBookingRequests,
+  updateVenueBookingRequestStatus,
+  type VenueBookingRequest,
+} from "@/lib/api/venue-booking-requests"
 
 export default function BookingsScreen() {
   function getStatusLabel(status: VenueBookingRequest["status"]) {
@@ -35,22 +29,18 @@ export default function BookingsScreen() {
     }
 
     setIsLoading(true)
-    const { data, error } = await supabase
-      .from("venue_booking_requests")
-      .select("id, event_name, event_date, expected_attendance, contact_email, status, requested_at")
-      .eq("venue_id", venueProfile.id)
-      .order("requested_at", { ascending: false })
-      .limit(50)
-
-    if (error) {
-      Alert.alert("Failed to load requests", error.message)
+    try {
+      const data = await listVenueBookingRequests({ venueId: venueProfile.id, limit: 50 })
+      setRequests(data)
+    } catch (error) {
+      Alert.alert(
+        "Failed to load requests",
+        error instanceof Error ? error.message : "Please try again."
+      )
       setRequests([])
+    } finally {
       setIsLoading(false)
-      return
     }
-
-    setRequests((data || []) as VenueBookingRequest[])
-    setIsLoading(false)
   }, [venueProfile?.id])
 
   useEffect(() => {
@@ -59,26 +49,21 @@ export default function BookingsScreen() {
 
   async function updateRequestStatus(id: string, status: "approved" | "rejected") {
     setIsUpdating(id)
-    const { error } = await supabase
-      .from("venue_booking_requests")
-      .update({
-        status,
-        responded_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-
-    setIsUpdating(null)
-
-    if (error) {
-      Alert.alert("Update failed", error.message)
-      return
-    }
-
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === id ? { ...request, status } : request
+    try {
+      const updated = await updateVenueBookingRequestStatus({ requestId: id, status })
+      setRequests((current) =>
+        current.map((request) =>
+          request.id === id ? { ...request, status: updated?.status || status } : request
+        )
       )
-    )
+    } catch (error) {
+      Alert.alert(
+        "Update failed",
+        error instanceof Error ? error.message : "Please try again."
+      )
+    } finally {
+      setIsUpdating(null)
+    }
   }
 
   if (isAccountLoading || isLoading) {
@@ -98,7 +83,7 @@ export default function BookingsScreen() {
             Venue booking operations are available when you are signed in to a venue account.
           </Text>
           <Text style={{ color: "#94a3b8", marginTop: 8 }}>
-            Ticket checkout currently runs on web while native booking checkout is finalized.
+            Ticket purchases for events are available from the Events screen with server-verified checkout.
           </Text>
           <Pressable
             onPress={() => void WebBrowser.openBrowserAsync(`${env.apiBaseUrl}/marketplace`)}

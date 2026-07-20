@@ -8,13 +8,17 @@ import {
 } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import * as WebBrowser from "expo-web-browser"
+import { pollCheckoutPayment } from "@/lib/api/payments"
 
-type CheckoutStatus = "pending" | "completed" | "failed"
+type CheckoutStatus = "pending" | "verifying" | "completed" | "failed"
 
 export default function CheckoutScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{
     order_id?: string
+    booking_id?: string
+    session_id?: string
+    checkout_session_id?: string
     event_title?: string
     ticket_name?: string
     amount?: string
@@ -24,14 +28,42 @@ export default function CheckoutScreen() {
 
   const amount = params.amount ? parseFloat(params.amount) : 0
   const isFree = amount === 0
+  const sessionId = params.session_id || params.checkout_session_id
   const initialStatus: CheckoutStatus =
-    params.status === "completed" || isFree ? "completed" : "pending"
+    params.status === "completed" || (isFree && !params.checkout_url) ? "completed" : "pending"
 
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>(initialStatus)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
+  async function verifyAfterBrowser() {
+    setCheckoutStatus("verifying")
+    setStatusMessage("Confirming payment with Tourify…")
+
+    const result = await pollCheckoutPayment({
+      bookingId: params.booking_id,
+      sessionId,
+      orderId: params.order_id,
+    })
+
+    if (result.status === "completed") {
+      setCheckoutStatus("completed")
+      setStatusMessage(null)
+      return
+    }
+
+    if (result.status === "pending") {
+      setCheckoutStatus("pending")
+      setStatusMessage("Payment is still processing. Tap Retry verification in a moment.")
+      return
+    }
+
+    setCheckoutStatus("failed")
+    setStatusMessage(result.message || "Payment verification failed.")
+  }
+
   async function handleCompletePurchase() {
-    if (isFree) {
+    if (isFree && !params.checkout_url) {
       setCheckoutStatus("completed")
       return
     }
@@ -40,16 +72,28 @@ export default function CheckoutScreen() {
       setIsProcessing(true)
       try {
         await WebBrowser.openBrowserAsync(params.checkout_url)
-        setCheckoutStatus("completed")
+        await verifyAfterBrowser()
       } catch {
         setCheckoutStatus("failed")
+        setStatusMessage("Could not open the payment page.")
       } finally {
         setIsProcessing(false)
       }
       return
     }
 
-    setCheckoutStatus("completed")
+    if (sessionId || params.booking_id || params.order_id) {
+      setIsProcessing(true)
+      try {
+        await verifyAfterBrowser()
+      } finally {
+        setIsProcessing(false)
+      }
+      return
+    }
+
+    setCheckoutStatus("failed")
+    setStatusMessage("Missing checkout details. Return to the event and try again.")
   }
 
   return (
@@ -98,6 +142,12 @@ export default function CheckoutScreen() {
           ) : null}
         </View>
 
+        {statusMessage ? (
+          <Text style={{ color: "#94a3b8", textAlign: "center", lineHeight: 20 }}>
+            {statusMessage}
+          </Text>
+        ) : null}
+
         {checkoutStatus === "pending" ? (
           <Pressable
             onPress={handleCompletePurchase}
@@ -113,10 +163,23 @@ export default function CheckoutScreen() {
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16, textAlign: "center" }}>
-                {isFree ? "Confirm Free Ticket" : "Complete Purchase"}
+                {params.checkout_url
+                  ? "Complete Purchase"
+                  : sessionId
+                    ? "Retry verification"
+                    : isFree
+                      ? "Confirm Free Ticket"
+                      : "Complete Purchase"}
               </Text>
             )}
           </Pressable>
+        ) : null}
+
+        {checkoutStatus === "verifying" ? (
+          <View style={{ alignItems: "center", gap: 12, paddingVertical: 16 }}>
+            <ActivityIndicator size="large" color="#a855f7" />
+            <Text style={{ color: "#cbd5e1" }}>Verifying payment…</Text>
+          </View>
         ) : null}
 
         {checkoutStatus === "completed" ? (
@@ -136,7 +199,7 @@ export default function CheckoutScreen() {
             <Text style={{ color: "#a7f3d0", textAlign: "center", lineHeight: 20 }}>
               {isFree
                 ? "Your free ticket has been confirmed. Check your email for details."
-                : "Your payment was processed successfully. Check your email for your ticket."}
+                : "Your payment was verified successfully. Check your email for your ticket."}
             </Text>
           </View>
         ) : null}
@@ -156,10 +219,13 @@ export default function CheckoutScreen() {
               Purchase Failed
             </Text>
             <Text style={{ color: "#fecaca", textAlign: "center", lineHeight: 20 }}>
-              Something went wrong with your payment. Please try again.
+              {statusMessage || "Something went wrong with your payment. Please try again."}
             </Text>
             <Pressable
-              onPress={() => setCheckoutStatus("pending")}
+              onPress={() => {
+                setCheckoutStatus("pending")
+                setStatusMessage(null)
+              }}
               style={{
                 borderRadius: 10,
                 backgroundColor: "#7c3aed",

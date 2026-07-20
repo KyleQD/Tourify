@@ -1,18 +1,20 @@
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import {
   ActivityIndicator,
-  Image,
+  FlatList,
   Pressable,
-  ScrollView,
   Text,
   useWindowDimensions,
   View,
 } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
+import { useQuery } from "@tanstack/react-query"
 import { useRouter } from "expo-router"
 import * as WebBrowser from "expo-web-browser"
 import { env } from "@/lib/config/env"
-import { getFeaturedStory, type FeaturedStory } from "@/lib/api/featured-story"
+import { getFeaturedStory } from "@/lib/api/featured-story"
+import { queryKeys } from "@/lib/query/keys"
 
 interface CardShellProps {
   width: number
@@ -53,27 +55,15 @@ export function FeaturedStoryCarousel() {
   const router = useRouter()
   const { width: screenWidth } = useWindowDimensions()
   const cardWidth = screenWidth - 32
-  const [story, setStory] = useState<FeaturedStory | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [activeIndex, setActiveIndex] = useState(0)
+  const storyQuery = useQuery({
+    queryKey: queryKeys.featuredStory(),
+    queryFn: getFeaturedStory,
+    staleTime: 60_000,
+  })
+  const story = storyQuery.data || { article: null, artist: null, song: null }
 
-  const loadStory = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const result = await getFeaturedStory()
-      setStory(result)
-    } catch {
-      setStory({ article: null, artist: null, song: null })
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void loadStory()
-  }, [loadStory])
-
-  if (isLoading) {
+  if (storyQuery.isLoading) {
     return (
       <View style={{ marginHorizontal: 16, marginBottom: 12 }}>
         <View
@@ -94,157 +84,169 @@ export function FeaturedStoryCarousel() {
     )
   }
 
-  const cards: React.ReactNode[] = []
-
-  cards.push(
-    <CardShell
-      key="article"
-      width={cardWidth}
-      label="TOP STORY"
-      icon="newspaper-outline"
-      tint="#f472b6"
-      onPress={
-        story?.article
-          ? () => WebBrowser.openBrowserAsync(`${env.apiBaseUrl}/blog/${story.article!.slug}`)
-          : undefined
-      }
-    >
-      {story?.article ? (
-        <View style={{ gap: 6 }}>
-          {story.article.featuredImageUrl ? (
-            <Image
-              source={{ uri: story.article.featuredImageUrl }}
-              style={{ width: "100%", height: 70, borderRadius: 10, backgroundColor: "#1e293b" }}
-              resizeMode="cover"
-            />
-          ) : null}
-          <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }} numberOfLines={2}>
-            {story.article.title}
-          </Text>
-          <Text style={{ color: "#94a3b8", fontSize: 12 }} numberOfLines={2}>
-            {story.article.excerpt}
-          </Text>
-        </View>
-      ) : (
-        <Text style={{ color: "#64748b", fontSize: 13 }}>No featured article yet.</Text>
-      )}
-    </CardShell>
-  )
-
-  cards.push(
-    <CardShell
-      key="artist"
-      width={cardWidth}
-      label="TOP ARTIST"
-      icon="star-outline"
-      tint="#c084fc"
-      onPress={
-        story?.artist ? () => router.push(`/profile/${story.artist!.username}`) : undefined
-      }
-    >
-      {story?.artist ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          {story.artist.avatarUrl ? (
-            <Image
-              source={{ uri: story.artist.avatarUrl }}
-              style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#1e293b" }}
-            />
-          ) : (
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 28,
-                backgroundColor: "#1e293b",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="musical-notes" size={22} color="#c084fc" />
+  const cardItems = [
+    {
+      key: "article",
+      node: (
+        <CardShell
+          width={cardWidth}
+          label="TOP STORY"
+          icon="newspaper-outline"
+          tint="#f472b6"
+          onPress={
+            story.article
+              ? () => WebBrowser.openBrowserAsync(`${env.apiBaseUrl}/blog/${story.article!.slug}`)
+              : undefined
+          }
+        >
+          {story.article ? (
+            <View style={{ gap: 6 }}>
+              {story.article.featuredImageUrl ? (
+                <Image
+                  source={{ uri: story.article.featuredImageUrl }}
+                  style={{ width: "100%", height: 70, borderRadius: 10, backgroundColor: "#1e293b" }}
+                  contentFit="cover"
+                  transition={120}
+                />
+              ) : null}
+              <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }} numberOfLines={2}>
+                {story.article.title}
+              </Text>
+              <Text style={{ color: "#94a3b8", fontSize: 12 }} numberOfLines={2}>
+                {story.article.excerpt}
+              </Text>
             </View>
-          )}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
-              {story.artist.displayName}
-            </Text>
-            <Text style={{ color: "#94a3b8", fontSize: 12 }}>
-              {story.artist.followers.toLocaleString()} followers
-            </Text>
-          </View>
-        </View>
-      ) : (
-        <Text style={{ color: "#64748b", fontSize: 13 }}>No top artist yet.</Text>
-      )}
-    </CardShell>
-  )
-
-  cards.push(
-    <CardShell
-      key="song"
-      width={cardWidth}
-      label="TOP SONG"
-      icon="disc-outline"
-      tint="#38bdf8"
-      onPress={
-        story?.song?.artistId ? () => router.push(`/profile/${story.song!.artistId}`) : undefined
-      }
-    >
-      {story?.song ? (
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-          {story.song.coverArtUrl ? (
-            <Image
-              source={{ uri: story.song.coverArtUrl }}
-              style={{ width: 56, height: 56, borderRadius: 10, backgroundColor: "#1e293b" }}
-            />
           ) : (
-            <View
-              style={{
-                width: 56,
-                height: 56,
-                borderRadius: 10,
-                backgroundColor: "#1e293b",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <Ionicons name="disc" size={22} color="#38bdf8" />
-            </View>
+            <Text style={{ color: "#64748b", fontSize: 13 }}>No featured article yet.</Text>
           )}
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
-              {story.song.title}
-            </Text>
-            <Text style={{ color: "#94a3b8", fontSize: 12 }} numberOfLines={1}>
-              {story.song.artistName}
-            </Text>
-          </View>
-        </View>
-      ) : (
-        <Text style={{ color: "#64748b", fontSize: 13 }}>No trending song yet.</Text>
-      )}
-    </CardShell>
-  )
+        </CardShell>
+      ),
+    },
+    {
+      key: "artist",
+      node: (
+        <CardShell
+          width={cardWidth}
+          label="TOP ARTIST"
+          icon="star-outline"
+          tint="#c084fc"
+          onPress={
+            story.artist ? () => router.push(`/profile/${story.artist!.username}`) : undefined
+          }
+        >
+          {story.artist ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              {story.artist.avatarUrl ? (
+                <Image
+                  source={{ uri: story.artist.avatarUrl }}
+                  style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: "#1e293b" }}
+                  contentFit="cover"
+                  transition={120}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
+                    backgroundColor: "#1e293b",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="musical-notes" size={22} color="#c084fc" />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
+                  {story.artist.displayName}
+                </Text>
+                <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+                  {story.artist.followers.toLocaleString()} followers
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={{ color: "#64748b", fontSize: 13 }}>No top artist yet.</Text>
+          )}
+        </CardShell>
+      ),
+    },
+    {
+      key: "song",
+      node: (
+        <CardShell
+          width={cardWidth}
+          label="TOP SONG"
+          icon="disc-outline"
+          tint="#38bdf8"
+          onPress={
+            story.song?.artistId ? () => router.push(`/profile/${story.song!.artistId}`) : undefined
+          }
+        >
+          {story.song ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+              {story.song.coverArtUrl ? (
+                <Image
+                  source={{ uri: story.song.coverArtUrl }}
+                  style={{ width: 56, height: 56, borderRadius: 10, backgroundColor: "#1e293b" }}
+                  contentFit="cover"
+                  transition={120}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 56,
+                    height: 56,
+                    borderRadius: 10,
+                    backgroundColor: "#1e293b",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Ionicons name="disc" size={22} color="#38bdf8" />
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#f8fafc", fontSize: 16, fontWeight: "700" }} numberOfLines={1}>
+                  {story.song.title}
+                </Text>
+                <Text style={{ color: "#94a3b8", fontSize: 12 }} numberOfLines={1}>
+                  {story.song.artistName}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={{ color: "#64748b", fontSize: 13 }}>No trending song yet.</Text>
+          )}
+        </CardShell>
+      ),
+    },
+  ]
 
   return (
     <View style={{ marginBottom: 12 }}>
-      <ScrollView
+      <FlatList
         horizontal
-        pagingEnabled
+        data={cardItems}
+        keyExtractor={(item) => item.key}
+        renderItem={({ item }) => item.node}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }}
         snapToInterval={cardWidth + 12}
         decelerationRate="fast"
+        windowSize={3}
+        initialNumToRender={2}
+        maxToRenderPerBatch={2}
         onMomentumScrollEnd={(e) => {
           const index = Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12))
           setActiveIndex(index)
         }}
-      >
-        {cards}
-      </ScrollView>
+      />
       <View style={{ flexDirection: "row", justifyContent: "center", gap: 6, marginTop: 8 }}>
-        {cards.map((_, index) => (
+        {cardItems.map((item, index) => (
           <View
-            key={index}
+            key={item.key}
             style={{
               width: index === activeIndex ? 18 : 6,
               height: 6,

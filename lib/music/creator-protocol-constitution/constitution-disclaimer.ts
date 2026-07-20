@@ -1,0 +1,2 @@
+export const CREATOR_PROTOCOL_CONSTITUTION_DISCLAIMER =
+  "Protocol-constitution readiness sandbox only — not a treaty, court, regulator, or CMO; not production constitutional stewardship; not ownership/licensing/representation authority. Tourify is an optional technology provider. Phase 12 commons participation does not create compact membership. Fundamental provisions cannot change via deploy or ordinary majority. Feature flags are never legal authority."

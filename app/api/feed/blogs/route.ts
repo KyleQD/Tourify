@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
         account_is_verified
       `)
       .eq('status', 'published')
+      .eq('format', 'blog')
 
     // Filter by category if specified
     if (category && category !== 'all') {
@@ -68,7 +69,52 @@ export async function GET(request: NextRequest) {
     // Apply limit
     query = query.limit(limit)
 
-    const { data: blogs, error } = await query
+    let { data: blogs, error } = await query
+
+    if (error && (error.message?.includes('format') || error.code === '42703' || error.code === 'PGRST204')) {
+      let legacyQuery = supabase
+        .from('artist_blog_posts')
+        .select(`
+          id,
+          title,
+          slug,
+          excerpt,
+          content,
+          featured_image_url,
+          tags,
+          categories,
+          stats,
+          published_at,
+          created_at,
+          user_id,
+          posted_as_profile_id,
+          posted_as_type,
+          account_display_name,
+          account_username,
+          account_avatar_url,
+          account_is_verified
+        `)
+        .eq('status', 'published')
+
+      if (category && category !== 'all')
+        legacyQuery = legacyQuery.contains('categories', [category])
+
+      switch (sortBy) {
+        case 'popular':
+          legacyQuery = legacyQuery.order('stats->views', { ascending: false })
+          break
+        case 'trending':
+          legacyQuery = legacyQuery.order('stats->likes', { ascending: false })
+          break
+        default:
+          legacyQuery = legacyQuery.order('published_at', { ascending: false })
+          break
+      }
+
+      const legacy = await legacyQuery.limit(limit)
+      blogs = legacy.data
+      error = legacy.error
+    }
 
     if (error) {
       console.error('Error fetching blog posts:', error)

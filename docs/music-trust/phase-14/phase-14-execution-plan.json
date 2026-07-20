@@ -1,0 +1,3233 @@
+{
+  "planId": "tourify-music-phase-14-global-creator-interoperability-convention-readiness",
+  "version": "0.1.0-derived",
+  "status": "complete_with_blockers",
+  "derivedFrom": [
+    "docs/music-trust/phase-13/tourify_music_creator_protocol_constitution_phase13/34_PHASE_14_GLOBAL_CREATOR_INTEROPERABILITY_CONVENTION_HANDOFF.md",
+    "docs/music-trust/phase-13/PHASE_14_HANDOFF_READINESS.md"
+  ],
+  "note": "Official phase-14 package directory was empty; this plan is derived.",
+  "repository": {
+    "commit": "673b82984da5670b94ed68d1efd94130539ea859",
+    "branch": "codex/live-sync-dashboard-news"
+  },
+  "featureFlags": [
+    {
+      "name": "creator_interop_convention_readiness_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_convention_drafting_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_network_registry_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_mutual_recognition_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_approval_package_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_public_status_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_limited_production_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_treaty_status_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_universal_representation_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_state_io_participation_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_collective_action_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_irreversible_asset_transfer_enabled",
+      "default": false
+    },
+    {
+      "name": "creator_interop_emergency_override_enabled",
+      "default": false
+    }
+  ],
+  "residualRisks": [
+    "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+    "Multi-compact years of operational evidence pending",
+    "Executed future_phase14_approval_packages with dual control + independent review pending",
+    "Privacy/security/accessibility/jurisdiction reviews pending",
+    "Limited-production approval pending; hard flags remain off",
+    "Remote migration/advisors unauthorized until ops approval"
+  ],
+  "evidence": [
+    "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+    "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+    "npx jest lib/music"
+  ],
+  "stages": [
+    {
+      "id": "P14-S0",
+      "name": "Audit, source-of-truth and baseline",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S0-01",
+          "title": "Audit, source-of-truth and baseline task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-02",
+          "title": "Audit, source-of-truth and baseline task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-03",
+          "title": "Audit, source-of-truth and baseline task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-04",
+          "title": "Audit, source-of-truth and baseline task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-05",
+          "title": "Audit, source-of-truth and baseline task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-06",
+          "title": "Audit, source-of-truth and baseline task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-07",
+          "title": "Audit, source-of-truth and baseline task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-08",
+          "title": "Audit, source-of-truth and baseline task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-09",
+          "title": "Audit, source-of-truth and baseline task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S0-10",
+          "title": "Audit, source-of-truth and baseline task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S0-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S0-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "docs/music-trust/phase-14/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-14/phase-14-execution-plan.json"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S1",
+      "name": "Convention entity and approval packages",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S1-01",
+          "title": "Convention entity and approval packages task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-02",
+          "title": "Convention entity and approval packages task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-03",
+          "title": "Convention entity and approval packages task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-04",
+          "title": "Convention entity and approval packages task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-05",
+          "title": "Convention entity and approval packages task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-06",
+          "title": "Convention entity and approval packages task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-07",
+          "title": "Convention entity and approval packages task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-08",
+          "title": "Convention entity and approval packages task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-09",
+          "title": "Convention entity and approval packages task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S1-10",
+          "title": "Convention entity and approval packages task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S1-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S1-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/approval-packages/route.ts",
+            "supabase/migrations/20260718100000_creator_interop_approval_packages_networks.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S2",
+      "name": "Network registry",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S2-01",
+          "title": "Network registry task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-02",
+          "title": "Network registry task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-03",
+          "title": "Network registry task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-04",
+          "title": "Network registry task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-05",
+          "title": "Network registry task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-06",
+          "title": "Network registry task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-07",
+          "title": "Network registry task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-08",
+          "title": "Network registry task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-09",
+          "title": "Network registry task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S2-10",
+          "title": "Network registry task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S2-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S2-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/networks/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S3",
+      "name": "Mutual recognition of constitutional compacts",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S3-01",
+          "title": "Mutual recognition of constitutional compacts task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-02",
+          "title": "Mutual recognition of constitutional compacts task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-03",
+          "title": "Mutual recognition of constitutional compacts task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-04",
+          "title": "Mutual recognition of constitutional compacts task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-05",
+          "title": "Mutual recognition of constitutional compacts task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-06",
+          "title": "Mutual recognition of constitutional compacts task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-07",
+          "title": "Mutual recognition of constitutional compacts task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-08",
+          "title": "Mutual recognition of constitutional compacts task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-09",
+          "title": "Mutual recognition of constitutional compacts task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S3-10",
+          "title": "Mutual recognition of constitutional compacts task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S3-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S3-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/mutual-recognition-policy.ts",
+            "app/api/creator-interoperability-convention/recognition/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S4",
+      "name": "Interop profiles and decisions",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S4-01",
+          "title": "Interop profiles and decisions task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-02",
+          "title": "Interop profiles and decisions task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-03",
+          "title": "Interop profiles and decisions task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-04",
+          "title": "Interop profiles and decisions task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-05",
+          "title": "Interop profiles and decisions task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-06",
+          "title": "Interop profiles and decisions task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-07",
+          "title": "Interop profiles and decisions task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-08",
+          "title": "Interop profiles and decisions task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-09",
+          "title": "Interop profiles and decisions task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S4-10",
+          "title": "Interop profiles and decisions task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S4-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S4-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100100_creator_interop_recognitions_profiles_decisions.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S5",
+      "name": "Privacy, jurisdiction, accessibility stubs",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S5-01",
+          "title": "Privacy, jurisdiction, accessibility stubs task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-02",
+          "title": "Privacy, jurisdiction, accessibility stubs task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-03",
+          "title": "Privacy, jurisdiction, accessibility stubs task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-04",
+          "title": "Privacy, jurisdiction, accessibility stubs task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-05",
+          "title": "Privacy, jurisdiction, accessibility stubs task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-06",
+          "title": "Privacy, jurisdiction, accessibility stubs task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-07",
+          "title": "Privacy, jurisdiction, accessibility stubs task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-08",
+          "title": "Privacy, jurisdiction, accessibility stubs task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-09",
+          "title": "Privacy, jurisdiction, accessibility stubs task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S5-10",
+          "title": "Privacy, jurisdiction, accessibility stubs task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S5-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S5-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/api/creator-interoperability-convention/gated/route.ts"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S6",
+      "name": "Security and anti-treaty controls",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S6-01",
+          "title": "Security and anti-treaty controls task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-02",
+          "title": "Security and anti-treaty controls task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-03",
+          "title": "Security and anti-treaty controls task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-04",
+          "title": "Security and anti-treaty controls task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-05",
+          "title": "Security and anti-treaty controls task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-06",
+          "title": "Security and anti-treaty controls task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-07",
+          "title": "Security and anti-treaty controls task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-08",
+          "title": "Security and anti-treaty controls task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-09",
+          "title": "Security and anti-treaty controls task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S6-10",
+          "title": "Security and anti-treaty controls task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S6-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S6-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/interop-activation-gate.ts",
+            "docs/music-trust/phase-14/runbooks/TREATY_IMPLICATION.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S7",
+      "name": "Database, RLS, storage, projections",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S7-01",
+          "title": "Database, RLS, storage, projections task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-02",
+          "title": "Database, RLS, storage, projections task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-03",
+          "title": "Database, RLS, storage, projections task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-04",
+          "title": "Database, RLS, storage, projections task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-05",
+          "title": "Database, RLS, storage, projections task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-06",
+          "title": "Database, RLS, storage, projections task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-07",
+          "title": "Database, RLS, storage, projections task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-08",
+          "title": "Database, RLS, storage, projections task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-09",
+          "title": "Database, RLS, storage, projections task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S7-10",
+          "title": "Database, RLS, storage, projections task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S7-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S7-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "supabase/migrations/20260718100200_creator_interop_projections_incidents_audit_outbox.sql"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S8",
+      "name": "Routes, jobs, UI, admin ops, runbooks",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S8-01",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-02",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-03",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-04",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-05",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-06",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-07",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-08",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-09",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S8-10",
+          "title": "Routes, jobs, UI, admin ops, runbooks task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S8-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S8-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "app/interop-convention/page.tsx",
+            "app/api/admin/creator-interoperability-convention/ops/route.ts",
+            "components/admin/music-creator-interop-convention-ops-panel.tsx"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "P14-S9",
+      "name": "Testing, limited-prod blockers, Phase 15 handoff",
+      "status": "complete_with_blockers",
+      "tasks": [
+        {
+          "id": "P14-S9-01",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 1",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-01 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-01; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-02",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 2",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-02 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-02; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-03",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 3",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-03 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-03; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-04",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 4",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-04 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-04; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-05",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 5",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-05 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-05; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-06",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 6",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-06 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-06; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-07",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 7",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-07 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-07; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-08",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 8",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-08 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-08; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-09",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 9",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-09 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-09; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        },
+        {
+          "id": "P14-S9-10",
+          "title": "Testing, limited-prod blockers, Phase 15 handoff task 10",
+          "status": "complete_with_blockers",
+          "dependencies": [],
+          "scope": "Sandbox interop-convention readiness for P14-S9-10 under lib/music/creator-interoperability-convention and app/api/creator-interoperability-convention. Derived package; flags default off; hard-disabled powers blocked; Phase 15 not implemented.",
+          "acceptanceCriteria": [
+            "Flags default off",
+            "Cannot launch from Phase 13 flags",
+            "No treaty/universal representation by software"
+          ],
+          "evidence": [
+            "Sandbox shell for P14-S9-10; honest blockers recorded."
+          ],
+          "blockers": [
+            "Official numbered Phase 14 package was empty; derived scaffold may be superseded",
+            "Multi-compact years of operational evidence pending",
+            "Executed future_phase14_approval_packages with dual control + independent review pending",
+            "Privacy/security/accessibility/jurisdiction reviews pending",
+            "Limited-production approval pending; hard flags remain off",
+            "Remote migration/advisors unauthorized until ops approval"
+          ],
+          "filesChanged": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "docs/music-trust/phase-14/PHASE_14_IMPLEMENTATION_REPORT.md",
+            "docs/music-trust/phase-14/PHASE_15_HANDOFF_READINESS.md"
+          ],
+          "tests": [
+            "lib/music/creator-interoperability-convention/__tests__/interop-activation-gate.test.ts",
+            "npx jest lib/music"
+          ]
+        }
+      ]
+    }
+  ]
+}

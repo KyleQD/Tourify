@@ -118,10 +118,11 @@ export const POST = withAdminAuth(async (request: NextRequest, { user, supabase 
     const validatedData = createTourSchema.parse(body)
 
 
-    // Create the tour
+    // Create the tour — set both ownership columns so tours_insert_owner_or_org RLS passes
     const tourData = {
       ...validatedData,
-      user_id: user.id, // Use user_id instead of artist_id
+      user_id: user.id,
+      created_by: user.id,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }

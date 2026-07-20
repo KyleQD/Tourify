@@ -8,17 +8,20 @@ function read(path: string) {
   return readFileSync(join(root, path), 'utf8')
 }
 
-describe('artist feed analytics + persona scope', () => {
-  it('loads artist-only posts with strict attribution and owned posts separately', () => {
-    const source = read('app/artist/feed/page.tsx')
+describe('artist home feed analytics + persona scope', () => {
+  it('home feed uses type=home and feed-stats', () => {
+    const source = read('components/artist/artist-home-feed.tsx')
 
-    expect(source).toContain("attribution: 'strict'")
-    expect(source).toContain('fetchArtistPosts')
-    expect(source).toContain('fetchOwnedPosts')
+    expect(source).toContain("filter === 'home' ? 'home'")
     expect(source).toContain('fetchFeedStats')
     expect(source).toContain('/api/artist/feed-stats')
     expect(source).toContain('feedStats.postCount')
-    expect(source).toContain('dedupePosts([...artistPosts, ...ownedPosts, ...networkPosts])')
+    expect(source).toContain('/api/feed/collaborations/pending')
+  })
+
+  it('feed route redirects to artist home', () => {
+    const source = read('app/artist/feed/page.tsx')
+    expect(source).toContain("redirect('/artist')")
   })
 
   it('scopes feed-stats posts to posted_as_profile_id only', () => {
@@ -30,9 +33,11 @@ describe('artist feed analytics + persona scope', () => {
     expect(source).not.toContain('get_enhanced_artist_stats')
   })
 
-  it('threads attribution=strict through the feed posts route', () => {
+  it('threads home/tagged scopes and attribution=strict through the feed posts route', () => {
     const source = read('app/api/feed/posts/route.ts')
     expect(source).toContain("attributionParam === 'strict'")
     expect(source).toContain('attribution,')
+    expect(source).toContain("type === 'home'")
+    expect(source).toContain('resolveHomeFeedScope')
   })
 })

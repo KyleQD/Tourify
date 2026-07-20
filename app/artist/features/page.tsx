@@ -92,10 +92,10 @@ const contentFeatures: FeatureCard[] = [
     href: "/artist/content"
   },
   {
-    title: "Blog",
-    description: "Create and manage blog posts",
+    title: "Press",
+    description: "Blogs, articles, and press releases",
     icon: FileText,
-    href: "/artist/features/blog"
+    href: "/artist/press"
   },
 ]
 
@@ -111,6 +111,12 @@ const businessFeatures: FeatureCard[] = [
     description: "Find and post music industry jobs",
     icon: Briefcase,
     href: "/artist/features/jobs"
+  },
+  {
+    title: "Crew hiring",
+    description: "Hire and onboard tour or event crew",
+    icon: Briefcase,
+    href: "/admin/dashboard/hiring?entity_type=artist"
   },
   {
     title: "Promotions",

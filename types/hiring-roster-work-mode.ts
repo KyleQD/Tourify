@@ -153,6 +153,7 @@ export interface AssignShiftZoneArgs {
   memberId: string
   actorUserId: string
   eventId?: string
+  tourId?: string
   shiftId?: string
   zone?: string
   assignedManagerId?: string
@@ -202,6 +203,9 @@ export interface UpsertRosterFromApprovalArgs {
   employmentType?: string | null
   /** When true, mark the member active/submitted after onboarding completion. */
   completed?: boolean
+  /** Optional event/tour context from the source job posting. */
+  eventId?: string | null
+  tourId?: string | null
 }
 
 export interface RosterApiResponse<TData> {

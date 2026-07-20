@@ -28,10 +28,23 @@ import {
   SheetTitle,
 } from '@/components/admin/scheduling/ui/sheet'
 import { Textarea } from '@/components/admin/scheduling/ui/textarea'
-import type { AdminCalendarItem, AdminCalendarKind } from '@/lib/admin/calendar/types'
+import { useAuth } from '@/contexts/auth-context'
+import type {
+  AdminCalendarItem,
+  AdminCalendarKind,
+  AdminCalendarScopeMode,
+} from '@/lib/admin/calendar/types'
 import { cn } from '@/lib/utils'
 
 type CreateKind = 'task' | 'shift' | 'event' | 'tour' | 'production'
+
+const TOUR_LEVEL_VALUE = '__tour_level__'
+
+interface AssigneeOption {
+  id: string
+  name: string
+  isSelf?: boolean
+}
 
 interface CalendarDaySheetProps {
   open: boolean
@@ -40,6 +53,9 @@ interface CalendarDaySheetProps {
   items: AdminCalendarItem[]
   /** Events available for task linking (typically current view range). */
   linkableEvents?: AdminCalendarItem[]
+  scopeMode?: AdminCalendarScopeMode | null
+  scopeId?: string | null
+  scopeName?: string | null
   onCreated: () => Promise<void> | void
 }
 
@@ -59,7 +75,7 @@ const CREATE_OPTIONS: Array<{
 }> = [
   { kind: 'task', label: 'Task', icon: ClipboardList },
   { kind: 'shift', label: 'Shift', icon: Users },
-  { kind: 'event', label: 'Event', icon: Music },
+  { kind: 'event', label: 'Show', icon: Music },
   { kind: 'tour', label: 'Tour', icon: Truck },
   { kind: 'production', label: 'Production', icon: CalendarClock },
 ]
@@ -71,24 +87,98 @@ function formatItemTime(item: AdminCalendarItem): string {
   return format(start, 'h:mm a')
 }
 
+function nearestEventId(events: AdminCalendarItem[], dateKey: string): string {
+  if (events.length === 0) return ''
+  const target = new Date(`${dateKey}T12:00:00`).getTime()
+  let best = events[0]
+  let bestDelta = Math.abs(new Date(best.start).getTime() - target)
+  for (const event of events.slice(1)) {
+    const delta = Math.abs(new Date(event.start).getTime() - target)
+    if (delta < bestDelta) {
+      best = event
+      bestDelta = delta
+    }
+  }
+  return best.sourceId
+}
+
+function normalizeAssignees(
+  members: Array<Record<string, unknown>>,
+  currentUserId: string | null,
+  currentUserName: string | null,
+): AssigneeOption[] {
+  const byId = new Map<string, AssigneeOption>()
+
+  if (currentUserId) {
+    byId.set(currentUserId, {
+      id: currentUserId,
+      name: currentUserName ? `Me (${currentUserName})` : 'Me',
+      isSelf: true,
+    })
+  }
+
+  for (const member of members) {
+    const profile = member.profiles && typeof member.profiles === 'object'
+      ? member.profiles as Record<string, unknown>
+      : null
+    const id = String(
+      member.user_id
+      || profile?.id
+      || member.id
+      || '',
+    )
+    if (!id) continue
+    const name = String(
+      profile?.full_name
+      || member.full_name
+      || profile?.email
+      || member.email
+      || 'Team member',
+    )
+    if (currentUserId && id === currentUserId) {
+      byId.set(id, {
+        id,
+        name: `Me (${name})`,
+        isSelf: true,
+      })
+      continue
+    }
+    if (!byId.has(id))
+      byId.set(id, { id, name })
+  }
+
+  return Array.from(byId.values()).sort((a, b) => {
+    if (a.isSelf) return -1
+    if (b.isSelf) return 1
+    return a.name.localeCompare(b.name)
+  })
+}
+
 export function CalendarDaySheet({
   open,
   onOpenChange,
   date,
   items,
   linkableEvents,
+  scopeMode = null,
+  scopeId = null,
+  scopeName = null,
   onCreated,
 }: CalendarDaySheetProps) {
   const router = useRouter()
+  const { user } = useAuth()
   const dateKey = format(date, 'yyyy-MM-dd')
   const today = isToday(date)
 
-  const [createKind, setCreateKind] = useState<CreateKind>('shift')
+  const [createKind, setCreateKind] = useState<CreateKind>('task')
   const [title, setTitle] = useState('')
   const [startTime, setStartTime] = useState('09:00')
   const [endTime, setEndTime] = useState('17:00')
   const [notes, setNotes] = useState('')
   const [eventId, setEventId] = useState('')
+  const [assigneeId, setAssigneeId] = useState('')
+  const [assignees, setAssignees] = useState<AssigneeOption[]>([])
+  const [isLoadingAssignees, setIsLoadingAssignees] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const density = Math.min(5, items.length)
@@ -97,11 +187,99 @@ export function CalendarDaySheet({
     return source.filter((item) => item.kind === 'event')
   }, [items, linkableEvents])
 
+  const createOptions = useMemo(() => {
+    if (scopeMode === 'tour')
+      return CREATE_OPTIONS.filter((option) => option.kind !== 'tour')
+    if (scopeMode === 'event')
+      return CREATE_OPTIONS.filter((option) => option.kind !== 'tour' && option.kind !== 'event')
+    return CREATE_OPTIONS
+  }, [scopeMode])
+
   useEffect(() => {
     if (!open) return
-    if (!eventId && eventOptions[0]?.sourceId)
+    if (scopeMode === 'event' && scopeId) {
+      setEventId(scopeId)
+      return
+    }
+    if (scopeMode === 'tour') {
+      setEventId(nearestEventId(eventOptions, dateKey) || TOUR_LEVEL_VALUE)
+      return
+    }
+    if (eventOptions[0]?.sourceId)
       setEventId(eventOptions[0].sourceId)
-  }, [open, eventId, eventOptions])
+  }, [open, scopeMode, scopeId, dateKey])
+
+  useEffect(() => {
+    if (!open) return
+    if (!createOptions.some((option) => option.kind === createKind))
+      setCreateKind(createOptions[0]?.kind || 'task')
+  }, [open, createOptions, createKind])
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+
+    async function loadAssignees() {
+      setIsLoadingAssignees(true)
+      try {
+        const params = new URLSearchParams()
+        if (scopeMode === 'tour' && scopeId) params.set('tour_id', scopeId)
+        if (scopeMode === 'event' && scopeId) params.set('event_id', scopeId)
+        if (scopeMode === 'org' && scopeId) {
+          params.set('employer_entity_type', 'organization')
+          params.set('employer_entity_id', scopeId)
+        }
+
+        const workforceUrl = params.size > 0
+          ? `/api/admin/workforce/people?${params.toString()}`
+          : '/api/admin/team-members'
+        const response = await fetch(workforceUrl, {
+          credentials: 'include',
+          cache: 'no-store',
+        })
+        const payload = await response.json().catch(() => ({}))
+        const members = Array.isArray(payload.people)
+          ? payload.people
+          : Array.isArray(payload.members)
+            ? payload.members
+            : Array.isArray(payload.teamMembers)
+              ? payload.teamMembers
+              : []
+        if (cancelled) return
+        const normalizedMembers = members.map((member: Record<string, unknown>) => ({
+          ...member,
+          user_id: member.userId || member.user_id || member.id,
+          full_name: member.name || member.full_name,
+          email: member.email,
+        }))
+        const next = normalizeAssignees(
+          normalizedMembers,
+          user?.id || null,
+          (user?.user_metadata?.full_name as string | undefined)
+            || user?.email
+            || null,
+        )
+        setAssignees(next)
+        setAssigneeId((prev) => prev || user?.id || next[0]?.id || '')
+      } catch {
+        if (cancelled) return
+        const fallback = normalizeAssignees(
+          [],
+          user?.id || null,
+          (user?.user_metadata?.full_name as string | undefined) || user?.email || null,
+        )
+        setAssignees(fallback)
+        setAssigneeId((prev) => prev || user?.id || '')
+      } finally {
+        if (!cancelled) setIsLoadingAssignees(false)
+      }
+    }
+
+    void loadAssignees()
+    return () => {
+      cancelled = true
+    }
+  }, [open, scopeId, scopeMode, user?.email, user?.id, user?.user_metadata?.full_name])
 
   const kindCounts = useMemo(() => {
     const counts: Partial<Record<AdminCalendarKind, number>> = {}
@@ -115,7 +293,13 @@ export function CalendarDaySheet({
     setStartTime('09:00')
     setEndTime('17:00')
     setNotes('')
-    setEventId(eventOptions[0]?.sourceId || '')
+    setAssigneeId(user?.id || assignees[0]?.id || '')
+    if (scopeMode === 'event' && scopeId)
+      setEventId(scopeId)
+    else if (scopeMode === 'tour')
+      setEventId(nearestEventId(eventOptions, dateKey) || TOUR_LEVEL_VALUE)
+    else
+      setEventId(eventOptions[0]?.sourceId || '')
   }
 
   async function createInlineItem() {
@@ -124,8 +308,22 @@ export function CalendarDaySheet({
       return
     }
 
-    if (createKind === 'task' && !eventId) {
-      toast.error('Select an event for this task, or open Logistics')
+    const isTourLevelTask = createKind === 'task'
+      && scopeMode === 'tour'
+      && (eventId === TOUR_LEVEL_VALUE || !eventId)
+
+    if (createKind === 'task' && !isTourLevelTask && !eventId && scopeMode !== 'event') {
+      toast.error('Select a show for this task, or choose Tour-level')
+      return
+    }
+
+    if (createKind === 'task' && scopeMode === 'event' && !scopeId) {
+      toast.error('Event context is missing')
+      return
+    }
+
+    if (isTourLevelTask && !scopeId) {
+      toast.error('Tour context is missing')
       return
     }
 
@@ -143,8 +341,25 @@ export function CalendarDaySheet({
         priority: 'medium',
       }
 
-      if (createKind === 'task')
-        body.event_id = eventId
+      if (createKind === 'task') {
+        if (isTourLevelTask)
+          body.tour_id = scopeId
+        else
+          body.event_id = scopeMode === 'event' ? scopeId : eventId
+      }
+
+      if (createKind === 'shift') {
+        const shiftEventId = scopeMode === 'event'
+          ? scopeId
+          : eventId && eventId !== TOUR_LEVEL_VALUE
+            ? eventId
+            : undefined
+        if (shiftEventId)
+          body.event_id = shiftEventId
+      }
+
+      if (assigneeId)
+        body.assignee_id = assigneeId
 
       const response = await fetch('/api/admin/calendar', {
         method: 'POST',
@@ -169,7 +384,8 @@ export function CalendarDaySheet({
 
   function handleDeepLink() {
     if (createKind === 'event') {
-      router.push(`/admin/dashboard/events/create?date=${dateKey}`)
+      const tourQuery = scopeMode === 'tour' && scopeId ? `&tourId=${scopeId}` : ''
+      router.push(`/admin/dashboard/events/create?date=${dateKey}${tourQuery}`)
       return
     }
     if (createKind === 'tour') {
@@ -179,14 +395,19 @@ export function CalendarDaySheet({
     if (createKind === 'production') {
       const dayEvent = items.find((item) => item.kind === 'event')
       const firstEvent = dayEvent || eventOptions[0]
-      if (firstEvent)
-        router.push(`/admin/dashboard/events/${firstEvent.sourceId}/hq`)
+      const targetEventId = scopeMode === 'event' ? scopeId : firstEvent?.sourceId
+      if (targetEventId)
+        router.push(`/admin/dashboard/events/${targetEventId}/hq`)
       else
         router.push('/admin/dashboard/events')
     }
   }
 
   const isInlineCreate = createKind === 'task' || createKind === 'shift'
+  const canSubmitTask = createKind !== 'task'
+    || Boolean(scopeMode === 'event' && scopeId)
+    || Boolean(scopeMode === 'tour' && scopeId)
+    || eventOptions.length > 0
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -211,51 +432,48 @@ export function CalendarDaySheet({
                 ) : null}
               </div>
               <SheetDescription className="text-xs">
-                {items.length} item{items.length === 1 ? '' : 's'} on this day
+                {scopeName
+                  ? `${scopeName}${items.length > 0 ? ` · ${items.length}` : ''}`
+                  : items.length > 0
+                    ? `${items.length} item${items.length === 1 ? '' : 's'}`
+                    : 'Add to schedule'}
               </SheetDescription>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-0.5" aria-hidden>
-            {Array.from({ length: 5 }).map((_, index) => (
-              <span
-                key={index}
-                className={cn(
-                  'h-1 flex-1 rounded-full',
-                  index < density ? 'bg-neon-purple/60' : 'bg-border',
-                )}
-              />
-            ))}
-          </div>
-
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {(Object.entries(kindCounts) as Array<[AdminCalendarKind, number]>).map(([kind, count]) => (
-              <span
-                key={kind}
-                className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium capitalize', KIND_CHIP[kind])}
-              >
-                {kind} {count}
-              </span>
-            ))}
-          </div>
+          {items.length > 0 ? (
+            <>
+              <div className="mt-3 flex items-center gap-0.5" aria-hidden>
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <span
+                    key={index}
+                    className={cn(
+                      'h-1 flex-1 rounded-full',
+                      index < density ? 'bg-neon-purple/60' : 'bg-border',
+                    )}
+                  />
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(Object.entries(kindCounts) as Array<[AdminCalendarKind, number]>).map(([kind, count]) => (
+                  <span
+                    key={kind}
+                    className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium capitalize', KIND_CHIP[kind])}
+                  >
+                    {kind} {count}
+                  </span>
+                ))}
+              </div>
+            </>
+          ) : null}
         </SheetHeader>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
-          <section className="space-y-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Agenda
-            </p>
-
-            {items.length === 0 ? (
-              <button
-                type="button"
-                onClick={() => setCreateKind('shift')}
-                className="flex w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border/60 bg-background/40 px-3 py-8 text-center text-muted-foreground transition-colors hover:border-neon-purple/50 hover:text-neon-purple"
-              >
-                <Plus className="size-4" />
-                <span className="text-xs font-medium">Nothing scheduled — add something</span>
-              </button>
-            ) : (
+          {items.length > 0 ? (
+            <section className="space-y-2">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Agenda
+              </p>
               <div className="space-y-2">
                 {items.map((item) => (
                   <div
@@ -292,8 +510,8 @@ export function CalendarDaySheet({
                   </div>
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          ) : null}
 
           <section className="space-y-3 rounded-xl border border-border/60 bg-card/70 p-3 backdrop-blur">
             <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -301,7 +519,7 @@ export function CalendarDaySheet({
             </p>
 
             <div className="flex flex-wrap gap-1 rounded-lg border border-border/60 bg-background/40 p-0.5">
-              {CREATE_OPTIONS.map((option) => {
+              {createOptions.map((option) => {
                 const Icon = option.icon
                 const active = createKind === option.kind
                 return (
@@ -337,18 +555,52 @@ export function CalendarDaySheet({
                   />
                 </div>
 
-                {createKind === 'task' ? (
+                <div className="space-y-1.5">
+                  <Label htmlFor="cal-create-assignee" className="text-xs">
+                    Assign to
+                  </Label>
+                  <select
+                    id="cal-create-assignee"
+                    value={assigneeId}
+                    onChange={(e) => setAssigneeId(e.target.value)}
+                    disabled={isLoadingAssignees}
+                    className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30"
+                  >
+                    {isLoadingAssignees ? (
+                      <option value="">Loading…</option>
+                    ) : assignees.length === 0 ? (
+                      <option value="">No teammates found</option>
+                    ) : (
+                      <>
+                        <option value="">Unassigned</option>
+                        {assignees.map((person) => (
+                          <option key={person.id} value={person.id}>
+                            {person.name}
+                          </option>
+                        ))}
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                {(createKind === 'task' || createKind === 'shift') && scopeMode !== 'event' ? (
                   <div className="space-y-1.5">
                     <Label htmlFor="cal-create-event" className="text-xs">
-                      Link to event
+                      {createKind === 'task' ? 'Link to show' : 'Link to show (optional)'}
                     </Label>
-                    {eventOptions.length > 0 ? (
+                    {eventOptions.length > 0 || scopeMode === 'tour' ? (
                       <select
                         id="cal-create-event"
-                        value={eventId || eventOptions[0]?.sourceId || ''}
+                        value={eventId}
                         onChange={(e) => setEventId(e.target.value)}
                         className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm dark:bg-input/30"
                       >
+                        {scopeMode === 'tour' && createKind === 'task' ? (
+                          <option value={TOUR_LEVEL_VALUE}>Tour-level (no show)</option>
+                        ) : null}
+                        {createKind === 'shift' && scopeMode === 'tour' ? (
+                          <option value="">No show link</option>
+                        ) : null}
                         {eventOptions.map((event) => (
                           <option key={event.id} value={event.sourceId}>
                             {event.title}
@@ -357,14 +609,19 @@ export function CalendarDaySheet({
                       </select>
                     ) : (
                       <div className="rounded-lg border border-neon-cyan/30 bg-neon-cyan/5 p-2.5 text-xs text-muted-foreground">
-                        No events on this day.{' '}
-                        <Link
-                          href="/admin/dashboard/logistics"
-                          className="text-neon-cyan underline-offset-2 hover:underline"
-                        >
-                          Open Logistics
-                        </Link>
-                        {' '}or create an event first.
+                        {scopeMode === 'tour'
+                          ? 'No shows on this tour yet — tasks can still be tour-level.'
+                          : (
+                            <>
+                              No events available.{' '}
+                              <Link
+                                href="/admin/dashboard/events/create"
+                                className="text-neon-cyan underline-offset-2 hover:underline"
+                              >
+                                Create an event
+                              </Link>
+                            </>
+                          )}
                       </div>
                     )}
                   </div>
@@ -407,8 +664,8 @@ export function CalendarDaySheet({
                 {createKind === 'event' && 'Opens the event builder with this date prefilled.'}
                 {createKind === 'tour' && 'Opens the tour builder to plan a multi-day run.'}
                 {createKind === 'production' && (
-                  eventOptions.length > 0
-                    ? `Opens HQ production calendar for “${eventOptions[0].title}”.`
+                  eventOptions.length > 0 || (scopeMode === 'event' && scopeId)
+                    ? `Opens HQ production calendar${eventOptions[0] ? ` for “${eventOptions[0].title}”` : ''}.`
                     : 'No event on this day — you’ll land on the events list.'
                 )}
               </div>
@@ -428,7 +685,7 @@ export function CalendarDaySheet({
             {isInlineCreate ? (
               <Button
                 className="flex-1 bg-neon-purple text-primary-foreground hover:bg-neon-purple/85 shadow-[0_0_20px_-6px_var(--color-neon-purple)]"
-                disabled={isSubmitting || (createKind === 'task' && eventOptions.length === 0)}
+                disabled={isSubmitting || !canSubmitTask}
                 onClick={() => void createInlineItem()}
               >
                 <Plus className="size-3.5" />

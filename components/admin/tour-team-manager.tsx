@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -10,12 +10,14 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
-import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Users, Mail, Phone, Calendar, User, UserPlus, Building } from "lucide-react"
+import { Plus, Edit, Trash2, CheckCircle, Clock, XCircle, Users, Mail, Phone, Calendar, User, UserPlus, Building, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface TourMember {
   id: string
+  user_id?: string
   name: string
   role: string
   email: string
@@ -60,11 +62,18 @@ interface WorkflowMessage {
 }
 
 export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamManagerProps) {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    ...input,
+    headers: { ...actingHeaders, ...(input?.headers || {}) },
+  }), [actingHeaders])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false)
   const [isCreateTeamDialogOpen, setIsCreateTeamDialogOpen] = useState(false)
+  const [isDeleteTeamDialogOpen, setIsDeleteTeamDialogOpen] = useState(false)
+  const [isEditingTeam, setIsEditingTeam] = useState(false)
   const [isAddUserToTeamDialogOpen, setIsAddUserToTeamDialogOpen] = useState(false)
   const [isSearchLoading, setIsSearchLoading] = useState(false)
   const [selectedMember, setSelectedMember] = useState<TourMember | null>(null)
@@ -73,7 +82,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const [filterStatus, setFilterStatus] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [userQuery, setUserQuery] = useState('')
-  const [userResults, setUserResults] = useState<Array<{ id: string; email: string; display_name?: string }>>([])
+  const [userResults, setUserResults] = useState<Array<{ id: string; email: string; display_name?: string; full_name?: string }>>([])
   const [teams, setTeams] = useState<TourTeam[]>([])
   const [workflowThreadId, setWorkflowThreadId] = useState<string | null>(null)
   const [workflowTasks, setWorkflowTasks] = useState<WorkflowTask[]>([])
@@ -83,6 +92,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const [workflowTaskPriority, setWorkflowTaskPriority] = useState<WorkflowTask["priority"]>("medium")
   const [workflowTaskAssigneeId, setWorkflowTaskAssigneeId] = useState("")
   const [workflowMessageBody, setWorkflowMessageBody] = useState("")
+  const [inviteLink, setInviteLink] = useState("")
   const [newTeam, setNewTeam] = useState({
     name: '',
     role: '',
@@ -101,39 +111,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     team_id: ''
   })
 
-  useEffect(() => {
-    void syncWorkflow()
-  }, [tourId])
-
-  useEffect(() => {
-    async function syncParticipants() {
-      if (!workflowThreadId) return
-      const eligibleMembers = members.filter((member) => isUuid(member.id))
-      if (eligibleMembers.length === 0) return
-
-      await Promise.all(
-        eligibleMembers.map((member) =>
-          fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/participants`, {
-            method: 'POST',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              user_id: member.id,
-              role: member.role.toLowerCase().includes('manager') ? 'admin' : 'member',
-              permissions: ['messages.write', 'tasks.manage'],
-              status: member.status === 'declined' ? 'removed' : 'active',
-            }),
-          })
-        )
-      )
-    }
-
-    void syncParticipants()
-  }, [workflowThreadId, members])
-
-  async function syncWorkflow() {
+  const syncWorkflow = useCallback(async () => {
+    if (!isActingReady) return
     setIsWorkflowLoading(true)
     try {
-      const threadResponse = await fetch('/api/workflows/threads', {
+      const threadResponse = await fetch('/api/workflows/threads', adminRequest({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -141,7 +123,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           scope_id: tourId,
           title: 'Tour workflow',
         }),
-      })
+      }))
       if (!threadResponse.ok) return
       const threadPayload = await threadResponse.json()
       const threadId = threadPayload?.thread?.id
@@ -149,8 +131,8 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       setWorkflowThreadId(threadId)
 
       const [tasksResponse, messagesResponse] = await Promise.all([
-        fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, { cache: 'no-store' }),
-        fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, { cache: 'no-store' }),
+        fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/tasks`, adminRequest({ cache: 'no-store' })),
+        fetch(`/api/workflows/threads/${encodeURIComponent(threadId)}/messages`, adminRequest({ cache: 'no-store' })),
       ])
 
       if (tasksResponse.ok) {
@@ -166,7 +148,53 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     } finally {
       setIsWorkflowLoading(false)
     }
-  }
+  }, [adminRequest, isActingReady, tourId])
+
+  useEffect(() => {
+    if (!isActingReady) {
+      setTeams([])
+      return
+    }
+    void syncWorkflow()
+    void (async () => {
+      const response = await fetch(`/api/admin/tours/teams?tour_id=${encodeURIComponent(tourId)}`, adminRequest())
+      if (!response.ok) return
+      const payload = await response.json()
+      setTeams(payload.data || [])
+    })()
+  }, [actingContextKey, adminRequest, isActingReady, syncWorkflow, tourId])
+
+  useEffect(() => {
+    setTeams(current => current.map(team => ({
+      ...team,
+      members: members.filter(member => member.team_id === team.id),
+    })))
+  }, [members])
+
+  useEffect(() => {
+    async function syncParticipants() {
+      if (!workflowThreadId) return
+      const eligibleMembers = members.filter((member) => member.user_id && isUuid(member.user_id))
+      if (eligibleMembers.length === 0) return
+
+      await Promise.all(
+        eligibleMembers.map((member) =>
+          fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/participants`, adminRequest({
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              user_id: member.user_id,
+              role: member.role.toLowerCase().includes('manager') ? 'admin' : 'member',
+              permissions: ['messages.write', 'tasks.manage'],
+              status: member.status === 'declined' ? 'removed' : 'active',
+            }),
+          }))
+        )
+      )
+    }
+
+    void syncParticipants()
+  }, [adminRequest, workflowThreadId, members])
 
   function isUuid(value: string) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
@@ -179,7 +207,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
         ? workflowTaskAssigneeId
         : undefined
 
-      const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, {
+      const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/tasks`, adminRequest({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +215,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           priority: workflowTaskPriority,
           assignee_id: assigneeId,
         }),
-      })
+      }))
 
       if (!response.ok) throw new Error('Failed to create workflow task')
       setWorkflowTaskTitle("")
@@ -201,11 +229,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   async function handleSendWorkflowMessage() {
     if (!workflowThreadId || !workflowMessageBody.trim()) return
     try {
-      const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/messages`, {
+      const response = await fetch(`/api/workflows/threads/${encodeURIComponent(workflowThreadId)}/messages`, adminRequest({
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ body: workflowMessageBody.trim() }),
-      })
+      }))
       if (!response.ok) throw new Error('Failed to send workflow message')
       setWorkflowMessageBody("")
       await syncWorkflow()
@@ -234,6 +262,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     setIsAddDialogOpen(true)
   }
 
+  const openInviteDialog = () => {
+    resetForm()
+    setUserQuery('')
+    setUserResults([])
+    setInviteLink('')
+    setIsInviteDialogOpen(true)
+  }
+
   const handleEditMember = (member: TourMember) => {
     setSelectedMember(member)
     setFormData({
@@ -255,20 +291,69 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     setIsDeleteDialogOpen(true)
   }
 
-  const handleCreateTeam = () => {
+  const openCreateTeam = () => {
+    setSelectedTeam(null)
+    setIsEditingTeam(false)
+    setNewTeam({ name: '', role: '', description: '' })
+    setIsCreateTeamDialogOpen(true)
+  }
+
+  const openEditTeam = (team: TourTeam) => {
+    setSelectedTeam(team)
+    setIsEditingTeam(true)
+    setNewTeam({ name: team.name, role: team.role, description: team.description || '' })
+    setIsCreateTeamDialogOpen(true)
+  }
+
+  const handleSaveTeam = async () => {
     if (newTeam.name && newTeam.role) {
-      const team: TourTeam = {
-        id: Date.now().toString(),
-        name: newTeam.name,
-        role: newTeam.role,
-        description: newTeam.description,
-        members: [],
-        created_at: new Date().toISOString()
+      setIsSubmitting(true)
+      try {
+        const response = await fetch('/api/admin/tours/teams', adminRequest({
+          method: isEditingTeam ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...(isEditingTeam ? { id: selectedTeam?.id } : { tour_id: tourId }),
+            name: newTeam.name,
+            role: newTeam.role,
+            team_type: newTeam.role,
+            description: newTeam.description || null,
+          }),
+        }))
+        if (!response.ok) throw new Error(`Failed to ${isEditingTeam ? 'update' : 'create'} team`)
+        const payload = await response.json()
+        setTeams(current => isEditingTeam
+          ? current.map(team => team.id === selectedTeam?.id ? { ...team, ...payload.data } : team)
+          : [...current, payload.data])
+        setNewTeam({ name: '', role: '', description: '' })
+        setIsCreateTeamDialogOpen(false)
+        toast.success(`Team ${isEditingTeam ? 'updated' : 'created'} successfully`)
+      } catch {
+        toast.error(`Failed to ${isEditingTeam ? 'update' : 'create'} team`)
+      } finally {
+        setIsSubmitting(false)
       }
-      setTeams([...teams, team])
-      setNewTeam({ name: '', role: '', description: '' })
-      setIsCreateTeamDialogOpen(false)
-      toast.success('Team created successfully')
+    }
+  }
+
+  const handleDeleteTeam = async () => {
+    if (!selectedTeam) return
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(
+        `/api/admin/tours/teams?id=${encodeURIComponent(selectedTeam.id)}&tour_id=${encodeURIComponent(tourId)}`,
+        adminRequest({ method: 'DELETE' }),
+      )
+      if (!response.ok) throw new Error('Failed to delete team')
+      setTeams(current => current.filter(team => team.id !== selectedTeam.id))
+      onMembersUpdate(members.filter(member => member.team_id !== selectedTeam.id))
+      setIsDeleteTeamDialogOpen(false)
+      setSelectedTeam(null)
+      toast.success('Team deleted')
+    } catch {
+      toast.error('Failed to delete team')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -280,24 +365,15 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const handleAssignUserToTeam = async (userId: string, teamId: string) => {
     setIsSubmitting(true)
     try {
-      const res = await fetch(`/api/tours/${tourId}/assign-user-to-team`, {
+      const res = await fetch('/api/admin/tours/team-members', adminRequest({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, teamId })
-      })
+        body: JSON.stringify({ tour_id: tourId, user_id: userId, team_id: teamId, role: 'member', status: 'confirmed' })
+      }))
       if (!res.ok) throw new Error('Failed to assign user to team')
+      const payload = await res.json()
       
-      // Update local state
-      const user = userResults.find(u => u.id === userId)
-      if (!user) return
-      
-      const newMember: TourMember = {
-        id: user.id,
-        name: user.display_name || user.email.split('@')[0],
-        role: 'member',
-        email: user.email,
-        status: 'confirmed'
-      }
+      const newMember: TourMember = payload.data
       
       const updatedTeams = teams.map(team => 
         team.id === teamId 
@@ -305,6 +381,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           : team
       )
       setTeams(updatedTeams)
+      onMembersUpdate([...members, newMember])
       
       toast.success('User assigned to team successfully')
       setIsAddUserToTeamDialogOpen(false)
@@ -323,8 +400,8 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
     try {
       setIsSearchLoading(true)
       // Lightweight email search via public profiles view if available; fallback to admin API
-      const params = new URLSearchParams({ query: userQuery })
-      const res = await fetch(`/api/admin/users/search?${params.toString()}`)
+      const params = new URLSearchParams({ q: userQuery })
+      const res = await fetch(`/api/admin/users/search?${params.toString()}`, adminRequest())
       if (res.ok) {
         const data = await res.json()
         setUserResults(data.users || [])
@@ -339,14 +416,14 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const assignExistingUser = async (userId: string, role: string) => {
     setIsSubmitting(true)
     try {
-      const res = await fetch(`/api/tours/${tourId}/assign-user`, {
+      const res = await fetch('/api/admin/tours/team-members', adminRequest({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, role, status: 'confirmed' })
-      })
+        body: JSON.stringify({ tour_id: tourId, user_id: userId, role, status: 'confirmed' })
+      }))
       if (!res.ok) throw new Error('Failed to assign user')
       const data = await res.json()
-      onMembersUpdate([...members, data.member])
+      onMembersUpdate([...members, data.data])
       toast.success('User assigned to tour')
       setIsInviteDialogOpen(false)
     } catch {
@@ -359,7 +436,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const inviteMember = async (payload: { email?: string; phone?: string; role: string }) => {
     setIsSubmitting(true)
     try {
-      const res = await fetch(`/api/tours/${tourId}/invites`, {
+      const res = await fetch(`/api/tours/${tourId}/invites`, adminRequest({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -371,10 +448,19 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
             description: `Tour team invitation for ${payload.role}`
           }
         })
-      })
+      }))
       if (!res.ok) throw new Error('Failed to send invite')
-      toast.success('Invitation sent')
-      setIsInviteDialogOpen(false)
+      const result = await res.json()
+      const link = result.onboardingUrl
+        ? new URL(result.onboardingUrl, window.location.origin).toString()
+        : ''
+      setInviteLink(link)
+      if (result.delivery?.delivered) {
+        toast.success('Invitation delivered')
+        setIsInviteDialogOpen(false)
+      } else {
+        toast.warning('Invitation created, but automatic delivery is unavailable. Share the link below.')
+      }
     } catch (e) {
       toast.error('Failed to send invitation')
     } finally {
@@ -385,17 +471,19 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
   const handleSubmit = async (isEdit: boolean = false) => {
     setIsSubmitting(true)
     try {
-      const url = isEdit 
-        ? `/api/tours/${tourId}/team/${selectedMember?.id}`
-        : `/api/tours/${tourId}/team`
+      const url = '/api/admin/tours/team-members'
       
       const method = isEdit ? 'PATCH' : 'POST'
       
-      const response = await fetch(url, {
+      const response = await fetch(url, adminRequest({
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+        body: JSON.stringify({
+          ...formData,
+          team_id: formData.team_id || undefined,
+          ...(isEdit ? { id: selectedMember?.id } : { tour_id: tourId }),
+        })
+      }))
 
       if (!response.ok) {
         throw new Error('Failed to save team member')
@@ -405,12 +493,12 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
       
       if (isEdit) {
         const updatedMembers = members.map(member => 
-          member.id === selectedMember?.id ? result.member : member
+          member.id === selectedMember?.id ? result.data : member
         )
         onMembersUpdate(updatedMembers)
         toast.success('Team member updated successfully')
       } else {
-        const newMembers = [...members, result.member]
+        const newMembers = [...members, result.data]
         onMembersUpdate(newMembers)
         toast.success('Team member added successfully')
       }
@@ -431,9 +519,10 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/tours/${tourId}/team/${selectedMember.id}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(
+        `/api/admin/tours/team-members?id=${encodeURIComponent(selectedMember.id)}`,
+        adminRequest({ method: 'DELETE' }),
+      )
 
       if (!response.ok) {
         throw new Error('Failed to delete team member')
@@ -486,11 +575,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           <p className="text-slate-400">Manage team members for this tour</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setIsCreateTeamDialogOpen(true)} variant="outline" className="border-slate-600 text-slate-300">
+          <Button onClick={openCreateTeam} variant="outline" className="border-slate-600 text-slate-300">
             <Building className="mr-2 h-4 w-4" />
             Create Team
           </Button>
-          <Button onClick={() => setIsInviteDialogOpen(true)} variant="outline" className="border-slate-600 text-slate-300">
+          <Button onClick={openInviteDialog} variant="outline" className="border-slate-600 text-slate-300">
             Invite
           </Button>
           <Button onClick={handleAddMember} className="bg-purple-600 hover:bg-purple-700">
@@ -646,6 +735,15 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                     </div>
                     <div className="flex space-x-2">
                       <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditTeam(team)}
+                        className="text-slate-400 hover:text-white"
+                        aria-label={`Edit ${team.name}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleAddUserToTeam(team)}
@@ -653,6 +751,18 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                       >
                         <UserPlus className="h-4 w-4 mr-1" />
                         Add User
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTeam(team)
+                          setIsDeleteTeamDialogOpen(true)
+                        }}
+                        className="text-red-400 hover:text-red-300"
+                        aria-label={`Delete ${team.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -1045,7 +1155,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Remove Team Member</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-300">
-              Are you sure you want to remove "{selectedMember?.name}" from the tour team? This action cannot be undone.
+              Are you sure you want to remove &ldquo;{selectedMember?.name}&rdquo; from the tour team? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1061,11 +1171,28 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Create Team Dialog */}
+      <AlertDialog open={isDeleteTeamDialogOpen} onOpenChange={setIsDeleteTeamDialogOpen}>
+        <AlertDialogContent className="bg-slate-800 border-slate-700">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Team</AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-300">
+              Delete &ldquo;{selectedTeam?.name}&rdquo; and remove its {selectedTeam?.members.length || 0} members from this tour? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-slate-600 text-slate-300">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteTeam} disabled={isSubmitting} className="bg-red-600 hover:bg-red-700">
+              {isSubmitting ? 'Deleting...' : 'Delete Team'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Create/Edit Team Dialog */}
       <Dialog open={isCreateTeamDialogOpen} onOpenChange={setIsCreateTeamDialogOpen}>
         <DialogContent className="max-w-md bg-slate-800 border-slate-700">
           <DialogHeader>
-            <DialogTitle className="text-white">Create New Team</DialogTitle>
+            <DialogTitle className="text-white">{isEditingTeam ? 'Edit Team' : 'Create New Team'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1108,11 +1235,11 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                 Cancel
               </Button>
               <Button
-                onClick={handleCreateTeam}
-                disabled={!newTeam.name || !newTeam.role}
+                onClick={handleSaveTeam}
+                disabled={!newTeam.name || !newTeam.role || isSubmitting}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                Create Team
+                {isSubmitting ? 'Saving...' : isEditingTeam ? 'Save Team' : 'Create Team'}
               </Button>
             </div>
           </div>
@@ -1144,7 +1271,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                   {userResults.map(u => (
                     <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm text-slate-200">
                       <div>
-                        <div className="font-medium">{u.display_name || u.email}</div>
+                        <div className="font-medium">{u.display_name || u.full_name || u.email}</div>
                         <div className="text-xs text-slate-400">{u.email}</div>
                       </div>
                       <Button 
@@ -1189,7 +1316,7 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
                   {userResults.map(u => (
                     <div key={u.id} className="flex items-center justify-between px-3 py-2 text-sm text-slate-200">
                       <div>
-                        <div className="font-medium">{u.display_name || u.email}</div>
+                        <div className="font-medium">{u.display_name || u.full_name || u.email}</div>
                         <div className="text-xs text-slate-400">{u.email}</div>
                       </div>
                       <Button size="sm" onClick={() => assignExistingUser(u.id, formData.role || 'Member')} className="bg-purple-600 hover:bg-purple-700">Assign</Button>
@@ -1210,13 +1337,39 @@ export function TourTeamManager({ tourId, members, onMembersUpdate }: TourTeamMa
               </div>
             </div>
 
+            {inviteLink ? (
+              <div className="space-y-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+                <Label className="text-amber-200">Shareable onboarding link</Label>
+                <div className="flex gap-2">
+                  <Input value={inviteLink} readOnly className="bg-slate-900 border-slate-600 text-slate-200" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      void navigator.clipboard.writeText(inviteLink)
+                      toast.success('Invitation link copied')
+                    }}
+                    aria-label="Copy invitation link"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)} className="border-slate-600 text-slate-300">Cancel</Button>
-              <Button onClick={() => inviteMember({ email: formData.email, role: formData.role })} disabled={isSubmitting} className="bg-purple-600 hover:bg-purple-700">Send Invite</Button>
+              <Button
+                onClick={() => inviteMember({ email: formData.email, role: formData.role })}
+                disabled={isSubmitting || !formData.role.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {isSubmitting ? 'Creating...' : 'Send Invite'}
+              </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </div>
   )
-} 
+}

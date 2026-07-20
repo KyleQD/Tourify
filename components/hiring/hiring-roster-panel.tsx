@@ -100,7 +100,8 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
           <div>
             <CardTitle className="text-white">Roster</CardTitle>
             <CardDescription>
-              Workers appear here after onboarding is approved. Open a member to assign role, team, shift, or zone.
+              Workers appear here after application approval (pending until onboarding is approved). Open a member to
+              assign role, team, shift, or zone.
             </CardDescription>
           </div>
           <Button className="rounded-xl" variant="outline" asChild>
@@ -114,7 +115,7 @@ export function HiringRosterPanel({ employer }: HiringRosterPanelProps) {
             <WorkforceEmptyState
               icon={Users}
               title="No roster members yet"
-              description="Approve submitted onboarding from the Onboarding tab to add workers here, then assign roles and teams."
+              description="Approve an application to add the worker here as pending. After they finish onboarding, approve it to activate full access—then assign roles, shifts, and teams."
             />
           ) : null}
           {roster.length > 0 ? (

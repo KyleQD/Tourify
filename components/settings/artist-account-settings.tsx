@@ -90,10 +90,35 @@ type ArtistProfileFormData = z.infer<typeof artistProfileSchema>
 type MusicSettingsFormData = z.infer<typeof musicSettingsSchema>
 type BookingSettingsFormData = z.infer<typeof bookingSettingsSchema>
 
+function formatUnknownError(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (error && typeof error === 'object') {
+    const maybe = error as { message?: string; code?: string; details?: string; hint?: string }
+    if (maybe.message)
+      return [maybe.message, maybe.code && `(${maybe.code})`, maybe.details, maybe.hint]
+        .filter(Boolean)
+        .join(' ')
+    try {
+      return JSON.stringify(error)
+    } catch {
+      return 'Unknown error'
+    }
+  }
+  return String(error)
+}
+
 export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps) {
   const { currentAccount } = useMultiAccount()
   const [isLoading, setIsLoading] = useState(false)
   const [artistProfile, setArtistProfile] = useState<any>(null)
+
+  async function resolveArtistUserId(): Promise<string | null> {
+    const fromAccount = currentAccount?.profile_data?.user_id
+    if (typeof fromAccount === 'string' && fromAccount.length > 0) return fromAccount
+
+    const { data: { user } } = await supabase.auth.getUser()
+    return user?.id ?? null
+  }
 
   const profileForm = useForm<ArtistProfileFormData>({
     resolver: zodResolver(artistProfileSchema),
@@ -150,35 +175,38 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
   const loadArtistProfile = async () => {
     try {
       setIsLoading(true)
+      const userId = await resolveArtistUserId()
+      if (!userId) throw new Error('Unable to resolve artist user id')
+
       const { data, error } = await supabase
         .from('artist_profiles')
         .select('*')
-        .eq('user_id', currentAccount?.profile_data?.user_id || currentAccount?.profile_id)
+        .eq('user_id', userId)
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
 
       if (data) {
         setArtistProfile(data)
-        
-        // Update profile form
+
+        const professional = data.settings?.professional || {}
+
         profileForm.reset({
           artist_name: data.artist_name || '',
           bio: data.bio || '',
           genres: data.genres || [],
-          location: data.social_links?.location || '',
+          location: data.social_links?.location || professional.location || '',
           website: data.social_links?.website || '',
           spotify: data.social_links?.spotify || '',
           apple_music: data.social_links?.apple_music || '',
           youtube: data.social_links?.youtube || '',
           instagram: data.social_links?.instagram || '',
           twitter: data.social_links?.twitter || '',
-          stage_name: data.stage_name || '',
-          record_label: data.record_label || '',
-          booking_email: data.booking_email || '',
+          stage_name: professional.stage_name || '',
+          record_label: professional.record_label || '',
+          booking_email: professional.contact_email || '',
         })
 
-        // Update music settings
         const musicSettings = data.settings?.music || {}
         musicForm.reset({
           default_genre: musicSettings.default_genre || '',
@@ -190,7 +218,6 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
           explicit_content: musicSettings.explicit_content ?? false,
         })
 
-        // Update booking settings
         const bookingSettings = data.settings?.booking || {}
         bookingForm.reset({
           accepting_bookings: bookingSettings.accepting_bookings ?? true,
@@ -204,7 +231,7 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
         })
       }
     } catch (error) {
-      console.error('Error loading artist profile:', error)
+      console.error('Error loading artist profile:', formatUnknownError(error), error)
       profileNotifications.loadingError()
     } finally {
       setIsLoading(false)
@@ -214,10 +241,29 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
   const onSubmitProfile = async (data: ArtistProfileFormData) => {
     try {
       setIsLoading(true)
-      
-      // Show saving progress
+
       profileNotifications.saveInProgress()
-      
+
+      const existingSettings =
+        artistProfile?.settings && typeof artistProfile.settings === 'object'
+          ? artistProfile.settings
+          : {}
+      const existingProfessional =
+        existingSettings.professional && typeof existingSettings.professional === 'object'
+          ? existingSettings.professional
+          : {}
+
+      const settings = {
+        ...existingSettings,
+        professional: {
+          ...existingProfessional,
+          location: data.location || '',
+          stage_name: data.stage_name || '',
+          record_label: data.record_label || '',
+          contact_email: data.booking_email || '',
+        },
+      }
+
       const profileData = {
         artist_name: data.artist_name,
         bio: data.bio,
@@ -231,14 +277,11 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
           twitter: data.twitter,
           location: data.location,
         },
-        stage_name: data.stage_name,
-        record_label: data.record_label,
-        booking_email: data.booking_email,
-        updated_at: new Date().toISOString()
+        settings,
+        updated_at: new Date().toISOString(),
       }
 
       if (artistProfile) {
-        // Update existing profile
         const { error } = await supabase
           .from('artist_profiles')
           .update(profileData)
@@ -246,12 +289,14 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
 
         if (error) throw error
       } else {
-        // Create new profile
+        const userId = await resolveArtistUserId()
+        if (!userId) throw new Error('Unable to resolve artist user id for insert')
+
         const { error } = await supabase
           .from('artist_profiles')
           .insert({
             ...profileData,
-            user_id: currentAccount?.profile_data?.user_id || currentAccount?.profile_id,
+            user_id: userId,
           })
 
         if (error) throw error
@@ -260,19 +305,15 @@ export function ArtistAccountSettings({ activeTab }: ArtistAccountSettingsProps)
       artistNotifications.profileUpdateSuccess()
       loadArtistProfile()
     } catch (error) {
-      console.error('Error updating artist profile:', error)
-      
-      // Handle specific error types
-      if (error instanceof Error) {
-        if (error.message.includes('network')) {
-          profileNotifications.networkError()
-        } else if (error.message.includes('validation')) {
-          profileNotifications.validationError('Profile', error.message)
-        } else {
-          profileNotifications.updateError(error, 'Failed to update artist profile')
-        }
+      const message = formatUnknownError(error)
+      console.error('Error updating artist profile:', message, error)
+
+      if (message.toLowerCase().includes('network')) {
+        profileNotifications.networkError()
+      } else if (message.toLowerCase().includes('validation')) {
+        profileNotifications.validationError('Profile', message)
       } else {
-        profileNotifications.updateError('Failed to update artist profile')
+        profileNotifications.updateError(new Error(message), 'Failed to update artist profile')
       }
     } finally {
       setIsLoading(false)

@@ -1,7 +1,5 @@
-"use client"
+import { redirect } from "next/navigation"
 
-import { FeedLayout } from "../../components/social/feed-layout"
-
-export default function NetworkFeedPage() {
-  return <FeedLayout defaultTab="following" showPostCreator={true} />
+export default function VenueDashboardNetworkFeedRedirectPage() {
+  redirect("/venue/dashboard")
 }

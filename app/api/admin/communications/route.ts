@@ -17,9 +17,11 @@ const sendMessageSchema = z.object({
   metadata: z.record(z.string(), z.unknown()).default({}),
 })
 
-export const GET = withAdminAuth(async (request: NextRequest) => {
+export const GET = withAdminAuth(async (request: NextRequest, { user }) => {
   try {
-    const svc = createServiceRoleClient()
+    const { resolveAuthorizedOrgLogisticsScope, applyOrgLogisticsTaskFilter } = await import(
+      '@/lib/admin/resolve-authorized-org'
+    )
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '50')
     const offset = parseInt(searchParams.get('offset') || '0')
@@ -29,12 +31,38 @@ export const GET = withAdminAuth(async (request: NextRequest) => {
     const tourId = searchParams.get('tour_id')
     const siteMapId = searchParams.get('site_map_id')
 
+    const scope = await resolveAuthorizedOrgLogisticsScope({
+      userId: user.id,
+      eventId,
+      tourId,
+    })
+    const svc = scope.service
+
     let q = svc.from('team_communications').select('*', { count: 'exact' })
 
     if (venueId) q = q.eq('venue_id', venueId)
-    if (eventId) q = q.eq('event_id', eventId)
-    if (tourId) q = q.eq('tour_id', tourId)
     if (siteMapId) q = q.eq('site_map_id', siteMapId)
+
+    if (eventId || tourId) {
+      q = applyOrgLogisticsTaskFilter({
+        query: q,
+        userId: user.id,
+        eventIds: scope.eventIds,
+        tourIds: scope.tourIds,
+        eventId,
+        tourId,
+        includeCreatedBy: false,
+      })
+    } else if (scope.eventIds.length || scope.tourIds.length) {
+      // Limit to org-owned events/tours or sender
+      const filters: string[] = []
+      if (scope.eventIds.length) filters.push(`event_id.in.(${scope.eventIds.join(',')})`)
+      if (scope.tourIds.length) filters.push(`tour_id.in.(${scope.tourIds.join(',')})`)
+      filters.push(`sender_id.eq.${user.id}`)
+      q = q.or(filters.join(','))
+    } else {
+      q = q.eq('sender_id', user.id)
+    }
 
     if (type && type !== 'all') {
       q = q.eq('message_type', type)
@@ -114,6 +142,55 @@ export const POST = withAdminAuth(async (request: NextRequest, { user }) => {
     if (error) {
       console.error('[Admin Communications API] Insert error:', error)
       return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
+    }
+
+    // Fan-out to authorized recipients (idempotent per message id)
+    if (validated.recipients.length > 0) {
+      const { sendLogisticsNotifications } = await import('@/lib/logistics/notifications-adapter')
+      const { buildAckInsert } = await import('@/lib/logistics/acknowledgements')
+      await sendLogisticsNotifications({
+        notify: async (payload) => {
+          await svc.from('notifications').insert(
+            (payload.userIds as string[]).map((userId: string) => ({
+              user_id: userId,
+              type: payload.type,
+              title: payload.title,
+              message: payload.message,
+              link: payload.link,
+              metadata: payload.metadata,
+            }))
+          )
+        },
+        actorUserId: user.id,
+        recipients: validated.recipients.map((userId) => ({ userId, isAuthorized: true })),
+        payload: {
+          type: 'logistics_comms',
+          title: validated.subject,
+          message: validated.content.slice(0, 280),
+          requireAck: validated.requires_acknowledgment,
+          sourceType: 'team_communication',
+          sourceId: data.id,
+          link: validated.event_id
+            ? `/admin/dashboard/logistics?tab=communication&eventId=${validated.event_id}`
+            : '/admin/dashboard/logistics?tab=communication',
+        },
+        idempotencyKey: `comms-${data.id}`,
+      })
+
+      if (validated.requires_acknowledgment) {
+        await svc.from('logistics_acknowledgements').upsert(
+          validated.recipients.map((userId) =>
+            buildAckInsert({
+              sourceType: 'team_communication',
+              sourceId: data.id,
+              userId,
+              eventId: validated.event_id,
+              tourId: validated.tour_id,
+            })
+          ),
+          { onConflict: 'source_type,source_id,user_id', ignoreDuplicates: true }
+        )
+      }
     }
 
     return NextResponse.json({ success: true, message: data })

@@ -21,6 +21,7 @@ import { isOrganizationType, normalizeAccountType } from '@/lib/accounts/account
 import { getDashboardPathForAccountType } from '@/lib/navigation/account-dashboard-routes'
 import { getArtistPublicProfilePath, getOrganizationPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import { organizationSubtypeLabel } from '@/lib/organizations/org-subtypes'
+import { getAccountAvatarUrl } from '@/lib/accounts/account-presentation'
 
 const accountTypeIcons: Record<string, React.ComponentType<{ className?: string }>> = {
   general:      User,
@@ -132,7 +133,7 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
             <div className="flex items-center space-x-3 w-full">
               <div className="relative">
                 <Avatar className="h-8 w-8 border-2 border-slate-600">
-                  <AvatarImage src={currentAccount.profile_data?.avatar_url} />
+                  <AvatarImage src={getAccountAvatarUrl(currentAccount) || undefined} />
                   <AvatarFallback className={`${accountColor} text-white text-xs`}>
                     {(isLoading || isSwitching) ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -201,7 +202,7 @@ export function AccountSwitcher({ onAccountSwitch, className = '' }: AccountSwit
                 >
                   <div className="relative">
                     <Avatar className="h-10 w-10 border-2 border-slate-600">
-                      <AvatarImage src={account.profile_data?.avatar_url} />
+                      <AvatarImage src={getAccountAvatarUrl(account) || undefined} />
                       <AvatarFallback className={`${getAccountTypeColor(account.account_type)} text-white`}>
                         {isSwitching && isActive ? (
                           <Loader2 className="h-5 w-5 animate-spin" />

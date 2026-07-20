@@ -148,7 +148,7 @@ Individual professional identities owned by the Identity. These are **public-fac
 **UI label:** "Organizer" or organization name (migrate to "Organization" over time).  
 **Home route:** `/admin/dashboard` → future `/org/{slug}/dashboard`
 
-Routes remain `/admin/*` until slug migration (Phase 5).
+Routes remain `/admin/*` until slug migration (Phase-later). Wave 5 added a forward-only alias `/org/:slug/dashboard` → `/admin/dashboard` — see `docs/audits/ADMIN_ORG_RENAME.md` (AUD-0114).
 
 ### 2.5 Layer 5 — Employment (Work Mode)
 

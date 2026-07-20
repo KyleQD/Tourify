@@ -33,6 +33,10 @@ describe('public share route matcher', () => {
     expect(isPublicShareRoute('/epk/neon-pulse')).toBe(true)
     expect(isPublicShareRoute('/jobs/job-123')).toBe(true)
     expect(isPublicShareRoute('/venues/echo-lounge')).toBe(true)
+    expect(isPublicShareRoute('/music/verify/origin/abc123')).toBe(true)
+    expect(isPublicShareRoute('/music/verify/passport/abc123')).toBe(true)
+    expect(isPublicShareRoute('/music/verify/certificate/abc123')).toBe(true)
+    expect(isPublicShareRoute('/posts/11111111-1111-1111-1111-111111111111')).toBe(true)
   })
 
   it('keeps protected lookalikes gated', () => {

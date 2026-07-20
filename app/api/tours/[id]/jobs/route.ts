@@ -1,194 +1,168 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
+
+import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/admin-tour-event-access"
+import { resolveArtistJobCategoryId } from "@/lib/artist-jobs/categories"
+import { withAdminCapability } from "@/lib/auth/api-auth"
+
+const nullableDateSchema = z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/), z.literal("")])
+  .transform(value => value || null)
+  .optional()
+  .nullable()
+const nullableTimeSchema = z.union([z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), z.literal("")])
+  .transform(value => value || null)
+  .optional()
+  .nullable()
+const nullableHttpUrlSchema = z.union([
+  z.string().url().refine(value => /^https?:\/\//i.test(value), { message: "Only HTTP(S) links are supported" }),
+  z.literal(""),
+]).transform(value => value || null).optional().nullable()
 
 const createTourJobSchema = z.object({
-  title: z.string().min(1, 'Job title is required'),
-  description: z.string().min(1, 'Job description is required'),
-  category_id: z.string().min(1, 'Category is required'),
-  job_type: z.enum(['one_time', 'recurring', 'tour', 'residency', 'collaboration']),
-  payment_type: z.enum(['paid', 'unpaid', 'revenue_share', 'exposure']),
-  payment_amount: z.number().optional(),
-  payment_currency: z.string().default('USD'),
-  payment_description: z.string().optional(),
-  location: z.string().optional(),
-  location_type: z.enum(['in_person', 'remote', 'hybrid']).default('in_person'),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  country: z.string().optional(),
-  event_date: z.string().optional(),
-  event_time: z.string().optional(),
-  duration_hours: z.number().optional(),
-  deadline: z.string().optional(),
-  required_skills: z.array(z.string()).optional(),
-  required_equipment: z.array(z.string()).optional(),
-  required_experience: z.enum(['beginner', 'intermediate', 'professional']).optional(),
-  required_genres: z.array(z.string()).optional(),
-  age_requirement: z.string().optional(),
-  benefits: z.array(z.string()).optional(),
-  special_requirements: z.string().optional(),
-  contact_email: z.string().email().optional(),
-  contact_phone: z.string().optional(),
-  external_link: z.string().url().optional(),
-  priority: z.enum(['low', 'normal', 'high', 'urgent']).default('normal'),
+  title: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(12000),
+  category_id: z.string().trim().min(1),
+  job_type: z.enum(["one_time", "recurring", "tour", "residency", "collaboration"]),
+  payment_type: z.enum(["paid", "unpaid", "revenue_share", "exposure"]),
+  payment_amount: z.number().finite().min(0).optional().nullable(),
+  payment_currency: z.string().trim().length(3).default("USD"),
+  payment_description: z.string().max(2000).optional().nullable(),
+  location: z.string().max(500).optional().nullable(),
+  location_type: z.enum(["in_person", "remote", "hybrid"]).default("in_person"),
+  city: z.string().max(160).optional().nullable(),
+  state: z.string().max(160).optional().nullable(),
+  country: z.string().max(160).optional().nullable(),
+  event_date: nullableDateSchema,
+  event_time: nullableTimeSchema,
+  duration_hours: z.number().int().min(0).max(100000).optional().nullable(),
+  deadline: nullableDateSchema,
+  required_skills: z.array(z.string().max(160)).max(100).default([]),
+  required_equipment: z.array(z.string().max(160)).max(100).default([]),
+  required_experience: z.enum(["beginner", "intermediate", "professional"]).optional().nullable(),
+  required_genres: z.array(z.string().max(160)).max(100).default([]),
+  age_requirement: z.string().max(160).optional().nullable(),
+  benefits: z.array(z.string().max(160)).max(100).default([]),
+  special_requirements: z.string().max(5000).optional().nullable(),
+  contact_email: z.union([z.string().email(), z.literal("")]).optional().nullable(),
+  contact_phone: z.string().max(80).optional().nullable(),
+  external_link: nullableHttpUrlSchema,
+  priority: z.enum(["low", "normal", "high", "urgent"]).default("normal"),
   featured: z.boolean().default(false),
-  status: z.enum(['draft', 'open']).default('open'),
-  tour_id: z.string().uuid('Invalid tour ID'),
-  tour_name: z.string().optional(),
-  tour_start_date: z.string().optional(),
-  tour_end_date: z.string().optional()
+  status: z.enum(["draft", "open"]).default("open"),
+  tour_id: z.string().uuid(),
 })
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+function routeError(error: unknown, fallback: string) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json({ error: "Validation error", details: error.issues }, { status: 400 })
+  }
+  const resolved = adminAccessErrorResponse(error, fallback, 500)
+  return NextResponse.json({ error: resolved.message }, { status: resolved.status })
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability("hiring.manage", async (_request, { user, supabase, admin }) => {
     try {
-
-    // Verify the user owns this tour
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      console.error('[Tour Jobs API] Error fetching tour for ownership check:', tourError)
-      if (tourError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-      }
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
-
-    if (tour.user_id !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Fetch jobs for this tour
-    const { data: jobs, error: jobsError } = await supabase
-      .from('artist_jobs')
-      .select('*')
-      .eq('tour_id', id)
-      .order('created_at', { ascending: false })
-
-    if (jobsError) {
-      console.error('[Tour Jobs API] Error fetching jobs:', jobsError)
-      return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 })
-    }
-
-
-      return NextResponse.json({ 
-        success: true, 
-        jobs: jobs || [],
-        message: 'Tour jobs fetched successfully' 
+      await assertAdminTourAccess({ supabase, userId: user.id, tourId: id, orgId: admin.orgId })
+      const { data, error } = await supabase
+        .from("artist_jobs")
+        .select("*")
+        .eq("tour_id", id)
+        .order("created_at", { ascending: false })
+      if (error) throw new Error(error.message)
+      return NextResponse.json({
+        success: true,
+        jobs: (data ?? []).map((job: Record<string, unknown>) => ({
+          ...job,
+          required_skills: Array.isArray(job.required_skills) ? job.required_skills : [],
+          required_equipment: Array.isArray(job.required_equipment) ? job.required_equipment : [],
+          required_genres: Array.isArray(job.required_genres) ? job.required_genres : [],
+          benefits: Array.isArray(job.benefits) ? job.benefits : [],
+        })),
       })
-
     } catch (error) {
-      console.error('[Tour Jobs API] Error:', error)
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+      return routeError(error, "Failed to load tour jobs")
     }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  return withAdminAuth(async (_request, { user, supabase }) => {
+  return withAdminCapability("hiring.manage", async (_request, { user, supabase, admin }) => {
     try {
-
-    const body = await request.json()
-    const validatedData = createTourJobSchema.parse(body)
-
-    // Verify the user owns this tour
-    const { data: tour, error: tourError } = await supabase
-      .from('tours')
-      .select('user_id, name as tour_name')
-      .eq('id', id)
-      .single()
-
-    if (tourError) {
-      console.error('[Tour Jobs API] Error fetching tour for ownership check:', tourError)
-      if (tourError.code === 'PGRST116') {
-        return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
+      const tour = await assertAdminTourAccess({ supabase, userId: user.id, tourId: id, orgId: admin.orgId }) as Record<string, unknown>
+      const input = createTourJobSchema.parse(await request.json())
+      if (input.tour_id !== id) {
+        return NextResponse.json({ error: "Tour does not match the route" }, { status: 409 })
       }
-      return NextResponse.json({ error: 'Failed to fetch tour' }, { status: 500 })
-    }
+      const categoryId = await resolveArtistJobCategoryId(supabase, input.category_id)
+      if (!categoryId) return NextResponse.json({ error: "Unknown job category" }, { status: 400 })
 
-    if (tour.user_id !== user.id) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Create the job with tour-specific information
-    const jobData = {
-      ...validatedData,
-      user_id: user.id,
-      tour_id: id,
-      tour_name: tour.tour_name,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    }
-
-    const { data: job, error: jobError } = await supabase
-      .from('artist_jobs')
-      .insert(jobData)
-      .select()
-      .single()
-
-    if (jobError) {
-      console.error('[Tour Jobs API] Error creating job:', jobError)
-      return NextResponse.json({ error: 'Failed to create job' }, { status: 500 })
-    }
-
-
-    // Also post to the main job board for broader visibility
-    try {
-      const mainJobData = {
-        ...validatedData,
-        user_id: user.id,
-        tour_id: id,
-        tour_name: tour.tour_name,
-        title: `${validatedData.title} - ${tour.tour_name} Tour`,
-        description: `${validatedData.description}\n\nThis position is for the ${tour.tour_name} tour running from ${validatedData.tour_start_date} to ${validatedData.tour_end_date}.`,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      }
-
-      const mainJobResponse = await fetch(`${process.env.NEXT_PUBLIC_APP_URL}/api/artist-jobs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mainJobData)
-      })
-
-      if (mainJobResponse.ok) {
-      } else {
-      }
+      const { tour_id: _tourId, ...jobFields } = input
+      const { data, error } = await supabase
+        .from("artist_jobs")
+        .insert({
+          ...jobFields,
+          category_id: categoryId,
+          tour_id: id,
+          tour_name: String(tour.name || "Tour"),
+          posted_by: user.id,
+          posted_by_type: "organizer",
+          posted_by_profile_id: admin.profileId,
+          poster_profile_id: admin.profileId,
+        })
+        .select("*")
+        .single()
+      if (error) throw new Error(error.message)
+      return NextResponse.json({ success: true, job: data }, { status: 201 })
     } catch (error) {
-      // Don't fail the request if posting to main job board fails
+      return routeError(error, "Failed to create tour job")
     }
-
-      return NextResponse.json({ 
-        success: true, 
-        job,
-        message: 'Tour job posted successfully' 
-      })
-
-    } catch (error) {
-      console.error('[Tour Jobs API] Error:', error)
-      if (error instanceof z.ZodError) {
-        return NextResponse.json({ 
-          error: 'Validation error', 
-          details: error.errors 
-        }, { status: 400 })
-      }
-      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-    }
-  }, {
-    tourIdFromRequest: () => id
   })(request)
-} 
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return withAdminCapability("hiring.manage", async (_request, { user, supabase, admin }) => {
+    try {
+      await assertAdminTourAccess({ supabase, userId: user.id, tourId: id, orgId: admin.orgId })
+      const body = await request.json()
+      const jobId = z.string().uuid().parse(body.job_id)
+      const status = z.enum(["draft", "open", "paused", "closed", "filled"]).parse(body.status)
+      const { data, error } = await supabase
+        .from("artist_jobs")
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq("id", jobId)
+        .eq("tour_id", id)
+        .select("*")
+        .single()
+      if (error) throw new Error(error.message)
+      return NextResponse.json({ success: true, job: data })
+    } catch (error) {
+      return routeError(error, "Failed to update tour job")
+    }
+  })(request)
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  return withAdminCapability("hiring.manage", async (_request, { user, supabase, admin }) => {
+    try {
+      await assertAdminTourAccess({ supabase, userId: user.id, tourId: id, orgId: admin.orgId })
+      const jobId = z.string().uuid().parse(new URL(request.url).searchParams.get("job_id"))
+      const { data, error } = await supabase
+        .from("artist_jobs")
+        .delete()
+        .eq("id", jobId)
+        .eq("tour_id", id)
+        .select("id")
+        .maybeSingle()
+      if (error) throw new Error(error.message)
+      if (!data) return NextResponse.json({ error: "Tour job not found" }, { status: 404 })
+      return NextResponse.json({ success: true })
+    } catch (error) {
+      return routeError(error, "Failed to delete tour job")
+    }
+  })(request)
+}

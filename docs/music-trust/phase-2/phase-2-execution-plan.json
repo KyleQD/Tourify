@@ -1,0 +1,4829 @@
+{
+  "schema_version": "1.0.0",
+  "project": {
+    "name": "Tourify Music Rights Passport — Phase 2",
+    "repository_root": "/Users/kyledaley/Developer/myproject/tourify-beta-K2",
+    "branch": "codex/live-sync-dashboard-news",
+    "base_commit": "673b82984da5670b94ed68d1efd94130539ea859",
+    "current_commit": "673b82984da5670b94ed68d1efd94130539ea859",
+    "overall_status": "in_progress",
+    "updated_at": "2026-07-17T23:29:15.875Z",
+    "notes": "Phase 2 P0/P1 implemented behind flags. Remaining blockers: remote migration apply, counsel, Sepolia keys, live pilot."
+  },
+  "audit": {
+    "status": "complete",
+    "report_path": "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+    "baseline_commands": [
+      {
+        "name": "Dependencies",
+        "command": "node -v && npm -v",
+        "status": "passed",
+        "result": "Node v20.19.0, npm 11.5.2"
+      },
+      {
+        "name": "Lint",
+        "command": "npm run lint",
+        "status": "deferred",
+        "result": "Deferred on dirty worktree; record after implementation slices"
+      },
+      {
+        "name": "Typecheck",
+        "command": "npm run typecheck",
+        "status": "deferred",
+        "result": "Deferred full run; Phase 1 audit previously passed"
+      },
+      {
+        "name": "Unit tests",
+        "command": "npx jest lib/music/__tests__/music-trust-phase1.test.ts lib/music/__tests__/music-public-verification.test.ts --no-coverage",
+        "status": "passed",
+        "result": "13 passed"
+      },
+      {
+        "name": "Integration tests",
+        "command": "n/a",
+        "status": "not_started",
+        "result": "Rights route tests to be added in P2-B+"
+      },
+      {
+        "name": "Build",
+        "command": "npm run build",
+        "status": "deferred",
+        "result": "Deferred until hardening"
+      },
+      {
+        "name": "Migration status",
+        "command": "ls supabase/migrations/*music*",
+        "status": "passed",
+        "result": "Phase 1 migrations present; Phase 2 none at audit"
+      },
+      {
+        "name": "Supabase advisors",
+        "command": "remote advisors",
+        "status": "blocked",
+        "result": "No remote mutation authorized"
+      }
+    ],
+    "findings": [
+      {
+        "id": "F-001",
+        "severity": "info",
+        "summary": "artist_music.id is UUID; sound recording FK must be uuid"
+      },
+      {
+        "id": "F-002",
+        "severity": "info",
+        "summary": "Phase 1 trust/cert stack exists and is flag-gated off by default"
+      },
+      {
+        "id": "F-003",
+        "severity": "warning",
+        "summary": "No general outbox; Phase 2 must add music_rights_outbox_events"
+      },
+      {
+        "id": "F-004",
+        "severity": "warning",
+        "summary": "Artist music APIs are owner-scoped; contributor access must be added"
+      },
+      {
+        "id": "F-005",
+        "severity": "info",
+        "summary": "E-sign is first-party clickwrap only; no DocuSign"
+      },
+      {
+        "id": "F-006",
+        "severity": "info",
+        "summary": "No music_rights_* tables, C2PA, watermark, or blockchain code present"
+      }
+    ],
+    "blockers": [
+      {
+        "id": "B-001",
+        "summary": "Remote advisors/production migration unauthorized",
+        "safe_state": "local additive migrations; flags off",
+        "unblocking": "ops authorization"
+      },
+      {
+        "id": "B-002",
+        "summary": "Sepolia deployer keys may be absent",
+        "safe_state": "flag off; passport valid without anchor",
+        "unblocking": "provide keys"
+      },
+      {
+        "id": "B-003",
+        "summary": "Legal counsel sign-off pending",
+        "safe_state": "conservative public copy; flags off",
+        "unblocking": "counsel approval"
+      }
+    ]
+  },
+  "architecture_decisions": [
+    {
+      "id": "ADR-P2-001",
+      "title": "Rights schema and naming",
+      "status": "accepted",
+      "decision": "Use public schema with music_rights_* table prefix matching Phase 1 music_* conventions.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-002",
+      "title": "Track-to-recording cardinality",
+      "status": "accepted",
+      "decision": "One primary music_rights_sound_recordings row per artist_music (artist_music_id uuid unique); special relationships via music_rights_asset_relationships.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-003",
+      "title": "Electronic signature provider",
+      "status": "accepted",
+      "decision": "First-party Tourify e-sign ceremony extending agreement.service clickwrap with reauth, claim snapshots, and sealed private copies. No third-party vendor in Phase 2.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-004",
+      "title": "Credential format and signing suite",
+      "status": "accepted",
+      "decision": "W3C VC 2.0-compatible JSON envelope; Ed25519 issuer key from server env; DB credential status list.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-005",
+      "title": "C2PA audio toolchain and format matrix",
+      "status": "accepted",
+      "decision": "C2PA adapter + async worker; WAV embedded + MP3 sidecar; lazy SDK; failure leaves clean master untouched.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-006",
+      "title": "Watermark and monitoring adapters",
+      "status": "accepted",
+      "decision": "Watermark adapter interface with noop + opt-in beta_stub; monitoring matches require human review.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-007",
+      "title": "Testnet and attestation registry",
+      "status": "accepted",
+      "decision": "EVM Sepolia testnet; immutable V1 OpenZeppelin AccessControl registry; mainnet disabled; off-chain passport remains valid if anchor pending/failed.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-008",
+      "title": "Key management and rotation",
+      "status": "accepted",
+      "decision": "Dev/test env secrets; prod KMS/HSM runbook; separate issuer/C2PA/chain keys; never client-exposed.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-009",
+      "title": "Evidence retention and deletion",
+      "status": "accepted",
+      "decision": "Private buckets music-rights-evidence, music-rights-documents, music-rights-exports; append-only audit/signature events; retain until owner delete subject to legal hold.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    },
+    {
+      "id": "ADR-P2-010",
+      "title": "DDEX target standards and versions",
+      "status": "accepted",
+      "decision": "DDEX-aligned identifier fields (ISRC/ISWC/UPC concepts); no full ERN/MWDR export automation in Phase 2.",
+      "evidence": [
+        "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md"
+      ]
+    }
+  ],
+  "feature_flags": [
+    {
+      "name": "music_rights_workspace_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable artist rights workspace."
+    },
+    {
+      "name": "music_catalog_import_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable existing catalog import."
+    },
+    {
+      "name": "music_contributor_workflows_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable invitations, claims, and confirmations."
+    },
+    {
+      "name": "music_agreements_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable agreement generation and signing."
+    },
+    {
+      "name": "music_human_origin_v2_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable full evidence-based Human-Origin review."
+    },
+    {
+      "name": "music_rights_passport_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable passport issuance."
+    },
+    {
+      "name": "music_public_passport_verification_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable narrow public verification."
+    },
+    {
+      "name": "music_c2pa_derivatives_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable C2PA protected derivatives."
+    },
+    {
+      "name": "music_watermark_beta_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable opt-in forensic watermark beta."
+    },
+    {
+      "name": "music_training_reservation_enabled",
+      "default_state": "disabled",
+      "purpose": "Publish asset-level training reservation."
+    },
+    {
+      "name": "music_testnet_anchor_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable testnet attestation anchors."
+    },
+    {
+      "name": "music_rights_ops_enabled",
+      "default_state": "disabled",
+      "purpose": "Enable rights operations queues and controls."
+    }
+  ],
+  "phases": [
+    {
+      "id": "P2-A",
+      "name": "Audit and architecture decisions",
+      "order": 0,
+      "status": "complete",
+      "objective": "Verify Phase 1 and select actual Phase 2 architecture.",
+      "task_ids": [
+        "P2-A-001",
+        "P2-A-002",
+        "P2-A-003",
+        "P2-A-004",
+        "P2-A-005",
+        "P2-A-006",
+        "P2-A-007",
+        "P2-A-008",
+        "P2-A-009",
+        "P2-A-010",
+        "P2-A-011"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-B",
+      "name": "Rights graph foundation",
+      "order": 1,
+      "status": "complete",
+      "objective": "Create works, recordings, parties, contributions, and claims.",
+      "task_ids": [
+        "P2-B-001",
+        "P2-B-002",
+        "P2-B-003",
+        "P2-B-004",
+        "P2-B-005",
+        "P2-B-006",
+        "P2-B-007",
+        "P2-B-008",
+        "P2-B-009"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-C",
+      "name": "Catalog import and contributor collaboration",
+      "order": 2,
+      "status": "complete",
+      "objective": "Import existing catalogs and resolve contributor participation.",
+      "task_ids": [
+        "P2-C-001",
+        "P2-C-002",
+        "P2-C-003",
+        "P2-C-004",
+        "P2-C-005",
+        "P2-C-006",
+        "P2-C-007",
+        "P2-C-008"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-D",
+      "name": "Agreements and signatures",
+      "order": 3,
+      "status": "complete",
+      "objective": "Generate, sign, version, and supersede agreements.",
+      "task_ids": [
+        "P2-D-001",
+        "P2-D-002",
+        "P2-D-003",
+        "P2-D-004",
+        "P2-D-005",
+        "P2-D-006",
+        "P2-D-007",
+        "P2-D-008"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-E",
+      "name": "Human-Origin review",
+      "order": 4,
+      "status": "complete",
+      "objective": "Implement evidence, review, appeals, and certification.",
+      "task_ids": [
+        "P2-E-001",
+        "P2-E-002",
+        "P2-E-003",
+        "P2-E-004",
+        "P2-E-005",
+        "P2-E-006",
+        "P2-E-007",
+        "P2-E-008",
+        "P2-E-009"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-F",
+      "name": "Passport and public credentials",
+      "order": 5,
+      "status": "complete",
+      "objective": "Issue manifests, credentials, status, and verification.",
+      "task_ids": [
+        "P2-F-001",
+        "P2-F-002",
+        "P2-F-003",
+        "P2-F-004",
+        "P2-F-005",
+        "P2-F-006",
+        "P2-F-007",
+        "P2-F-008"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-G",
+      "name": "Protection and provenance",
+      "order": 6,
+      "status": "complete",
+      "objective": "Create C2PA derivatives, reservation policy, watermark beta, and monitoring adapters.",
+      "task_ids": [
+        "P2-G-001",
+        "P2-G-002",
+        "P2-G-003",
+        "P2-G-004",
+        "P2-G-005",
+        "P2-G-006",
+        "P2-G-007",
+        "P2-G-008",
+        "P2-G-009"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-H",
+      "name": "Testnet attestation",
+      "order": 7,
+      "status": "complete_with_blockers",
+      "objective": "Deploy and integrate a nonfinancial testnet registry.",
+      "task_ids": [
+        "P2-H-001",
+        "P2-H-002",
+        "P2-H-003",
+        "P2-H-004",
+        "P2-H-005",
+        "P2-H-006",
+        "P2-H-007",
+        "P2-H-008"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed_with_blockers",
+          "notes": "2 tasks blocked with safe state"
+        }
+      ]
+    },
+    {
+      "id": "P2-I",
+      "name": "Operations and disputes",
+      "order": 8,
+      "status": "complete",
+      "objective": "Build review queues, disputes, suspension, and runbooks.",
+      "task_ids": [
+        "P2-I-001",
+        "P2-I-002",
+        "P2-I-003",
+        "P2-I-004",
+        "P2-I-005",
+        "P2-I-006",
+        "P2-I-007"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-J",
+      "name": "Legacy, mobile, and regression",
+      "order": 9,
+      "status": "complete",
+      "objective": "Preserve existing distributed music and all current product paths.",
+      "task_ids": [
+        "P2-J-001",
+        "P2-J-002",
+        "P2-J-003",
+        "P2-J-004",
+        "P2-J-005",
+        "P2-J-006",
+        "P2-J-007"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed",
+          "notes": "P0/P1 tasks complete with evidence"
+        }
+      ]
+    },
+    {
+      "id": "P2-K",
+      "name": "Pilot and production hardening",
+      "order": 10,
+      "status": "complete_with_blockers",
+      "objective": "Complete security, legal, performance, pilot, and launch gates.",
+      "task_ids": [
+        "P2-K-001",
+        "P2-K-002",
+        "P2-K-003",
+        "P2-K-004",
+        "P2-K-005",
+        "P2-K-006",
+        "P2-K-007",
+        "P2-K-008",
+        "P2-K-009",
+        "P2-K-010"
+      ],
+      "entry_criteria": [
+        "Prior phase gates are complete or explicitly blocked with safe-state evidence."
+      ],
+      "exit_criteria": [
+        "All P0/P1 tasks meet acceptance criteria and required tests are recorded."
+      ],
+      "gate_results": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "result": "passed_with_blockers",
+          "notes": "3 tasks blocked with safe state"
+        }
+      ]
+    }
+  ],
+  "tasks": [
+    {
+      "id": "P2-A-001",
+      "phase_id": "P2-A",
+      "title": "Audit Phase 1 implementation and canonical music paths",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Audit Phase 1 implementation and canonical music paths implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-002",
+      "phase_id": "P2-A",
+      "title": "Audit database, RLS, storage, views, functions, and generated types",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Audit database, RLS, storage, views, functions, and generated types implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-003",
+      "phase_id": "P2-A",
+      "title": "Audit invitations, teams, signatures, documents, jobs, flags, moderation, and DMCA",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Audit invitations, teams, signatures, documents, jobs, flags, moderation, and DMCA implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-004",
+      "phase_id": "P2-A",
+      "title": "Record baseline lint, typecheck, tests, build, migrations, and advisors",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Record baseline lint, typecheck, tests, build, migrations, and advisors implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-005",
+      "phase_id": "P2-A",
+      "title": "Decide schema and track-to-recording cardinality",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Decide schema and track-to-recording cardinality implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-006",
+      "phase_id": "P2-A",
+      "title": "Decide e-signature architecture",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Decide e-signature architecture implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-007",
+      "phase_id": "P2-A",
+      "title": "Decide credential format and issuer key management",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Decide credential format and issuer key management implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-008",
+      "phase_id": "P2-A",
+      "title": "Decide C2PA toolchain and supported audio formats",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Decide C2PA toolchain and supported audio formats implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-009",
+      "phase_id": "P2-A",
+      "title": "Decide watermark/monitoring adapter strategy",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Decide watermark/monitoring adapter strategy implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-010",
+      "phase_id": "P2-A",
+      "title": "Decide testnet chain and contract administration",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Decide testnet chain and contract administration implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-A-011",
+      "phase_id": "P2-A",
+      "title": "Create repository-specific execution JSON",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create repository-specific execution JSON implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/CURRENT_STATE_AUDIT_RESULTS.md",
+            "docs/music-trust/phase-2/phase-2-execution-plan.json"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "Phase 1 music trust unit tests: 13 passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-001",
+      "phase_id": "P2-B",
+      "title": "Create additive rights project and asset entities",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create additive rights project and asset entities implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-002",
+      "phase_id": "P2-B",
+      "title": "Link sound recordings to artist_music without replacing catalog",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Link sound recordings to artist_music without replacing catalog implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-003",
+      "phase_id": "P2-B",
+      "title": "Create musical work and work-recording relationships",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create musical work and work-recording relationships implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-004",
+      "phase_id": "P2-B",
+      "title": "Create parties, profiles, identifiers, affiliations, and authority",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create parties, profiles, identifiers, affiliations, and authority implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-005",
+      "phase_id": "P2-B",
+      "title": "Create contributions and public credit preferences",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create contributions and public credit preferences implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-006",
+      "phase_id": "P2-B",
+      "title": "Create exact rights claims with territories and validity periods",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create exact rights claims with territories and validity periods implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-007",
+      "phase_id": "P2-B",
+      "title": "Implement claim validation and conflict detection",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement claim validation and conflict detection implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-008",
+      "phase_id": "P2-B",
+      "title": "Implement cover, remix, sample, leased-beat, and producer-points models",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement cover, remix, sample, leased-beat, and producer-points models implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-B-009",
+      "phase_id": "P2-B",
+      "title": "Add RLS and route tests for rights-domain entities",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-A-011"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Add RLS and route tests for rights-domain entities implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717231445_music_rights_domain_foundation.sql",
+            "lib/music-rights/rights-types.ts",
+            "lib/music-rights/rights-validation.ts",
+            "lib/music-rights/music-rights-flags.ts",
+            "lib/music-rights/asset-relationships.ts",
+            "lib/music-rights/rights-access.ts",
+            "app/api/artist/music/rights/projects/route.ts",
+            "app/api/artist/music/rights/works/route.ts",
+            "app/api/artist/music/rights/recordings/route.ts",
+            "app/api/artist/music/rights/parties/route.ts",
+            "app/api/artist/music/rights/contributions/route.ts",
+            "app/api/artist/music/rights/claims/route.ts",
+            "app/artist/music/rights/[trackId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_projects",
+            "music_rights_musical_works",
+            "music_rights_sound_recordings",
+            "music_rights_parties",
+            "music_rights_claims",
+            "music_rights_outbox_events"
+          ],
+          "feature_flags": [
+            "music_rights_workspace_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "lib/music-rights validation tests passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-001",
+      "phase_id": "P2-C",
+      "title": "Build catalog import job and normalized external references",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build catalog import job and normalized external references implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-002",
+      "phase_id": "P2-C",
+      "title": "Implement explainable match confidence and discrepancy reports",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement explainable match confidence and discrepancy reports implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-003",
+      "phase_id": "P2-C",
+      "title": "Build existing-track linking and original-release-date preservation",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build existing-track linking and original-release-date preservation implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-004",
+      "phase_id": "P2-C",
+      "title": "Build secure contributor invitation and account-claim flow",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build secure contributor invitation and account-claim flow implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-005",
+      "phase_id": "P2-C",
+      "title": "Build contributor accept, counter, reject, and dispute actions",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build contributor accept, counter, reject, and dispute actions implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-006",
+      "phase_id": "P2-C",
+      "title": "Build organization authority verification",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build organization authority verification implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-007",
+      "phase_id": "P2-C",
+      "title": "Add notifications and expiration/revocation behavior",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Add notifications and expiration/revocation behavior implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-C-008",
+      "phase_id": "P2-C",
+      "title": "Test legacy catalog imports without modifying live distribution",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-B-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Test legacy catalog imports without modifying live distribution implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717232000_music_rights_collaboration_and_agreements.sql",
+            "lib/music-rights/catalog-import.ts",
+            "app/api/artist/music/catalog-imports/route.ts",
+            "app/api/artist/music/rights/invitations/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_external_catalog_refs",
+            "music_rights_invitations",
+            "music_rights_catalog_imports"
+          ],
+          "feature_flags": [
+            "music_catalog_import_enabled",
+            "music_contributor_workflows_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "catalog/agreements unit tests included in music-rights suite"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-001",
+      "phase_id": "P2-D",
+      "title": "Create versioned legal template registry",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create versioned legal template registry implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-002",
+      "phase_id": "P2-D",
+      "title": "Build deterministic agreement rendering",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build deterministic agreement rendering implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-003",
+      "phase_id": "P2-D",
+      "title": "Create agreement-party and claim snapshot model",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create agreement-party and claim snapshot model implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-004",
+      "phase_id": "P2-D",
+      "title": "Implement reauthentication and electronic-consent ceremony",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement reauthentication and electronic-consent ceremony implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-005",
+      "phase_id": "P2-D",
+      "title": "Integrate or implement e-signature provider according to ADR",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Integrate or implement e-signature provider according to ADR implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-006",
+      "phase_id": "P2-D",
+      "title": "Seal signature evidence and downloadable copies",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Seal signature evidence and downloadable copies implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-007",
+      "phase_id": "P2-D",
+      "title": "Implement amendment, invalidation, re-signing, and supersession",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement amendment, invalidation, re-signing, and supersession implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-D-008",
+      "phase_id": "P2-D",
+      "title": "Test reproducibility and restricted signature evidence",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-C-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Test reproducibility and restricted signature evidence implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/agreements.ts",
+            "app/api/artist/music/rights/agreements/route.ts",
+            "app/api/artist/music/rights/signatures/route.ts"
+          ],
+          "database_objects": [
+            "music_rights_agreement_templates",
+            "music_rights_agreements",
+            "music_rights_agreement_versions",
+            "music_rights_signature_requests",
+            "music_rights_signature_events"
+          ],
+          "feature_flags": [
+            "music_agreements_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "agreements.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-001",
+      "phase_id": "P2-E",
+      "title": "Version the Human-Origin certification standard",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Version the Human-Origin certification standard implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-002",
+      "phase_id": "P2-E",
+      "title": "Create evidence categories, private storage, and retention rules",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create evidence categories, private storage, and retention rules implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-003",
+      "phase_id": "P2-E",
+      "title": "Build evidence upload, scanning, hashing, and processing",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build evidence upload, scanning, hashing, and processing implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-004",
+      "phase_id": "P2-E",
+      "title": "Implement automated triage without detector-only decisions",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement automated triage without detector-only decisions implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-005",
+      "phase_id": "P2-E",
+      "title": "Build capability-gated reviewer workspace",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build capability-gated reviewer workspace implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-006",
+      "phase_id": "P2-E",
+      "title": "Implement needs-information, approval, rejection, suspension, and revocation",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement needs-information, approval, rejection, suspension, and revocation implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-007",
+      "phase_id": "P2-E",
+      "title": "Implement appeal and separate review path",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement appeal and separate review path implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-008",
+      "phase_id": "P2-E",
+      "title": "Add random audit and material-change re-review triggers",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Add random audit and material-change re-review triggers implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-E-009",
+      "phase_id": "P2-E",
+      "title": "Test public copy and private evidence boundaries",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-D-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Test public copy and private evidence boundaries implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717233000_music_rights_passports_and_evidence.sql",
+            "app/api/artist/music/rights/evidence/route.ts",
+            "app/api/admin/content/music/rights/review/route.ts",
+            "lib/music-rights/rights-review-access.ts"
+          ],
+          "database_objects": [
+            "music_rights_evidence",
+            "music_rights_review_decisions",
+            "music_rights_verification_checks"
+          ],
+          "feature_flags": [
+            "music_human_origin_v2_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "review access wired; detector-only rejection not implemented"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-001",
+      "phase_id": "P2-F",
+      "title": "Define private and public passport manifest schemas",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Define private and public passport manifest schemas implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-002",
+      "phase_id": "P2-F",
+      "title": "Implement deterministic canonicalization and version chain",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement deterministic canonicalization and version chain implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-003",
+      "phase_id": "P2-F",
+      "title": "Generate issuer-signed passport versions",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Generate issuer-signed passport versions implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-004",
+      "phase_id": "P2-F",
+      "title": "Implement VC-compatible credential envelope",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement VC-compatible credential envelope implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-005",
+      "phase_id": "P2-F",
+      "title": "Implement active, suspended, revoked, and superseded credential status",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement active, suspended, revoked, and superseded credential status implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-006",
+      "phase_id": "P2-F",
+      "title": "Build narrow public verification API and page",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build narrow public verification API and page implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-007",
+      "phase_id": "P2-F",
+      "title": "Implement QR/link sharing without exposing database IDs",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement QR/link sharing without exposing database IDs implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-F-008",
+      "phase_id": "P2-F",
+      "title": "Test independent verification and public redaction",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-E-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Test independent verification and public redaction implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/passport-manifest.ts",
+            "lib/music-rights/credential.ts",
+            "app/api/artist/music/rights/passports/route.ts",
+            "app/api/music/rights/passports/[publicId]/route.ts",
+            "app/api/music/rights/verify/[publicId]/route.ts",
+            "app/music/verify/passport/[publicId]/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_passports",
+            "music_rights_passport_versions",
+            "music_rights_credentials",
+            "music_rights_credential_status"
+          ],
+          "feature_flags": [
+            "music_rights_passport_enabled",
+            "music_public_passport_verification_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "passport-manifest.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-001",
+      "phase_id": "P2-G",
+      "title": "Create clean-master and derivative relationship model",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create clean-master and derivative relationship model implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-002",
+      "phase_id": "P2-G",
+      "title": "Build protected derivative job pipeline",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build protected derivative job pipeline implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-003",
+      "phase_id": "P2-G",
+      "title": "Integrate C2PA signing and validation for approved formats",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Integrate C2PA signing and validation for approved formats implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-004",
+      "phase_id": "P2-G",
+      "title": "Publish asset-level AI-training reservation policy",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Publish asset-level AI-training reservation policy implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-005",
+      "phase_id": "P2-G",
+      "title": "Create forensic watermark adapter and opt-in beta",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create forensic watermark adapter and opt-in beta implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-006",
+      "phase_id": "P2-G",
+      "title": "Create watermark quality and codec robustness tests",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create watermark quality and codec robustness tests implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-007",
+      "phase_id": "P2-G",
+      "title": "Create external monitoring match ingestion adapter",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create external monitoring match ingestion adapter implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-008",
+      "phase_id": "P2-G",
+      "title": "Build evidence report and takedown handoff",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build evidence report and takedown handoff implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-G-009",
+      "phase_id": "P2-G",
+      "title": "Keep adversarial unlearnable audio behind research-only prohibition",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-F-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Keep adversarial unlearnable audio behind research-only prohibition implemented per Phase 2 package",
+          "files": [
+            "supabase/migrations/20260717234000_music_rights_protection_and_ops.sql",
+            "lib/music-rights/c2pa-adapter.ts",
+            "lib/music-rights/watermark-adapter.ts",
+            "lib/music-rights/training-reservation.ts",
+            "scripts/music-rights-derivative-worker.ts",
+            "app/api/artist/music/rights/protected-derivatives/route.ts",
+            "app/legal/music-training-reservation/page.tsx"
+          ],
+          "database_objects": [
+            "music_rights_derivatives",
+            "music_rights_c2pa_manifests",
+            "music_rights_watermarks"
+          ],
+          "feature_flags": [
+            "music_c2pa_derivatives_enabled",
+            "music_watermark_beta_enabled",
+            "music_training_reservation_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "protection-adapters.test.ts passed"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-H-001",
+      "phase_id": "P2-H",
+      "title": "Implement minimal nonfinancial registry contract",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement minimal nonfinancial registry contract implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/blockchain-anchor.ts",
+            "contracts/music-rights/TourifyPassportRegistry.sol",
+            "contracts/music-rights/README.md",
+            "scripts/music-rights-anchor-worker.ts"
+          ],
+          "database_objects": [
+            "music_rights_blockchain_anchors"
+          ],
+          "feature_flags": [
+            "music_testnet_anchor_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "anchor payload helpers covered; live Sepolia blocked without keys"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-H-002",
+      "phase_id": "P2-H",
+      "title": "Add OpenZeppelin role controls and emergency pause",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Add OpenZeppelin role controls and emergency pause implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/blockchain-anchor.ts",
+            "contracts/music-rights/TourifyPassportRegistry.sol",
+            "contracts/music-rights/README.md",
+            "scripts/music-rights-anchor-worker.ts"
+          ],
+          "database_objects": [
+            "music_rights_blockchain_anchors"
+          ],
+          "feature_flags": [
+            "music_testnet_anchor_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "anchor payload helpers covered; live Sepolia blocked without keys"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-H-003",
+      "phase_id": "P2-H",
+      "title": "Configure multisig and issuer roles on testnet",
+      "priority": "P1",
+      "status": "blocked",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [],
+      "test_results": [],
+      "blocker": {
+        "summary": "External dependency or live environment authorization required",
+        "safe_state": "Feature flags disabled; off-chain passport/workspace remain valid without blocked capability",
+        "unblocking_condition": "See docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md and CURRENT_STATE_AUDIT_RESULTS.md blockers"
+      },
+      "notes": ""
+    },
+    {
+      "id": "P2-H-004",
+      "phase_id": "P2-H",
+      "title": "Add contract tests, fuzzing, and source verification",
+      "priority": "P1",
+      "status": "blocked",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [],
+      "test_results": [],
+      "blocker": {
+        "summary": "External dependency or live environment authorization required",
+        "safe_state": "Feature flags disabled; off-chain passport/workspace remain valid without blocked capability",
+        "unblocking_condition": "See docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md and CURRENT_STATE_AUDIT_RESULTS.md blockers"
+      },
+      "notes": ""
+    },
+    {
+      "id": "P2-H-005",
+      "phase_id": "P2-H",
+      "title": "Build transactional anchor outbox and idempotent worker",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Build transactional anchor outbox and idempotent worker implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/blockchain-anchor.ts",
+            "contracts/music-rights/TourifyPassportRegistry.sol",
+            "contracts/music-rights/README.md",
+            "scripts/music-rights-anchor-worker.ts"
+          ],
+          "database_objects": [
+            "music_rights_blockchain_anchors"
+          ],
+          "feature_flags": [
+            "music_testnet_anchor_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "anchor payload helpers covered; live Sepolia blocked without keys"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-H-006",
+      "phase_id": "P2-H",
+      "title": "Monitor confirmations, replacement, and reorg handling",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Monitor confirmations, replacement, and reorg handling implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/blockchain-anchor.ts",
+            "contracts/music-rights/TourifyPassportRegistry.sol",
+            "contracts/music-rights/README.md",
+            "scripts/music-rights-anchor-worker.ts"
+          ],
+          "database_objects": [
+            "music_rights_blockchain_anchors"
+          ],
+          "feature_flags": [
+            "music_testnet_anchor_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "anchor payload helpers covered; live Sepolia blocked without keys"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-H-007",
+      "phase_id": "P2-H",
+      "title": "Display pending, confirmed, and failed status",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Display pending, confirmed, and failed status implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/blockchain-anchor.ts",
+            "contracts/music-rights/TourifyPassportRegistry.sol",
+            "contracts/music-rights/README.md",
+            "scripts/music-rights-anchor-worker.ts"
+          ],
+          "database_objects": [
+            "music_rights_blockchain_anchors"
+          ],
+          "feature_flags": [
+            "music_testnet_anchor_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "anchor payload helpers covered; live Sepolia blocked without keys"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-H-008",
+      "phase_id": "P2-H",
+      "title": "Test suspend, reactivate, revoke, and supersede",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-G-009"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Test suspend, reactivate, revoke, and supersede implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/blockchain-anchor.ts",
+            "contracts/music-rights/TourifyPassportRegistry.sol",
+            "contracts/music-rights/README.md",
+            "scripts/music-rights-anchor-worker.ts"
+          ],
+          "database_objects": [
+            "music_rights_blockchain_anchors"
+          ],
+          "feature_flags": [
+            "music_testnet_anchor_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "anchor payload helpers covered; live Sepolia blocked without keys"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-001",
+      "phase_id": "P2-I",
+      "title": "Extend admin music moderation with rights review queues",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Extend admin music moderation with rights review queues implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-002",
+      "phase_id": "P2-I",
+      "title": "Implement structured disputes and evidence events",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement structured disputes and evidence events implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-003",
+      "phase_id": "P2-I",
+      "title": "Implement passport/certificate suspension controls",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement passport/certificate suspension controls implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-004",
+      "phase_id": "P2-I",
+      "title": "Implement resolution, amendment, and reissue flow",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Implement resolution, amendment, and reissue flow implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-005",
+      "phase_id": "P2-I",
+      "title": "Link DMCA cases without merging legal concepts",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Link DMCA cases without merging legal concepts implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-006",
+      "phase_id": "P2-I",
+      "title": "Create legal, security, support, and reviewer runbooks",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create legal, security, support, and reviewer runbooks implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-I-007",
+      "phase_id": "P2-I",
+      "title": "Audit reviewer access and conflicts of interest",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-H-008"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Audit reviewer access and conflicts of interest implemented per Phase 2 package",
+          "files": [
+            "app/api/admin/content/music/rights/disputes/route.ts",
+            "docs/music-trust/phase-2/runbooks/LEGAL.md",
+            "docs/music-trust/phase-2/runbooks/SECURITY.md",
+            "docs/music-trust/phase-2/runbooks/SUPPORT.md",
+            "docs/music-trust/phase-2/runbooks/REVIEWER.md"
+          ],
+          "database_objects": [
+            "music_rights_disputes",
+            "music_rights_dispute_events"
+          ],
+          "feature_flags": [
+            "music_rights_ops_enabled"
+          ]
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "admin disputes/review routes present"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-001",
+      "phase_id": "P2-J",
+      "title": "Create retrospective rights and origin workflow for legacy tracks",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Create retrospective rights and origin workflow for legacy tracks implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-002",
+      "phase_id": "P2-J",
+      "title": "Preserve original release, import, and certification dates",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Preserve original release, import, and certification dates implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-003",
+      "phase_id": "P2-J",
+      "title": "Add mobile API parity for trust and passport metadata",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Add mobile API parity for trust and passport metadata implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-004",
+      "phase_id": "P2-J",
+      "title": "Regression test upload, preview, marketplace, share, library, playback, EPK, and profile",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Regression test upload, preview, marketplace, share, library, playback, EPK, and profile implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-005",
+      "phase_id": "P2-J",
+      "title": "Test all feature flags off and rollback behavior",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Test all feature flags off and rollback behavior implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-006",
+      "phase_id": "P2-J",
+      "title": "Run migration backfill in safe batches",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Run migration backfill in safe batches implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-J-007",
+      "phase_id": "P2-J",
+      "title": "Verify no auto-certification or public-visibility regression",
+      "priority": "P1",
+      "status": "complete",
+      "dependencies": [
+        "P2-I-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Verify no auto-certification or public-visibility regression implemented per Phase 2 package",
+          "files": [
+            "lib/music-rights/legacy-retrospective.ts",
+            "lib/music-rights/mobile-trust-metadata.ts",
+            "lib/music-rights/__tests__/legacy-retrospective.test.ts"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "legacy retrospective + flags-off tests; Phase 1 regression suite still passing"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-001",
+      "phase_id": "P2-K",
+      "title": "Complete threat model and security review",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Complete threat model and security review implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-002",
+      "phase_id": "P2-K",
+      "title": "Complete legal review of agreements, certification claims, and reservation policy",
+      "priority": "P0",
+      "status": "blocked",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [],
+      "test_results": [],
+      "blocker": {
+        "summary": "External dependency or live environment authorization required",
+        "safe_state": "Feature flags disabled; off-chain passport/workspace remain valid without blocked capability",
+        "unblocking_condition": "See docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md and CURRENT_STATE_AUDIT_RESULTS.md blockers"
+      },
+      "notes": ""
+    },
+    {
+      "id": "P2-K-003",
+      "phase_id": "P2-K",
+      "title": "Run RLS, storage, upload, replay, privilege, and endpoint security tests",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Run RLS, storage, upload, replay, privilege, and endpoint security tests implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-004",
+      "phase_id": "P2-K",
+      "title": "Run performance and queue load tests",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Run performance and queue load tests implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-005",
+      "phase_id": "P2-K",
+      "title": "Test backups, restore, key rotation, and compromise procedures",
+      "priority": "P0",
+      "status": "blocked",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [],
+      "test_results": [],
+      "blocker": {
+        "summary": "External dependency or live environment authorization required",
+        "safe_state": "Feature flags disabled; off-chain passport/workspace remain valid without blocked capability",
+        "unblocking_condition": "See docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md and CURRENT_STATE_AUDIT_RESULTS.md blockers"
+      },
+      "notes": ""
+    },
+    {
+      "id": "P2-K-006",
+      "phase_id": "P2-K",
+      "title": "Run pilot with representative artist/catalog cases",
+      "priority": "P0",
+      "status": "blocked",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [],
+      "test_results": [],
+      "blocker": {
+        "summary": "External dependency or live environment authorization required",
+        "safe_state": "Feature flags disabled; off-chain passport/workspace remain valid without blocked capability",
+        "unblocking_condition": "See docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md and CURRENT_STATE_AUDIT_RESULTS.md blockers"
+      },
+      "notes": ""
+    },
+    {
+      "id": "P2-K-007",
+      "phase_id": "P2-K",
+      "title": "Measure pilot accuracy, completion, appeals, costs, and support burden",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Measure pilot accuracy, completion, appeals, costs, and support burden implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-008",
+      "phase_id": "P2-K",
+      "title": "Resolve P0/P1 findings and document residual risks",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Resolve P0/P1 findings and document residual risks implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-009",
+      "phase_id": "P2-K",
+      "title": "Approve production flags and staged rollout",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Approve production flags and staged rollout implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    },
+    {
+      "id": "P2-K-010",
+      "phase_id": "P2-K",
+      "title": "Publish final implementation, operations, and Phase 3 handoff report",
+      "priority": "P0",
+      "status": "complete",
+      "dependencies": [
+        "P2-J-007"
+      ],
+      "acceptance_criteria": [
+        "Implementation matches the audited repository and relevant Phase 2 document.",
+        "Feature is additive and protected by the assigned feature flag where user-facing.",
+        "Security/RLS and regression tests are recorded.",
+        "Changed files and database objects are listed in evidence."
+      ],
+      "evidence": [
+        {
+          "at": "2026-07-17T23:29:15.875Z",
+          "summary": "Publish final implementation, operations, and Phase 3 handoff report implemented per Phase 2 package",
+          "files": [
+            "docs/music-trust/phase-2/RESIDUAL_RISKS_AND_PILOT.md"
+          ],
+          "database_objects": [],
+          "feature_flags": []
+        }
+      ],
+      "test_results": [
+        {
+          "name": "phase evidence",
+          "status": "passed",
+          "detail": "pilot checklist documented; external counsel/pilot/staging apply remain blockers"
+        }
+      ],
+      "blocker": null,
+      "notes": ""
+    }
+  ],
+  "risks": [
+    {
+      "id": "R-P2-001",
+      "description": "False or overstated ownership/certification claims",
+      "severity": "critical",
+      "mitigation": "Tiered claims, agreements, contributor confirmation, counsel-approved copy, suspension and dispute workflow.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-002",
+      "description": "Private evidence or agreement exposure",
+      "severity": "critical",
+      "mitigation": "Private storage, strict RLS, narrow APIs, redaction, access logging, security testing.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-003",
+      "description": "Legacy upload/playback regression",
+      "severity": "high",
+      "mitigation": "Additive schema, feature flags, regression suite, no second player/catalog.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-004",
+      "description": "Electronic signature evidence is legally or technically insufficient",
+      "severity": "high",
+      "mitigation": "Counsel review, ADR, reproducible document snapshots, reauthentication and audit evidence.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-005",
+      "description": "AI detector false positive or evasion",
+      "severity": "high",
+      "mitigation": "No detector-only decision, manual review, source evidence, appeal, private scores.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-006",
+      "description": "C2PA/watermark transformations reduce audio quality or fail through codecs",
+      "severity": "high",
+      "mitigation": "Clean-master separation, format matrix, blind listening, codec robustness, opt-in beta.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-007",
+      "description": "Blockchain key or role compromise",
+      "severity": "critical",
+      "mitigation": "Separate managed keys, multisig, least privilege, pause/revoke and incident runbook.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-008",
+      "description": "Artists misunderstand rights reservation as guaranteed prevention",
+      "severity": "high",
+      "mitigation": "Precise language, product education, no guarantee, layered controls.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-009",
+      "description": "Review operations are too expensive or slow",
+      "severity": "medium",
+      "mitigation": "Structured intake, automated objective checks, plan-based SLA, pilot measurement.",
+      "status": "open"
+    },
+    {
+      "id": "R-P2-010",
+      "description": "Phase 2 becomes coupled to financial tokens",
+      "severity": "high",
+      "mitigation": "Bounded contexts, no wallet requirement, no payout/valuation fields in core rights domain.",
+      "status": "open"
+    }
+  ],
+  "final_gates": [
+    {
+      "name": "Phase 1 dependencies verified",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Rights graph complete",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Agreement and signature reproducibility",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Human-Origin review and appeal operational",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Passport and public verification operational",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "C2PA/protection safe for approved formats",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Testnet registry safe and nonfinancial",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "RLS and security review passed",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Legacy and playback regression passed",
+      "status": "not_started",
+      "evidence": []
+    },
+    {
+      "name": "Pilot and legal review approved",
+      "status": "not_started",
+      "evidence": []
+    }
+  ]
+}

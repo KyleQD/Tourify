@@ -3,8 +3,18 @@ import { recordActingSnapshot } from '@/lib/auth/acting-context'
 import { resolveActingAccountSnapshot } from '@/lib/accounts/acting-account-snapshot'
 import type { AccountAuthor } from '@/lib/accounts/account-author'
 import { isBlogAccountAttributionSchemaError } from '@/lib/blog/account-author'
+import {
+  defaultDistributionForFormat,
+  normalizeDistribution,
+  parsePressFormat,
+  publicUrlForPressItem,
+  shouldSyncToFeed,
+  type PressDistribution,
+  type PressFormat,
+} from '@/lib/press/formats'
 
 export type ArticlePublishStatus = 'draft' | 'published' | 'scheduled' | 'archived'
+export type { PressFormat, PressDistribution }
 
 export interface ArticleWriteInput {
   title?: string
@@ -17,6 +27,11 @@ export interface ArticleWriteInput {
   seoTitle?: string | null
   seoDescription?: string | null
   scheduledFor?: string | null
+  format?: PressFormat
+  subtitle?: string | null
+  boilerplate?: string | null
+  embargoUntil?: string | null
+  distribution?: Partial<PressDistribution>
 }
 
 export interface ManagedArticle {
@@ -33,6 +48,11 @@ export interface ManagedArticle {
   seo_description: string | null
   tags: string[]
   categories: string[]
+  format: PressFormat
+  subtitle: string | null
+  boilerplate: string | null
+  embargo_until: string | null
+  distribution: PressDistribution
   stats: {
     views: number
     likes: number
@@ -79,6 +99,11 @@ const OWNER_ARTICLE_SELECT = `
   seo_description,
   tags,
   categories,
+  format,
+  subtitle,
+  boilerplate,
+  embargo_until,
+  distribution,
   stats,
   feed_post_id,
   created_at,
@@ -111,6 +136,18 @@ const OWNER_ARTICLE_SELECT_LEGACY = `
   updated_at,
   user_id
 `
+
+export function isPressFormatSchemaError(error: { message?: string; code?: string } | null | undefined) {
+  if (!error?.message) return false
+  const message = error.message.toLowerCase()
+  return (
+    message.includes('format') ||
+    message.includes('subtitle') ||
+    message.includes('boilerplate') ||
+    message.includes('embargo_until') ||
+    message.includes('distribution')
+  ) && (message.includes('column') || message.includes('schema') || error.code === '42703' || error.code === 'PGRST204')
+}
 
 export function generateSlug(title: string) {
   return title
@@ -158,6 +195,9 @@ function toManagedArticle(row: Record<string, any>): ManagedArticle {
         }
       : { views: 0, likes: 0, comments: 0, shares: 0 }
 
+  const format = parsePressFormat(row.format, 'blog')
+  const distribution = normalizeDistribution(row.distribution, format)
+
   return {
     id: row.id,
     title: row.title,
@@ -172,6 +212,11 @@ function toManagedArticle(row: Record<string, any>): ManagedArticle {
     seo_description: row.seo_description || null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     categories: Array.isArray(row.categories) ? row.categories : [],
+    format,
+    subtitle: row.subtitle || null,
+    boilerplate: row.boilerplate || null,
+    embargo_until: row.embargo_until || null,
+    distribution,
     stats,
     feed_post_id: row.feed_post_id || null,
     created_at: row.created_at,
@@ -183,7 +228,7 @@ function toManagedArticle(row: Record<string, any>): ManagedArticle {
     account_username: row.account_username,
     account_avatar_url: row.account_avatar_url,
     account_is_verified: row.account_is_verified,
-    url: `/blog/${row.slug}`,
+    url: publicUrlForPressItem({ format, slug: row.slug, id: row.id }),
   }
 }
 
@@ -197,9 +242,10 @@ async function fetchOwnedArticleRow(ctx: ActingContext, articleId: string) {
     .select(OWNER_ARTICLE_SELECT)
     .eq('id', articleId)
     .eq('user_id', ctx.userId)
+    .eq('posted_as_profile_id', ctx.profileId)
     .maybeSingle()
 
-  if (error && isBlogAccountAttributionSchemaError(error)) {
+  if (error && (isBlogAccountAttributionSchemaError(error) || isPressFormatSchemaError(error))) {
     const legacy = await ctx.supabase
       .from('artist_blog_posts')
       .select(OWNER_ARTICLE_SELECT_LEGACY)
@@ -369,6 +415,30 @@ export async function syncArticleFeedPost(input: {
   nextStatus: ArticlePublishStatus
 }) {
   const { ctx, author, article, previousStatus, nextStatus } = input
+
+  if (!shouldSyncToFeed(article.format, article.distribution)) {
+    if (article.feed_post_id && (nextStatus !== 'published' || previousStatus === 'published')) {
+      const updated = await updateExistingFeedPost({
+        ctx,
+        feedPostId: article.feed_post_id,
+        article: {
+          id: article.id,
+          slug: article.slug,
+          title: article.title,
+          excerpt: article.excerpt || article.content.slice(0, 200),
+          content: article.content,
+          featuredImageUrl: article.featured_image_url,
+          categories: article.categories,
+          tags: article.tags,
+          publishedAt: article.published_at,
+        },
+        visibility: 'private',
+      })
+      return { feedPostId: article.feed_post_id, warning: updated.error }
+    }
+    return { feedPostId: article.feed_post_id, warning: null as string | null }
+  }
+
   const isPublishing = nextStatus === 'published'
   const wasPublished = previousStatus === 'published'
   const feedPayload = {
@@ -419,6 +489,11 @@ export async function createArticle(input: {
   const { ctx, body } = input
   const status: ArticlePublishStatus =
     body.status === 'draft' || body.status === 'scheduled' ? body.status : 'published'
+  const format = parsePressFormat(body.format, 'blog')
+  const distribution = normalizeDistribution(
+    { ...defaultDistributionForFormat(format), ...body.distribution },
+    format
+  )
   const cleanTitle = body.title?.trim() || ''
   const cleanContent = body.content?.trim() || ''
   const cleanExcerpt = typeof body.excerpt === 'string' ? body.excerpt.trim() : ''
@@ -432,6 +507,10 @@ export async function createArticle(input: {
   const cleanSeoTitle = typeof body.seoTitle === 'string' ? body.seoTitle.trim() : null
   const cleanSeoDescription = typeof body.seoDescription === 'string' ? body.seoDescription.trim() : null
   const cleanScheduledFor = typeof body.scheduledFor === 'string' ? body.scheduledFor.trim() || null : null
+  const cleanSubtitle = typeof body.subtitle === 'string' ? body.subtitle.trim() || null : null
+  const cleanBoilerplate = typeof body.boilerplate === 'string' ? body.boilerplate.trim() || null : null
+  const cleanEmbargoUntil =
+    typeof body.embargoUntil === 'string' ? body.embargoUntil.trim() || null : null
 
   if (!cleanTitle)
     return { success: false, error: 'Title is required', status: 400 }
@@ -465,10 +544,19 @@ export async function createArticle(input: {
     stats: { likes: 0, comments: 0, shares: 0, views: 0 },
   }
 
+  const pressFields = {
+    format,
+    subtitle: cleanSubtitle,
+    boilerplate: cleanBoilerplate,
+    embargo_until: cleanEmbargoUntil,
+    distribution,
+  }
+
   let { data, error } = await supabase
     .from('artist_blog_posts')
     .insert({
       ...baseArticlePayload,
+      ...pressFields,
       posted_as_profile_id: author.id,
       posted_as_type: author.type,
       account_display_name: author.name,
@@ -479,8 +567,8 @@ export async function createArticle(input: {
     .select(OWNER_ARTICLE_SELECT)
     .single()
 
-  if (error && isBlogAccountAttributionSchemaError(error)) {
-    console.warn('[ArticlePublishing] Account attribution columns missing; publishing article with legacy blog schema.')
+  if (error && (isBlogAccountAttributionSchemaError(error) || isPressFormatSchemaError(error))) {
+    console.warn('[ArticlePublishing] Press/account columns missing; publishing with legacy blog schema.')
     const legacyResult = await supabase
       .from('artist_blog_posts')
       .insert(baseArticlePayload)
@@ -495,7 +583,7 @@ export async function createArticle(input: {
     return { success: false, error: 'Failed to publish article', status: 500 }
   }
 
-  let article = toManagedArticle(data)
+  let article = toManagedArticle({ ...data, format: data?.format || format, distribution: data?.distribution || distribution })
   let warning: string | undefined
 
   if (status === 'published') {
@@ -517,7 +605,7 @@ export async function createArticle(input: {
       action: 'blog.publish',
       resourceType: 'artist_blog_posts',
       resourceId: article.id,
-      metadata: { feed_post_id: sync.feedPostId },
+      metadata: { feed_post_id: sync.feedPostId, format: article.format },
     })
 
     if (warning) {
@@ -553,17 +641,24 @@ export async function getOwnedArticle(input: {
 export async function listOwnedArticles(input: {
   ctx: ActingContext
   limit?: number
+  format?: PressFormat | 'all'
 }): Promise<{ success: true; articles: ManagedArticle[] } | { success: false; error: string; status: number }> {
   const limit = Math.min(100, Math.max(1, input.limit || 50))
 
-  let { data, error } = await input.ctx.supabase
+  let query = input.ctx.supabase
     .from('artist_blog_posts')
     .select(OWNER_ARTICLE_SELECT)
     .eq('user_id', input.ctx.userId)
+    .eq('posted_as_profile_id', input.ctx.profileId)
     .order('created_at', { ascending: false })
     .limit(limit)
 
-  if (error && isBlogAccountAttributionSchemaError(error)) {
+  if (input.format && input.format !== 'all')
+    query = query.eq('format', input.format)
+
+  let { data, error } = await query
+
+  if (error && (isBlogAccountAttributionSchemaError(error) || isPressFormatSchemaError(error))) {
     const legacy = await input.ctx.supabase
       .from('artist_blog_posts')
       .select(OWNER_ARTICLE_SELECT_LEGACY)
@@ -631,6 +726,32 @@ export async function updateArticle(input: {
         ? null
         : existing.scheduled_for
 
+  const nextFormat = body.format ? parsePressFormat(body.format, existing.format) : existing.format
+  const nextDistribution = normalizeDistribution(
+    body.distribution
+      ? { ...existing.distribution, ...body.distribution }
+      : existing.distribution,
+    nextFormat
+  )
+  const cleanSubtitle =
+    typeof body.subtitle === 'string'
+      ? body.subtitle.trim() || null
+      : body.subtitle === null
+        ? null
+        : existing.subtitle
+  const cleanBoilerplate =
+    typeof body.boilerplate === 'string'
+      ? body.boilerplate.trim() || null
+      : body.boilerplate === null
+        ? null
+        : existing.boilerplate
+  const cleanEmbargoUntil =
+    typeof body.embargoUntil === 'string'
+      ? body.embargoUntil.trim() || null
+      : body.embargoUntil === null
+        ? null
+        : existing.embargo_until
+
   if (!cleanTitle)
     return { success: false, error: 'Title is required', status: 400 }
 
@@ -659,6 +780,11 @@ export async function updateArticle(input: {
     scheduled_for: nextStatus === 'scheduled' ? cleanScheduledFor : null,
     seo_title: cleanSeoTitle,
     seo_description: cleanSeoDescription,
+    format: nextFormat,
+    subtitle: cleanSubtitle,
+    boilerplate: cleanBoilerplate,
+    embargo_until: cleanEmbargoUntil,
+    distribution: nextDistribution,
     updated_at: new Date().toISOString(),
   }
 
@@ -670,10 +796,16 @@ export async function updateArticle(input: {
     .select(OWNER_ARTICLE_SELECT)
     .single()
 
-  if (error && isBlogAccountAttributionSchemaError(error)) {
+  if (error && (isBlogAccountAttributionSchemaError(error) || isPressFormatSchemaError(error))) {
+    const legacyPayload = { ...updatePayload }
+    delete legacyPayload.format
+    delete legacyPayload.subtitle
+    delete legacyPayload.boilerplate
+    delete legacyPayload.embargo_until
+    delete legacyPayload.distribution
     const legacy = await ctx.supabase
       .from('artist_blog_posts')
-      .update(updatePayload)
+      .update(legacyPayload)
       .eq('id', articleId)
       .eq('user_id', ctx.userId)
       .select(OWNER_ARTICLE_SELECT_LEGACY)
@@ -757,6 +889,7 @@ export async function deleteArticle(input: {
     .delete()
     .eq('id', input.articleId)
     .eq('user_id', input.ctx.userId)
+    .eq('posted_as_profile_id', input.ctx.profileId)
 
   if (error) {
     console.error('[ArticlePublishing] Delete error:', error)

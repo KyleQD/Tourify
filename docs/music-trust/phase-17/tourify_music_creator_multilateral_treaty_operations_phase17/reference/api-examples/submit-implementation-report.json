@@ -1,0 +1,11 @@
+{
+  "idempotencyKey": "p17-report-state-a-2028",
+  "participantId": "state-a",
+  "reportingPeriod": {
+    "from": "2028-01-01",
+    "to": "2028-12-31"
+  },
+  "authorityEvidenceId": "authority-1",
+  "sourceManifestId": "manifest-1",
+  "publicSummaryApproved": false
+}

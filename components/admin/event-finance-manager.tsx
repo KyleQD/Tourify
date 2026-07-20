@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { formatSafeCurrency } from "@/lib/events/admin-event-normalization"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface Transaction {
   id: string
@@ -38,8 +39,8 @@ interface Budget {
   event_id?: string
 }
 
-const INCOME_CATEGORIES = ['ticket_revenue','sponsorship','merchandise','bar_revenue','catering','parking','streaming','other']
-const EXPENSE_CATEGORIES = ['venue','production','staff','marketing','travel','catering','equipment','legal','insurance','other']
+const INCOME_CATEGORIES = ['ticket_revenue','merchandise','sponsorship','appearance_fee','other_income']
+const EXPENSE_CATEGORIES = ['venue_rental','equipment','catering','staff_pay','marketing','travel','insurance','permits','production','other_expense']
 const PAYMENT_STATUSES = ['pending','paid','overdue','cancelled','refunded']
 
 const STATUS_COLORS: Record<string, string> = {
@@ -53,9 +54,12 @@ const STATUS_COLORS: Record<string, string> = {
 interface Props { eventId: string }
 
 export function EventFinanceManager({ eventId }: Props) {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const requestScopeKey = `${actingContextKey}:${eventId}`
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedScopeKey, setLoadedScopeKey] = useState('')
   const [activeView, setActiveView] = useState<'transactions' | 'budget'>('transactions')
 
   const [showTxDialog, setShowTxDialog] = useState(false)
@@ -65,7 +69,7 @@ export function EventFinanceManager({ eventId }: Props) {
 
   const [txForm, setTxForm] = useState({
     type: 'expense' as 'income' | 'expense',
-    category: 'other',
+    category: 'other_expense',
     amount: 0,
     description: '',
     vendor_name: '',
@@ -74,11 +78,20 @@ export function EventFinanceManager({ eventId }: Props) {
   })
 
   const fetchData = useCallback(async () => {
+    if (!isActingReady) return
     setLoading(true)
+    setTransactions([])
+    setBudgets([])
     try {
       const [txRes, bdRes] = await Promise.allSettled([
-        fetch(`/api/admin/finances?type=transactions&event_id=${eventId}&limit=100`, { credentials: 'include' }),
-        fetch(`/api/admin/finances?type=budgets&event_id=${eventId}`, { credentials: 'include' }),
+        fetch(`/api/admin/finances?type=transactions&event_id=${eventId}&limit=100`, {
+          credentials: 'include',
+          headers: actingHeaders,
+        }),
+        fetch(`/api/admin/finances?type=budgets&event_id=${eventId}`, {
+          credentials: 'include',
+          headers: actingHeaders,
+        }),
       ])
       if (txRes.status === 'fulfilled' && txRes.value.ok) {
         const d = await txRes.value.json()
@@ -89,15 +102,16 @@ export function EventFinanceManager({ eventId }: Props) {
         setBudgets(d.budgets || [])
       }
     } finally {
+      setLoadedScopeKey(requestScopeKey)
       setLoading(false)
     }
-  }, [eventId])
+  }, [actingHeaders, eventId, isActingReady, requestScopeKey])
 
   useEffect(() => { void fetchData() }, [fetchData])
 
   function openCreateTx() {
     setEditingTx(null)
-    setTxForm({ type: 'expense', category: 'other', amount: 0, description: '', vendor_name: '', payment_status: 'pending', due_date: '' })
+    setTxForm({ type: 'expense', category: 'other_expense', amount: 0, description: '', vendor_name: '', payment_status: 'pending', due_date: '' })
     setShowTxDialog(true)
   }
 
@@ -116,6 +130,7 @@ export function EventFinanceManager({ eventId }: Props) {
   }
 
   async function saveTx() {
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     if (!txForm.category || txForm.amount <= 0) { toast.error('Amount and category required'); return }
     setSaving(true)
     try {
@@ -123,7 +138,7 @@ export function EventFinanceManager({ eventId }: Props) {
         const res = await fetch('/api/admin/finances', {
           method: 'PATCH',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...actingHeaders },
           body: JSON.stringify({ id: editingTx.id, table: 'transaction', ...txForm, amount: Number(txForm.amount) }),
         })
         if (!res.ok) throw new Error(await res.text())
@@ -132,7 +147,7 @@ export function EventFinanceManager({ eventId }: Props) {
         const res = await fetch('/api/admin/finances', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...actingHeaders },
           body: JSON.stringify({ action: 'create_transaction', event_id: eventId, ...txForm, amount: Number(txForm.amount) }),
         })
         if (!res.ok) throw new Error(await res.text())
@@ -149,10 +164,12 @@ export function EventFinanceManager({ eventId }: Props) {
 
   async function confirmDeleteTx() {
     if (!deleteTx) return
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     try {
       const res = await fetch(`/api/admin/finances?id=${deleteTx.id}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: actingHeaders,
       })
       if (!res.ok) throw new Error(await res.text())
       toast.success('Transaction deleted')
@@ -170,7 +187,7 @@ export function EventFinanceManager({ eventId }: Props) {
 
   const categories = Array.from(new Set(transactions.map(t => t.category)))
 
-  if (loading) {
+  if (loading || !isActingReady || loadedScopeKey !== requestScopeKey) {
     return (
       <div className="flex items-center justify-center py-12">
         <RefreshCw className="h-5 w-5 animate-spin text-purple-400" />
@@ -301,7 +318,11 @@ export function EventFinanceManager({ eventId }: Props) {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-slate-300">Type *</Label>
-                <Select value={txForm.type} onValueChange={(v: 'income'|'expense') => setTxForm(p => ({ ...p, type: v, category: 'other' }))}>
+                <Select value={txForm.type} onValueChange={(v: 'income'|'expense') => setTxForm(p => ({
+                  ...p,
+                  type: v,
+                  category: v === 'income' ? 'other_income' : 'other_expense',
+                }))}>
                   <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white">
                     <SelectItem value="income">Income</SelectItem>

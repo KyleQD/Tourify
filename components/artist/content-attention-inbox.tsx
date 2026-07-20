@@ -86,12 +86,12 @@ export function ContentAttentionInbox({
             <p className="mt-1 text-xl font-semibold text-white">{attention.failedScheduledPosts}</p>
           </button>
           <Link
-            href="/artist/features/blog?status=draft"
+            href="/artist/press?status=draft"
             aria-label={`${attention.blogDrafts} blog drafts`}
             className="rounded-xl border border-slate-700/60 bg-slate-900/60 p-3 hover:border-orange-500/40"
           >
             <p className="text-[11px] uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              <FileText className="h-3 w-3" /> Blog drafts
+              <FileText className="h-3 w-3" /> Press drafts
             </p>
             <p className="mt-1 text-xl font-semibold text-white">{attention.blogDrafts}</p>
           </Link>

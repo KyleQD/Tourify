@@ -1,0 +1,9 @@
+{
+  "eventId": "grant-award-001",
+  "programId": "00000000-0000-0000-0000-000000000005",
+  "awardStatus": "approved",
+  "amountMinor": 1000000,
+  "currency": "USD",
+  "milestoneCount": 3,
+  "signature": "EXAMPLE_ONLY"
+}

@@ -21,7 +21,6 @@ import {
   Video,
   Image as ImageIcon,
   Tag,
-  Globe,
   ShoppingBag,
   TrendingUp,
 } from 'lucide-react'
@@ -29,15 +28,15 @@ import React from 'react'
 import { motion } from 'framer-motion'
 
 const routes = [
-  { label: "Dashboard", icon: BarChart, href: "/artist" },
-  { label: "Feed", icon: Home, href: "/artist/feed" },
+  { label: "Home", icon: Home, href: "/artist" },
+  { label: "Overview", icon: BarChart, href: "/artist/overview" },
   { label: "Content", icon: Video, href: "/artist/content" },
   { label: "Community", icon: Users, href: "/artist/community" },
   { label: "Business", icon: ShoppingBag, href: "/artist/business" },
   { label: "Events", icon: Calendar, href: "/artist/events" },
-  { label: "Analytics", icon: TrendingUp, href: "/artist/features/analytics" },
+  { label: "Analytics", icon: TrendingUp, href: "/artist/dashboard/analytics" },
   { label: "EPK", icon: Tag, href: "/artist/epk" },
-  { label: "Website", icon: Globe, href: "/artist/website" },
+  { label: "Music", icon: Music2, href: "/artist/music" },
   { label: "Profile", icon: Settings, href: "/artist/settings" },
 ]
 

@@ -81,16 +81,23 @@ export async function POST(request: NextRequest) {
         await OptimizedNotificationService.createNotification({
           userId: endorsee_id,
           type: 'endorsement_received',
-          title: 'New Endorsement!',
+          title: `${endorser?.full_name || 'Someone'} endorsed you for ${skill}`,
           content: `${endorser?.full_name || 'Someone'} endorsed you for "${skill}"${comment ? `: "${comment}"` : '.'}`,
           summary: 'New endorsement',
           relatedUserId: user.id,
+          relatedContentId: endorsement?.id,
+          relatedContentType: 'endorsement',
           metadata: {
+            link: '/achievements?tab=endorsements',
             endorsement_id: endorsement?.id,
             endorser_id: user.id,
             skill,
             level,
             category,
+            job_id,
+            event_id,
+            collaboration_id,
+            project_id,
           },
         })
       } catch (notifyError) {

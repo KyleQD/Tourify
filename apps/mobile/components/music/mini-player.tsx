@@ -1,4 +1,5 @@
-import { Image, Pressable, Text, View } from "react-native"
+import { Pressable, Text, View } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import { useMusicPlayer } from "@/providers/music-player-provider"
 
@@ -35,6 +36,8 @@ export function MiniMusicPlayer() {
           <Image
             source={{ uri: track.cover_art_url }}
             style={{ width: 46, height: 46, borderRadius: 8, backgroundColor: "#1e293b" }}
+            contentFit="cover"
+            transition={120}
           />
         ) : (
           <View

@@ -9,14 +9,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Star, ThumbsUp, MessageCircle } from "lucide-react"
-import { achievementService } from "@/lib/services/achievement.service"
+import { Input } from "@/components/ui/input"
 import { toast } from "@/components/ui/use-toast"
 
 interface EndorsementModalProps {
   endorseeId: string
   endorseeName: string
   endorseeAvatar?: string
-  skillName: string
+  skillName?: string
+  jobId?: string
+  eventId?: string
+  collaborationId?: string
+  projectId?: string
   trigger?: React.ReactNode
   onEndorsementCreated?: () => void
 }
@@ -42,7 +46,11 @@ export function EndorsementModal({
   endorseeId, 
   endorseeName, 
   endorseeAvatar,
-  skillName,
+  skillName: initialSkillName = '',
+  jobId,
+  eventId,
+  collaborationId,
+  projectId,
   trigger,
   onEndorsementCreated 
 }: EndorsementModalProps) {
@@ -50,7 +58,9 @@ export function EndorsementModal({
   const [loading, setLoading] = useState(false)
   const [level, setLevel] = useState<number>(3)
   const [category, setCategory] = useState<string>('')
+  const [skillName, setSkillName] = useState(initialSkillName)
   const [comment, setComment] = useState('')
+  const hasWorkContext = !!(jobId || eventId || collaborationId || projectId)
 
   const handleSubmit = async () => {
     if (!category) {
@@ -62,26 +72,50 @@ export function EndorsementModal({
       return
     }
 
+    if (!skillName.trim()) {
+      toast({
+        title: "Skill required",
+        description: "Enter the skill you are endorsing",
+        variant: "destructive"
+      })
+      return
+    }
+
     try {
       setLoading(true)
-      
-      await achievementService.createEndorsement({
-        endorsee_id: endorseeId,
-        skill: skillName,
-        level,
-        comment: comment.trim() || undefined,
-        category: category as any
+
+      const response = await fetch('/api/endorsements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          endorsee_id: endorseeId,
+          skill: skillName.trim(),
+          level,
+          comment: comment.trim() || undefined,
+          category,
+          job_id: jobId,
+          event_id: eventId,
+          collaboration_id: collaborationId,
+          project_id: projectId,
+        }),
       })
 
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Failed to create endorsement')
+      }
+
       toast({
-        title: "Endorsement Created",
-        description: `Successfully endorsed ${endorseeName} for ${skillName}`,
+        title: hasWorkContext ? "Verified endorsement sent" : "Endorsement created",
+        description: `Successfully endorsed ${endorseeName} for ${skillName.trim()}`,
       })
 
       setOpen(false)
       setLevel(3)
       setCategory('')
       setComment('')
+      if (!initialSkillName) setSkillName('')
       onEndorsementCreated?.()
     } catch (error) {
       console.error('Error creating endorsement:', error)
@@ -126,15 +160,32 @@ export function EndorsementModal({
             </Avatar>
             <div>
               <div>Endorse {endorseeName}</div>
-              <div className="text-sm font-normal text-gray-600">for {skillName}</div>
+              <div className="text-sm font-normal text-muted-foreground">
+                {skillName ? `for ${skillName}` : 'for a skill you observed'}
+              </div>
             </div>
           </DialogTitle>
           <DialogDescription>
-            Share your experience working with {endorseeName} and rate their {skillName} skills.
+            Share your experience working with {endorseeName}.
+            {hasWorkContext
+              ? ' Because you share verified work context, this endorsement can count as verified.'
+              : ' Linking a shared job or event makes endorsements more credible.'}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6">
+          {!initialSkillName && (
+            <div className="space-y-2">
+              <Label htmlFor="skill">Skill</Label>
+              <Input
+                id="skill"
+                value={skillName}
+                onChange={(e) => setSkillName(e.target.value)}
+                placeholder="e.g. Stage Management"
+              />
+            </div>
+          )}
+
           {/* Skill Category */}
           <div className="space-y-2">
             <Label htmlFor="category">Skill Category</Label>

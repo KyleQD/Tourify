@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { 
   Briefcase, 
   Calendar, 
@@ -25,6 +26,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface Job {
   id: string
@@ -40,7 +42,11 @@ interface Job {
   priority: string
   featured: boolean
   required_skills: string[]
+  required_equipment?: string[]
+  required_genres?: string[]
+  benefits?: string[]
   required_experience: string
+  special_requirements?: string
   contact_email?: string
   contact_phone?: string
   external_link?: string
@@ -53,20 +59,29 @@ interface TourJobsListProps {
 }
 
 export function TourJobsList({ tourId }: TourJobsListProps) {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    ...input,
+    headers: { ...actingHeaders, ...(input?.headers || {}) },
+  }), [actingHeaders])
   const [jobs, setJobs] = useState<Job[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filterStatus, setFilterStatus] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
 
-  useEffect(() => {
-    fetchJobs()
-  }, [tourId])
-
-  const fetchJobs = async () => {
+  const fetchJobs = useCallback(async () => {
+    if (!isActingReady) {
+      setJobs([])
+      setIsLoading(false)
+      return
+    }
     try {
-      const response = await fetch(`/api/tours/${tourId}/jobs`)
+      setIsLoading(true)
+      const response = await fetch(`/api/tours/${tourId}/jobs`, adminRequest())
       if (response.ok) {
         const data = await response.json()
         setJobs(data.jobs || [])
@@ -80,20 +95,29 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [adminRequest, isActingReady, tourId])
+
+  useEffect(() => {
+    setSelectedJob(null)
+    setIsViewDialogOpen(false)
+    setIsDeleteDialogOpen(false)
+    void fetchJobs()
+  }, [actingContextKey, fetchJobs])
 
   const handleDeleteJob = async () => {
     if (!selectedJob) return
 
     try {
-      const response = await fetch(`/api/artist-jobs/${selectedJob.id}`, {
-        method: 'DELETE'
-      })
+      const response = await fetch(
+        `/api/tours/${tourId}/jobs?job_id=${encodeURIComponent(selectedJob.id)}`,
+        adminRequest({ method: 'DELETE' }),
+      )
 
       if (response.ok) {
-        setJobs(jobs.filter(job => job.id !== selectedJob.id))
+        setJobs(current => current.filter(job => job.id !== selectedJob.id))
         toast.success('Job deleted successfully')
         setIsDeleteDialogOpen(false)
+        setSelectedJob(null)
       } else {
         toast.error('Failed to delete job')
       }
@@ -103,11 +127,45 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
     }
   }
 
+  const handleStatusUpdate = async (status: string) => {
+    if (!selectedJob) return
+    setIsUpdatingStatus(true)
+    try {
+      const response = await fetch(`/api/tours/${tourId}/jobs`, adminRequest({
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job_id: selectedJob.id, status }),
+      }))
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload.job) throw new Error(payload.error || 'Failed to update job status')
+      setJobs(current => current.map(job => job.id === selectedJob.id ? payload.job : job))
+      setSelectedJob(payload.job)
+      toast.success(`Job marked ${status.replace('_', ' ')}`)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update job status')
+    } finally {
+      setIsUpdatingStatus(false)
+    }
+  }
+
+  const openExternalLink = (value?: string) => {
+    if (!value) return
+    try {
+      const url = new URL(value)
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Unsupported link')
+      window.open(url.toString(), '_blank', 'noopener,noreferrer')
+    } catch {
+      toast.error('This job has an invalid external link')
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open': return 'bg-green-500/20 text-green-400'
       case 'closed': return 'bg-red-500/20 text-red-400'
       case 'draft': return 'bg-yellow-500/20 text-yellow-400'
+      case 'paused': return 'bg-orange-500/20 text-orange-400'
+      case 'filled': return 'bg-blue-500/20 text-blue-400'
       default: return 'bg-slate-500/20 text-slate-400'
     }
   }
@@ -117,6 +175,8 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
       case 'open': return <CheckCircle className="h-4 w-4" />
       case 'closed': return <XCircle className="h-4 w-4" />
       case 'draft': return <Clock4 className="h-4 w-4" />
+      case 'paused': return <Clock4 className="h-4 w-4" />
+      case 'filled': return <Users className="h-4 w-4" />
       default: return <Clock4 className="h-4 w-4" />
     }
   }
@@ -183,6 +243,8 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
             <SelectItem value="open">Open</SelectItem>
             <SelectItem value="closed">Closed</SelectItem>
             <SelectItem value="draft">Draft</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
+            <SelectItem value="filled">Filled</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -266,7 +328,7 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => window.open(job.external_link, '_blank')}
+                        onClick={() => openExternalLink(job.external_link)}
                         className="text-slate-400 hover:text-white"
                       >
                         <ExternalLink className="h-4 w-4" />
@@ -275,7 +337,10 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedJob(job)}
+                      onClick={() => {
+                        setSelectedJob(job)
+                        setIsViewDialogOpen(true)
+                      }}
                       className="text-slate-400 hover:text-white"
                     >
                       <Eye className="h-4 w-4" />
@@ -312,12 +377,93 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
             </p>
             {!searchTerm && filterStatus === 'all' && (
               <p className="text-slate-500 text-sm">
-                Use the "Post Tour Job" button above to create your first job posting
+                Use the &ldquo;Post Tour Job&rdquo; button above to create your first job posting
               </p>
             )}
           </CardContent>
         </Card>
       )}
+
+      <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
+        <DialogContent className="max-w-2xl border-slate-700 bg-slate-900 text-white">
+          <DialogHeader>
+            <DialogTitle>{selectedJob?.title || 'Tour job'}</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Review the posting and manage its publication status.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedJob ? (
+            <div className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Status</p>
+                  <Select value={selectedJob.status} onValueChange={handleStatusUpdate} disabled={isUpdatingStatus}>
+                    <SelectTrigger className="mt-1 border-slate-700 bg-slate-800"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="open">Open</SelectItem>
+                      <SelectItem value="paused">Paused</SelectItem>
+                      <SelectItem value="closed">Closed</SelectItem>
+                      <SelectItem value="filled">Filled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Tour date</p>
+                  <p className="mt-2 text-sm text-slate-200">{formatSafeDate(selectedJob.event_date)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Compensation</p>
+                  <p className="mt-2 text-sm text-slate-200">
+                    {selectedJob.payment_type === 'paid' ? `$${selectedJob.payment_amount ?? 0}` : selectedJob.payment_type.replace('_', ' ')}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Description</p>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-300">{selectedJob.description}</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Location</p>
+                  <p className="mt-2 text-sm text-slate-300">{selectedJob.location || 'Not specified'}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Experience</p>
+                  <p className="mt-2 text-sm capitalize text-slate-300">{selectedJob.required_experience || 'Not specified'}</p>
+                </div>
+              </div>
+
+              {selectedJob.required_skills.length > 0 ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Required skills</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {selectedJob.required_skills.map(skill => <Badge key={skill} variant="outline">{skill}</Badge>)}
+                  </div>
+                </div>
+              ) : null}
+
+              {selectedJob.special_requirements ? (
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Special requirements</p>
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">{selectedJob.special_requirements}</p>
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap justify-end gap-2 border-t border-slate-800 pt-4">
+                {selectedJob.external_link ? (
+                  <Button variant="outline" onClick={() => openExternalLink(selectedJob.external_link)}>
+                    <ExternalLink className="mr-2 h-4 w-4" /> Open external posting
+                  </Button>
+                ) : null}
+                <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>Close</Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -325,7 +471,7 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Job</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-300">
-              Are you sure you want to delete "{selectedJob?.title}"? This action cannot be undone.
+              Are you sure you want to delete &ldquo;{selectedJob?.title}&rdquo;? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -341,4 +487,4 @@ export function TourJobsList({ tourId }: TourJobsListProps) {
       </AlertDialog>
     </div>
   )
-} 
+}

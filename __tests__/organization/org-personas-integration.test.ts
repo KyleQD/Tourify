@@ -6,6 +6,7 @@ import {
 } from '@/lib/accounts/account-types'
 import { OrganizerAccountSchema } from '@/lib/accounts/organization-account-schema'
 import { profileIdsFromFollowedAccounts } from '@/lib/feed/feed-posts-query'
+import { buildFeedPostsUrl } from '@/lib/feed/feed-client'
 import {
   getArtistPublicProfilePath,
   getGeneralPublicProfilePath,
@@ -71,6 +72,10 @@ describe('following feed account_follows expansion', () => {
         { profile_id: null, owner_user_id: 'should-not-appear' },
       ])
     ).toEqual(['org-profile-1', 'artist-profile-2'])
+  })
+
+  it('home feed urls are available for personalized artist home', () => {
+    expect(buildFeedPostsUrl({ type: 'home', limit: 20 })).toContain('type=home')
   })
 })
 

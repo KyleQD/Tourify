@@ -1,0 +1,3396 @@
+{
+  "$schema": "./phase-5-execution-plan.schema.json",
+  "planId": "tourify-music-institutional-phase-5",
+  "version": "1.0.0",
+  "status": "audit_required",
+  "repository": {
+    "commit": "AUDIT_REQUIRED",
+    "branch": "AUDIT_REQUIRED"
+  },
+  "hardRules": [
+    "Never reset the database.",
+    "Preserve artist_music, private music storage, stream access, Jukebox, mobile playback, and existing music surfaces.",
+    "Classify every transaction before enabling bids, subscriptions, closing, or tokenization.",
+    "Separate direct asset transactions from securities and fund interests.",
+    "Tourify does not hold cash or securities, exercise investment discretion, or operate an unapproved matching engine.",
+    "Official providers control ownership, custody, NAV, capital accounts, execution, and settlement.",
+    "Eligibility and transfer controls default to deny.",
+    "Use additive migrations, RLS, restricted storage, immutable versions, and compensating records.",
+    "No permissionless tokens, anonymous wallets, leverage, derivatives, lending, rehypothecation, bridges, or AMMs.",
+    "Every workflow requires feature flags, kill switches, testing evidence, and rollback instructions."
+  ],
+  "stages": [
+    {
+      "id": "S0",
+      "name": "Audit, governance, role boundaries, and baseline",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S0-01",
+          "title": "Install Phase 5 docs and record repository commit",
+          "status": "not_started",
+          "dependencies": [],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-02",
+          "title": "Complete current-state audit",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-03",
+          "title": "Run full regression baseline",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-04",
+          "title": "Audit Phase 2 rights dependencies",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-05",
+          "title": "Audit Phase 3 royalty and valuation dependencies",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-06",
+          "title": "Audit Phase 4 partner and position dependencies",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-07",
+          "title": "Create transaction-classification ADR",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-08",
+          "title": "Create institutional role and official-source ADR",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-09",
+          "title": "Create feature flags and kill switches",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S0-10",
+          "title": "Document stop conditions and owners",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S1",
+      "name": "Institutional identities, authority, eligibility, and permissions",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S1-01",
+          "title": "Model institutional organizations",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S0-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-02",
+          "title": "Model institutional memberships and roles",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-03",
+          "title": "Integrate delegated authority evidence",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-04",
+          "title": "Add step-up authentication for high-risk actions",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-05",
+          "title": "Create provider eligibility assertion model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-06",
+          "title": "Add assertion expiration and revocation",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-07",
+          "title": "Add organization onboarding API",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-08",
+          "title": "Add organization admin UI",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-09",
+          "title": "Implement cross-organization RLS",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S1-10",
+          "title": "Add audit events for authority changes",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S2",
+      "name": "Catalog eligibility, classification, snapshots, and data rooms",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S2-01",
+          "title": "Create catalog transaction case model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S1-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-02",
+          "title": "Implement classification workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-03",
+          "title": "Block unapproved transaction pathways",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-04",
+          "title": "Create seller and catalog eligibility rules",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-05",
+          "title": "Freeze Phase 2 rights snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-06",
+          "title": "Freeze Phase 3 royalty snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-07",
+          "title": "Freeze valuation and dispute snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-08",
+          "title": "Create restricted data-room storage",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-09",
+          "title": "Implement document version hashing",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-10",
+          "title": "Implement NDA and access grants",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-11",
+          "title": "Add viewer watermarking",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S2-12",
+          "title": "Add data-room access logs",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S3",
+      "name": "Diligence, underwriting, valuation governance, and investment committee",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S3-01",
+          "title": "Create diligence request workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S2-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-02",
+          "title": "Create diligence finding workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-03",
+          "title": "Implement red-flag severity and resolution",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-04",
+          "title": "Create underwriting case versions",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-05",
+          "title": "Add revenue quality analysis",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-06",
+          "title": "Add rights-confidence analysis",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-07",
+          "title": "Add concentration and durability metrics",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-08",
+          "title": "Add scenario and stress inputs",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-09",
+          "title": "Separate Tourify estimates from official valuation outputs",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-10",
+          "title": "Create IC materials snapshot",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-11",
+          "title": "Create IC voting and recusal workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S3-12",
+          "title": "Implement material-change refresh triggers",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S4",
+      "name": "Deal rooms, IOIs, bids, auctions, and negotiations",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S4-01",
+          "title": "Create institutional deal rooms",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S3-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-02",
+          "title": "Create IOI submission and versioning",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-03",
+          "title": "Implement bid authorization",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-04",
+          "title": "Implement sealed-bid workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-05",
+          "title": "Implement multi-round auction workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-06",
+          "title": "Enforce server-authoritative bid windows",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-07",
+          "title": "Create structured term versions",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-08",
+          "title": "Preserve bidder Q&A and communications",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-09",
+          "title": "Add affiliate/conflict disclosures",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S4-10",
+          "title": "Add seller selection and rejection audit",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S5",
+      "name": "Direct catalog sales, licenses, closing, and cutover",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S5-01",
+          "title": "Create direct transaction pathway UI",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S4-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-02",
+          "title": "Create asset schedule and rights scope",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-03",
+          "title": "Track consents and notices",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-04",
+          "title": "Integrate approved e-signature status",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-05",
+          "title": "Create closing checklist",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-06",
+          "title": "Integrate payment or escrow status read model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-07",
+          "title": "Create transfer instruction records",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-08",
+          "title": "Implement effective-dated revenue cutover",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-09",
+          "title": "Reconcile pre-close and post-close receipts",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S5-10",
+          "title": "Create post-closing obligations and reports",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S6",
+      "name": "Private funds, SPVs, subscriptions, commitments, and capital calls",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S6-01",
+          "title": "Create vehicle and provider role records",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S5-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-02",
+          "title": "Create share class and governing document references",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-03",
+          "title": "Create commitment read model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-04",
+          "title": "Create subscription status adapter",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-05",
+          "title": "Create partner eligibility synchronization",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-06",
+          "title": "Create capital-call notice model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-07",
+          "title": "Integrate official bank/admin call status",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-08",
+          "title": "Create rolling closing workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-09",
+          "title": "Create equalization and true-up inputs",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-10",
+          "title": "Create side-letter restricted tags",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-11",
+          "title": "Create default and excuse status",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S6-12",
+          "title": "Reconcile official investor ownership",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S7",
+      "name": "Fund administration, NAV, waterfalls, servicing, and distributions",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S7-01",
+          "title": "Create NAV period/version model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S6-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-02",
+          "title": "Import official administrator NAV",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-03",
+          "title": "Create holdings and line-item reconciliation",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-04",
+          "title": "Link royalty receipts to fund holdings",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-05",
+          "title": "Implement parallel waterfall calculator",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-06",
+          "title": "Compare official and parallel waterfall",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-07",
+          "title": "Create NAV restatement workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-08",
+          "title": "Create distribution proposal read model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-09",
+          "title": "Reconcile bank/admin payment confirmations",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-10",
+          "title": "Generate approved investor report links",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-11",
+          "title": "Create servicing exception queue",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S7-12",
+          "title": "Add official-source freshness indicators",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S8",
+      "name": "Portfolio risk, valuation, benchmarks, and institutional reporting",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S8-01",
+          "title": "Create institutional holdings read model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S7-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-02",
+          "title": "Calculate concentration metrics",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-03",
+          "title": "Create rights and counterparty risk snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-04",
+          "title": "Create stress scenario engine",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-05",
+          "title": "Add internal limit and alert configuration",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-06",
+          "title": "Create model governance registry",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-07",
+          "title": "Create valuation override approvals",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-08",
+          "title": "Create benchmark methodology registry",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-09",
+          "title": "Add data licensing controls for benchmarks",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-10",
+          "title": "Create institutional export manifests",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-11",
+          "title": "Create actual-versus-forecast reporting",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S8-12",
+          "title": "Add risk and report access tests",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S9",
+      "name": "Institutional secondaries, tenders, routing, and settlement",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S9-01",
+          "title": "Create transfer and tender case model",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S8-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-02",
+          "title": "Enforce Phase 4 transfer restrictions",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-03",
+          "title": "Create continuation vehicle workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-04",
+          "title": "Add conflict and election records",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-05",
+          "title": "Integrate partner secondary venue status",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-06",
+          "title": "Import quotes and executions read-only",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-07",
+          "title": "Create multi-venue execution evidence",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-08",
+          "title": "Create best-execution review references",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-09",
+          "title": "Reconcile settlement and official positions",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S9-10",
+          "title": "Create secondary incident and cancellation workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "name": "Custody, recordkeeping, tokenization, and cross-border modules",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S10-01",
+          "title": "Create provider registry",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S9-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-02",
+          "title": "Integrate transfer-agent official records",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-03",
+          "title": "Integrate fund administrator official records",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-04",
+          "title": "Integrate custodian and bank status",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-05",
+          "title": "Implement provider outage degraded states",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-06",
+          "title": "Create tokenized-record reconciliation",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-07",
+          "title": "Block permissionless transfer paths",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-08",
+          "title": "Create wallet recovery references",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-09",
+          "title": "Create jurisdiction module registry",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-10",
+          "title": "Implement jurisdiction allowlists",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-11",
+          "title": "Implement ongoing sanctions/eligibility refresh",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S10-12",
+          "title": "Add cross-border and token feature kill switches",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "name": "Database, APIs, jobs, adapters, and observability",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S11-01",
+          "title": "Create additive migrations with Supabase CLI",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S10-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-02",
+          "title": "Add audited RLS and grants",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-03",
+          "title": "Regenerate database types",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-04",
+          "title": "Create institutional domain helpers",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-05",
+          "title": "Create versioned route handlers",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-06",
+          "title": "Implement idempotency on mutations",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-07",
+          "title": "Create outbox domain events",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-08",
+          "title": "Create document processing jobs",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-09",
+          "title": "Create partner webhook verification",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-10",
+          "title": "Create dead-letter and replay controls",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-11",
+          "title": "Create reconciliation schedules",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S11-12",
+          "title": "Add metrics traces alerts and dashboards",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S12",
+      "name": "Institutional UX, admin operations, security, and resilience",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S12-01",
+          "title": "Create institutional navigation and shell",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S11-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-02",
+          "title": "Create artist Catalog Capital readiness UI",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-03",
+          "title": "Create buyer diligence workspace",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-04",
+          "title": "Create underwriting and IC UI",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-05",
+          "title": "Create fund portfolio and report UI",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-06",
+          "title": "Create admin queues and maker-checker approvals",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-07",
+          "title": "Implement MNPI clean-team controls",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-08",
+          "title": "Implement export monitoring and DLP",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-09",
+          "title": "Perform security and penetration review",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-10",
+          "title": "Test backup restore and provider outage",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-11",
+          "title": "Run incident tabletop",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-10"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S12-12",
+          "title": "Validate accessibility and browser behavior",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-11"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "S13",
+      "name": "Pilot, regression, controlled rollout, and Phase 6 handoff",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P5-S13-01",
+          "title": "Select direct-sale pilot catalogs",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S12-12"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-02",
+          "title": "Complete pilot seller readiness",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-01"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-03",
+          "title": "Complete pilot buyer onboarding",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-02"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-04",
+          "title": "Run end-to-end diligence and bidding",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-03"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-05",
+          "title": "Run closing and revenue cutover rehearsal",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-04"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-06",
+          "title": "Run fund/admin sandbox cycle if in scope",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-05"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-07",
+          "title": "Run full Phase 1-4 regression",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-06"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-08",
+          "title": "Verify feature flags kill switches and rollback",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-07"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-09",
+          "title": "Produce Phase 5 implementation report",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-08"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P5-S13-10",
+          "title": "Approve Phase 6 readiness or record blockers",
+          "status": "not_started",
+          "dependencies": [
+            "P5-S13-09"
+          ],
+          "scope": "AUDIT_REQUIRED: Map this task to exact repository paths, deployed schema objects, providers, feature flags, and legal/operational decisions before implementation.",
+          "acceptanceCriteria": [
+            "Implementation matches the audited Tourify architecture and Phase 5 documentation.",
+            "No destructive change is made to existing music or Phase 2-4 workflows.",
+            "Authorization, data lineage, versioning, feature flag, rollback, and source-of-truth behavior are tested.",
+            "Task-specific evidence is recorded before status is complete."
+          ],
+          "evidence": [],
+          "blockers": [
+            "AUDIT_REQUIRED"
+          ],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    }
+  ]
+}

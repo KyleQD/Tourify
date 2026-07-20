@@ -21,6 +21,8 @@ interface AchievementNotificationProps {
   isVisible: boolean
   onClose: () => void
   onViewDetails?: () => void
+  /** When false, parent controls dismiss timing (used by AchievementUnlockProvider). */
+  autoHide?: boolean
 }
 
 const rarityConfig = {
@@ -65,23 +67,23 @@ export function AchievementNotification({
   achievement, 
   isVisible, 
   onClose, 
-  onViewDetails 
+  onViewDetails,
+  autoHide = true,
 }: AchievementNotificationProps) {
   const [showConfetti, setShowConfetti] = useState(false)
-  const config = rarityConfig[achievement.rarity]
+  const config = rarityConfig[achievement.rarity] || rarityConfig.common
   const IconComponent = config.icon
+  const showLegendaryEffects = achievement.rarity === 'legendary' || achievement.rarity === 'epic'
 
   useEffect(() => {
-    if (isVisible) {
-      setShowConfetti(true)
-      // Auto-hide after 5 seconds
-      const timer = setTimeout(() => {
-        onClose()
-      }, 5000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [isVisible, onClose])
+    if (!isVisible) return
+    setShowConfetti(true)
+    if (!autoHide) return
+    const timer = setTimeout(() => {
+      onClose()
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [isVisible, onClose, autoHide])
 
   const handleViewDetails = () => {
     onViewDetails?.()
@@ -133,8 +135,8 @@ export function AchievementNotification({
                   </Button>
                 </div>
 
-                {/* Confetti effect */}
-                {showConfetti && (
+                {/* Confetti effect for rare+ unlocks */}
+                {showConfetti && showLegendaryEffects && (
                   <div className="absolute inset-0 pointer-events-none">
                     {[...Array(20)].map((_, i) => (
                       <motion.div

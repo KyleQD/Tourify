@@ -7,8 +7,17 @@ import {
 import { AdminTourEventOperationsService } from '@/lib/admin/tour-event-operations.service'
 import { parseCalendarKinds } from '@/lib/admin/calendar/helpers'
 import { getCalendarItemColor } from '@/lib/admin/calendar/helpers'
-import type { AdminCalendarKind, AdminCalendarPriority } from '@/lib/admin/calendar/types'
+import type {
+  AdminCalendarKind,
+  AdminCalendarPriority,
+  AdminCalendarScopeMode,
+} from '@/lib/admin/calendar/types'
 import { requireOpsOrgId, resolveOptionalAdminWorkspaceScope } from '@/lib/admin/workspace-scope'
+
+function parseScopeMode(value: string | null): AdminCalendarScopeMode | undefined {
+  if (value === 'tour' || value === 'event' || value === 'org') return value
+  return undefined
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -29,16 +38,29 @@ export async function GET(request: NextRequest) {
     const types = parseCalendarKinds(searchParams.get('types') || searchParams.get('type'))
     const status = searchParams.get('status') || undefined
     const priority = (searchParams.get('priority') as AdminCalendarPriority | null) || undefined
+    const scope = parseScopeMode(searchParams.get('scope'))
+    const tourId = searchParams.get('tourId') || undefined
+    const eventId = searchParams.get('eventId') || undefined
 
-    const scope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
-    if (scope instanceof NextResponse) return scope
-    const orgId = scope ? requireOpsOrgId(scope) : null
+    const workspaceScope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
+    if (workspaceScope instanceof NextResponse) return workspaceScope
+    const orgId = workspaceScope ? requireOpsOrgId(workspaceScope) : null
     if (orgId instanceof NextResponse) return orgId
-    const { items, summary } = await aggregateAdminCalendarItems({
+
+    const { items, summary, context } = await aggregateAdminCalendarItems({
       supabase,
       userId: user.id,
       orgId,
-      filters: { startDate, endDate, types, status, priority },
+      filters: {
+        startDate,
+        endDate,
+        types,
+        status,
+        priority,
+        scope,
+        tourId,
+        eventId,
+      },
     })
 
     // Backward-compatible `events` alias for older clients
@@ -70,8 +92,12 @@ export async function GET(request: NextRequest) {
         types,
         status,
         priority,
+        scope,
+        tourId,
+        eventId,
       },
       summary,
+      context,
     })
   } catch (error) {
     console.error('[Admin Calendar API] Error:', error)
@@ -101,6 +127,8 @@ export async function POST(request: NextRequest) {
       location,
       priority,
       event_id,
+      tour_id,
+      assignee_id,
       attendees = [],
       reminders = [],
       sendNotifications = false,
@@ -110,10 +138,14 @@ export async function POST(request: NextRequest) {
     if (!title || !type || !start)
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
 
-    const scope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
-    if (scope instanceof NextResponse) return scope
-    const orgId = scope
-      ? requireOpsOrgId(scope)
+    const assigneeId = typeof assignee_id === 'string' && assignee_id.trim()
+      ? assignee_id.trim()
+      : null
+
+    const workspaceScope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
+    if (workspaceScope instanceof NextResponse) return workspaceScope
+    const orgId = workspaceScope
+      ? requireOpsOrgId(workspaceScope)
       : await AdminTourEventOperationsService.resolveOrgId({ supabase, userId: user.id })
     if (orgId instanceof NextResponse) return orgId
     if (!orgId) {
@@ -157,24 +189,55 @@ export async function POST(request: NextRequest) {
           status: 'planning',
         }
         break
-      case 'task':
-        if (!event_id)
-          return NextResponse.json({ error: 'event_id is required when creating a task' }, { status: 400 })
-        tableName = 'tasks'
+      case 'task': {
+        // Live public.tasks.assigned_to FKs empty public.users and rejects all assignees.
+        // logistics_tasks.assigned_to_user_id FKs auth.users and is already aggregated as kind:task.
+        if (!event_id && !tour_id) {
+          return NextResponse.json({
+            error: 'event_id or tour_id is required when creating a task',
+          }, { status: 400 })
+        }
+
+        let resolvedAssigneeId: string | null = null
+        if (assigneeId) {
+          const { data: authUser } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('id', assigneeId)
+            .maybeSingle()
+          // profiles.id matches auth.users in this project; only assign when profile exists
+          resolvedAssigneeId = authUser?.id || null
+        }
+
+        tableName = 'logistics_tasks'
         insertData = {
-          ...insertData,
+          created_by: user.id,
           org_id: orgId,
-          event_id,
+          ...(event_id ? { event_id } : {}),
+          ...(tour_id ? { tour_id } : {}),
           title,
-          description,
-          due_at: new Date(start).toISOString(),
-          status: 'todo',
+          description: description || null,
+          due_date: new Date(start).toISOString().split('T')[0],
+          status: 'pending',
           priority: priority || 'medium',
+          type: 'communication',
+          ...(resolvedAssigneeId ? { assigned_to_user_id: resolvedAssigneeId } : {}),
         }
         break
+      }
       case 'logistics':
-      case 'shift':
+      case 'shift': {
         tableName = 'staff_shifts'
+        let staffMemberId: string | null = null
+        if (assigneeId) {
+          const { data: staffMember } = await supabase
+            .from('staff_members')
+            .select('id')
+            .eq('user_id', assigneeId)
+            .limit(1)
+            .maybeSingle()
+          staffMemberId = staffMember?.id || null
+        }
         insertData = {
           ...insertData,
           org_id: orgId,
@@ -184,8 +247,11 @@ export async function POST(request: NextRequest) {
           end_time: new Date(end || start).toTimeString().split(' ')[0],
           status: 'scheduled',
           notes: description,
+          ...(event_id ? { event_id } : {}),
+          ...(staffMemberId ? { staff_member_id: staffMemberId } : {}),
         }
         break
+      }
       default:
         return NextResponse.json({
           error: 'Invalid event type. Supported: event, tour, task, logistics, shift',

@@ -68,6 +68,7 @@ export interface StaffOnboardingTemplate {
   is_default?: boolean | null
   parent_template_id?: string | null
   use_count?: number | null
+  version?: number | null
   created_at?: string | null
   updated_at?: string | null
 }

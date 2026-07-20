@@ -174,7 +174,7 @@ export function buildArtistRecommendations(input: {
       effort: 'medium',
       estimatedValue: 350,
       confidence: confidenceFor('audience'),
-      actionUrl: '/artist/feed',
+      actionUrl: '/artist',
       actionText: 'Open feed',
       tags: ['community', 'growth'],
       priority: priority++,

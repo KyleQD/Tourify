@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { hasWorkflowThreadPermission } from '@/lib/workflows/workflow-permissions'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { checkAdminPermissions } from '@/lib/auth/api-auth'
+import { resolveActingContext } from '@/lib/auth/acting-context'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import {
+  applyConversationAccountScope,
+  buildAccountAwareConversationPairFilter,
+  resolveSenderAccountSide,
+} from '@/lib/messaging/account-scope'
+import { resolveDmTrustForNewConversation } from '@/lib/messaging/resolve-dm-trust'
+import { verifyRecipientAccount } from '@/lib/messaging/verify-recipient-account'
 
 interface MessageContextResult {
   tier: 'open' | 'request' | 'context'
@@ -28,6 +36,8 @@ const attachmentSchema = z.object({
 
 const sendMessageSchema = z.object({
   recipientId: z.string().uuid().optional(),
+  recipientProfileId: z.string().uuid().optional(),
+  recipientAccountType: z.string().max(40).optional(),
   content: z.string().trim().max(2000).optional(),
   threadId: z.string().uuid().optional(),
   messageType: z.string().max(40).optional(),
@@ -224,12 +234,15 @@ async function enforceRequestRateLimit(
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await authenticateApiRequest(request)
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
-    const { user } = auth
+    const { userId } = ctx
+    const inboxScope = {
+      userId,
+      profileId: ctx.profileId,
+      accountType: ctx.accountType,
+    }
     const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const conversationId = searchParams.get('conversationId')
@@ -240,7 +253,7 @@ export async function GET(request: NextRequest) {
       const canReadThread = await hasWorkflowThreadPermission({
         supabase: supabase as any,
         threadId,
-        userId: user.id,
+        userId,
         permission: 'read',
       })
 
@@ -286,16 +299,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
       }
 
-      const isParticipant = conversation.participant_1 === user.id || conversation.participant_2 === user.id
+      const isParticipant = conversation.participant_1 === userId || conversation.participant_2 === userId
       if (!isParticipant) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
       const rawLimit = Number(searchParams.get('limit') ?? '50')
       const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? rawLimit : 50, 1), 100)
       const before = searchParams.get('before')
 
-      let messagesQuery = supabase
-        .from('messages')
-        .select(`
+      const messageSelectWithAttachments = `
           id,
           content,
           attachments,
@@ -307,13 +318,49 @@ export async function GET(request: NextRequest) {
             full_name,
             avatar_url
           )
-        `)
+        `
+      const messageSelectBase = `
+          id,
+          content,
+          attachment_urls,
+          sender_id,
+          created_at,
+          sender:profiles!sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
+        `
+
+      let messagesQuery = supabase
+        .from('messages')
+        .select(messageSelectWithAttachments)
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: false })
         .limit(limit)
       if (before) messagesQuery = messagesQuery.lt('created_at', before)
 
-      const { data, error } = await messagesQuery
+      let { data, error } = await messagesQuery
+
+      if (error && String(error.message || '').toLowerCase().includes('attachments')) {
+        let fallbackQuery = supabase
+          .from('messages')
+          .select(messageSelectBase)
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(limit)
+        if (before) fallbackQuery = fallbackQuery.lt('created_at', before)
+        ;({ data, error } = await fallbackQuery)
+        if (!error && data) {
+          data = data.map((row: Record<string, unknown>) => ({
+            ...row,
+            attachments: Array.isArray(row.attachment_urls)
+              ? (row.attachment_urls as string[]).map((url) => ({ url, name: 'attachment', type: 'file', size: 0 }))
+              : [],
+          }))
+        }
+      }
 
       if (error) {
         console.error('Error fetching messages:', error)
@@ -326,14 +373,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ messages, nextCursor })
     }
 
-    let query = supabase
-      .from('conversations')
-      .select(`
+    const conversationListSelect = `
         id,
         created_at,
         updated_at,
         participant_1,
         participant_2,
+        participant_1_profile_id,
+        participant_1_account_type,
+        participant_2_profile_id,
+        participant_2_account_type,
         trust_tier,
         context_type,
         context_id,
@@ -358,25 +407,74 @@ export async function GET(request: NextRequest) {
           created_at,
           sender_id
         )
-      `)
-      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+      `
+    const conversationListSelectBase = `
+        id,
+        created_at,
+        updated_at,
+        participant_1,
+        participant_2,
+        last_message_id,
+        participant_1_profile:profiles!participant_1 (
+          id,
+          username,
+          full_name,
+          avatar_url
+        ),
+        participant_2_profile:profiles!participant_2 (
+          id,
+          username,
+          full_name,
+          avatar_url
+        ),
+        last_message:messages!last_message_id (
+          id,
+          content,
+          created_at,
+          sender_id
+        )
+      `
+
+    let query = applyConversationAccountScope(
+      supabase.from('conversations').select(conversationListSelect),
+      inboxScope,
+    )
 
     if (selectedTab === 'primary') query = query.eq('trust_tier', 'open')
     if (selectedTab === 'requests') query = query.eq('trust_tier', 'request').is('accepted_at', null)
     if (selectedTab === 'work') query = query.in('context_type', ['event_team', 'venue_staff', 'job_application', 'workflow'])
 
-    const { data: conversations, error } = await query.order('updated_at', { ascending: false })
+    let { data: conversations, error } = await query.order('updated_at', { ascending: false })
+
+    if (error && (
+      String(error.message || '').toLowerCase().includes('trust_tier')
+      || String(error.message || '').toLowerCase().includes('participant_1_account_type')
+      || String(error.message || '').toLowerCase().includes('participant_1_profile_id')
+    )) {
+      // Schema lag: list without account/trust filters so DMs still work.
+      const fallback = await supabase
+        .from('conversations')
+        .select(conversationListSelectBase)
+        .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
+        .order('updated_at', { ascending: false })
+      conversations = fallback.data
+      error = fallback.error
+    }
 
     if (error) {
       console.error('Error fetching conversations:', error)
       return getConversationListFallback(error)
     }
 
-    const isViewerBlocked = await getViewerRoleBlockedState(supabase, user.id)
+    const isViewerBlocked = await getViewerRoleBlockedState(supabase, userId)
 
     return NextResponse.json({
       conversations,
       viewer: { role: isViewerBlocked ? 'viewer' : 'member', canSend: !isViewerBlocked },
+      inbox: {
+        profileId: ctx.profileId,
+        accountType: ctx.accountType,
+      },
     })
   } catch (error) {
     console.error('Messages API error:', error)
@@ -386,14 +484,17 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await authenticateApiRequest(request)
-    if (!auth) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const ctx = await resolveActingContext(request)
+    if (ctx instanceof NextResponse) return ctx
 
-    const { user } = auth
+    const { userId } = ctx
+    const senderSide = resolveSenderAccountSide({
+      userId,
+      profileId: ctx.profileId,
+      accountType: ctx.accountType,
+    })
     const supabase = createServiceRoleClient()
-    const isViewerBlocked = await getViewerRoleBlockedState(supabase, user.id)
+    const isViewerBlocked = await getViewerRoleBlockedState(supabase, userId)
     if (isViewerBlocked)
       return NextResponse.json({ error: 'Messaging is unavailable for viewer accounts' }, { status: 403 })
 
@@ -405,13 +506,23 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
-    const { recipientId, content, threadId, messageType, metadata, taskCard, attachments } = parsedBody.data
+    const {
+      recipientId,
+      recipientProfileId,
+      recipientAccountType,
+      content,
+      threadId,
+      messageType,
+      metadata,
+      taskCard,
+      attachments,
+    } = parsedBody.data
 
     if (threadId && process.env.FEATURE_UNIFIED_WORKFLOW_THREADS === '1') {
       const canWriteThread = await hasWorkflowThreadPermission({
         supabase: supabase as any,
         threadId,
-        userId: user.id,
+        userId,
         permission: 'write',
       })
 
@@ -427,7 +538,7 @@ export async function POST(request: NextRequest) {
         .from('workflow_messages')
         .insert({
           thread_id: threadId,
-          sender_id: user.id,
+          sender_id: userId,
           message_type: typeof messageType === 'string' ? messageType : 'text',
           body: content.trim(),
           metadata: metadata || {},
@@ -457,7 +568,7 @@ export async function POST(request: NextRequest) {
         supabase.from('workflow_threads').update({ updated_at: new Date().toISOString() }).eq('id', threadId),
         supabase.from('workflow_events_audit').insert({
           thread_id: threadId,
-          actor_user_id: user.id,
+          actor_user_id: userId,
           action: 'message.created.bridge.legacy',
           entity_type: 'message',
           entity_id: workflowMessage.id,
@@ -491,54 +602,188 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    if (recipientId === user.id) {
+    if (recipientId === userId) {
       return NextResponse.json({ 
         error: 'Cannot send message to yourself' 
       }, { status: 400 })
     }
 
-    // Find or create conversation
-    let { data: conversation, error: conversationError } = await supabase
-      .from('conversations')
-      .select('id, participant_1, participant_2, trust_tier, accepted_at, context_type, context_id')
-      .or(`and(participant_1.eq.${user.id},participant_2.eq.${recipientId}),and(participant_1.eq.${recipientId},participant_2.eq.${user.id})`)
-      .single()
+    const recipientVerified = await verifyRecipientAccount({
+      supabase,
+      recipientUserId: recipientId,
+      profileId: recipientProfileId,
+      accountType: recipientAccountType,
+    })
+    if (!recipientVerified.ok)
+      return NextResponse.json({ error: recipientVerified.error }, { status: 400 })
 
-    if (conversationError && conversationError.code === 'PGRST116') {
-      const resolvedContext = await resolveMessageContext(supabase, user.id, recipientId)
-      if (resolvedContext.tier === 'request')
-        await enforceRequestRateLimit(supabase, user.id, recipientId)
+    const recipientSide = {
+      profileId: recipientVerified.profileId,
+      accountType: recipientVerified.accountType,
+    }
+
+    // Find or create conversation. Demo DBs may lag trust-model columns
+    // (trust_tier etc.); treat missing-column errors as "not found" and create
+    // with the widest compatible payload.
+    const accountAwareFilter = buildAccountAwareConversationPairFilter({
+      senderId: userId,
+      recipientId,
+      senderProfileId: senderSide.profileId,
+      recipientProfileId: recipientSide.profileId,
+    })
+    const legacyPairFilter = `and(participant_1.eq.${userId},participant_2.eq.${recipientId}),and(participant_1.eq.${recipientId},participant_2.eq.${userId})`
+    const trustSelect =
+      'id, participant_1, participant_2, participant_1_profile_id, participant_1_account_type, participant_2_profile_id, participant_2_account_type, trust_tier, accepted_at, context_type, context_id'
+    const baseSelect = 'id, participant_1, participant_2'
+
+    function isMissingColumnError(error: { code?: string; message?: string } | null) {
+      if (!error) return false
+      if (error.code === '42703') return true
+      const message = String(error.message || '').toLowerCase()
+      return message.includes('does not exist') && message.includes('column')
+    }
+
+    function isNoRowError(error: { code?: string } | null) {
+      return Boolean(error && (error.code === 'PGRST116' || error.code === 'PGRST123'))
+    }
+
+    let conversation: {
+      id: string
+      participant_1: string
+      participant_2: string
+      trust_tier?: string | null
+      accepted_at?: string | null
+      context_type?: string | null
+      context_id?: string | null
+    } | null = null
+    let trustColumnsAvailable = true
+    let accountColumnsAvailable = true
+    let conversationPairFilter = accountAwareFilter
+
+    {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select(trustSelect)
+        .or(conversationPairFilter)
+        .maybeSingle()
+
+      if (error && isMissingColumnError(error)) {
+        const missingAccount =
+          String(error.message || '').toLowerCase().includes('participant_1_profile_id')
+          || String(error.message || '').toLowerCase().includes('participant_1_account_type')
+        if (missingAccount) {
+          accountColumnsAvailable = false
+          conversationPairFilter = legacyPairFilter
+        }
+        if (String(error.message || '').toLowerCase().includes('trust_tier'))
+          trustColumnsAvailable = false
+
+        const fallbackSelect = trustColumnsAvailable
+          ? 'id, participant_1, participant_2, trust_tier, accepted_at, context_type, context_id'
+          : baseSelect
+        const fallback = await supabase
+          .from('conversations')
+          .select(fallbackSelect)
+          .or(conversationPairFilter)
+          .maybeSingle()
+        if (fallback.error && !isNoRowError(fallback.error) && isMissingColumnError(fallback.error)) {
+          trustColumnsAvailable = false
+          accountColumnsAvailable = false
+          conversationPairFilter = legacyPairFilter
+          const legacy = await supabase
+            .from('conversations')
+            .select(baseSelect)
+            .or(legacyPairFilter)
+            .maybeSingle()
+          if (legacy.error && !isNoRowError(legacy.error)) {
+            console.error('Error finding conversation:', legacy.error)
+            return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
+          }
+          conversation = legacy.data
+        } else if (fallback.error && !isNoRowError(fallback.error)) {
+          console.error('Error finding conversation:', fallback.error)
+          return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
+        } else {
+          conversation = fallback.data
+        }
+      } else if (error && !isNoRowError(error)) {
+        console.error('Error finding conversation:', error)
+        return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
+      } else {
+        conversation = data
+      }
+    }
+
+    if (!conversation) {
+      const resolvedContext = trustColumnsAvailable
+        ? await resolveDmTrustForNewConversation({
+            supabase,
+            senderId: userId,
+            recipientId,
+            recipientProfileId: recipientSide.profileId,
+            recipientAccountType: recipientSide.accountType,
+            fallback: () => resolveMessageContext(supabase, userId, recipientId),
+          })
+        : { tier: 'open' as const, context_type: null, context_id: null }
+
+      if (trustColumnsAvailable && resolvedContext.tier === 'request')
+        await enforceRequestRateLimit(supabase, userId, recipientId)
+
+      const insertPayload: Record<string, unknown> = {
+        participant_1: userId,
+        participant_2: recipientId,
+      }
+      if (accountColumnsAvailable) {
+        insertPayload.participant_1_profile_id = senderSide.profileId
+        insertPayload.participant_1_account_type = senderSide.accountType
+        insertPayload.participant_2_profile_id = recipientSide.profileId
+        insertPayload.participant_2_account_type = recipientSide.accountType
+      }
+      if (trustColumnsAvailable) {
+        insertPayload.trust_tier = resolvedContext.tier
+        insertPayload.context_type = resolvedContext.context_type
+        insertPayload.context_id = resolvedContext.context_id
+        insertPayload.accepted_at = resolvedContext.tier === 'request' ? null : new Date().toISOString()
+        insertPayload.accepted_by = resolvedContext.tier === 'request' ? null : userId
+      }
+
+      const selectCols = accountColumnsAvailable && trustColumnsAvailable
+        ? trustSelect
+        : trustColumnsAvailable
+          ? 'id, participant_1, participant_2, trust_tier, accepted_at, context_type, context_id'
+          : baseSelect
 
       const { data: newConversation, error: createError } = await supabase
         .from('conversations')
-        .insert({
-          participant_1: user.id,
-          participant_2: recipientId,
-          trust_tier: resolvedContext.tier,
-          context_type: resolvedContext.context_type,
-          context_id: resolvedContext.context_id,
-          accepted_at: resolvedContext.tier === 'request' ? null : new Date().toISOString(),
-          accepted_by: resolvedContext.tier === 'request' ? null : user.id
-        })
-        .select('id, participant_1, participant_2, trust_tier, accepted_at, context_type, context_id')
+        .insert(insertPayload)
+        .select(selectCols)
         .single()
 
       if (createError || !newConversation) {
-        console.error('Error creating conversation:', createError)
-        return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
-      }
+        // Unique race: another request created the row first.
+        if (createError?.code === '23505') {
+          const raced = await supabase
+            .from('conversations')
+            .select(selectCols)
+            .or(conversationPairFilter)
+            .maybeSingle()
+          if (raced.data) conversation = raced.data
+        }
 
-      conversation = newConversation
-    } else if (conversationError) {
-      console.error('Error finding conversation:', conversationError)
-      return NextResponse.json({ error: 'Failed to find conversation' }, { status: 500 })
+        if (!conversation) {
+          console.error('Error creating conversation:', createError)
+          return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
+        }
+      } else {
+        conversation = newConversation
+      }
     }
 
     if (!conversation) {
       return NextResponse.json({ error: 'Failed to find or create conversation' }, { status: 500 })
     }
 
-    const isParticipant = conversation.participant_1 === user.id || conversation.participant_2 === user.id
+    const isParticipant = conversation.participant_1 === userId || conversation.participant_2 === userId
     if (!isParticipant)
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -556,7 +801,7 @@ export async function POST(request: NextRequest) {
 
       if (existingRequestMessages && existingRequestMessages.length > 0) {
         const firstSenderId = existingRequestMessages[0].sender_id
-        if (firstSenderId !== user.id) {
+        if (firstSenderId !== userId) {
           return NextResponse.json({ error: 'Accept this request before replying' }, { status: 403 })
         }
 
@@ -564,38 +809,57 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const { data: message, error: messageError } = await supabase
-      .from('messages')
-      .insert({
-        conversation_id: conversation.id,
-        sender_id: user.id,
-        content: messageContent || '(attachment)',
-        attachments,
-      })
-      .select(`
-        id,
-        content,
-        sender_id,
-        created_at,
-        sender:profiles!sender_id (
-          id,
-          username,
-          full_name,
-          avatar_url
-        )
-      `)
-      .single()
+    const messageInsertBase = {
+      conversation_id: conversation.id,
+      sender_id: userId,
+      content: messageContent || '(attachment)',
+    }
+    const attachmentUrls = attachments.map((item) => item.url)
+    const messageInsertCandidates = attachments.length > 0
+      ? [
+          { ...messageInsertBase, attachments },
+          { ...messageInsertBase, attachment_urls: attachmentUrls },
+          messageInsertBase,
+        ]
+      : [messageInsertBase]
 
-    if (messageError) {
+    let message: Record<string, unknown> | null = null
+    let messageError: { code?: string; message?: string } | null = null
+    for (const candidate of messageInsertCandidates) {
+      const result = await supabase
+        .from('messages')
+        .insert(candidate)
+        .select(`
+          id,
+          content,
+          sender_id,
+          created_at,
+          sender:profiles!sender_id (
+            id,
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .single()
+      message = result.data
+      messageError = result.error
+      if (!messageError && message) break
+      if (messageError && !isMissingColumnError(messageError)) break
+    }
+
+    if (messageError || !message) {
       console.error('Error sending message:', messageError)
       return NextResponse.json({ error: 'Failed to send message' }, { status: 500 })
     }
+
+    const messageId = String(message.id)
 
     // Update conversation's last message
     await supabase
       .from('conversations')
       .update({
-        last_message_id: message.id,
+        last_message_id: messageId,
         updated_at: new Date().toISOString()
       })
       .eq('id', conversation.id)

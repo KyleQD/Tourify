@@ -1,30 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
-import { requireOpsOrgId, resolveOptionalAdminWorkspaceScope } from "@/lib/admin/workspace-scope"
-import { createServiceRoleClient } from "@/lib/supabase/service-role"
 
-function isAuditLogRlsError(error: unknown) {
-  return error instanceof Error
-    && error.message.includes('row-level security policy')
-    && error.message.includes('"audit_log"')
-}
-
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability("event.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const { searchParams } = new URL(request.url)
-    const scope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
-    if (scope instanceof NextResponse) return scope
-    const orgId = scope ? requireOpsOrgId(scope) : null
-    if (orgId instanceof NextResponse) return orgId
     const events = await AdminTourEventOperationsService.listEvents({
       supabase,
       userId: user.id,
-      orgId,
+      orgId: admin.orgId,
       status: searchParams.get("status"),
     })
 
@@ -40,31 +28,15 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("event.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-    const scope = await resolveOptionalAdminWorkspaceScope(request, { supabase, user })
-    if (scope instanceof NextResponse) return scope
-    const orgId = scope ? requireOpsOrgId(scope) : null
-    if (orgId instanceof NextResponse) return orgId
     const body = await request.json().catch(() => null)
-    let event
-    try {
-      event = await AdminTourEventOperationsService.createEvent({
-        supabase,
-        userId: user.id,
-        input: body,
-        orgId,
-      })
-    } catch (error) {
-      if (!isAuditLogRlsError(error)) throw error
-      console.warn("[Admin Events API] audit_log RLS trigger blocked user-scoped create; retrying with server-scoped writer")
-      event = await AdminTourEventOperationsService.createEvent({
-        supabase: createServiceRoleClient(),
-        userId: user.id,
-        input: body,
-        orgId,
-      })
-    }
+    const event = await AdminTourEventOperationsService.createEvent({
+      supabase,
+      userId: user.id,
+      input: body,
+      orgId: admin.orgId,
+    })
 
     return NextResponse.json({ success: true, event }, { status: 201 })
   } catch (error: any) {

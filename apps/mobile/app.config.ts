@@ -23,10 +23,11 @@ const appConfig: ExpoConfig = {
   ios: {
     supportsTablet: false,
     bundleIdentifier: "com.tourify.mobile",
+    associatedDomains: ["applinks:tourify.app"],
     infoPlist: {
-      ITSAppUsesNonExemptEncryption: false
-    },
-    associatedDomains: ["applinks:tourify.app"]
+      ITSAppUsesNonExemptEncryption: false,
+      UIBackgroundModes: ["audio", "remote-notification"]
+    }
   },
   android: {
     package: "com.tourify.mobile",
@@ -49,6 +50,16 @@ const appConfig: ExpoConfig = {
             scheme: "https",
             host: "tourify.app",
             pathPrefix: "/connect"
+          },
+          {
+            scheme: "https",
+            host: "tourify.app",
+            pathPrefix: "/reset-password"
+          },
+          {
+            scheme: "https",
+            host: "tourify.app",
+            pathPrefix: "/checkout"
           }
         ],
         category: ["BROWSABLE", "DEFAULT"]
@@ -58,6 +69,18 @@ const appConfig: ExpoConfig = {
   plugins: [
     "expo-router",
     "expo-asset",
+    "expo-secure-store",
+    "expo-updates",
+    "expo-image",
+    "@sentry/react-native/expo",
+    [
+      "expo-notifications",
+      {
+        color: "#0f172a",
+        defaultChannel: "default",
+        sounds: []
+      }
+    ],
     [
       "expo-audio",
       {

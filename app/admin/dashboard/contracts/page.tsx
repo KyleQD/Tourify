@@ -1,22 +1,9 @@
-"use client"
+import { notFound } from "next/navigation"
 
-import { FileText } from "lucide-react"
-import { AdminPageHeader } from "../components/admin-page-header"
-import { AdminEmptyState } from "../components/admin-empty-state"
-
-export default function ContractsPage() {
-  return (
-    <div className="space-y-6">
-      <AdminPageHeader
-        title="Contracts"
-        subtitle="Artist and vendor contract management"
-        icon={FileText}
-      />
-      <AdminEmptyState
-        icon={FileText}
-        title="Contract management coming soon"
-        description="Digital contract creation, e-signing, and tracking will be built here in a future phase."
-      />
-    </div>
-  )
+/**
+ * Admin contracts surface is intentionally hidden (AUD-0112 / AUD-0067).
+ * Live contracts inbox lives at /contracts for authenticated counterparties.
+ */
+export default function AdminContractsPage() {
+  notFound()
 }

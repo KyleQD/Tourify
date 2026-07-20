@@ -38,7 +38,7 @@ export const venueHelpArticles: HelpArticle[] = [
     lastUpdated: "2026-04-12",
     relatedTopicIds: ["venue-dashboard-overview"],
     audiences: ["venue"],
-    relatedRoutePrefixes: ["/venue/dashboard/social"],
+    relatedRoutePrefixes: ["/venue/dashboard"],
   },
   {
     id: "venue-documents-equipment",

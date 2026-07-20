@@ -196,12 +196,15 @@ export async function POST(request: NextRequest) {
         const now = new Date()
         const end = new Date(now.getTime() + 60 * 60 * 1000)
 
+        // Draft planning artifacts only — does not invent bookings.
+        const draftsCreated: string[] = []
+
         await auth.supabase
           .from('travel_coordination_timeline')
           .insert({
             entry_type: 'meeting',
             title: `Coordinate ${group.name}`,
-            description: 'Auto-coordination review task generated from Logistics.',
+            description: 'Auto-coordination opened a planning review. Confirm flights, lodging, and ground transport separately.',
             start_time: now.toISOString(),
             end_time: end.toISOString(),
             timezone: 'UTC',
@@ -211,15 +214,48 @@ export async function POST(request: NextRequest) {
             tour_id: group.tour_id,
             created_by: auth.user.id,
           })
+        draftsCreated.push('timeline_review')
+
+        const arrival = group.arrival_date ? new Date(group.arrival_date) : now
+        const pickup = new Date(arrival.getTime())
+        const dropoff = new Date(arrival.getTime() + 90 * 60 * 1000)
+
+        const { data: draftTransport } = await auth.supabase
+          .from('ground_transportation_coordination')
+          .insert({
+            transport_type: 'van',
+            provider_name: 'TBD',
+            pickup_location: group.arrival_location || 'Airport / arrival point',
+            dropoff_location: 'Venue / hotel (confirm)',
+            pickup_time: pickup.toISOString(),
+            estimated_dropoff_time: dropoff.toISOString(),
+            group_id,
+            event_id: group.event_id,
+            tour_id: group.tour_id,
+            status: 'scheduled',
+            assigned_by: auth.user.id,
+            vehicle_capacity: group.total_members || null,
+          })
+          .select('id')
+          .maybeSingle()
+        if (draftTransport?.id) draftsCreated.push('ground_transport_draft')
 
         await auth.supabase
           .from('travel_groups')
-          .update({ coordination_status: 'transport_arranged', updated_at: new Date().toISOString() })
+          .update({
+            coordination_status: 'pending',
+            updated_at: new Date().toISOString(),
+          })
           .eq('id', group_id)
 
         return ok(
-          { group_id, status: 'transport_arranged', message: 'Auto-coordination task created' },
-          `Auto-coordination task created for group "${group.name}"`
+          {
+            group_id,
+            status: 'pending',
+            drafts_created: draftsCreated,
+            message: 'Opened coordination review and drafted ground transport for confirmation',
+          },
+          `Coordination review opened for "${group.name}". Confirm flights, lodging, and transport separately.`
         )
       }
 

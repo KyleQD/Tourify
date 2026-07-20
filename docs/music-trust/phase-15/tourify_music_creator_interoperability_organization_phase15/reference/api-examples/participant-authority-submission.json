@@ -1,0 +1,8 @@
+{
+  "participantClass": "state",
+  "participantExternalRef": "sandbox-state-a",
+  "authorityType": "full_powers_or_equivalent",
+  "jurisdiction": "SANDBOX",
+  "effectiveAt": "2027-01-01T00:00:00Z",
+  "evidenceHash": "sha256:example"
+}

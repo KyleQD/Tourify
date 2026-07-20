@@ -1,0 +1,15 @@
+{
+  "generatedAt": "2026-07-19T01:56:17.173516+00:00",
+  "schemaValidation": "pass",
+  "uniqueTaskIds": "pass",
+  "dependencyIds": "pass",
+  "taskCount": 357,
+  "stageCount": 21,
+  "numberedDocumentCount": 54,
+  "featureFlagCount": 33,
+  "canonicalGuideCopied": true,
+  "phase16HandoffCopied": true,
+  "zipIntegrity": "pass",
+  "totalFileCount": 90,
+  "zipBytes": 220230
+}

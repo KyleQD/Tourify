@@ -21,9 +21,15 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     return NextResponse.json({ error: accessCheck.error }, { status: accessCheck.status })
   }
 
+  const body = await request.json().catch(() => ({}))
+  const changeSummary =
+    typeof body?.changeSummary === 'string' && body.changeSummary.trim()
+      ? body.changeSummary.trim()
+      : 'Published to Work Mode'
+
   const { data: siteMap, error: siteMapError } = await supabase
     .from('site_maps')
-    .select('id, name, event_id, tour_id, created_by, is_public, status')
+    .select('id, name, event_id, tour_id, created_by, is_public, status, version, width, height, scale, background_image_url')
     .eq('id', siteMapId)
     .maybeSingle()
 
@@ -35,9 +41,77 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
 
   const url = buildWorkerSiteMapUrl(siteMap.id)
 
+  // Capture immutable published snapshot in map_versions (builder untouched)
+  const [zonesRes, elementsRes, tentsRes] = await Promise.all([
+    supabase.from('site_map_zones').select('id, name, zone_type').eq('site_map_id', siteMap.id),
+    supabase.from('site_map_elements').select('id, name, element_type').eq('site_map_id', siteMap.id),
+    supabase.from('glamping_tents').select('id, name').eq('site_map_id', siteMap.id),
+  ])
+  const zones = zonesRes.data || []
+  const elements = elementsRes.data || []
+  const tents = tentsRes.data || []
+
+  const { data: latestVersion } = await supabase
+    .from('map_versions')
+    .select('version_number')
+    .eq('site_map_id', siteMap.id)
+    .order('version_number', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const nextVersionNumber = (latestVersion?.version_number || siteMap.version || 0) + 1
+
+  await supabase
+    .from('map_versions')
+    .update({ is_current: false })
+    .eq('site_map_id', siteMap.id)
+    .eq('is_current', true)
+
+  const snapshotPayload = {
+    site_map_id: siteMap.id,
+    name: siteMap.name,
+    width: siteMap.width,
+    height: siteMap.height,
+    scale: siteMap.scale,
+    background_image_url: siteMap.background_image_url,
+    zones,
+    elements,
+    tents,
+    published_at: new Date().toISOString(),
+  }
+
+  const { data: mapVersion, error: versionError } = await supabase
+    .from('map_versions')
+    .insert({
+      site_map_id: siteMap.id,
+      version_name: `Published v${nextVersionNumber}`,
+      description: changeSummary,
+      version_number: nextVersionNumber,
+      is_current: true,
+      created_by: user.id,
+      snapshot_payload: snapshotPayload,
+      change_summary: changeSummary,
+      published_by: user.id,
+      published_at: new Date().toISOString(),
+      status: 'published',
+    })
+    .select('id, version_number, version_name, published_at')
+    .maybeSingle()
+
+  if (versionError && versionError.code !== '42P01' && !versionError.message?.includes('snapshot_payload')) {
+    // Soft-fail versioning if optional columns not migrated yet; still publish work mode
+    console.warn('[publish-work-mode] map_versions insert:', versionError.message)
+  }
+
   const { error: statusError } = await supabase
     .from('site_maps')
-    .update({ status: 'published', updated_at: new Date().toISOString() })
+    .update({
+      status: 'published',
+      updated_at: new Date().toISOString(),
+      version: nextVersionNumber,
+      current_published_version_id: mapVersion?.id || null,
+      publish_change_summary: changeSummary,
+    })
     .eq('id', siteMap.id)
 
   if (statusError) {
@@ -74,7 +148,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
       .select()
       .single()
     if (error) {
-      if (error.code === '42P01') return NextResponse.json({ error: 'Work Mode publication table is not migrated yet' }, { status: 501 })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     publication = data
@@ -97,11 +170,15 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
       .single()
 
     if (error) {
-      if (error.code === '42P01') return NextResponse.json({ error: 'Work Mode publication table is not migrated yet' }, { status: 501 })
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
     publication = data
   }
 
-  return NextResponse.json({ publication, siteMap: { ...siteMap, status: 'published' }, url }, { status: 201 })
+  return NextResponse.json({
+    publication,
+    siteMap: { ...siteMap, status: 'published', version: nextVersionNumber },
+    mapVersion: mapVersion || null,
+    url,
+  }, { status: 201 })
 })

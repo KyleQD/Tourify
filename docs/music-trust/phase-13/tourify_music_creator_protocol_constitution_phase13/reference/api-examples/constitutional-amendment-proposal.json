@@ -1,0 +1,12 @@
+{
+  "constitutionId": "uuid",
+  "title": "Clarify compatibility window",
+  "claimedClass": "charter",
+  "effects": {
+    "fundamentalRights": [],
+    "reservedPowers": [],
+    "breakingProtocol": false
+  },
+  "proposalManifestId": "uuid",
+  "idempotencyKey": "amendment:hash"
+}

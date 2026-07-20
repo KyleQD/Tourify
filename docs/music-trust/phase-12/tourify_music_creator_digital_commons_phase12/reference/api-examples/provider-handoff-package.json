@@ -1,0 +1,19 @@
+{
+  "package_version": "2026.07.17",
+  "provider_id": "tourify",
+  "manifest_hash": "sha256:example",
+  "contents": [
+    "source_snapshot",
+    "schema_bundle",
+    "registry_snapshot",
+    "runbooks",
+    "key_recovery_instructions",
+    "participant_export_map"
+  ],
+  "release_conditions": [
+    "planned_exit",
+    "material_outage",
+    "insolvency",
+    "governance_breach"
+  ]
+}

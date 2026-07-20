@@ -460,6 +460,16 @@ describe('feed posts route helpers', () => {
     ).toBe(true)
   })
 
+  it('treats missing posts-to-profiles relationship embeds as retryable schema errors', () => {
+    expect(
+      isPostReadSchemaError({
+        code: 'PGRST200',
+        message: "Could not find a relationship between 'posts' and 'user_id' in the schema cache",
+        details: "Searched for a foreign key relationship between 'posts' and 'user_id' in the schema 'public', but no matches were found.",
+      })
+    ).toBe(true)
+  })
+
   it('falls back to minimal rows when older posts schemas are missing media/count columns', async () => {
     const supabase = new FakeSupabase(query => {
       if (query.selectColumns.includes('media_urls')) {

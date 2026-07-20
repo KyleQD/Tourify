@@ -1,0 +1,14 @@
+{
+  "headers": {
+    "x-commons-signature": "SIGNATURE",
+    "x-commons-timestamp": "2026-07-17T00:00:00Z",
+    "x-idempotency-key": "evt_example"
+  },
+  "body": {
+    "event_id": "evt_example",
+    "operator_id": "operator_example",
+    "status": "restricted",
+    "reason": "conformance_expired",
+    "effective_at": "2026-07-17T00:00:00Z"
+  }
+}

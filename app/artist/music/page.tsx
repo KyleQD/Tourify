@@ -30,8 +30,13 @@ import {
   ShoppingBag,
   RefreshCw,
   Loader2,
+  ShieldCheck,
+  Scale,
+  Wallet,
 } from "lucide-react"
 import { EnhancedMusicUploader } from "@/components/music/enhanced-music-uploader"
+import { MusicTrustStatus } from "@/components/music/music-trust-status"
+import type { MusicAiUseCategory, MusicCertificationStatus, MusicOriginStatus, MusicTrainingUsePolicy } from "@/lib/music/music-trust"
 import Image from "next/image"
 import { 
   Card, 
@@ -111,6 +116,18 @@ interface MusicTrack {
   rights_confirmed_at?: string | null
   listing_sync_status?: string | null
   listing_sync_error?: string | null
+  trust_schema_version?: number
+  ai_use_category?: MusicAiUseCategory
+  training_use_policy?: MusicTrainingUsePolicy
+  origin_status?: MusicOriginStatus
+  certification_status?: MusicCertificationStatus
+  certification_level?: number
+  certification_public_id?: string | null
+  trust?: {
+    public_label: string
+    legacy: boolean
+    blocking_reasons: string[]
+  }
   metadata?: Record<string, unknown>
   stats: {
     plays: number
@@ -154,6 +171,12 @@ export default function MusicPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [musicListings, setMusicListings] = useState<MarketplaceListing[]>([])
+  const [marketplaceDiscoverable, setMarketplaceDiscoverable] = useState(false)
+  const [trustConfig, setTrustConfig] = useState({
+    enabled: false,
+    music_upload_policy_version: '1.0.0',
+    human_music_policy_version: '1.0.0',
+  })
 
   const [formData, setFormData] = useState({
     title: '',
@@ -262,6 +285,7 @@ export default function MusicPage() {
 
     loadTracks()
     loadMusicListings()
+    loadMarketplaceFlags()
     // activeAccountId: reload when the artist switches accounts
   }, [user, isArtistLoading, isAccountsReady, hasActiveAccount, activeAccountId])
 
@@ -293,6 +317,7 @@ export default function MusicPage() {
       const body = await response.json()
       if (!response.ok) throw new Error(body?.error?.message || body?.error || 'Failed to load tracks')
       setTracks(body.data || [])
+      if (body.trust_config) setTrustConfig(body.trust_config)
     } catch (error) {
       console.error('Error loading tracks:', error)
       toast.error('Failed to load tracks')
@@ -312,6 +337,23 @@ export default function MusicPage() {
     } catch (error) {
       console.error('Error loading music listings:', error)
       setMusicListings([])
+    }
+  }
+
+  const loadMarketplaceFlags = async () => {
+    try {
+      const response = await fetch('/api/music-marketplace/flags', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
+      if (!response.ok) {
+        setMarketplaceDiscoverable(false)
+        return
+      }
+      const body = await response.json()
+      setMarketplaceDiscoverable(Boolean(body?.data?.discoverable))
+    } catch {
+      setMarketplaceDiscoverable(false)
     }
   }
 
@@ -571,7 +613,19 @@ export default function MusicPage() {
           allow_profile_feature: trackData.allow_profile_feature ?? true,
           allow_downloads: trackData.allow_downloads || false,
           rights_confirmed: trackData.rights_confirmed === true,
-          rights_confirmed_at: trackData.rights_confirmed_at || new Date().toISOString(),
+          rights_confirmed_at: trackData.rights_confirmed === true ? (trackData.rights_confirmed_at || new Date().toISOString()) : null,
+          ai_use_category: trackData.ai_use_category,
+          ai_tools: trackData.ai_tools,
+          ai_disclosure_details: trackData.ai_disclosure_details,
+          synthesized_voice_or_likeness: trackData.synthesized_voice_or_likeness,
+          contributor_disclosures_confirmed: trackData.contributor_disclosures_confirmed,
+          source_material_available: trackData.source_material_available,
+          training_use_policy: trackData.training_use_policy,
+          accepted_music_upload_policy: trackData.accepted_music_upload_policy,
+          accepted_human_music_policy: trackData.accepted_human_music_policy,
+          music_upload_policy_version: trackData.music_upload_policy_version,
+          human_music_policy_version: trackData.human_music_policy_version,
+          declaration_idempotency_key: trackData.declaration_idempotency_key,
           metadata: trackData.metadata || {},
           price: trackData.price || trackData.metadata?.price,
           currency: trackData.currency || trackData.metadata?.currency || 'USD',
@@ -871,13 +925,33 @@ export default function MusicPage() {
             </p>
           </div>
           
-          <Button 
-            onClick={() => setShowUploader(true)}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl flex items-center gap-2"
-          >
-            <Upload className="h-5 w-5" />
-            Upload Track
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              variant="outline"
+              onClick={() => router.push("/artist/music/royalties")}
+              className="flex items-center gap-2 border-white/20 bg-white/5 text-white hover:bg-white/10"
+            >
+              <Wallet className="h-5 w-5" />
+              Royalties &amp; valuation
+            </Button>
+            {marketplaceDiscoverable ? (
+              <Button
+                variant="outline"
+                onClick={() => router.push("/artist/music/marketplace")}
+                className="flex items-center gap-2 border-white/20 bg-white/5 text-white hover:bg-white/10"
+              >
+                <ShoppingBag className="h-5 w-5" />
+                Music marketplace
+              </Button>
+            ) : null}
+            <Button 
+              onClick={() => setShowUploader(true)}
+              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl flex items-center gap-2"
+            >
+              <Upload className="h-5 w-5" />
+              Upload Track
+            </Button>
+          </div>
         </div>
 
         {/* Stats Overview */}
@@ -1064,6 +1138,14 @@ export default function MusicPage() {
                   {/* Track Info */}
                   <div className="space-y-2">
                     <h3 className="font-semibold text-white text-lg line-clamp-1">{track.title}</h3>
+                    {trustConfig.enabled && <div className="flex flex-wrap gap-2">
+                      <MusicTrustStatus
+                        originStatus={track.origin_status || 'not_recorded'}
+                        certificationStatus={track.certification_status || 'not_requested'}
+                        certificationLevel={track.certification_level || 0}
+                      />
+                      {track.trust?.legacy && <Badge variant="outline" className="border-amber-500/50 text-amber-300">Declaration needed</Badge>}
+                    </div>}
                     <p className="text-gray-400 text-sm">{track.type.charAt(0).toUpperCase() + track.type.slice(1)}</p>
                     {listing ? (
                       <p className="text-emerald-300 text-sm">
@@ -1123,10 +1205,24 @@ export default function MusicPage() {
                           <Edit className="h-4 w-4 mr-2" />
                           Edit
                         </DropdownMenuItem>
-	                        <DropdownMenuItem onClick={() => openSellFlow(track, listing)}>
+                        <DropdownMenuItem onClick={() => openSellFlow(track, listing)}>
 	                          <ShoppingBag className="h-4 w-4 mr-2" />
 	                          {listing ? 'Edit storefront listing' : 'Sell / Add to storefront'}
 	                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push(`/artist/music/rights/${track.id}`)}>
+                          <Scale className="h-4 w-4 mr-2" />
+                          Rights &amp; credits
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push("/artist/music/royalties")}>
+                          <Wallet className="h-4 w-4 mr-2" />
+                          Royalties &amp; earnings
+                        </DropdownMenuItem>
+                        {trustConfig.enabled && (
+                          <DropdownMenuItem onClick={() => router.push(`/artist/music/certification/${track.id}`)}>
+                            <ShieldCheck className="h-4 w-4 mr-2" />
+                            Certification &amp; origin
+                          </DropdownMenuItem>
+                        )}
                         {track.preview_mode === 'clip' && track.preview_status === 'failed' && (
                           <DropdownMenuItem onClick={() => retryPreviewGeneration(track)}>
                             <RefreshCw className="h-4 w-4 mr-2" />
@@ -1366,6 +1462,9 @@ export default function MusicPage() {
                 }}
                 isUploading={isUploading}
                 progress={uploadProgress}
+                trustEnabled={trustConfig.enabled}
+                musicUploadPolicyVersion={trustConfig.music_upload_policy_version}
+                humanMusicPolicyVersion={trustConfig.human_music_policy_version}
               />
             )}
 

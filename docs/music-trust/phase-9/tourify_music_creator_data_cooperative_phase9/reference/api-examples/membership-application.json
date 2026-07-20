@@ -1,0 +1,10 @@
+{
+  "entityId": "uuid",
+  "membershipClass": "creator",
+  "governingDocumentVersion": "v1.0",
+  "acknowledgements": {
+    "platformAccountIsNotMembership": true,
+    "membershipDoesNotTransferCopyright": true,
+    "membershipDoesNotAuthorizeRepresentation": true
+  }
+}

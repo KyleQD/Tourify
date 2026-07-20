@@ -117,21 +117,24 @@ export async function finalizePaidOrder(params: {
     if (order.promo_code_id) {
       const { data: promo } = await supabase
         .from('promo_codes')
-        .select('id, current_uses, code')
+        .select('id, code')
         .eq('id', order.promo_code_id)
+        .eq('event_id', order.event_id)
         .maybeSingle()
       if (promo) {
-        await supabase
-          .from('promo_codes')
-          .update({ current_uses: (promo.current_uses ?? 0) + 1 })
-          .eq('id', promo.id)
-        await emitTicketAnalyticsEvent({
-          supabase,
-          eventName: 'promo_code_used',
-          eventId: order.event_id,
-          orderId: order.id,
-          metadata: { code: promo.code },
-        })
+        const { data: usage, error: usageError } = await supabase.rpc(
+          'increment_promo_code_usage',
+          { p_promo_id: promo.id, p_event_id: order.event_id },
+        )
+        if (!usageError && usage !== null) {
+          await emitTicketAnalyticsEvent({
+            supabase,
+            eventName: 'promo_code_used',
+            eventId: order.event_id,
+            orderId: order.id,
+            metadata: { code: promo.code },
+          })
+        }
       }
     }
 
@@ -139,9 +142,10 @@ export async function finalizePaidOrder(params: {
     if (referralId) {
       await supabase
         .from('ticket_referrals')
-        .update({ status: 'used', used_at: new Date().toISOString() })
+        .update({ is_used: true, used_at: new Date().toISOString() })
         .eq('id', referralId)
-        .eq('status', 'pending')
+        .eq('event_id', order.event_id)
+        .eq('is_used', false)
     }
 
     const { data: eventRow } = await supabase
@@ -260,116 +264,43 @@ export async function refundOrderTickets(params: {
   refundAmount: number
   ticketIds?: string[]
 }): Promise<void> {
-  const { data: order } = await params.supabase
-    .from('ticket_sales')
-    .select('*')
-    .eq('id', params.orderId)
-    .maybeSingle()
+  const { data, error } = await params.supabase.rpc('apply_ticket_refund', {
+    p_order_id: params.orderId,
+    p_actor_user_id: params.actorUserId,
+    p_refund_amount: params.refundAmount,
+    p_ticket_ids: params.ticketIds?.length ? params.ticketIds : null,
+  })
+  if (error) throw new Error(error.message || 'Failed to apply ticket refund')
 
-  if (!order) throw new Error('Order not found')
+  const result = Array.isArray(data) ? data[0] : data
+  if (!result) throw new Error('Refund did not update an order')
 
-  let ticketQuery = params.supabase
-    .from('tickets')
-    .select('id')
-    .eq('order_id', params.orderId)
-
-  if (params.ticketIds?.length)
-    ticketQuery = ticketQuery.in('id', params.ticketIds)
-
-  const { data: tickets } = await ticketQuery
-
-  for (const ticket of tickets || []) {
-    await params.supabase
-      .from('tickets')
-      .update({ status: 'refunded', updated_at: new Date().toISOString() })
-      .eq('id', ticket.id)
-
-    await params.supabase
-      .from('ticket_credentials')
-      .update({
-        status: 'revoked',
-        revoked_at: new Date().toISOString(),
-        revoke_reason: 'refunded',
-      })
-      .eq('ticket_id', ticket.id)
-      .eq('status', 'active')
-
-    await params.supabase.from('ticket_ownership_events').insert({
-      ticket_id: ticket.id,
-      event_type: 'refunded',
-      actor_user_id: params.actorUserId,
-    })
-  }
-
-  const isPartial = Boolean(params.ticketIds?.length)
-  await params.supabase
-    .from('ticket_sales')
-    .update({
-      payment_status: isPartial ? 'completed' : 'refunded',
-      metadata: {
-        ...(order.metadata || {}),
-        refund: {
-          amount: params.refundAmount,
-          partial: isPartial,
-          ticket_ids: params.ticketIds || [],
-          at: new Date().toISOString(),
-        },
-      },
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', params.orderId)
-
-  // Restore inventory for refunded admissions
-  const restoreQty = tickets?.length || order.quantity
-  if (restoreQty > 0) {
-    const { data: tt } = await params.supabase
-      .from('ticket_types')
-      .select('quantity_sold')
-      .eq('id', order.ticket_type_id)
-      .maybeSingle()
-    if (tt) {
-      await params.supabase
-        .from('ticket_types')
-        .update({
-          quantity_sold: Math.max(0, (tt.quantity_sold ?? 0) - restoreQty),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', order.ticket_type_id)
-    }
-  }
-
-  const { data: eventRow } = await params.supabase
-    .from('events_v2')
-    .select('org_id')
-    .eq('id', order.event_id)
-    .maybeSingle()
-
-  if (eventRow?.org_id) {
+  if (result.org_id) {
     await writeRefundLedger({
       supabase: params.supabase,
-      orgId: eventRow.org_id,
-      eventId: order.event_id,
-      orderId: order.id,
+      orgId: result.org_id,
+      eventId: result.event_id,
+      orderId: params.orderId,
       ticketId: params.ticketIds?.[0] ?? null,
       createdBy: params.actorUserId,
       refundAmount: params.refundAmount,
-      paymentReference: order.payment_reference,
+      paymentReference: result.payment_reference,
     })
   }
 
   await emitTicketAnalyticsEvent({
     supabase: params.supabase,
     eventName: 'ticket_refunded',
-    eventId: order.event_id,
-    orderId: order.id,
+    eventId: result.event_id,
+    orderId: params.orderId,
     actorUserId: params.actorUserId,
-    amounts: { refund: params.refundAmount, quantity: restoreQty },
+    amounts: { refund: params.refundAmount, quantity: result.restored_quantity },
   })
 
-  if (order.buyer_user_id) {
+  if (result.buyer_user_id) {
     await notifyTicketRefunded({
-      userId: order.buyer_user_id,
-      orderId: order.id,
+      userId: result.buyer_user_id,
+      orderId: params.orderId,
     })
   }
 }

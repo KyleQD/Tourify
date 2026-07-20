@@ -1,0 +1,13 @@
+{
+  "idempotencyKey": "readiness-2026-001",
+  "requestedLegalCharacter": "intergovernmental_organization",
+  "phase15EvidenceManifestId": "00000000-0000-0000-0000-000000000001",
+  "requestedScope": [
+    "standards_coordination",
+    "technical_assistance"
+  ],
+  "jurisdictions": [
+    "US"
+  ],
+  "status": "draft"
+}

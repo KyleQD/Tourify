@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useCallback, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,6 +16,7 @@ import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import { formatSafeDate, mapAdminEventStatus, parseIsoDateParts } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface Event {
   id: string
@@ -63,28 +64,28 @@ function normalizeManagerEvent(event: any, tourId: string): Event {
     tour_id: event?.tour_id || tourId,
     venue_name: event?.venue_name || (typeof settings.venue_label === 'string' ? settings.venue_label : ''),
     venue_id: event?.venue_id,
-    venue_address: event?.venue_address || '',
+    venue_address: event?.venue_address || (typeof settings.venue_address === 'string' ? settings.venue_address : ''),
     event_date: event?.event_date || event?.date || safeDate,
     event_time: event?.event_time || event?.time || safeTime,
-    doors_open: event?.doors_open || '',
+    doors_open: event?.doors_open || (typeof settings.doors_open === 'string' ? settings.doors_open : ''),
     duration_minutes: Number(event?.duration_minutes || 0),
     status: mapAdminEventStatus(event?.status),
     capacity: Number(event?.capacity || 0),
     tickets_sold: Number(event?.tickets_sold || 0),
-    ticket_price: Number(event?.ticket_price || 0),
-    vip_price: Number(event?.vip_price || 0),
-    expected_revenue: Number(event?.expected_revenue || 0),
+    ticket_price: Number(event?.ticket_price ?? settings.ticket_price ?? 0),
+    vip_price: Number(event?.vip_price ?? settings.vip_price ?? 0),
+    expected_revenue: Number(event?.expected_revenue ?? settings.expected_revenue ?? 0),
     actual_revenue: Number(event?.actual_revenue || 0),
     expenses: Number(event?.expenses || 0),
-    venue_contact_name: event?.venue_contact_name || '',
-    venue_contact_email: event?.venue_contact_email || '',
-    venue_contact_phone: event?.venue_contact_phone || '',
-    sound_requirements: event?.sound_requirements || '',
-    lighting_requirements: event?.lighting_requirements || '',
-    stage_requirements: event?.stage_requirements || '',
-    special_requirements: event?.special_requirements || '',
-    load_in_time: event?.load_in_time || '',
-    sound_check_time: event?.sound_check_time || '',
+    venue_contact_name: event?.venue_contact_name || (typeof settings.venue_contact_name === 'string' ? settings.venue_contact_name : ''),
+    venue_contact_email: event?.venue_contact_email || (typeof settings.venue_contact_email === 'string' ? settings.venue_contact_email : ''),
+    venue_contact_phone: event?.venue_contact_phone || (typeof settings.venue_contact_phone === 'string' ? settings.venue_contact_phone : ''),
+    sound_requirements: event?.sound_requirements || (typeof settings.sound_requirements === 'string' ? settings.sound_requirements : ''),
+    lighting_requirements: event?.lighting_requirements || (typeof settings.lighting_requirements === 'string' ? settings.lighting_requirements : ''),
+    stage_requirements: event?.stage_requirements || (typeof settings.stage_requirements === 'string' ? settings.stage_requirements : ''),
+    special_requirements: event?.special_requirements || (typeof settings.special_requirements === 'string' ? settings.special_requirements : ''),
+    load_in_time: event?.load_in_time || (typeof settings.load_in_time === 'string' ? settings.load_in_time : ''),
+    sound_check_time: event?.sound_check_time || (typeof settings.sound_check_time === 'string' ? settings.sound_check_time : ''),
   }
 }
 
@@ -97,6 +98,11 @@ interface TourEventManagerProps {
 
 export function TourEventManager({ tourId, events, onEventsUpdate, initialEventId }: TourEventManagerProps) {
   const router = useRouter()
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    ...input,
+    headers: { ...actingHeaders, ...(input?.headers || {}) },
+  }), [actingHeaders])
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -225,13 +231,13 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
   }, [initialEventId, events])
 
   useEffect(() => {
-    if (!isAddDialogOpen) return
+    if (!isAddDialogOpen || !isActingReady) return
     let cancelled = false
 
     async function loadAvailableEvents() {
       setIsExistingEventsLoading(true)
       try {
-        const response = await fetch('/api/admin/events', { credentials: 'include', cache: 'no-store' })
+        const response = await fetch('/api/admin/events', adminRequest({ credentials: 'include', cache: 'no-store' }))
         const data = await response.json().catch(() => ({}))
         const currentIds = new Set(events.map((event) => event.id))
         const options = (data.events || [])
@@ -249,7 +255,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
     return () => {
       cancelled = true
     }
-  }, [isAddDialogOpen, events, tourId])
+  }, [actingContextKey, adminRequest, isActingReady, isAddDialogOpen, events, tourId])
 
   const searchVenues = async () => {
     if (!venueQuery || venueQuery.trim().length < 2) {
@@ -259,7 +265,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
     try {
       setIsVenueLoading(true)
       const params = new URLSearchParams({ query: venueQuery, limit: '10' })
-      const res = await fetch(`/api/tours/planner/venues?${params.toString()}`)
+      const res = await fetch(`/api/admin/tours/venues?${params.toString()}`, adminRequest())
       if (!res.ok) throw new Error('Failed to search venues')
       const data = await res.json()
       const items = (data.venues || []).map((v: any) => ({
@@ -291,7 +297,8 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
     if (!selectedExistingEventId) return
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/admin/tours/${tourId}/events`, {
+      if (!isActingReady) throw new Error('Select an organization account first')
+      const response = await fetch(`/api/admin/tours/${tourId}/events`, adminRequest({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -299,7 +306,7 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
           event_id: selectedExistingEventId,
           ordinal: events.length,
         }),
-      })
+      }))
       if (!response.ok) throw new Error('Failed to attach event')
       const attachedEvent = availableEvents.find((event) => event.id === selectedExistingEventId)
       if (attachedEvent) onEventsUpdate([...events, { ...attachedEvent, tour_id: tourId }])
@@ -317,18 +324,19 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
   const handleSubmit = async (isEdit: boolean = false) => {
     setIsSubmitting(true)
     try {
+      if (!isActingReady) throw new Error('Select an organization account first')
       const url = isEdit
         ? `/api/admin/events/${selectedEvent?.id}`
         : `/api/admin/tours/${tourId}/events`
       
       const method = isEdit ? 'PATCH' : 'POST'
       
-      const response = await fetch(url, {
+      const response = await fetch(url, adminRequest({
         method,
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
-      })
+      }))
 
       if (!response.ok) {
         throw new Error('Failed to save event')
@@ -364,10 +372,11 @@ export function TourEventManager({ tourId, events, onEventsUpdate, initialEventI
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/admin/tours/${tourId}/events?event_id=${encodeURIComponent(selectedEvent.id)}`, {
+      if (!isActingReady) throw new Error('Select an organization account first')
+      const response = await fetch(`/api/admin/tours/${tourId}/events?event_id=${encodeURIComponent(selectedEvent.id)}`, adminRequest({
         method: 'DELETE',
         credentials: 'include',
-      })
+      }))
 
       if (!response.ok) {
         throw new Error('Failed to delete event')

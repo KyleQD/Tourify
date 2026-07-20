@@ -12,11 +12,21 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData()
     const file = formData.get('file') as File | null
-    const kind = (formData.get('kind') as string | null) || 'image' // 'image' | 'video' | 'audio' | 'file'
+    const portfolioType = formData.get('portfolioType') as string | null
+    const rawKind = (formData.get('kind') as string | null) || portfolioType
+    const kind =
+      rawKind === 'photo' ? 'image'
+        : rawKind === 'music' ? 'audio'
+          : rawKind || 'image' // 'image' | 'video' | 'audio' | 'file'
     const tos = formData.get('tos') as string | null
 
-    if (!file) return NextResponse.json({ error: 'Missing file' }, { status: 400 })
-    if (tos !== 'accepted') return NextResponse.json({ error: 'You must accept the terms to upload' }, { status: 400 })
+    if (!file) return NextResponse.json({ error: 'Missing file', code: 'missing_file' }, { status: 400 })
+    if (tos !== 'accepted') {
+      return NextResponse.json(
+        { error: 'You must accept the terms to upload', code: 'tos_required' },
+        { status: 400 }
+      )
+    }
 
     // All accounts are treated as pro during beta — no upload limits enforced
 

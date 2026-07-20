@@ -121,12 +121,15 @@ function adaptVenueForUpdate(componentVenue: any): Partial<VenueProfile> {
   if (componentVenue.coverImageUrl !== undefined) {
     dbUpdate.cover_image_url = componentVenue.coverImageUrl
   }
+  if (componentVenue.settings !== undefined) {
+    dbUpdate.settings = componentVenue.settings
+  }
 
   // Only include database fields
   const allowedDbFields = [
     'venue_name', 'description', 'address', 'city', 'state', 'country', 
     'postal_code', 'capacity', 'venue_types', 'contact_info', 'social_links',
-    'avatar_url', 'cover_image_url'
+    'avatar_url', 'cover_image_url', 'settings'
   ]
 
   // Filter to only include allowed database fields

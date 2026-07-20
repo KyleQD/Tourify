@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import {
   Send,
   Plus,
@@ -142,7 +143,9 @@ export function EventTaskMessages({ eventId, isAdmin, userRole }: EventTaskMessa
         }),
       }))
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
+        if (isFeatureUnavailableResponse(res.status, err))
+          throw new Error(featureUnavailableMessage(err, 'Task messages are temporarily unavailable.'))
         throw new Error(err.error || 'Failed')
       }
       toast.success('Task assigned successfully')

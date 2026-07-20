@@ -1,0 +1,8 @@
+{
+  "eventId": "evt_001",
+  "eventType": "instrument.received",
+  "idempotencyKey": "instrument-001",
+  "issuedAt": "2027-01-02T00:00:00Z",
+  "payloadHash": "sha256:example",
+  "signature": "detached-jws-placeholder"
+}

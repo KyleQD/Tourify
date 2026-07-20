@@ -7,9 +7,10 @@ import { Sparkles, Settings } from "lucide-react"
 
 interface EnhancedSettingsLayoutProps {
   children: React.ReactNode
+  compact?: boolean
 }
 
-export function EnhancedSettingsLayout({ children }: EnhancedSettingsLayoutProps) {
+export function EnhancedSettingsLayout({ children, compact = false }: EnhancedSettingsLayoutProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900/20 to-slate-900">
       {/* Background Effects */}
@@ -19,41 +20,45 @@ export function EnhancedSettingsLayout({ children }: EnhancedSettingsLayoutProps
       <main className="relative z-10 container mx-auto px-4 py-8">
         <div className="mx-auto max-w-6xl">
           <div className="space-y-8">
-            {/* Header Section */}
-            <div className="text-center space-y-4">
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
-                  <Settings className="h-8 w-8 text-purple-400" />
+            {!compact && (
+              <>
+                {/* Header Section */}
+                <div className="text-center space-y-4">
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30">
+                      <Settings className="h-8 w-8 text-purple-400" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                      Settings
+                    </h1>
+                    <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                      Customize your experience and manage your account preferences with our next-generation settings interface
+                    </p>
+                  </div>
+                  
+                  {/* Status Badges */}
+                  <div className="flex items-center justify-center gap-3 mt-6">
+                    <Badge className="bg-green-500/20 text-green-300 border-green-500/30 px-4 py-2">
+                      <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse" />
+                      Account Active
+                    </Badge>
+                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 px-4 py-2">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Pro Features
+                    </Badge>
+                    <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 px-4 py-2">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full mr-2" />
+                      Synced
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-              
-              <div className="space-y-2">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-                  Settings
-                </h1>
-                <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-                  Customize your experience and manage your account preferences with our next-generation settings interface
-                </p>
-              </div>
-              
-              {/* Status Badges */}
-              <div className="flex items-center justify-center gap-3 mt-6">
-                <Badge className="bg-green-500/20 text-green-300 border-green-500/30 px-4 py-2">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse" />
-                  Account Active
-                </Badge>
-                <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 px-4 py-2">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  Pro Features
-                </Badge>
-                <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 px-4 py-2">
-                  <div className="w-2 h-2 bg-blue-400 rounded-full mr-2" />
-                  Synced
-                </Badge>
-              </div>
-            </div>
-            
-            <Separator className="bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+                
+                <Separator className="bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              </>
+            )}
             
             {/* Content */}
             <div className="relative">

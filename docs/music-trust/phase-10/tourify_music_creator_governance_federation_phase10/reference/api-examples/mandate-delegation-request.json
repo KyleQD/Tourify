@@ -1,0 +1,12 @@
+{
+  "principalOrganizationId": "org_uuid",
+  "federationId": "federation_uuid",
+  "service": "credential_directory_administration",
+  "territories": [
+    "US"
+  ],
+  "startsAt": "2026-09-01T00:00:00Z",
+  "endsAt": "2027-09-01T00:00:00Z",
+  "allowSubdelegation": false,
+  "approvalRecordId": "approval_uuid"
+}

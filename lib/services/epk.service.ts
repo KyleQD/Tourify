@@ -40,6 +40,13 @@ interface EPKData {
     coverArt: string
     platform: string
     featured?: boolean
+    trust: {
+      originStatus: string
+      certificationStatus: string
+      certificationLevel: number
+      certificationPublicId: string | null
+      publicLabel: string
+    }
   }[]
   photos: {
     id: string
@@ -603,7 +610,16 @@ class EPKService {
       streams: track.stats?.plays || 0,
       coverArt: track.cover_art_url || '',
       platform: 'Tourify',
-      featured: track.is_featured || false
+      featured: track.is_featured || false,
+      trust: {
+        originStatus: track.origin_status || 'not_recorded',
+        certificationStatus: track.certification_status || 'not_requested',
+        certificationLevel: Number(track.certification_level || 0),
+        certificationPublicId: track.certification_status === 'approved' ? track.certification_public_id || null : null,
+        publicLabel: track.certification_status === 'approved' && Number(track.certification_level || 0) > 0
+          ? 'Human-created certified'
+          : track.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+      },
     }))
 
     // Transform events from unified events table structure with legacy fallback support

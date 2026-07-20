@@ -64,6 +64,7 @@ import {
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
 import { formatSafeCurrency } from "@/lib/format/number-format"
 import { useToast } from "@/hooks/use-toast"
+import { useActingContext } from "@/hooks/use-acting-context"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface LogisticsItem {
@@ -117,6 +118,11 @@ export function LogisticsDynamicManager({
   autoSave = true
 }: LogisticsDynamicManagerProps) {
   const { toast } = useToast()
+  const { actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback((input?: RequestInit): RequestInit => ({
+    ...input,
+    headers: { ...actingHeaders, ...(input?.headers || {}) },
+  }), [actingHeaders])
   const [items, setItems] = useState<LogisticsItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -142,6 +148,11 @@ export function LogisticsDynamicManager({
 
   // Fetch logistics items
   const fetchItems = useCallback(async () => {
+    if (!isActingReady) {
+      setItems([])
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       setError(null)
@@ -151,10 +162,10 @@ export function LogisticsDynamicManager({
       if (tourId) params.append('tourId', tourId)
       if (type !== 'all') params.append('type', type)
 
-      const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, {
+      const response = await fetch(`/api/admin/logistics/items?${params.toString()}`, adminRequest({
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
-      })
+      }))
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -188,7 +199,7 @@ export function LogisticsDynamicManager({
     } finally {
       setLoading(false)
     }
-  }, [eventId, tourId, type])
+  }, [adminRequest, eventId, isActingReady, tourId, type])
 
   useEffect(() => {
     fetchItems()
@@ -197,7 +208,7 @@ export function LogisticsDynamicManager({
   // Auto-save functionality
   const saveItem = useCallback(async (item: LogisticsItem) => {
     try {
-      const response = await fetch(`/api/admin/logistics/items/${item.id}`, {
+      const response = await fetch(`/api/admin/logistics/items/${item.id}`, adminRequest({
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -214,7 +225,7 @@ export function LogisticsDynamicManager({
           notes: item.notes,
           tags: item.tags
         })
-      })
+      }))
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -236,7 +247,7 @@ export function LogisticsDynamicManager({
         variant: "destructive"
       })
     }
-  }, [toast])
+  }, [adminRequest, toast])
 
   // Debounced auto-save
   const debouncedSave = useCallback((item: LogisticsItem) => {
@@ -254,9 +265,12 @@ export function LogisticsDynamicManager({
     const controller = new AbortController()
     const q = userQuery.trim()
     async function run() {
-      if (!q) { setUserOptions([]); return }
+      if (!isActingReady || !q) { setUserOptions([]); return }
       try {
-        const res = await fetch(`/api/admin/users/search?q=${encodeURIComponent(q)}&limit=8`, { signal: controller.signal })
+        const res = await fetch(
+          `/api/admin/users/search?q=${encodeURIComponent(q)}&limit=8`,
+          adminRequest({ signal: controller.signal }),
+        )
         if (!res.ok) return
         const data = await res.json()
         setUserOptions(Array.isArray(data?.users) ? data.users : [])
@@ -264,7 +278,7 @@ export function LogisticsDynamicManager({
     }
     const t = setTimeout(run, 250)
     return () => { clearTimeout(t); controller.abort() }
-  }, [userQuery])
+  }, [adminRequest, isActingReady, userQuery])
 
   // Asset search per task
   useEffect(() => {
@@ -274,9 +288,12 @@ export function LogisticsDynamicManager({
       const controller = new AbortController()
       controllers.push(controller)
       const run = async () => {
-        if (!query) { setAssetOptionsByTask(prev => ({ ...prev, [taskId]: [] })); return }
+        if (!isActingReady || !query) { setAssetOptionsByTask(prev => ({ ...prev, [taskId]: [] })); return }
         try {
-          const res = await fetch(`/api/admin/assets/search?q=${encodeURIComponent(query)}&limit=8`, { signal: controller.signal })
+          const res = await fetch(
+            `/api/admin/assets/search?q=${encodeURIComponent(query)}&limit=8`,
+            adminRequest({ signal: controller.signal }),
+          )
           if (!res.ok) return
           const data = await res.json()
           setAssetOptionsByTask(prev => ({ ...prev, [taskId]: Array.isArray(data?.assets) ? data.assets : [] }))
@@ -287,7 +304,7 @@ export function LogisticsDynamicManager({
       ;(controller as any)._t = t
     })
     return () => controllers.forEach(c => { if ((c as any)._t) clearTimeout((c as any)._t); c.abort() })
-  }, [assetQueryByTask])
+  }, [adminRequest, assetQueryByTask, isActingReady])
 
   // Handle item editing
   const handleEdit = useCallback((item: LogisticsItem) => {
@@ -332,10 +349,10 @@ export function LogisticsDynamicManager({
   // Handle item delete
   const handleDelete = useCallback(async (itemId: string) => {
     try {
-      const response = await fetch(`/api/admin/logistics/items/${itemId}`, {
+      const response = await fetch(`/api/admin/logistics/items/${itemId}`, adminRequest({
         method: 'DELETE',
         credentials: 'include'
-      })
+      }))
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -355,7 +372,7 @@ export function LogisticsDynamicManager({
         variant: "destructive"
       })
     }
-  }, [toast])
+  }, [adminRequest, toast])
 
   // Attach equipment to a task
   const attachEquipment = useCallback(async (taskId: string) => {
@@ -365,7 +382,7 @@ export function LogisticsDynamicManager({
       return
     }
     try {
-      const res = await fetch(`/api/admin/logistics/items/${taskId}/equipment`, {
+      const res = await fetch(`/api/admin/logistics/items/${taskId}/equipment`, adminRequest({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -374,7 +391,7 @@ export function LogisticsDynamicManager({
           startTime: form.start || null,
           endTime: form.end || null
         })
-      })
+      }))
       if (!res.ok) throw new Error('attach failed')
       toast({ title: 'Equipment attached', description: 'Asset linked to task', variant: 'default' })
       setAttachAssetByTask(prev => ({ ...prev, [taskId]: { assetId: '', start: '', end: '' } }))
@@ -382,14 +399,14 @@ export function LogisticsDynamicManager({
     } catch (err) {
       toast({ title: 'Attach failed', description: 'Could not attach equipment', variant: 'destructive' })
     }
-  }, [attachAssetByTask, fetchItems, toast])
+  }, [adminRequest, attachAssetByTask, fetchItems, toast])
 
   // Handle bulk actions
   const handleBulkAction = useCallback(async (action: string) => {
     if (bulkActions.length === 0) return
 
     try {
-      const response = await fetch('/api/admin/logistics/items/bulk', {
+      const response = await fetch('/api/admin/logistics/items/bulk', adminRequest({
         method: 'PUT',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -397,7 +414,7 @@ export function LogisticsDynamicManager({
           itemIds: bulkActions,
           action: action
         })
-      })
+      }))
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -424,7 +441,7 @@ export function LogisticsDynamicManager({
         variant: "destructive"
       })
     }
-  }, [bulkActions, toast])
+  }, [adminRequest, bulkActions, toast])
 
   // Filter and sort items
   const filteredAndSortedItems = items
@@ -499,12 +516,12 @@ export function LogisticsDynamicManager({
   // Quick status change helper
   const updateStatus = useCallback(async (taskId: string, status: string) => {
     try {
-      const res = await fetch(`/api/admin/logistics/items/${taskId}/status`, {
+      const res = await fetch(`/api/admin/logistics/items/${taskId}/status`, adminRequest({
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status })
-      })
+      }))
       if (!res.ok) throw new Error('status failed')
       const { item } = await res.json()
       setItems(prev => prev.map(i => i.id === taskId ? { ...i, status: item.status } : i))
@@ -512,7 +529,7 @@ export function LogisticsDynamicManager({
     } catch {
       toast({ title: 'Update failed', description: 'Could not update status', variant: 'destructive' })
     }
-  }, [toast])
+  }, [adminRequest, toast])
 
   if (loading) {
     return (
@@ -1130,12 +1147,12 @@ export function LogisticsDynamicManager({
                   return
                 }
                 try {
-                  const res = await fetch('/api/admin/logistics/items', {
+                  const res = await fetch('/api/admin/logistics/items', adminRequest({
                     method: 'POST',
                     credentials: 'include',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
-                  })
+                  }))
                   if (!res.ok) throw new Error('Failed to create item')
                   await fetchItems()
                   setIsCreating(false)
@@ -1153,4 +1170,4 @@ export function LogisticsDynamicManager({
       </Dialog>
     </div>
   )
-} 
+}

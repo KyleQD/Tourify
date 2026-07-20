@@ -1,45 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
 import { discoverResponseSchema } from '@tourify/api-contracts'
-
-interface DiscoverProfile {
-  id: string
-  username: string
-  account_type: 'artist' | 'venue' | 'organization' | 'general'
-  display_name: string
-  avatar_url?: string | null
-  bio?: string
-  location?: string | null
-  verified: boolean
-  stats: {
-    followers: number
-    following: number
-    posts: number
-  }
-  creator_type?: string | null
-  service_offerings?: string[]
-  available_for_hire?: boolean
-  /** auth.users id for friend actions */
-  owner_user_id?: string | null
-  /** accounts.id for follow actions */
-  account_id?: string | null
-}
-
-interface DiscoverEvent {
-  id: string
-  slug: string | null
-  title: string
-  description?: string | null
-  event_date?: string | null
-  venue_name?: string | null
-  venue_city?: string | null
-  venue_state?: string | null
-  attendance: {
-    attending: number
-    interested: number
-    total: number
-  }
-}
+import { createClient } from '@/lib/supabase/server'
+import {
+  attachTopTracksToArtists,
+  fetchTopAlbumsByGenre,
+} from '@/lib/discover/enrich'
+import {
+  normalizeEventsFromDiscover,
+  normalizeMusicTracks,
+  normalizeProfilesFromEnhanced,
+} from '@/lib/discover/normalize'
+import {
+  matchesLocationFields,
+  sortEventsByLocationBoost,
+} from '@/lib/discover/location-match'
+import { rankNewArtists, rankTopSongs } from '@/lib/discover/ranking'
+import { fetchDiscoverTours } from '@/lib/discover/tours'
+import type {
+  DiscoverEvent,
+  DiscoverMusicTrack,
+  DiscoverProfile,
+  DiscoverTour,
+} from '@/lib/discover/types'
 
 interface DiscoverPost {
   id: string
@@ -55,20 +38,6 @@ interface DiscoverPost {
     avatar_url?: string
     is_verified?: boolean
   }
-}
-
-interface DiscoverMusicTrack {
-  id: string
-  title: string
-  artist_name: string
-  artist_id?: string
-  artist_username?: string | null
-  cover_art_url?: string | null
-  file_url?: string
-  genre?: string | null
-  duration?: number | null
-  plays?: number
-  likes?: number
 }
 
 interface DiscoverResponse {
@@ -92,6 +61,9 @@ interface DiscoverResponse {
     hire_matches: DiscoverProfile[]
     new_music: DiscoverMusicTrack[]
     trending_music: DiscoverMusicTrack[]
+    top_songs: DiscoverMusicTrack[]
+    top_albums_by_genre: Awaited<ReturnType<typeof fetchTopAlbumsByGenre>>
+    tours: DiscoverTour[]
     new_artists: DiscoverProfile[]
     nearby_events: DiscoverEvent[]
   }
@@ -107,36 +79,12 @@ interface DiscoverResponse {
 
 type DiscoverIntent = 'grow' | 'network' | 'book' | 'learn'
 
-interface EnhancedSearchProfile {
-  id: string
-  type: 'artist' | 'venue' | 'organization' | 'user'
-  username: string
-  displayName: string
-  avatar?: string
-  bio?: string
-  location?: string
-  skills?: string[]
-  availability?: string
-  verified: boolean
-  followers: number
-  following: number
-  posts: number
-  ownerUserId?: string
-  accountId?: string | null
-  accountType?: string
-}
-
 function parseJsonSafe(value: string): any {
   try {
     return JSON.parse(value)
   } catch {
     return null
   }
-}
-
-function matchesLocation(value: string | null | undefined, location: string) {
-  if (!value) return false
-  return value.toLowerCase().includes(location.toLowerCase())
 }
 
 function scorePostEngagement(post: DiscoverPost) {
@@ -159,23 +107,11 @@ function rankTrendingPosts(posts: DiscoverPost[], limit: number) {
     .slice(0, limit)
 }
 
-function locationBoostedEvents(events: DiscoverEvent[], location: string | null) {
-  if (!location) return events
-  return [...events].sort((first, second) => {
-    const firstNearby =
-      matchesLocation(first.venue_city, location) || matchesLocation(first.venue_state, location)
-    const secondNearby =
-      matchesLocation(second.venue_city, location) || matchesLocation(second.venue_state, location)
-    if (firstNearby === secondNearby) return 0
-    return firstNearby ? -1 : 1
-  })
-}
-
 function locationBoostedProfiles(profiles: DiscoverProfile[], location: string | null) {
   if (!location) return profiles
   return [...profiles].sort((first, second) => {
-    const firstNearby = matchesLocation(first.location, location)
-    const secondNearby = matchesLocation(second.location, location)
+    const firstNearby = matchesLocationFields(location, first.location)
+    const secondNearby = matchesLocationFields(location, second.location)
     if (firstNearby === secondNearby) return (second.stats.followers || 0) - (first.stats.followers || 0)
     return firstNearby ? -1 : 1
   })
@@ -220,25 +156,6 @@ function normalizePostsFromFeed(payload: any): DiscoverPost[] {
     .filter((post: DiscoverPost) => Boolean(post.id))
 }
 
-function normalizeEventsFromDiscover(payload: any): DiscoverEvent[] {
-  const events = Array.isArray(payload?.events) ? payload.events : []
-  return events.map((event: any) => ({
-    id: String(event.id || ''),
-    slug: event.slug ? String(event.slug) : null,
-    title: String(event.title || event.name || 'Untitled event'),
-    description: event.description || '',
-    event_date: event.event_date || null,
-    venue_name: event.venue_name || null,
-    venue_city: event.venue_city || null,
-    venue_state: event.venue_state || null,
-    attendance: {
-      attending: Number(event?.attendance?.attending || 0),
-      interested: Number(event?.attendance?.interested || 0),
-      total: Number(event?.attendance?.total || 0),
-    },
-  }))
-}
-
 function normalizeSuggestions(payload: any): DiscoverProfile[] {
   const suggestions = Array.isArray(payload?.suggestions)
     ? payload.suggestions
@@ -273,66 +190,12 @@ function normalizeSuggestions(payload: any): DiscoverProfile[] {
         },
         owner_user_id: ownerUserId || null,
         account_id: item.account_id ? String(item.account_id) : null,
+        genres: [],
+        created_at: item.created_at || null,
+        top_track: null,
       }
     })
     .filter((profile: DiscoverProfile) => profile.id && profile.username)
-}
-
-function normalizeProfilesFromEnhanced(payload: any): DiscoverProfile[] {
-  const results = Array.isArray(payload?.results) ? (payload.results as EnhancedSearchProfile[]) : []
-  return results
-    .map((item): DiscoverProfile => {
-      const accountType =
-        item.type === 'artist'
-          ? 'artist'
-          : item.type === 'venue'
-            ? 'venue'
-            : item.type === 'organization'
-              ? 'organization'
-              : 'general'
-      const ownerUserId = String(item.ownerUserId || (accountType === 'general' ? item.id : '') || '')
-      const accountId = item.accountId ? String(item.accountId) : null
-      return {
-        id: accountType === 'general' ? ownerUserId || String(item.id) : accountId || String(item.id),
-        username: String(item.username || ''),
-        account_type: accountType,
-        display_name: String(item.displayName || item.username || 'User'),
-        avatar_url: item.avatar || null,
-        bio: item.bio || '',
-        location: item.location || null,
-        verified: Boolean(item.verified),
-        stats: {
-          followers: Number(item.followers || 0),
-          following: Number(item.following || 0),
-          posts: Number(item.posts || 0),
-        },
-        creator_type: item.type === 'artist' ? item.skills?.[0] || null : null,
-        service_offerings: item.type === 'artist' ? item.skills?.slice(1, 8) || [] : [],
-        available_for_hire: item.type === 'artist' ? item.availability === 'available' : false,
-        owner_user_id: ownerUserId || null,
-        account_id: accountId,
-      }
-    })
-    .filter((profile) => profile.id && profile.username)
-}
-
-function normalizeMusicTracks(payload: any): DiscoverMusicTrack[] {
-  const content = Array.isArray(payload?.content) ? payload.content : []
-  return content
-    .filter((item: any) => item.metadata?.url)
-    .map((item: any) => ({
-      id: item.id,
-      title: item.title,
-      artist_name: item.author?.name || item.metadata?.artist || 'Artist',
-      artist_id: item.author?.id,
-      artist_username: item.author?.username || null,
-      cover_art_url: item.cover_image || null,
-      file_url: item.metadata?.url,
-      genre: item.metadata?.genre || null,
-      duration: item.metadata?.duration || null,
-      plays: item.engagement?.views || 0,
-      likes: item.engagement?.likes || 0,
-    }))
 }
 
 function rankForYou({
@@ -357,7 +220,7 @@ function rankForYou({
 
   const scoredEvents = events.slice(0, 8).map((event, index) => {
     const isNearby = location
-      ? matchesLocation(event.venue_city, location) || matchesLocation(event.venue_state, location)
+      ? matchesLocationFields(location, event.venue_city, event.venue_state)
       : false
 
     return {
@@ -382,7 +245,7 @@ function rankForYou({
     )
     .slice(0, 10)
     .map((profile, index) => {
-      const isNearby = location ? matchesLocation(profile.location, location) : false
+      const isNearby = location ? matchesLocationFields(location, profile.location) : false
       return {
         id: `profile-${profile.id}`,
         item_type: 'profile' as const,
@@ -442,7 +305,6 @@ export async function GET(request: NextRequest) {
   const creatorType = searchParams.get('creatorType')?.trim() || null
   const service = searchParams.get('service')?.trim() || null
   const availableForHire = searchParams.get('availableForHire') === 'true'
-  // Soft-kept for mobile/backward compat; cultural discovery no longer branches on intent.
   const intentParam = searchParams.get('intent')
   const intent: DiscoverIntent =
     intentParam === 'network' || intentParam === 'book' || intentParam === 'learn'
@@ -451,6 +313,7 @@ export async function GET(request: NextRequest) {
   void intent
 
   const authResult = await authenticateApiRequest(request)
+  const supabase = await createClient()
 
   const headers: Record<string, string> = { 'content-type': 'application/json' }
   const cookie = request.headers.get('cookie')
@@ -475,47 +338,58 @@ export async function GET(request: NextRequest) {
   if (location) eventsDiscoverParams.set('location', location)
 
   const postsLimit = Math.max(sectionLimit * 3, 24)
+  const musicLimit = Math.max(sectionLimit * 3, 36)
 
   const [
     postsPayload,
     eventsPayload,
     newMusicPayload,
     trendingMusicPayload,
+    popularMusicPayload,
     suggestionsPayload,
+    topAlbumsByGenre,
+    tours,
   ] = await Promise.all([
     fetchJson(`/api/feed/posts?type=all&limit=${postsLimit}&offset=0`),
     fetchJson(`/api/events/discover?${eventsDiscoverParams.toString()}`),
-    fetchJson(`/api/feed/music?sortBy=recent&limit=${sectionLimit}`),
-    fetchJson(`/api/feed/music?sortBy=trending&limit=${sectionLimit}`),
+    fetchJson(`/api/feed/music?sortBy=recent&limit=${musicLimit}`),
+    fetchJson(`/api/feed/music?sortBy=trending&limit=${musicLimit}`),
+    fetchJson(`/api/feed/music?sortBy=popular&limit=${musicLimit}`),
     authResult ? fetchJson(`/api/social/suggested?limit=${sectionLimit}`) : Promise.resolve(null),
+    fetchTopAlbumsByGenre({ supabase, limit: 8 }),
+    fetchDiscoverTours({ limit: sectionLimit }),
   ])
 
   const feedPosts = normalizePostsFromFeed(postsPayload)
   const trendingPosts = rankTrendingPosts(feedPosts, sectionLimit)
 
-  const platformEvents = locationBoostedEvents(
+  // Full upcoming pool from events + events_v2 (+ artist_events); location only boosts order.
+  const platformEvents = sortEventsByLocationBoost(
     normalizeEventsFromDiscover(eventsPayload),
     location
   )
   const upcomingEvents = platformEvents.slice(0, sectionLimit)
   const nearbyEvents = location
     ? platformEvents
-        .filter(
-          (event) =>
-            matchesLocation(event.venue_city, location) ||
-            matchesLocation(event.venue_state, location)
+        .filter((event) =>
+          matchesLocationFields(location, event.venue_city, event.venue_state)
         )
         .slice(0, sectionLimit)
     : platformEvents.slice(0, sectionLimit)
 
   const newMusic = normalizeMusicTracks(newMusicPayload)
   const trendingMusic = normalizeMusicTracks(trendingMusicPayload)
+  const popularMusic = normalizeMusicTracks(popularMusicPayload)
+  const topSongs = rankTopSongs(
+    [...newMusic, ...trendingMusic, ...popularMusic],
+    sectionLimit
+  )
 
   const peopleParams = new URLSearchParams({
     limit: String(sectionLimit * 4),
     type: 'all',
     includeRecommendations: 'true',
-    sortBy: 'popularity',
+    sortBy: 'relevance',
   })
   if (location) peopleParams.set('location', location)
   if (creatorType) peopleParams.set('creatorType', creatorType)
@@ -548,7 +422,14 @@ export async function GET(request: NextRequest) {
           .filter((profile) => profile.verified || profile.account_type === 'artist')
           .slice(0, sectionLimit)
 
-  const newArtists = artists.filter((artist) => artist.stats.followers < 100).slice(0, sectionLimit)
+  const rankedNewArtists = rankNewArtists(
+    peopleRaw.filter((profile) => profile.account_type === 'artist'),
+    sectionLimit
+  )
+  const newArtists = await attachTopTracksToArtists({
+    supabase,
+    artists: rankedNewArtists,
+  })
 
   const hireMatches = rankHireMatches({
     profiles: peopleRaw.filter(
@@ -581,6 +462,9 @@ export async function GET(request: NextRequest) {
       hire_matches: hireMatches,
       new_music: newMusic.slice(0, sectionLimit),
       trending_music: trendingMusic.slice(0, sectionLimit),
+      top_songs: topSongs,
+      top_albums_by_genre: topAlbumsByGenre,
+      tours,
       new_artists: newArtists,
       nearby_events: nearbyEvents,
     },

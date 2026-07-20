@@ -29,11 +29,11 @@ const featureSections: FeatureSection[] = [
   {
     title: "Content",
     items: [
-      { name: "Posts", icon: <FileText className="h-4 w-4" />, path: "/artist/feed" },
-      { name: "Videos", icon: <FileVideo className="h-4 w-4" />, path: "/artist/feed" },
-      { name: "Photos", icon: <Image className="h-4 w-4" />, path: "/artist/feed" },
+      { name: "Posts", icon: <FileText className="h-4 w-4" />, path: "/artist" },
+      { name: "Videos", icon: <FileVideo className="h-4 w-4" />, path: "/artist" },
+      { name: "Photos", icon: <Image className="h-4 w-4" />, path: "/artist" },
       { name: "EPK", icon: <Tag className="h-4 w-4" />, path: "/artist/epk", isPro: true },
-      { name: "Blog", icon: <FileText className="h-4 w-4" />, path: "/artist/features/blog" },
+      { name: "Press", icon: <FileText className="h-4 w-4" />, path: "/artist/press" },
     ]
   },
   {

@@ -78,6 +78,13 @@ export interface PublicArtistTrackDTO {
   allowLibraryAdd: boolean
   allowProfileFeature: boolean
   listingId?: string | null
+  trust: {
+    originStatus: string
+    certificationStatus: string
+    certificationLevel: number
+    certificationPublicId: string | null
+    publicLabel: string
+  }
 }
 
 export interface PublicArtistTracksDTO {

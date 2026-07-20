@@ -1,0 +1,177 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tourify.local/schemas/music-ecosystem-execution-plan.schema.json",
+  "title": "Tourify Music Ecosystem Execution Plan",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project",
+    "audit",
+    "feature_flags",
+    "phases",
+    "tasks",
+    "risks",
+    "final_gates"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "name",
+        "repository_root",
+        "branch",
+        "base_commit",
+        "overall_status",
+        "updated_at"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "repository_root": {
+          "type": "string"
+        },
+        "branch": {
+          "type": "string"
+        },
+        "base_commit": {
+          "type": "string"
+        },
+        "current_commit": {
+          "type": "string"
+        },
+        "overall_status": {
+          "enum": [
+            "not_started",
+            "in_progress",
+            "blocked",
+            "complete",
+            "not_applicable",
+            "superseded"
+          ]
+        },
+        "updated_at": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true
+    },
+    "audit": {
+      "type": "object",
+      "required": [
+        "status",
+        "report_path",
+        "baseline_commands",
+        "findings",
+        "blockers"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not_started",
+            "in_progress",
+            "blocked",
+            "complete",
+            "not_applicable",
+            "superseded"
+          ]
+        },
+        "report_path": {
+          "type": "string"
+        },
+        "baseline_commands": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "feature_flags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "default_state",
+          "purpose"
+        ]
+      }
+    },
+    "phases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "order",
+          "status",
+          "task_ids",
+          "exit_criteria"
+        ]
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "phase_id",
+          "title",
+          "priority",
+          "status",
+          "dependencies",
+          "acceptance_criteria",
+          "evidence",
+          "test_results"
+        ]
+      }
+    },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "description",
+          "severity",
+          "mitigation",
+          "status"
+        ]
+      }
+    },
+    "final_gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "status",
+          "evidence"
+        ]
+      }
+    }
+  },
+  "additionalProperties": false
+}

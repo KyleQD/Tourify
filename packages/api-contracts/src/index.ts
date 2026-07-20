@@ -82,6 +82,16 @@ const discoverIntentSchema = z.union([
   z.literal("learn"),
 ])
 
+const discoverTopTrackSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  file_url: z.string().optional(),
+  cover_art_url: z.string().nullable().optional(),
+  duration: z.number().nullable().optional(),
+  plays: z.number().optional(),
+  likes: z.number().optional(),
+})
+
 const discoverProfileSchema = z.object({
   id: z.string(),
   username: z.string(),
@@ -108,6 +118,9 @@ const discoverProfileSchema = z.object({
   available_for_hire: z.boolean().optional(),
   owner_user_id: z.string().nullable().optional(),
   account_id: z.string().nullable().optional(),
+  genres: z.array(z.string()).optional(),
+  created_at: z.string().nullable().optional(),
+  top_track: discoverTopTrackSchema.nullable().optional(),
 })
 
 const discoverEventSchema = z.object({
@@ -119,6 +132,10 @@ const discoverEventSchema = z.object({
   venue_name: z.string().nullable().optional(),
   venue_city: z.string().nullable().optional(),
   venue_state: z.string().nullable().optional(),
+  poster_url: z.string().nullable().optional(),
+  ticket_price_min: z.number().nullable().optional(),
+  ticket_price_max: z.number().nullable().optional(),
+  ticket_currency: z.string().nullable().optional(),
   attendance: z
     .object({
       attending: z.number(),
@@ -197,6 +214,35 @@ const discoverMusicTrackSchema = z.object({
   duration: z.number().nullable().optional(),
   plays: z.number().optional(),
   likes: z.number().optional(),
+  created_at: z.string().nullable().optional(),
+})
+
+const discoverAlbumSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  artist_name: z.string(),
+  artist_id: z.string().optional(),
+  artist_username: z.string().nullable().optional(),
+  cover_art_url: z.string().nullable().optional(),
+  file_url: z.string().optional(),
+  genre: z.string(),
+  plays: z.number().optional(),
+  likes: z.number().optional(),
+  release_date: z.string().nullable().optional(),
+})
+
+const discoverTourSchema = z.object({
+  id: z.string(),
+  slug: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  start_date: z.string().nullable().optional(),
+  end_date: z.string().nullable().optional(),
+  event_count: z.number(),
+  next_event_date: z.string().nullable().optional(),
+  cities: z.array(z.string()).optional(),
+  artist_names: z.array(z.string()).optional(),
+  cover_url: z.string().nullable().optional(),
 })
 
 export const discoverResponseSchema = z.object({
@@ -213,6 +259,9 @@ export const discoverResponseSchema = z.object({
     hire_matches: z.array(discoverProfileSchema).optional(),
     new_music: z.array(discoverMusicTrackSchema).optional(),
     trending_music: z.array(discoverMusicTrackSchema).optional(),
+    top_songs: z.array(discoverMusicTrackSchema).optional(),
+    top_albums_by_genre: z.array(discoverAlbumSchema).optional(),
+    tours: z.array(discoverTourSchema).optional(),
     new_artists: z.array(discoverProfileSchema).optional(),
     nearby_events: z.array(discoverEventSchema).optional(),
   }),

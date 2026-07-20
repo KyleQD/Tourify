@@ -25,7 +25,7 @@ export const contextualTips: ContextualTip[] = [
   {
     id: "venue-social-preview",
     audiences: ["venue"],
-    routePrefix: "/venue/dashboard/social",
+    routePrefix: "/venue/dashboard",
     priority: 9,
     headline: "Venue social",
     body: "Use this area for venue-specific announcements. Pair posts with dated events so followers see when doors open.",

@@ -66,12 +66,7 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .select()
       .single()
 
-    if (error) {
-      if (error.code === '42P01') {
-        return NextResponse.json({ success: false, error: 'event_calendar_items table not yet created' }, { status: 501 })
-      }
-      throw error
-    }
+    if (error) throw error
 
     return NextResponse.json({ success: true, item: data })
   } catch (error) {

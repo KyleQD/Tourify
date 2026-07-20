@@ -21,18 +21,14 @@ import {
   Briefcase,
   ShoppingBag,
   BarChart3,
-  FileText,
   Globe,
   HelpCircle,
   MessageCircle,
   LogOut,
-  Headphones,
   Video,
   ImageIcon,
   PenTool,
-  Zap,
   Star,
-  TrendingUp,
   Grid3X3,
   X,
   CheckSquare,
@@ -58,7 +54,7 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
   const mainNavItems = [
     { title: "Home", href: "/", icon: Home },
     { title: "Community", href: "/community", icon: Music },
-    { title: "Network", href: "/network", icon: Users },
+    { title: "Discover", href: "/discover", icon: Users },
     { title: "Messages", href: "/messages", icon: MessageSquare, badge: 5 },
     { title: "Events", href: "/venue/dashboard/events", icon: Calendar, badge: 3 },
     { title: "Profile", href: "/profile", icon: User },
@@ -67,15 +63,6 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
 
   // Feature categories with their items
   const featureCategories = [
-    {
-      name: "Music",
-      items: [
-        { title: "Upload Music", href: "/music/upload", icon: Music, badge: "New" },
-        { title: "My Library", href: "/music/library", icon: Headphones },
-        { title: "Analytics", href: "/music/analytics", icon: BarChart3 },
-        { title: "Promotion", href: "/music/promotion", icon: TrendingUp },
-      ],
-    },
     {
       name: "Team Management",
       items: [
@@ -88,10 +75,9 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
     {
       name: "Content",
       items: [
-        { title: "Posts", href: "/content/posts", icon: PenTool },
-        { title: "Videos", href: "/content/videos", icon: Video },
-        { title: "Photos", href: "/content/photos", icon: ImageIcon },
-        { title: "EPK", href: "/epk", icon: FileText, badge: "Pro" },
+        { title: "Posts", href: "/venue/dashboard", icon: PenTool },
+        { title: "Videos", href: "/venue/dashboard", icon: Video },
+        { title: "Photos", href: "/venue/documents", icon: ImageIcon },
       ],
     },
     {
@@ -109,7 +95,6 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
       items: [
         { title: "Jobs", href: "/jobs", icon: Briefcase, badge: 3 },
         { title: "Merch", href: "/venue/dashboard/store", icon: ShoppingBag },
-        { title: "Promotions", href: "/promotions", icon: Zap },
         { title: "Analytics", href: "/venue/analytics", icon: BarChart3 },
       ],
     },
@@ -153,10 +138,10 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
 
               {/* All Features Button - Prominent */}
               <Link
-                href="/features"
+                href="/venue/dashboard"
                 className={cn(
                   "flex items-center px-3 py-2.5 mt-2 text-sm font-medium rounded-md border",
-                  isActive("/features")
+                  isActive("/venue/dashboard")
                     ? "bg-purple-600 text-white border-purple-600"
                     : "bg-gray-800/50 text-white border-gray-700 hover:bg-gray-800 hover:border-gray-600",
                 )}
@@ -188,8 +173,8 @@ export function EnhancedSidebar({ isOpen, onClose }: EnhancedSidebarProps) {
             <div className="space-y-1">
               <h3 className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">Account</h3>
               <NavItem href="/settings" icon={Settings} title="Settings" active={isActive("/settings")} compact />
-              <NavItem href="/help" icon={HelpCircle} title="Help & Support" active={isActive("/help")} compact />
-              <NavItem href="/feedback" icon={MessageCircle} title="Feedback" active={isActive("/feedback")} compact />
+              <NavItem href="/faq" icon={HelpCircle} title="Help & Support" active={isActive("/faq")} compact />
+              <NavItem href="/venue/settings" icon={MessageCircle} title="Feedback" active={isActive("/venue/settings")} compact />
             </div>
           </div>
 

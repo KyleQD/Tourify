@@ -1,0 +1,14 @@
+-- REFERENCE ONLY.
+-- Suggested entities:
+-- music_rights_agreement_templates
+-- music_rights_agreements
+-- music_rights_agreement_versions
+-- music_rights_agreement_parties
+-- music_rights_signature_requests
+-- music_rights_signature_events
+-- music_rights_evidence
+-- music_rights_review_decisions
+--
+-- Signature events and agreement versions should be immutable to ordinary users.
+-- Keep IP/user-agent/provider evidence highly restricted.
+-- Store private files in a private bucket or private prefix after storage audit.

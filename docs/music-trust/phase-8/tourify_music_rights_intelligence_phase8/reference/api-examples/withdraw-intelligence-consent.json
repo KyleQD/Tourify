@@ -1,0 +1,6 @@
+{
+  "purpose": "aggregate_benchmarking",
+  "effective": "immediate",
+  "reason": "user_request",
+  "recalculate_dependent_releases": true
+}

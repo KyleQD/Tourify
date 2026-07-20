@@ -5,8 +5,6 @@ import { User, Session, AuthError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { getAuthSignUpEmailRedirectTo } from '@/lib/auth/auth-email-redirect'
 import { isEmailNotConfirmedAuthError } from '@/lib/auth-errors'
-import { useRouter } from 'next/navigation'
-
 function authDevLog(...args: unknown[]) {
   if (process.env.NODE_ENV !== 'development') return
   console.log(...args)
@@ -54,7 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [authError, setAuthError] = useState<string | null>(null)
-  const router = useRouter()
   /**
    * `onAuthStateChange` (e.g. INITIAL_SESSION) can hydrate session before `getUser()`
    * finishes or if `getUser()` times out on slow / strict browsers (Safari Private).
@@ -115,14 +112,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       )
 
       if (error) {
-        console.error('[Auth] Auth check error:', error)
-        if (authListenerHydratedRef.current || sessionHydrated) {
+        const isMissingSession =
+          error.name === 'AuthSessionMissingError' ||
+          /auth session missing/i.test(error.message || '')
+
+        // Unauthenticated visitors hit this on /login — not a failure.
+        if (isMissingSession && !sessionHydrated && !authListenerHydratedRef.current) {
+          setAuthError(null)
+          setSession(null)
+          setUser(null)
+        } else if (authListenerHydratedRef.current || sessionHydrated) {
           console.warn(
             '[Auth] getUser reported error but session already hydrated; keeping auth state:',
             error.message,
           )
           setAuthError(null)
         } else {
+          console.error('[Auth] Auth check error:', error)
           setAuthError(error.message)
           setSession(null)
           setUser(null)
@@ -201,7 +207,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (storageError) {
           authDevLog('[Auth] Could not clear onboardingData from localStorage:', storageError)
         }
-        router.push('/login')
+        // Navigation is handled by signOut() / /auth/signout after cookies clear.
       }
 
       if (event === 'TOKEN_REFRESHED') {
@@ -224,13 +230,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true
       subscription.unsubscribe()
     }
-  }, [router, runInitialSessionCheck])
+  }, [runInitialSessionCheck])
 
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true)
       authDevLog('[Auth] Attempting sign in for:', email)
-      
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -441,15 +447,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       authDevLog('[Auth] Attempting sign out')
-      
-      const { error } = await supabase.auth.signOut()
-      
-      if (error) {
-        console.error('[Auth] Sign out error:', error)
-        return { error }
+
+      try {
+        await supabase.auth.signOut({ scope: 'global' })
+      } catch {
+        /* Server route is authoritative for cookie clearing. */
       }
-      
-      authDevLog('[Auth] Sign out successful')
+
+      try {
+        const keys = Object.keys(localStorage).filter(
+          (key) =>
+            key.includes('sb-cloudify-auth') ||
+            key.includes('supabase.auth') ||
+            key === 'sb-cloudify-auth-token' ||
+            key === 'cloudify_remember_session' ||
+            key === 'onboardingData'
+        )
+        for (const key of keys) localStorage.removeItem(key)
+      } catch {
+        /* noop */
+      }
+
+      if (typeof window !== 'undefined')
+        window.location.assign('/auth/signout')
+
       return { error: undefined }
     } catch (error) {
       console.error('[Auth] Sign out failed with exception:', error)

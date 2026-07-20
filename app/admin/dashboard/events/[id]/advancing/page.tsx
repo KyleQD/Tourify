@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { OpsWorkspaceChrome } from "@/components/admin/operations/ops-workspace-chrome"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import { toast } from "sonner"
 
 const STATUS_CONFIG = {
@@ -147,7 +148,14 @@ export default function AdvancingPage() {
           },
         }),
       })
-      if (!res.ok) throw new Error(await res.text())
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        if (isFeatureUnavailableResponse(res.status, payload)) {
+          toast.error(featureUnavailableMessage(payload, 'Work Mode is temporarily unavailable.'))
+          return
+        }
+        throw new Error(payload?.error || 'Failed to publish')
+      }
       toast.success('Advance published to Work Mode')
     } catch (err: any) {
       toast.error(err.message || 'Failed to publish')

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { hasEntityPermission } from '@/lib/services/rbac'
+import { assertGroundSizeWithinLimit } from '@/lib/site-map/ground-size'
 import type { CreateSiteMapRequest, UpdateSiteMapRequest } from '@/types/site-map'
 
 
@@ -153,6 +154,16 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!body.name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    }
+
+    const groundCheck = assertGroundSizeWithinLimit({
+      width: body.width || 1000,
+      height: body.height || 1000,
+      scale: body.scale || 1,
+      scaleUnit: (body as { scaleUnit?: string }).scaleUnit || 'meters',
+    })
+    if (!groundCheck.ok) {
+      return NextResponse.json({ error: groundCheck.error }, { status: 400 })
     }
 
     if (body.eventId) {

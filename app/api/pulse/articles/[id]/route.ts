@@ -61,6 +61,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         seoTitle: body.seoTitle,
         seoDescription: body.seoDescription,
         scheduledFor: body.scheduledFor,
+        format: body.format,
+        subtitle: body.subtitle,
+        boilerplate: body.boilerplate,
+        embargoUntil: body.embargoUntil,
+        distribution: body.distribution,
       },
     })
 

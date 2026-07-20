@@ -1,0 +1,196 @@
+{
+  "package": "tourify_music_trust_ecosystem",
+  "generated_at": "2026-07-17",
+  "files": [
+    {
+      "path": "00_CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 21046,
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82"
+    },
+    {
+      "path": "01_PRODUCT_SCOPE_AND_ACCOUNT_TIERS.md",
+      "bytes": 2350,
+      "sha256": "fa9f782f950a366d2a726a4390a2d612c2443a1e8f339c210c9b35e048bce2f8"
+    },
+    {
+      "path": "02_EXISTING_STACK_INTEGRATION_MAP.md",
+      "bytes": 1854,
+      "sha256": "9612b36a87b6a7fb09414c50bdb4e35f1d34e2e5b1a16414343b5debbbb3ad7f"
+    },
+    {
+      "path": "03_SAFE_UPLOAD_AND_PUBLICATION_FLOW.md",
+      "bytes": 2411,
+      "sha256": "a7f04becb7813cbd1d3715a74d18c16b7445852f35ad66907dc7be9ddde85cbf"
+    },
+    {
+      "path": "04_AI_POLICY_AND_HUMAN_MUSIC_STANDARD.md",
+      "bytes": 2060,
+      "sha256": "c19a7715c1b2d8e274a5ac35a864630cf68de2bc31abd53bf65e700aaf133d40"
+    },
+    {
+      "path": "05_CERTIFICATION_UPSELL_AND_WORKFLOWS.md",
+      "bytes": 1841,
+      "sha256": "0a27235cb95eb89caa72cb67f75536d8e2d2d07fe2609a8b91fb04003d988d30"
+    },
+    {
+      "path": "06_DATA_MODEL_AND_MIGRATION_PLAN.md",
+      "bytes": 1997,
+      "sha256": "ca3b45a742eed7fc7ec4ed372c5359aa930a16634d0e078ece5633e4b4a0ae92"
+    },
+    {
+      "path": "07_API_ROUTE_CONTRACTS.md",
+      "bytes": 2037,
+      "sha256": "adf68d11d69c9f39565241148d43803e520fc621037e9b7ee5633b8ed747eca0"
+    },
+    {
+      "path": "08_UI_UX_INTEGRATION.md",
+      "bytes": 1770,
+      "sha256": "c69effd5af63e5513cf2b4622a5588968232747017eaaaa55115d4e394f9f3c0"
+    },
+    {
+      "path": "09_ORIGIN_PROVENANCE_AND_FINGERPRINTING.md",
+      "bytes": 1391,
+      "sha256": "a114018d7eda6698a0d5994834d789dcd8153b704217176f2cba291786f7130b"
+    },
+    {
+      "path": "10_MODERATION_DMCA_AND_DISPUTES.md",
+      "bytes": 1379,
+      "sha256": "a42bb214068c23e0a80b709ac59380e1fa7cb350d2ed51073fecd754226ca6e4"
+    },
+    {
+      "path": "11_SECURITY_PRIVACY_STORAGE_AND_ACCESS.md",
+      "bytes": 1518,
+      "sha256": "08103555ee5fae43f2ff3feb2178999d4823e14cd709488214ab401c92cfe44e"
+    },
+    {
+      "path": "12_BACKGROUND_JOBS_AND_OBSERVABILITY.md",
+      "bytes": 1173,
+      "sha256": "fa7eec98b9190188cbfbd57358e687d001a42974e678dfa13f3b891c5b5a4845"
+    },
+    {
+      "path": "13_TESTING_AND_RELEASE_PLAN.md",
+      "bytes": 1825,
+      "sha256": "cd42f709dafcbcbd5eab0df58971bd590ccba54201ab36aa43e475b7865805a1"
+    },
+    {
+      "path": "14_PHASE_2_RIGHTS_PASSPORT_EXTENSION.md",
+      "bytes": 1398,
+      "sha256": "bfe88cd6b428f3d2a31051796344af6dc80dce49f82bc98ab4c7b5cb225aca2b"
+    },
+    {
+      "path": "15_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 1299,
+      "sha256": "91af432801f6d3e80e637f6be32df4ea70df409b50652d8e645382dfe33567c3"
+    },
+    {
+      "path": "16_DEFINITION_OF_DONE.md",
+      "bytes": 2037,
+      "sha256": "8fe8f2dabc4ac781b4ccf77a9f9a093bea8910db13ad5d5dabfacc3ba922fb37"
+    },
+    {
+      "path": "17_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 7627,
+      "sha256": "e9a82acc2a48ba12d572d4ddc7fd418409fdd1e3ee98bba478a032bf6fd177d2"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 2335,
+      "sha256": "4a70902ebabdd6998c78965821b2a12a84166a717e22978f73865a5babab2fb8"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2573,
+      "sha256": "2c08947852515d6c36138e9cd8539df8744222be634ca578c71f16a764b58b25"
+    },
+    {
+      "path": "music-ecosystem-execution-plan.schema.json",
+      "bytes": 3526,
+      "sha256": "6da66ed2ee34cde534ee64faa3408603bd7dcdf1d7cd63453c9f43b6f1542f27"
+    },
+    {
+      "path": "music-ecosystem-execution-plan.template.json",
+      "bytes": 40167,
+      "sha256": "6b2f7a03e8e5c512ec3c26ce57eb0d1f1c6c9a633d68713705cc534a777c73cb"
+    },
+    {
+      "path": "reference/API_PAYLOAD_EXAMPLES.md",
+      "bytes": 1033,
+      "sha256": "0301ba23eebbd4629acb1fd9a1e21123755761051faa6baf91021b708c55aabf"
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "bytes": 1958,
+      "sha256": "0816faaf2751ec00593416fe215732a0803d4eb3a575dc8af427bc60d7826e19"
+    },
+    {
+      "path": "reference/app/api/artist/music/certification/route.reference.ts",
+      "bytes": 1226,
+      "sha256": "d9638507e372ce6ae333c80054c4dd3c486507b5ca2cea424273a9905e49e27c"
+    },
+    {
+      "path": "reference/app/api/music/origin/[publicId]/route.reference.ts",
+      "bytes": 915,
+      "sha256": "4b9866cdb3fb0330118efe7a943c3545e25b173edcc955a60e5026fc38d07421"
+    },
+    {
+      "path": "reference/app/rights/music/[publicId]/page.reference.tsx",
+      "bytes": 1557,
+      "sha256": "b995a045d018de21a654a68682805b35c8266671afa56d4efb602f1ef3fb58bc"
+    },
+    {
+      "path": "reference/components/music/music-ai-disclosure-fields.tsx",
+      "bytes": 2909,
+      "sha256": "f92a867c0c8fbaf572a7965f06f994e889587002a06ffd39805a22c550b86bc6"
+    },
+    {
+      "path": "reference/components/music/music-certification-upsell-card.tsx",
+      "bytes": 1139,
+      "sha256": "2abece7be4f88a746a71cee47919aec58150900a222de7fb42edb8457815ac7b"
+    },
+    {
+      "path": "reference/components/music/music-trust-status.tsx",
+      "bytes": 731,
+      "sha256": "25cb7ea77b14d877afcad2de38810c4be482622639c9e43eee59eaecf22faa77"
+    },
+    {
+      "path": "reference/lib/music/__tests__/music-certification.test.ts",
+      "bytes": 795,
+      "sha256": "fd4bc1d9daad3fad6108a9ceeb25cae61a0b8714b7f14ed3f794e16bc452c508"
+    },
+    {
+      "path": "reference/lib/music/__tests__/music-trust.test.ts",
+      "bytes": 1775,
+      "sha256": "f6268fde7c7ce5170db3b62ad675a40e13f1e65d496b442ac01d933de2df1d25"
+    },
+    {
+      "path": "reference/lib/music/music-certification.ts",
+      "bytes": 1194,
+      "sha256": "0964e031f3a4766b9aa1a62b8acf947f83fd93db73099a88fe48f02d8ab0ff42"
+    },
+    {
+      "path": "reference/lib/music/music-origin-manifest.ts",
+      "bytes": 1657,
+      "sha256": "b03218cf3f9f72417da9e4681b936635c29f6cfa39e2adeffa90c54fc2307fa3"
+    },
+    {
+      "path": "reference/lib/music/music-trust.ts",
+      "bytes": 3620,
+      "sha256": "6ac5c2b251e60993d808f8f9ffb4bdd4bb82e7325e45a99fed0d50bb69a309de"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_music_trust_foundation.sql",
+      "bytes": 6979,
+      "sha256": "da9c4668f8738eb05ffd3dc2ecb12f036fb444c4fc3c05e03059be956e05878a"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_music_certification_foundation.sql",
+      "bytes": 6439,
+      "sha256": "523ff56df484451ba3b5fe5bb1148633b3cdc5be12378dd365de7108b208ca75"
+    },
+    {
+      "path": "source/RIGHTS_PASSPORT_RESEARCH_BASELINE.md",
+      "bytes": 52474,
+      "sha256": "635a2b4306781ade2a9643edec085e6e2fdf58cd0d16652ab84fb2cccb192111"
+    }
+  ]
+}

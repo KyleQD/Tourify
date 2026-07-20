@@ -1,0 +1,7 @@
+{
+  "idempotencyKey": "service-request-001",
+  "serviceCode": "conformance_status_verification",
+  "participantId": "00000000-0000-0000-0000-000000000003",
+  "jurisdiction": "US",
+  "sourceManifestId": "00000000-0000-0000-0000-000000000004"
+}

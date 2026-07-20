@@ -67,12 +67,7 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .select()
       .single()
 
-    if (error) {
-      if (error.code === '42P01') {
-        return NextResponse.json({ success: false, error: 'event_resources table not yet created' }, { status: 501 })
-      }
-      throw error
-    }
+    if (error) throw error
 
     return NextResponse.json({ success: true, resource: data })
   } catch (error) {

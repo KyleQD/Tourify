@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     // Verify the music track exists and is public
     const { data: music, error: musicError } = await supabase
       .from('artist_music')
-      .select('id, title, is_public')
+      .select('id, title, is_public, origin_status, certification_status, certification_level, certification_public_id')
       .eq('id', musicId)
       .single()
 
@@ -69,7 +69,13 @@ export async function POST(request: NextRequest) {
         share_type: 'message',
         share_data: {
           recipient_id: recipientId,
-          message: message || `Check out this track: ${music.title}`
+          message: message || `Check out this track: ${music.title}`,
+          trust: {
+            origin_status: music.origin_status || 'not_recorded',
+            certification_status: music.certification_status || 'not_requested',
+            certification_level: music.certification_level || 0,
+            certification_public_id: music.certification_status === 'approved' ? music.certification_public_id || null : null,
+          },
         }
       })
 

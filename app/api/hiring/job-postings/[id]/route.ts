@@ -95,9 +95,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const actorResult = await resolveHiringActorFromRequest({ request, supabase, body: bodyResult.data })
     if (!actorResult.ok) return hiringResultToResponse(actorResult)
 
+    const patchPayload = getJobPostingPatchPayload(parsed.data)
+    if (patchPayload.status === "published" && !patchPayload.onboarding_template_id) {
+      return hiringResultToResponse(
+        fail({
+          code: "BAD_REQUEST",
+          message: "An onboarding template is required before publishing a job posting.",
+        })
+      )
+    }
+
     const { data, error } = await supabase
       .from("job_posting_templates")
-      .update(getJobPostingPatchPayload(parsed.data))
+      .update(patchPayload)
       .eq("id", id)
       .eq("employer_entity_type", actorResult.data.employer.entityType)
       .eq("employer_entity_id", actorResult.data.employer.entityId)

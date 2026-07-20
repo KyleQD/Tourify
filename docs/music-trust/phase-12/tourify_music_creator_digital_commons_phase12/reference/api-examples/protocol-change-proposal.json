@@ -1,0 +1,18 @@
+{
+  "request": {
+    "protocol_id": "creator-rights-reference",
+    "base_version": "0.1",
+    "proposed_version": "0.2",
+    "specification_hash": "sha256:example",
+    "breaking": false,
+    "impact_reviews": [
+      "privacy",
+      "security",
+      "accessibility"
+    ]
+  },
+  "response": {
+    "proposal_id": "pcp_example",
+    "status": "impact_review"
+  }
+}

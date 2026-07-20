@@ -1,0 +1,10 @@
+{
+  "constitutionId": "uuid",
+  "organizationId": "uuid",
+  "charterVersion": "1.0.0",
+  "authorityEvidenceManifestId": "uuid",
+  "reservations": [
+    "jurisdiction:example"
+  ],
+  "idempotencyKey": "ratify:org:version"
+}

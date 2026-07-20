@@ -1,0 +1,2 @@
+export const CREATOR_DIGITAL_COMMONS_DISCLAIMER =
+  "Digital-commons readiness sandbox only — not production multilateral stewardship, not irreversible asset custody transfer, and not ownership/licensing/representation authority. Tourify is an optional technology provider. A separate steward entity must govern production commons. Phase 11 identifiers and credentials do not create commons participation. Feature flags are never legal authority."

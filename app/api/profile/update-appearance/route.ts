@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { authenticateApiRequest } from '@/lib/auth/api-auth'
+import {
+  DEFAULT_DASHBOARD_THEME_ID,
+  getDashboardTheme,
+  isDashboardThemeId,
+} from '@/lib/dashboard/dashboard-themes'
+
+function resolveImageField(
+  incoming: string | null | undefined,
+  existing: string | null | undefined
+): string | null {
+  // Explicit clear
+  if (incoming === '' || incoming === null) return null
+  // Omitted / undefined keeps existing
+  if (incoming === undefined) return existing ?? null
+  return incoming
+}
 
 export async function PUT(request: NextRequest) {
   try {
-    // Use the same authentication method as other API routes
     const auth = await authenticateApiRequest(request)
-    
+
     if (!auth) {
       console.error('❌ Authentication failed for appearance update')
       return NextResponse.json(
@@ -16,12 +31,17 @@ export async function PUT(request: NextRequest) {
 
     const { user, supabase } = auth
 
-    // Get the request body
     const body = await request.json()
-    const { profileColors, selectedTheme, darkMode, animations, glowEffects, profileImages } = body
+    const {
+      profileColors,
+      selectedTheme,
+      darkMode,
+      animations,
+      glowEffects,
+      profileImages,
+      dashboardTheme,
+    } = body
 
-
-    // Validate the input data
     if (!profileColors || !selectedTheme) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
@@ -29,10 +49,13 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-    // First, check if the profile exists
+    const resolvedDashboardTheme = getDashboardTheme(
+      isDashboardThemeId(dashboardTheme) ? dashboardTheme : DEFAULT_DASHBOARD_THEME_ID
+    )
+
     const { data: existingProfile, error: checkError } = await supabase
       .from('profiles')
-      .select('id, metadata')
+      .select('id, metadata, account_settings, avatar_url, cover_image')
       .eq('id', user.id)
       .single()
 
@@ -52,11 +75,25 @@ export async function PUT(request: NextRequest) {
       )
     }
 
-
-    // Get existing metadata or create empty object
     const existingMetadata = existingProfile.metadata || {}
-    
-    // Update the profile with appearance settings in metadata
+    const existingAccountSettings =
+      existingProfile.account_settings && typeof existingProfile.account_settings === 'object'
+        ? existingProfile.account_settings
+        : {}
+    const existingAppearance =
+      existingAccountSettings.appearance && typeof existingAccountSettings.appearance === 'object'
+        ? existingAccountSettings.appearance
+        : {}
+
+    const nextAvatarUrl = resolveImageField(
+      profileImages?.avatarUrl,
+      existingProfile.avatar_url
+    )
+    const nextHeaderUrl = resolveImageField(
+      profileImages?.headerUrl,
+      existingProfile.cover_image || existingMetadata?.header_url
+    )
+
     const updateData = {
       metadata: {
         ...existingMetadata,
@@ -67,14 +104,21 @@ export async function PUT(request: NextRequest) {
           background_gradient: selectedTheme,
           use_dark_mode: darkMode,
           enable_animations: animations,
-          enable_glow_effects: glowEffects
+          enable_glow_effects: glowEffects,
         },
-        header_url: profileImages?.headerUrl || existingMetadata?.header_url || null
+        header_url: nextHeaderUrl,
       },
-      avatar_url: profileImages?.avatarUrl || existingProfile.avatar_url,
-      updated_at: new Date().toISOString()
+      account_settings: {
+        ...existingAccountSettings,
+        appearance: {
+          ...existingAppearance,
+          dashboard_theme: resolvedDashboardTheme.id,
+        },
+      },
+      avatar_url: nextAvatarUrl,
+      cover_image: nextHeaderUrl,
+      updated_at: new Date().toISOString(),
     }
-
 
     const { data, error } = await supabase
       .from('profiles')
@@ -84,25 +128,32 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Database error:', error)
-      console.error('Error details:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint
-      })
       return NextResponse.json(
         { success: false, error: error.message },
         { status: 500 }
       )
     }
 
+    if (profileImages && 'avatarUrl' in profileImages) {
+      try {
+        await supabase.auth.updateUser({
+          data: { avatar_url: nextAvatarUrl },
+        })
+      } catch (authError) {
+        console.warn('Failed to sync auth avatar metadata', authError)
+      }
+    }
 
     return NextResponse.json({
       success: true,
       message: 'Appearance settings updated successfully',
-      data
+      data,
+      dashboardTheme: resolvedDashboardTheme.id,
+      profileImages: {
+        avatarUrl: nextAvatarUrl,
+        headerUrl: nextHeaderUrl,
+      },
     })
-
   } catch (error) {
     console.error('API error:', error)
     return NextResponse.json(
@@ -110,4 +161,4 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     )
   }
-} 
+}

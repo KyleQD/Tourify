@@ -12,7 +12,7 @@ export interface AuditPayload {
   actorId: string
   orgId: string
   action: "create" | "update" | "delete" | "publish" | "unpublish" | "settle" | "refund" | "hire" | "fire" | "flag" | "toggle"
-  entityType: "event" | "tour" | "transaction" | "settlement" | "staff" | "rbac" | "ticket" | "feature_flag" | "content" | "artist" | "venue"
+  entityType: "event" | "tour" | "transaction" | "budget" | "settlement" | "staff" | "rbac" | "ticket" | "feature_flag" | "content" | "artist" | "venue"
   entityId?: string
   oldValues?: Record<string, unknown>
   newValues?: Record<string, unknown>

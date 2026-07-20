@@ -1,0 +1,2085 @@
+{
+  "$schema": "./phase-3-execution-plan.schema.json",
+  "planId": "tourify-music-phase-3",
+  "version": "1.0.0-template",
+  "status": "audit_required",
+  "repository": {
+    "commit": "AUDIT_REQUIRED",
+    "branch": "AUDIT_REQUIRED"
+  },
+  "hardRules": [
+    "never_reset_database",
+    "artist_music_remains_canonical",
+    "issued_historical_rights_snapshots_only",
+    "integer_or_rational_money_math",
+    "immutable_source_and_posted_ledger",
+    "no_open_secondary_market",
+    "regulated_finance_partner_gated",
+    "valuation_separate_from_rights_and_accounting",
+    "feature_flag_every_new_surface"
+  ],
+  "stages": [
+    {
+      "id": "P3-00",
+      "name": "Audit, governance, and compliance decisions",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-00-T01",
+          "title": "Read canonical Phase 1-3 documents",
+          "status": "not_started",
+          "dependencies": [],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T02",
+          "title": "Audit current repository and deployed schema assumptions",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T03",
+          "title": "Capture regression baseline",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T04",
+          "title": "Map payment and marketplace roles",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T05",
+          "title": "Document accounting and legal entity boundaries",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T06",
+          "title": "Record tax and sanctions decisions",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T07",
+          "title": "Create ADRs and feature flags",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-00-T08",
+          "title": "Validate repository-specific execution plan",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-01",
+      "name": "Royalty source ingestion",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-01-T01",
+          "title": "Select pilot statement formats",
+          "status": "not_started",
+          "dependencies": [
+            "P3-00-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T02",
+          "title": "Create private statement storage workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T03",
+          "title": "Implement import-batch domain",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T04",
+          "title": "Add source hashing and duplicate detection",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T05",
+          "title": "Build parser adapter interface",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T06",
+          "title": "Implement first provider parser",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T07",
+          "title": "Implement DDEX DSR adapter or documented defer decision",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T08",
+          "title": "Add connector authorization and revocation model",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-01-T09",
+          "title": "Add import observability and dead-letter handling",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-02",
+      "name": "Normalization, matching, and reconciliation",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-02-T01",
+          "title": "Define normalized line schema",
+          "status": "not_started",
+          "dependencies": [
+            "P3-01-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T02",
+          "title": "Implement money and currency rules",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T03",
+          "title": "Preserve raw-to-normalized traceability",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T04",
+          "title": "Implement identifier matching hierarchy",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T05",
+          "title": "Add acoustic-fingerprint matching hook",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T06",
+          "title": "Create candidate review queue",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T07",
+          "title": "Implement conflict and unmatched states",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T08",
+          "title": "Build statement-total reconciliation",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T09",
+          "title": "Add parser reprocessing/versioning",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-02-T10",
+          "title": "Create data-quality metrics",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-03",
+      "name": "Ledger, allocation, recoupment, and statements",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-03-T01",
+          "title": "Design chart of accounts",
+          "status": "not_started",
+          "dependencies": [
+            "P3-02-T10"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T02",
+          "title": "Implement balanced journal service",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T03",
+          "title": "Add posting approvals and period close",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T04",
+          "title": "Implement reversal/correction journals",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T05",
+          "title": "Publish historical rights snapshot read model",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T06",
+          "title": "Implement eligible-interest selection",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T07",
+          "title": "Implement rational allocation engine",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T08",
+          "title": "Implement recoupment waterfalls",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T09",
+          "title": "Add suspense, dispute, and legal holds",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T10",
+          "title": "Generate participant statements",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T11",
+          "title": "Build audit package export",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T10"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-03-T12",
+          "title": "Add allocation reconciliation reports",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T11"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-04",
+      "name": "Payout readiness and provider integration",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-04-T01",
+          "title": "Audit or select payout provider",
+          "status": "not_started",
+          "dependencies": [
+            "P3-03-T12"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T02",
+          "title": "Implement provider abstraction",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T03",
+          "title": "Add connected-account onboarding status",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T04",
+          "title": "Implement tax and sanctions readiness states",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T05",
+          "title": "Add payout instruction batches",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T06",
+          "title": "Add maker-checker approval",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T07",
+          "title": "Implement signed webhook ingestion",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T08",
+          "title": "Reconcile paid, failed, returned, and reversed payouts",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T09",
+          "title": "Add payout notifications and statements",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-04-T10",
+          "title": "Complete tax reporting responsibility matrix",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-05",
+      "name": "Catalog valuation engine",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-05-T01",
+          "title": "Define valuation eligibility",
+          "status": "not_started",
+          "dependencies": [
+            "P3-04-T10"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T02",
+          "title": "Create immutable valuation input snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T03",
+          "title": "Implement revenue-history normalization",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T04",
+          "title": "Implement downside/base/upside forecasting",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T05",
+          "title": "Implement present-value calculation",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T06",
+          "title": "Add concentration and rights-risk adjustments",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T07",
+          "title": "Implement confidence scoring",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T08",
+          "title": "Add sensitivity outputs",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T09",
+          "title": "Create model version and approval workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T10",
+          "title": "Backtest and validate model",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-05-T11",
+          "title": "Add valuation disclaimers and independent-review path",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T10"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-06",
+      "name": "Artist, participant, and admin UX",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-06-T01",
+          "title": "Add Earnings navigation to existing artist music",
+          "status": "not_started",
+          "dependencies": [
+            "P3-05-T11"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T02",
+          "title": "Build import and processing UI",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T03",
+          "title": "Build match and exception review UI",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T04",
+          "title": "Build collaborator statements UI",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T05",
+          "title": "Build payout readiness UI",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T06",
+          "title": "Build valuation dashboard",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T07",
+          "title": "Extend admin financial operations",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T08",
+          "title": "Add accessibility/loading/error states",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-06-T09",
+          "title": "Verify mobile read parity or document defer",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-07",
+      "name": "Fan utility collectibles",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-07-T01",
+          "title": "Define approved utility catalog",
+          "status": "not_started",
+          "dependencies": [
+            "P3-06-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-07-T02",
+          "title": "Create entitlement-first data model",
+          "status": "not_started",
+          "dependencies": [
+            "P3-07-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-07-T03",
+          "title": "Implement purchase/redemption workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P3-07-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-07-T04",
+          "title": "Add noninvestment marketing guardrails",
+          "status": "not_started",
+          "dependencies": [
+            "P3-07-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-07-T05",
+          "title": "Pilot database-backed utility collectibles",
+          "status": "not_started",
+          "dependencies": [
+            "P3-07-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-07-T06",
+          "title": "Decide whether blockchain minting adds value",
+          "status": "not_started",
+          "dependencies": [
+            "P3-07-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-08",
+      "name": "Regulated financing readiness",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-08-T01",
+          "title": "Select regulated partner candidates",
+          "status": "not_started",
+          "dependencies": [
+            "P3-07-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T02",
+          "title": "Create partner responsibility matrix",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T03",
+          "title": "Define financing readiness scorecard",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T04",
+          "title": "Build issuer/artist data room",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T05",
+          "title": "Implement partner-gated eligibility API",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T06",
+          "title": "Create offering and instrument data contracts",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T07",
+          "title": "Add disclosure version archive",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T08",
+          "title": "Implement read-only position and distribution reconciliation",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-08-T09",
+          "title": "Complete counsel and compliance launch gate",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-09",
+      "name": "Optional on-chain representations",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-09-T01",
+          "title": "Define chain and contract ADR",
+          "status": "not_started",
+          "dependencies": [
+            "P3-08-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-09-T02",
+          "title": "Extend attestation registry if approved",
+          "status": "not_started",
+          "dependencies": [
+            "P3-09-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-09-T03",
+          "title": "Design optional token representation mapping",
+          "status": "not_started",
+          "dependencies": [
+            "P3-09-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-09-T04",
+          "title": "Implement transfer restriction integration with partner",
+          "status": "not_started",
+          "dependencies": [
+            "P3-09-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-09-T05",
+          "title": "Complete contract tests and independent audit",
+          "status": "not_started",
+          "dependencies": [
+            "P3-09-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-09-T06",
+          "title": "Deploy testnet-only pilot before production decision",
+          "status": "not_started",
+          "dependencies": [
+            "P3-09-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-10",
+      "name": "Security, audit, testing, and pilot",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-10-T01",
+          "title": "Threat model financial workflows",
+          "status": "not_started",
+          "dependencies": [
+            "P3-09-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T02",
+          "title": "Implement RLS and capability tests",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T03",
+          "title": "Add property-based money tests",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T04",
+          "title": "Add ledger invariant tests",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T05",
+          "title": "Add historical allocation scenarios",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T06",
+          "title": "Add payout replay and failure tests",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T07",
+          "title": "Add valuation reproducibility tests",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T08",
+          "title": "Run security and dependency review",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T09",
+          "title": "Exercise backup and restore",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T08"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T10",
+          "title": "Exercise payout freeze and incident runbooks",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T09"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T11",
+          "title": "Run shadow-mode artist pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T10"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-10-T12",
+          "title": "Resolve pilot findings and document evidence",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T11"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P3-11",
+      "name": "Production rollout and Phase 4 handoff",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P3-11-T01",
+          "title": "Define staged production rollout",
+          "status": "not_started",
+          "dependencies": [
+            "P3-10-T12"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T02",
+          "title": "Enable read-only royalty analytics",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T01"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T03",
+          "title": "Enable reviewed statements",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T02"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T04",
+          "title": "Enable limited payouts if approved",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T03"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T05",
+          "title": "Enable valuation beta",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T04"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T06",
+          "title": "Enable utility pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T05"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T07",
+          "title": "Keep regulated offering disabled until partner approval",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T06"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P3-11-T08",
+          "title": "Publish Phase 4 readiness report",
+          "status": "not_started",
+          "dependencies": [
+            "P3-11-T07"
+          ],
+          "scope": "Replace with audited repository paths and implementation notes.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 3 documents.",
+            "Focused tests pass.",
+            "Evidence is recorded in this task."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    }
+  ]
+}

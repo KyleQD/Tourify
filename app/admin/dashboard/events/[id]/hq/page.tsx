@@ -27,6 +27,7 @@ import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 
 const PRIORITY_CONFIG = {
   info: { label: "Info", className: "bg-blue-600/20 text-blue-300 border-blue-600/30", icon: Info },
@@ -162,7 +163,9 @@ export default function EventHQPage() {
         body: JSON.stringify({ title: bulletinTitle, content: bulletinContent, priority: bulletinPriority, pinned: bulletinPinned, visible_to: ["all"] }),
       })
       const data = await res.json()
-      if (!data.success) throw new Error(data.error)
+      if (isFeatureUnavailableResponse(res.status, data))
+        throw new Error(featureUnavailableMessage(data, "Bulletins are temporarily unavailable."))
+      if (!data.success) throw new Error(data.error || "Failed to post bulletin")
       setBulletins(prev => [data.bulletin, ...prev])
       setBulletinTitle(""); setBulletinContent(""); setBulletinPriority("info"); setBulletinPinned(false)
       setShowBulletinDialog(false)
@@ -181,7 +184,9 @@ export default function EventHQPage() {
         body: JSON.stringify({ title: resourceTitle, type: resourceType, url: resourceUrl || undefined, content: resourceContent || undefined, category: resourceCategory || undefined }),
       })
       const data = await res.json()
-      if (!data.success) throw new Error(data.error)
+      if (isFeatureUnavailableResponse(res.status, data))
+        throw new Error(featureUnavailableMessage(data, "Resources are temporarily unavailable."))
+      if (!data.success) throw new Error(data.error || "Failed to add resource")
       setResources(prev => [data.resource, ...prev])
       setResourceTitle(""); setResourceType("link"); setResourceUrl(""); setResourceContent(""); setResourceCategory("")
       setShowResourceDialog(false)
@@ -200,7 +205,9 @@ export default function EventHQPage() {
         body: JSON.stringify({ title: calTitle, type: calType, start_time: calStart, end_time: calEnd || undefined, location: calLocation || undefined, description: calDesc || undefined }),
       })
       const data = await res.json()
-      if (!data.success) throw new Error(data.error)
+      if (isFeatureUnavailableResponse(res.status, data))
+        throw new Error(featureUnavailableMessage(data, "Calendar is temporarily unavailable."))
+      if (!data.success) throw new Error(data.error || "Failed to add calendar item")
       setCalendarItems(prev => [...prev, data.item].sort((a: any, b: any) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime()))
       setCalTitle(""); setCalType("meeting"); setCalStart(""); setCalEnd(""); setCalLocation(""); setCalDesc("")
       setShowCalendarDialog(false)

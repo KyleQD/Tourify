@@ -1,4 +1,14 @@
-import { applyCursorPagination, decodeNewsCursor, encodeNewsCursor, rankNewsItem, sortNewsByScore } from '@/lib/news/ranking'
+import {
+  applyCursorPagination,
+  decodeNewsCursor,
+  encodeNewsCursor,
+  getEngagementValue,
+  rankNewsItem,
+  sortNewsByEngagement,
+  sortNewsByRecent,
+  sortNewsByScore,
+  sortNewsItems
+} from '@/lib/news/ranking'
 import type { NewsFeedItem } from '@/lib/news/types'
 
 function makeItem(overrides: Partial<NewsFeedItem> = {}): NewsFeedItem {
@@ -57,6 +67,29 @@ describe('news ranking', () => {
     const older = makeItem({ id: 'old', score: 0.8, publishedAt: '2026-01-01T00:00:00.000Z' })
     const sorted = sortNewsByScore([older, newer])
     expect(sorted[0].id).toBe('new')
+  })
+
+  it('sorts by engagement then published date', () => {
+    const high = makeItem({
+      id: 'high',
+      publishedAt: '2026-01-01T00:00:00.000Z',
+      metrics: { likes: 100, comments: 10, shares: 5, views: 1000 }
+    })
+    const low = makeItem({
+      id: 'low',
+      publishedAt: '2026-01-02T00:00:00.000Z',
+      metrics: { likes: 1, comments: 0, shares: 0, views: 10 }
+    })
+    const sorted = sortNewsByEngagement([low, high])
+    expect(sorted[0].id).toBe('high')
+    expect(getEngagementValue(high)).toBeGreaterThan(getEngagementValue(low))
+  })
+
+  it('sorts by recent published date', () => {
+    const newer = makeItem({ id: 'new', publishedAt: '2026-01-02T00:00:00.000Z', score: 0.1 })
+    const older = makeItem({ id: 'old', publishedAt: '2026-01-01T00:00:00.000Z', score: 0.9 })
+    expect(sortNewsByRecent([older, newer])[0].id).toBe('new')
+    expect(sortNewsItems([older, newer], 'recent')[0].id).toBe('new')
   })
 
   it('applies cursor pagination boundaries correctly', () => {

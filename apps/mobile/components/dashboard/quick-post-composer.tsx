@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Alert, Image, Modal, Pressable, Text, TextInput, View } from "react-native"
+import { ActivityIndicator, Alert, Modal, Pressable, Text, TextInput, View } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import * as DocumentPicker from "expo-document-picker"
 import { useSession } from "@/hooks/use-session"

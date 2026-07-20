@@ -1,0 +1,13 @@
+{
+  "proposalId": "uuid",
+  "objectorPartyId": "uuid",
+  "summary": "Material interoperability concern",
+  "grounds": [
+    "technical",
+    "procedural"
+  ],
+  "requestedChanges": [
+    "Add dual-version transition"
+  ],
+  "evidenceManifestId": "uuid"
+}

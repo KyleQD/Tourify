@@ -6,6 +6,8 @@ export type AdminCalendarKind =
   | 'production'
   | 'hiring'
 
+export type AdminCalendarScopeMode = 'tour' | 'event' | 'org'
+
 export type AdminCalendarPriority = 'low' | 'medium' | 'high' | 'urgent'
 
 export interface AdminCalendarItem {
@@ -25,12 +27,26 @@ export interface AdminCalendarItem {
   meta?: Record<string, unknown>
 }
 
+export interface AdminCalendarContext {
+  mode: AdminCalendarScopeMode
+  id: string | null
+  name: string | null
+  status: string | null
+  startDate: string | null
+  endDate: string | null
+  href: string | null
+  eventIds: string[]
+}
+
 export interface AdminCalendarFilters {
   startDate: string
   endDate: string
   types?: AdminCalendarKind[]
   status?: string
   priority?: AdminCalendarPriority
+  scope?: AdminCalendarScopeMode
+  tourId?: string
+  eventId?: string
 }
 
 export interface AdminCalendarSummary {
@@ -49,11 +65,33 @@ export interface AdminCalendarResponse {
   orgId: string | null
   filters: AdminCalendarFilters
   summary: AdminCalendarSummary
+  context: AdminCalendarContext | null
 }
 
 export const ADMIN_CALENDAR_KINDS: AdminCalendarKind[] = [
   'event',
   'tour',
+  'task',
+  'shift',
+  'production',
+  'hiring',
+]
+
+export const TOUR_SCOPE_KINDS: AdminCalendarKind[] = [
+  'event',
+  'task',
+  'shift',
+  'production',
+]
+
+export const EVENT_SCOPE_KINDS: AdminCalendarKind[] = [
+  'task',
+  'shift',
+  'production',
+]
+
+export const ORG_SCOPE_KINDS: AdminCalendarKind[] = [
+  'event',
   'task',
   'shift',
   'production',
@@ -69,6 +107,15 @@ export const KIND_LABELS: Record<AdminCalendarKind, string> = {
   hiring: 'Hiring',
 }
 
+export const SCOPED_KIND_LABELS: Record<AdminCalendarKind, string> = {
+  event: 'Shows',
+  tour: 'Tours',
+  task: 'Tasks',
+  shift: 'Shifts',
+  production: 'Production',
+  hiring: 'Hiring',
+}
+
 export const KIND_COLORS: Record<AdminCalendarKind, string> = {
   event: 'blue',
   tour: 'purple',
@@ -76,4 +123,10 @@ export const KIND_COLORS: Record<AdminCalendarKind, string> = {
   shift: 'indigo',
   production: 'emerald',
   hiring: 'pink',
+}
+
+export function kindsForScope(scope?: AdminCalendarScopeMode | null): AdminCalendarKind[] {
+  if (scope === 'tour') return [...TOUR_SCOPE_KINDS]
+  if (scope === 'event') return [...EVENT_SCOPE_KINDS]
+  return [...ORG_SCOPE_KINDS]
 }

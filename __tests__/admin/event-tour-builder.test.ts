@@ -73,7 +73,7 @@ describe("tour operations builder", () => {
     }
 
     const payload = buildTourBuilderPayload(form, { publish: true, readinessScore: 70 })
-    expect(payload.status).toBe("active")
+    expect(payload.status).toBe("planning")
     expect(payload.name).toBe("Texas Run")
     expect(payload.event_ids).toEqual(["existing-event"])
     expect(payload.events[0]).toMatchObject({

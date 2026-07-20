@@ -115,7 +115,7 @@ export function TicketGeneratorModal({ isOpen, onClose, eventId }: TicketGenerat
           </Button>
           {eventId ? (
             <Button asChild className="bg-cyan-600 hover:bg-cyan-700">
-              <Link href={`/admin/dashboard/events/${eventId}/check-in`}>
+              <Link href={`/venue/events/${eventId}/check-in`}>
                 <QrCode className="mr-2 h-4 w-4" />
                 Open scanner
               </Link>

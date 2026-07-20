@@ -2,7 +2,6 @@ import { useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -10,6 +9,7 @@ import {
   TextInput,
   View
 } from "react-native"
+import { Image } from "expo-image"
 import * as ImagePicker from "expo-image-picker"
 import { useRouter } from "expo-router"
 import { useSession } from "@/hooks/use-session"

@@ -112,7 +112,7 @@ export function SocialIntegrationsManager() {
       if (status === 'error') {
         toast.error(String((integration?.analytics as any)?.error || 'Sync failed — reconnect OAuth'))
       } else if (status === 'unsupported') {
-        toast.message('Connected — analytics for this platform are coming soon')
+        toast.message('Connected — analytics for this platform are not available')
       } else {
         toast.success('Platform sync completed')
       }

@@ -104,7 +104,7 @@ export function VenueSidebar() {
             <NavItem href="/venue/dashboard" icon={<Home className="h-4 w-4" />} label="Dashboard" />
             <NavItem href="/venue/events" icon={<Calendar className="h-4 w-4" />} label="Events" />
             <NavItem href="/venue/bookings" icon={<Clock className="h-4 w-4" />} label="Bookings" />
-            <NavItem href="/venue/team" icon={<Users className="h-4 w-4" />} label="Team" />
+            <NavItem href="/venue/staff" icon={<Users className="h-4 w-4" />} label="Team" />
             <NavItem href="/venue/messages" icon={<MessageSquare className="h-4 w-4" />} label="Messages" />
           </NavGroup>
 
@@ -118,13 +118,13 @@ export function VenueSidebar() {
 
           {/* Analytics */}
           <NavGroup title="Analytics">
-            <NavItem href="/venue/analytics/events" icon={<BarChart3 className="h-4 w-4" />} label="Event Analytics" />
+            <NavItem href="/venue/analytics" icon={<BarChart3 className="h-4 w-4" />} label="Event Analytics" />
             <NavItem
-              href="/venue/analytics/finances"
+              href="/venue/analytics"
               icon={<DollarSign className="h-4 w-4" />}
               label="Financial Reports"
             />
-            <NavItem href="/venue/analytics/audience" icon={<Users className="h-4 w-4" />} label="Audience Insights" />
+            <NavItem href="/venue/analytics" icon={<Users className="h-4 w-4" />} label="Audience Insights" />
           </NavGroup>
         </div>
       </ScrollArea>

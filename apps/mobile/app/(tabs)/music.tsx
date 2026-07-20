@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   RefreshControl,
   SafeAreaView,
@@ -10,6 +9,7 @@ import {
   Text,
   View,
 } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
 import * as WebBrowser from "expo-web-browser"
 import { MiniMusicPlayer } from "@/components/music/mini-player"

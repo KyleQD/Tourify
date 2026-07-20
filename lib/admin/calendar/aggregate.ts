@@ -1,14 +1,15 @@
 import type {
+  AdminCalendarContext,
   AdminCalendarFilters,
   AdminCalendarItem,
   AdminCalendarKind,
   AdminCalendarPriority,
+  AdminCalendarScopeMode,
   AdminCalendarSummary,
 } from './types'
 import { ADMIN_CALENDAR_KINDS } from './types'
 import {
   combineDateAndTime,
-  endOfDayIso,
   getCalendarItemColor,
   hrefForKind,
   toIsoOrNull,
@@ -21,6 +22,12 @@ export interface AggregateCalendarArgs {
   userId: string
   orgId: string | null
   filters: AdminCalendarFilters
+}
+
+export interface AggregateCalendarResult {
+  items: AdminCalendarItem[]
+  summary: AdminCalendarSummary
+  context: AdminCalendarContext | null
 }
 
 function shouldInclude(kind: AdminCalendarKind, types?: AdminCalendarKind[]): boolean {
@@ -54,6 +61,75 @@ function extractJsonDate(source: unknown, keys: string[]): string | null {
   return null
 }
 
+function resolveScopeMode(filters: AdminCalendarFilters): AdminCalendarScopeMode {
+  if (filters.scope === 'tour' || filters.scope === 'event' || filters.scope === 'org')
+    return filters.scope
+  if (filters.tourId) return 'tour'
+  if (filters.eventId) return 'event'
+  return 'org'
+}
+
+async function resolveTourEventIds(supabase: AnySupabase, tourId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('tour_events')
+    .select('event_id')
+    .eq('tour_id', tourId)
+
+  if (error) {
+    console.warn('[Admin Calendar] tour_events query error:', error.message)
+    return []
+  }
+
+  return (data || [])
+    .map((row: { event_id: string | null }) => row.event_id)
+    .filter((id: string | null): id is string => Boolean(id))
+}
+
+async function loadTourContext(
+  supabase: AnySupabase,
+  tourId: string,
+  eventIds: string[],
+): Promise<AdminCalendarContext> {
+  const { data: tour } = await supabase
+    .from('tours')
+    .select('id, name, status, start_date, end_date')
+    .eq('id', tourId)
+    .maybeSingle()
+
+  return {
+    mode: 'tour',
+    id: tourId,
+    name: tour?.name || 'Tour',
+    status: tour?.status || null,
+    startDate: tour?.start_date ? String(tour.start_date).slice(0, 10) : null,
+    endDate: tour?.end_date ? String(tour.end_date).slice(0, 10) : null,
+    href: hrefForKind('tour', tourId),
+    eventIds,
+  }
+}
+
+async function loadEventContext(
+  supabase: AnySupabase,
+  eventId: string,
+): Promise<AdminCalendarContext> {
+  const { data: event } = await supabase
+    .from('events_v2')
+    .select('id, title, status, start_at, end_at')
+    .eq('id', eventId)
+    .maybeSingle()
+
+  return {
+    mode: 'event',
+    id: eventId,
+    name: event?.title || 'Event',
+    status: event?.status || null,
+    startDate: event?.start_at ? String(event.start_at).slice(0, 10) : null,
+    endDate: event?.end_at ? String(event.end_at).slice(0, 10) : null,
+    href: hrefForKind('event', eventId),
+    eventIds: [eventId],
+  }
+}
+
 async function resolveOrgEventIds(supabase: AnySupabase, orgId: string | null, userId: string): Promise<string[]> {
   let query = supabase.from('events_v2').select('id')
   if (orgId) query = query.or(`org_id.eq.${orgId},created_by.eq.${userId}`)
@@ -64,23 +140,47 @@ async function resolveOrgEventIds(supabase: AnySupabase, orgId: string | null, u
 
 export async function aggregateAdminCalendarItems(
   args: AggregateCalendarArgs,
-): Promise<{ items: AdminCalendarItem[]; summary: AdminCalendarSummary }> {
+): Promise<AggregateCalendarResult> {
   const { supabase, userId, orgId, filters } = args
-  const { startDate, endDate, types, status, priority } = filters
+  const { startDate, endDate, types, status, priority, tourId, eventId } = filters
+  const scopeMode = resolveScopeMode(filters)
   const items: AdminCalendarItem[] = []
-  let orgEventIds: string[] = []
+
+  let scopedEventIds: string[] | null = null
+  let context: AdminCalendarContext | null = null
+
+  if (scopeMode === 'tour' && tourId) {
+    scopedEventIds = await resolveTourEventIds(supabase, tourId)
+    context = await loadTourContext(supabase, tourId, scopedEventIds)
+  } else if (scopeMode === 'event' && eventId) {
+    scopedEventIds = [eventId]
+    context = await loadEventContext(supabase, eventId)
+  } else {
+    context = {
+      mode: 'org',
+      id: null,
+      name: null,
+      status: null,
+      startDate: null,
+      endDate: null,
+      href: null,
+      eventIds: [],
+    }
+  }
 
   const wants = {
-    event: shouldInclude('event', types),
-    tour: shouldInclude('tour', types),
+    event: shouldInclude('event', types) && scopeMode !== 'event',
+    // Parent tour spans are never day-cell items; context chrome replaces them.
+    tour: false,
     task: shouldInclude('task', types),
     shift: shouldInclude('shift', types),
     production: shouldInclude('production', types),
-    hiring: shouldInclude('hiring', types),
+    // Hiring is org-overview only (no reliable tour/event FK for MVP).
+    hiring: shouldInclude('hiring', types) && scopeMode === 'org',
   }
 
-  // 1. Events
-  if (wants.event) {
+  // 1. Events / shows
+  if (wants.event && !(scopedEventIds && scopedEventIds.length === 0)) {
     try {
       let eventsQuery = supabase
         .from('events_v2')
@@ -88,6 +188,8 @@ export async function aggregateAdminCalendarItems(
         .gte('start_at', startDate)
         .lte('start_at', `${endDate}T23:59:59.999Z`)
 
+      if (scopedEventIds)
+        eventsQuery = eventsQuery.in('id', scopedEventIds)
       if (orgId) eventsQuery = eventsQuery.or(`org_id.eq.${orgId},created_by.eq.${userId}`)
       else eventsQuery = eventsQuery.eq('created_by', userId)
       if (status) eventsQuery = eventsQuery.eq('status', status)
@@ -96,7 +198,6 @@ export async function aggregateAdminCalendarItems(
       if (error) console.error('[Admin Calendar] Events query error:', error)
       else {
         for (const event of events || []) {
-          orgEventIds.push(event.id)
           const start = toIsoOrNull(event.start_at)
           if (!start) continue
           const end = toIsoOrNull(event.end_at) || start
@@ -118,7 +219,12 @@ export async function aggregateAdminCalendarItems(
             allDay: false,
             description: typeof settings.description === 'string' ? settings.description : null,
             location: typeof settings.venue_label === 'string' ? settings.venue_label : null,
-            meta: { capacity: event.capacity, venueId: event.venue_id },
+            meta: {
+              capacity: event.capacity,
+              venueId: event.venue_id,
+              tourId: tourId || null,
+              eventId: event.id,
+            },
           })
         }
       }
@@ -127,76 +233,29 @@ export async function aggregateAdminCalendarItems(
     }
   }
 
-  // Resolve org event IDs for production items when events were not loaded in-range
-  if (wants.production && orgEventIds.length === 0) {
+  // Resolve event IDs for production / child filters
+  let productionEventIds: string[] = []
+  if (scopedEventIds) {
+    productionEventIds = scopedEventIds
+  } else if (wants.production) {
     try {
-      orgEventIds = await resolveOrgEventIds(supabase, orgId, userId)
+      productionEventIds = await resolveOrgEventIds(supabase, orgId, userId)
     } catch (error) {
       console.warn('[Admin Calendar] Failed to resolve org event ids', error)
     }
-  } else if (wants.production && orgEventIds.length > 0) {
-    // Events query only returns in-range rows; production may need all org event IDs
-    try {
-      const allIds = await resolveOrgEventIds(supabase, orgId, userId)
-      if (allIds.length > 0) orgEventIds = allIds
-    } catch {
-      // keep in-range ids
-    }
   }
 
-  // 2. Tours (multi-day ranges overlapping the window)
-  if (wants.tour) {
-    try {
-      let toursQuery = supabase
-        .from('tours')
-        .select('id, name, description, start_date, end_date, status, budget, org_id, user_id, created_by')
-        .lte('start_date', endDate)
-        .gte('end_date', startDate)
-
-      if (orgId) toursQuery = toursQuery.eq('org_id', orgId)
-      else toursQuery = toursQuery.or(`user_id.eq.${userId},created_by.eq.${userId}`)
-      if (status) toursQuery = toursQuery.eq('status', status)
-
-      const { data: tours, error } = await toursQuery
-      if (error) console.error('[Admin Calendar] Tours query error:', error)
-      else {
-        for (const tour of tours || []) {
-          if (!tour.start_date) continue
-          const start = toIsoOrNull(tour.start_date) || `${tour.start_date}T00:00:00.000Z`
-          const end = tour.end_date
-            ? endOfDayIso(String(tour.end_date).slice(0, 10))
-            : endOfDayIso(String(tour.start_date).slice(0, 10))
-          const itemPriority: AdminCalendarPriority = tour.budget && Number(tour.budget) > 100000 ? 'high' : 'medium'
-          pushItem(items, {
-            id: `tour-${tour.id}`,
-            sourceId: tour.id,
-            kind: 'tour',
-            title: tour.name || 'Untitled tour',
-            start,
-            end,
-            status: tour.status || 'planning',
-            priority: itemPriority,
-            href: hrefForKind('tour', tour.id),
-            color: getCalendarItemColor('tour', itemPriority),
-            allDay: true,
-            description: tour.description || null,
-            meta: { budget: tour.budget },
-          })
-        }
-      }
-    } catch (error) {
-      console.warn('[Admin Calendar] Tours table missing or error, skipping', error)
-    }
-  }
-
-  // 3a. Generic tasks
-  if (wants.task) {
+  // 3a. Generic tasks (event-linked)
+  if (wants.task && !(scopedEventIds && scopedEventIds.length === 0)) {
     try {
       let tasksQuery = supabase
         .from('tasks')
         .select('id, title, description, status, priority, due_at, created_at, created_by, org_id, event_id')
         .gte('due_at', startDate)
         .lte('due_at', `${endDate}T23:59:59.999Z`)
+
+      if (scopedEventIds)
+        tasksQuery = tasksQuery.in('event_id', scopedEventIds)
 
       if (orgId) tasksQuery = tasksQuery.eq('org_id', orgId)
       else tasksQuery = tasksQuery.eq('created_by', userId)
@@ -225,21 +284,37 @@ export async function aggregateAdminCalendarItems(
             color: getCalendarItemColor('task', itemPriority),
             allDay: false,
             description: task.description || null,
-            meta: { source: 'tasks' },
+            meta: {
+              source: 'tasks',
+              eventId: task.event_id || null,
+              tourId: tourId || null,
+            },
           })
         }
       }
     } catch (error) {
       console.error('[Admin Calendar] Tasks fetch error:', error)
     }
+  }
+
+  if (wants.task) {
 
     // 3b. Logistics tasks
     try {
       let logisticsQuery = supabase
         .from('logistics_tasks')
-        .select('id, title, description, status, priority, due_date, assigned_to_user_id, created_at, type, org_id, event_id')
+        .select('id, title, description, status, priority, due_date, assigned_to_user_id, created_at, type, org_id, event_id, tour_id')
         .gte('due_date', startDate)
         .lte('due_date', endDate)
+
+      if (scopeMode === 'tour' && tourId) {
+        if (scopedEventIds && scopedEventIds.length > 0)
+          logisticsQuery = logisticsQuery.or(`tour_id.eq.${tourId},event_id.in.(${scopedEventIds.join(',')})`)
+        else
+          logisticsQuery = logisticsQuery.eq('tour_id', tourId)
+      } else if (scopeMode === 'event' && eventId) {
+        logisticsQuery = logisticsQuery.eq('event_id', eventId)
+      }
 
       if (orgId) logisticsQuery = logisticsQuery.eq('org_id', orgId)
       if (status) logisticsQuery = logisticsQuery.eq('status', status)
@@ -264,21 +339,171 @@ export async function aggregateAdminCalendarItems(
             priority: itemPriority,
             href: task.event_id
               ? `/admin/dashboard/events/${task.event_id}`
-              : hrefForKind('task', task.id),
+              : tourId || task.tour_id
+                ? hrefForKind('tour', tourId || task.tour_id)
+                : hrefForKind('task', task.id),
             color: getCalendarItemColor('task', itemPriority),
             allDay: true,
             description: task.description || null,
-            meta: { source: 'logistics_tasks', type: task.type },
+            meta: {
+              source: 'logistics_tasks',
+              type: task.type,
+              eventId: task.event_id || null,
+              tourId: task.tour_id || tourId || null,
+            },
           })
         }
       }
     } catch (error) {
       console.warn('[Admin Calendar] logistics_tasks missing or error, skipping', error)
     }
+
+    // 3c. Travel / lodging / catering windows (permission-filtered by event/tour scope)
+    try {
+      const applyTravelScope = (query: any) => {
+        let q = query
+        if (scopeMode === 'tour' && tourId) {
+          if (scopedEventIds && scopedEventIds.length > 0)
+            q = q.or(`tour_id.eq.${tourId},event_id.in.(${scopedEventIds.join(',')})`)
+          else
+            q = q.eq('tour_id', tourId)
+        } else if (scopeMode === 'event' && eventId) {
+          q = q.eq('event_id', eventId)
+        }
+        return q
+      }
+
+      let transportQuery = applyTravelScope(
+        supabase
+          .from('ground_transportation_coordination')
+          .select('id, pickup_location, dropoff_location, pickup_time, estimated_dropoff_time, status, event_id, tour_id')
+          .gte('pickup_time', startDate)
+          .lte('pickup_time', endDate)
+      )
+      const { data: transportRows } = await transportQuery
+      for (const row of transportRows || []) {
+        const start = toIsoOrNull(row.pickup_time)
+        if (!start) continue
+        pushItem(items, {
+          id: `logistics-transport-${row.id}`,
+          sourceId: row.id,
+          kind: 'task',
+          title: `Transport: ${row.pickup_location} → ${row.dropoff_location}`,
+          start,
+          end: toIsoOrNull(row.estimated_dropoff_time) || start,
+          status: row.status || 'scheduled',
+          priority: 'medium',
+          href: '/admin/dashboard/logistics?tab=transportation',
+          color: getCalendarItemColor('task', 'medium'),
+          allDay: false,
+          meta: {
+            source: 'ground_transportation_coordination',
+            eventId: row.event_id || null,
+            tourId: row.tour_id || tourId || null,
+          },
+        })
+      }
+
+      let flightQuery = applyTravelScope(
+        supabase
+          .from('flight_coordination')
+          .select('id, airline, flight_number, departure_airport, arrival_airport, departure_time, arrival_time, status, event_id, tour_id')
+          .gte('departure_time', startDate)
+          .lte('departure_time', endDate)
+      )
+      const { data: flightRows } = await flightQuery
+      for (const row of flightRows || []) {
+        const start = toIsoOrNull(row.departure_time)
+        if (!start) continue
+        pushItem(items, {
+          id: `logistics-flight-${row.id}`,
+          sourceId: row.id,
+          kind: 'task',
+          title: `Flight: ${row.airline} ${row.flight_number}`,
+          start,
+          end: toIsoOrNull(row.arrival_time) || start,
+          status: row.status || 'scheduled',
+          priority: 'high',
+          href: '/admin/dashboard/logistics?tab=accommodations',
+          color: getCalendarItemColor('task', 'high'),
+          allDay: false,
+          description: `${row.departure_airport} → ${row.arrival_airport}`,
+          meta: {
+            source: 'flight_coordination',
+            eventId: row.event_id || null,
+            tourId: row.tour_id || tourId || null,
+          },
+        })
+      }
+
+      let lodgingQuery = applyTravelScope(
+        supabase
+          .from('lodging_bookings')
+          .select('id, primary_guest_name, check_in_date, check_out_date, status, event_id, tour_id')
+          .gte('check_in_date', startDate.slice(0, 10))
+          .lte('check_in_date', endDate.slice(0, 10))
+      )
+      const { data: lodgingRows } = await lodgingQuery
+      for (const row of lodgingRows || []) {
+        const start = combineDateAndTime(String(row.check_in_date).slice(0, 10))
+        if (!start) continue
+        pushItem(items, {
+          id: `logistics-lodging-${row.id}`,
+          sourceId: row.id,
+          kind: 'task',
+          title: `Hotel: ${row.primary_guest_name || 'Booking'}`,
+          start,
+          end: combineDateAndTime(String(row.check_out_date).slice(0, 10)) || start,
+          status: row.status || 'confirmed',
+          priority: 'medium',
+          href: '/admin/dashboard/logistics?tab=accommodations',
+          color: getCalendarItemColor('task', 'medium'),
+          allDay: true,
+          meta: {
+            source: 'lodging_bookings',
+            eventId: row.event_id || null,
+            tourId: row.tour_id || tourId || null,
+          },
+        })
+      }
+
+      let cateringQuery = applyTravelScope(
+        supabase
+          .from('catering_services')
+          .select('id, title, window_start, window_end, status, event_id, tour_id')
+          .gte('window_start', startDate)
+          .lte('window_start', endDate)
+      )
+      const { data: cateringRows } = await cateringQuery
+      for (const row of cateringRows || []) {
+        const start = toIsoOrNull(row.window_start)
+        if (!start) continue
+        pushItem(items, {
+          id: `logistics-catering-${row.id}`,
+          sourceId: row.id,
+          kind: 'task',
+          title: `Catering: ${row.title}`,
+          start,
+          end: toIsoOrNull(row.window_end) || start,
+          status: row.status || 'requested',
+          priority: 'medium',
+          href: '/admin/dashboard/logistics?tab=catering',
+          color: getCalendarItemColor('task', 'medium'),
+          allDay: false,
+          meta: {
+            source: 'catering_services',
+            eventId: row.event_id || null,
+            tourId: row.tour_id || tourId || null,
+          },
+        })
+      }
+    } catch (error) {
+      console.warn('[Admin Calendar] logistics travel/catering windows skipped', error)
+    }
   }
 
   // 4. Staff shifts
-  if (wants.shift) {
+  if (wants.shift && !(scopedEventIds && scopedEventIds.length === 0)) {
     try {
       let shiftsQuery = supabase
         .from('staff_shifts')
@@ -286,6 +511,8 @@ export async function aggregateAdminCalendarItems(
         .gte('shift_date', startDate)
         .lte('shift_date', endDate)
 
+      if (scopedEventIds)
+        shiftsQuery = shiftsQuery.in('event_id', scopedEventIds)
       if (orgId) shiftsQuery = shiftsQuery.eq('org_id', orgId)
       if (status) shiftsQuery = shiftsQuery.eq('status', status)
 
@@ -313,6 +540,7 @@ export async function aggregateAdminCalendarItems(
               eventId: shift.event_id,
               venueId: shift.venue_id,
               staffMemberId: shift.staff_member_id,
+              tourId: tourId || null,
             },
           })
         }
@@ -325,7 +553,7 @@ export async function aggregateAdminCalendarItems(
   // 5. Event HQ production calendar items
   if (wants.production) {
     try {
-      const eventIds = orgEventIds
+      const eventIds = productionEventIds
       if (eventIds.length > 0) {
         const { data: productionItems, error } = await supabase
           .from('event_calendar_items')
@@ -354,7 +582,12 @@ export async function aggregateAdminCalendarItems(
               allDay: Boolean(item.is_all_day),
               description: item.description || null,
               location: item.location || null,
-              meta: { productionType: item.type, calendarItemId: item.id },
+              meta: {
+                productionType: item.type,
+                calendarItemId: item.id,
+                eventId: item.event_id,
+                tourId: tourId || null,
+              },
             })
           }
         }
@@ -364,7 +597,7 @@ export async function aggregateAdminCalendarItems(
     }
   }
 
-  // 6. Hiring — interviews / offers / posting deadlines
+  // 6. Hiring — interviews / offers / posting deadlines (org overview only)
   if (wants.hiring) {
     try {
       let appsQuery = supabase
@@ -376,7 +609,6 @@ export async function aggregateAdminCalendarItems(
 
       const { data: applications, error } = await appsQuery
       if (error) {
-        // Fallback without dedicated date columns
         let fallbackQuery = supabase
           .from('job_applications')
           .select('id, applicant_name, status, interview_scheduled, offer_made, offer_details, form_responses, applied_at, employer_entity_id, job_posting_id')
@@ -474,7 +706,6 @@ export async function aggregateAdminCalendarItems(
       console.warn('[Admin Calendar] hiring applications missing or error, skipping', error)
     }
 
-    // Job posting deadlines (application_deadline / closes_at / metadata)
     try {
       let postingsQuery = supabase
         .from('organization_job_postings')
@@ -487,7 +718,6 @@ export async function aggregateAdminCalendarItems(
       const { data: postings, error } = await postingsQuery
       if (error) console.warn('[Admin Calendar] organization_job_postings query error:', error.message)
       else {
-        // Soft secondary query for deadline columns if present via RPC-less select *
         for (const posting of postings || []) {
           const deadline =
             toIsoOrNull((posting as { application_deadline?: string }).application_deadline)
@@ -526,7 +756,7 @@ export async function aggregateAdminCalendarItems(
       summary[item.kind] += 1
   }
 
-  return { items, summary }
+  return { items, summary, context }
 }
 
 export async function resolveCalendarOrgId(

@@ -79,13 +79,20 @@ describe('notification hydration', () => {
     expect(hydrated[1].related_user).toBeNull()
   })
 
-  it('does not use the invalid notifications_related_user_id_fkey embed path', () => {
-    // Guard: fetch helper must select '*' then hydrate separately.
-    // This test documents the contract that hydration is client-side.
-    const source = `
-      .from('notifications')
-      .select('*')
-    `
-    expect(source).not.toContain('profiles!notifications_related_user_id_fkey')
+  it('does not use the invalid notifications_related_user_id_fkey embed path', async () => {
+    const { readFile } = await import('node:fs/promises')
+    const fetchPath = new URL(
+      '../../lib/notifications/fetch-user-notifications.ts',
+      import.meta.url
+    )
+    const servicePath = new URL(
+      '../../lib/services/optimized-notification-service.ts',
+      import.meta.url
+    )
+    const fetchText = await readFile(fetchPath, 'utf8')
+    const serviceText = await readFile(servicePath, 'utf8')
+
+    expect(fetchText).not.toContain('profiles!notifications_related_user_id_fkey')
+    expect(serviceText).not.toContain('profiles!notifications_related_user_id_fkey')
   })
 })

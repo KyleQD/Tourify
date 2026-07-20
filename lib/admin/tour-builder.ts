@@ -187,7 +187,9 @@ export function buildTourBuilderPayload(
   form: TourBuilderFormState,
   options: { publish?: boolean; readinessScore?: number } = {}
 ) {
-  const status = options.publish ? "active" : form.status || "planning"
+  // Publishing is a separate server-side command. The save preceding it must
+  // not activate a draft or bypass readiness/capability checks.
+  const status = form.status || "planning"
   const populatedStops = form.stops.filter((stop) => stop.name || stop.venue || stop.date)
   const routing = form.stops.map((stop, index) => ({
     order: index + 1,

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Copy, FileText, Loader2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react"
+import { Briefcase, Copy, FileText, Loader2, Pencil, Plus, ShieldCheck, Sparkles, Trash2 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -83,6 +83,35 @@ export function TemplateLibrary({ employer }: TemplateLibraryProps) {
     }
   }
 
+  async function seedRolePacks() {
+    setBusyId("role-packs")
+    try {
+      const response = await fetch(`/api/admin/onboarding/templates/role-packs?${queryString}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ entity_type: employer.entityType, entity_id: employer.entityId }),
+      })
+      const payload = await response.json()
+      if (!response.ok) throw new Error(getPayloadError(payload) ?? "Unable to seed role packs")
+      const createdCount = Array.isArray(payload.data) ? payload.data.length : 0
+      toast({
+        title: createdCount ? "Role packs added" : "Role packs already present",
+        description: createdCount
+          ? `${createdCount} starter pack${createdCount === 1 ? "" : "s"} cloned into your account.`
+          : "Your account already has matching templates.",
+      })
+      await fetchTemplates()
+    } catch (seedError) {
+      toast({
+        title: "Could not add role packs",
+        description: seedError instanceof Error ? seedError.message : "Unable to seed role packs",
+        variant: "destructive",
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
   async function deleteTemplate(templateId: string) {
     setBusyId(templateId)
     try {
@@ -116,11 +145,26 @@ export function TemplateLibrary({ employer }: TemplateLibraryProps) {
           <CardTitle className="text-white">Onboarding templates</CardTitle>
           <CardDescription>Forms and agreements sent to a worker once they are approved.</CardDescription>
         </div>
-        <Button className="rounded-xl" asChild>
-          <a href={`/admin/dashboard/hiring/templates/new?${queryString}`}>
-            <Plus className="mr-2 h-4 w-4" /> Create template
-          </a>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            className="rounded-xl"
+            variant="outline"
+            disabled={busyId === "role-packs"}
+            onClick={() => void seedRolePacks()}
+          >
+            {busyId === "role-packs" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-4 w-4" />
+            )}
+            Add role packs
+          </Button>
+          <Button className="rounded-xl" asChild>
+            <a href={`/admin/dashboard/hiring/templates/new?${queryString}`}>
+              <Plus className="mr-2 h-4 w-4" /> Create template
+            </a>
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -211,6 +255,13 @@ function TemplateSection({ title, description, templates, queryString, busyId, e
                 </Button>
                 {!isGlobal ? (
                   <>
+                    <Button className="rounded-xl" variant="outline" size="sm" asChild>
+                      <a
+                        href={`/admin/dashboard/jobs/new?${queryString}&onboarding_template_id=${template.id}`}
+                      >
+                        <Briefcase className="mr-1 h-3 w-3" /> Use on job
+                      </a>
+                    </Button>
                     <Button className="rounded-xl" variant="outline" size="sm" asChild>
                       <a href={`/admin/dashboard/hiring/templates/${template.id}?${queryString}`}>
                         <Pencil className="mr-1 h-3 w-3" /> Edit

@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, Disc3, FileText, Globe2, MessageCircle, Sparkles } from 'lucide-react'
+import { CalendarDays, Disc3, FileText, Globe2, MessageCircle, Newspaper, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { NewsCategory } from '@/lib/news/types'
 
@@ -11,6 +11,7 @@ interface NewsFiltersProps {
 
 const FILTERS: Array<{ value: NewsCategory; label: string; icon: LucideIcon }> = [
   { value: 'featured', label: 'Featured', icon: Sparkles },
+  { value: 'articles', label: 'Articles', icon: Newspaper },
   { value: 'new-music', label: 'New Music', icon: Disc3 },
   { value: 'events', label: 'Events', icon: CalendarDays },
   { value: 'gossip', label: 'Gossip', icon: MessageCircle },

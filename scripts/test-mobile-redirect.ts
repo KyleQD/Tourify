@@ -26,12 +26,16 @@ function run() {
   runTest('allows custom app scheme redirect base', () => {
     assert.equal(getSafeMobileRedirectBase('tourify://discover'), 'tourify://discover')
     assert.equal(getSafeMobileRedirectBase('tourify://(tabs)/discover'), 'tourify://(tabs)/discover')
+    assert.equal(getSafeMobileRedirectBase('tourify://reset-password'), 'tourify://reset-password')
+    assert.equal(getSafeMobileRedirectBase('tourify://checkout'), 'tourify://checkout')
     assert.equal(getSafeMobileRedirectBase('TOURIFY://discover'), 'TOURIFY://discover')
     assert.equal(getSafeMobileRedirectBase('  tourify://discover  '), 'tourify://discover')
   })
 
   runTest('allows exact https tourify app host', () => {
     assert.equal(getSafeMobileRedirectBase('https://tourify.app/auth/callback'), 'https://tourify.app/auth/callback')
+    assert.equal(getSafeMobileRedirectBase('https://tourify.app/reset-password'), 'https://tourify.app/reset-password')
+    assert.equal(getSafeMobileRedirectBase('https://tourify.app/checkout'), 'https://tourify.app/checkout')
   })
 
   runTest('rejects lookalike https hosts and falls back', () => {

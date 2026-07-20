@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-07-18T01:25:11.813308+00:00",
+  "taskCount": 196,
+  "stageCount": 14,
+  "numberedDocumentCount": 37,
+  "checks": {
+    "executionPlanSchema": "pass",
+    "uniqueTaskIds": "pass",
+    "dependencyIds": "pass",
+    "canonicalGuideCopied": "pass",
+    "phase6HandoffCopied": "pass"
+  }
+}

@@ -1,11 +1,12 @@
+'use client'
+
 import { useState, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Camera, Upload, X, Image as ImageIcon } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/contexts/auth-context'
+import { notifyProfileImagesUpdated } from '@/lib/profile/profile-image-events'
 
 interface ImageUploadProps {
   type: 'avatar' | 'header'
@@ -20,48 +21,41 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { user } = useAuth()
-  
 
   const isAvatar = type === 'avatar'
   const aspectRatio = isAvatar ? 'aspect-square' : 'aspect-[3/1]'
-  const maxSize = isAvatar ? 4 * 1024 * 1024 : 4 * 1024 * 1024 // 4MB for both avatar and header
+  const maxSize = 4 * 1024 * 1024
   const acceptedTypes = ['image/jpeg', 'image/png', 'image/webp']
 
   const handleFileSelect = async (file: File) => {
     if (!file || !user) return
 
-    // Validate file type
     if (!acceptedTypes.includes(file.type)) {
       alert('Please select a valid image file (JPEG, PNG, or WebP)')
       return
     }
 
-    // Validate file size
     if (file.size > maxSize) {
       alert(`File size must be less than ${maxSize / (1024 * 1024)}MB`)
       return
     }
 
-    // Create preview
     const reader = new FileReader()
     reader.onload = (e) => {
       setPreviewUrl(e.target?.result as string)
     }
     reader.readAsDataURL(file)
 
-    // Upload using server-side API
     setUploading(true)
     try {
-      console.log('Starting upload for user:', user.id)
-      console.log('File details:', { name: file.name, size: file.size, type: file.type })
-
       const formData = new FormData()
       formData.append('file', file)
       formData.append('type', type)
 
       const response = await fetch('/api/upload-profile-image', {
         method: 'POST',
-        body: formData
+        credentials: 'include',
+        body: formData,
       })
 
       const result = await response.json()
@@ -69,20 +63,21 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
       if (!result.success) {
         console.error('Upload failed:', result.error)
         alert(`Failed to upload image: ${result.error}`)
+        setPreviewUrl(null)
         return
       }
 
-      console.log('Upload successful:', result.url)
       onImageChange(result.url)
       setPreviewUrl(null)
+      notifyProfileImagesUpdated({
+        avatarUrl: type === 'avatar' ? result.url : undefined,
+        coverUrl: type === 'header' ? result.url : undefined,
+        source: 'image-upload',
+      })
     } catch (error) {
       console.error('Upload error:', error)
-      console.error('Error details:', {
-        name: error instanceof Error ? error.name : 'Unknown',
-        message: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined
-      })
-              alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      alert(`Failed to upload image: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setPreviewUrl(null)
     } finally {
       setUploading(false)
     }
@@ -91,11 +86,8 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
-    }
+    if (e.type === 'dragenter' || e.type === 'dragover') setDragActive(true)
+    else if (e.type === 'dragleave') setDragActive(false)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -103,15 +95,11 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
     e.stopPropagation()
     setDragActive(false)
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0])
-    }
+    if (e.dataTransfer.files?.[0]) handleFileSelect(e.dataTransfer.files[0])
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileSelect(e.target.files[0])
-    }
+    if (e.target.files?.[0]) handleFileSelect(e.target.files[0])
   }
 
   const removeImage = async () => {
@@ -119,23 +107,9 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
 
     setUploading(true)
     try {
-      // Update profile to remove image URL using server-side API
-      const response = await fetch('/api/profile/update-appearance', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          profileColors: { primary: '#10b981', secondary: '#059669', accent: '#34d399' },
-          selectedTheme: 'emerald',
-          darkMode: true,
-          animations: true,
-          glowEffects: true,
-          profileImages: {
-            avatarUrl: type === 'avatar' ? '' : currentImageUrl || '',
-            headerUrl: type === 'header' ? '' : currentImageUrl || ''
-          }
-        }),
+      const response = await fetch(`/api/upload-profile-image?type=${type}`, {
+        method: 'DELETE',
+        credentials: 'include',
       })
 
       const result = await response.json()
@@ -147,6 +121,12 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
       }
 
       onImageChange('')
+      setPreviewUrl(null)
+      notifyProfileImagesUpdated({
+        avatarUrl: type === 'avatar' ? null : undefined,
+        coverUrl: type === 'header' ? null : undefined,
+        source: 'image-upload-remove',
+      })
     } catch (error) {
       console.error('Error removing image:', error)
       alert('Failed to remove image. Please try again.')
@@ -213,9 +193,7 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
                 <p className="text-white/60 text-sm mb-2">
                   {isAvatar ? 'Upload your profile picture' : 'Upload a header photo'}
                 </p>
-                <p className="text-white/40 text-xs">
-                  Drag & drop or click to browse
-                </p>
+                <p className="text-white/40 text-xs">Drag & drop or click to browse</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -232,7 +210,7 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
             {uploading && (
               <div className="absolute inset-0 bg-black/60 backdrop-blur rounded-2xl flex items-center justify-center">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-2"></div>
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-2" />
                   <p className="text-white text-sm">Uploading...</p>
                 </div>
               </div>
@@ -257,4 +235,4 @@ export function ImageUpload({ type, currentImageUrl, onImageChange, className }:
       </CardContent>
     </Card>
   )
-} 
+}

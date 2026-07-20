@@ -1,0 +1,7 @@
+{
+  "eventId": "relationship-status-001",
+  "agreementReference": "EXTERNAL-EXAMPLE",
+  "status": "effective",
+  "effectiveAt": "2026-07-18T00:00:00Z",
+  "signature": "EXAMPLE_ONLY"
+}

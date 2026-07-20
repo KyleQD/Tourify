@@ -55,6 +55,7 @@ function normalizeTemplateRow(row: DbTemplateRow): StaffOnboardingTemplate {
     is_default: typeof row.is_default === "boolean" ? row.is_default : null,
     parent_template_id: typeof row.parent_template_id === "string" ? row.parent_template_id : null,
     use_count: typeof row.use_count === "number" ? row.use_count : null,
+    version: typeof row.version === "number" ? row.version : 1,
     created_at: typeof row.created_at === "string" ? row.created_at : null,
     updated_at: typeof row.updated_at === "string" ? row.updated_at : null,
   }

@@ -666,6 +666,10 @@ export function PublicArtistPage({ dto, username }: { dto: PublicArtistPageDTO; 
           full_name: hero.artistName,
           avatar_url: hero.avatarUrl || undefined,
         }}
+        recipientAccount={{
+          profileId: hero.artistId,
+          accountType: 'artist',
+        }}
       />
     </PublicProfileLayout>
   )

@@ -10,6 +10,7 @@
 
 import { OptimizedNotificationService } from "@/lib/services/optimized-notification-service"
 import { postApplicantHiringMessage } from "@/lib/rebuild/hiring-applicant-comms"
+import { generalNotificationTarget } from "@/lib/notifications/notification-target"
 
 export interface OnboardingInviteNotificationContext {
   applicantUserId: string
@@ -81,6 +82,7 @@ export async function sendOnboardingInviteNotification(
       title,
       content: lines.join(" "),
       priority: "high",
+      ...generalNotificationTarget(applicantUserId),
       metadata: {
         candidate_id: candidateId,
         onboarding_url: onboardingUrl ?? null,

@@ -123,6 +123,15 @@ export async function GET(request: NextRequest) {
             allowLibraryAdd: track.allow_library_add !== false,
             allowProfileFeature: track.allow_profile_feature !== false,
             listingId: listingIdByTrackId[String(track.id)] || null,
+            trust: {
+              originStatus: track.origin_status || 'not_recorded',
+              certificationStatus: track.certification_status || 'not_requested',
+              certificationLevel: track.certification_level || 0,
+              certificationPublicId: track.certification_status === 'approved' ? track.certification_public_id || null : null,
+              label: track.certification_status === 'approved' && Number(track.certification_level || 0) > 0
+                ? 'Human-created certified'
+                : track.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+            },
           },
           relevance_score: 0.9,
         }
@@ -152,7 +161,7 @@ async function fallbackFromArtistMusic(
 ) {
   let query = supabase
     .from('artist_music')
-    .select('id, user_id, title, description, genre, duration, file_url, cover_art_url, tags, created_at, stats, is_public, is_visible, moderation_status, rights_confirmed, access_mode, preview_mode, preview_duration_seconds, allow_library_add, allow_profile_feature')
+    .select('id, user_id, title, description, genre, duration, file_url, cover_art_url, tags, created_at, stats, is_public, is_visible, moderation_status, rights_confirmed, access_mode, preview_mode, preview_duration_seconds, allow_library_add, allow_profile_feature, origin_status, certification_status, certification_level, certification_public_id')
     .eq('is_public', true)
     .eq('is_visible', true)
     .eq('moderation_status', 'approved')
@@ -255,6 +264,15 @@ async function fallbackFromArtistMusic(
         allowLibraryAdd: track.allow_library_add !== false,
         allowProfileFeature: track.allow_profile_feature !== false,
         listingId: listingIdByTrackId[String(track.id)] || null,
+        trust: {
+          originStatus: track.origin_status || 'not_recorded',
+          certificationStatus: track.certification_status || 'not_requested',
+          certificationLevel: track.certification_level || 0,
+          certificationPublicId: track.certification_status === 'approved' ? track.certification_public_id || null : null,
+          label: track.certification_status === 'approved' && Number(track.certification_level || 0) > 0
+            ? 'Human-created certified'
+            : track.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+        },
       },
       relevance_score: 0.8,
       _engagement_total: likes + plays + shares + comments,

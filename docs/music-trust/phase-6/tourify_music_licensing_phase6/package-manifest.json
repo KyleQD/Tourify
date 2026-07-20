@@ -1,0 +1,322 @@
+{
+  "package": "tourify-music-licensing-phase6",
+  "generatedAt": "2026-07-18T01:09:28.520573+00:00",
+  "fileCount": 64,
+  "files": [
+    {
+      "path": "00_PHASE_6_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "sizeBytes": 5487,
+      "sha256": "ae6184ec06babd6364bc53a1930e056c69c7661fb5326ac3c2d6a7960a6d60b1"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_USER_JOURNEYS.md",
+      "sizeBytes": 5334,
+      "sha256": "3056ff9f522839d422f7d334852ea1cfc5196179f8c0d8100bc57199fab42170"
+    },
+    {
+      "path": "02_LICENSE_TAXONOMY_AND_TRANSACTION_CLASSIFICATION.md",
+      "sizeBytes": 5105,
+      "sha256": "132943577aadcbaad5e7729f5d7ff14c12d450900795d2fbee8d138d02c000ca"
+    },
+    {
+      "path": "03_PARTICIPANTS_IDENTITY_AUTHORITY_AND_MANDATES.md",
+      "sizeBytes": 4739,
+      "sha256": "91eeaeeffde863352610430043a2f61ac926eea4a7e3e5f3e701c6b550e16506"
+    },
+    {
+      "path": "04_CATALOG_ASSET_AND_LICENSE_AVAILABILITY.md",
+      "sizeBytes": 4594,
+      "sha256": "b20ef65db6b390353dd0749be10febc5773274112f8d5084149aea24fc723485"
+    },
+    {
+      "path": "05_RIGHTS_CLEARANCE_GRAPH_AND_APPROVAL_MATRIX.md",
+      "sizeBytes": 4506,
+      "sha256": "6374620c0c1a228e0c616c10327f50df23462a92805524d018ad4466d6c9fc62"
+    },
+    {
+      "path": "06_BUYER_BRIEFS_MUSIC_SUPERVISION_AND_PROJECT_WORKSPACES.md",
+      "sizeBytes": 4547,
+      "sha256": "d8c528dc0ac25709221a97427ab28e7c933bca387462752209f03ddba429ad0d"
+    },
+    {
+      "path": "07_RIGHTS_AWARE_SEARCH_DISCOVERY_AND_MATCHING.md",
+      "sizeBytes": 4364,
+      "sha256": "f16b7820819523703e577ec4442b4c427c95d86f68a8fe0f0a47b136b98bbb13"
+    },
+    {
+      "path": "08_REQUEST_QUOTE_NEGOTIATION_AND_APPROVALS.md",
+      "sizeBytes": 4280,
+      "sha256": "427f03d6d4feefca6482ebb4b8b4b8ed46fb6ab8b827081f9720524699423ddb"
+    },
+    {
+      "path": "09_SYNC_MASTER_USE_AND_AUDIOVISUAL_LICENSING.md",
+      "sizeBytes": 4414,
+      "sha256": "4159a37efea7a940793eb0b76aba403c086457e1c5fe1c74d2da2ac485e0ce3c"
+    },
+    {
+      "path": "10_MECHANICAL_COVERS_PHONORECORD_AND_DSP_LICENSING.md",
+      "sizeBytes": 4380,
+      "sha256": "3de54420cb1816455a827990a4b982c73942e53d312819ee7a8573158fd8a967"
+    },
+    {
+      "path": "11_SAMPLES_INTERPOLATIONS_REMIXES_STEMS_DERIVATIVE_WORKS.md",
+      "sizeBytes": 4359,
+      "sha256": "40c6d873e9d25f400f314b12b675318559938576ec0a2a5e2b02e18baee8cb76"
+    },
+    {
+      "path": "12_UGC_SOCIAL_CREATOR_AND_PLATFORM_LICENSING.md",
+      "sizeBytes": 4316,
+      "sha256": "1e0c312aeee84b6da262dad6038fb9150405dbafac97f3c8c8df367e50e7db73"
+    },
+    {
+      "path": "13_LIVE_VENUE_PUBLIC_PERFORMANCE_AND_EVENT_USE.md",
+      "sizeBytes": 4257,
+      "sha256": "47e9dc69595f639f861c4d31455cdc87b3bae06ea53c61b5d135e0429bacaf01"
+    },
+    {
+      "path": "14_BRAND_ADVERTISING_SPONSORSHIP_AND_EXPERIENTIAL.md",
+      "sizeBytes": 4028,
+      "sha256": "26b567b79d8a421e4d74a1b9ecebc7a7ef751c1b3778a2b745a2a5b30c5daf2f"
+    },
+    {
+      "path": "15_FILM_TV_GAMES_PODCASTS_AND_TRAILERS.md",
+      "sizeBytes": 4171,
+      "sha256": "756aef821fa24655be8451726818a0ddb46b9a68112a4a4f661bca0d58ef84a7"
+    },
+    {
+      "path": "16_NEIGHBORING_RIGHTS_BROADCAST_AND_COLLECTIVE_LICENSING.md",
+      "sizeBytes": 4199,
+      "sha256": "19caca5fafe550b5ff4019ebd3d55a8de5186b70d23448082e91ca84d50b74d0"
+    },
+    {
+      "path": "17_AI_TRAINING_MODEL_OUTPUT_AND_SYNTHETIC_VOICE_LICENSING.md",
+      "sizeBytes": 4601,
+      "sha256": "530d694c6db2d7d4d356120ce5080a7ecc8278555082ea61834938dfb681c239"
+    },
+    {
+      "path": "18_GLOBAL_TERRITORIES_CMOS_SUBPUBLISHING_AND_MANDATES.md",
+      "sizeBytes": 4189,
+      "sha256": "bc2a60dda9135592775b9f1e4bcc7fb1111118dd98b1d498b4de176afe03a530"
+    },
+    {
+      "path": "19_PRICING_QUOTE_GOVERNANCE_AND_COMMERCIAL_TERMS.md",
+      "sizeBytes": 4141,
+      "sha256": "6280a8e65c19abe7079c1a55e66ebbc03bb06960e0127564f9a99db8cc2daef0"
+    },
+    {
+      "path": "20_CONTRACTS_E_SIGNATURES_VERSIONS_AND_AMENDMENTS.md",
+      "sizeBytes": 4337,
+      "sha256": "7a7c3370f1fa803d33697cc132ef035ec31e629c62a0464c5a9ab60aa59ca833"
+    },
+    {
+      "path": "21_CUE_SHEETS_USAGE_REPORTING_INVOICING_AND_ROYALTIES.md",
+      "sizeBytes": 4373,
+      "sha256": "d130d12ab207b409e2b985c0ff7393390b2013cb57ace35c2841983b27f61442"
+    },
+    {
+      "path": "22_CLEARANCE_CONFLICTS_DISPUTES_TAKEDOWNS_AND_INSURANCE.md",
+      "sizeBytes": 4255,
+      "sha256": "7f48fa8c331ec139235c995a1d236538a2444355a282d813292cbba44b2535c9"
+    },
+    {
+      "path": "23_CURRENCY_TAX_WITHHOLDING_AND_CROSS_BORDER_SETTLEMENT.md",
+      "sizeBytes": 4219,
+      "sha256": "81c0d981e4f3dc5325729b33ea7011ed75e92a7bede23554505aaede0d1ecd37"
+    },
+    {
+      "path": "24_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "sizeBytes": 4761,
+      "sha256": "b180cd53d8235db400809f1571c5356708d3c1777d3bd991081e99cabe1a7c95"
+    },
+    {
+      "path": "25_API_EVENTS_BACKGROUND_JOBS_AND_PARTNER_ADAPTERS.md",
+      "sizeBytes": 4578,
+      "sha256": "e9cd6aacb2e46c0f67b16c1abe0f792a0ee116dc85ef9b5b3dfe07e0f538830d"
+    },
+    {
+      "path": "26_DDEX_CISAC_C2PA_AND_INDUSTRY_INTEROPERABILITY.md",
+      "sizeBytes": 4324,
+      "sha256": "41e9210c2b48d9a3cd006f45ff8f26be964691a546483b9c73635891a1bef29b"
+    },
+    {
+      "path": "27_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sizeBytes": 4200,
+      "sha256": "c7b01d5868ee32f1275713c2bdca03b2b6fbc6f75bc0c9bbf36023c2ffd5e990"
+    },
+    {
+      "path": "28_ADMIN_LICENSING_OPS_REVIEW_AND_SLA.md",
+      "sizeBytes": 4127,
+      "sha256": "73725faf856fb8c1ba162d41bee513d26e822befa776089d2af074c7095f325f"
+    },
+    {
+      "path": "29_SECURITY_PRIVACY_CONFIDENTIALITY_AND_ABUSE_CONTROLS.md",
+      "sizeBytes": 4303,
+      "sha256": "a1ba37e99a35a8e2c3e74cbee440fa2bee4acc5d2e9bdefae90c7aff1f106464"
+    },
+    {
+      "path": "30_ANALYTICS_REPORTING_AUDIT_AND_SERVICE_LEVELS.md",
+      "sizeBytes": 4147,
+      "sha256": "c3b909c0b045c7b505718971fa68e3d97c2969fc988fe2d8a12930a5f3655075"
+    },
+    {
+      "path": "31_TESTING_PILOT_AND_ROLLOUT.md",
+      "sizeBytes": 4307,
+      "sha256": "097ddaefee98a02901f331e8a3e72aa3459e7f71f050cd17cee872347cf4f1d5"
+    },
+    {
+      "path": "32_PHASE_7_GLOBAL_RIGHTS_ADMINISTRATION_AND_ENFORCEMENT_NETWORK.md",
+      "sizeBytes": 4073,
+      "sha256": "86d8fdfbf19e6ca5eef3f9e87daa5ddd3f703b0598e6dc007a9530732e5877d4"
+    },
+    {
+      "path": "33_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sizeBytes": 4060,
+      "sha256": "b3eede11b96869a6709da68cec5080a4f785ef89ffca99539909364d038155bb"
+    },
+    {
+      "path": "34_DEFINITION_OF_DONE.md",
+      "sizeBytes": 4212,
+      "sha256": "c97cbefd1bcbe4c58cc89c7e1d5530530a8f7c10400eb5ae20040ce15c8b13ed"
+    },
+    {
+      "path": "35_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sizeBytes": 6237,
+      "sha256": "900f8d71e4e670cfee5687dd68c0eb4f8c95d1799247c65d88719a2ec3992b65"
+    },
+    {
+      "path": "36_CURRENT_STANDARDS_LEGAL_TAX_RESEARCH.md",
+      "sizeBytes": 6716,
+      "sha256": "2a1a0d815ac8d8b5805ed8d34cb360b7b9843260795b2fba3f7f5d86dd2ceb5d"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "sizeBytes": 21046,
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sizeBytes": 2491,
+      "sha256": "46ba2a197adbdf5e7f4715a7495953ca97e57119060f9f178d048f233f08947a"
+    },
+    {
+      "path": "README.md",
+      "sizeBytes": 3878,
+      "sha256": "bed5ac5fa7aaa6c71648be9fc81cf6f77439797932c6647e760af8a435d07794"
+    },
+    {
+      "path": "SOURCE_PHASE_5_HANDOFF.md",
+      "sizeBytes": 978,
+      "sha256": "f3c89b879ae9d3b5a4aa58602bfdcd42b6542b6175c73140025a5ee31d6a87c7"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "sizeBytes": 309,
+      "sha256": "a9cc69da7e4ec075623170aa21d572434696de03d0183490d63584e006a819e0"
+    },
+    {
+      "path": "phase-6-execution-plan.schema.json",
+      "sizeBytes": 3141,
+      "sha256": "c4d291177f5a0f4048f50f0f1b9b57f50616edc15580d3a49ce112719eb3305c"
+    },
+    {
+      "path": "phase-6-execution-plan.template.json",
+      "sizeBytes": 204612,
+      "sha256": "000325b26a495341d48a81697abe6dfd8ed55338c264529081a0779b4f792640"
+    },
+    {
+      "path": "reference/api-examples/ai-training-license-request.json",
+      "sizeBytes": 440,
+      "sha256": "c57ada81c6475e6dafa60d521b6c434ef64be11fbfcffafb0ef7cb38de847682"
+    },
+    {
+      "path": "reference/api-examples/approve-license-quote.json",
+      "sizeBytes": 232,
+      "sha256": "36e6538bc5138cf1f55ad392edc5628385771ef9e97503719721c452c5ef993e"
+    },
+    {
+      "path": "reference/api-examples/create-licensing-brief.json",
+      "sizeBytes": 437,
+      "sha256": "ab3d9bb446b829abdfbc017202a92958efaf6008900c1a5fad60e34bec39579d"
+    },
+    {
+      "path": "reference/api-examples/partner-cue-sheet-webhook.json",
+      "sizeBytes": 242,
+      "sha256": "ee96d8e9424cf78519d95af601d86b7f3f8611e3bf232e7ab442e245012f698d"
+    },
+    {
+      "path": "reference/api-examples/submit-license-request.json",
+      "sizeBytes": 306,
+      "sha256": "408e48123f324a0ff80f0e55159b752777c15b9d2ce4c82634a765ac6a6fa478"
+    },
+    {
+      "path": "reference/lib/music/licensing/ai-license-policy.ts",
+      "sizeBytes": 617,
+      "sha256": "7a0016b3321b140f5ae7a84618378020680301645c97d8aa3d48ae880d44801b"
+    },
+    {
+      "path": "reference/lib/music/licensing/approval-matrix.ts",
+      "sizeBytes": 1116,
+      "sha256": "808c9b15f9d6e687b80f753dad60f57208ce2eba872429cd89881124bf2ea8b0"
+    },
+    {
+      "path": "reference/lib/music/licensing/cue-sheet-validator.ts",
+      "sizeBytes": 845,
+      "sha256": "c3f6109bdb87ac2ae70eb9166fa082b09fadaeb71f4da71e73d69e836dd4829b"
+    },
+    {
+      "path": "reference/lib/music/licensing/license-classification.ts",
+      "sizeBytes": 1611,
+      "sha256": "cb5739a5803fce2e6140b1470e4dbda8d74736ec4478f1c7adcce9408e8a9472"
+    },
+    {
+      "path": "reference/lib/music/licensing/license-grant-validator.ts",
+      "sizeBytes": 1020,
+      "sha256": "e4f9a14659703697aac3a6c31b52afa73436964fa99c5d24ff8204060d051129"
+    },
+    {
+      "path": "reference/lib/music/licensing/license-request-state-machine.ts",
+      "sizeBytes": 977,
+      "sha256": "70391f33540322f2763ecabf8352e020aa1bb4429ebae242733983ae990af1da"
+    },
+    {
+      "path": "reference/lib/music/licensing/licensing-domain.ts",
+      "sizeBytes": 1176,
+      "sha256": "12cf3ae1ead7a300a4d634d7482f080e8064cb1ac78c961471ea724a199fddb1"
+    },
+    {
+      "path": "reference/lib/music/licensing/quote-state-machine.ts",
+      "sizeBytes": 523,
+      "sha256": "40946bb4492b8ed9af875c8e6a6a7678cd006b06a85976548421de228e6d0e90"
+    },
+    {
+      "path": "reference/lib/music/licensing/rights-availability.ts",
+      "sizeBytes": 1005,
+      "sha256": "af537d4037103d26f753409543217cfc7c1fd7b4f2e50e2d1e04109cdd396179"
+    },
+    {
+      "path": "reference/lib/music/licensing/territory-resolver.ts",
+      "sizeBytes": 496,
+      "sha256": "51b849509538e41f236151fe4487911e2fc0231e01c2cbe09d01d01eb05af51f"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_licensing_projects_briefs_requests.sql",
+      "sizeBytes": 1575,
+      "sha256": "09a9168e04a100f975687dff05b12cd6f822905fa268bd2905430423ef21c21b"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_availability_clearance_quotes_agreements.sql",
+      "sizeBytes": 2278,
+      "sha256": "9832ef8412fdbe4bab3fea0a8390ad9470dc07f64d1219a937aab6b5acd15dba"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_delivery_cues_usage_invoices.sql",
+      "sizeBytes": 1856,
+      "sha256": "0255be824e7b219e14f4638276a23390b0be52200c58656768335da6abfec60c"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_conflicts_partners_audit.sql",
+      "sizeBytes": 1312,
+      "sha256": "042c83a13b7fc2b5d6398be29ac71f1d997b07fb79b2e22277f4d94f5c529c6b"
+    }
+  ]
+}

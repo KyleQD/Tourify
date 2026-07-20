@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { evaluateOrganizationActivation } from "../lib/music/creator-interoperability-organization/organization-activation-gate";
+describe("organization activation", () => { it("denies when any public-law prerequisite is missing", () => { expect(evaluateOrganizationActivation({phase14EvidenceApproved:true,legalFeasibilityApproved:true,constitutiveInstrumentEffective:false,participantAuthorityVerified:true,governanceOperational:true,hostAndHeadquartersReady:true,fundingAndBudgetApproved:true,oversightAndStaffJusticeReady:true,privacySecurityAccessibilityApproved:true,independentOperationProven:true,criticalBlockers:0}).allowed).toBe(false); }); });

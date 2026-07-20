@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
 import { startRouteTiming } from '@/lib/observability/route-timing'
+import { getCustomProfileDesignState } from '@/lib/profile/custom-profile-layout'
 
 export async function GET(request: NextRequest) {
   const endTiming = startRouteTiming('/api/profile/current')
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
         website,
         profile_data,
         social_links,
+        metadata,
         instagram,
         twitter,
         show_email,
@@ -94,6 +96,10 @@ export async function GET(request: NextRequest) {
     // Get view count (mock data for now)
     stats.views = Math.floor(Math.random() * 10000) + 1000
 
+    const customDesign = getCustomProfileDesignState((profile as any).metadata)
+    const publishedCustomLayout =
+      customDesign.status === 'published' ? customDesign.published : null
+
     // Transform the profile to match the expected format
     const profileWithStats = {
       id: profile.id,
@@ -105,10 +111,20 @@ export async function GET(request: NextRequest) {
         name: profile.full_name,
         bio: profile.bio,
         location: profile.location,
-        website: profile.website
+        website: profile.website,
+        avatar_url: profile.avatar_url,
+        cover_image:
+          (profile as any).cover_image ||
+          (profile as any).metadata?.header_url ||
+          (profile as any).header_url ||
+          null,
       },
       avatar_url: profile.avatar_url,
-      cover_image: (profile as any).cover_image || (profile as any).header_url || null,
+      cover_image:
+        (profile as any).cover_image ||
+        (profile as any).metadata?.header_url ||
+        (profile as any).header_url ||
+        null,
       verified: profile.is_verified,
       bio: profile.bio,
       location: profile.location,
@@ -123,7 +139,8 @@ export async function GET(request: NextRequest) {
       show_location: (profile as any).show_location ?? true,
       stats,
       created_at: profile.created_at,
-      updated_at: profile.updated_at
+      updated_at: profile.updated_at,
+      custom_profile_layout: publishedCustomLayout,
     }
 
 
@@ -141,7 +158,11 @@ export async function GET(request: NextRequest) {
     }
 
     endTiming({ userId: user.id, rowCount: 1 })
-    return NextResponse.json({ profile: profileWithStats, portfolio })
+    return NextResponse.json({
+      profile: profileWithStats,
+      portfolio,
+      custom_profile_layout: publishedCustomLayout,
+    })
   } catch (error) {
     endTiming({ metadata: { error: true } })
     console.error('[Profile Current API] Error:', error)

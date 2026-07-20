@@ -1,0 +1,10 @@
+{
+  "eventId": "evt_uuid",
+  "eventType": "operator.status.changed",
+  "operatorId": "uuid",
+  "oldStatus": "approved",
+  "newStatus": "suspended",
+  "reason": "key compromise drill",
+  "occurredAt": "2026-07-17T00:00:00Z",
+  "signature": "provider-signature"
+}

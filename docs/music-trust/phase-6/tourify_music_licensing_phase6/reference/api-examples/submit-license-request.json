@@ -1,0 +1,18 @@
+{
+  "projectId": "uuid",
+  "briefVersion": 2,
+  "assetIds": [
+    "artist_music_uuid"
+  ],
+  "requestedFamilies": [
+    "sync",
+    "master_use"
+  ],
+  "use": {
+    "durationSeconds": 30,
+    "prominence": "featured",
+    "inContext": true,
+    "outOfContext": true
+  },
+  "idempotencyKey": "licreq_..."
+}

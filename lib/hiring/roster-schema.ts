@@ -71,6 +71,7 @@ export const assignShiftZoneSchema = z.object({
   employer_entity_type: z.enum(["venue", "organization", "artist"]),
   employer_entity_id: z.string().uuid(),
   event_id: z.string().uuid().optional(),
+  tour_id: z.string().uuid().optional(),
   shift_id: z.string().uuid().optional(),
   zone: z.string().max(120).optional(),
   assigned_manager_id: z.string().uuid().optional(),

@@ -17,11 +17,18 @@ export const ARTIST_JOB_CATEGORY_SEED = [
 
 /** Legacy fallback IDs returned before DB-backed categories were enforced. */
 export const LEGACY_CATEGORY_ID_TO_NAME: Record<string, string> = {
-  '1': 'Opening Slots',
-  '2': 'Venue Bookings',
-  '3': 'Collaborations',
-  '4': 'Session Work',
-  '5': 'Production',
+  '1': 'Musicians',
+  '2': 'Vocalists',
+  '3': 'Sound Engineers',
+  '4': 'Lighting Technicians',
+  '5': 'Stage Crew',
+  '6': 'Photographers',
+  '7': 'Videographers',
+  '8': 'Transportation',
+  '9': 'Security',
+  '10': 'Catering',
+  '11': 'Tour Management',
+  '12': 'Accommodation',
 }
 
 export async function fetchActiveArtistJobCategories(supabase: SupabaseClient) {

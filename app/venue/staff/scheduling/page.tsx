@@ -29,14 +29,32 @@ interface SchedulingPageProps {
 
 export default async function SchedulingPage({ searchParams }: SchedulingPageProps) {
   const { venueId: queryVenueId } = await searchParams
-  let venueId = queryVenueId
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const venue = user?.id ? await getCurrentVenueContext(supabase as any, user.id, venueId) : null
 
-  if (!venueId) venueId = venue?.id
+  if (!user?.id) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">Sign in required</h3>
+            <p className="text-muted-foreground mb-4">
+              Please sign in to access the scheduling system.
+            </p>
+            <Button asChild>
+              <a href="/login">Sign in</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const venue = await getCurrentVenueContext(supabase as any, user.id, queryVenueId)
+  const venueId = venue?.id
 
   if (!venueId) {
     return (
@@ -57,8 +75,28 @@ export default async function SchedulingPage({ searchParams }: SchedulingPagePro
     )
   }
 
+  // Never trust a raw ?venueId= without verified venue context ownership.
+  if (queryVenueId && queryVenueId !== venueId) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 text-center">
+            <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">Access denied</h3>
+            <p className="text-muted-foreground mb-4">
+              You do not have access to that venue scheduling workspace.
+            </p>
+            <Button asChild>
+              <a href="/venue">Select Venue</a>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   const service = createServiceRoleClient()
-  const mappedVenue = venue && user?.id ? await ensureVenueOperationalContext(service as any, venue, user.id) : null
+  const mappedVenue = await ensureVenueOperationalContext(service as any, venue, user.id)
   const today = new Date()
   const weekEnd = new Date()
   weekEnd.setDate(today.getDate() + 7)

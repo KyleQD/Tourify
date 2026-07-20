@@ -1,0 +1,10 @@
+{
+  "idempotencyKey": "feasibility-2026-001",
+  "requestedLegalCharacter": "intergovernmental_organization",
+  "jurisdictions": [
+    "US-NV",
+    "CH"
+  ],
+  "sourceManifestId": "00000000-0000-0000-0000-000000000000",
+  "status": "draft"
+}

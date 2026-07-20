@@ -27,12 +27,17 @@ import {
   ShieldCheck
 } from 'lucide-react'
 import Image from 'next/image'
+import { MusicAiDisclosureFields } from '@/components/music/music-ai-disclosure-fields'
+import type { MusicAiUseCategory, MusicTrainingUsePolicy } from '@/lib/music/music-trust'
 
 interface EnhancedMusicUploaderProps {
   onUploadComplete: (trackData: any) => void
   onCancel: () => void
   isUploading?: boolean
   progress?: number
+  trustEnabled?: boolean
+  musicUploadPolicyVersion?: string
+  humanMusicPolicyVersion?: string
 }
 
 interface UploadFile {
@@ -43,7 +48,7 @@ interface UploadFile {
   error?: string
 }
 
-export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading = false, progress = 0 }: EnhancedMusicUploaderProps) {
+export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading = false, progress = 0, trustEnabled = false, musicUploadPolicyVersion = '1.0.0', humanMusicPolicyVersion = '1.0.0' }: EnhancedMusicUploaderProps) {
   const [musicFile, setMusicFile] = useState<UploadFile | null>(null)
   const [previewFile, setPreviewFile] = useState<UploadFile | null>(null)
   const [coverFile, setCoverFile] = useState<UploadFile | null>(null)
@@ -71,7 +76,16 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
     allow_download: false,
     allow_library_add: true,
     allow_profile_feature: true,
-    rights_confirmed: false
+    rights_confirmed: false,
+    ai_use_category: 'unknown' as MusicAiUseCategory,
+    ai_tools: [] as string[],
+    ai_disclosure_details: '',
+    synthesized_voice_or_likeness: false,
+    contributor_disclosures_confirmed: false,
+    source_material_available: false,
+    training_use_policy: 'rights_reserved' as MusicTrainingUsePolicy,
+    accepted_music_upload_policy: false,
+    accepted_human_music_policy: false,
   })
   const [newTag, setNewTag] = useState('')
   const [shareAsPost, setShareAsPost] = useState(false)
@@ -215,8 +229,18 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
       return
     }
 
-    if (!formData.rights_confirmed) {
-      toast.error('You must confirm that you own the rights to this content before uploading')
+    if (formData.is_public && !formData.rights_confirmed) {
+      toast.error('Rights confirmation is required for public music. Save privately to finish later.')
+      return
+    }
+
+    if (trustEnabled && formData.is_public && (
+      formData.ai_use_category === 'unknown' ||
+      formData.ai_use_category === 'materially_generated' ||
+      !formData.accepted_music_upload_policy ||
+      !formData.accepted_human_music_policy
+    )) {
+      toast.error('Complete the Rights & Origin disclosures, or save this track privately.')
       return
     }
 
@@ -237,8 +261,11 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         coverFile: coverFile?.file,
         shareAsPost,
         postContent,
-        rights_confirmed: true,
-        rights_confirmed_at: new Date().toISOString(),
+        rights_confirmed: formData.rights_confirmed,
+        rights_confirmed_at: formData.rights_confirmed ? new Date().toISOString() : null,
+        music_upload_policy_version: musicUploadPolicyVersion,
+        human_music_policy_version: humanMusicPolicyVersion,
+        declaration_idempotency_key: crypto.randomUUID(),
         price: salePrice,
         currency: formData.is_for_sale ? formData.currency : undefined,
         metadata: {
@@ -751,9 +778,10 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         </CardContent>
       </Card>
 
-      {/* Rights Confirmation */}
+      {/* Rights & Origin */}
       <Card className="bg-slate-900/50 border-slate-700/50 rounded-2xl backdrop-blur-xl">
-        <CardContent className="p-5">
+        <CardHeader><CardTitle className="flex items-center gap-2 text-white"><ShieldCheck className="h-5 w-5 text-purple-400" />Rights &amp; Origin</CardTitle></CardHeader>
+        <CardContent className="p-5 pt-0 space-y-6">
           <div className="flex items-start gap-3">
             <Checkbox
               id="rights_confirmed"
@@ -766,7 +794,7 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
             <label htmlFor="rights_confirmed" className="text-xs leading-relaxed text-slate-300 cursor-pointer">
               <span className="flex items-center gap-1.5 text-sm font-medium text-white mb-1">
                 <ShieldCheck className="h-4 w-4 text-purple-400" />
-                Rights Confirmation
+                Rights confirmation {formData.is_public ? '(required to publish)' : '(finish before publishing)'}
               </span>
               I confirm that I am the original creator of this content, or I have obtained all necessary
               rights and licenses to upload and distribute it on Tourify. I understand that uploading
@@ -777,6 +805,27 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
               and may result in account suspension.
             </label>
           </div>
+          {trustEnabled && <>
+            <MusicAiDisclosureFields
+              value={formData.ai_use_category}
+              details={formData.ai_disclosure_details}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, ai_use_category: value }))}
+              onDetailsChange={(value) => setFormData(prev => ({ ...prev, ai_disclosure_details: value }))}
+            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="training-policy">Training policy</Label><Select value={formData.training_use_policy} onValueChange={(value: MusicTrainingUsePolicy) => setFormData(prev => ({ ...prev, training_use_policy: value }))}><SelectTrigger id="training-policy" className="bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="rights_reserved">Rights reserved</SelectItem><SelectItem value="licensed_only">Licensed use only</SelectItem><SelectItem value="opted_in">Opted in</SelectItem></SelectContent></Select></div>
+              <div className="space-y-3 pt-1">
+                <label className="flex gap-2 text-sm text-slate-300"><Checkbox checked={formData.source_material_available} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, source_material_available: checked === true }))} />I can provide source materials if requested.</label>
+                <label className="flex gap-2 text-sm text-slate-300"><Checkbox checked={formData.contributor_disclosures_confirmed} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, contributor_disclosures_confirmed: checked === true }))} />Contributor disclosures are confirmed.</label>
+                <label className="flex gap-2 text-sm text-slate-300"><Checkbox checked={formData.synthesized_voice_or_likeness} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, synthesized_voice_or_likeness: checked === true }))} />This uses a synthesized voice or likeness.</label>
+              </div>
+            </div>
+            <div className="space-y-3 rounded-lg border border-slate-700 p-4">
+              <label className="flex gap-2 text-sm text-slate-300"><Checkbox checked={formData.accepted_music_upload_policy} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, accepted_music_upload_policy: checked === true }))} />I accept Music Upload Policy {musicUploadPolicyVersion}.</label>
+              <label className="flex gap-2 text-sm text-slate-300"><Checkbox checked={formData.accepted_human_music_policy} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, accepted_human_music_policy: checked === true }))} />I accept Human Music Standard {humanMusicPolicyVersion}.</label>
+            </div>
+          </>}
+          {!formData.is_public && <p className="text-sm text-amber-300">Private drafts may be incomplete. Tourify will ask for the required declarations before publication.</p>}
         </CardContent>
       </Card>
 
@@ -787,7 +836,7 @@ export function EnhancedMusicUploader({ onUploadComplete, onCancel, isUploading 
         </Button>
         <Button 
           onClick={handleSubmit} 
-          disabled={isUploading || !musicFile?.file || !formData.title.trim() || !formData.rights_confirmed}
+          disabled={isUploading || !musicFile?.file || !formData.title.trim() || (formData.is_public && !formData.rights_confirmed)}
           className="bg-purple-600 hover:bg-purple-700"
         >
           {isUploading ? 'Uploading...' : 'Upload Track'}

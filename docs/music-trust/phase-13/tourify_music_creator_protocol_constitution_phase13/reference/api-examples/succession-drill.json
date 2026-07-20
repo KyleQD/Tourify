@@ -1,0 +1,9 @@
+{
+  "constitutionId": "uuid",
+  "trigger": "planned",
+  "predecessorOperatorId": "uuid",
+  "successorCandidateId": "uuid",
+  "continuityManifestId": "uuid",
+  "tourifyUnavailable": true,
+  "dryRun": true
+}

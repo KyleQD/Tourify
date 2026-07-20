@@ -61,6 +61,14 @@ export const createJobPostingApiSchema = hiringScopeApiSchema.extend({
     .optional(),
   onboarding_template_id: z.string().uuid().nullable().optional(),
   status: z.enum(["draft", "published", "closed", "archived"]).optional(),
+}).superRefine((data, context) => {
+  if (data.status === "published" && !data.onboarding_template_id) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["onboarding_template_id"],
+      message: "An onboarding template is required before publishing a job posting.",
+    })
+  }
 })
 
 export const inviteStaffApiSchema = hiringScopeApiSchema.extend({

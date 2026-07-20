@@ -6,13 +6,27 @@ import { Shield, Users, Settings, Activity } from 'lucide-react'
 import { RoleManagement } from '@/components/venue/staff/role-management'
 import { UserRoleAssignment } from '@/components/venue/staff/user-role-assignment'
 import { createClient } from '@/lib/supabase/server'
+import { getCurrentVenueContext } from '@/lib/venue/venue-access'
+import { redirect } from 'next/navigation'
 
 interface RolesPermissionsPageProps {
   searchParams: Promise<{ venueId?: string }>
 }
 
 export default async function RolesPermissionsPage({ searchParams }: RolesPermissionsPageProps) {
-  const { venueId } = await searchParams
+  const { venueId: venueIdParam } = await searchParams
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) redirect('/login?redirectTo=%2Fvenue%2Fstaff%2Froles-permissions')
+
+  let venueId = venueIdParam
+  if (!venueId) {
+    const context = await getCurrentVenueContext(supabase, user.id)
+    venueId = context?.id
+  }
 
   if (!venueId) {
     return (
@@ -20,9 +34,9 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Shield className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Venue ID Required</h3>
+            <h3 className="text-lg font-semibold mb-2">No Venue Selected</h3>
             <p className="text-muted-foreground text-center">
-              Please provide a venue ID to access roles and permissions management
+              Complete your venue profile first, then return to manage roles and permissions.
             </p>
           </CardContent>
         </Card>
@@ -30,7 +44,6 @@ export default async function RolesPermissionsPage({ searchParams }: RolesPermis
     )
   }
 
-  const supabase = await createClient()
   const [rolesResp, assignmentsResp, permissionsResp, auditResp] = await Promise.all([
     supabase.from('rbac_roles').select('id', { count: 'exact', head: true }),
     supabase

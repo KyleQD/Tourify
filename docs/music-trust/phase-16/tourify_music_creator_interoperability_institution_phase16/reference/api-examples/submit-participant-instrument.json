@@ -1,0 +1,11 @@
+{
+  "idempotencyKey": "instrument-state-example-001",
+  "participantClass": "state",
+  "participantReference": "EXAMPLE_STATE",
+  "instrumentType": "ratification",
+  "authorityEvidenceIds": [
+    "00000000-0000-0000-0000-000000000002"
+  ],
+  "signedAt": "2026-07-18T00:00:00Z",
+  "status": "submitted"
+}

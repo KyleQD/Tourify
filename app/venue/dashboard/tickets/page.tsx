@@ -1,18 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { CreateEventModal } from "../../components/events/create-event-modal"
-import { Calendar, QrCode, Search, TicketIcon } from "lucide-react"
+import { Calendar, QrCode, ScanLine, Search, TicketIcon } from "lucide-react"
 import { formatSafeDate, formatSafeTime } from "@/lib/events/admin-event-normalization"
 import { useCurrentVenue } from "@/app/venue/hooks/useCurrentVenue"
 import { LoadingSpinner } from "@/app/venue/components/loading-spinner"
 import { venueDashboardTabListClass } from "@/app/venue/lib/dashboard-ui"
+import { VenueEmptyState } from "@/components/dashboard/venue-empty-state"
 
 interface TicketTypeItem {
   id: string
@@ -37,12 +39,18 @@ interface VenueTicketEvent {
   status: "Draft" | "On Sale"
 }
 
-export default function TicketsPage() {
+function TicketsPageInner() {
+  const searchParams = useSearchParams()
+  const checkInView = searchParams.get("view") === "check-in"
   const { venue, isLoading: isVenueLoading } = useCurrentVenue()
   const [showCreateEventModal, setShowCreateEventModal] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [activeTab, setActiveTab] = useState("selling")
+  const [activeTab, setActiveTab] = useState(checkInView ? "check-in" : "selling")
   const [myEvents, setMyEvents] = useState<VenueTicketEvent[]>([])
+
+  useEffect(() => {
+    if (checkInView) setActiveTab("check-in")
+  }, [checkInView])
 
   useEffect(() => {
     async function loadEvents() {
@@ -155,8 +163,43 @@ export default function TicketsPage() {
       <Tabs defaultValue="selling" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className={venueDashboardTabListClass}>
           <TabsTrigger value="selling">Tickets I'm Selling</TabsTrigger>
+          <TabsTrigger value="check-in">Door Check-In</TabsTrigger>
           <TabsTrigger value="purchased">Tickets I've Purchased</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="check-in" className="mt-6 space-y-4">
+          {filteredEvents.length === 0 ? (
+            <Card className="border-gray-800 bg-gray-900">
+              <CardContent className="pt-2">
+                <VenueEmptyState
+                  icon={ScanLine}
+                  title="No events ready for door"
+                  description="Create or publish an event with tickets, then open door check-in from here."
+                  action={{ label: "Create event", href: "/venue/dashboard/calendar" }}
+                />
+              </CardContent>
+            </Card>
+          ) : (
+            filteredEvents.map((event) => (
+              <Card key={`checkin-${event.id}`} className="border-gray-800 bg-gray-900">
+                <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium text-white">{event.title}</p>
+                    <p className="text-sm text-gray-400">
+                      {formatDate(event.date)} · {formatTime(event.date)}
+                    </p>
+                  </div>
+                  <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
+                    <Link href={`/venue/events/${event.id}/check-in`}>
+                      <ScanLine className="mr-2 h-4 w-4" />
+                      Open door
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </TabsContent>
 
         <TabsContent value="selling" className="mt-6 space-y-6">
           {filteredEvents.length === 0 ? (
@@ -240,7 +283,7 @@ export default function TicketsPage() {
 
                     <div className="flex gap-2 mt-4">
                       <Button asChild className="flex-1" disabled={event.status === "Draft"}>
-                        <Link href={`/admin/dashboard/events/${event.id}/check-in`}>
+                        <Link href={`/venue/events/${event.id}/check-in`}>
                           <QrCode className="h-4 w-4 mr-2" />
                           Door check-in
                         </Link>
@@ -274,5 +317,20 @@ export default function TicketsPage() {
 
       <CreateEventModal isOpen={showCreateEventModal} onClose={() => setShowCreateEventModal(false)} />
     </div>
+  )
+}
+
+
+export default function TicketsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-96 items-center justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
+      }
+    >
+      <TicketsPageInner />
+    </Suspense>
   )
 }

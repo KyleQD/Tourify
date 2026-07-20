@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
 import {
-  Music,
   Calendar,
   Users,
   MessageSquare,
@@ -13,10 +12,8 @@ import {
   Ticket,
   ShoppingBag,
   BarChart3,
-  Upload,
   PenTool,
   Briefcase,
-  Zap,
   X,
   Plus,
   Search,
@@ -31,23 +28,21 @@ export function QuickAccessPanel({ isOpen, onClose }: QuickAccessPanelProps) {
   const router = useRouter()
 
   const quickActions = [
-    { title: "Upload Music", icon: Upload, color: "bg-purple-500", href: "/music/upload" },
-    { title: "Create Post", icon: PenTool, color: "bg-blue-500", href: "/content/posts/new" },
     { title: "Schedule Event", icon: Calendar, color: "bg-green-500", href: "/venue/dashboard/calendar" },
     { title: "Create Job", icon: Briefcase, color: "bg-amber-500", href: "/jobs" },
-    { title: "Launch Promotion", icon: Zap, color: "bg-red-500", href: "/promotions/new" },
+    { title: "Create Post", icon: PenTool, color: "bg-blue-500", href: "/venue/dashboard" },
   ]
 
+
   const frequentlyUsed = [
-    { title: "Music Library", icon: Music, href: "/music/library" },
     { title: "Messages", icon: MessageSquare, href: "/messages", badge: 5 },
-    { title: "Network", icon: Users, href: "/network" },
     { title: "Events", icon: Calendar, href: "/venue/dashboard/events", badge: 3 },
-    { title: "EPK", icon: FileText, href: "/epk" },
     { title: "Analytics", icon: BarChart3, href: "/venue/analytics" },
     { title: "Tickets", icon: Ticket, href: "/venue/dashboard/tickets" },
     { title: "Merch", icon: ShoppingBag, href: "/venue/dashboard/store" },
+    { title: "Staff", icon: Users, href: "/venue/staff" },
   ]
+
 
   const handleNavigation = (href: string) => {
     router.push(href)
@@ -144,10 +139,10 @@ export function QuickAccessPanel({ isOpen, onClose }: QuickAccessPanelProps) {
                 <Button
                   variant="ghost"
                   className="w-full justify-start text-gray-300 hover:text-white hover:bg-gray-800"
-                  onClick={() => handleNavigation("/music/tracks/summer-vibes")}
+                  onClick={() => handleNavigation("/venue/dashboard")}
                 >
-                  <Music className="h-5 w-5 mr-3" />
-                  Summer Vibes (Track)
+                  <FileText className="h-5 w-5 mr-3" />
+                  Venue Dashboard
                   <span className="ml-auto text-xs text-gray-400">2m ago</span>
                 </Button>
                 <Button

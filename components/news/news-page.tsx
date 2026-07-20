@@ -17,11 +17,13 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/use-toast'
 import { NewsFilters } from '@/components/news/news-filters'
+import { NewsMasthead } from '@/components/news/news-masthead'
 import { useActingContext } from '@/hooks/use-acting-context'
-import type { NewsCategory, NewsFeedItem } from '@/lib/news/types'
+import type { NewsCategory, NewsFeedItem, NewsSortMode } from '@/lib/news/types'
 
 const AUTO_REFRESH_MS = 15 * 60 * 1000
 const FEATURED_CATEGORIES: Array<{ value: Exclude<NewsCategory, 'featured'>; title: string }> = [
+  { value: 'articles', title: 'Top Articles' },
   { value: 'new-music', title: 'Top New Music' },
   { value: 'events', title: 'Top Events' },
   { value: 'gossip', title: 'Top Gossip' },
@@ -75,7 +77,8 @@ export function NewsPage() {
             const data = await fetchNewsPage({
               category: category.value,
               query,
-              limit: 6
+              limit: 6,
+              sort: category.value === 'gossip' ? 'engagement' : 'score'
             })
 
             return {
@@ -167,76 +170,57 @@ export function NewsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#03030a] pb-24 pt-[calc(3.5rem+1rem)] text-white">
-      <div className="relative mx-auto w-full max-w-7xl px-4 py-8 md:px-8">
-        <header className="relative z-10 overflow-hidden rounded-[28px] border border-white/10 bg-white/[0.045] p-5 shadow-[0_24px_90px_rgba(0,0,0,0.45)] backdrop-blur-xl md:p-8">
+    <div className="min-h-screen bg-[#03030a] pb-24 text-white">
+      <NewsMasthead />
+      <div className="relative mx-auto w-full max-w-7xl px-4 pb-6 pt-3 md:px-8">
+        {tickerItems.length > 0 && <TickerStrip items={tickerItems} />}
+
+        <header className="relative z-10 mt-4 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] p-4 shadow-[0_16px_60px_rgba(0,0,0,0.35)] backdrop-blur-xl md:p-5">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/50 to-transparent" />
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-3xl space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-fuchsia-100">
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-300 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-fuchsia-300" />
-                </span>
-                Live Music Wire
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 via-purple-500 to-cyan-400 shadow-lg shadow-fuchsia-500/20">
-                  <Sparkles className="h-7 w-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-4xl font-bold tracking-tight text-white md:text-6xl">News Pulse</h1>
-                  <p className="mt-2 text-sm text-slate-300 md:text-base">
-                    Live music industry news, stories, releases, events, and culture.
-                  </p>
-                </div>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              {lastRefreshed && (
-                <span className="hidden sm:inline">
-                  Updated {formatDistanceToNow(lastRefreshed, { addSuffix: true })}
-                </span>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-9 w-9 rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
-                onClick={handleManualRefresh}
-                disabled={isRefreshing}
-                aria-label="Refresh News Pulse"
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </div>
-
-          <form onSubmit={handleSearchSubmit} className="mt-7 flex flex-col gap-3 sm:flex-row">
+          <form onSubmit={handleSearchSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
               <Input
                 value={searchInput}
                 onChange={event => setSearchInput(event.target.value)}
-                className="h-12 rounded-2xl border-white/10 bg-black/30 pl-11 text-white placeholder:text-slate-500 focus-visible:border-fuchsia-500/50 focus-visible:ring-fuchsia-500/20"
+                className="h-11 rounded-2xl border-white/10 bg-black/30 pl-11 text-white placeholder:text-slate-500 focus-visible:border-fuchsia-500/50 focus-visible:ring-fuchsia-500/20"
                 placeholder="Search artists, stories, genres, and sources..."
               />
             </div>
-            <Button
-              type="submit"
-              className="h-12 rounded-2xl bg-white px-6 font-semibold text-black hover:bg-white/90"
-            >
-              Search
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                type="submit"
+                className="h-11 rounded-2xl bg-white px-5 font-semibold text-black hover:bg-white/90"
+              >
+                Search
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                {lastRefreshed && (
+                  <span className="hidden sm:inline">
+                    Updated {formatDistanceToNow(lastRefreshed, { addSuffix: true })}
+                  </span>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-11 w-11 rounded-full border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white"
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing}
+                  aria-label="Refresh News Pulse"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
           </form>
 
-          <div className="mt-5">
+          <div className="mt-4">
             <NewsFilters activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
           </div>
         </header>
-
-        {tickerItems.length > 0 && <TickerStrip items={tickerItems} />}
 
         <section className="relative z-10 mt-8">
           {sectionErrors.length > 0 && (
@@ -250,7 +234,7 @@ export function NewsPage() {
           ) : activeCategory === 'featured' ? (
             <FeaturedStacks sections={featuredSections} />
           ) : items.length === 0 ? (
-            <EmptyState />
+            <EmptyState category={activeCategory} />
           ) : (
             <>
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -290,18 +274,21 @@ function FeaturedStacks({ sections }: { sections: FeaturedSection[] }) {
   if (!sections.length) return <EmptyState />
 
   return (
-    <div className="space-y-9">
+    <div className="space-y-8">
       {sections.map(section => (
-        <section key={section.category} className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-semibold text-white">{section.title}</h2>
-              <p className="mt-1 text-sm text-slate-500">Ranked from live sources and Tourify activity.</p>
-            </div>
+        <section key={section.category} className="space-y-3">
+          <div>
+            <h2 className="text-xl font-semibold text-white">{section.title}</h2>
+            <p className="mt-1 text-sm text-slate-500">Ranked from live sources and Tourify activity.</p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory md:-mx-8 md:px-8 [scrollbar-width:thin]">
             {section.items.map((item, index) => (
-              <StoryCard key={item.id} item={item} index={index} />
+              <div
+                key={item.id}
+                className="w-[280px] shrink-0 snap-start sm:w-[320px]"
+              >
+                <StoryCard item={item} index={index} compact />
+              </div>
             ))}
           </div>
         </section>
@@ -319,12 +306,25 @@ function LoadingState() {
   )
 }
 
-function EmptyState() {
+function EmptyState({ category }: { category?: NewsCategory } = {}) {
+  const isArticles = category === 'articles'
+
   return (
     <div className="rounded-[28px] border border-white/10 bg-white/[0.04] p-12 text-center">
       <Sparkles className="mx-auto mb-3 h-8 w-8 text-slate-500" />
-      <p className="text-lg font-medium text-white">No stories match your filters</p>
-      <p className="mt-1 text-sm text-slate-400">Try a wider search or switch to another category.</p>
+      <p className="text-lg font-medium text-white">
+        {isArticles ? 'No community articles yet' : 'No stories match your filters'}
+      </p>
+      <p className="mt-1 text-sm text-slate-400">
+        {isArticles
+          ? 'Publish an article from Press to appear here.'
+          : 'Try a wider search or switch to another category.'}
+      </p>
+      {isArticles ? (
+        <Button asChild className="mt-5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500">
+          <a href="/artist/press?new=1&type=article">Write an article</a>
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -336,10 +336,14 @@ function TickerStrip({ items }: { items: NewsFeedItem[] }) {
   const loopedStories = [...stories, ...stories]
 
   return (
-    <div className="relative z-10 mt-6 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
+    <div className="relative z-10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035]">
       <div className="flex items-center gap-2 border-b border-white/5 px-4 py-2">
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-fuchsia-300 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-fuchsia-300" />
+        </span>
         <Radio className="h-3.5 w-3.5 text-fuchsia-300" />
-        <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">Live Feed</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-slate-300">Live Music Wire</span>
       </div>
       <div className="overflow-hidden">
         <div className="ticker-track flex w-max gap-6 px-4 py-3">
@@ -376,7 +380,7 @@ function TickerStrip({ items }: { items: NewsFeedItem[] }) {
   )
 }
 
-function StoryCard({ item, index }: { item: NewsFeedItem; index: number }) {
+function StoryCard({ item, index, compact = false }: { item: NewsFeedItem; index: number; compact?: boolean }) {
   const [imageSrc, setImageSrc] = useState(() => getPrimaryCardImageUrl({ item, index }))
   const [imageError, setImageError] = useState(false)
   const [isShareOpen, setIsShareOpen] = useState(false)
@@ -451,8 +455,8 @@ function StoryCard({ item, index }: { item: NewsFeedItem; index: number }) {
 
   return (
     <>
-      <article className="group relative flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.065]">
-        <div className="relative h-48 overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950/50 to-slate-950">
+      <article className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-white/10 bg-white/[0.045] shadow-[0_20px_70px_rgba(0,0,0,0.22)] transition-all duration-300 hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.065] ${compact ? 'min-h-[360px]' : 'min-h-[420px]'}`}>
+        <div className={`relative overflow-hidden bg-gradient-to-br from-slate-900 via-purple-950/50 to-slate-950 ${compact ? 'h-40' : 'h-48'}`}>
           {!imageError ? (
             <img
               src={imageSrc}
@@ -496,7 +500,7 @@ function StoryCard({ item, index }: { item: NewsFeedItem; index: number }) {
             {decodeTextEntity(item.title || 'Untitled story')}
           </h2>
 
-          <p className="line-clamp-3 flex-1 text-sm leading-relaxed text-slate-400">
+          <p className={`flex-1 text-sm leading-relaxed text-slate-400 ${compact ? 'line-clamp-2' : 'line-clamp-3'}`}>
             {decodeTextEntity(item.summary || 'No summary available yet.')}
           </p>
 
@@ -543,23 +547,45 @@ function StoryCard({ item, index }: { item: NewsFeedItem; index: number }) {
       </article>
 
       <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-        <DialogContent className="border-white/10 bg-slate-950 text-white sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Share to your feed</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Add your thoughts and share this story with friends and followers.
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="share-dialog-panel overflow-hidden border-white/15 bg-[#05050f]/95 p-0 text-white shadow-[0_24px_80px_rgba(0,0,0,0.65)] backdrop-blur-2xl sm:max-w-lg sm:rounded-2xl">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(217,70,239,0.14)_0%,transparent_45%),linear-gradient(225deg,rgba(34,211,238,0.1)_0%,transparent_42%)]"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                'linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.06) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.06) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.06) 75%)',
+              backgroundSize: '20px 20px',
+              backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0'
+            }}
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-300/50 to-transparent"
+          />
 
-          <div className="space-y-4">
-            <div className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.04]">
+          <div className="relative space-y-5 p-6">
+            <DialogHeader className="space-y-2 pr-8 text-left">
+              <DialogTitle className="text-xl font-bold tracking-tight text-white">
+                Share to your feed
+              </DialogTitle>
+              <DialogDescription className="text-sm leading-relaxed text-slate-400">
+                Add your thoughts and share this story with friends and followers.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               {item.imageUrl ? (
-                <div className="h-32 overflow-hidden bg-slate-900">
+                <div className="relative h-36 overflow-hidden bg-slate-950">
                   <img src={item.imageUrl} alt="" className="h-full w-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#05050f] via-transparent to-transparent" />
                 </div>
               ) : null}
               <div className="space-y-2 p-4">
-                <div className="text-xs font-semibold uppercase tracking-widest text-fuchsia-200">
+                <div className="inline-flex rounded-full border border-fuchsia-300/20 bg-fuchsia-400/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-fuchsia-100">
                   {decodeTextEntity(item.sourceName || 'News Pulse')}
                 </div>
                 <div className="text-sm font-semibold leading-snug text-white">
@@ -577,10 +603,10 @@ function StoryCard({ item, index }: { item: NewsFeedItem; index: number }) {
               placeholder="Add your thoughts..."
               maxLength={2000}
               rows={4}
-              className="resize-none border-white/10 bg-black/30 text-white placeholder:text-slate-500 focus-visible:ring-fuchsia-500/30"
+              className="resize-none rounded-2xl border-white/10 bg-black/40 text-white placeholder:text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] focus-visible:border-fuchsia-400/40 focus-visible:ring-fuchsia-500/25"
             />
 
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
               <label className="text-sm text-slate-400" htmlFor={`share-visibility-${item.id}`}>
                 Audience
               </label>
@@ -588,34 +614,34 @@ function StoryCard({ item, index }: { item: NewsFeedItem; index: number }) {
                 id={`share-visibility-${item.id}`}
                 value={shareVisibility}
                 onChange={event => setShareVisibility(event.target.value === 'followers' ? 'followers' : 'public')}
-                className="h-9 rounded-lg border border-white/10 bg-slate-900 px-3 text-sm text-white"
+                className="h-9 rounded-lg border border-white/10 bg-black/40 px-3 text-sm text-white outline-none focus:border-fuchsia-400/40"
               >
                 <option value="public">Public</option>
                 <option value="followers">Followers</option>
               </select>
             </div>
-          </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              className="border-white/10 bg-transparent text-slate-200 hover:bg-white/10"
-              onClick={() => setIsShareOpen(false)}
-              disabled={isSharing}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              className="bg-white text-black hover:bg-white/90"
-              onClick={handleShareToFeed}
-              disabled={isSharing}
-            >
-              {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-              Share to Feed
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-white/15 bg-white/[0.03] text-slate-200 hover:bg-white/10 hover:text-white"
+                onClick={() => setIsShareOpen(false)}
+                disabled={isSharing}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="rounded-xl bg-gradient-to-r from-fuchsia-500 via-purple-500 to-cyan-400 font-semibold text-white shadow-[0_10px_30px_rgba(217,70,239,0.25)] hover:opacity-95"
+                onClick={handleShareToFeed}
+                disabled={isSharing}
+              >
+                {isSharing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Share to Feed
+              </Button>
+            </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -768,16 +794,25 @@ function buildArticlePreviewFromNewsItem(item: NewsFeedItem) {
   }
 }
 
+function resolveNewsSort(params: { category: NewsCategory; sort?: NewsSortMode }): NewsSortMode {
+  if (params.sort) return params.sort
+  if (params.category === 'gossip') return 'recent'
+  return 'score'
+}
+
 async function fetchNewsPage(params: {
   category: NewsCategory
   cursor?: string
   query?: string
   limit?: number
+  sort?: NewsSortMode
 }): Promise<NewsFeedResponse> {
   const url = new URL('/api/news/feed', window.location.origin)
+  const sort = resolveNewsSort(params)
   url.searchParams.set('limit', String(params.limit || 21))
   url.searchParams.set('facet', params.category === 'gossip' ? 'gossip' : 'top')
   url.searchParams.set('category', params.category)
+  url.searchParams.set('sort', sort)
   if (params.cursor) url.searchParams.set('cursor', params.cursor)
   if (params.query?.trim()) url.searchParams.set('query', params.query.trim())
 

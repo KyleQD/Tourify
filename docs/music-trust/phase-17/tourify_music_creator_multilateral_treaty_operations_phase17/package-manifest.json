@@ -1,0 +1,452 @@
+{
+  "package": "Tourify Phase 17 Global Creator Multilateral Treaty Operations and Periodic Review Readiness",
+  "generatedAt": "2026-07-19T01:56:17.297998+00:00",
+  "fileCount": 90,
+  "files": [
+    {
+      "path": "00_PHASE_17_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 7078,
+      "sha256": "318ea5644bc757e31592e9f5d39cf8dab242e13f2e6f44601e8603c32d15db7a"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_PARTICIPANT_JOURNEYS.md",
+      "bytes": 7080,
+      "sha256": "0991a54ef6af6bdc4e82d272160760da924dadf2a7288d078d0fd119461d3430"
+    },
+    {
+      "path": "02_PHASE_16_MULTI_YEAR_EVIDENCE_AND_READINESS.md",
+      "bytes": 6992,
+      "sha256": "1840894e5ad446d47ef53915acdec4520f554f61a653f7dba76a81f6724e3c31"
+    },
+    {
+      "path": "03_LEGAL_CHARACTER_COMPETENCE_AND_NON_EXPANSION_BOUNDARY.md",
+      "bytes": 7056,
+      "sha256": "56e7a9975720af657323fed0926710e3e1c7cfd6b8ac4f05daf6c5f5390d1db2"
+    },
+    {
+      "path": "04_MATURE_TREATY_ADMINISTRATION_OPERATING_MODEL.md",
+      "bytes": 7082,
+      "sha256": "0bb04fd967442f318fd6b0b5a5787117643d2ea51479c1e5d7f7998502a033ba"
+    },
+    {
+      "path": "05_PARTICIPANT_MANDATES_CREDENTIALS_AND_AUTHORITY_REVALIDATION.md",
+      "bytes": 7039,
+      "sha256": "6a42d4c3daf670db87425627ccdc92b487d05313060e292f7e1408b543d95d38"
+    },
+    {
+      "path": "06_ASSEMBLY_CONFERENCE_OF_PARTIES_AND_GOVERNING_BODY_OPERATIONS.md",
+      "bytes": 7097,
+      "sha256": "4beb91ac2f480055ea8385604c1275353d80af5f9064827f1cc173876ae00f70"
+    },
+    {
+      "path": "07_PERIODIC_REVIEW_CONFERENCE_MANDATE_CADENCE_AND_SCOPE.md",
+      "bytes": 7042,
+      "sha256": "650238e2d63fa1bda7f2cbfc35a0c6ea767482303aba517b728774e3f1b4ee42"
+    },
+    {
+      "path": "08_REVIEW_BASELINE_EVIDENCE_MANIFESTS_AND_DATA_QUALITY.md",
+      "bytes": 7024,
+      "sha256": "ab02775f137584a491319e94601b514479b03511d35c0eac026f88252ceb7212"
+    },
+    {
+      "path": "09_INDEPENDENT_EXPERT_REVIEW_SCIENTIFIC_TECHNICAL_AND_NORMATIVE_EVALUATION.md",
+      "bytes": 7045,
+      "sha256": "6272d021ee85e61951ec65b4f3cde8561c1f81d94d23ef35e5c116725272ab66"
+    },
+    {
+      "path": "10_CREATOR_OUTCOMES_IMPACT_EQUITY_AND_PUBLIC_VALUE_MEASUREMENT.md",
+      "bytes": 7067,
+      "sha256": "7a263d9870271c75cb0419c106010394683e82ec4575ca832c26828a886352e4"
+    },
+    {
+      "path": "11_IMPLEMENTATION_REPORTS_NATIONAL_FOCAL_POINTS_AND_PROGRESS_TRACKING.md",
+      "bytes": 7031,
+      "sha256": "56375cfb21b3be591f431797c979602a622d44cfb809bf132048dfd1c5f3fc89"
+    },
+    {
+      "path": "12_COMPLIANCE_PEER_REVIEW_CORRECTIVE_ACTION_AND_REINSTATEMENT.md",
+      "bytes": 7007,
+      "sha256": "cd05b385f589be57dbe56e508354f8160c2980ebef7bdeecd81aa3a22a7404fb"
+    },
+    {
+      "path": "13_PROTOCOL_AMENDMENT_CONSOLIDATION_SUPERSESSION_AND_MIGRATION.md",
+      "bytes": 7031,
+      "sha256": "b95171f703d77de89738a6bed8cac83fdeb13c95c4a4e873f7b13552df073c5b"
+    },
+    {
+      "path": "14_PROTOCOL_SUSPENSION_TERMINATION_REVIVAL_AND_SUNSET.md",
+      "bytes": 7027,
+      "sha256": "640c823814fd9a251c8896b330c5bc37465d094454e9385a85fb9ed6d300aeb7"
+    },
+    {
+      "path": "15_RESERVATIONS_DECLARATIONS_OBJECTIONS_AND_EVOLVING_PARTICIPATION.md",
+      "bytes": 7058,
+      "sha256": "e2a3de6cec4e6823679132fa0f46d10657d15722d5bda60720f3ad046a90aa5e"
+    },
+    {
+      "path": "16_DEPOSITARY_CUSTODY_AUTHENTIC_TEXTS_NOTIFICATIONS_AND_CORRECTIONS.md",
+      "bytes": 7094,
+      "sha256": "5fa9c98cd594a3ce1b2e2627035eacb278c2d6346713a3772928797ecaed7eda"
+    },
+    {
+      "path": "17_EXTERNAL_REGISTRATION_PUBLICATION_AND_ARTICLE_102_RECONCILIATION.md",
+      "bytes": 7056,
+      "sha256": "15e0ad3f2b437471a6d1f8fb24a27ba495da5a89098e2a941a16a0448c00a682"
+    },
+    {
+      "path": "18_INTERPRETATION_GUIDANCE_TRAVAUX_AND_NON_ADJUDICATION.md",
+      "bytes": 7050,
+      "sha256": "0adce7ae7137a8a85f8f9b2d0e66deb7bb909bf0968d0052cf7a7bdbe1cdd9ef"
+    },
+    {
+      "path": "19_INSTITUTIONAL_REFORM_ORGANS_MANDATES_AND_STRUCTURAL_CHANGE.md",
+      "bytes": 7034,
+      "sha256": "175518540fbfc18f532a16295fad49649cb0edff8ac9c91efde013f0ab233dd7"
+    },
+    {
+      "path": "20_COMPETENCE_CHANGE_CONTROL_AND_ULTRA_VIRES_PREVENTION.md",
+      "bytes": 7005,
+      "sha256": "061ff1c70adb0842ef9fe703c4b795b07e77b3fd512ff756f2a4833c35f8ba9d"
+    },
+    {
+      "path": "21_RELATIONSHIP_AGREEMENTS_AND_INTER_INSTITUTIONAL_COORDINATION.md",
+      "bytes": 7045,
+      "sha256": "b41cd7620181b6f7152555d33985d438b7bd89c5a25aeb0a2f2d57f2b28c8b65"
+    },
+    {
+      "path": "22_STANDARDS_LIAISON_TECHNICAL_COORDINATION_AND_NORMATIVE_REFERENCES.md",
+      "bytes": 7052,
+      "sha256": "f0d4f798c374bb5e8154258db0cda25c9bd1f8bde7103dc89a965197c7f2d359"
+    },
+    {
+      "path": "23_LONG_TERM_PUBLIC_SERVICE_OBLIGATIONS_AND_UNIVERSAL_ACCESS.md",
+      "bytes": 7033,
+      "sha256": "d9f0f2f72be974d4f5704b4e8f4e2301385745587819ad78afa17f0260d7aa54"
+    },
+    {
+      "path": "24_GLOBAL_IMPLEMENTATION_ASSISTANCE_COUNTRY_PROGRAMS_AND_TECHNOLOGY_TRANSFER.md",
+      "bytes": 6990,
+      "sha256": "0b06a14763535f988cfc9d9d9b2ac63d39cdfaf5c1fd524b175b6311de1707aa"
+    },
+    {
+      "path": "25_CAPACITY_BUILDING_FUND_REPLENISHMENT_GRANTS_AND_BENEFIT_SHARING.md",
+      "bytes": 6969,
+      "sha256": "c0a6da3756b6a41898a8a0101f6059c310babb78ac36a2ca13a0023d06aac1b2"
+    },
+    {
+      "path": "26_ASSESSED_VOLUNTARY_SERVICE_FUNDING_AND_ARREARS.md",
+      "bytes": 6966,
+      "sha256": "c6702177be797b87a795eb6965aa49ae8633163ce5152d32618f20b2ae42d071"
+    },
+    {
+      "path": "27_BUDGET_AUDIT_EVALUATION_RESERVES_AND_VALUE_FOR_MONEY.md",
+      "bytes": 6975,
+      "sha256": "e2269a540a9f11f3a4fbdd4a057c17e7c25dae0d4a9702df19c7a0792f9e4a59"
+    },
+    {
+      "path": "28_PROCUREMENT_VENDOR_NEUTRALITY_OPEN_TECHNOLOGY_AND_SUPPLY_CHAIN.md",
+      "bytes": 6989,
+      "sha256": "a43adf0404ef2ad02ea431ffed293942cc2562e035aa0564339d70e64e5a2682"
+    },
+    {
+      "path": "29_HOST_COUNTRY_FIELD_OFFICE_AND_OPERATIONAL_AGREEMENT_REVIEW.md",
+      "bytes": 6966,
+      "sha256": "232c4c0ce387b721be7a3cc448a06310a7b21031b4c901facfd6235a17b91a39"
+    },
+    {
+      "path": "30_PRIVILEGES_IMMUNITIES_WAIVER_ABUSE_PREVENTION_AND_REMEDIES.md",
+      "bytes": 6965,
+      "sha256": "eb2b5155ed7658b152ec5aa3fb5d7d811ba5bbbfd0ab8d4125ca9dee19eaa38f"
+    },
+    {
+      "path": "31_RESPONSIBILITY_LIABILITY_CLAIMS_INSURANCE_AND_REPARATION.md",
+      "bytes": 6997,
+      "sha256": "718e3b33cfe45856b68026b221d2aef2ee258b49814305e050655dd322c667cb"
+    },
+    {
+      "path": "32_DISPUTE_PREVENTION_CONSULTATION_MEDIATION_ADVISORY_AND_REVIEW.md",
+      "bytes": 7013,
+      "sha256": "72480de52ffcb53fd0c28152fd126924dae95018b480df0c7046b3faff116d85"
+    },
+    {
+      "path": "33_INFORMATION_ACCESS_PUBLIC_ARCHIVES_RECORDS_RETENTION_AND_TRANSPARENCY.md",
+      "bytes": 7019,
+      "sha256": "34af18b0f347479b7fa373f8358f22b856595916f77836eaa6ee6eeeb4fb1612"
+    },
+    {
+      "path": "34_PUBLIC_PARTICIPATION_CREATOR_CHAMBER_CIVIL_SOCIETY_AND_EXPERT_INPUT.md",
+      "bytes": 7026,
+      "sha256": "23aaa2f7f1d4138e0e5794ffed7dce31f960278856d37f21b0f949593373590e"
+    },
+    {
+      "path": "35_MULTILINGUAL_AUTHENTIC_TEXTS_ACCESSIBILITY_ASSISTED_SERVICE_AND_INCLUSION.md",
+      "bytes": 7024,
+      "sha256": "e5fa8f39a42d1f066325f8512c62a262b44991b7fcc7a5a42b44aad457a5775e"
+    },
+    {
+      "path": "36_CROSS_BORDER_PRIVACY_LOCALIZATION_SANCTIONS_EXPORT_AND_HUMAN_RIGHTS.md",
+      "bytes": 7010,
+      "sha256": "4629b19705da2947f6e80261f7a45c5973244226f01a31d545e662bd127ee67b"
+    },
+    {
+      "path": "37_COMPETITION_MARKET_NEUTRALITY_AND_NO_COLLECTIVE_AUTHORITY.md",
+      "bytes": 7016,
+      "sha256": "91706e8a016d39fc9febe649bb7d873945a0bc36872e748603777396acd8562a"
+    },
+    {
+      "path": "38_SECURITY_KEYS_TRUST_ANCHORS_SUPPLY_CHAIN_AND_ZERO_TRUST.md",
+      "bytes": 6962,
+      "sha256": "e6b1b5edddd9ad288af175ea6fc8dda0ec58e695b8230e693717051d19b3e859"
+    },
+    {
+      "path": "39_CONTINUITY_SUCCESSION_DISSOLUTION_ASSET_LOCK_AND_PUBLIC_SERVICE_WIND_DOWN.md",
+      "bytes": 7003,
+      "sha256": "97c927561d8cb2aabe830c8b525b742d7130183ec4db263c826c88dd452d584d"
+    },
+    {
+      "path": "40_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "bytes": 6995,
+      "sha256": "e4db2f79ee203e6254156de268372e9675917b8601d80b16e4aed64e75b68008"
+    },
+    {
+      "path": "41_API_EVENTS_BACKGROUND_JOBS_AND_EXTERNAL_ADAPTERS.md",
+      "bytes": 6938,
+      "sha256": "d9c67fe94647919fe8f6633942f1195b33abac6d3a73de73b8e6a525f87ba942"
+    },
+    {
+      "path": "42_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 7006,
+      "sha256": "2bcd082aef054076c3c40d27f7d4fc376a3c6b272b1e5e9f4c81fb264fbc399f"
+    },
+    {
+      "path": "43_ADMIN_TREATY_OPERATIONS_QUEUES_AND_APPROVALS.md",
+      "bytes": 6959,
+      "sha256": "d3ad581982b2b8f294679e0d99ccd7278d4768799da05b7566192f3bd522bfa3"
+    },
+    {
+      "path": "44_OBSERVABILITY_SERVICE_LEVELS_PUBLIC_REPORTING_AND_INCIDENT_COMMUNICATION.md",
+      "bytes": 6983,
+      "sha256": "1505ccb285db22c1f3bd3375613789dbebf24ef349a4657fbae200295d32b02b"
+    },
+    {
+      "path": "45_TESTING_MULTI_YEAR_PILOT_PERIODIC_REVIEW_AND_ROLLOUT.md",
+      "bytes": 7037,
+      "sha256": "5c63e6dfa4ea6f17b70a82a86fcddca83999b9dc8a1eb9b9459edba5680caf97"
+    },
+    {
+      "path": "46_PHASE_18_GLOBAL_CREATOR_TREATY_SYSTEM_RENEWAL_AND_INTERGENERATIONAL_STEWARDSHIP_HANDOFF.md",
+      "bytes": 7095,
+      "sha256": "8c977605236fff01b3dedce78602d2f1e27b71fc2d7dbd69d42c0dc704a0ee60"
+    },
+    {
+      "path": "47_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 7382,
+      "sha256": "7b566f52d987f11af2bdac7fe3070b17ac3f9b1b377383f9415a158eca6f2fa4"
+    },
+    {
+      "path": "48_DEFINITION_OF_DONE.md",
+      "bytes": 6782,
+      "sha256": "c09c2f8ad2c845c74e9f302fbcab8c099b03836146a9987e3b0dc879a4c21c1e"
+    },
+    {
+      "path": "49_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 4621,
+      "sha256": "2579663b481992bfd9cd9941da53a61c07dca20653e1d843790e74c43be781f1"
+    },
+    {
+      "path": "50_CURRENT_STANDARDS_LEGAL_PRIVACY_AND_TREATY_OPERATIONS_REVIEW.md",
+      "bytes": 4086,
+      "sha256": "fab0677ba394a76313c9be87a603c1fbdcabb7ce2c5618f05583d2781dc3668b"
+    },
+    {
+      "path": "51_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "bytes": 1882,
+      "sha256": "4ddcfbd8c5936a56daee4e5d4a6580d92ca8312c31b661d06e8cb0bb84b26a5e"
+    },
+    {
+      "path": "52_MODEL_PERIODIC_REVIEW_CONFERENCE_AND_IMPLEMENTATION_PACKAGE.md",
+      "bytes": 4652,
+      "sha256": "6b231f86256bf47b14051cf9d592535d7b5a4e742a031c5873224e0820824108"
+    },
+    {
+      "path": "53_PHASE_17_PUBLIC_APPROVAL_AND_ACTIVATION_GATE.md",
+      "bytes": 6914,
+      "sha256": "2dfcde8302e5b9f9db75ab9e2ea13abe1e088cbea085d6a0cb1ad26bbbf47998"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 819,
+      "sha256": "0154b53229d6d2fcfc67047795079d70d2f3c71f17569ee97cc1cfbc141f4401"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 1769,
+      "sha256": "29f9b7da21b871fec4de254b718eb93253eef279cdd14020697cb3282f8b46ea"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2172,
+      "sha256": "c97838636a8aa784e9a49c5da734c64cd7c4cba39100fe4133132baf97ba14c9"
+    },
+    {
+      "path": "SOURCE_PHASE_16_HANDOFF.md",
+      "bytes": 1257,
+      "sha256": "331fd87f5a5cee574dfc54830833a741f4bd79d374ba3a34b4ee8cb53c984590"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "bytes": 372,
+      "sha256": "0d76b7842dc3b407f3133e8a6d6fe476de16f006630950172188ccbb42e250e0"
+    },
+    {
+      "path": "phase-17-execution-plan.schema.json",
+      "bytes": 3583,
+      "sha256": "2a9759dbb6d5efdd10f6b123c6fe325d79afc1ff22905852b5ccde3b07cbd446"
+    },
+    {
+      "path": "phase-17-execution-plan.template.json",
+      "bytes": 649978,
+      "sha256": "f5d00b805fc1bdbf6d0556f6000785366605ad01512b41b52a08a5541082b227"
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "bytes": 784,
+      "sha256": "dd37049938c30ed9994f746b2bf0e71982d6a2e37d879decf8a09b83e41044c5"
+    },
+    {
+      "path": "reference/api-examples/adopt-review-conference-outcome.json",
+      "bytes": 361,
+      "sha256": "230a2ab6002b56a6b58579904a5a948cebde9d29cea65f06954bcad06b81a1c6"
+    },
+    {
+      "path": "reference/api-examples/create-periodic-review-cycle.json",
+      "bytes": 394,
+      "sha256": "387d492191cb15b72b78cc217c7df85a8152ef34cd5c41e11790c2d29eccf7b2"
+    },
+    {
+      "path": "reference/api-examples/depositary-notification-webhook.json",
+      "bytes": 282,
+      "sha256": "b85f84071fc2a5be2945fe5d7527146308e3d1b79e5c4646adff8a864b4dbe48"
+    },
+    {
+      "path": "reference/api-examples/protocol-amendment-submission.json",
+      "bytes": 257,
+      "sha256": "ac314d32ab0f729ce5c71b05bb8f8ba73bf74ffcf08391888f56f3f01b0140bb"
+    },
+    {
+      "path": "reference/api-examples/public-service-continuity-incident.json",
+      "bytes": 266,
+      "sha256": "39ae2a5ba3e5ea78f994ac66e05c7afa334431ac95c0e21c495f8fb8308a2c1f"
+    },
+    {
+      "path": "reference/api-examples/relationship-agreement-status-webhook.json",
+      "bytes": 257,
+      "sha256": "6b1acba724164b05586e520015e206dd85cb32e9c9407e35b14a6c1dcced2cae"
+    },
+    {
+      "path": "reference/api-examples/submit-implementation-report.json",
+      "bytes": 266,
+      "sha256": "683239fd781b19ffb1835ccd45ccbe6d3beda6e44805a94d5186e13f305e8219"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/competence-expansion-gate.ts",
+      "bytes": 728,
+      "sha256": "bd454c4ac9e2640871f79b99b6ee35845a4105e285718c66fe48bab508a01d10"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/conference-decision-policy.ts",
+      "bytes": 659,
+      "sha256": "6c56ade3b655c21f4775e97fc436a1da58a159dc0012971d7eb873e62b791608"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/legal-competence-gate.ts",
+      "bytes": 685,
+      "sha256": "c8f7cd0429b264b2789eef00d4e3ff86d3c987a53b6809e8d81a763b0a2249ff"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/outcome-evaluation-policy.ts",
+      "bytes": 562,
+      "sha256": "e96ab6361a5e4c9860fed2b975452e0a29c2401588de20000078fc33d4fc3448"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/periodic-review-evidence-gate.ts",
+      "bytes": 651,
+      "sha256": "3729247a115a764d6d212288738409c7b831e35040904fdb40af2f9e5fbc6a59"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/phase17-activation-gate.ts",
+      "bytes": 1104,
+      "sha256": "53cfc4576bc429d70dd36d07b4f848ba60513630597fdee114279f6bf2563a12"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/protocol-lifecycle-state-machine.ts",
+      "bytes": 581,
+      "sha256": "3ecc33a3ae16fceed0aee608cbbed308c6e11a8e161a6753b447a1f0f7967a30"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/public-service-obligation-policy.ts",
+      "bytes": 663,
+      "sha256": "daa69a53d78aeaf48ed6452dca6463846d3a1cf12c55418fee9e01c3ad0e471a"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/relationship-agreement-gate.ts",
+      "bytes": 717,
+      "sha256": "291fbb5cb73a0f8779c306f782efaa312e207bbd3096a25e9d05aa2e68d75de3"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/review-cycle-state-machine.ts",
+      "bytes": 1094,
+      "sha256": "f3ad6941b1ad6c6ac6911dc4c0f4c12d63db60d5b82293e96910c124cb30cd97"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/treaty-notification-reconciliation.ts",
+      "bytes": 417,
+      "sha256": "1d5c4be83de5eed08e92653424afd85ac2457db92c7118e19e708db5b25bf2ad"
+    },
+    {
+      "path": "reference/lib/music/creator-multilateral-treaty-operations/treaty-operations-domain.ts",
+      "bytes": 916,
+      "sha256": "bde1380a4236ee0f57acbe9a03a19bcff6b68b127df21520aba367ab35b147ea"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_operations_reviews_sessions.sql",
+      "bytes": 1258,
+      "sha256": "b4354ea0b8b2e679c64752075c2e9f459e708cee4879383df658df5b80a4a064"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_evidence_reports_protocols_compliance.sql",
+      "bytes": 1199,
+      "sha256": "4e5dbff56dcc96ca243c0d96a648c469b9c5f5b237808234d2ba385cb960a835"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_relationships_services_funding_host.sql",
+      "bytes": 1195,
+      "sha256": "5ff42a617b78d35c4175a58c0839806adc831f6036b5af2d33caa8e8759b0d49"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_public_projections_audit_outbox.sql",
+      "bytes": 1240,
+      "sha256": "298c6ce855c7936577eed0c98e6243cb9c9c472fbfd369652293483f395f8b25"
+    },
+    {
+      "path": "reference/tests/creator-multilateral-treaty-operations/legal-competence-gate.test.ts",
+      "bytes": 393,
+      "sha256": "d42059d7586ee7ea293e0c79c1768a00929c7ee0a6f5c581a1a20366f356a0f4"
+    },
+    {
+      "path": "reference/tests/creator-multilateral-treaty-operations/periodic-review-evidence-gate.test.ts",
+      "bytes": 412,
+      "sha256": "1c7ff49e386d0d4f6fae9d43f3ce8ffe0727c3aec70b015d1f57dfcd550bfe38"
+    },
+    {
+      "path": "reference/tests/creator-multilateral-treaty-operations/phase17-activation-gate.test.ts",
+      "bytes": 539,
+      "sha256": "e9033276fbe77d484fd7dae84de18d48d5a35d2af9ae40d7cceeda5fe366ad6e"
+    },
+    {
+      "path": "reference/tests/creator-multilateral-treaty-operations/review-cycle-state-machine.test.ts",
+      "bytes": 441,
+      "sha256": "f7087bc0669d972a29833d6427ef331a85bdbfae01959ed81d2c6f60ee5cdf1c"
+    }
+  ]
+}

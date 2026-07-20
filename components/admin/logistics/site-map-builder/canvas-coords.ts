@@ -93,16 +93,18 @@ export function checkPlacementValidity(
   })
 }
 
+/** @deprecated Prefer screenToWorld from canvas-viewport — same CSS-space formula. */
 export function screenToMapCoords(
   clientX: number,
   clientY: number,
-  canvasRect: DOMRect,
+  canvasRect: Pick<DOMRect, 'left' | 'top'>,
   pan: Point,
   zoom: number
 ): Point {
+  const safeZoom = zoom === 0 || !Number.isFinite(zoom) ? 1 : zoom
   return {
-    x: (clientX - canvasRect.left - pan.x) / zoom,
-    y: (clientY - canvasRect.top - pan.y) / zoom,
+    x: (clientX - canvasRect.left - pan.x) / safeZoom,
+    y: (clientY - canvasRect.top - pan.y) / safeZoom,
   }
 }
 

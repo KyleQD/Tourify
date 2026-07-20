@@ -18,6 +18,8 @@ import {
   fetchTourLogisticsBatch,
   type LogisticsMetricsSummary,
 } from "@/lib/admin/batch-logistics-metrics"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { mapAdminScopeError } from "@/lib/admin/admin-request"
 
 interface TourRow {
   id: string
@@ -38,11 +40,11 @@ interface TourRow {
   logistics?: { crew?: number }
 }
 
-function buildNoStoreInit(): RequestInit {
+function buildNoStoreInit(actingHeaders: Record<string, string>): RequestInit {
   return {
     credentials: "include",
     cache: "no-store",
-    headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    headers: { "Cache-Control": "no-cache", Pragma: "no-cache", ...actingHeaders },
   }
 }
 
@@ -66,7 +68,7 @@ function normalizeTour(raw: any): TourRow {
 export default function ToursPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const eventIdToAttach = searchParams.get("event_id")
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
   const [filterStatus, setFilterStatus] = useState("all")
   const [searchTerm, setSearchTerm] = useState("")
   const [tours, setTours] = useState<TourRow[]>([])
@@ -81,13 +83,20 @@ export default function ToursPage() {
   }, [searchParams])
 
   const fetchTours = useCallback(async () => {
+    if (!isActingReady) return
     try {
       setIsLoading(true)
       setFetchError(null)
+      setTours([])
+      setLogisticsByTour({})
       const params = new URLSearchParams()
       if (filterStatus !== "all") params.set("status", filterStatus)
-      const response = await fetch(`/api/admin/tours?${params}`, buildNoStoreInit())
-      if (!response.ok) throw new Error("Failed to fetch tours")
+      const response = await fetch(`/api/admin/tours?${params}`, buildNoStoreInit(actingHeaders))
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}))
+        const mapped = mapAdminScopeError(response.status, payload.code, payload.error)
+        throw new Error(mapped.message)
+      }
       const data = await response.json()
       setTours((data.tours || []).map(normalizeTour))
     } catch (error) {
@@ -96,7 +105,7 @@ export default function ToursPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [filterStatus])
+  }, [actingContextKey, actingHeaders, filterStatus, isActingReady])
 
   useEffect(() => {
     void fetchTours()
@@ -108,13 +117,13 @@ export default function ToursPage() {
       return
     }
     let cancelled = false
-    void fetchTourLogisticsBatch(tours.map((tour) => tour.id)).then((result) => {
+    void fetchTourLogisticsBatch(tours.map((tour) => tour.id), 4, actingHeaders).then((result) => {
       if (!cancelled) setLogisticsByTour(result)
     })
     return () => {
       cancelled = true
     }
-  }, [tours])
+  }, [actingHeaders, tours])
 
   const filteredTours = tours.filter((tour) => {
     const matchesStatus = filterStatus === "all" || tour.status === filterStatus
@@ -146,20 +155,6 @@ export default function ToursPage() {
           </Button>
         }
       />
-
-      {eventIdToAttach ? (
-        <div className="flex flex-col gap-3 rounded-[1.25rem] border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm font-medium text-cyan-100">Add this event to a tour</p>
-            <p className="text-xs text-slate-400">Open an existing tour to attach the event, or start a new tour with this event already staged.</p>
-          </div>
-          <Button asChild size="sm" className="bg-cyan-500 text-slate-950 hover:bg-cyan-400">
-            <Link href={`/admin/dashboard/tours/builder?event_id=${eventIdToAttach}`}>
-              Start tour
-            </Link>
-          </Button>
-        </div>
-      ) : null}
 
       {draftTours.length > 0 ? (
         <div className="flex flex-col gap-3 rounded-[1.25rem] border border-cyan-400/20 bg-cyan-400/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">

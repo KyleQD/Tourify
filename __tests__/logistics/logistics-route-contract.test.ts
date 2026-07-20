@@ -35,8 +35,25 @@ describe('Operations logistics route contracts', () => {
     expect(source).toContain('event_id')
     expect(source).toContain('tour_id')
     expect(source).toContain('site_map_id')
+    expect(source).toContain('resolveAuthorizedOrgLogisticsScope')
+    expect(source).toContain('sendLogisticsNotifications')
     expect(migration).toContain('add column if not exists event_id')
     expect(migration).toContain('add column if not exists metadata')
+  })
+
+  it('exposes transport catering backline and reservation logistics APIs', () => {
+    const transport = read('app/api/admin/logistics/transport/route.ts')
+    const catering = read('app/api/admin/logistics/catering/route.ts')
+    const backline = read('app/api/admin/logistics/backline/route.ts')
+    const reservations = read('app/api/admin/logistics/equipment/reservations/route.ts')
+    const foundation = read('supabase/migrations/20260719210000_logistics_ops_foundation.sql')
+
+    expect(transport).toContain('ground_transportation_coordination')
+    expect(catering).toContain('buildDietaryKitchenSummary')
+    expect(backline).toContain('backline_requirements')
+    expect(reservations).toContain('equipment_reservations')
+    expect(foundation).toContain('catering_services')
+    expect(foundation).toContain('logistics_acknowledgements')
   })
 
   it('protects direct site map reads and vendor logistics endpoints', () => {

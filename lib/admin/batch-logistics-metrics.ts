@@ -42,7 +42,8 @@ async function mapWithConcurrency<T, R>(
 /** Fetch logistics metrics for many events with bounded concurrency (avoids N+1 UI storms). */
 export async function fetchEventLogisticsBatch(
   eventIds: string[],
-  concurrency = 4
+  concurrency = 4,
+  requestHeaders: Record<string, string> = {},
 ): Promise<Record<string, LogisticsMetricsSummary>> {
   if (!eventIds.length) return {}
 
@@ -51,6 +52,7 @@ export async function fetchEventLogisticsBatch(
       const response = await fetch(`/api/admin/logistics/metrics?eventId=${eventId}`, {
         credentials: "include",
         cache: "no-store",
+        headers: requestHeaders,
       })
       if (!response.ok) return [eventId, null] as const
       const data = await response.json()
@@ -70,7 +72,8 @@ export async function fetchEventLogisticsBatch(
 /** Fetch tour logistics summaries with bounded concurrency. */
 export async function fetchTourLogisticsBatch(
   tourIds: string[],
-  concurrency = 4
+  concurrency = 4,
+  requestHeaders: Record<string, string> = {},
 ): Promise<Record<string, LogisticsMetricsSummary>> {
   if (!tourIds.length) return {}
 
@@ -79,6 +82,7 @@ export async function fetchTourLogisticsBatch(
       const response = await fetch(`/api/admin/tours/${tourId}/logistics-summary`, {
         credentials: "include",
         cache: "no-store",
+        headers: requestHeaders,
       })
       if (!response.ok) return [tourId, null] as const
       const data = await response.json()

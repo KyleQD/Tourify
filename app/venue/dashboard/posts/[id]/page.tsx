@@ -52,8 +52,8 @@ export default function PostDetailPage() {
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold mb-4">Post Not Found</h2>
         <p className="text-gray-400 mb-6">The post you're looking for doesn't exist or has been removed.</p>
-        <Link href="/venue/dashboard/network-feed">
-          <Button className="bg-purple-600 hover:bg-purple-700">Return to Feed</Button>
+        <Link href="/venue/dashboard">
+          <Button className="bg-purple-600 hover:bg-purple-700">Return to Dashboard</Button>
         </Link>
       </div>
     )

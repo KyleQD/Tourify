@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { useAuth } from '@/contexts/auth-context'
+import {
+  DEFAULT_DASHBOARD_THEME_ID,
+  getDashboardTheme,
+  isDashboardThemeId,
+  writeCachedDashboardThemeId,
+  type DashboardThemeId,
+} from '@/lib/dashboard/dashboard-themes'
+import {
+  PROFILE_IMAGES_UPDATED_EVENT,
+  notifyProfileImagesUpdated,
+} from '@/lib/profile/profile-image-events'
 
 export interface AppearanceSettings {
   theme: 'system' | 'light' | 'dark'
@@ -13,6 +24,7 @@ export interface AppearanceSettings {
     accent: string
   }
   selectedTheme: string
+  dashboardTheme: DashboardThemeId
   profileImages: {
     avatarUrl: string
     headerUrl: string
@@ -30,6 +42,7 @@ const defaultSettings: AppearanceSettings = {
     accent: '#34d399'
   },
   selectedTheme: 'emerald',
+  dashboardTheme: DEFAULT_DASHBOARD_THEME_ID,
   profileImages: {
     avatarUrl: '',
     headerUrl: ''
@@ -49,19 +62,35 @@ export function useAppearanceSettings() {
     }
   }, [user])
 
+  useEffect(() => {
+    function handleImagesUpdated() {
+      if (user) void loadSettings()
+    }
+
+    window.addEventListener(PROFILE_IMAGES_UPDATED_EVENT, handleImagesUpdated)
+    return () => window.removeEventListener(PROFILE_IMAGES_UPDATED_EVENT, handleImagesUpdated)
+  }, [user])
+
   const loadSettings = async () => {
     try {
       setLoading(true)
       
       const { data: profile } = await supabase
         .from('profiles')
-        .select('metadata, avatar_url')
+        .select('metadata, avatar_url, cover_image, account_settings')
         .eq('id', user?.id)
         .single()
 
       if (profile) {
         const profileColors = profile.metadata?.profile_colors
-        const headerUrl = profile.metadata?.header_url || ''
+        const headerUrl =
+          profile.cover_image ||
+          profile.metadata?.header_url ||
+          ''
+        const storedDashboardTheme = profile.account_settings?.appearance?.dashboard_theme
+        const dashboardTheme = isDashboardThemeId(storedDashboardTheme)
+          ? storedDashboardTheme
+          : DEFAULT_DASHBOARD_THEME_ID
         
         setSettings({
           theme: 'system',
@@ -74,9 +103,10 @@ export function useAppearanceSettings() {
             accent: profileColors?.accent_color || '#34d399'
           },
           selectedTheme: profileColors?.background_gradient || 'emerald',
+          dashboardTheme,
           profileImages: {
             avatarUrl: profile.avatar_url || '',
-            headerUrl: headerUrl
+            headerUrl
           }
         })
       }
@@ -87,7 +117,10 @@ export function useAppearanceSettings() {
     }
   }
 
-  const updateSetting = (key: keyof AppearanceSettings, value: any) => {
+  const updateSetting = <K extends keyof AppearanceSettings>(
+    key: K,
+    value: AppearanceSettings[K]
+  ) => {
     setSettings(prev => ({ ...prev, [key]: value }))
   }
 
@@ -105,17 +138,33 @@ export function useAppearanceSettings() {
     }))
   }
 
-    const saveSettings = async () => {
+  const PROFILE_PRESET_IDS = new Set(['emerald', 'ocean', 'royal', 'sunset'])
+
+  const setDashboardTheme = (themeId: string) => {
+    const theme = getDashboardTheme(themeId)
+    setSettings((prev) => ({
+      ...prev,
+      dashboardTheme: theme.id,
+      profileColors: {
+        primary: theme.primary,
+        secondary: theme.secondary,
+        accent: theme.accent,
+      },
+      selectedTheme: PROFILE_PRESET_IDS.has(theme.id) ? theme.id : prev.selectedTheme,
+    }))
+    writeCachedDashboardThemeId(theme.id)
+  }
+
+  const saveSettings = async () => {
     if (!user) {
       console.error('No user found when trying to save appearance settings')
       return { success: false, error: 'No user found' }
     }
 
     try {
-
-      // Use the new API endpoint to bypass RLS issues
       const response = await fetch('/api/profile/update-appearance', {
         method: 'PUT',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -125,27 +174,60 @@ export function useAppearanceSettings() {
           darkMode: settings.darkMode,
           animations: settings.animations,
           glowEffects: settings.glowEffects,
-          profileImages: settings.profileImages
+          profileImages: settings.profileImages,
+          dashboardTheme: settings.dashboardTheme,
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => ({
+        error: 'Invalid server response',
+      }))
 
       if (!response.ok) {
         console.error('API error:', result)
-        console.error('Response status:', response.status)
-        console.error('Response headers:', Object.fromEntries(response.headers.entries()))
-        return { success: false, error: result.error || `HTTP ${response.status}: Failed to save settings` }
+        return {
+          success: false,
+          error: result.error || `HTTP ${response.status}: Failed to save settings`,
+        }
       }
 
+      writeCachedDashboardThemeId(settings.dashboardTheme)
+      notifyProfileImagesUpdated({
+        avatarUrl: settings.profileImages.avatarUrl || null,
+        coverUrl: settings.profileImages.headerUrl || null,
+        source: 'appearance-save',
+      })
       return { success: true, data: result.data }
     } catch (error) {
       console.error('Error saving appearance settings:', error)
-      return { success: false, error }
+      const message =
+        error instanceof TypeError
+          ? 'Could not reach the server — restart the dev server and try again'
+          : error instanceof Error
+            ? error.message
+            : 'Failed to save appearance settings'
+      return { success: false, error: message }
     }
   }
 
   const applyTheme = (themeId: string) => {
+    // Profile presets share ids with dashboard themes — keep both in sync
+    if (isDashboardThemeId(themeId)) {
+      const theme = getDashboardTheme(themeId)
+      setSettings((prev) => ({
+        ...prev,
+        dashboardTheme: theme.id,
+        selectedTheme: themeId,
+        profileColors: {
+          primary: theme.primary,
+          secondary: theme.secondary,
+          accent: theme.accent,
+        },
+      }))
+      writeCachedDashboardThemeId(theme.id)
+      return
+    }
+
     const themes = {
       emerald: { primary: '#10b981', secondary: '#059669', accent: '#34d399' },
       ocean: { primary: '#3b82f6', secondary: '#1d4ed8', accent: '#60a5fa' },
@@ -168,8 +250,9 @@ export function useAppearanceSettings() {
     updateSetting,
     updateProfileColor,
     updateProfileImage,
+    setDashboardTheme,
     saveSettings,
     applyTheme,
     reload: loadSettings
   }
-} 
+}

@@ -19,7 +19,9 @@ const RESERVED_PUBLIC_SHARE_SEGMENTS: Record<string, Set<string>> = {
     'messages',
     'music',
     'network',
+    'overview',
     'page',
+    'press',
     'profile',
     'settings',
     'store',
@@ -48,8 +50,27 @@ function isReservedSegment(root: string, segment: string) {
   return RESERVED_PUBLIC_SHARE_SEGMENTS[root]?.has(segment.toLowerCase()) ?? false
 }
 
+function isMusicVerifyRoute(segments: string[]): boolean {
+  // /music/verify/{passport|certificate|origin}/[publicId]
+  if (segments.length !== 4) return false
+  if (segments[0] !== 'music' || segments[1] !== 'verify') return false
+  const kind = segments[2]?.toLowerCase()
+  if (!['passport', 'certificate', 'origin'].includes(kind)) return false
+  return isSafeDynamicSegment(segments[3])
+}
+
+function isPublicPostRoute(segments: string[]): boolean {
+  // /posts/[id]
+  if (segments.length !== 2) return false
+  if (segments[0] !== 'posts') return false
+  return isSafeDynamicSegment(segments[1]) || isLikelyUuidPathSegment(segments[1])
+}
+
 export function isPublicShareRoute(pathname: string): boolean {
-  const [root, slug, ...rest] = getPathSegments(pathname)
+  const segments = getPathSegments(pathname)
+  if (isMusicVerifyRoute(segments) || isPublicPostRoute(segments)) return true
+
+  const [root, slug, ...rest] = segments
   if (!root || !slug || rest.length > 0) return false
   if (!isSafeDynamicSegment(slug) || isReservedSegment(root, slug)) return false
 

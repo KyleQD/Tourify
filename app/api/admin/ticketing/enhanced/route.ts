@@ -1,782 +1,626 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { randomUUID } from 'node:crypto'
+import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { authenticateApiRequest, checkAdminPermissions } from '@/lib/auth/api-auth'
+import { withAdminCapability } from '@/lib/auth/api-auth'
+import { logAuditEvent } from '@/lib/audit'
+import {
+  assertOrgEntityReferences,
+  listOrgEventIds,
+  OrgEntityAccessError,
+} from '@/lib/admin/org-entity-access'
+import {
+  assertDateOrder,
+  assertPercentageDiscount,
+  ticketingCreateSchema,
+  ticketingQuerySchema,
+  TicketingValidationError,
+  updateTicketTypeSchema,
+} from '@/lib/admin/ticketing-validation'
 
-// Enhanced validation schemas
-const createTicketTypeSchema = z.object({
-  event_id: z.string().uuid('Invalid event ID'),
-  name: z.string().min(1, 'Ticket type name is required'),
-  description: z.string().optional(),
-  price: z.number().min(0, 'Price must be non-negative'),
-  quantity_available: z.number().int().min(1, 'Quantity must be at least 1'),
-  max_per_customer: z.number().int().min(1).optional(),
-  sale_start: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid sale start date').optional(),
-  sale_end: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid sale end date').optional(),
-  category: z.enum(['general', 'vip', 'premium', 'early_bird', 'student', 'senior', 'group', 'backstage']).default('general'),
-  benefits: z.array(z.string()).optional(),
-  seating_section: z.string().optional(),
-  is_transferable: z.boolean().default(true),
-  transfer_fee: z.number().min(0).default(0),
-  refund_policy: z.string().default('No refunds'),
-  age_restriction: z.number().int().min(0).optional(),
-  requires_id: z.boolean().default(false),
-  featured: z.boolean().default(false),
-  priority_order: z.number().int().default(0),
-  metadata: z.record(z.any()).optional()
-})
+const EMPTY_UUID = '00000000-0000-0000-0000-000000000000'
 
-const createCampaignSchema = z.object({
-  event_id: z.string().uuid('Invalid event ID'),
-  name: z.string().min(1, 'Campaign name is required'),
-  description: z.string().optional(),
-  campaign_type: z.enum(['early_bird', 'flash_sale', 'group_discount', 'loyalty', 'referral', 'social_media', 'email', 'influencer']),
-  discount_type: z.enum(['percentage', 'fixed', 'buy_one_get_one', 'free_upgrade']),
-  discount_value: z.number().min(0, 'Discount value must be non-negative'),
-  start_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid start date'),
-  end_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid end date'),
-  max_uses: z.number().int().min(1).optional(),
-  applicable_ticket_types: z.array(z.string().uuid()).optional(),
-  target_audience: z.record(z.any()).optional(),
-  social_media_platforms: z.array(z.string()).optional(),
-  email_template_id: z.string().uuid().optional()
-})
-
-const createPromoCodeSchema = z.object({
-  campaign_id: z.string().uuid('Invalid campaign ID').optional(),
-  event_id: z.string().uuid('Invalid event ID'),
-  code: z.string().min(1, 'Promo code is required'),
-  description: z.string().optional(),
-  discount_type: z.enum(['percentage', 'fixed', 'free_shipping']),
-  discount_value: z.number().min(0, 'Discount value must be non-negative'),
-  min_purchase_amount: z.number().min(0).default(0),
-  max_discount_amount: z.number().min(0).optional(),
-  max_uses: z.number().int().min(1).optional(),
-  applicable_ticket_types: z.array(z.string().uuid()).optional(),
-  start_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid start date'),
-  end_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid end date')
-})
-
-const analyticsRequestSchema = z.object({
-  event_id: z.string().uuid('Invalid event ID').optional(),
-  ticket_type_id: z.string().uuid('Invalid ticket type ID').optional(),
-  start_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid start date').optional(),
-  end_date: z.string().refine((date) => !isNaN(Date.parse(date)), 'Invalid end date').optional(),
-  group_by: z.enum(['day', 'week', 'month', 'platform']).default('day'),
-  include_social: z.boolean().default(true),
-  include_campaigns: z.boolean().default(true)
-})
-
-export async function GET(request: NextRequest) {
-  try {
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
-    const { searchParams } = new URL(request.url)
-    const type = searchParams.get('type') || 'overview'
-    const event_idParam = searchParams.get('event_id')
-    const event_id = event_idParam === null ? undefined : event_idParam
-    const limit = parseInt(searchParams.get('limit') || '50')
-    const offset = parseInt(searchParams.get('offset') || '0')
-
-    if (type === 'overview') {
-      // Get comprehensive ticketing overview
-      const overview = await getTicketingOverview(supabase, event_id)
-      return NextResponse.json(overview)
-
-    } else if (type === 'ticket_types') {
-      // Get ticket types with enhanced data
-      const ticketTypes = await getTicketTypes(supabase, event_id, limit, offset)
-      return NextResponse.json(ticketTypes)
-
-    } else if (type === 'campaigns') {
-      // Get promotional campaigns
-      const campaigns = await getCampaigns(supabase, event_id, limit, offset)
-      return NextResponse.json(campaigns)
-
-    } else if (type === 'promo_codes') {
-      // Get promotional codes
-      const promoCodes = await getPromoCodes(supabase, event_id, limit, offset)
-      return NextResponse.json(promoCodes)
-
-    } else if (type === 'sales') {
-      // Get ticket sales with enhanced data
-      const sales = await getSales(supabase, event_id, limit, offset)
-      return NextResponse.json(sales)
-
-    } else if (type === 'analytics') {
-      // Get comprehensive analytics
-      const analytics = await getAnalytics(supabase, event_id)
-      return NextResponse.json(analytics)
-
-    } else if (type === 'social_performance') {
-      // Get social media performance
-      const socialPerformance = await getSocialPerformance(supabase, event_id)
-      return NextResponse.json(socialPerformance)
-
-    } else if (type === 'referrals') {
-      // Get referral data
-      const referrals = await getReferrals(supabase, event_id, limit, offset)
-      return NextResponse.json(referrals)
-
-    } else {
-      return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 })
-    }
-
-  } catch (error) {
-    console.error('[Enhanced Admin Ticketing API] Unexpected error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+class TicketingQueryError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'TicketingQueryError'
   }
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const { user, supabase } = authResult
-
-    // Check admin permissions
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) {
-      return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-    }
-
-    const body = await request.json()
-    const { action, ...data } = body
-
-    if (action === 'create_ticket_type') {
-      const validatedData = createTicketTypeSchema.parse(data)
-
-      // Validate sale dates
-      if (validatedData.sale_start && validatedData.sale_end) {
-        const startDate = new Date(validatedData.sale_start)
-        const endDate = new Date(validatedData.sale_end)
-        
-        if (endDate <= startDate) {
-          return NextResponse.json({ error: 'Sale end date must be after start date' }, { status: 400 })
-        }
-      }
-
-      // Check if event exists (canonical events_v2 table)
-      const { data: event } = await supabase
-        .from('events_v2')
-        .select('id')
-        .eq('id', validatedData.event_id)
-        .single()
-
-      if (!event) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      }
-
-      // Generate ticket code
-      const ticketCode = `TKT${Date.now()}${Math.floor(Math.random() * 1000)}`
-
-      const { data: ticketType, error } = await supabase
-        .from('ticket_types')
-        .insert({
-          ...validatedData,
-          ticket_code: ticketCode,
-          quantity_sold: 0,
-          is_active: true
-        })
-        .select('*')
-        .single()
-
-      if (error) {
-        console.error('[Enhanced Admin Ticketing API] Error creating ticket type:', error)
-        return NextResponse.json({ error: 'Failed to create ticket type' }, { status: 500 })
-      }
-
-      return NextResponse.json({ ticket_type: ticketType }, { status: 201 })
-
-    } else if (action === 'create_campaign') {
-      const validatedData = createCampaignSchema.parse(data)
-
-      // Validate campaign dates
-      const startDate = new Date(validatedData.start_date)
-      const endDate = new Date(validatedData.end_date)
-      
-      if (endDate <= startDate) {
-        return NextResponse.json({ error: 'Campaign end date must be after start date' }, { status: 400 })
-      }
-
-      const { data: campaign, error } = await supabase
-        .from('ticket_campaigns')
-        .insert({
-          ...validatedData,
-          current_uses: 0,
-          is_active: true
-        })
-        .select('*')
-        .single()
-
-      if (error) {
-        console.error('[Enhanced Admin Ticketing API] Error creating campaign:', error)
-        return NextResponse.json({ error: 'Failed to create campaign' }, { status: 500 })
-      }
-
-      return NextResponse.json({ campaign }, { status: 201 })
-
-    } else if (action === 'create_promo_code') {
-      const validatedData = createPromoCodeSchema.parse(data)
-
-      // Validate promo code dates
-      const startDate = new Date(validatedData.start_date)
-      const endDate = new Date(validatedData.end_date)
-      
-      if (endDate <= startDate) {
-        return NextResponse.json({ error: 'Promo code end date must be after start date' }, { status: 400 })
-      }
-
-      // Check if code already exists
-      const { data: existingCode } = await supabase
-        .from('promo_codes')
-        .select('id')
-        .eq('code', validatedData.code)
-        .single()
-
-      if (existingCode) {
-        return NextResponse.json({ error: 'Promo code already exists' }, { status: 400 })
-      }
-
-      const { data: promoCode, error } = await supabase
-        .from('promo_codes')
-        .insert({
-          ...validatedData,
-          current_uses: 0,
-          is_active: true
-        })
-        .select('*')
-        .single()
-
-      if (error) {
-        console.error('[Enhanced Admin Ticketing API] Error creating promo code:', error)
-        return NextResponse.json({ error: 'Failed to create promo code' }, { status: 500 })
-      }
-
-      return NextResponse.json({ promo_code: promoCode }, { status: 201 })
-
-    } else if (action === 'generate_referral_codes') {
-      const { event_id, count = 10, discount_amount = 10 } = data
-
-      if (!event_id) {
-        return NextResponse.json({ error: 'Event ID is required' }, { status: 400 })
-      }
-
-      const referralCodes = []
-      for (let i = 0; i < count; i++) {
-        const referralCode = `REF${Date.now()}${Math.floor(Math.random() * 1000)}${i}`
-        
-        const { data: referral, error } = await supabase
-          .from('ticket_referrals')
-          .insert({
-            referrer_id: user.id,
-            referred_email: '', // Will be filled when used
-            event_id,
-            referral_code: referralCode,
-            discount_amount,
-            status: 'pending'
-          })
-          .select('*')
-          .single()
-
-        if (!error && referral) {
-          referralCodes.push(referral)
-        }
-      }
-
-      return NextResponse.json({ referral_codes: referralCodes }, { status: 201 })
-
-    } else {
-      return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-    }
-
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: 'Validation error', 
-        details: error.errors 
-      }, { status: 400 })
-    }
-
-    console.error('[Enhanced Admin Ticketing API] Unexpected error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
-  }
+function scopedEventIds(eventIds: string[]) {
+  return eventIds.length > 0 ? eventIds : [EMPTY_UUID]
 }
 
-export async function PATCH(request: NextRequest) {
-  try {
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const { user, supabase } = authResult
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-
-    const body = await request.json()
-    const { action, id, ...data } = body
-
-    if (action === 'update_ticket_type') {
-      if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
-
-      const allowedFields = [
-        'name', 'description', 'price', 'quantity_available', 'max_per_customer',
-        'sale_start', 'sale_end', 'category', 'benefits', 'seating_section',
-        'is_transferable', 'transfer_fee', 'refund_policy', 'age_restriction',
-        'requires_id', 'featured', 'priority_order', 'is_active', 'metadata',
-        'visibility', 'access_level', 'min_per_order', 'internal_notes',
-      ]
-
-      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-      for (const key of allowedFields) {
-        if (data[key] !== undefined) patch[key] = data[key]
-      }
-
-      if (patch.sale_start && patch.sale_end) {
-        if (new Date(String(patch.sale_end)) <= new Date(String(patch.sale_start)))
-          return NextResponse.json({ error: 'Sale end date must be after start date' }, { status: 400 })
-      }
-
-      const { data: ticketType, error } = await supabase
-        .from('ticket_types')
-        .update(patch)
-        .eq('id', id)
-        .select('*')
-        .single()
-
-      if (error) {
-        console.error('[Enhanced Admin Ticketing API] Error updating ticket type:', error)
-        return NextResponse.json({ error: 'Failed to update ticket type' }, { status: 500 })
-      }
-
-      return NextResponse.json({ ticket_type: ticketType })
-    }
-
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation error', details: error.errors }, { status: 400 })
-    }
-    console.error('[Enhanced Admin Ticketing API] PATCH error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+function routeError(scope: string, error: unknown) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: 'Validation error', code: 'validation_error', details: error.errors },
+      { status: 400 },
+    )
   }
+  if (error instanceof TicketingValidationError) {
+    return NextResponse.json(
+      { error: error.message, code: 'ticketing_validation_error' },
+      { status: 422 },
+    )
+  }
+  if (error instanceof OrgEntityAccessError) {
+    return NextResponse.json(
+      { error: error.message, code: error.code },
+      { status: error.status },
+    )
+  }
+  if (error instanceof TicketingQueryError) {
+    return NextResponse.json(
+      { error: error.message, code: 'ticketing_unavailable' },
+      { status: 503 },
+    )
+  }
+
+  console.error(`[Enhanced Admin Ticketing API] ${scope} failed:`, error)
+  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
 }
 
-export async function DELETE(request: NextRequest) {
-  try {
-    const authResult = await authenticateApiRequest(request)
-    if (!authResult) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const { user, supabase } = authResult
-    const hasAdminAccess = await checkAdminPermissions(user)
-    if (!hasAdminAccess) return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 })
-
-    const body = await request.json().catch(() => ({}))
-    const id = body.id || new URL(request.url).searchParams.get('id')
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
-
-    // Soft-delete: deactivate rather than hard delete sold inventory
-    const { data: existing } = await supabase
-      .from('ticket_types')
-      .select('id, quantity_sold')
-      .eq('id', id)
-      .maybeSingle()
-
-    if (!existing) return NextResponse.json({ error: 'Ticket type not found' }, { status: 404 })
-
-    if ((existing.quantity_sold || 0) > 0) {
-      const { error } = await supabase
-        .from('ticket_types')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', id)
-      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-      return NextResponse.json({ success: true, soft_deleted: true })
-    }
-
-    const { error } = await supabase.from('ticket_types').delete().eq('id', id)
-    if (error) {
-      // Fall back to soft delete if FK prevents hard delete
-      await supabase
-        .from('ticket_types')
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', id)
-      return NextResponse.json({ success: true, soft_deleted: true })
-    }
-
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error('[Enhanced Admin Ticketing API] DELETE error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+async function resolveEventScope(
+  supabase: any,
+  orgId: string,
+  eventId?: string,
+): Promise<string[]> {
+  if (eventId) {
+    await assertOrgEntityReferences(supabase, orgId, { eventId })
+    return [eventId]
   }
+  return listOrgEventIds(supabase, orgId)
 }
 
-// Helper functions
-async function getTicketingOverview(supabase: any, event_id?: string) {
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+async function assertTicketTypesForEvent(
+  supabase: any,
+  eventId: string,
+  ids: string[] | undefined,
+) {
+  const uniqueIds = Array.from(new Set(ids || []))
+  if (uniqueIds.length === 0) return
 
-  // Get total metrics with event filtering
-  let salesQuery = supabase
-    .from('ticket_sales')
-    .select('total_amount, quantity, payment_status')
-    .in('payment_status', ['completed'])
-    .gte('created_at', thirtyDaysAgo.toISOString())
-
-  let ticketTypesQuery = supabase
+  const { data, error } = await supabase
     .from('ticket_types')
-    .select('quantity_available, quantity_sold, price')
-    .eq('is_active', true)
+    .select('id')
+    .eq('event_id', eventId)
+    .in('id', uniqueIds)
 
-  let campaignsQuery = supabase
-    .from('ticket_campaigns')
-    .select('current_uses, max_uses')
-    .eq('is_active', true)
-    .gte('end_date', now.toISOString())
-
-  let socialSharesQuery = supabase
-    .from('ticket_shares')
-    .select('click_count, conversion_count, revenue_generated')
-    .gte('created_at', thirtyDaysAgo.toISOString())
-
-  // Apply event filtering if event_id is provided
-  if (event_id) {
-    salesQuery = salesQuery.eq('event_id', event_id)
-    ticketTypesQuery = ticketTypesQuery.eq('event_id', event_id)
-    campaignsQuery = campaignsQuery.eq('event_id', event_id)
-    socialSharesQuery = socialSharesQuery.eq('event_id', event_id)
+  if (error) throw new TicketingQueryError('Unable to verify applicable ticket types.')
+  if ((data || []).length !== uniqueIds.length) {
+    throw new TicketingValidationError(
+      'Every applicable ticket type must belong to the selected event.',
+    )
   }
+}
 
-  const { data: totalSales } = await salesQuery
-  const { data: ticketTypes } = await ticketTypesQuery
-  const { data: campaigns } = await campaignsQuery
-  const { data: socialShares } = await socialSharesQuery
+async function assertCampaignForEvent(
+  supabase: any,
+  eventId: string,
+  campaignId: string | null | undefined,
+) {
+  if (!campaignId) return
+  const { data, error } = await supabase
+    .from('ticket_campaigns')
+    .select('id')
+    .eq('id', campaignId)
+    .eq('event_id', eventId)
+    .maybeSingle()
 
-  // Calculate metrics
-  const totalRevenue = totalSales?.reduce((sum: number, sale: any) => sum + parseFloat(sale.total_amount), 0) || 0
-  const totalTicketsSold = totalSales?.reduce((sum: number, sale: any) => sum + sale.quantity, 0) || 0
-  const totalTicketsAvailable = ticketTypes?.reduce((sum: number, type: any) => sum + type.quantity_available, 0) || 0
-  const totalTicketsSoldOverall = ticketTypes?.reduce((sum: number, type: any) => sum + type.quantity_sold, 0) || 0
-  const averageTicketPrice = totalTicketsSold > 0 ? totalRevenue / totalTicketsSold : 0
+  if (error) throw new TicketingQueryError('Unable to verify the campaign.')
+  if (!data) {
+    throw new TicketingValidationError('Campaign does not belong to the selected event.')
+  }
+}
 
-  const activeCampaigns = campaigns?.length || 0
-  const campaignUsage = campaigns?.reduce((sum: number, campaign: any) => {
-    const usage = campaign.max_uses ? (campaign.current_uses / campaign.max_uses) * 100 : 0
-    return sum + usage
-  }, 0) / Math.max(activeCampaigns, 1)
+async function getOverview(supabase: any, orgId: string, eventId?: string) {
+  const { data, error } = await supabase.rpc('get_admin_ticketing_overview', {
+    p_org_id: orgId,
+    p_event_id: eventId || null,
+  })
+  if (error) throw new TicketingQueryError('Ticketing overview is temporarily unavailable.')
 
-  const totalSocialClicks = socialShares?.reduce((sum: number, share: any) => sum + share.click_count, 0) || 0
-  const totalSocialConversions = socialShares?.reduce((sum: number, share: any) => sum + share.conversion_count, 0) || 0
-  const socialConversionRate = totalSocialClicks > 0 ? (totalSocialConversions / totalSocialClicks) * 100 : 0
+  const totals = Array.isArray(data) ? data[0] : data
+  if (!totals) throw new TicketingQueryError('Ticketing overview is temporarily unavailable.')
+
+  const totalRevenue = Number(totals.total_revenue) || 0
+  const totalTicketsSold = Number(totals.total_tickets_sold) || 0
+  const socialClicks = Number(totals.social_clicks) || 0
+  const socialConversions = Number(totals.social_conversions) || 0
 
   return {
     metrics: {
       total_revenue: totalRevenue,
       total_tickets_sold: totalTicketsSold,
-      total_tickets_available: totalTicketsAvailable,
-      total_tickets_sold_overall: totalTicketsSoldOverall,
-      average_ticket_price: averageTicketPrice,
-      active_campaigns: activeCampaigns,
-      campaign_usage_percentage: campaignUsage,
-      social_clicks: totalSocialClicks,
-      social_conversions: totalSocialConversions,
-      social_conversion_rate: socialConversionRate,
-      // Add additional metrics for frontend compatibility
-      weekly_trend: 0, // TODO: Calculate from historical data
-      revenue_trend: 0, // TODO: Calculate from historical data
-      conversion_rate: socialConversionRate,
-      social_shares: totalSocialClicks,
-      referral_revenue: 0 // TODO: Calculate from referral data
-    }
-  }
-}
-
-async function getTicketTypes(supabase: any, event_id?: string, limit = 50, offset = 0) {
-  let query = supabase
-    .from('ticket_types')
-    .select(`
-      *,
-      events:event_id (
-        id,
-        title,
-        date,
-        location
-      )
-    `)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-
-  if (event_id) {
-    query = query.eq('event_id', event_id)
-  }
-
-  const { data: ticketTypes, error } = await query
-
-  if (error) {
-    console.error('[Enhanced Admin Ticketing API] Error fetching ticket types:', error)
-    return { ticket_types: [], total: 0 }
-  }
-
-  const { count } = await supabase
-    .from('ticket_types')
-    .select('*', { count: 'exact', head: true })
-
-  return { 
-    ticket_types: ticketTypes || [], 
-    total: count || 0,
-    limit,
-    offset 
-  }
-}
-
-async function getCampaigns(supabase: any, event_id?: string, limit = 50, offset = 0) {
-  let query = supabase
-    .from('ticket_campaigns')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-
-  if (event_id) {
-    query = query.eq('event_id', event_id)
-  }
-
-  const { data: campaigns, error } = await query
-
-  if (error) {
-    console.error('[Enhanced Admin Ticketing API] Error fetching campaigns:', error)
-    return { campaigns: [], total: 0 }
-  }
-
-  const { count } = await supabase
-    .from('ticket_campaigns')
-    .select('*', { count: 'exact', head: true })
-
-  return { 
-    campaigns: campaigns || [], 
-    total: count || 0,
-    limit,
-    offset 
-  }
-}
-
-async function getPromoCodes(supabase: any, event_id?: string, limit = 50, offset = 0) {
-  let query = supabase
-    .from('promo_codes')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-
-  if (event_id) {
-    query = query.eq('event_id', event_id)
-  }
-
-  const { data: promoCodes, error } = await query
-
-  if (error) {
-    console.error('[Enhanced Admin Ticketing API] Error fetching promo codes:', error)
-    return { promo_codes: [], total: 0 }
-  }
-
-  const { count } = await supabase
-    .from('promo_codes')
-    .select('*', { count: 'exact', head: true })
-
-  return { 
-    promo_codes: promoCodes || [], 
-    total: count || 0,
-    limit,
-    offset 
-  }
-}
-
-async function getSales(supabase: any, event_id?: string, limit = 50, offset = 0) {
-  let query = supabase
-    .from('ticket_sales')
-    .select(`
-      *,
-      ticket_types:ticket_type_id (
-        id,
-        name,
-        price,
-        category
-      ),
-      events_v2:event_id (
-        id,
-        title,
-        start_at
-      ),
-      promo_codes:promo_code_id (
-        id,
-        code,
-        discount_type,
-        discount_value
-      )
-    `)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1)
-
-  if (event_id) {
-    query = query.eq('event_id', event_id)
-  }
-
-  const { data: sales, error } = await query
-
-  if (error) {
-    console.error('[Enhanced Admin Ticketing API] Error fetching sales:', error)
-    return { sales: [], total: 0 }
-  }
-
-  const { count } = await supabase
-    .from('ticket_sales')
-    .select('*', { count: 'exact', head: true })
-
-  return { 
-    sales: sales || [], 
-    total: count || 0,
-    limit,
-    offset 
-  }
-}
-
-async function getAnalytics(supabase: any, event_id?: string) {
-  const now = new Date()
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-
-  // Dual-read: legacy ticket_analytics + v2 ticket_analytics_events
-  const [{ data: dailySales }, { data: v2Events }] = await Promise.all([
-    supabase
-      .from('ticket_analytics')
-      .select('*')
-      .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
-      .order('date', { ascending: true }),
-    supabase
-      .from('ticket_analytics_events')
-      .select('event_name, event_id, amounts, created_at, attribution')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(200),
-  ])
-
-  // Get sales by ticket type — completed only (never require phantom `paid`)
-  let salesQuery = supabase
-    .from('ticket_sales')
-    .select(`
-      ticket_type_id,
-      total_amount,
-      quantity,
-      ticket_types:ticket_type_id (name, category)
-    `)
-    .in('payment_status', ['completed'])
-    .gte('created_at', thirtyDaysAgo.toISOString())
-
-  if (event_id) salesQuery = salesQuery.eq('event_id', event_id)
-
-  const { data: salesByType } = await salesQuery
-
-  // Get social performance
-  const { data: socialPerformance } = await supabase
-    .from('social_media_performance')
-    .select('*')
-    .gte('created_at', thirtyDaysAgo.toISOString())
-
-  const filteredV2 = event_id
-    ? (v2Events || []).filter((e: any) => e.event_id === event_id)
-    : v2Events || []
-
-  return {
-    analytics: {
-      daily_sales: dailySales || [],
-      sales_by_type: salesByType || [],
-      social_performance: socialPerformance || [],
-      ticket_analytics_events: filteredV2,
+      total_tickets_available: Number(totals.total_tickets_available) || 0,
+      total_tickets_sold_overall: Number(totals.total_tickets_sold_overall) || 0,
+      average_ticket_price: totalTicketsSold > 0 ? totalRevenue / totalTicketsSold : 0,
+      active_campaigns: Number(totals.active_campaigns) || 0,
+      campaign_usage_percentage: Number(totals.campaign_usage_percentage) || 0,
+      social_clicks: socialClicks,
+      social_conversions: socialConversions,
+      social_conversion_rate: socialClicks > 0 ? (socialConversions / socialClicks) * 100 : 0,
+      weekly_trend: 0,
+      revenue_trend: 0,
+      conversion_rate: socialClicks > 0 ? (socialConversions / socialClicks) * 100 : 0,
+      social_shares: socialClicks,
+      referral_revenue: Number(totals.referral_revenue) || 0,
     },
   }
 }
 
-async function getSocialPerformance(supabase: any, event_id?: string) {
-  let query = supabase
-    .from('ticket_shares')
-    .select('platform, click_count, conversion_count, revenue_generated')
-    .order('created_at', { ascending: false })
-
-  if (event_id) {
-    query = query.eq('event_id', event_id)
-  }
-
-  const { data: shares, error } = await query
-
-  if (error) {
-    console.error('[Enhanced Admin Ticketing API] Error fetching social performance:', error)
-    return { social_performance: [] }
-  }
-
-  // Group by platform
-  const platformStats = shares?.reduce((acc: any, share: any) => {
-    if (!acc[share.platform]) {
-      acc[share.platform] = {
-        platform: share.platform,
-        clicks: 0,
-        conversions: 0,
-        revenue: 0
-      }
-    }
-    acc[share.platform].clicks += share.click_count
-    acc[share.platform].conversions += share.conversion_count
-    acc[share.platform].revenue += share.revenue_generated
-    return acc
-  }, {}) || {}
-
-  return {
-    social_performance: Object.values(platformStats)
-  }
-}
-
-async function getReferrals(supabase: any, event_id?: string, limit = 50, offset = 0) {
-  let query = supabase
-    .from('ticket_referrals')
+async function getTicketTypes(
+  supabase: any,
+  eventIds: string[],
+  limit: number,
+  offset: number,
+) {
+  const { data, error, count } = await supabase
+    .from('ticket_types')
     .select(`
       *,
-      events:event_id (
+      events_v2:event_id (
         id,
         title,
-        date
+        start_at,
+        venue_id
       )
-    `)
+    `, { count: 'exact' })
+    .in('event_id', scopedEventIds(eventIds))
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  if (event_id) {
-    query = query.eq('event_id', event_id)
+  if (error) throw new TicketingQueryError('Failed to fetch ticket types.')
+  return { ticket_types: data || [], total: count || 0, limit, offset }
+}
+
+async function getCampaigns(
+  supabase: any,
+  eventIds: string[],
+  limit: number,
+  offset: number,
+) {
+  const { data, error, count } = await supabase
+    .from('ticket_campaigns')
+    .select('*', { count: 'exact' })
+    .in('event_id', scopedEventIds(eventIds))
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new TicketingQueryError('Failed to fetch campaigns.')
+  return { campaigns: data || [], total: count || 0, limit, offset }
+}
+
+async function getPromoCodes(
+  supabase: any,
+  eventIds: string[],
+  limit: number,
+  offset: number,
+) {
+  const { data, error, count } = await supabase
+    .from('promo_codes')
+    .select('*', { count: 'exact' })
+    .in('event_id', scopedEventIds(eventIds))
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new TicketingQueryError('Failed to fetch promo codes.')
+  return { promo_codes: data || [], total: count || 0, limit, offset }
+}
+
+async function getSales(
+  supabase: any,
+  eventIds: string[],
+  limit: number,
+  offset: number,
+) {
+  const { data, error, count } = await supabase
+    .from('ticket_sales')
+    .select(`
+      *,
+      ticket_types:ticket_type_id (id, name, price, category),
+      events_v2:event_id (id, title, start_at),
+      promo_codes:promo_code_id (id, code, discount_type, discount_value)
+    `, { count: 'exact' })
+    .in('event_id', scopedEventIds(eventIds))
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw new TicketingQueryError('Failed to fetch ticket sales.')
+  return { sales: data || [], total: count || 0, limit, offset }
+}
+
+async function getAnalytics(supabase: any, eventIds: string[]) {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const ids = scopedEventIds(eventIds)
+
+  const [dailyResult, eventsResult, salesResult, socialResult] = await Promise.all([
+    supabase
+      .from('ticket_analytics')
+      .select('*')
+      .in('event_id', ids)
+      .gte('date', thirtyDaysAgo.toISOString().slice(0, 10))
+      .order('date', { ascending: true })
+      .limit(1_000),
+    supabase
+      .from('ticket_analytics_events')
+      .select('event_name,event_id,amounts,created_at,attribution')
+      .in('event_id', ids)
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(500),
+    supabase
+      .from('ticket_sales')
+      .select(`
+        ticket_type_id,
+        total_amount,
+        quantity,
+        ticket_types:ticket_type_id (name, category)
+      `)
+      .in('event_id', ids)
+      .eq('payment_status', 'completed')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .limit(2_000),
+    supabase
+      .from('social_media_performance')
+      .select('*')
+      .in('event_id', ids)
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .limit(2_000),
+  ])
+
+  if (dailyResult.error || eventsResult.error || salesResult.error || socialResult.error) {
+    throw new TicketingQueryError('Failed to fetch ticket analytics.')
   }
 
-  const { data: referrals, error } = await query
-
-  if (error) {
-    console.error('[Enhanced Admin Ticketing API] Error fetching referrals:', error)
-    return { referrals: [], total: 0 }
+  return {
+    analytics: {
+      daily_sales: dailyResult.data || [],
+      sales_by_type: salesResult.data || [],
+      social_performance: socialResult.data || [],
+      ticket_analytics_events: eventsResult.data || [],
+    },
   }
+}
 
-  const { count } = await supabase
+async function getSocialPerformance(
+  supabase: any,
+  orgId: string,
+  eventId?: string,
+) {
+  const { data, error } = await supabase.rpc('get_admin_ticketing_social_performance', {
+    p_org_id: orgId,
+    p_event_id: eventId || null,
+  })
+
+  if (error) throw new TicketingQueryError('Failed to fetch social performance.')
+  return { social_performance: data || [] }
+}
+
+async function getReferrals(
+  supabase: any,
+  eventIds: string[],
+  limit: number,
+  offset: number,
+) {
+  const { data, error, count } = await supabase
     .from('ticket_referrals')
-    .select('*', { count: 'exact', head: true })
+    .select(`
+      *,
+      events_v2:event_id (id, title, start_at)
+    `, { count: 'exact' })
+    .in('event_id', scopedEventIds(eventIds))
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
-  return { 
-    referrals: referrals || [], 
-    total: count || 0,
-    limit,
-    offset 
+  if (error) throw new TicketingQueryError('Failed to fetch referrals.')
+  return { referrals: data || [], total: count || 0, limit, offset }
+}
+
+export const GET = withAdminCapability('ticketing.view', async (request, { supabase, admin }) => {
+  try {
+    const input = ticketingQuerySchema.parse(
+      Object.fromEntries(new URL(request.url).searchParams.entries()),
+    )
+    const eventIds = await resolveEventScope(supabase, admin.orgId, input.event_id)
+
+    switch (input.type) {
+      case 'overview':
+        return NextResponse.json(await getOverview(supabase, admin.orgId, input.event_id))
+      case 'ticket_types':
+        return NextResponse.json(await getTicketTypes(supabase, eventIds, input.limit, input.offset))
+      case 'campaigns':
+        return NextResponse.json(await getCampaigns(supabase, eventIds, input.limit, input.offset))
+      case 'promo_codes':
+        return NextResponse.json(await getPromoCodes(supabase, eventIds, input.limit, input.offset))
+      case 'sales':
+        return NextResponse.json(await getSales(supabase, eventIds, input.limit, input.offset))
+      case 'analytics':
+        return NextResponse.json(await getAnalytics(supabase, eventIds))
+      case 'social_performance':
+        return NextResponse.json(
+          await getSocialPerformance(supabase, admin.orgId, input.event_id),
+        )
+      case 'referrals':
+        return NextResponse.json(await getReferrals(supabase, eventIds, input.limit, input.offset))
+    }
+  } catch (error) {
+    return routeError('GET', error)
   }
-} 
+})
+
+export const POST = withAdminCapability('ticketing.manage', async (request, { supabase, user, admin }) => {
+  try {
+    const input = ticketingCreateSchema.parse(await request.json())
+    await assertOrgEntityReferences(supabase, admin.orgId, { eventId: input.event_id })
+
+    if (input.action === 'create_ticket_type') {
+      assertDateOrder(input.sale_start, input.sale_end, 'Sale')
+      if (input.max_per_customer && input.max_per_customer > input.quantity_available) {
+        throw new TicketingValidationError(
+          'Maximum tickets per customer cannot exceed available inventory.',
+        )
+      }
+
+      const { action: _action, ...values } = input
+      const { data, error } = await supabase
+        .from('ticket_types')
+        .insert({
+          ...values,
+          ticket_code: `TKT-${randomUUID()}`,
+          quantity_sold: 0,
+        })
+        .select('*')
+        .single()
+
+      if (error || !data) throw new TicketingQueryError('Failed to create ticket type.')
+      await logAuditEvent({
+        actorId: user.id,
+        orgId: admin.orgId,
+        action: 'create',
+        entityType: 'ticket',
+        entityId: data.id,
+        newValues: { event_id: input.event_id, kind: 'ticket_type' },
+      })
+      return NextResponse.json({ ticket_type: data }, { status: 201 })
+    }
+
+    if (input.action === 'create_campaign') {
+      assertDateOrder(input.start_date, input.end_date, 'Campaign')
+      assertPercentageDiscount(input.discount_type, input.discount_value)
+      await assertTicketTypesForEvent(
+        supabase,
+        input.event_id,
+        input.applicable_ticket_types,
+      )
+
+      const { action: _action, ...values } = input
+      const { data, error } = await supabase
+        .from('ticket_campaigns')
+        .insert({ ...values, current_uses: 0, is_active: true, created_by: user.id })
+        .select('*')
+        .single()
+
+      if (error || !data) throw new TicketingQueryError('Failed to create campaign.')
+      await logAuditEvent({
+        actorId: user.id,
+        orgId: admin.orgId,
+        action: 'create',
+        entityType: 'ticket',
+        entityId: data.id,
+        newValues: { event_id: input.event_id, kind: 'campaign' },
+      })
+      return NextResponse.json({ campaign: data }, { status: 201 })
+    }
+
+    if (input.action === 'create_promo_code') {
+      const startDate = input.start_date || new Date().toISOString()
+      const endDate = input.end_date || input.expires_at
+      assertDateOrder(startDate, endDate, 'Promo code')
+      assertPercentageDiscount(input.discount_type, input.discount_value)
+      await Promise.all([
+        assertCampaignForEvent(supabase, input.event_id, input.campaign_id),
+        assertTicketTypesForEvent(supabase, input.event_id, input.applicable_ticket_types),
+      ])
+
+      const code = input.code.toUpperCase()
+      const { data: existing, error: existingError } = await supabase
+        .from('promo_codes')
+        .select('id')
+        .eq('event_id', input.event_id)
+        .eq('code', code)
+        .maybeSingle()
+      if (existingError) throw new TicketingQueryError('Unable to verify promo code uniqueness.')
+      if (existing) throw new TicketingValidationError('Promo code already exists for this event.')
+
+      const {
+        action: _action,
+        expires_at: _expiresAt,
+        start_date: _startDate,
+        end_date: _endDate,
+        ...values
+      } = input
+      const { data, error } = await supabase
+        .from('promo_codes')
+        .insert({
+          ...values,
+          code,
+          start_date: startDate,
+          end_date: endDate,
+          current_uses: 0,
+          is_active: true,
+          created_by: user.id,
+        })
+        .select('*')
+        .single()
+
+      if (error || !data) throw new TicketingQueryError('Failed to create promo code.')
+      await logAuditEvent({
+        actorId: user.id,
+        orgId: admin.orgId,
+        action: 'create',
+        entityType: 'ticket',
+        entityId: data.id,
+        newValues: { event_id: input.event_id, kind: 'promo_code', code },
+      })
+      return NextResponse.json({ promo_code: data }, { status: 201 })
+    }
+
+    const rows = Array.from({ length: input.count }, () => ({
+      referrer_id: user.id,
+      referred_email: '',
+      event_id: input.event_id,
+      referral_code: `REF-${randomUUID()}`,
+      discount_amount: input.discount_amount,
+    }))
+    const { data, error } = await supabase
+      .from('ticket_referrals')
+      .insert(rows)
+      .select('*')
+
+    if (error || !data || data.length !== rows.length) {
+      throw new TicketingQueryError('Failed to generate referral codes.')
+    }
+    await logAuditEvent({
+      actorId: user.id,
+      orgId: admin.orgId,
+      action: 'create',
+      entityType: 'ticket',
+      newValues: { event_id: input.event_id, kind: 'referral_codes', count: data.length },
+    })
+    return NextResponse.json({ referral_codes: data }, { status: 201 })
+  } catch (error) {
+    return routeError('POST', error)
+  }
+})
+
+export const PATCH = withAdminCapability('ticketing.manage', async (request, { supabase, user, admin }) => {
+  try {
+    const input = updateTicketTypeSchema.parse(await request.json())
+    const { data: current, error: currentError } = await supabase
+      .from('ticket_types')
+      .select('*')
+      .eq('id', input.id)
+      .maybeSingle()
+
+    if (currentError) throw new TicketingQueryError('Unable to load ticket type.')
+    if (!current) {
+      return NextResponse.json(
+        { error: 'Ticket type not found', code: 'entity_not_found' },
+        { status: 404 },
+      )
+    }
+    await assertOrgEntityReferences(supabase, admin.orgId, { eventId: current.event_id })
+
+    const saleStart = Object.prototype.hasOwnProperty.call(input, 'sale_start')
+      ? input.sale_start
+      : current.sale_start
+    const saleEnd = Object.prototype.hasOwnProperty.call(input, 'sale_end')
+      ? input.sale_end
+      : current.sale_end
+    assertDateOrder(saleStart, saleEnd, 'Sale')
+
+    const available = input.quantity_available ?? current.quantity_available
+    const maxPerCustomer = Object.prototype.hasOwnProperty.call(input, 'max_per_customer')
+      ? input.max_per_customer
+      : current.max_per_customer
+    if (available < (current.quantity_sold || 0)) {
+      throw new TicketingValidationError('Available quantity cannot be lower than tickets sold.')
+    }
+    if (maxPerCustomer && maxPerCustomer > available) {
+      throw new TicketingValidationError(
+        'Maximum tickets per customer cannot exceed available inventory.',
+      )
+    }
+
+    const { action: _action, id, ...updates } = input
+    const { data, error } = await supabase
+      .from('ticket_types')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .eq('event_id', current.event_id)
+      .eq('updated_at', current.updated_at)
+      .select('*')
+      .maybeSingle()
+
+    if (error) throw new TicketingQueryError('Failed to update ticket type.')
+    if (!data) {
+      return NextResponse.json(
+        { error: 'Ticket type changed while it was being updated.', code: 'ticketing_conflict' },
+        { status: 409 },
+      )
+    }
+
+    await logAuditEvent({
+      actorId: user.id,
+      orgId: admin.orgId,
+      action: 'update',
+      entityType: 'ticket',
+      entityId: id,
+      oldValues: current,
+      newValues: updates,
+    })
+    return NextResponse.json({ ticket_type: data })
+  } catch (error) {
+    return routeError('PATCH', error)
+  }
+})
+
+export const DELETE = withAdminCapability('ticketing.manage', async (request, { supabase, user, admin }) => {
+  try {
+    const body = await request.json().catch(() => ({}))
+    const id = z.string().uuid().parse(body.id || new URL(request.url).searchParams.get('id'))
+    const { data: current, error: currentError } = await supabase
+      .from('ticket_types')
+      .select('id,event_id,quantity_sold,updated_at')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (currentError) throw new TicketingQueryError('Unable to load ticket type.')
+    if (!current) {
+      return NextResponse.json(
+        { error: 'Ticket type not found', code: 'entity_not_found' },
+        { status: 404 },
+      )
+    }
+    await assertOrgEntityReferences(supabase, admin.orgId, { eventId: current.event_id })
+
+    let softDeleted = Number(current.quantity_sold) > 0
+    if (!softDeleted) {
+      const { error } = await supabase
+        .from('ticket_types')
+        .delete()
+        .eq('id', id)
+        .eq('event_id', current.event_id)
+        .eq('updated_at', current.updated_at)
+
+      if (error?.code === '23503') softDeleted = true
+      else if (error) throw new TicketingQueryError('Failed to delete ticket type.')
+    }
+
+    if (softDeleted) {
+      const { data, error } = await supabase
+        .from('ticket_types')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .eq('event_id', current.event_id)
+        .eq('updated_at', current.updated_at)
+        .select('id')
+        .maybeSingle()
+      if (error || !data) throw new TicketingQueryError('Failed to deactivate ticket type.')
+    }
+
+    await logAuditEvent({
+      actorId: user.id,
+      orgId: admin.orgId,
+      action: 'delete',
+      entityType: 'ticket',
+      entityId: id,
+      oldValues: { event_id: current.event_id, quantity_sold: current.quantity_sold },
+      newValues: softDeleted ? { is_active: false } : undefined,
+    })
+    return NextResponse.json({ success: true, soft_deleted: softDeleted })
+  } catch (error) {
+    return routeError('DELETE', error)
+  }
+})

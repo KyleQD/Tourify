@@ -59,32 +59,43 @@ export default function VenueSiteMapsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl">
-            <Map className="h-6 w-6 text-white" />
+          <div className="rounded-md bg-emerald-500/15 p-2.5 text-emerald-300">
+            <Map className="h-6 w-6" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">Site Maps</h1>
-            <p className="text-slate-400 text-sm">View site maps shared with your venue</p>
+            <p className="text-sm text-slate-400">View and edit maps for your venue and shared event plans</p>
           </div>
         </div>
+        <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
+          <a href="/venue/edit">Update venue profile</a>
+        </Button>
       </div>
 
       {isLoading ? (
-        <Card className="bg-slate-900/50 border-slate-700/50">
+        <Card className="border-slate-700/50 bg-slate-900/50">
           <CardContent className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 text-slate-400 animate-spin" />
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
           </CardContent>
         </Card>
       ) : maps.length === 0 ? (
-        <Card className="bg-slate-900/50 border-slate-700/50">
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-            <div className="p-6 bg-slate-800/50 rounded-2xl">
+        <Card className="border-slate-700/50 bg-slate-900/50">
+          <CardContent className="flex flex-col items-center justify-center gap-4 py-16">
+            <div className="rounded-md bg-slate-800/50 p-6">
               <Map className="h-12 w-12 text-slate-500" />
             </div>
-            <h3 className="text-lg font-semibold text-white">No Shared Site Maps</h3>
-            <p className="text-slate-400 max-w-sm text-center text-sm">
-              Site maps will appear here when event organizers share them with your venue.
+            <h3 className="text-lg font-semibold text-white">No site maps yet</h3>
+            <p className="max-w-sm text-center text-sm text-slate-400">
+              Maps shared by organizers appear here. You can also upload floor plans in Documents while building your first map.
             </p>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild className="bg-emerald-600 hover:bg-emerald-500">
+                <a href="/venue/documents">Upload floor plan</a>
+              </Button>
+              <Button asChild variant="outline" className="border-slate-600">
+                <a href="/venue/overview">Venue profile</a>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       ) : (

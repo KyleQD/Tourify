@@ -3,6 +3,7 @@
  */
 
 import { OptimizedNotificationService } from "@/lib/services/optimized-notification-service"
+import { generalNotificationTarget } from "@/lib/notifications/notification-target"
 
 export interface OnboardingChangesRequestedContext {
   workerUserId: string
@@ -45,6 +46,7 @@ export async function sendOnboardingChangesRequestedNotification(
       title,
       content: contentLines.join("\n\n"),
       priority: "high",
+      ...generalNotificationTarget(workerUserId),
       metadata: {
         candidate_id: candidateId,
         notes: notes.trim(),

@@ -9,11 +9,13 @@ export const PLATFORM_TOS_VERSION = 2
 export const SELLER_AGREEMENT_VERSION = "2.0"
 export const TICKET_BUYER_TERMS_VERSION = "1.0"
 export const WORKFORCE_TERMS_VERSION = "1.0"
+export const MUSIC_TRAINING_RESERVATION_VERSION = "1.0"
 
 export const LEGAL_FOOTER_LINKS = [
   { href: "/terms", label: "Terms of Service" },
   { href: "/privacy", label: "Privacy Policy" },
   { href: "/legal/ticket-buyer-terms", label: "Ticket Buyer Terms" },
   { href: "/legal/workforce-terms", label: "Workforce Terms" },
+  { href: "/legal/music-training-reservation", label: "Music Training Reservation" },
   { href: "/marketplace/seller-agreement", label: "Seller Agreement" },
 ] as const

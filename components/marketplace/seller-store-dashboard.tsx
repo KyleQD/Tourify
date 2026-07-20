@@ -41,6 +41,7 @@ import {
   type StorefrontThemeConfig,
 } from "@/lib/marketplace/storefront-themes"
 import { useMultiAccount } from "@/hooks/use-multi-account"
+import { normalizeUsername } from "@/lib/auth/tourify-auth-helpers"
 import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { supabase } from "@/lib/supabase/client"
 import {
@@ -352,17 +353,30 @@ export function SellerStoreDashboard({
   const [isUploadingCover, setIsUploadingCover] = useState(false)
   const [publicPreviewListings, setPublicPreviewListings] = useState<MarketplaceListing[]>([])
   const [lastPublishedPath, setLastPublishedPath] = useState<string | null>(null)
+  const [sellerUsername, setSellerUsername] = useState<string | null>(null)
   const didAutoImportLegacy = useRef(false)
 
   const artistPublicPath = useMemo(() => {
     const profileData = currentAccount?.profile_data as Record<string, unknown> | undefined
     const artistName =
+      (typeof profileData?.url_slug === "string" && profileData.url_slug) ||
       (typeof profileData?.artist_name === "string" && profileData.artist_name) ||
       (typeof profileData?.stage_name === "string" && profileData.stage_name) ||
       (typeof profileData?.display_name === "string" && profileData.display_name) ||
       null
     return getArtistPublicProfilePath(artistName)
   }, [currentAccount?.profile_data])
+
+  const marketplaceStorefrontPath = useMemo(() => {
+    const fromSeller = sellerUsername ? normalizeUsername(sellerUsername) : ""
+    const fromProfileData = currentAccount?.profile_data as Record<string, unknown> | undefined
+    const profileUsername =
+      (typeof fromProfileData?.username === "string" && fromProfileData.username) ||
+      null
+    const username = fromSeller || (profileUsername ? normalizeUsername(profileUsername) : "")
+    if (!username) return null
+    return `/marketplace?seller=${encodeURIComponent(username)}`
+  }, [currentAccount?.profile_data, sellerUsername])
 
   function buildNoStoreInit(input?: RequestInit): RequestInit {
     return {
@@ -457,6 +471,7 @@ export function SellerStoreDashboard({
       setOrders(Array.isArray(sellerOrdersJson.data) ? sellerOrdersJson.data : [])
       setPayouts(Array.isArray(payoutsJson.data) ? payoutsJson.data : [])
       setStorefront(storefrontJson.data || null)
+      setSellerUsername(storefrontJson.seller?.username || null)
       setTracks(Array.isArray(tracksJson.data) ? tracksJson.data : [])
       setIntegrations(Array.isArray(integrationsJson.data?.integrations) ? integrationsJson.data.integrations : [])
       setIntegrationProducts(Array.isArray(integrationsJson.data?.products) ? integrationsJson.data.products : [])
@@ -604,8 +619,8 @@ export function SellerStoreDashboard({
     },
     {
       label: "5. Preview public storefront",
-      done: hasPublishedListing && Boolean(artistPublicPath),
-      href: artistPublicPath ? `${artistPublicPath}#public-artist-storefront` : undefined,
+      done: hasPublishedListing && Boolean(marketplaceStorefrontPath || artistPublicPath),
+      href: marketplaceStorefrontPath || (artistPublicPath ? `${artistPublicPath}#public-artist-storefront` : undefined),
     },
   ]
 
@@ -741,8 +756,8 @@ export function SellerStoreDashboard({
         setSyncMessage(extractApiError(body, "Failed to save listing"))
         return
       }
-      if (listingForm.status === "published" && artistPublicPath) {
-        const path = `${artistPublicPath}#public-artist-storefront`
+      if (listingForm.status === "published" && (marketplaceStorefrontPath || artistPublicPath)) {
+        const path = marketplaceStorefrontPath || `${artistPublicPath}#public-artist-storefront`
         setLastPublishedPath(path)
         setSyncMessage("Listing published. It is live on your public storefront.")
         const publishedId = body.data?.id || editingListing?.id
@@ -1015,7 +1030,14 @@ export function SellerStoreDashboard({
               <p className="text-sm text-slate-400">{storeDescription}</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {artistPublicPath ? (
+              {marketplaceStorefrontPath ? (
+                <Button asChild variant="outline" className="border-slate-700 text-white">
+                  <Link href={marketplaceStorefrontPath}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    View storefront
+                  </Link>
+                </Button>
+              ) : artistPublicPath ? (
                 <Button asChild variant="outline" className="border-slate-700 text-white">
                   <Link href={`${artistPublicPath}#public-artist-storefront`}>
                     <ExternalLink className="mr-2 h-4 w-4" />
@@ -1156,7 +1178,11 @@ export function SellerStoreDashboard({
                       />
                     ))
                   )}
-                  {artistPublicPath ? (
+                  {marketplaceStorefrontPath ? (
+                    <Button asChild variant="outline" size="sm" className="border-slate-700 text-white">
+                      <Link href={marketplaceStorefrontPath}>Open public storefront</Link>
+                    </Button>
+                  ) : artistPublicPath ? (
                     <Button asChild variant="outline" size="sm" className="border-slate-700 text-white">
                       <Link href={`${artistPublicPath}#public-artist-storefront`}>Open public storefront</Link>
                     </Button>

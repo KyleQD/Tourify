@@ -1,0 +1,387 @@
+{
+  "package": "tourify_music_creator_protocol_constitution_phase13",
+  "createdAt": "2026-07-18T03:26:33.508920+00:00",
+  "fileCount": 77,
+  "files": [
+    {
+      "path": "00_PHASE_13_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "sha256": "eac1bcdb17710fd15a91416d1ebed233905f1e157c44fed2df3476c035955cd5",
+      "bytes": 5498
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_PARTICIPANT_JOURNEYS.md",
+      "sha256": "de89a8977bd2339c44197ab10fc300b89274b39a2eaaaf9dcb287f5c8e7fe25f",
+      "bytes": 5458
+    },
+    {
+      "path": "02_CONSTITUTIONAL_STEWARD_ENTITY_AND_LEGAL_BOUNDARY.md",
+      "sha256": "c4e120ca3620f5197bd596775ac2ff0ec7e30c301f43c5e3255de422d64cb7e8",
+      "bytes": 5433
+    },
+    {
+      "path": "03_CONSTITUTIONAL_PRINCIPLES_FUNDAMENTAL_RIGHTS_AND_ENTRENCHMENT.md",
+      "sha256": "b1a633173cbda9850fd3978051a05b4501b29d1056d68a7f81ce7edcd9b7c19a",
+      "bytes": 5460
+    },
+    {
+      "path": "04_COMPACT_MEMBERSHIP_RATIFICATION_WITHDRAWAL_AND_SUCCESSION.md",
+      "sha256": "df4cf05972fe956d89a1844dfbc74825714734101cfc9d3cc182cd2cb8e5c176",
+      "bytes": 5454
+    },
+    {
+      "path": "05_LOCAL_SOVEREIGNTY_SUBSIDIARITY_AND_RESERVED_POWERS.md",
+      "sha256": "1f7ffed431c8d7c7e16f3bec500b5caaaa3f79a4c3bdaef45459c349c55e0206",
+      "bytes": 5385
+    },
+    {
+      "path": "06_PROTOCOL_RIGHTS_OPEN_COVENANT_AND_PUBLIC_LICENSES.md",
+      "sha256": "dba166e558cf151bea7a0bb47a168b8d2a9d5bfe8c0498f2d1e2363644537d4c",
+      "bytes": 5424
+    },
+    {
+      "path": "07_FUNDAMENTAL_AND_ORDINARY_AMENDMENT_CLASSIFICATION.md",
+      "sha256": "f03f9f349e74a80269806371d43af87ee4a2c881eb5ca2b359e4f5eb54d6fadc",
+      "bytes": 5394
+    },
+    {
+      "path": "08_DECISION_MAKING_QUORUM_VETO_AND_RATIFICATION_THRESHOLDS.md",
+      "sha256": "aa6ec9eef78c71bae87ee521c7576e7279e479b3716841c68273a765e5c64132",
+      "bytes": 5370
+    },
+    {
+      "path": "09_PUBLIC_DELIBERATION_FORMAL_OBJECTIONS_AND_DISSENT.md",
+      "sha256": "16e743b21c4214035de422ad49b52b4a297db4d4abfe894d52057d8d729af3d8",
+      "bytes": 5387
+    },
+    {
+      "path": "10_INDEPENDENT_REVIEW_APPEALS_REMEDY_AND_CONSTITUTIONAL_COURT_BOUNDARY.md",
+      "sha256": "26689d6bb7e68aaea5d01fe470faaee0c2d560fac96a53c25502bbbcd08c08f2",
+      "bytes": 5421
+    },
+    {
+      "path": "11_SUCCESSION_STEWARD_REPLACEMENT_AND_CONSTITUTIONAL_CONTINUITY.md",
+      "sha256": "852a3bf7d2890612fe5683eebd68a2847bdd72376a3e166064f25f293e5c9ae7",
+      "bytes": 5420
+    },
+    {
+      "path": "12_CONSTITUTIONAL_ASSET_TRUST_ESCROW_AND_INALIENABILITY.md",
+      "sha256": "3a88eeac54658c231c6eed616e7d74155394f221c7a7722fac535c9945bdf0cf",
+      "bytes": 5450
+    },
+    {
+      "path": "13_MULTI_ROOT_TRUST_REGISTRIES_AND_RECOGNITION_COMPACT.md",
+      "sha256": "2f10d2c2823d3b16554e6d97163e8a36083e5e6ba7c4bcc8363f17470319eca0",
+      "bytes": 5378
+    },
+    {
+      "path": "14_OPERATOR_CONSTITUTION_DUTIES_ACCREDITATION_AND_REMOVAL.md",
+      "sha256": "44693887e478411885747b4e7150637da81e3f86a290563b70c54146b0f89b03",
+      "bytes": 5372
+    },
+    {
+      "path": "15_TECHNICAL_CONSTITUTION_SCHEMA_PROTOCOL_AND_COMPATIBILITY_RULES.md",
+      "sha256": "53ed8088ef73fb8f0d2431dd68c14e7511bbc8d9f3e0b72a9281ec3e4cb4c982",
+      "bytes": 5412
+    },
+    {
+      "path": "16_PROTOCOL_FORK_VERSION_COEXISTENCE_AND_REUNIFICATION.md",
+      "sha256": "bc9915853264f1c6c5712b9efcf86e3013093c1ce95deef84c790c16191ddba4",
+      "bytes": 5329
+    },
+    {
+      "path": "17_INTEROPERABILITY_COMPACTS_MUTUAL_RECOGNITION_AND_TREATY_LIKE_BOUNDARY.md",
+      "sha256": "97fd0a006c35e094c402b17ae288a77ff1469bc87d4e4046bae31cfc7e0503ac",
+      "bytes": 5406
+    },
+    {
+      "path": "18_JURISDICTION_CONFLICT_OF_LAWS_AND_REGULATORY_INTERFACE.md",
+      "sha256": "20ece5e47651364a0e7adea5fc198a7c081ea5a09ef080fa2bc88b10068a54e4",
+      "bytes": 5394
+    },
+    {
+      "path": "19_PARTICIPANT_RIGHTS_NOTICE_DUE_PROCESS_EXIT_AND_PORTABILITY.md",
+      "sha256": "245c2654109365a995c4dd2e5eb03810f01bbd950a7f075db2c6014e48d2b095",
+      "bytes": 5397
+    },
+    {
+      "path": "20_EMERGENCY_POWERS_SUNSET_AND_CONSTITUTIONAL_CRISIS.md",
+      "sha256": "d2c3a0bc3241f72ec8f0bfda6528d86ad47bfa342154b497f1d854972453653b",
+      "bytes": 5378
+    },
+    {
+      "path": "21_FUNDING_ASSET_LOCK_DONOR_INDEPENDENCE_AND_FISCAL_CONSTITUTION.md",
+      "sha256": "4a414677c8075692b7d8398a2832e0e27e994b06764df4ae6343025df634d48d",
+      "bytes": 5366
+    },
+    {
+      "path": "22_STANDARDS_CONFORMANCE_CERTIFICATION_MARKS_AND_NEUTRALITY.md",
+      "sha256": "0c1e7bd579376238d6c5159e4a2e0c44de4aa2fb97ca74dac07223824f0776b0",
+      "bytes": 5324
+    },
+    {
+      "path": "23_PUBLIC_REGISTRY_PROJECTIONS_DISCLOSURE_AND_REVOCATION.md",
+      "sha256": "dcf0d0ab3313416a7b2bc5aef857ef25edae64880aa0e40d86903280a3cc8050",
+      "bytes": 5348
+    },
+    {
+      "path": "24_OPTIONAL_IDENTITY_CREDENTIALS_AND_CONSTITUTIONAL_LIMITS.md",
+      "sha256": "a697aba344164d0b61e252b397546992d07cabfcc5dd2fcbd134c04ed6b7588c",
+      "bytes": 5311
+    },
+    {
+      "path": "25_RIGHTS_REFERENCE_COMMONS_SOURCE_AUTHORITY_AND_NON_ADJUDICATION.md",
+      "sha256": "2620c9c377d4d17414ca7351cecb45d14e11405ca928f20676575ed7aea56f69",
+      "bytes": 5360
+    },
+    {
+      "path": "26_SECURITY_KEYS_CRYPTOGRAPHIC_SUCCESSION_AND_CONSTITUTIONAL_CONTROLS.md",
+      "sha256": "ab655ae3d06f294c3f35368e10fd48678381022bfced274f84827cb32f0a2033",
+      "bytes": 5381
+    },
+    {
+      "path": "27_INCIDENT_PARTITION_MALICIOUS_OPERATOR_AND_PUBLIC_REMEDY.md",
+      "sha256": "df729a4362e66cd811a87f0d8375b3055017b1220e542db4cf0d179bbc73cc9b",
+      "bytes": 5364
+    },
+    {
+      "path": "28_CONSTITUTIONAL_AUDIT_TRANSPARENCY_PUBLIC_REPORTING_AND_ARCHIVES.md",
+      "sha256": "517da366fa8a2450e8aab76559d964ab4bd24930c554f99c3012da870c3ec8b0",
+      "bytes": 5346
+    },
+    {
+      "path": "29_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "sha256": "ee56cfff92e8525ffffc9d5518487a669e3bd02d90b35cbc034f96aa290f85b2",
+      "bytes": 5332
+    },
+    {
+      "path": "30_API_EVENTS_BACKGROUND_JOBS_AND_EXTERNAL_ADAPTERS.md",
+      "sha256": "4cb6f44892942467e2168133beca6c8eb22a8ef939ae9a59a2b25445ebc042f3",
+      "bytes": 5308
+    },
+    {
+      "path": "31_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sha256": "9d0b5229faf6237c4b72068e6fb090698c6a920a810db0ddc5ced04826263e8d",
+      "bytes": 5286
+    },
+    {
+      "path": "32_ADMIN_CONSTITUTIONAL_OPERATIONS_QUEUES_AND_APPROVALS.md",
+      "sha256": "7904fa4dd6d90594af3d5745236a30d25b5738f07ce5aa4b696ce3a69ae04cef",
+      "bytes": 5366
+    },
+    {
+      "path": "33_TESTING_SANDBOX_PILOT_PUBLIC_RATIFICATION_AND_ROLLOUT.md",
+      "sha256": "6eaa72994bfb3f8294950f95d172ec180e6d11c7190c683137893ce6099a1d2d",
+      "bytes": 5397
+    },
+    {
+      "path": "34_PHASE_14_GLOBAL_CREATOR_INTEROPERABILITY_CONVENTION_HANDOFF.md",
+      "sha256": "a7c9ce04acbde550c5b4aa069bb7727584eca59162dd099a44289780f8b9baad",
+      "bytes": 5380
+    },
+    {
+      "path": "35_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sha256": "5a52b950b1e0a1c414bc4dd7034f8db26bdd6783b2cdf2de0753c94a62074c9f",
+      "bytes": 5189
+    },
+    {
+      "path": "36_DEFINITION_OF_DONE.md",
+      "sha256": "85bb1baf06d324ff85a2db0e0e733c13488c4a152256f86ebdfcea427b02c72a",
+      "bytes": 5263
+    },
+    {
+      "path": "37_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sha256": "1ccc4566e5587dae979ed00042e2e161ab40237293ecacbeeebced71a23d0c7a",
+      "bytes": 3829
+    },
+    {
+      "path": "38_CURRENT_STANDARDS_LEGAL_PRIVACY_AND_CONSTITUTIONAL_STEWARDSHIP_REVIEW.md",
+      "sha256": "bc2c6ae8fdd9e098a891d612daca92e499d5758da02f6355ef56bc083cec689a",
+      "bytes": 5323
+    },
+    {
+      "path": "39_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "sha256": "215c10627909d7914b91595d679719831c9553f45cd2daa7b7168177a7bcbb75",
+      "bytes": 5315
+    },
+    {
+      "path": "40_CONSTITUTIONAL_ASSET_SCHEDULE_AND_PUBLIC_TRUST_REGISTER.md",
+      "sha256": "dacf29bd69a822e34f92c3a4b644d338e31ce7e97484eb256e66f9f98e7462a2",
+      "bytes": 5352
+    },
+    {
+      "path": "41_PUBLIC_COMPACT_CHARTER_RATIFICATION_AND_RESERVATIONS_PACKAGE.md",
+      "sha256": "9b26d24012bef6ef2d5e334ebd4e64ba096e9597b68641a9050512bd38352ab2",
+      "bytes": 5411
+    },
+    {
+      "path": "42_INDEPENDENT_REVIEW_PANEL_CHARTER_AND_REMEDY_MATRIX.md",
+      "sha256": "a8af41a513296a8706de4eead3ccda36fac85ed59c69b7abfbc5253b32437d34",
+      "bytes": 5335
+    },
+    {
+      "path": "43_SUCCESSION_ESCROW_FORK_CONTINUITY_AND_REUNIFICATION_PACKAGE.md",
+      "sha256": "3c03477f6bfac92520c7fc9dafe575abca32443a5ad1996c0fa8e840485f1dc9",
+      "bytes": 5389
+    },
+    {
+      "path": "44_PHASE_13_PUBLIC_APPROVAL_AND_ACTIVATION_GATE.md",
+      "sha256": "c50828dd3c79347b7b05e97416db15babfd3cfe62c7188e2c5145270882beec4",
+      "bytes": 5400
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82",
+      "bytes": 21046
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sha256": "2996b3aa9d6de9dbe547780258f5eac1ced385fc183b4ad40a7b5d6ce35bbafe",
+      "bytes": 1890
+    },
+    {
+      "path": "README.md",
+      "sha256": "cc5e4b7d9dda3c5d56440868741e7b970a2823a21a4a99b8b62f526e8e56e4b1",
+      "bytes": 2922
+    },
+    {
+      "path": "SOURCE_PHASE_12_HANDOFF.md",
+      "sha256": "1f4b5f3051463b6b43f3cbfe7011dc9d2d492fe97b5ff61b5880c805d7985165",
+      "bytes": 9002
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "sha256": "f9ce16cbcd402ed69f9df415910aeddba46a705abedb30b033fc8f59bc842511",
+      "bytes": 439
+    },
+    {
+      "path": "phase-13-execution-plan.schema.json",
+      "sha256": "07fbc4bf731abc730b85549902938d8eff345b15be0cc70d25cca1f4b5e5b7c8",
+      "bytes": 3584
+    },
+    {
+      "path": "phase-13-execution-plan.template.json",
+      "sha256": "47246b5baa6cf5310107b6f58dd7aba548d9337b2f4f6c81b3192d267422b858",
+      "bytes": 492647
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "sha256": "8bb9957bfa70577694593776d74c0b7e55aa446dc63a0017638be98639370d1d",
+      "bytes": 689
+    },
+    {
+      "path": "reference/api-examples/compact-ratification.json",
+      "sha256": "98a9cecce85c3b2189a9c005c7fa45ba2d931f72617370677857514109251788",
+      "bytes": 223
+    },
+    {
+      "path": "reference/api-examples/constitutional-amendment-proposal.json",
+      "sha256": "66b68a66762b709c899f95785c94ba878c5a0d16d08f950fbe8f1a8e30fcc7da",
+      "bytes": 278
+    },
+    {
+      "path": "reference/api-examples/formal-objection.json",
+      "sha256": "2c20a31321314f3bf2da59791066582dff5b2ec1b7e359ab632e0b8923b5297d",
+      "bytes": 255
+    },
+    {
+      "path": "reference/api-examples/operator-constitutional-status-webhook.json",
+      "sha256": "18d31dcc00f77d051a16683b0d7306223d111595b313844851ef43f963ef73c4",
+      "bytes": 262
+    },
+    {
+      "path": "reference/api-examples/succession-drill.json",
+      "sha256": "cc89ecaf0f8ae4aacf82b074add9fe9572991dd6106c479566be3c3cf15b8f3c",
+      "bytes": 206
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/__tests__/amendment-classification.test.ts",
+      "sha256": "7674b002d7c102acd7d8d108f2c0750da3ff418b3c8a668792cf6a5be6c2a1d2",
+      "bytes": 623
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/__tests__/constitutional-activation-gate.test.ts",
+      "sha256": "72d268553c0d71fe221556eb7ada0b0d69aaed7497361ad7f767b242724ec940",
+      "bytes": 556
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/__tests__/local-sovereignty-gate.test.ts",
+      "sha256": "4a4c5750ce13709e89d6f9e6556834a8e6f98198558c691d9175b5b6d6a084e5",
+      "bytes": 349
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/amendment-classification.ts",
+      "sha256": "3d8982e93083a5ead1f0059a3217b535e96f98b745612da32da1ff5e4923be6d",
+      "bytes": 658
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/appeal-review-state-machine.ts",
+      "sha256": "00619c3715258a7820e6dafe416453a651b2e5cc9a299d4fbaa08f17627ddc6e",
+      "bytes": 593
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/asset-lock-transfer-gate.ts",
+      "sha256": "c075d1d293d9f1723a1563e93c8041a30a55c422491c9eefe68a8d6060baa98d",
+      "bytes": 909
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/compact-ratification-state-machine.ts",
+      "sha256": "789499e67c29d51c651e5b9968e0fb895531614891e990f9ebe960464f619ec9",
+      "bytes": 703
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/constitutional-activation-gate.ts",
+      "sha256": "e65c6bafeae4b2ed69028b947c346e5deb233466d2e5ce039025aca11fc7289c",
+      "bytes": 1331
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/constitutional-decision-policy.ts",
+      "sha256": "cb1a94f235b47374ebd077973331bfea4af8494434386f948f8794391f1a2813",
+      "bytes": 882
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/constitutional-domain.ts",
+      "sha256": "3215b9230f63d13dd16a37c6d955aa2ad5cce995a79fd4227224dc6ca32dafb2",
+      "bytes": 760
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/fundamental-rights-policy.ts",
+      "sha256": "12d7e9bf9c1b8914bb366bcf608270725af897805f70c5bbc34a530a67aca4cf",
+      "bytes": 1001
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/local-sovereignty-gate.ts",
+      "sha256": "a0f8245c0d44571dbd46816304efe10c1089f59866ae10622a12afd0b680658d",
+      "bytes": 721
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/operator-constitutional-policy.ts",
+      "sha256": "0eb452111abe72d5dddd9feb5a88f52d3fb8c986da49273637fded2d95b8fb2b",
+      "bytes": 838
+    },
+    {
+      "path": "reference/lib/music/creator-protocol-constitution/succession-and-fork-policy.ts",
+      "sha256": "b88a4f5f4a760df6aba92b9889b12e7a2e0bf3fe23359a17c6f98018f1a5e0d7",
+      "bytes": 801
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_constitution_entities_compacts_ratifications.sql",
+      "sha256": "7968c7933710599d3509e3a31cf6505393a1f9a32f8e16da408fdcd0c9ce658d",
+      "bytes": 1785
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_powers_amendments_decisions_appeals.sql",
+      "sha256": "4df719996f70fc03febccce85954e04d1bc34cf883f1979a3fda1fe07134d8b7",
+      "bytes": 1741
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_assets_operators_forks_succession.sql",
+      "sha256": "18fb83a35308ebb3fd797b125df17fac512bd6351db53a1ee56f341c8295b825",
+      "bytes": 1869
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_incidents_audit_public_projections_outbox.sql",
+      "sha256": "efb4d35e1a8d3ebf067cdf1430dd423d6b80180d982563cf11dd278e9e4d7386",
+      "bytes": 1899
+    }
+  ]
+}

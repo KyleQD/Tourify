@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect } from "react"
 import {
   ActivityIndicator,
   FlatList,
-  Image,
   Pressable,
   RefreshControl,
   Text,
   View,
 } from "react-native"
+import { Image } from "expo-image"
 import { Ionicons } from "@expo/vector-icons"
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query"
 import { useRouter } from "expo-router"
 import { useSession } from "@/hooks/use-session"
 import { supabase } from "@/lib/supabase"
 import { useMultiAccount } from "@/providers/multi-account-provider"
 import { getFeedPosts, type FeedPost, type FeedTab } from "@/lib/api/feed"
+import { queryKeys } from "@/lib/query/keys"
 
 const PAGE_SIZE = 20
 
@@ -32,90 +34,87 @@ function getProfilePath(post: FeedPost): string {
 
 export function FeedPostList({ type, refreshSignal, ListHeaderComponent, emptyLabel }: FeedPostListProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { user } = useSession()
   const { currentAccount, actingHeaders } = useMultiAccount()
-  const [posts, setPosts] = useState<FeedPost[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [isFetchingMore, setIsFetchingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const offsetRef = useRef(0)
-
   const profileId = currentAccount?.profile_id ?? null
+  const queryKey = queryKeys.feedPosts(type, profileId)
 
-  const load = useCallback(
-    async (mode: "initial" | "refresh" | "more") => {
-      if (mode === "more" && (!hasMore || isFetchingMore)) return
-
-      if (mode === "initial") setIsLoading(true)
-      if (mode === "refresh") setIsRefreshing(true)
-      if (mode === "more") setIsFetchingMore(true)
-
-      const offset = mode === "more" ? offsetRef.current : 0
-
-      try {
-        const data = await getFeedPosts({
-          type,
-          profileId,
-          limit: PAGE_SIZE,
-          offset,
-          headers: actingHeaders,
-        })
-
-        setHasMore(data.length === PAGE_SIZE)
-        offsetRef.current = offset + data.length
-
-        setPosts((prev) => {
-          if (mode === "more") {
-            const seen = new Set(prev.map((p) => p.id))
-            return [...prev, ...data.filter((p) => !seen.has(p.id))]
-          }
-          return data
-        })
-      } catch {
-        if (mode !== "more") setPosts([])
-      } finally {
-        setIsLoading(false)
-        setIsRefreshing(false)
-        setIsFetchingMore(false)
-      }
+  const feedQuery = useInfiniteQuery({
+    queryKey,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) =>
+      getFeedPosts({
+        type,
+        profileId,
+        limit: PAGE_SIZE,
+        offset: pageParam,
+        headers: actingHeaders,
+      }),
+    getNextPageParam: (lastPage, pages) => {
+      if (lastPage.length < PAGE_SIZE) return undefined
+      return pages.reduce((total, page) => total + page.length, 0)
     },
-    [type, profileId, actingHeaders, hasMore, isFetchingMore]
-  )
+  })
 
   useEffect(() => {
-    offsetRef.current = 0
-    setHasMore(true)
-    void load("initial")
+    void feedQuery.refetch()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [type, profileId, refreshSignal])
+  }, [refreshSignal])
 
-  async function handleToggleLike(post: FeedPost) {
-    if (!user?.id) return
-    const wasLiked = post.is_liked
-    setPosts((prev) =>
-      prev.map((p) =>
-        p.id === post.id
-          ? { ...p, is_liked: !wasLiked, like_count: p.like_count + (wasLiked ? -1 : 1) }
-          : p
-      )
-    )
-    try {
-      if (wasLiked) {
-        await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", user.id)
-      } else {
-        await supabase.from("post_likes").insert({ post_id: post.id, user_id: user.id })
+  const posts = feedQuery.data?.pages.flat() ?? []
+
+  const handleToggleLike = useCallback(
+    async (post: FeedPost) => {
+      if (!user?.id) return
+      const wasLiked = post.is_liked
+
+      queryClient.setQueryData(queryKey, (current: typeof feedQuery.data) => {
+        if (!current) return current
+        return {
+          ...current,
+          pages: current.pages.map((page) =>
+            page.map((item) =>
+              item.id === post.id
+                ? {
+                    ...item,
+                    is_liked: !wasLiked,
+                    like_count: item.like_count + (wasLiked ? -1 : 1),
+                  }
+                : item
+            )
+          ),
+        }
+      })
+
+      try {
+        if (wasLiked) {
+          await supabase.from("post_likes").delete().eq("post_id", post.id).eq("user_id", user.id)
+        } else {
+          await supabase.from("post_likes").insert({ post_id: post.id, user_id: user.id })
+        }
+      } catch {
+        queryClient.setQueryData(queryKey, (current: typeof feedQuery.data) => {
+          if (!current) return current
+          return {
+            ...current,
+            pages: current.pages.map((page) =>
+              page.map((item) =>
+                item.id === post.id
+                  ? {
+                      ...item,
+                      is_liked: wasLiked,
+                      like_count: item.like_count + (wasLiked ? 1 : -1),
+                    }
+                  : item
+              )
+            ),
+          }
+        })
       }
-    } catch {
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === post.id
-            ? { ...p, is_liked: wasLiked, like_count: p.like_count + (wasLiked ? 1 : -1) }
-            : p
-        )
-      )
-    }
-  }
+    },
+    [feedQuery.data, queryClient, queryKey, user?.id]
+  )
 
   function renderPost({ item }: { item: FeedPost }) {
     return (
@@ -126,6 +125,8 @@ export function FeedPostList({ type, refreshSignal, ListHeaderComponent, emptyLa
               <Image
                 source={{ uri: item.profiles.avatar_url }}
                 style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: "#334155" }}
+                contentFit="cover"
+                transition={120}
               />
             ) : (
               <View
@@ -160,13 +161,14 @@ export function FeedPostList({ type, refreshSignal, ListHeaderComponent, emptyLa
           <Image
             source={{ uri: item.media_urls[0] }}
             style={{ width: "100%", height: 200, borderRadius: 10, backgroundColor: "#1e293b" }}
-            resizeMode="cover"
+            contentFit="cover"
+            transition={160}
           />
         ) : null}
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 20, marginTop: 4 }}>
           <Pressable
-            onPress={() => handleToggleLike(item)}
+            onPress={() => void handleToggleLike(item)}
             style={{ flexDirection: "row", alignItems: "center", gap: 6 }}
           >
             <Ionicons
@@ -191,20 +193,30 @@ export function FeedPostList({ type, refreshSignal, ListHeaderComponent, emptyLa
       keyExtractor={(item) => item.id}
       renderItem={renderPost}
       ListHeaderComponent={ListHeaderComponent}
+      windowSize={7}
+      maxToRenderPerBatch={8}
+      initialNumToRender={8}
+      removeClippedSubviews
       refreshControl={
-        <RefreshControl refreshing={isRefreshing} onRefresh={() => load("refresh")} tintColor="#a855f7" />
+        <RefreshControl
+          refreshing={feedQuery.isRefetching && !feedQuery.isFetchingNextPage}
+          onRefresh={() => void feedQuery.refetch()}
+          tintColor="#a855f7"
+        />
       }
-      onEndReached={() => load("more")}
+      onEndReached={() => {
+        if (feedQuery.hasNextPage && !feedQuery.isFetchingNextPage) void feedQuery.fetchNextPage()
+      }}
       onEndReachedThreshold={0.5}
       ListFooterComponent={
-        isFetchingMore ? (
+        feedQuery.isFetchingNextPage ? (
           <View style={{ paddingVertical: 20 }}>
             <ActivityIndicator color="#a855f7" />
           </View>
         ) : null
       }
       ListEmptyComponent={
-        isLoading ? (
+        feedQuery.isLoading ? (
           <View style={{ padding: 32, alignItems: "center" }}>
             <ActivityIndicator size="large" color="#a855f7" />
           </View>

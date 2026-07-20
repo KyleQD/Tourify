@@ -66,7 +66,16 @@ function buildTrackDTO(trackRow: any, listingByTrackId: Record<string, any> = {}
     previewDurationSeconds: Number(trackRow.preview_duration_seconds ?? 15) || 15,
     allowLibraryAdd: trackRow.allow_library_add !== false,
     allowProfileFeature: trackRow.allow_profile_feature !== false,
-    listingId: listing?.id || null
+    listingId: listing?.id || null,
+    trust: {
+      originStatus: trackRow.origin_status || 'not_recorded',
+      certificationStatus: trackRow.certification_status || 'not_requested',
+      certificationLevel: Number(trackRow.certification_level || 0),
+      certificationPublicId: trackRow.certification_status === 'approved' ? trackRow.certification_public_id || null : null,
+      publicLabel: trackRow.certification_status === 'approved' && Number(trackRow.certification_level || 0) > 0
+        ? 'Human-created certified'
+        : trackRow.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+    },
   }
 }
 
@@ -505,6 +514,10 @@ export async function getPublicArtistProfileDTO(params: { username: string }): P
         preview_duration_seconds,
         allow_library_add,
         allow_profile_feature
+        ,origin_status
+        ,certification_status
+        ,certification_level
+        ,certification_public_id
       `)
       .eq('user_id', artistUserId)
       .eq('is_public', true)

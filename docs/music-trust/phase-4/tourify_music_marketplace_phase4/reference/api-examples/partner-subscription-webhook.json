@@ -1,0 +1,14 @@
+{
+  "id": "evt_partner_123",
+  "type": "subscription.accepted",
+  "created": "2026-07-17T20:00:00Z",
+  "data": {
+    "partnerOfferingId": "off_123",
+    "partnerSubscriptionId": "sub_123",
+    "partnerAccountId": "acct_123",
+    "amountMinor": "50000",
+    "currency": "USD",
+    "disclosureVersion": "3",
+    "status": "accepted"
+  }
+}

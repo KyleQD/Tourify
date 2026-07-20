@@ -57,11 +57,22 @@ function normalizeApplications(data: HiringApplicationListResponse): HiringAppli
 }
 
 const ACTION_SUCCESS_MESSAGE: Record<HiringApplicationReviewAction, string> = {
-  approve: "Application approved — onboarding invitation sent to the applicant.",
+  approve: "Application approved — worker added to roster (pending) and onboarding invitation sent.",
   reject: "Application rejected.",
   shortlist: "Application shortlisted.",
   waitlist: "Application waitlisted.",
   mark_reviewed: "Application marked as reviewed.",
+}
+
+function buildViewRosterAction(employer: HiringApplicationReviewPanelProps["employer"]) {
+  const query = getEmployerQueryString(employer)
+  return (
+    <ToastAction altText="Open roster" onClick={() => {
+      window.location.href = `/admin/dashboard/hiring?${query}&tab=roster`
+    }}>
+      Open roster
+    </ToastAction>
+  )
 }
 
 interface DecisionResultData {
@@ -274,6 +285,8 @@ export function ApplicationReviewPanel({
       const data = (result?.data ?? null) as DecisionResultData | null
       const warnings = Array.isArray(data?.warnings) ? data!.warnings : []
       const isPendingTemplate = action === "approve" && Boolean(data?.onboarding?.isPending) && !onboardingTemplateId
+      const hasRosterWarning =
+        action === "approve" && warnings.some((warning) => /roster/i.test(warning))
 
       const candidateId = data?.candidate?.id ?? null
 
@@ -285,15 +298,21 @@ export function ApplicationReviewPanel({
           description:
             "No template assigned yet. Pick one now, or assign it later from the Candidates tab." +
             (warnings.length ? ` ${warnings.join(" ")}` : ""),
-          action: buildViewCandidateAction(candidateId),
+          action: hasRosterWarning ? buildViewRosterAction(employer) : buildViewCandidateAction(candidateId),
         })
       } else {
         setTemplatePrompt(null)
         setIsDetailOpen(false)
         toast({
-          title: "Success",
+          title: hasRosterWarning ? "Approved with roster issue" : "Success",
           description: ACTION_SUCCESS_MESSAGE[action] + (warnings.length ? ` ${warnings.join(" ")}` : ""),
-          action: action === "approve" ? buildViewCandidateAction(candidateId) : undefined,
+          action:
+            action === "approve"
+              ? hasRosterWarning
+                ? buildViewRosterAction(employer)
+                : buildViewCandidateAction(candidateId)
+              : undefined,
+          variant: hasRosterWarning ? "destructive" : undefined,
         })
       }
 

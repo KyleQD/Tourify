@@ -1,6 +1,7 @@
 # Mobile Endpoint and Auth Compatibility Matrix
 
-Audit date: 2026-04-09
+Audit date: 2026-04-09  
+Rebaseline: 2026-07-19
 
 Legend:
 - `mobile-ready`: contract is callable from native clients with Bearer auth and predictable behavior
@@ -11,21 +12,25 @@ Legend:
 |---|---|---|---|---|---|---|
 | Discover feed | `apps/mobile/lib/api/discover.ts` -> `GET /api/discover` | `app/api/discover/route.ts` | `authenticateApiRequest` (Bearer fallback + cookies) | mobile-ready | Supports unauth and auth-aware cache policy, returns mobile-usable sections payload | Document response contract and publish typed schema for mobile clients |
 | Follow/unfollow | `apps/mobile/lib/api/follow.ts` -> `POST /api/follow` | `app/api/follow/route.ts` | `authenticateApiRequest` | mobile-ready | Bearer-compatible, ownership and self-follow guardrails present | Normalize error envelope (`error` vs `details` vs `message`) |
-| Notifications list/update | `apps/mobile/lib/api/notifications.ts` -> `GET/PATCH /api/notifications` | `app/api/notifications/route.ts` | `ProductionAuthService.authenticateRequest` | needs-normalization | Works with Bearer fallback but route uses service-role client path after auth, unlike user-scoped `api-auth` routes | Standardize on one auth helper strategy and document when service-role is allowed |
+| Feed posts | `apps/mobile/lib/api/feed.ts` -> `/api/feed/posts` | `app/api/feed/posts/route.ts` | Bearer via `authenticateApiRequest` family | mobile-ready | Used by Home feed + composer | Keep pagination contract stable |
+| Music catalog/stream | `apps/mobile/lib/api/music.ts` | artist/music + stream APIs | Bearer | mobile-ready | Separate Expo player; no shared web jukebox queue | Avoid redundant stream URL fetches |
+| Messages / chats | chat + group-chat screens via `apiRequest` | messaging route handlers | Bearer | mobile-ready | FlatList-based UIs | Continue user-scoped auth |
+| Notifications list/update | `apps/mobile/lib/api/notifications.ts` -> `GET/PATCH /api/notifications` | `app/api/notifications/route.ts` | `ProductionAuthService.authenticateRequest` | needs-normalization | Works with Bearer fallback but route uses service-role client path after auth | Prefer user-scoped where possible; document service-role justification |
 | Creator capabilities | `apps/mobile/lib/api/creator-capabilities.ts` -> `GET/PUT /api/settings/capabilities` | `app/api/settings/capabilities/route.ts` | `authenticateApiRequest` | mobile-ready | Bearer-compatible and profile-scoped updates | Add schema versioning to response and request payload docs |
-| Checkout session + verify | `apps/mobile/lib/api/bookings.ts`, `apps/mobile/lib/api/payments.ts` -> `POST/GET /api/payment` | `app/api/payment/route.ts` | `authenticateRequestWithBearerFallback` | needs-normalization | Auth is mobile-friendly; route mixes user-scoped reads with service-role writes; API helper exists but screen flow is not wired in mobile tabs | Wire booking payment flow in app screens and add explicit idempotency + webhook sync checks |
-| Portfolio upload | `apps/mobile/lib/api/uploads.ts` -> `POST /api/portfolio/upload` | `app/api/portfolio/upload/route.ts` | `authenticateApiRequest` | needs-normalization | Mobile sends `portfolioType` and omits required `tos=accepted`; API expects `kind` + `tos`, causing avoidable 400s | Align request contract (`kind`/`portfolioType`) and add shared request builder + validation |
-| Social suggestions | none currently in `apps/mobile`, candidate endpoint | `app/api/social/suggestions/route.ts` | `authenticateApiRequest` from `lib/auth/server.ts` | web-only | Uses cookie-only auth helper signature (no `NextRequest` bearer path) | Migrate endpoint to `lib/auth/api-auth.ts` or `mobile-request-auth.ts` |
-| Session introspection | none currently in `apps/mobile`, likely needed by clients | `app/api/auth/session/route.ts` | no server validation | web-only | Endpoint explicitly defers session verification to client-side only | Replace with server-verified session endpoint or remove from public API map |
-| Venue booking operations | `apps/mobile/app/(tabs)/bookings.tsx` direct Supabase table access | no dedicated mobile API for this flow | Supabase RLS directly from device | needs-normalization | Mobile bypasses backend API contract and writes `venue_booking_requests` directly | Define `/api/venue-booking-requests` contract for approve/reject/list and align authorization checks |
-| Venue profile stats | `apps/mobile/app/(tabs)/profile.tsx` direct Supabase reads | no dedicated mobile API for this flow | Supabase RLS directly from device | needs-normalization | Direct table reads reduce contract stability and auditability | Add API read model or document direct-RLS contract as intentionally public-to-authenticated |
+| Checkout session + verify | `apps/mobile/app/checkout/index.tsx`, `lib/api/payments.ts` -> `/api/payment` + `/api/ticketing/verify` | `app/api/payment/route.ts`, `app/api/ticketing/verify/route.ts` | Bearer | mobile-ready | Checkout polls verify after browser return before completed UI | Keep idempotent webhook sync as defense-in-depth |
+| Portfolio upload | `apps/mobile/lib/api/uploads.ts` + Profile UI -> `POST /api/portfolio/upload` | `app/api/portfolio/upload/route.ts` | `authenticateApiRequest` | mobile-ready | Sends `kind` + `tos=accepted`; API also accepts `portfolioType` alias | Keep TOS gate in UI |
+| Social suggestions | none currently in `apps/mobile`, candidate endpoint | `app/api/social/suggestions/route.ts` | cookie-oriented helper risk | web-only | Not on v1 mobile critical path | Migrate to bearer-capable auth before mobile use |
+| Session introspection | none currently in `apps/mobile` | `app/api/auth/session/route.ts` | no server validation | web-only | Not a real server verification contract | Replace or remove from public API map |
+| Venue booking operations | `apps/mobile/app/(tabs)/bookings.tsx` + `lib/api/venue-booking-requests.ts` | `/api/venue/booking-requests` | `authenticateApiRequest` + venue manage authz | mobile-ready | List/approve/reject via authorized API | Keep RLS as defense-in-depth |
+| Venue profile stats | `apps/mobile/app/(tabs)/profile.tsx` direct Supabase reads | no dedicated mobile API | Supabase RLS | needs-normalization | Direct reads reduce contract stability | API read model later, or document intentional RLS contract |
+| Connect claim | `apps/mobile/app/connect/*` | `/api/connect/*` | Bearer | mobile-ready | Deep link + App Links configured | Keep redirect allowlist tests |
 
 ## Auth model risks to resolve before mobile scale
 
 1. Two active auth stacks are used across routes:
    - `lib/auth/api-auth.ts` -> returns user-scoped client from Bearer fallback path
    - `lib/auth/production-auth.ts` -> authenticates user, then returns service-role client
-2. Cookie-only helper still appears in a route that should be mobile-capable (`app/api/social/suggestions/route.ts`).
+2. Cookie-only helper still appears on some non-critical routes (e.g. social suggestions).
 3. Session endpoint (`app/api/auth/session/route.ts`) is not a real server verification contract.
 
 ## Minimum contract standard for mobile-facing routes

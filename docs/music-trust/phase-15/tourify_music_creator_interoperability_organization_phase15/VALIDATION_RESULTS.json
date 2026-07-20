@@ -1,0 +1,15 @@
+{
+  "validatedAt": "2026-07-18T23:53:02.458727+00:00",
+  "schemaValid": true,
+  "taskIdsUnique": true,
+  "dependenciesValid": true,
+  "stages": 19,
+  "tasks": 323,
+  "numberedDocuments": 48,
+  "markdownFiles": 53,
+  "wordCount": 19554,
+  "errors": [],
+  "zipIntegrity": true,
+  "zipEntries": 80,
+  "zipBytes": 134226
+}

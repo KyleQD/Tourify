@@ -1,0 +1,14 @@
+{
+  "group_type": "negotiation_readiness",
+  "purpose": "Evaluate non-price contract transparency issues",
+  "state": "readiness_only",
+  "external_action_enabled": false,
+  "jurisdictions": [
+    "US-NV"
+  ],
+  "prohibited_topics": [
+    "current prices",
+    "future rate floors",
+    "boycotts"
+  ]
+}

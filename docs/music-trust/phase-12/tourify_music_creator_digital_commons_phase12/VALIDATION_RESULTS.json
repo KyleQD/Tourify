@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-07-18T03:01:15.030587+00:00",
+  "phase": 12,
+  "checks": {
+    "json_schema": "pass",
+    "unique_task_ids": "pass",
+    "dependencies": "pass"
+  },
+  "counts": {
+    "numbered_documents": 43,
+    "stages": 16,
+    "tasks": 272,
+    "feature_flags": 20,
+    "total_files": 74
+  }
+}

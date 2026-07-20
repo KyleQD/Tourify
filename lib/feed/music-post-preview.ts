@@ -17,6 +17,10 @@ const TRACK_PREVIEW_SELECT = `
   allow_library_add,
   is_public,
   is_featured
+  ,origin_status
+  ,certification_status
+  ,certification_level
+  ,certification_public_id
 `
 
 export interface FeedTrackPreview {
@@ -43,6 +47,13 @@ export interface FeedTrackPreview {
   previewDurationSeconds: number
   allowLibraryAdd: boolean
   createdAt: string | null
+  trust: {
+    originStatus: string
+    certificationStatus: string
+    certificationLevel: number
+    certificationPublicId: string | null
+    label: string
+  }
 }
 
 export interface FeedMusicPlayerTrack {
@@ -152,6 +163,15 @@ export function normalizeTrackPreview(
     previewDurationSeconds: asNumber(row?.preview_duration_seconds, 15),
     allowLibraryAdd: row?.allow_library_add !== false,
     createdAt: asString(row?.created_at),
+    trust: {
+      originStatus: asString(row?.origin_status) || 'not_recorded',
+      certificationStatus: asString(row?.certification_status) || 'not_requested',
+      certificationLevel: asNumber(row?.certification_level, 0),
+      certificationPublicId: asString(row?.certification_public_id),
+      label: row?.certification_status === 'approved' && asNumber(row?.certification_level, 0) > 0
+        ? 'Human-created certified'
+        : row?.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+    },
   }
 }
 
@@ -193,6 +213,10 @@ export function getStoredTrackPreview(post: {
     previewDurationSeconds: 15,
     allowLibraryAdd: true,
     createdAt: null,
+    trust: {
+      originStatus: 'not_recorded', certificationStatus: 'not_requested', certificationLevel: 0,
+      certificationPublicId: null, label: 'Artist submitted',
+    },
   }
 }
 

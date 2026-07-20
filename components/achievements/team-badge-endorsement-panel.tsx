@@ -133,6 +133,14 @@ export function TeamBadgeEndorsementPanel({ venueId, className }: TeamBadgeEndor
 
   async function handleGrantBadge() {
     if (!selectedMemberId || !selectedBadgeId) return
+    if (!grantReason.trim()) {
+      toast({
+        title: "Reason required",
+        description: "Add a short reason so the badge stays meaningful.",
+        variant: "destructive",
+      })
+      return
+    }
     setIsGranting(true)
     try {
       const res = await fetch("/api/badges", {
@@ -142,7 +150,7 @@ export function TeamBadgeEndorsementPanel({ venueId, className }: TeamBadgeEndor
         body: JSON.stringify({
           badge_id: selectedBadgeId,
           user_id: selectedMemberId,
-          granted_reason: grantReason || undefined,
+          granted_reason: grantReason.trim(),
         }),
       })
       const data = await res.json()
@@ -156,6 +164,8 @@ export function TeamBadgeEndorsementPanel({ venueId, className }: TeamBadgeEndor
       setIsGranting(false)
     }
   }
+
+  const selectedBadgePreview = availableBadges.find((badge) => badge.id === selectedBadgeId)
 
   async function handleEndorse() {
     if (!selectedMemberId || !endorseSkill.trim()) return
@@ -281,15 +291,20 @@ export function TeamBadgeEndorsementPanel({ venueId, className }: TeamBadgeEndor
                   ))}
                 </SelectContent>
               </Select>
-              {selectedBadgeId && (
-                <p className="text-xs text-slate-400">
-                  {availableBadges.find(b => b.id === selectedBadgeId)?.description}
-                </p>
+              {selectedBadgePreview && (
+                <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-3">
+                  <p className="text-sm font-medium text-white">{selectedBadgePreview.name}</p>
+                  <p className="mt-1 text-xs text-slate-400">{selectedBadgePreview.description}</p>
+                  <div className="mt-2 flex gap-2">
+                    <Badge variant="outline" className="text-[10px] capitalize">{selectedBadgePreview.category}</Badge>
+                    <Badge variant="outline" className="text-[10px] capitalize">{selectedBadgePreview.rarity}</Badge>
+                  </div>
+                </div>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">Reason (optional)</Label>
+              <Label className="text-slate-300">Reason (required)</Label>
               <Textarea placeholder="Why are you awarding this badge? e.g., 'Outstanding performance at Summer Fest 2026'"
                 value={grantReason} onChange={e => setGrantReason(e.target.value)}
                 className="bg-slate-800 border-slate-700 resize-none" rows={3} />
@@ -297,7 +312,11 @@ export function TeamBadgeEndorsementPanel({ venueId, className }: TeamBadgeEndor
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" className="border-slate-700" onClick={() => setShowGrantDialog(false)}>Cancel</Button>
-              <Button onClick={handleGrantBadge} disabled={!selectedBadgeId || isGranting} className="bg-purple-600 hover:bg-purple-700">
+              <Button
+                onClick={handleGrantBadge}
+                disabled={!selectedBadgeId || !grantReason.trim() || isGranting}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
                 {isGranting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Award className="h-4 w-4 mr-2" />}
                 Award Badge
               </Button>

@@ -29,6 +29,7 @@ import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { formatSafeCurrency, formatSafeNumber } from "@/lib/format/number-format"
 import { EventTicketingOpsPanels } from "@/components/admin/event-ticketing-ops-panels"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface TicketType {
   id: string
@@ -79,9 +80,12 @@ interface Props {
 }
 
 export function EventTicketManager({ eventId }: Props) {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const requestScopeKey = `${actingContextKey}:${eventId}`
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
   const [sales, setSales] = useState<TicketSale[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedScopeKey, setLoadedScopeKey] = useState('')
   const [salesSearch, setSalesSearch] = useState('')
   const [activeView, setActiveView] = useState<'types' | 'sales'>('types')
   const [ticketingEnabled, setTicketingEnabled] = useState(false)
@@ -101,11 +105,14 @@ export function EventTicketManager({ eventId }: Props) {
   const [savingType, setSavingType] = useState(false)
 
   const fetchData = useCallback(async () => {
+    if (!isActingReady) return
     setLoading(true)
+    setTicketTypes([])
+    setSales([])
     try {
       const [typesRes, salesRes, configRes, reportRes] = await Promise.allSettled([
-        fetch(`/api/admin/ticketing/enhanced?type=ticket_types&event_id=${eventId}`, { credentials: 'include' }),
-        fetch(`/api/admin/ticketing/enhanced?type=sales&event_id=${eventId}`, { credentials: 'include' }),
+        fetch(`/api/admin/ticketing/enhanced?type=ticket_types&event_id=${eventId}`, { credentials: 'include', headers: actingHeaders }),
+        fetch(`/api/admin/ticketing/enhanced?type=sales&event_id=${eventId}`, { credentials: 'include', headers: actingHeaders }),
         fetch(`/api/ticketing/config?event_id=${eventId}`, { credentials: 'include' }),
         fetch(`/api/ticketing/reports?event_id=${eventId}`, { credentials: 'include' }),
       ])
@@ -126,9 +133,10 @@ export function EventTicketManager({ eventId }: Props) {
         setReport(await reportRes.value.json())
       }
     } finally {
+      setLoadedScopeKey(requestScopeKey)
       setLoading(false)
     }
-  }, [eventId])
+  }, [actingHeaders, eventId, isActingReady, requestScopeKey])
 
   useEffect(() => { void fetchData() }, [fetchData])
 
@@ -177,6 +185,7 @@ export function EventTicketManager({ eventId }: Props) {
   }
 
   async function saveType() {
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     if (!typeForm.name.trim()) { toast.error('Name is required'); return }
     setSavingType(true)
     try {
@@ -190,7 +199,7 @@ export function EventTicketManager({ eventId }: Props) {
       const res = await fetch('/api/admin/ticketing/enhanced', {
         method: editingType ? 'PATCH' : 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify(body),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -205,11 +214,12 @@ export function EventTicketManager({ eventId }: Props) {
   }
 
   async function toggleTypeActive(t: TicketType) {
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     try {
       const res = await fetch('/api/admin/ticketing/enhanced', {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify({ action: 'update_ticket_type', id: t.id, is_active: !t.is_active }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -231,6 +241,7 @@ export function EventTicketManager({ eventId }: Props) {
       const res = await fetch(`/api/admin/ticketing/enhanced?id=${deleteType.id}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: actingHeaders,
       })
       if (!res.ok) throw new Error(await res.text())
       toast.success('Ticket type deleted')
@@ -243,11 +254,12 @@ export function EventTicketManager({ eventId }: Props) {
   }
 
   async function processRefund(sale: TicketSale) {
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     try {
       const res = await fetch('/api/admin/ticketing/refund', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify({ sale_id: sale.id }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -277,7 +289,7 @@ export function EventTicketManager({ eventId }: Props) {
     .filter((s) => s.payment_status === 'completed')
     .reduce((s, sale) => s + (Number(sale.total_amount) || 0), 0)
 
-  if (loading) {
+  if (loading || !isActingReady || loadedScopeKey !== requestScopeKey) {
     return (
       <div className="flex items-center justify-center py-12">
         <RefreshCw className="h-5 w-5 animate-spin text-purple-400" />

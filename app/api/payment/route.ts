@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import { serviceRoleClient as supabase } from '@/lib/supabase/service-role'
 import { resolveEventReference } from "../events/_lib/event-reference"
 import { authenticateRequestWithBearerFallback } from "@/lib/auth/mobile-request-auth"
 import { paymentCheckoutRequestSchema } from "@tourify/api-contracts"
@@ -63,8 +62,9 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Resolve across legacy/canonical event models
-    const eventReference = await resolveEventReference(supabase as any, eventId)
+    // Resolve across legacy/canonical event models using the authenticated client
+    // after booking ownership was verified (avoid service-role for price/title reads).
+    const eventReference = await resolveEventReference(userSupabase as any, eventId)
     if (!eventReference) {
       return NextResponse.json(
         { error: "Event not found" },
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     let ticketPrice = 0
 
     if (eventReference.table === "events_v2") {
-      const { data: event, error: eventError } = await supabase
+      const { data: event, error: eventError } = await userSupabase
         .from("events_v2")
         .select("title, settings")
         .eq("id", eventReference.id)
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       eventTitle = event?.title || eventTitle
       ticketPrice = Number(settings.ticket_price || settings.price || 0)
     } else if (eventReference.table === "artist_events") {
-      const { data: event, error: eventError } = await supabase
+      const { data: event, error: eventError } = await userSupabase
         .from("artist_events")
         .select("title, name, price, ticket_price")
         .eq("id", eventReference.id)
@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
       eventTitle = event?.title || event?.name || eventTitle
       ticketPrice = Number(event?.price || event?.ticket_price || 0)
     } else {
-      const { data: event, error: eventError } = await supabase
+      const { data: event, error: eventError } = await userSupabase
         .from("events")
         .select("title, name, price, ticket_price")
         .eq("id", eventReference.id)
@@ -228,8 +228,8 @@ export async function GET(req: NextRequest) {
       void session.metadata?.ticketQuantity
       void session.metadata?.eventTable
       
-      // Update booking status
-      const { error: updateError } = await supabase
+      // Update booking status with the authenticated user-scoped client
+      const { error: updateError } = await userSupabase
         .from("bookings")
         .update({ status: "confirmed" })
         .eq("id", bookingId)

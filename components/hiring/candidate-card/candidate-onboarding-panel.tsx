@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Copy, ExternalLink, Loader2, Send } from "lucide-react"
+import { Copy, ExternalLink, Eye, Loader2, Send, Shield } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -34,6 +34,8 @@ export function CandidateOnboardingPanel({ candidate, employer, onUpdated }: Can
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(candidate.template?.id ?? "")
   const [isSending, setIsSending] = useState(false)
   const [isResending, setIsResending] = useState(false)
+  const [isRevealingPii, setIsRevealingPii] = useState(false)
+  const [revealedFields, setRevealedFields] = useState<Record<string, unknown> | null>(null)
 
   const selectedTemplate = useMemo(
     () => templates.find((template) => template.id === selectedTemplateId) ?? null,
@@ -114,6 +116,33 @@ export function CandidateOnboardingPanel({ candidate, employer, onUpdated }: Can
       toast({ title: "Invite link copied" })
     } catch {
       toast({ title: "Copy failed", variant: "destructive" })
+    }
+  }
+
+  async function revealSensitiveData() {
+    const confirmed = window.confirm(
+      "Reveal sensitive onboarding data for this candidate? This action is audited and limited to owners/admins."
+    )
+    if (!confirmed) return
+
+    setIsRevealingPii(true)
+    try {
+      const response = await fetch(`/api/hiring/onboarding/sensitive/${candidate.id}?${employerQuery}`, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      })
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(payload?.error?.message ?? payload?.error ?? "Unable to reveal sensitive data")
+      setRevealedFields((payload?.data?.fields ?? {}) as Record<string, unknown>)
+      toast({ title: "Sensitive data revealed", description: "This access was written to the hiring audit log." })
+    } catch (error) {
+      toast({
+        title: "Reveal blocked",
+        description: error instanceof Error ? error.message : "Only owners/admins can view sensitive data.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsRevealingPii(false)
     }
   }
 
@@ -210,6 +239,27 @@ export function CandidateOnboardingPanel({ candidate, employer, onUpdated }: Can
               ) : (
                 <p className="text-slate-400">Send onboarding to generate an invite link.</p>
               )}
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+                <div className="mb-2 flex items-center gap-2 text-amber-200">
+                  <Shield className="h-4 w-4" />
+                  <span className="font-medium">Sensitive data (owner/admin)</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isRevealingPii}
+                  onClick={() => void revealSensitiveData()}
+                  className="border-amber-500/40 bg-slate-950/40 text-amber-100 hover:bg-amber-500/10"
+                >
+                  {isRevealingPii ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Eye className="mr-2 h-4 w-4" />}
+                  Reveal sensitive fields
+                </Button>
+                {revealedFields ? (
+                  <pre className="mt-3 max-h-48 overflow-auto rounded-lg bg-slate-950/70 p-3 text-xs text-slate-200">
+                    {JSON.stringify(revealedFields, null, 2)}
+                  </pre>
+                ) : null}
+              </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>

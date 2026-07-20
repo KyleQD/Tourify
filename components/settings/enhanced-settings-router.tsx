@@ -15,7 +15,6 @@ import {
   Music,
   Settings,
   Shield,
-  Bell,
   Palette,
   Save,
   Loader2,
@@ -32,7 +31,11 @@ import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/auth-context"
 import { useMultiAccount } from "@/hooks/use-multi-account"
 import { useAppearanceSettings } from "@/hooks/use-appearance-settings"
+import { DashboardThemePicker } from "./dashboard-theme-picker"
+import { CustomProfileDesignPanel } from "./custom-profile-design-panel"
+import { SettingsThemeShell } from "./settings-theme-shell"
 import { EnhancedArtistSettings } from "./enhanced-artist-settings"
+import { DEFAULT_DASHBOARD_THEME_ID } from "@/lib/dashboard/dashboard-themes"
 import { EnhancedVenueSettings } from "./enhanced-venue-settings"
 import { EnhancedGeneralSettings } from "./enhanced-general-settings"
 import { ColorPicker } from "@/components/ui/color-picker"
@@ -65,7 +68,15 @@ export function EnhancedSettingsRouter() {
   const [saving, setSaving] = useState(false)
   
   // Use the appearance settings hook
-  const { settings: appearanceSettings, updateSetting, updateProfileColor, updateProfileImage, saveSettings, applyTheme } = useAppearanceSettings()
+  const {
+    settings: appearanceSettings,
+    updateSetting,
+    updateProfileColor,
+    updateProfileImage,
+    setDashboardTheme,
+    saveSettings,
+    applyTheme,
+  } = useAppearanceSettings()
 
   useEffect(() => {
     if (user) {
@@ -168,34 +179,50 @@ export function EnhancedSettingsRouter() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
+      <SettingsThemeShell themeId={appearanceSettings.dashboardTheme}>
+        <div className="flex items-center justify-center p-8 min-h-screen">
+          <Loader2 className="h-8 w-8 animate-spin dashboard-theme-accent-text" />
+        </div>
+      </SettingsThemeShell>
     )
   }
 
   if (!accountInfo) {
     return (
-      <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
-        <CardContent className="p-8">
-          <div className="text-center">
-            <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
-            <h3 className="text-xl font-semibold text-white mb-2">Account Not Found</h3>
-            <p className="text-gray-400 mb-4">
-              We couldn't load your account information. Please try refreshing the page.
-            </p>
-            <Button onClick={loadAccountInfo} className="bg-purple-600 hover:bg-purple-700">
-              <Loader2 className="h-4 w-4 mr-2" />
-              Retry
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <SettingsThemeShell themeId={appearanceSettings.dashboardTheme}>
+        <div className="container mx-auto px-4 py-8">
+          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+            <CardContent className="p-8">
+              <div className="text-center">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-red-400" />
+                <h3 className="text-xl font-semibold text-white mb-2">Account Not Found</h3>
+                <p className="text-gray-400 mb-4">
+                  We couldn&apos;t load your account information. Please try refreshing the page.
+                </p>
+                <Button onClick={loadAccountInfo} className="dashboard-theme-cta text-white">
+                  <Loader2 className="h-4 w-4 mr-2" />
+                  Retry
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </SettingsThemeShell>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <SettingsThemeShell themeId={appearanceSettings.dashboardTheme}>
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <div className="mb-2">
+          <h1 className="text-4xl font-bold dashboard-theme-heading bg-clip-text text-transparent mb-2">
+            Account Settings
+          </h1>
+          <p className="dashboard-theme-muted">
+            Manage your profile, preferences, and account settings
+          </p>
+        </div>
+
       {/* Account Header */}
       <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
         <CardHeader>
@@ -271,20 +298,6 @@ export function EnhancedSettingsRouter() {
             Certifications
           </TabsTrigger>
           <TabsTrigger 
-            value="notifications" 
-            className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
-          >
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
-          </TabsTrigger>
-          <TabsTrigger 
-            value="privacy" 
-            className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
-          >
-            <Shield className="h-4 w-4 mr-2" />
-            Privacy
-          </TabsTrigger>
-          <TabsTrigger 
             value="appearance" 
             className="data-[state=active]:bg-white data-[state=active]:text-black text-white rounded-xl transition-all duration-200 hover:bg-white/10"
           >
@@ -355,57 +368,6 @@ export function EnhancedSettingsRouter() {
           <CertificationsSettings />
         </TabsContent>
 
-        <TabsContent value="notifications" className="space-y-6">
-          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
-            <CardHeader>
-              <CardTitle className="text-white">Notification Preferences</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Bell className="h-16 w-16 mx-auto mb-4 text-purple-400" />
-                <h3 className="text-xl font-semibold text-white mb-2">Notification Settings</h3>
-                <p className="text-gray-400">
-                  Configure your notification preferences here.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Coming soon...
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="privacy" className="space-y-6">
-          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
-            <CardHeader>
-              <CardTitle className="text-white">Privacy & Security</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <Shield className="h-16 w-16 mx-auto mb-4 text-blue-400" />
-                <h3 className="text-xl font-semibold text-white mb-2">Privacy Settings</h3>
-                <p className="text-gray-400">
-                  Manage your privacy and security settings.
-                </p>
-                <p className="text-sm text-gray-500 mt-2">
-                  Coming soon...
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
-            <CardHeader>
-              <CardTitle className="text-white">Guides and tours</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-gray-400">
-                Clear dismissed tips, help favorites, recent articles, and the venue spotlight tour on this browser.
-              </p>
-              <ResetEducationButton />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="appearance" className="space-y-6">
           <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
             <CardHeader>
@@ -416,18 +378,31 @@ export function EnhancedSettingsRouter() {
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
-                {/* Theme Selection */}
+                <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
+                  <DashboardThemePicker
+                    value={appearanceSettings.dashboardTheme}
+                    onChange={setDashboardTheme}
+                  />
+                </div>
+
+                {accountInfo.account_type === 'general' ? (
+                  <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
+                    <CustomProfileDesignPanel />
+                  </div>
+                ) : null}
+
+                {/* Profile Theme Selection */}
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-white font-semibold text-xl">Theme Selection</h3>
+                      <h3 className="text-white font-semibold text-xl">Profile Colors</h3>
                       <p className="text-white/70 text-sm">
-                        Choose your preferred theme and color scheme
+                        Theme presets for your public profile branding
                       </p>
                     </div>
                     <Button 
                       onClick={() => router.push('/settings/profile-colors')}
-                      className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl px-6 py-2 transition-all duration-200 shadow-lg hover:shadow-purple-500/25"
+                      className="dashboard-theme-cta text-white rounded-xl px-6 py-2 transition-all duration-200 shadow-lg"
                     >
                       <Palette className="h-4 w-4 mr-2" />
                       Advanced Colors
@@ -448,7 +423,7 @@ export function EnhancedSettingsRouter() {
                           key={theme.id}
                           className={`text-center p-6 rounded-2xl border cursor-pointer transition-all duration-200 relative group hover:scale-105 ${
                             isSelected
-                              ? 'bg-white/15 border-purple-500/50 shadow-lg shadow-purple-500/20'
+                              ? 'bg-white/15 border-[color:var(--dashboard-primary)]/50 shadow-lg'
                               : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                           }`}
                           onClick={() => applyTheme(theme.id)}
@@ -469,15 +444,15 @@ export function EnhancedSettingsRouter() {
                 <div className="p-6 bg-white/5 rounded-3xl border border-white/10 backdrop-blur-sm">
                   <div className="flex items-center justify-between mb-6">
                     <div>
-                      <h3 className="text-white font-semibold text-xl">Custom Colors</h3>
+                      <h3 className="text-white font-semibold text-xl">Custom Profile Colors</h3>
                       <p className="text-white/70 text-sm">
-                        Customize your profile colors with any colors you want
+                        Customize your public profile colors
                       </p>
                     </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => applyTheme('emerald')}
+                      onClick={() => setDashboardTheme(DEFAULT_DASHBOARD_THEME_ID)}
                       className="border-white/30 text-white hover:bg-white/10 rounded-xl px-4 py-2 transition-all duration-200"
                     >
                       Reset to Default
@@ -610,8 +585,11 @@ export function EnhancedSettingsRouter() {
                     
                     <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
                       <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-xl bg-purple-500/20 border border-purple-500/30">
-                          <Sparkles className="h-5 w-5 text-purple-400" />
+                        <div
+                          className="p-3 rounded-xl border border-white/10"
+                          style={{ backgroundColor: 'color-mix(in srgb, var(--dashboard-primary) 20%, transparent)' }}
+                        >
+                          <Sparkles className="h-5 w-5 dashboard-theme-accent-text" />
                         </div>
                         <div>
                           <div className="text-white font-semibold">Animations</div>
@@ -621,7 +599,7 @@ export function EnhancedSettingsRouter() {
                       <Switch
                         checked={appearanceSettings.animations}
                         onCheckedChange={(checked) => updateSetting('animations', checked)}
-                        className="data-[state=checked]:bg-purple-600"
+                        className="data-[state=checked]:bg-[var(--dashboard-primary)]"
                       />
                     </div>
                     
@@ -653,12 +631,16 @@ export function EnhancedSettingsRouter() {
                       if (result?.success) {
                         toast.success('Appearance settings saved successfully!')
                       } else {
-                        toast.error('Failed to save appearance settings')
+                        toast.error(
+                          typeof result?.error === 'string'
+                            ? result.error
+                            : 'Failed to save appearance settings'
+                        )
                       }
                       setSaving(false)
                     }}
                     disabled={saving}
-                    className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl px-8 py-3 transition-all duration-200 shadow-lg hover:shadow-purple-500/25 font-semibold"
+                    className="dashboard-theme-cta text-white rounded-xl px-8 py-3 transition-all duration-200 shadow-lg font-semibold"
                   >
                     {saving ? (
                       <>
@@ -770,6 +752,17 @@ export function EnhancedSettingsRouter() {
               </div>
             </CardContent>
           </Card>
+          <Card className="bg-white/10 backdrop-blur border border-white/20 rounded-3xl">
+            <CardHeader>
+              <CardTitle className="text-white">Guides and tours</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-gray-400">
+                Clear dismissed tips, help favorites, recent articles, and the venue spotlight tour on this browser.
+              </p>
+              <ResetEducationButton />
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -831,6 +824,7 @@ export function EnhancedSettingsRouter() {
           </div>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </SettingsThemeShell>
   )
 } 

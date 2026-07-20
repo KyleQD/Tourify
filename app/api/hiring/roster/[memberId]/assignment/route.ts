@@ -34,6 +34,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       memberId,
       actorUserId: actorResult.data.userId,
       eventId: parsed.data.event_id,
+      tourId: parsed.data.tour_id,
       shiftId: parsed.data.shift_id,
       zone: parsed.data.zone,
       assignedManagerId: parsed.data.assigned_manager_id,

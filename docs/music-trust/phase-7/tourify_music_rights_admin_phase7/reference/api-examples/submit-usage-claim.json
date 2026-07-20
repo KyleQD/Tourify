@@ -1,0 +1,15 @@
+{
+  "usageEventIds": [
+    "AUDIT_REQUIRED"
+  ],
+  "rightCategory": "mechanical",
+  "controlledShare": {
+    "numerator": 50,
+    "denominator": 100
+  },
+  "territories": [
+    "US"
+  ],
+  "mandateVersionId": "AUDIT_REQUIRED",
+  "approvalVersion": 1
+}

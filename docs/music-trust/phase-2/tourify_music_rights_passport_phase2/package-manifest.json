@@ -1,0 +1,202 @@
+{
+  "package": "Tourify Music Rights Passport \u2014 Phase 2",
+  "created_at": "2026-07-17T00:00:00-07:00",
+  "target_path": "docs/music-trust/phase-2/",
+  "files": [
+    {
+      "path": "00_PHASE_2_SCOPE_AND_DEPENDENCIES.md",
+      "sha256": "953ed4008956c184b4ca8833db9b773a290d49c1b620a076ba359c186af38c25",
+      "bytes": 3404
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_ARTIST_JOURNEYS.md",
+      "sha256": "9f4c71299488d60eb4673819f79b95e8413dbaff9bc9523cf79a8e2452b33a0b",
+      "bytes": 4032
+    },
+    {
+      "path": "02_RIGHTS_DOMAIN_AND_TERMINOLOGY.md",
+      "sha256": "42c09dcc2773cb88c2c3858c169dba839f4b5823828fb72263000d43892787a9",
+      "bytes": 4256
+    },
+    {
+      "path": "03_EXISTING_CATALOG_IMPORT_AND_MATCHING.md",
+      "sha256": "549a77195ac49612c9c3a855b48fa5ee274167f843a0856de044207f74d12da5",
+      "bytes": 2797
+    },
+    {
+      "path": "04_PARTIES_IDENTITIES_AND_AUTHORITY.md",
+      "sha256": "c6eadc7f0a1f38965d537f45d7db5c5e0d427724767f7b98c1184bd04a8957a7",
+      "bytes": 2087
+    },
+    {
+      "path": "05_CREDITS_CLAIMS_SPLITS_AND_VALIDATION.md",
+      "sha256": "5ec48c88f18e59b4ef07d3ce451a99200e0eca60edda049f0d2d95b19e6000e5",
+      "bytes": 2767
+    },
+    {
+      "path": "06_AGREEMENTS_E_SIGNATURES_AND_VERSIONING.md",
+      "sha256": "4e16ddfc438a6ec5a9f5f3f718a423d6dbb84c1f6dcacd0ffd6bb8de6ff3ed53",
+      "bytes": 3718
+    },
+    {
+      "path": "07_HUMAN_ORIGIN_CERTIFICATION_STANDARD.md",
+      "sha256": "d5f5271719a3bdb5fcecd4077b070662a23a5f899bd383de57dd7a484e2b8911",
+      "bytes": 4051
+    },
+    {
+      "path": "08_EVIDENCE_REVIEW_AND_DECISIONING.md",
+      "sha256": "abd6e4048fa372a444a44ea9f3b28575e878b94c62790347e6a771687a0ab305",
+      "bytes": 2395
+    },
+    {
+      "path": "09_PASSPORT_MANIFESTS_AND_CREDENTIALS.md",
+      "sha256": "34f802fc804e1df2fa82b89471d78ec30ab790c83191a1d23990b9e3a4267d5d",
+      "bytes": 3291
+    },
+    {
+      "path": "10_C2PA_PROVENANCE_AND_DERIVATIVES.md",
+      "sha256": "5a69b025f496e6d4d9b3403f0825aeb36e01c81a08a0cf08695baec35a809820",
+      "bytes": 3007
+    },
+    {
+      "path": "11_TOURIFY_SHIELD_AND_TRAINING_RESERVATION.md",
+      "sha256": "ebc78babde5db404bfed43ae635b515459808479c5110d654d9630d37d183fce",
+      "bytes": 2508
+    },
+    {
+      "path": "12_BLOCKCHAIN_ATTESTATION_REGISTRY.md",
+      "sha256": "2cfe4fcda85cca001d85401410e3009c625109ede80ec89cc347bdd641a5180d",
+      "bytes": 3035
+    },
+    {
+      "path": "13_DATABASE_MIGRATIONS_RLS_AND_STORAGE.md",
+      "sha256": "4a392b9f955501dfaafc7f677707d833fea58e5c45d791fcc680993f17169ce9",
+      "bytes": 3269
+    },
+    {
+      "path": "14_API_EVENTS_AND_BACKGROUND_JOBS.md",
+      "sha256": "1debaf46f6669ed7f14d71e57c1e71dbd5d1716d1c943b9cb553527ecb3841e8",
+      "bytes": 2631
+    },
+    {
+      "path": "15_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sha256": "4aaf98d171106086be1dae1f1059a2840e5fc777e34c4cb64b3334f338eeb06f",
+      "bytes": 2418
+    },
+    {
+      "path": "16_RIGHTS_OPERATIONS_DISPUTES_AND_APPEALS.md",
+      "sha256": "6954f59d29b6f2fd028220de9a0f4b731be64730730a94dd5c5a97fe43cf83ed",
+      "bytes": 2143
+    },
+    {
+      "path": "17_SECURITY_PRIVACY_KEYS_AND_RETENTION.md",
+      "sha256": "2c5eaf01baa63652eb3c942d4694db8f4f317cef8c0bc142bb876028681d3143",
+      "bytes": 2595
+    },
+    {
+      "path": "18_TESTING_PILOT_AND_ROLLOUT.md",
+      "sha256": "f269ddf903080ea7eb6a4794d65e430cafe1d60602634e2665b761949f2a2ff7",
+      "bytes": 2611
+    },
+    {
+      "path": "19_PHASE_3_ROYALTY_AND_VALUATION_READINESS.md",
+      "sha256": "b08f6f555ac392359130b0090d39ceacc3b7cccb87c5b36d49fddce705118cad",
+      "bytes": 1940
+    },
+    {
+      "path": "20_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sha256": "3713122f887d74b12ba6a9bcee994db287e8b4d3674a835c6f9d65c03a7b46db",
+      "bytes": 2439
+    },
+    {
+      "path": "21_DEFINITION_OF_DONE.md",
+      "sha256": "474579ea9e5f6f0da78f27fcefe15a9999f72786ac62bea87b021070ac0a1955",
+      "bytes": 3387
+    },
+    {
+      "path": "22_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sha256": "54c086578b85fa3d8a2f17aff7235296c62fca8802e2ec914525ae0a0e76620a",
+      "bytes": 7915
+    },
+    {
+      "path": "23_CURRENT_STANDARDS_AND_LEGAL_RESEARCH.md",
+      "sha256": "9d2af02c2e682495889800be29c19234bb627b5ea7a1477ffcfa4d5d8200a1ec",
+      "bytes": 3519
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sha256": "f936388f4dd947b3834a4cb366bd83bc2926f9c912ec7d4d2581e5d0abfaba56",
+      "bytes": 2248
+    },
+    {
+      "path": "README.md",
+      "sha256": "e59496ae28c3de7e6ca3d294700d7d4c58ea91a0a381121f619bd65092284c52",
+      "bytes": 4213
+    },
+    {
+      "path": "phase-2-execution-plan.schema.json",
+      "sha256": "7f519ee55e2b8cdd0f04aecb6777317b3acd0b4bafd3da2e0b3630661ddfdf2a",
+      "bytes": 3160
+    },
+    {
+      "path": "phase-2-execution-plan.template.json",
+      "sha256": "c0d2c40eb007bc68e04f3ff875cd79aaa8877ca8c38db542df0a663c2ec4cf89",
+      "bytes": 80411
+    },
+    {
+      "path": "reference/API_PAYLOAD_EXAMPLES.md",
+      "sha256": "a539dc4e0e7a826904c4bcfaaab601ee96069c84c17f112c5307b51ce0f97076",
+      "bytes": 1223
+    },
+    {
+      "path": "reference/lib/music-rights/passport-manifest.ts",
+      "sha256": "b52fd2b392cdb6a57b665c13fa803674ab937b9e69e24338ba8d58679e8a0d6f",
+      "bytes": 1358
+    },
+    {
+      "path": "reference/lib/music-rights/rights-types.ts",
+      "sha256": "1847f659cff4c35cb373bb68f61e218fd6060e027acc7d7cb2a30e9726d5984d",
+      "bytes": 902
+    },
+    {
+      "path": "reference/lib/music-rights/rights-validation.ts",
+      "sha256": "88e912fab177ab99fdf8669c5308a0f80f8025de56990fa8985eb8a0f1109ab5",
+      "bytes": 1907
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_rights_domain_foundation.sql",
+      "sha256": "aa184d5e526f277e3ab56e6407fae3d468d0f3c1f781892a734f3c344bc16e05",
+      "bytes": 775
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_agreements_and_evidence.sql",
+      "sha256": "7e2d88a28c5e7ee07cc66875e1e33b6895ea6398aebe0f0aae3e8a23991bc3c8",
+      "bytes": 526
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_passports_provenance_and_anchors.sql",
+      "sha256": "aaac976e4e90579d0f4c91d65f2c32d723d82ca37549352dfa9a46b8ebdc3a81",
+      "bytes": 440
+    },
+    {
+      "path": "source/MUSIC_ECOSYSTEM_INTEGRATION_GUIDE.md",
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82",
+      "bytes": 21046
+    },
+    {
+      "path": "source/PHASE_1_PACKAGE_README.md",
+      "sha256": "2c08947852515d6c36138e9cd8539df8744222be634ca578c71f16a764b58b25",
+      "bytes": 2573
+    },
+    {
+      "path": "source/PHASE_1_PHASE_2_EXTENSION_NOTES.md",
+      "sha256": "bfe88cd6b428f3d2a31051796344af6dc80dce49f82bc98ab4c7b5cb225aca2b",
+      "bytes": 1398
+    },
+    {
+      "path": "source/RIGHTS_PASSPORT_RESEARCH_BASELINE.md",
+      "sha256": "635a2b4306781ade2a9643edec085e6e2fdf58cd0d16652ab84fb2cccb192111",
+      "bytes": 52474
+    }
+  ]
+}

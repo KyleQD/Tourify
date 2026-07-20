@@ -1,0 +1,11 @@
+{
+  "idempotencyKey": "p17-incident-1",
+  "serviceKey": "public-status-verification",
+  "severity": "high",
+  "startedAt": "2029-04-01T10:00:00Z",
+  "affectedJurisdictions": [
+    "sandbox-a"
+  ],
+  "fallbackOperatorActivated": true,
+  "publicNoticeRequired": true
+}

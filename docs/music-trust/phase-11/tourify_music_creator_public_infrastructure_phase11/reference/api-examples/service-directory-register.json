@@ -1,0 +1,12 @@
+{
+  "method": "POST",
+  "path": "/api/creator-public-infrastructure/services",
+  "body": {
+    "organizationIdentifier": "org:example",
+    "capability": "rights_reference_resolution",
+    "endpoint": "https://example.invalid/resolve",
+    "jurisdictions": [
+      "US"
+    ]
+  }
+}

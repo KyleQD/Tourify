@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function ArtistSettingsPage() {
   return (
-    <EnhancedSettingsLayout>
+    <EnhancedSettingsLayout compact>
       <ArtistSettingsClient />
     </EnhancedSettingsLayout>
   )

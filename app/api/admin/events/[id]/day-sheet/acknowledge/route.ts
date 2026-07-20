@@ -44,9 +44,6 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
 
     const { data: receipts, error: lookupError } = await query
     if (lookupError) {
-      if (lookupError.code === '42P01') {
-        return NextResponse.json({ error: 'Day sheet receipts are not migrated yet' }, { status: 501 })
-      }
       return NextResponse.json({ error: lookupError.message }, { status: 500 })
     }
 
@@ -88,7 +85,6 @@ export const POST = withAuth(async (request: NextRequest, { supabase, user }) =>
   const { data, error } = await query.select().maybeSingle()
 
   if (error) {
-    if (error.code === '42P01') return NextResponse.json({ error: 'Day sheet receipts are not migrated yet' }, { status: 501 })
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

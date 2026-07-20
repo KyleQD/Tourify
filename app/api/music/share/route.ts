@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     const { data: track, error } = await supabase
       .from('artist_music')
-      .select('id,title,cover_art_url,stats,metadata,user_id,is_public,is_visible,moderation_status,rights_confirmed')
+      .select('id,title,cover_art_url,stats,metadata,user_id,is_public,is_visible,moderation_status,rights_confirmed,origin_status,certification_status,certification_level,certification_public_id')
       .eq('id', musicId)
       .single()
 
@@ -152,6 +152,15 @@ export async function POST(request: NextRequest) {
       likes: track.stats?.likes || 0,
       plays: track.stats?.plays || 0,
       buy_url: track.metadata?.commerce?.buy_url || null,
+      trust: {
+        origin_status: track.origin_status || 'not_recorded',
+        certification_status: track.certification_status || 'not_requested',
+        certification_level: track.certification_level || 0,
+        certification_public_id: track.certification_status === 'approved' ? track.certification_public_id || null : null,
+        public_label: track.certification_status === 'approved' && Number(track.certification_level || 0) > 0
+          ? 'Human-created certified'
+          : track.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+      },
     }
 
     if (createPost) {

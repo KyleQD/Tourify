@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Loader2, MessageCircle, Send } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import { supabase } from "@/lib/supabase"
 import { formatDistanceToNow } from "date-fns"
 
@@ -187,7 +188,11 @@ export function EventChatsPanel({ eventId }: EventChatsPanelProps) {
         body: JSON.stringify({ group_id: gid, content: text, message_type: "text" }),
       })
       const json = await res.json()
-      if (!res.ok) throw new Error(json.error || "Send failed")
+      if (!res.ok) {
+        if (isFeatureUnavailableResponse(res.status, json))
+          throw new Error(featureUnavailableMessage(json, "Group chats are temporarily unavailable."))
+        throw new Error(json.error || "Send failed")
+      }
       setDraft("")
       if (json.message) {
         setMessages((prev) => {

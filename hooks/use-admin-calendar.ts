@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import type {
+  AdminCalendarContext,
   AdminCalendarFilters,
   AdminCalendarItem,
   AdminCalendarKind,
   AdminCalendarResponse,
+  AdminCalendarScopeMode,
   AdminCalendarSummary,
 } from '@/lib/admin/calendar/types'
 
@@ -14,12 +16,16 @@ interface UseAdminCalendarArgs {
   endDate: string
   types?: AdminCalendarKind[]
   status?: string
+  scope?: AdminCalendarScopeMode | null
+  tourId?: string | null
+  eventId?: string | null
   enabled?: boolean
 }
 
 interface UseAdminCalendarResult {
   items: AdminCalendarItem[]
   summary: AdminCalendarSummary | null
+  context: AdminCalendarContext | null
   orgId: string | null
   isLoading: boolean
   error: string | null
@@ -37,16 +43,29 @@ const EMPTY_SUMMARY: AdminCalendarSummary = {
 }
 
 export function useAdminCalendar(args: UseAdminCalendarArgs): UseAdminCalendarResult {
-  const { startDate, endDate, types, status, enabled = true } = args
+  const {
+    startDate,
+    endDate,
+    types,
+    status,
+    scope,
+    tourId,
+    eventId,
+    enabled = true,
+  } = args
   const [items, setItems] = useState<AdminCalendarItem[]>([])
   const [summary, setSummary] = useState<AdminCalendarSummary | null>(null)
+  const [context, setContext] = useState<AdminCalendarContext | null>(null)
   const [orgId, setOrgId] = useState<string | null>(null)
   const [filters, setFilters] = useState<AdminCalendarFilters | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const refetch = useCallback(async () => {
-    if (!enabled) return
+    if (!enabled) {
+      setIsLoading(false)
+      return
+    }
     setIsLoading(true)
     setError(null)
 
@@ -57,6 +76,9 @@ export function useAdminCalendar(args: UseAdminCalendarArgs): UseAdminCalendarRe
       })
       if (types && types.length > 0) params.set('types', types.join(','))
       if (status) params.set('status', status)
+      if (scope) params.set('scope', scope)
+      if (tourId) params.set('tourId', tourId)
+      if (eventId) params.set('eventId', eventId)
 
       const response = await fetch(`/api/admin/calendar?${params.toString()}`, {
         credentials: 'include',
@@ -71,16 +93,18 @@ export function useAdminCalendar(args: UseAdminCalendarArgs): UseAdminCalendarRe
       const data = await response.json() as AdminCalendarResponse
       setItems(data.items || [])
       setSummary(data.summary || EMPTY_SUMMARY)
+      setContext(data.context || null)
       setOrgId(data.orgId ?? null)
       setFilters(data.filters || null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load calendar')
       setItems([])
       setSummary(EMPTY_SUMMARY)
+      setContext(null)
     } finally {
       setIsLoading(false)
     }
-  }, [enabled, endDate, startDate, status, types])
+  }, [enabled, endDate, eventId, scope, startDate, status, tourId, types])
 
   useEffect(() => {
     void refetch()
@@ -89,6 +113,7 @@ export function useAdminCalendar(args: UseAdminCalendarArgs): UseAdminCalendarRe
   return {
     items,
     summary,
+    context,
     orgId,
     isLoading,
     error,

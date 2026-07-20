@@ -1,0 +1,9 @@
+{
+  "provider": "distributor_slug",
+  "sourceStatementId": "statement-2026-06",
+  "periodStart": "2026-06-01",
+  "periodEnd": "2026-06-30",
+  "currency": "USD",
+  "uploadedObjectPath": "<private-path-from-signed-upload>",
+  "idempotencyKey": "artist-provider-statement-sha256"
+}

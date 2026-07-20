@@ -45,6 +45,7 @@ export function LogisticsCollaboration({
       const params = new URLSearchParams()
       if (eventId) params.set('event_id', eventId)
       if (tourId) params.set('tour_id', tourId)
+      if (siteMapId) params.set('site_map_id', siteMapId)
       params.set('limit', '30')
 
       const res = await fetch(`/api/admin/communications?${params}`, { credentials: 'include' })
@@ -55,7 +56,7 @@ export function LogisticsCollaboration({
     } finally {
       setLoading(false)
     }
-  }, [eventId, tourId])
+  }, [eventId, tourId, siteMapId])
 
   useEffect(() => { void fetchMessages() }, [fetchMessages])
 

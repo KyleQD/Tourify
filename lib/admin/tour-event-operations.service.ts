@@ -4,7 +4,7 @@ import { z } from "zod"
 import type { SupabaseClient } from "@supabase/supabase-js"
 
 import { buildUniqueEventSlug, mapIncomingStatusToV2, mapV2StatusToUi } from "@/app/api/events/_lib/events-v2-admin"
-import { ensureAdminOrgScope, resolveAdminOrgIdForUser } from "@/app/api/events/_lib/admin-event-persistence"
+import { resolveAdminOrgIdForUser } from "@/app/api/events/_lib/admin-event-persistence"
 import { getEventReadiness, getTourReadiness } from "@/lib/admin/operations-readiness"
 
 type SupabaseLike = SupabaseClient | any
@@ -21,6 +21,10 @@ export const tourAssignmentInputSchema = z.object({
   routing_notes: z.string().trim().max(2000).nullable().optional(),
 })
 
+const tourStopAssignmentSchema = tourAssignmentInputSchema.extend({
+  event_id: z.string().uuid(),
+})
+
 export const adminEventInputBaseSchema = z.object({
     title: z.string().min(1).optional(),
     name: z.string().min(1).optional(),
@@ -34,6 +38,7 @@ export const adminEventInputBaseSchema = z.object({
     event_date: z.string().optional(),
     event_time: z.string().optional(),
     timezone: z.string().optional(),
+    duration_minutes: z.number().int().min(0).max(1440).optional(),
     venue_id: z.string().uuid().optional().nullable(),
     venue_name: z.string().optional().nullable(),
     venue_address: z.string().optional().nullable(),
@@ -51,6 +56,10 @@ export const adminEventInputBaseSchema = z.object({
     curfew: z.string().optional().nullable(),
     load_in_time: z.string().optional().nullable(),
     sound_check_time: z.string().optional().nullable(),
+    sound_requirements: z.string().max(5000).optional().nullable(),
+    lighting_requirements: z.string().max(5000).optional().nullable(),
+    stage_requirements: z.string().max(5000).optional().nullable(),
+    special_requirements: z.string().max(5000).optional().nullable(),
     set_times: z.array(z.record(z.unknown())).optional(),
     ticket_price: z.number().optional(),
     vip_price: z.number().optional(),
@@ -103,6 +112,7 @@ export const adminTourInputSchema = z.object({
   artist_id: z.string().uuid().optional().nullable(),
   genre: z.string().optional().nullable(),
   cover_image: z.string().optional().nullable(),
+  cover_image_url: z.string().url().optional().nullable(),
   markets: z.array(z.string()).optional(),
   settings: z.record(z.unknown()).optional(),
   event_ids: z.array(z.string().uuid()).optional(),
@@ -205,7 +215,10 @@ function parseCapacity(value: unknown): number | null {
 function combineDateTimeToIso(date?: string | null, time?: string | null): string | null {
   if (!date?.trim()) return null
   const t = (time?.trim() || "00:00").slice(0, 5)
-  const ms = Date.parse(`${date.trim()}T${t}:00`)
+  // Date/time values from the admin forms are stored in the event's configured
+  // timezone (UTC by default). Keep the default path deterministic across local,
+  // CI, and server runtimes instead of applying the host machine's timezone.
+  const ms = Date.parse(`${date.trim()}T${t}:00.000Z`)
   if (Number.isNaN(ms)) return null
   return new Date(ms).toISOString()
 }
@@ -492,59 +505,67 @@ async function resolveVenuesV2IdForAccount(args: {
 }
 
 function eventSettingsFromInput(input: Partial<z.infer<typeof adminEventInputBaseSchema>>): Record<string, unknown> {
-  const settings: Record<string, unknown> = {
-    event_type: input.event_type || "live",
-    public_visibility: input.public_visibility || "private",
+  const settings: Record<string, unknown> = {}
+  const copy = (inputKey: keyof typeof input, settingKey: string = inputKey) => {
+    if (!Object.prototype.hasOwnProperty.call(input, inputKey)) return
+    const value = input[inputKey]
+    settings[settingKey] = value === "" ? null : value
   }
-  if (input.description) settings.description = input.description
-  if (input.tags?.length) settings.tags = input.tags
-  if (input.venue_name) settings.venue_label = input.venue_name
-  if (input.venue_address) settings.venue_address = input.venue_address
-  if (input.venue_room) settings.venue_room = input.venue_room
-  if (input.venue_contact_name) settings.venue_contact_name = input.venue_contact_name
-  if (input.venue_contact_email) settings.venue_contact_email = input.venue_contact_email
-  if (input.venue_contact_phone) settings.venue_contact_phone = input.venue_contact_phone
-  if (input.location) settings.location = input.location
-  if (input.doors_open) settings.doors_open = input.doors_open
-  if (input.curfew) settings.curfew = input.curfew
-  if (input.load_in_time) settings.load_in_time = input.load_in_time
-  if (input.sound_check_time) settings.sound_check_time = input.sound_check_time
-  if (input.set_times?.length) settings.set_times = input.set_times
+
+  copy("event_type")
+  copy("public_visibility")
+  copy("description")
+  copy("tags")
+  copy("venue_name", "venue_label")
+  copy("venue_address")
+  copy("venue_room")
+  copy("venue_contact_name")
+  copy("venue_contact_email")
+  copy("venue_contact_phone")
+  copy("location")
+  copy("doors_open")
+  copy("curfew")
+  copy("load_in_time")
+  copy("sound_check_time")
+  copy("sound_requirements")
+  copy("lighting_requirements")
+  copy("stage_requirements")
+  copy("special_requirements")
+  copy("set_times")
   if (input.ticket_price !== undefined) settings.ticket_price = input.ticket_price
   if (input.vip_price !== undefined) settings.vip_price = input.vip_price
   if (input.expected_revenue !== undefined) settings.expected_revenue = input.expected_revenue
   if (input.expected_expenses !== undefined) settings.expected_expenses = input.expected_expenses
-  if (input.artist_ids?.length) {
+  if (input.artist_ids !== undefined) {
     settings.artist_ids = input.artist_ids
     settings.artist_account_ids = input.artist_ids.filter((id) => isUuid(String(id)))
   }
-  if (input.staff_ids?.length) settings.staff_ids = input.staff_ids
-  if (input.vendor_ids?.length) settings.vendor_ids = input.vendor_ids
-  if (input.venue_id && isUuid(String(input.venue_id))) {
+  copy("staff_ids")
+  copy("vendor_ids")
+  if (Object.prototype.hasOwnProperty.call(input, "venue_id")) {
     // Builders attach venue_profiles ids; keep account link even when venues_v2 FK is resolved separately.
-    settings.venue_account_id = input.venue_id
-    settings.venue_profile_id = input.venue_id
+    settings.venue_account_id = input.venue_id && isUuid(String(input.venue_id)) ? input.venue_id : null
   }
-  if (input.stakeholders) settings.stakeholders = input.stakeholders
-  if (input.hospitality_rider) settings.hospitality_rider = input.hospitality_rider
-  if (input.technical_rider) settings.technical_rider = input.technical_rider
-  if (input.security_notes) settings.security_notes = input.security_notes
-  if (input.settlement_terms) settings.settlement_terms = input.settlement_terms
-  if (input.promoter_contact) settings.promoter_contact = input.promoter_contact
-  if (input.travel) settings.travel = input.travel
-  if (input.lodging) settings.lodging = input.lodging
-  if (input.equipment) settings.equipment = input.equipment
-  if (input.site_map) settings.site_map = input.site_map
-  if (input.supply_list) settings.supply_list = input.supply_list
-  if (input.documents) settings.documents = input.documents
+  copy("stakeholders")
+  copy("hospitality_rider")
+  copy("technical_rider")
+  copy("security_notes")
+  copy("settlement_terms")
+  copy("promoter_contact")
+  copy("travel")
+  copy("lodging")
+  copy("equipment")
+  copy("site_map")
+  copy("supply_list")
+  copy("documents")
   if (input.comps !== undefined) settings.comps = input.comps
   if (input.guest_list_budget !== undefined) settings.guest_list_budget = input.guest_list_budget
-  if (input.day_sheet_notes) settings.day_sheet_notes = input.day_sheet_notes
-  if (input.creation_source) settings.creation_source = input.creation_source
-  if (input.producer_intent) settings.producer_intent = input.producer_intent
-  if (input.template_key) settings.template_key = input.template_key
-  if (input.setup_checklist) settings.setup_checklist = input.setup_checklist
-  if (input.setup_context) settings.setup_context = input.setup_context
+  copy("day_sheet_notes")
+  copy("creation_source")
+  copy("producer_intent")
+  copy("template_key")
+  copy("setup_checklist")
+  copy("setup_context")
   return settings
 }
 
@@ -581,8 +602,20 @@ export class AdminTourEventAuthError extends Error {
   }
 }
 
+export class AdminTourPublishReadinessError extends Error {
+  status = 422
+  readiness: ReturnType<typeof getTourReadiness>
+
+  constructor(readiness: ReturnType<typeof getTourReadiness>) {
+    super("Tour is not ready to publish.")
+    this.name = "AdminTourPublishReadinessError"
+    this.readiness = readiness
+  }
+}
+
 export function getAdminTourEventErrorStatus(error: unknown, fallback = 500): number {
   if (error instanceof AdminTourEventAuthError) return error.status
+  if (error instanceof AdminTourPublishReadinessError) return error.status
   if (error && typeof error === "object" && "name" in error && (error as { name?: string }).name === "ZodError") return 400
   const message = error && typeof error === "object" && "message" in error
     ? String((error as { message?: unknown }).message ?? "")
@@ -609,15 +642,7 @@ async function resolveAuthorizedOrgId(args: {
 
   if (requestedOrgId) {
     if (!memberships.includes(requestedOrgId)) {
-      const { data: ownedOrg, error } = await args.supabase
-        .from("organizations")
-        .select("id, created_by")
-        .eq("id", requestedOrgId)
-        .maybeSingle()
-      if (error) throw new Error(error.message)
-      if (ownedOrg?.created_by !== args.userId) {
-        throw new AdminTourEventAuthError("Organization is not available to this admin account.")
-      }
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
     }
     return requestedOrgId
   }
@@ -632,8 +657,6 @@ async function assertUserCanAccessOrg(args: {
   orgId: string | null | undefined
   ownerUserId?: string | null
 }): Promise<string> {
-  if (args.ownerUserId && args.ownerUserId === args.userId) return args.orgId ?? ""
-
   if (args.orgId) {
     const memberships = await listUserOrgIds(args.supabase, args.userId)
     if (!memberships.includes(args.orgId)) {
@@ -641,6 +664,9 @@ async function assertUserCanAccessOrg(args: {
     }
     return args.orgId
   }
+
+  // Legacy rows without org_id remain accessible only to the owning admin.
+  if (args.ownerUserId && args.ownerUserId === args.userId) return ""
 
   throw new AdminTourEventAuthError("Organization is not available to this admin account.")
 }
@@ -727,19 +753,46 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
   return {
     id: row.id,
     org_id: row.org_id,
-    created_by: row.created_by,
     name: row.title,
     title: row.title,
     description: typeof settings.description === "string" ? settings.description : "",
     status: mapV2StatusToUi(String(row.status ?? "inquiry")),
     event_date: row.start_at,
+    event_time:
+      typeof row.start_at === "string" && row.start_at.includes("T")
+        ? row.start_at.slice(11, 16)
+        : null,
     end_date: row.end_at,
-    timezone: row.timezone,
+    duration_minutes:
+      typeof row.start_at === "string" && typeof row.end_at === "string"
+        ? Math.max(0, Math.round((Date.parse(row.end_at) - Date.parse(row.start_at)) / 60000))
+        : 0,
     venue_id: row.venue_id,
     venue_name: settings.venue_label ?? null,
     venue_address: settings.venue_address ?? null,
+    venue_contact_name: settings.venue_contact_name ?? null,
+    venue_contact_email: settings.venue_contact_email ?? null,
+    venue_contact_phone: settings.venue_contact_phone ?? null,
     location: settings.location ?? null,
     capacity: row.capacity ?? 0,
+    doors_open: settings.doors_open ?? null,
+    curfew: settings.curfew ?? null,
+    load_in_time: settings.load_in_time ?? null,
+    sound_check_time: settings.sound_check_time ?? null,
+    ticket_price: settings.ticket_price ?? 0,
+    vip_price: settings.vip_price ?? 0,
+    expected_revenue: settings.expected_revenue ?? 0,
+    expected_expenses: settings.expected_expenses ?? 0,
+    sound_requirements: settings.sound_requirements ?? null,
+    lighting_requirements: settings.lighting_requirements ?? null,
+    stage_requirements: settings.stage_requirements ?? null,
+    special_requirements: settings.special_requirements ?? null,
+    ordinal: (primaryTour as { ordinal?: number | null } | null)?.ordinal ?? null,
+    market: (primaryTour as { market?: string | null } | null)?.market ?? null,
+    leg_name: (primaryTour as { leg_name?: string | null } | null)?.leg_name ?? null,
+    advance_status:
+      (primaryTour as { advance_status?: string | null } | null)?.advance_status
+      ?? "not_started",
     tickets_sold: metrics?.sold ?? 0,
     actual_revenue: metrics?.revenue ?? 0,
     expenses: metrics?.expenses ?? 0,
@@ -747,8 +800,6 @@ function presentEvent(row: Record<string, unknown>, tours: unknown[] = [], metri
     tours,
     created_at: row.created_at,
     settings,
-    setup_context: settings.setup_context ?? null,
-    setup_checklist: settings.setup_checklist ?? null,
     readiness: getEventReadiness({
       title: typeof row.title === "string" ? row.title : "",
       start_at: typeof row.start_at === "string" ? row.start_at : null,
@@ -794,8 +845,7 @@ export class AdminTourEventOperationsService {
         requestedOrgId: args.requestedOrgId,
       })
     }
-    const orgId = await resolveAdminOrgIdForUser(args.supabase, args.userId, args.tourId)
-    return orgId ?? ensureAdminOrgScope(args.supabase, args.userId, args.tourId)
+    return resolveAdminOrgIdForUser(args.supabase, args.userId, args.tourId)
   }
 
   static async listEvents(args: { supabase: SupabaseLike; userId: string; orgId?: string | null; status?: string | null }) {
@@ -804,15 +854,14 @@ export class AdminTourEventOperationsService {
       userId: args.userId,
       requestedOrgId: args.orgId,
     })
+    if (!orgId) return []
+
     let query = args.supabase
       .from("events_v2")
-      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
+      .eq("org_id", orgId)
       .order("start_at", { ascending: false })
       .limit(200)
-
-    query = orgId
-      ? query.or(`org_id.eq.${orgId},created_by.eq.${args.userId}`)
-      : query.eq("created_by", args.userId)
 
     if (args.status && args.status !== "all") query = query.eq("status", mapIncomingStatusToV2(args.status))
 
@@ -867,14 +916,23 @@ export class AdminTourEventOperationsService {
   return rows.map((row: Record<string, unknown>) => presentEvent(row, toursByEvent.get(String(row.id)) ?? [], metrics.get(String(row.id))))
   }
 
-  static async getEvent(args: { supabase: SupabaseLike; userId: string; eventId: string }) {
+  static async getEvent(args: {
+    supabase: SupabaseLike
+    userId: string
+    eventId: string
+    orgId?: string
+  }) {
     const { data, error } = await args.supabase
       .from("events_v2")
-      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id, created_by")
       .eq("id", args.eventId)
       .maybeSingle()
     if (error) throw new Error(error.message)
     if (!data) throw new Error("Event not found.")
+
+    if (args.orgId && data.org_id !== args.orgId) {
+      throw new AdminTourEventAuthError("Event is not available to the acting organization.")
+    }
 
     const orgId = await assertUserCanAccessOrg({
       supabase: args.supabase,
@@ -892,7 +950,12 @@ export class AdminTourEventOperationsService {
     return presentEvent(data, assignments)
   }
 
-  static async createEvent(args: { supabase: SupabaseLike; userId: string; input: z.infer<typeof adminEventInputSchema>; orgId?: string | null }) {
+  static async createEvent(args: {
+    supabase: SupabaseLike
+    userId: string
+    input: z.infer<typeof adminEventInputSchema>
+    orgId?: string
+  }) {
     const input = adminEventInputSchema.parse(args.input)
     const tourId = input.tour_id === "" || !input.tour_id ? null : input.tour_id
     const assignments = normalizeAssignments({
@@ -901,13 +964,13 @@ export class AdminTourEventOperationsService {
       assignments: input.tour_assignments,
       primaryTourId: input.primary_tour_id,
     })
-    let orgId = await resolveAuthorizedOrgId({
+    const orgId = await resolveAuthorizedOrgId({
       supabase: args.supabase,
       userId: args.userId,
       requestedOrgId: args.orgId,
     })
     if (!orgId) {
-      orgId = await ensureAdminOrgScope(args.supabase, args.userId)
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
     }
     await assertToursInOrg(args.supabase, orgId, assignments.map((assignment) => assignment.tour_id))
 
@@ -916,6 +979,8 @@ export class AdminTourEventOperationsService {
     if (!startAt) throw new Error("Could not determine start time.")
 
     const settings = eventSettingsFromInput(input)
+    settings.event_type ??= "live"
+    settings.public_visibility ??= "private"
     const bridgedVenueId = await resolveVenuesV2IdForAccount({
       supabase: args.supabase,
       orgId,
@@ -933,14 +998,17 @@ export class AdminTourEventOperationsService {
         slug,
         status: mapIncomingStatusToV2(input.status ?? undefined),
         start_at: startAt,
-        end_at: input.end_at?.trim() || defaultEndAt(startAt),
+        end_at: input.end_at?.trim()
+          || (input.duration_minutes
+            ? new Date(Date.parse(startAt) + input.duration_minutes * 60 * 1000).toISOString()
+            : defaultEndAt(startAt)),
         venue_id: bridgedVenueId,
         capacity: parseCapacity(input.capacity),
         timezone: input.timezone || "UTC",
         created_by: args.userId,
         settings,
       })
-      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
       .single()
 
     if (error || !inserted?.id) throw new Error(error?.message || "Failed to create event.")
@@ -969,14 +1037,26 @@ export class AdminTourEventOperationsService {
     return presentEvent(inserted, assignments.map((assignment) => ({ id: assignment.tour_id, ...assignment })))
   }
 
-  static async updateEvent(args: { supabase: SupabaseLike; userId: string; eventId: string; input: Partial<z.infer<typeof adminEventInputSchema>> }) {
+  static async updateEvent(args: {
+    supabase: SupabaseLike
+    userId: string
+    eventId: string
+    input: Partial<z.infer<typeof adminEventInputSchema>>
+    orgId?: string
+  }) {
     const { data: existing, error: existingError } = await args.supabase
       .from("events_v2")
-      .select("id, org_id, settings, created_by")
+      .select("id, org_id, settings, created_by, start_at, end_at")
       .eq("id", args.eventId)
       .maybeSingle()
     if (existingError) throw new Error(existingError.message)
     if (!existing) throw new Error("Event not found.")
+
+    if (args.orgId && existing.org_id !== args.orgId) {
+      throw new AdminTourEventAuthError("Event is not available to the acting organization.")
+    }
+
+    const input = adminEventInputBaseSchema.partial().parse(args.input)
 
     const orgId = await assertUserCanAccessOrg({
       supabase: args.supabase,
@@ -986,25 +1066,63 @@ export class AdminTourEventOperationsService {
     })
 
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
-    if (args.input.title || args.input.name) patch.title = (args.input.title || args.input.name || "").trim()
-    if (args.input.status) patch.status = mapIncomingStatusToV2(args.input.status)
-    if (args.input.start_at || args.input.event_date) {
-      patch.start_at = args.input.start_at || combineDateTimeToIso(args.input.event_date ?? null, args.input.event_time ?? null)
+    if (input.title || input.name) patch.title = (input.title || input.name || "").trim()
+    if (input.status) patch.status = mapIncomingStatusToV2(input.status)
+    const existingStartMs = Date.parse(String(existing.start_at || ""))
+    const existingEndMs = Date.parse(String(existing.end_at || ""))
+    const existingDurationMs = Number.isFinite(existingStartMs)
+      && Number.isFinite(existingEndMs)
+      && existingEndMs > existingStartMs
+      ? existingEndMs - existingStartMs
+      : 2 * 60 * 60 * 1000
+    const requestedDurationMs = input.duration_minutes && input.duration_minutes > 0
+      ? input.duration_minutes * 60 * 1000
+      : existingDurationMs
+
+    let nextStart = String(existing.start_at || "")
+    if (input.start_at) {
+      nextStart = input.start_at
+    } else if (input.event_date) {
+      const existingTime = Number.isFinite(existingStartMs)
+        ? new Date(existingStartMs).toISOString().slice(11, 16)
+        : "00:00"
+      nextStart = combineDateTimeToIso(
+        input.event_date,
+        input.event_time || existingTime,
+      ) || ""
     }
-    if (args.input.end_at) patch.end_at = args.input.end_at
-    if (args.input.timezone) patch.timezone = args.input.timezone
-    if ("venue_id" in args.input) {
+
+    if (input.start_at || input.event_date) {
+      const nextStartMs = Date.parse(nextStart)
+      if (!Number.isFinite(nextStartMs)) throw new Error("Event start time is invalid.")
+      patch.start_at = new Date(nextStartMs).toISOString()
+      patch.end_at = input.end_at
+        ? new Date(input.end_at).toISOString()
+        : new Date(nextStartMs + requestedDurationMs).toISOString()
+    } else if (input.end_at) {
+      patch.end_at = new Date(input.end_at).toISOString()
+    } else if (input.duration_minutes && Number.isFinite(existingStartMs)) {
+      patch.end_at = new Date(existingStartMs + requestedDurationMs).toISOString()
+    }
+
+    if (input.start_at || input.event_date || input.end_at || input.duration_minutes) {
+      const effectiveStartMs = Date.parse(String(patch.start_at || existing.start_at || ""))
+      const effectiveEndMs = Date.parse(String(patch.end_at || existing.end_at || ""))
+      if (!Number.isFinite(effectiveEndMs) || effectiveEndMs <= effectiveStartMs) {
+        throw new Error("Event end time must be after its start time.")
+      }
+    }
+    if ("venue_id" in input) {
       const bridgedVenueId = await resolveVenuesV2IdForAccount({
         supabase: args.supabase,
         orgId: orgId || existing.org_id,
         userId: args.userId,
-        venueAccountId: args.input.venue_id,
-        venueName: args.input.venue_name,
+        venueAccountId: input.venue_id,
+        venueName: input.venue_name,
       })
       patch.venue_id = bridgedVenueId
     }
-    if ("capacity" in args.input) patch.capacity = parseCapacity(args.input.capacity)
-    const input = adminEventInputBaseSchema.partial().parse(args.input)
+    if ("capacity" in input) patch.capacity = parseCapacity(input.capacity)
     patch.settings = { ...(existing.settings ?? {}), ...eventSettingsFromInput(input) }
 
     if (input.tour_id !== undefined || input.tour_ids !== undefined || input.tour_assignments !== undefined || input.primary_tour_id !== undefined) {
@@ -1031,7 +1149,7 @@ export class AdminTourEventOperationsService {
       .eq("id", args.eventId)
     if (existing.org_id) updateQuery = updateQuery.eq("org_id", existing.org_id)
     const { data, error } = await updateQuery
-      .select("id, title, status, start_at, end_at, timezone, venue_id, capacity, settings, created_at, org_id, created_by")
+      .select("id, title, status, start_at, end_at, venue_id, capacity, settings, created_at, org_id")
       .single()
     if (error) throw new Error(error.message)
 
@@ -1047,7 +1165,12 @@ export class AdminTourEventOperationsService {
     return presentEvent(data)
   }
 
-  static async deleteEvent(args: { supabase: SupabaseLike; userId: string; eventId: string }) {
+  static async deleteEvent(args: {
+    supabase: SupabaseLike
+    userId: string
+    eventId: string
+    orgId?: string
+  }) {
     const { data: existing, error: existingError } = await args.supabase
       .from("events_v2")
       .select("id, org_id, created_by")
@@ -1055,6 +1178,10 @@ export class AdminTourEventOperationsService {
       .maybeSingle()
     if (existingError) throw new Error(existingError.message)
     if (!existing) throw new Error("Event not found.")
+
+    if (args.orgId && existing.org_id !== args.orgId) {
+      throw new AdminTourEventAuthError("Event is not available to the acting organization.")
+    }
 
     await assertUserCanAccessOrg({
       supabase: args.supabase,
@@ -1213,6 +1340,46 @@ export class AdminTourEventOperationsService {
     return { success: true }
   }
 
+  static async reconcileTourAssignments(args: {
+    supabase: SupabaseLike
+    orgId: string
+    tourId: string
+    assignments: Array<z.infer<typeof tourStopAssignmentSchema>>
+  }) {
+    if (!args.orgId) {
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+    }
+
+    const normalized = args.assignments
+      .map((assignment) => tourStopAssignmentSchema.parse(assignment))
+      .sort((left, right) => (left.ordinal ?? Number.MAX_SAFE_INTEGER) - (right.ordinal ?? Number.MAX_SAFE_INTEGER))
+    if (normalized.length > 500) throw new Error("A tour cannot contain more than 500 stops.")
+    await assertTourInOrg(args.supabase, args.orgId, args.tourId)
+    await Promise.all(
+      normalized.map((assignment) =>
+        assertEventInOrg(args.supabase, args.orgId, assignment.event_id),
+      ),
+    )
+
+    const links = normalized.map((assignment, index) => ({
+      event_id: assignment.event_id,
+      ordinal: index,
+      is_primary: Boolean(assignment.is_primary),
+      leg_name: assignment.leg_name ?? null,
+      market: assignment.market ?? null,
+      advance_status: assignment.advance_status ?? "not_started",
+      routing_notes: assignment.routing_notes ?? null,
+    }))
+
+    const { data, error } = await args.supabase.rpc("reconcile_admin_tour_events", {
+      p_org_id: args.orgId,
+      p_tour_id: args.tourId,
+      p_links: links,
+    })
+    if (error) throw new Error(error.message)
+    return data ?? []
+  }
+
   static async listTours(args: { supabase: SupabaseLike; userId: string; orgId?: string | null; status?: string | null }) {
     const orgId = await resolveAuthorizedOrgId({
       supabase: args.supabase,
@@ -1243,7 +1410,7 @@ export class AdminTourEventOperationsService {
     if (tourIds.length) {
       const { data: linkRows, error: linkError } = await args.supabase
         .from("tour_events")
-        .select("tour_id, ordinal, is_primary, events_v2(id, title, status, start_at, end_at, settings, capacity)")
+        .select("tour_id, ordinal, is_primary, events_v2(id, title, status, start_at, end_at, venue_id, settings, capacity)")
         .in("tour_id", tourIds)
         .order("ordinal", { ascending: true })
       // tour_events / events_v2 may be missing on older environments; still return tours.
@@ -1261,10 +1428,19 @@ export class AdminTourEventOperationsService {
     return tours.map((tour) => presentTour(tour, eventsByTour.get(String(tour.id)) ?? []))
   }
 
-  static async getTour(args: { supabase: SupabaseLike; userId: string; tourId: string }) {
+  static async getTour(args: {
+    supabase: SupabaseLike
+    userId: string
+    tourId: string
+    orgId?: string
+  }) {
     const { data: tour, error } = await args.supabase.from("tours").select("*").eq("id", args.tourId).maybeSingle()
     if (error) throw new Error(error.message)
     if (!tour) throw new Error("Tour not found.")
+
+    if (args.orgId && tour.org_id !== args.orgId) {
+      throw new AdminTourEventAuthError("Tour is not available to the acting organization.")
+    }
 
     await assertUserCanAccessOrg({
       supabase: args.supabase,
@@ -1275,7 +1451,7 @@ export class AdminTourEventOperationsService {
 
     const { data: links, error: linkError } = await args.supabase
       .from("tour_events")
-      .select("tour_id, ordinal, is_primary, leg_name, market, advance_status, routing_notes, events_v2(id, title, status, start_at, end_at, settings, capacity)")
+      .select("tour_id, ordinal, is_primary, leg_name, market, advance_status, routing_notes, events_v2(id, title, status, start_at, end_at, venue_id, settings, capacity)")
       .eq("tour_id", args.tourId)
       .order("ordinal", { ascending: true })
     if (linkError) throw new Error(linkError.message)
@@ -1299,7 +1475,12 @@ export class AdminTourEventOperationsService {
     return presentTour(tour, events)
   }
 
-  static async createTour(args: { supabase: SupabaseLike; userId: string; input: z.input<typeof adminTourInputSchema>; orgId?: string | null }) {
+  static async createTour(args: {
+    supabase: SupabaseLike
+    userId: string
+    input: z.input<typeof adminTourInputSchema>
+    orgId?: string
+  }) {
     const input = adminTourInputSchema.parse(args.input)
     const orgId = await resolveAuthorizedOrgId({
       supabase: args.supabase,
@@ -1332,7 +1513,8 @@ export class AdminTourEventOperationsService {
         name: input.name,
         slug,
         description: input.description ?? null,
-        status: input.status ?? "planning",
+        // Activation is a separate, readiness-gated command.
+        status: input.status === "active" ? "planning" : input.status ?? "planning",
         start_date: input.start_date ?? null,
         end_date: input.end_date ?? null,
         budget: parseNumber(input.budget),
@@ -1348,99 +1530,45 @@ export class AdminTourEventOperationsService {
       .single()
     if (error || !tour?.id) throw new Error(error?.message || "Failed to create tour.")
 
-    const events: unknown[] = []
-    if (orgId) {
-      for (const eventId of input.event_ids ?? []) {
-        await this.addTourAssignment({
-          supabase: args.supabase,
-          orgId,
-          eventId,
-          assignment: { tour_id: tour.id },
-        })
-      }
-      for (const [index, eventInput] of (input.events ?? []).entries()) {
-        if (eventInput.id && isUuid(eventInput.id)) {
-          await this.addTourAssignment({
-            supabase: args.supabase,
-            orgId,
-            eventId: eventInput.id,
-            assignment: {
-              tour_id: tour.id,
-              ordinal: eventInput.ordinal ?? index,
-              market: eventInput.market ?? null,
-              leg_name: eventInput.leg_name ?? null,
-              advance_status: eventInput.advance_status,
-              is_primary: true,
-            },
-          })
-          continue
-        }
-        const event = await this.createEvent({
-          supabase: args.supabase,
-          userId: args.userId,
-          input: {
-            name: eventInput.name,
-            description: eventInput.description,
-            event_date: eventInput.date,
-            event_time: eventInput.time,
-            venue_name: eventInput.venue,
-            capacity: eventInput.capacity,
-            tour_assignments: [{
-              tour_id: tour.id,
-              ordinal: eventInput.ordinal ?? index,
-              market: eventInput.market,
-              leg_name: eventInput.leg_name,
-              advance_status: eventInput.advance_status,
-              is_primary: true,
-            }],
-          },
-        })
-        events.push(event)
-      }
-    }
-
-    const createdEvents = events as Array<{ id?: string; name?: string; venue_name?: string; event_date?: string }>
-    if (createdEvents.length > 0) {
-      const routeWithIds = createdEvents.map((event, index) => {
-        const source = input.events?.[index]
-        return {
-          order: index + 1,
-          name: event.name || source?.name || `Stop ${index + 1}`,
-          venue: source?.venue || event.venue_name || "",
-          date: source?.date || (typeof event.event_date === "string" ? event.event_date.slice(0, 10) : ""),
-          time: source?.time || null,
-          market: source?.market || null,
-          leg_name: source?.leg_name || null,
-          capacity: source?.capacity ?? null,
-          advance_status: source?.advance_status || "not_started",
-          event_id: event.id || null,
-        }
+    if (input.event_ids !== undefined || input.events !== undefined) {
+      return this.updateTour({
+        supabase: args.supabase,
+        userId: args.userId,
+        orgId,
+        tourId: tour.id,
+        input: {
+          ...input,
+          status: input.status === "active" ? "planning" : input.status,
+        },
       })
-      const nextSettings = {
-        ...(tour.settings && typeof tour.settings === "object" ? tour.settings : {}),
-        ...settings,
-        route: routeWithIds,
-      }
-      await args.supabase.from("tours").update({ settings: nextSettings }).eq("id", tour.id)
-      tour.settings = nextSettings
     }
 
-    return presentTour(tour, events)
+    return presentTour(tour)
   }
 
-  static async updateTour(args: { supabase: SupabaseLike; userId: string; tourId: string; input: Partial<z.input<typeof adminTourInputSchema>> & Record<string, unknown> }) {
+  static async updateTour(args: {
+    supabase: SupabaseLike
+    userId: string
+    tourId: string
+    input: Partial<z.input<typeof adminTourInputSchema>> & Record<string, unknown>
+    orgId?: string
+  }) {
     // Accept management-page payloads that may include extra UI-only fields.
-    const parsed = adminTourInputSchema.partial().safeParse(args.input)
-    const input = parsed.success ? parsed.data : {}
+    // Known fields are never allowed to fall back to unvalidated raw values.
+    const input = adminTourInputSchema.partial().parse(args.input)
     const raw = args.input ?? {}
 
     const { data: existing, error: lookupError } = await args.supabase
       .from("tours")
-      .select("id, org_id, settings, created_by, user_id")
+      .select("id, org_id, settings, created_by, user_id, status")
       .eq("id", args.tourId)
       .maybeSingle()
     if (lookupError) throw new Error(lookupError.message)
     if (!existing) throw new Error("Tour not found.")
+
+    if (args.orgId && existing.org_id !== args.orgId) {
+      throw new AdminTourEventAuthError("Tour is not available to the acting organization.")
+    }
 
     await assertUserCanAccessOrg({
       supabase: args.supabase,
@@ -1453,6 +1581,12 @@ export class AdminTourEventOperationsService {
     for (const key of ["name", "description", "status", "start_date", "end_date"] as const) {
       if (key in input) patch[key] = input[key] ?? null
       else if (key in raw) patch[key] = raw[key] ?? null
+    }
+    if (patch.status === "active" && existing.status !== "active") {
+      throw new AdminTourEventAuthError(
+        "Use the publish action to activate a tour after readiness validation.",
+        409,
+      )
     }
     if ("budget" in input || "budget" in raw) patch.budget = parseNumber(input.budget ?? raw.budget)
     if ("revenue" in input || "revenue" in raw || "expected_revenue" in raw) {
@@ -1499,6 +1633,9 @@ export class AdminTourEventOperationsService {
       ...(input.cover_image !== undefined || raw.cover_image !== undefined
         ? { cover_image: input.cover_image ?? raw.cover_image }
         : {}),
+      ...(input.cover_image_url !== undefined || raw.cover_image_url !== undefined
+        ? { cover_image: input.cover_image_url ?? raw.cover_image_url }
+        : {}),
       ...(input.markets !== undefined ? { markets: input.markets } : {}),
       ...(incomingRoute !== undefined ? { route: incomingRoute } : {}),
     }
@@ -1507,49 +1644,28 @@ export class AdminTourEventOperationsService {
     if (error) throw new Error(error.message)
 
     const orgId = String(existing.org_id || data?.org_id || "")
-    const syncedEvents: unknown[] = []
-    if (orgId) {
-      const { data: existingLinks } = await args.supabase
+    const exactStopsRequested = input.event_ids !== undefined || input.events !== undefined
+    if (orgId && exactStopsRequested) {
+      const { data: currentLinks, error: currentLinksError } = await args.supabase
         .from("tour_events")
-        .select("event_id")
+        .select("event_id, ordinal, is_primary, leg_name, market, advance_status, routing_notes")
         .eq("tour_id", args.tourId)
-      const linkedIds = new Set(
-        (existingLinks ?? []).map((link: { event_id?: string }) => String(link.event_id || "")).filter(Boolean),
-      )
+      if (currentLinksError) throw new Error(currentLinksError.message)
 
-      for (const eventId of input.event_ids ?? []) {
-        if (linkedIds.has(eventId)) continue
-        await this.addTourAssignment({
-          supabase: args.supabase,
-          orgId,
-          eventId,
-          assignment: { tour_id: args.tourId, is_primary: true },
-        })
-        linkedIds.add(eventId)
-      }
+      const existingByEvent = new Map<string, any>(
+        (currentLinks ?? []).map((link: any) => [String(link.event_id), link]),
+      )
+      const desiredByEvent = new Map<string, z.infer<typeof tourStopAssignmentSchema>>()
 
       for (const [index, eventInput] of (input.events ?? []).entries()) {
-        const ordinal = eventInput.ordinal ?? index
-        const assignment = {
-          tour_id: args.tourId,
-          ordinal,
-          market: eventInput.market ?? null,
-          leg_name: eventInput.leg_name ?? null,
-          advance_status: eventInput.advance_status,
-          is_primary: true,
-        }
-
-        if (eventInput.id && isUuid(eventInput.id) && linkedIds.has(eventInput.id)) {
-          await this.addTourAssignment({
-            supabase: args.supabase,
-            orgId,
-            eventId: eventInput.id,
-            assignment,
-          })
-          const updated = await this.updateEvent({
+        let eventId = eventInput.id && isUuid(eventInput.id) ? eventInput.id : null
+        if (eventId) {
+          await assertEventInOrg(args.supabase, orgId, eventId)
+          await this.updateEvent({
             supabase: args.supabase,
             userId: args.userId,
-            eventId: eventInput.id,
+            orgId,
+            eventId,
             input: {
               name: eventInput.name,
               event_date: eventInput.date,
@@ -1558,88 +1674,65 @@ export class AdminTourEventOperationsService {
               capacity: eventInput.capacity,
             },
           })
-          syncedEvents.push(updated)
-          continue
-        }
-
-        if (eventInput.id && isUuid(eventInput.id)) {
-          await this.addTourAssignment({
+        } else {
+          const created = await this.createEvent({
             supabase: args.supabase,
+            userId: args.userId,
             orgId,
-            eventId: eventInput.id,
-            assignment,
+            input: {
+              name: eventInput.name,
+              description: eventInput.description,
+              event_date: eventInput.date,
+              event_time: eventInput.time,
+              venue_name: eventInput.venue,
+              capacity: eventInput.capacity,
+            },
           })
-          linkedIds.add(eventInput.id)
-          continue
+          eventId = String((created as { id?: string }).id || "")
+          if (!eventId) throw new Error("Created tour stop did not return an event ID.")
         }
 
-        const created = await this.createEvent({
-          supabase: args.supabase,
-          userId: args.userId,
-          input: {
-            name: eventInput.name,
-            description: eventInput.description,
-            event_date: eventInput.date,
-            event_time: eventInput.time,
-            venue_name: eventInput.venue,
-            capacity: eventInput.capacity,
-            tour_assignments: [assignment],
-          },
+        desiredByEvent.set(eventId, {
+          event_id: eventId,
+          tour_id: args.tourId,
+          ordinal: eventInput.ordinal ?? index,
+          market: eventInput.market ?? null,
+          leg_name: eventInput.leg_name ?? null,
+          advance_status: eventInput.advance_status,
+          is_primary: true,
         })
-        syncedEvents.push(created)
-        if (created && typeof (created as { id?: string }).id === "string") {
-          linkedIds.add((created as { id: string }).id)
-        }
       }
 
-      if (incomingRoute !== undefined || (input.events ?? []).length > 0) {
-        const routeRows = Array.isArray(incomingRoute) ? [...incomingRoute] : []
-        const createdOnly = syncedEvents.filter((event) => {
-          const id = (event as { id?: string })?.id
-          return id && !((input.events ?? []).some((item) => item.id === id))
-        }) as Array<{ id?: string; name?: string; venue_name?: string; event_date?: string }>
-
-        let createdIndex = 0
-        const nextRoute = (input.events ?? []).map((eventInput, index) => {
-          let eventId = eventInput.id && isUuid(eventInput.id) ? eventInput.id : null
-          if (!eventId) {
-            const created = createdOnly[createdIndex]
-            createdIndex += 1
-            eventId = created?.id || null
-          }
-          const prior = routeRows[index] && typeof routeRows[index] === "object" ? routeRows[index] as Record<string, unknown> : {}
-          return {
-            ...prior,
-            order: index + 1,
-            name: eventInput.name,
-            venue: eventInput.venue,
-            date: eventInput.date,
-            time: eventInput.time || null,
-            market: eventInput.market || null,
-            leg_name: eventInput.leg_name || null,
-            capacity: eventInput.capacity ?? null,
-            advance_status: eventInput.advance_status || "not_started",
-            event_id: eventId,
-          }
+      for (const eventId of input.event_ids ?? []) {
+        if (desiredByEvent.has(eventId)) continue
+        await assertEventInOrg(args.supabase, orgId, eventId)
+        const prior = existingByEvent.get(eventId)
+        desiredByEvent.set(eventId, {
+          event_id: eventId,
+          tour_id: args.tourId,
+          ordinal: prior?.ordinal ?? desiredByEvent.size,
+          market: prior?.market ?? null,
+          leg_name: prior?.leg_name ?? null,
+          advance_status: prior?.advance_status ?? "not_started",
+          routing_notes: prior?.routing_notes ?? null,
+          is_primary: prior?.is_primary ?? true,
         })
-
-        if (nextRoute.length > 0) {
-          const nextSettings = {
-            ...(data.settings && typeof data.settings === "object" ? data.settings : {}),
-            ...(patch.settings as Record<string, unknown>),
-            route: nextRoute,
-          }
-          await args.supabase.from("tours").update({ settings: nextSettings }).eq("id", args.tourId)
-          data.settings = nextSettings
-        }
       }
+
+      await this.reconcileTourAssignments({
+        supabase: args.supabase,
+        orgId,
+        tourId: args.tourId,
+        assignments: Array.from(desiredByEvent.values()),
+      })
     }
 
-    const { data: links } = await args.supabase
+    const { data: links, error: linksError } = await args.supabase
       .from("tour_events")
-      .select("tour_id, ordinal, is_primary, leg_name, market, advance_status, routing_notes, events_v2(id, title, status, start_at, end_at, settings, capacity)")
+      .select("tour_id, ordinal, is_primary, leg_name, market, advance_status, routing_notes, events_v2(id, title, status, start_at, end_at, venue_id, settings, capacity)")
       .eq("tour_id", args.tourId)
       .order("ordinal", { ascending: true })
+    if (linksError) throw new Error(linksError.message)
 
     const linkedEvents = (links ?? [])
       .filter((link: any) => Boolean(link.events_v2))
@@ -1657,10 +1750,47 @@ export class AdminTourEventOperationsService {
         ])
       )
 
-    return presentTour(data, linkedEvents.length ? linkedEvents : syncedEvents)
+    if (exactStopsRequested) {
+      const canonicalRoute = (links ?? [])
+        .filter((link: any) => Boolean(link.events_v2))
+        .map((link: any, index: number) => {
+          const event = link.events_v2
+          const eventSettings = readSettings(event)
+          return {
+            order: index + 1,
+            name: event.title,
+            venue: eventSettings.venue_label ?? "",
+            date: typeof event.start_at === "string" ? event.start_at.slice(0, 10) : "",
+            time: typeof event.start_at === "string" ? event.start_at.slice(11, 16) : null,
+            market: link.market ?? null,
+            leg_name: link.leg_name ?? null,
+            capacity: event.capacity ?? null,
+            advance_status: link.advance_status ?? "not_started",
+            event_id: event.id,
+          }
+        })
+      const nextSettings = {
+        ...(data.settings && typeof data.settings === "object" ? data.settings : {}),
+        route: canonicalRoute,
+      }
+      const { error: settingsError } = await args.supabase
+        .from("tours")
+        .update({ settings: nextSettings })
+        .eq("id", args.tourId)
+        .eq("org_id", orgId)
+      if (settingsError) throw new Error(settingsError.message)
+      data.settings = nextSettings
+    }
+
+    return presentTour(data, linkedEvents)
   }
 
-  static async deleteTour(args: { supabase: SupabaseLike; userId: string; tourId: string }) {
+  static async deleteTour(args: {
+    supabase: SupabaseLike
+    userId: string
+    tourId: string
+    orgId?: string
+  }) {
     const { data: existing, error: lookupError } = await args.supabase
       .from("tours")
       .select("id, org_id, created_by, user_id")
@@ -1668,6 +1798,10 @@ export class AdminTourEventOperationsService {
       .maybeSingle()
     if (lookupError) throw new Error(lookupError.message)
     if (!existing) throw new Error("Tour not found.")
+
+    if (args.orgId && existing.org_id !== args.orgId) {
+      throw new AdminTourEventAuthError("Tour is not available to the acting organization.")
+    }
 
     await assertUserCanAccessOrg({
       supabase: args.supabase,
@@ -1683,11 +1817,17 @@ export class AdminTourEventOperationsService {
     return { success: true }
   }
 
-  static async publishEvent(args: { supabase: SupabaseLike; userId: string; eventId: string }) {
+  static async publishEvent(args: {
+    supabase: SupabaseLike
+    userId: string
+    eventId: string
+    orgId?: string
+  }) {
     const event = await this.updateEvent({
       supabase: args.supabase,
       userId: args.userId,
       eventId: args.eventId,
+      orgId: args.orgId,
       input: { status: "confirmed" },
     })
 
@@ -1710,42 +1850,44 @@ export class AdminTourEventOperationsService {
     return event
   }
 
-  static async publishTour(args: { supabase: SupabaseLike; userId: string; tourId: string }) {
-    const tour = await this.updateTour({
+  static async publishTour(args: {
+    supabase: SupabaseLike
+    userId: string
+    tourId: string
+    orgId?: string
+  }) {
+    const tour = await this.getTour({
       supabase: args.supabase,
       userId: args.userId,
       tourId: args.tourId,
-      input: { status: "active" },
+      orgId: args.orgId,
     })
-
-    // Drive work-mode visibility for linked events through the org-gated publication table.
-    try {
-      const { data: links } = await args.supabase
-        .from("tour_events")
-        .select("event_id")
-        .eq("tour_id", args.tourId)
-      const eventIds = Array.from(
-        new Set((links ?? []).map((link: { event_id?: string }) => link.event_id).filter(Boolean)),
-      ) as string[]
-
-      for (const eventId of eventIds) {
-        await args.supabase.from("work_mode_publications").insert({
-          event_id: eventId,
-          publication_type: "tour_publish",
-          title: `Tour published: ${String((tour as { name?: string }).name || "Tour")}`,
-          payload: {
-            tour_id: args.tourId,
-            status: "active",
-          },
-          published_by: args.userId,
-          published_at: new Date().toISOString(),
-        })
-      }
-    } catch (error) {
-      console.warn("[AdminTourEventOperations] work-mode publish fanout skipped:", error)
+    const readiness = (tour as { readiness: ReturnType<typeof getTourReadiness> }).readiness
+    const hasCriticalConflicts = readiness.conflicts.some(
+      (conflict) => conflict.severity === "critical",
+    )
+    if (readiness.blockers.length > 0 || hasCriticalConflicts) {
+      throw new AdminTourPublishReadinessError(readiness)
     }
 
-    return tour
+    const orgId = String((tour as { org_id?: string }).org_id || args.orgId || "")
+    if (!orgId) {
+      throw new AdminTourEventAuthError("Organization is not available to this admin account.")
+    }
+
+    const { error } = await args.supabase.rpc("publish_admin_tour", {
+      p_org_id: orgId,
+      p_tour_id: args.tourId,
+      p_actor_user_id: args.userId,
+    })
+    if (error) throw new Error(error.message)
+
+    return this.getTour({
+      supabase: args.supabase,
+      userId: args.userId,
+      tourId: args.tourId,
+      orgId,
+    })
   }
 
   static async createTourFromPlanner(args: { supabase: SupabaseLike; userId: string; input: z.infer<typeof plannerTourInputSchema> }) {

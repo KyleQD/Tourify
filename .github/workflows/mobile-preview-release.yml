@@ -1,0 +1,55 @@
+name: Mobile Preview Release
+
+on:
+  push:
+    tags:
+      - "mobile-preview-*"
+      - "v*-mobile-preview"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platforms to build"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+
+jobs:
+  eas-preview-build:
+    name: EAS preview build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "apps/mobile/package-lock.json"
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm ci
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Resolve platform
+        id: platform
+        run: |
+          PLATFORM="${{ github.event.inputs.platform || 'all' }}"
+          echo "value=$PLATFORM" >> "$GITHUB_OUTPUT"
+
+      - name: EAS build preview
+        working-directory: apps/mobile
+        run: eas build --platform ${{ steps.platform.outputs.value }} --profile preview --non-interactive

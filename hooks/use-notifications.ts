@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { fetchUserNotifications } from '@/lib/notifications/fetch-user-notifications'
+import {
+  fetchUnreadNotificationCount,
+  fetchUserNotifications,
+  markAccountNotificationsAsRead,
+} from '@/lib/notifications/fetch-user-notifications'
+import { useMultiAccount } from '@/hooks/use-multi-account'
 
 export interface Notification {
   id: string
@@ -43,6 +48,7 @@ export function useNotifications() {
   const [isLoading, setIsLoading] = useState(false)
   const [hasError, setHasError] = useState(false)
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null)
+  const { currentAccount } = useMultiAccount()
 
   const fetchNotifications = useCallback(async (options?: {
     limit?: number
@@ -62,6 +68,8 @@ export function useNotifications() {
         limit: options?.limit ?? 100,
         unreadOnly: options?.unreadOnly,
         type: options?.type,
+        targetProfileId: currentAccount?.profile_id,
+        accountType: currentAccount?.account_type,
       })
 
       if (result.error) {
@@ -79,7 +87,7 @@ export function useNotifications() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [currentAccount?.account_type, currentAccount?.profile_id])
 
   const fetchPreferences = useCallback(async () => {
     try {
@@ -152,14 +160,12 @@ export function useNotifications() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return false
 
-      const { error } = await supabase
-        .from('notifications')
-        .update({
-          is_read: true,
-          read_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
-        .eq('is_read', false)
+      const { error } = await markAccountNotificationsAsRead({
+        supabase,
+        userId: user.id,
+        targetProfileId: currentAccount?.profile_id,
+        accountType: currentAccount?.account_type,
+      })
 
       if (error) {
         toast.error('Failed to mark notifications as read')
@@ -178,7 +184,7 @@ export function useNotifications() {
       toast.error('Failed to mark notifications as read')
       return false
     }
-  }, [])
+  }, [currentAccount?.account_type, currentAccount?.profile_id])
 
   const deleteNotification = useCallback(async (notificationId: string) => {
     try {
@@ -302,23 +308,17 @@ export function useNotifications() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return 0
 
-      const { count, error } = await supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false)
-
-      if (error) {
-        console.error('Error fetching unread count:', error)
-        return 0
-      }
-
-      return count || 0
+      return await fetchUnreadNotificationCount({
+        supabase,
+        userId: user.id,
+        targetProfileId: currentAccount?.profile_id,
+        accountType: currentAccount?.account_type,
+      })
     } catch (error) {
       console.error('Error fetching unread count:', error)
       return 0
     }
-  }, [])
+  }, [currentAccount?.account_type, currentAccount?.profile_id])
 
   useEffect(() => {
     fetchNotifications()

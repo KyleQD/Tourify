@@ -428,11 +428,10 @@ export default function MarketingHub() {
 
       {/* Main Content */}
       <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-        <TabsList className="grid grid-cols-4 gap-4 bg-slate-800/50 w-full">
+        <TabsList className="grid grid-cols-3 gap-4 bg-slate-800/50 w-full">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
           <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -776,20 +775,6 @@ export default function MarketingHub() {
           </div>
         </TabsContent>
 
-        <TabsContent value="analytics" className="space-y-6">
-          <Card className="bg-slate-900/50 border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-white">Marketing Analytics</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center py-12">
-              <BarChart3 className="h-12 w-12 text-gray-500 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-white mb-2">Analytics Coming Soon</h3>
-              <p className="text-gray-400">
-                Detailed campaign performance and social media analytics will be available here.
-              </p>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Create Campaign Modal */}

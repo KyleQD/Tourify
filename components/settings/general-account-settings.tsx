@@ -39,6 +39,14 @@ import {
   EyeOff
 } from 'lucide-react'
 import { ProfileSettingsOptimized } from './profile-settings-optimized'
+import { DashboardThemePicker } from './dashboard-theme-picker'
+import {
+  DEFAULT_DASHBOARD_THEME_ID,
+  DASHBOARD_THEME_IDS,
+  getDashboardTheme,
+  writeCachedDashboardThemeId,
+  type DashboardThemeId,
+} from '@/lib/dashboard/dashboard-themes'
 
 interface GeneralAccountSettingsProps {
   activeTab: string
@@ -85,6 +93,9 @@ const appearanceSchema = z.object({
   compact_mode: z.boolean().default(false),
   show_animations: z.boolean().default(true),
   high_contrast: z.boolean().default(false),
+  dashboard_theme: z
+    .enum(DASHBOARD_THEME_IDS as unknown as [DashboardThemeId, ...DashboardThemeId[]])
+    .default(DEFAULT_DASHBOARD_THEME_ID),
 })
 
 type ProfileFormData = z.infer<typeof profileSchema>
@@ -151,6 +162,7 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
       compact_mode: false,
       show_animations: true,
       high_contrast: false,
+      dashboard_theme: DEFAULT_DASHBOARD_THEME_ID,
     }
   })
 
@@ -229,12 +241,14 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
 
       // Load appearance preferences
       const appearance = data.account_settings?.appearance || {}
+      const dashboardTheme = getDashboardTheme(appearance.dashboard_theme).id
       appearanceForm.reset({
         theme: appearance.theme || 'system',
         accent_color: appearance.accent_color || '#8b5cf6',
         compact_mode: appearance.compact_mode ?? false,
         show_animations: appearance.show_animations ?? true,
         high_contrast: appearance.high_contrast ?? false,
+        dashboard_theme: dashboardTheme,
       })
 
     } catch (error) {
@@ -402,18 +416,24 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
     if (!mainProfileId) return
     try {
       setIsLoading(true)
+      const dashboardTheme = getDashboardTheme(data.dashboard_theme).id
       const { error } = await supabase
         .from('profiles')
         .update({
           account_settings: {
             ...profile?.account_settings,
-            appearance: data
+            appearance: {
+              ...data,
+              dashboard_theme: dashboardTheme,
+            }
           },
           updated_at: new Date().toISOString()
         })
         .eq('id', mainProfileId)
 
       if (error) throw error
+
+      writeCachedDashboardThemeId(dashboardTheme)
 
       toast({
         title: 'Success',
@@ -575,13 +595,34 @@ export function GeneralAccountSettings({ activeTab }: GeneralAccountSettingsProp
             <form onSubmit={appearanceForm.handleSubmit(onSubmitAppearance)} className="space-y-6">
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">Appearance Settings</h3>
+
+                <div className="p-4 bg-white/5 rounded-lg border border-white/10">
+                  <FormField
+                    control={appearanceForm.control}
+                    name="dashboard_theme"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <DashboardThemePicker
+                            value={field.value as DashboardThemeId}
+                            onChange={(themeId) => {
+                              field.onChange(themeId)
+                              writeCachedDashboardThemeId(themeId)
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
                 
                 <FormField
                   control={appearanceForm.control}
                   name="theme"
                   render={({ field }) => (
                     <FormItem className="p-4 bg-white/5 rounded-lg border border-white/10">
-                      <FormLabel className="text-gray-300">Theme</FormLabel>
+                      <FormLabel className="text-gray-300">Light / Dark Mode</FormLabel>
                       <FormControl>
                         <Select value={field.value} onValueChange={field.onChange}>
                           <SelectTrigger className="bg-white/10 border-white/20 text-white">

@@ -1,4 +1,4 @@
-import type { NewsFeedItem } from '@/lib/news/types'
+import type { NewsFeedItem, NewsSortMode } from '@/lib/news/types'
 
 interface TimelineCacheEntry {
   items: NewsFeedItem[]
@@ -9,14 +9,27 @@ interface TimelineCacheEntry {
 const TIMELINE_CACHE = new Map<string, TimelineCacheEntry>()
 const TIMELINE_CACHE_TTL_MS = 3 * 60 * 1000
 
-function getCacheKey(params: { userId?: string; facet: string; category?: string; query?: string }): string {
+function getCacheKey(params: {
+  userId?: string
+  facet: string
+  category?: string
+  query?: string
+  sort?: NewsSortMode
+}): string {
   const userKey = params.userId || 'anonymous'
   const categoryKey = params.category || 'none'
   const queryKey = params.query?.trim().toLowerCase() || 'none'
-  return `${userKey}:${params.facet}:${categoryKey}:${queryKey}`
+  const sortKey = params.sort || 'score'
+  return `${userKey}:${params.facet}:${categoryKey}:${queryKey}:${sortKey}`
 }
 
-export function getCachedTimeline(params: { userId?: string; facet: string; category?: string; query?: string }) {
+export function getCachedTimeline(params: {
+  userId?: string
+  facet: string
+  category?: string
+  query?: string
+  sort?: NewsSortMode
+}) {
   const key = getCacheKey(params)
   const cached = TIMELINE_CACHE.get(key)
   if (!cached) return null
@@ -32,6 +45,7 @@ export function setCachedTimeline(params: {
   facet: string
   category?: string
   query?: string
+  sort?: NewsSortMode
   items: NewsFeedItem[]
   nextCursor: string | null
 }) {

@@ -4,20 +4,15 @@ import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
 } from "@/lib/admin/tour-event-operations.service"
-import { withAdminAuth } from "@/lib/auth/api-auth"
-import { requireOpsOrgId, resolveAdminWorkspaceScope } from "@/lib/admin/workspace-scope"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability("tour.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const { searchParams } = new URL(request.url)
-    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
-    if (scope instanceof NextResponse) return scope
-    const orgId = requireOpsOrgId(scope)
-    if (orgId instanceof NextResponse) return orgId
     const tours = await AdminTourEventOperationsService.listTours({
       supabase,
       userId: user.id,
-      orgId,
+      orgId: admin.orgId,
       status: searchParams.get("status"),
     })
     return NextResponse.json({ success: true, tours })
@@ -35,18 +30,14 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("tour.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-    const scope = await resolveAdminWorkspaceScope(request, { supabase, user })
-    if (scope instanceof NextResponse) return scope
-    const orgId = requireOpsOrgId(scope)
-    if (orgId instanceof NextResponse) return orgId
     const body = await request.json().catch(() => null)
     const tour = await AdminTourEventOperationsService.createTour({
       supabase,
       userId: user.id,
       input: body,
-      orgId,
+      orgId: admin.orgId,
     })
     return NextResponse.json({ success: true, tour }, { status: 201 })
   } catch (error: any) {
@@ -56,7 +47,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const PATCH = withAdminCapability("tour.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const body = await request.json().catch(() => ({}))
     const tourId = body.id || body.tour_id
@@ -66,6 +57,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
       userId: user.id,
       tourId,
       input: body,
+      orgId: admin.orgId,
     })
     return NextResponse.json({ success: true, tour })
   } catch (error: any) {
@@ -74,7 +66,7 @@ export const PATCH = withAdminAuth(async (request: NextRequest, { supabase, user
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability("tour.delete", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const url = new URL(request.url)
     const body = await request.json().catch(() => ({}))
@@ -84,6 +76,7 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, use
       supabase,
       userId: user.id,
       tourId,
+      orgId: admin.orgId,
     })
     return NextResponse.json(result)
   } catch (error: any) {

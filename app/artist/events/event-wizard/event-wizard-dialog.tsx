@@ -54,7 +54,7 @@ export function EventWizardDialog({ open, onOpenChange, initialData, mode = "cre
     if (step === 2) return <EventWizardPhotos onNext={handlePhotosNext} defaultValues={formData} />
     if (step === 3) return <EventWizardTicketing onNext={handleTicketingNext} defaultValues={formData} />
     if (step === 4) return <EventWizardSummary data={formData} onBack={handleBack} onSubmit={handleFinalSubmit} isSubmitting={isSubmitting} />
-    return <div className="text-gray-400">Step {step} (coming soon)</div>
+    return <EventWizardMain onNext={handleMainNext} defaultValues={formData} />
   }
   function handleDialogClose(open: boolean) {
     onOpenChange(open)

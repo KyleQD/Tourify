@@ -1,0 +1,13 @@
+{
+  "generatedAt": "2026-07-17T00:00:00Z",
+  "schemaValid": true,
+  "uniqueTaskIds": true,
+  "dependenciesValid": true,
+  "taskCount": 256,
+  "stageCount": 16,
+  "numberedDocumentCount": 42,
+  "errors": [],
+  "zipIntegrity": true,
+  "zipFileCount": 73,
+  "packageFileCount": 73
+}

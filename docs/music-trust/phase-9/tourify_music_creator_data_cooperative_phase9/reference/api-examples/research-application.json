@@ -1,0 +1,17 @@
+{
+  "applicantEntityId": "uuid",
+  "classification": "academic_public_interest",
+  "purpose": "Study delayed royalty matching outcomes",
+  "fundingSources": [
+    "foundation-id"
+  ],
+  "protocolVersion": "v1",
+  "requestedDataProducts": [
+    "aggregated_match_delay_v1"
+  ],
+  "publicationPlan": {
+    "public": true,
+    "preprint": true
+  },
+  "contactMembers": false
+}

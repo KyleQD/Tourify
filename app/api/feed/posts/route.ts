@@ -364,6 +364,48 @@ function getMediaUnavailableCount(post: any) {
   return invalidUrlCount
 }
 
+async function fetchAcceptedCollaborators(supabase: any, posts: any[]) {
+  const postIds = unique(posts.map((post) => post?.id))
+  if (postIds.length === 0) return new Map<string, any[]>()
+
+  try {
+    const { data, error } = await supabase
+      .from('feed_post_collaborators')
+      .select('post_id, collaborator_user_id, collaborator_profile_id, status')
+      .in('post_id', postIds)
+      .eq('status', 'accepted')
+
+    if (error || !data?.length) return new Map<string, any[]>()
+
+    const userIds = unique(data.map((row: any) => row.collaborator_user_id))
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', userIds)
+
+    const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]))
+    const byPost = new Map<string, any[]>()
+
+    for (const row of data) {
+      const profile = profileMap.get(row.collaborator_user_id)
+      const entry = {
+        user_id: row.collaborator_user_id,
+        profile_id: row.collaborator_profile_id,
+        status: row.status,
+        username: profile?.username || profile?.full_name || 'Collaborator',
+        avatar_url: profile?.avatar_url || null,
+      }
+      const list = byPost.get(row.post_id) || []
+      list.push(entry)
+      byPost.set(row.post_id, list)
+    }
+
+    return byPost
+  } catch {
+    return new Map<string, any[]>()
+  }
+}
+
 async function enrichFeedPosts(
   supabase: any,
   posts: any[] | null | undefined,
@@ -372,7 +414,7 @@ async function enrichFeedPosts(
   const safePosts = posts || []
   if (safePosts.length === 0) return []
 
-  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls, actualCommentCounts, manageablePostIds] = await Promise.all([
+  const [ownerProfiles, resolvedAuthors, articlePreviews, trackPreviews, withPolls, actualCommentCounts, manageablePostIds, collaboratorsByPost] = await Promise.all([
     fetchOwnerProfiles(supabase, safePosts),
     resolveAuthorsForPosts(supabase, safePosts),
     fetchArticlePreviews(supabase, safePosts),
@@ -380,6 +422,7 @@ async function enrichFeedPosts(
     hydratePostsWithPolls({ supabase, posts: safePosts, viewerUserId }),
     fetchActualCommentCounts(supabase, safePosts),
     getManageablePostIds({ supabase, posts: safePosts, userId: viewerUserId }),
+    fetchAcceptedCollaborators(supabase, safePosts),
   ])
 
   return withPolls.map(post => {
@@ -414,6 +457,8 @@ async function enrichFeedPosts(
       listing_preview: listingPreview,
       event_preview: eventPreview,
       track_preview: trackPreview,
+      collaborators: collaboratorsByPost.get(post.id) || [],
+      tagged_users: Array.isArray(post.tagged_users) ? post.tagged_users : [],
     }
   })
 }
@@ -446,6 +491,8 @@ function normalizeFeedPost(post: any) {
     visibility: post.visibility || 'public',
     location: post.location || null,
     hashtags: Array.isArray(post.hashtags) ? post.hashtags : [],
+    tagged_users: Array.isArray(post.tagged_users) ? post.tagged_users : [],
+    collaborators: Array.isArray(post.collaborators) ? post.collaborators : [],
     media_urls: mediaUrls,
     media_unavailable_count: mediaUnavailableCount > 0 ? mediaUnavailableCount : undefined,
     likes_count: post.likes_count || 0,
@@ -479,32 +526,35 @@ function normalizeFeedPost(post: any) {
 
 export async function GET(request: NextRequest) {
   const endTiming = startRouteTiming('/api/feed/posts')
+  // #region agent log
+  const __dbgT0 = Date.now()
+  const __dbgStage = (stage: string, hypothesisId: string, data: Record<string, unknown> = {}) => {
+    const elapsedMs = Date.now() - __dbgT0
+    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'881a75'},body:JSON.stringify({sessionId:'881a75',runId:'post-fix',hypothesisId,location:'app/api/feed/posts/route.ts:GET',message:stage,data:{...data,elapsedMs,stageMs:data.stageMs},timestamp:Date.now()})}).catch(()=>{})
+  }
+  __dbgStage('handler_enter', 'A', {})
+  // #endregion
   try {
 
+    const __authStart = Date.now()
     const authResult = await authenticateApiRequest(request)
+    // #region agent log
+    __dbgStage('auth_done', 'E', { stageMs: Date.now() - __authStart, hasUser: Boolean(authResult?.user) })
+    // #endregion
     const { searchParams } = new URL(request.url)
     const type = searchParams.get('type') || 'all'
     const user_id = searchParams.get('user_id')
     const limit = parseInt(searchParams.get('limit') || '20')
     const offset = parseInt(searchParams.get('offset') || '0')
 
+    const __clientStart = Date.now()
     const supabase = await createFeedReadClient(authResult)
+    // #region agent log
+    __dbgStage('client_done', 'E', { stageMs: Date.now() - __clientStart })
+    // #endregion
 
-    // Check if posts table exists and has the correct structure
+    // Fetch feed posts (profiles hydrated in enrichFeedPosts; no table probe round-trip).
     try {
-      const { error: tableError } = await supabase
-        .from('posts')
-        .select('id, user_id')
-        .limit(1)
-
-      if (tableError) {
-        console.error('[Feed Posts API] Posts table not available', tableError)
-        return NextResponse.json(
-          { success: false, error: { code: 'feed_unavailable', message: 'Feed is temporarily unavailable' }, data: [] },
-          { status: 503 }
-        )
-      }
-
       // Filter by user when explicitly requested.
       // Support ?profile_id= to show only posts made by a specific entity account.
       // attribution=strict → posted_as_profile_id only (no other owned-account posts).
@@ -514,12 +564,16 @@ export async function GET(request: NextRequest) {
       let followingUserIds: string[] | undefined
       let followingProfileIds: string[] | undefined
       let ownedProfileIds: string[] | undefined
+      let membershipProfileIds: string[] | undefined
+      let extraPostIds: string[] | undefined
+      let acceptedCollabPostIds: string[] | undefined
       let profileFeedVisibilityAccess:
         | Awaited<ReturnType<typeof resolveProfileFeedVisibilityAccess>>
         | undefined
 
       // Handle following feed - friends (user follows) + account follows (persona updates)
       if (type === 'following' && authResult?.user) {
+        const __scopeStart = Date.now()
         const [{ data: followingData, error: followingError }, { data: accountFollowRows }] =
           await Promise.all([
             supabase
@@ -564,6 +618,41 @@ export async function GET(request: NextRequest) {
 
         // Persona posts come from account_follows only (not expand-all-personas from user follows).
         followingProfileIds = unique([...accountProfileIds, ...(ownedProfileIds || [])])
+        // #region agent log
+        __dbgStage('following_scope_done', 'C', {
+          stageMs: Date.now() - __scopeStart,
+          followingUserCount: followingUserIds?.length || 0,
+          followingProfileCount: followingProfileIds?.length || 0,
+          followedAccountCount: followedAccountIds.length,
+        })
+        // #endregion
+      }
+
+      // Personalized home: follows + pages + band/org membership + tags + accepted collabs
+      if ((type === 'home' || type === 'tagged') && authResult?.user) {
+        const {
+          resolveHomeFeedScope,
+        } = await import('@/lib/feed/resolve-home-feed-scope')
+        const homeScope = await resolveHomeFeedScope(supabase, authResult.user.id)
+        followingUserIds = homeScope.followingUserIds
+        followingProfileIds = homeScope.followingProfileIds
+        ownedProfileIds = homeScope.ownedProfileIds
+        membershipProfileIds = homeScope.membershipProfileIds
+        extraPostIds = homeScope.extraPostIds
+      }
+
+      if (type === 'home' && !authResult?.user) {
+        return NextResponse.json(
+          { success: false, error: { code: 'unauthorized', message: 'Sign in to view your home feed' }, data: [] },
+          { status: 401 }
+        )
+      }
+
+      if (type === 'tagged' && !authResult?.user) {
+        return NextResponse.json(
+          { success: false, error: { code: 'unauthorized', message: 'Sign in to view tagged posts' }, data: [] },
+          { status: 401 }
+        )
       }
 
       if (type === 'user') {
@@ -573,11 +662,20 @@ export async function GET(request: NextRequest) {
           ownerUserId: user_id,
           profileId: profileIdFilter,
         })
+
+        const {
+          resolveAcceptedCollabPostIdsForProfile,
+        } = await import('@/lib/feed/resolve-home-feed-scope')
+        acceptedCollabPostIds = await resolveAcceptedCollabPostIdsForProfile(supabase, {
+          profileId: profileIdFilter,
+          userId: user_id,
+        })
       }
 
       // Ignore non-post "types" like 'network' to avoid bad filters
 
-      const { data: basePosts, error: baseError } = await fetchFeedPostsWithFallback(
+      const __fetchStart = Date.now()
+      const { data: basePosts, error: baseError, variantName } = await fetchFeedPostsWithFallback(
         supabase,
         {
           type,
@@ -587,6 +685,9 @@ export async function GET(request: NextRequest) {
           followingUserIds,
           followingProfileIds,
           ownedProfileIds,
+          membershipProfileIds,
+          extraPostIds,
+          acceptedCollabPostIds,
           viewerOwnsProfile: profileFeedVisibilityAccess?.viewerOwnsProfile,
           viewerCanSeeFollowersPosts: profileFeedVisibilityAccess?.viewerCanSeeFollowersPosts,
           attribution,
@@ -594,6 +695,14 @@ export async function GET(request: NextRequest) {
         limit,
         offset
       )
+      // #region agent log
+      __dbgStage('fetch_posts_done', 'B', {
+        stageMs: Date.now() - __fetchStart,
+        variantName,
+        basePostCount: basePosts?.length || 0,
+        hasError: Boolean(baseError),
+      })
+      // #endregion
 
       if (baseError) {
         console.error('[Feed Posts API] Error fetching base posts:', baseError)
@@ -603,8 +712,15 @@ export async function GET(request: NextRequest) {
         )
       }
 
+      const __enrichStart = Date.now()
       const enrichedPosts = await enrichFeedPosts(supabase, basePosts, authResult?.user?.id || null)
       let normalized = enrichedPosts.map(normalizeFeedPost)
+      // #region agent log
+      __dbgStage('enrich_done', 'D', {
+        stageMs: Date.now() - __enrichStart,
+        enrichedCount: enrichedPosts.length,
+      })
+      // #endregion
 
       // Additive: merge organizer event updates for attending users (not Your Posts).
       const canMergeAttendingUpdates =
@@ -614,6 +730,7 @@ export async function GET(request: NextRequest) {
 
       if (canMergeAttendingUpdates && authResult?.user) {
         try {
+          const __mergeStart = Date.now()
           const {
             fetchAttendingEventFeedPosts,
             mergeAttendingEventPostsIntoFeed,
@@ -637,11 +754,28 @@ export async function GET(request: NextRequest) {
               ? normalizeFeedPost(post)
               : post
           )
+          // #region agent log
+          __dbgStage('attending_merge_done', 'D', {
+            stageMs: Date.now() - __mergeStart,
+            attendingCount: attendingUpdates.length,
+            mergedCount: normalized.length,
+          })
+          // #endregion
         } catch (mergeError) {
           console.warn('[Feed Posts API] Attending event merge skipped:', mergeError)
         }
       }
 
+      // #region agent log
+      __dbgStage('handler_complete', 'A', {
+        stageMs: Date.now() - __dbgT0,
+        type,
+        limit,
+        offset,
+        rowCount: normalized.length,
+        variantName,
+      })
+      // #endregion
       endTiming({
         userId: authResult?.user?.id,
         rowCount: normalized.length,
@@ -732,8 +866,25 @@ export async function POST(request: NextRequest) {
       media_urls = [],
       poll_options: rawPollOptions,
       poll_duration: rawPollDuration,
+      tagged_users: rawTaggedUsers,
+      collaborators: rawCollaborators,
+      collaborator_user_ids: rawCollaboratorUserIds,
     } = body
     const cleanMediaUrls = normalizeFeedMediaUrls(media_urls)
+
+    const {
+      normalizeTaggedUserIds,
+      normalizeCollaboratorInvites,
+      insertFeedPostCollaborators,
+      notifyTaggedUsers,
+      notifyCollaboratorInvites,
+    } = await import('@/lib/feed/post-collaborators')
+
+    const taggedUsers = normalizeTaggedUserIds(rawTaggedUsers, actingUserId)
+    const collaboratorInvites = normalizeCollaboratorInvites(
+      rawCollaborators || rawCollaboratorUserIds,
+      actingUserId
+    )
 
     const isPoll = type === 'poll'
     const visibility = body.visibility || (isPoll ? 'followers' : 'public')
@@ -780,6 +931,7 @@ export async function POST(request: NextRequest) {
       location,
       hashtags,
       media_urls: cleanMediaUrls,
+      tagged_users: taggedUsers,
       posted_as_type: accountType,
       posted_as_profile_id: profileId,
       account_display_name: author.name,
@@ -805,6 +957,28 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+
+    const insertedCollaborators = await insertFeedPostCollaborators({
+      supabase,
+      postId: post.id,
+      invitedByUserId: actingUserId,
+      invites: collaboratorInvites,
+    })
+
+    await Promise.all([
+      notifyTaggedUsers({
+        taggedUserIds: taggedUsers,
+        actorUserId: actingUserId,
+        postId: post.id,
+        actorName: author.name || author.username,
+      }),
+      notifyCollaboratorInvites({
+        invites: collaboratorInvites,
+        actorUserId: actingUserId,
+        postId: post.id,
+        actorName: author.name || author.username,
+      }),
+    ])
 
     let pollPayload = null
     if (isPoll) {
@@ -838,6 +1012,8 @@ export async function POST(request: NextRequest) {
 
     const normalizedPost = normalizeFeedPost({
       ...post,
+      tagged_users: taggedUsers,
+      collaborators: insertedCollaborators,
       resolved_author: author,
       poll: pollPayload,
       viewer_can_manage: true,

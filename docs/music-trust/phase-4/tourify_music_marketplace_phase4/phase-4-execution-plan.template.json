@@ -1,0 +1,2455 @@
+{
+  "$schema": "./phase-4-execution-plan.schema.json",
+  "planId": "tourify-music-phase-4",
+  "version": "1.0.0-template",
+  "status": "audit_required",
+  "repository": {
+    "commit": "AUDIT_REQUIRED",
+    "branch": "AUDIT_REQUIRED"
+  },
+  "hardRules": [
+    "never_reset_database",
+    "artist_music_remains_canonical",
+    "existing_music_playback_unchanged",
+    "regulated_partner_controls_securities_transactions",
+    "official_transfer_agent_record_controls_ownership",
+    "no_tourify_order_matching_or_custody",
+    "transfer_eligibility_default_deny",
+    "immutable_disclosure_and_partner_events",
+    "integer_or_rational_financial_math",
+    "feature_flag_every_capability",
+    "no_liquidity_or_return_guarantees",
+    "tokenization_optional"
+  ],
+  "stages": [
+    {
+      "id": "P4-00",
+      "name": "Audit, governance, partners, and ADRs",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-00-T01",
+          "title": "Read canonical Phase 1\u20134 documents",
+          "status": "not_started",
+          "dependencies": [],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T02",
+          "title": "Audit repository and deployed schema",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T03",
+          "title": "Capture full regression baseline",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T04",
+          "title": "Map Tourify and partner regulatory roles",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T05",
+          "title": "Select or record unresolved regulated partners",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T06",
+          "title": "Audit existing marketplace, payments, and webhooks",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T07",
+          "title": "Create offering-pathway and source-of-truth ADRs",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T08",
+          "title": "Create custody, transfer-agent, ATS, and tokenization ADRs",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T09",
+          "title": "Create independent feature flags and kill switches",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-00-T10",
+          "title": "Produce repository-specific execution plan",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-01",
+      "name": "Issuer eligibility and offering pathway",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-01-T01",
+          "title": "Implement issuer entity and authority records",
+          "status": "not_started",
+          "dependencies": [
+            "P4-00-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T02",
+          "title": "Implement beneficial-owner and affiliate references",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T03",
+          "title": "Link eligible catalog and immutable rights snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T04",
+          "title": "Link reconciled royalty and valuation snapshots",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T05",
+          "title": "Implement catalog/issuer deficiency checks",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T06",
+          "title": "Implement pathway planning questionnaire",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T07",
+          "title": "Implement counsel/partner pathway decision record",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T08",
+          "title": "Implement bad-actor, lien, conflict, and dispute holds",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T09",
+          "title": "Implement readiness score as private workflow data",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-01-T10",
+          "title": "Add issuer eligibility route tests",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-02",
+      "name": "Schema, RLS, storage, and domain foundation",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-02-T01",
+          "title": "Create audited additive marketplace migrations",
+          "status": "not_started",
+          "dependencies": [
+            "P4-01-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T02",
+          "title": "Add offering, version, document, and asset tables",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T03",
+          "title": "Add investor partner-account and eligibility tables",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T04",
+          "title": "Add subscription, closing, and refund tables",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T05",
+          "title": "Add security class, position, restriction, and transfer tables",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T06",
+          "title": "Add partner order, execution, settlement, and market-data tables",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T07",
+          "title": "Add corporate action, distribution, reporting, and case tables",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T08",
+          "title": "Create private storage buckets and policies",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T09",
+          "title": "Implement capability-based RLS and grants",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-02-T10",
+          "title": "Regenerate Supabase types and validate migrations",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-03",
+      "name": "Data room, disclosures, and offering lifecycle",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-03-T01",
+          "title": "Implement instrument-term domain model",
+          "status": "not_started",
+          "dependencies": [
+            "P4-02-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T02",
+          "title": "Implement immutable disclosure versions",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T03",
+          "title": "Implement document access and audit logging",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T04",
+          "title": "Implement material-contract and redaction inventory",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T05",
+          "title": "Implement risk-factor and conflict records",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T06",
+          "title": "Implement marketing-field projection from approved disclosures",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T07",
+          "title": "Implement offering lifecycle state machine",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T08",
+          "title": "Implement partner filing and launch status adapter",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T09",
+          "title": "Implement suspension, amendment, withdrawal, and cancellation",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-03-T10",
+          "title": "Build issuer workspace and admin review UI",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-04",
+      "name": "Investor onboarding and compliance read model",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-04-T01",
+          "title": "Implement partner account linking",
+          "status": "not_started",
+          "dependencies": [
+            "P4-03-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T02",
+          "title": "Implement minimal KYC and sanctions status synchronization",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T03",
+          "title": "Implement tax-profile status synchronization",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T04",
+          "title": "Implement accreditation and investment-limit scope model",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T05",
+          "title": "Implement jurisdiction and investor-type restrictions",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T06",
+          "title": "Implement eligibility expiry and reverification",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T07",
+          "title": "Implement compliance holds and reason-code display",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T08",
+          "title": "Implement investor acknowledgements and disclosure receipts",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T09",
+          "title": "Build onboarding and eligibility UI",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-04-T10",
+          "title": "Test data minimization and cross-account isolation",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-05",
+      "name": "Primary subscriptions, escrow, and closing",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-05-T01",
+          "title": "Implement subscription state machine",
+          "status": "not_started",
+          "dependencies": [
+            "P4-04-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T02",
+          "title": "Implement partner subscription creation adapter",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T03",
+          "title": "Implement signed webhook ingestion and raw receipt store",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T04",
+          "title": "Implement payment, escrow, and cleared-funds statuses",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T05",
+          "title": "Implement cancellation and cooling-off workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T06",
+          "title": "Implement rejection and refund workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T07",
+          "title": "Implement oversubscription and allocation records",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T08",
+          "title": "Implement minimum/maximum and rolling-closing rules",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T09",
+          "title": "Implement final closing and issuer-proceeds reconciliation",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-05-T10",
+          "title": "Build subscription status UI and E2E tests",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-06",
+      "name": "Positions, transfer agent, and token lifecycle",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-06-T01",
+          "title": "Implement official position read model",
+          "status": "not_started",
+          "dependencies": [
+            "P4-05-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T02",
+          "title": "Implement transfer-agent synchronization adapter",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T03",
+          "title": "Implement position/legend reconciliation jobs",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T04",
+          "title": "Implement security-class and identifier records",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T05",
+          "title": "Implement wallet-link status without private key custody",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T06",
+          "title": "Implement token contract deployment registry",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T07",
+          "title": "Implement permissioned mint/burn/freeze event synchronization",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T08",
+          "title": "Implement contract audit and admin-role records",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T09",
+          "title": "Implement wallet recovery and forced-transfer cases",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-06-T10",
+          "title": "Test official-ledger precedence and break handling",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-07",
+      "name": "Transfers, repurchases, and corporate actions",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-07-T01",
+          "title": "Implement default-deny transfer eligibility engine",
+          "status": "not_started",
+          "dependencies": [
+            "P4-06-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T02",
+          "title": "Implement versioned holding-period and restriction rules",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T03",
+          "title": "Implement transfer request workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T04",
+          "title": "Implement transferee partner-eligibility checks",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T05",
+          "title": "Implement issuer/partner/transfer-agent consent steps",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T06",
+          "title": "Implement issuer repurchase and tender workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T07",
+          "title": "Implement record dates and corporate-action lifecycle",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T08",
+          "title": "Implement maturity, redemption, and termination",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T09",
+          "title": "Implement rights-dispute and legal-process holds",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-07-T10",
+          "title": "Build holder transfer and action UI",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-08",
+      "name": "Secondary venue, orders, executions, and settlement",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-08-T01",
+          "title": "Implement partner ATS access adapter",
+          "status": "not_started",
+          "dependencies": [
+            "P4-07-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T02",
+          "title": "Implement market-session and instrument eligibility",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T03",
+          "title": "Implement partner market-data ingestion with staleness",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T04",
+          "title": "Implement local order-draft and partner receipt model",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T05",
+          "title": "Implement order state machine and cancellation receipts",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T06",
+          "title": "Implement executions and fees read model",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T07",
+          "title": "Implement settlement state machine",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T08",
+          "title": "Implement cash, asset, and position reconciliation",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T09",
+          "title": "Implement correction, reversal, and fail cases",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-08-T10",
+          "title": "Build read-only/partner-controlled trading UI and tests",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-09",
+      "name": "Liquidity, surveillance, and communications",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-09-T01",
+          "title": "Implement price-source separation and labels",
+          "status": "not_started",
+          "dependencies": [
+            "P4-08-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T02",
+          "title": "Implement liquidity and transfer-risk disclosures",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T03",
+          "title": "Implement historical volume/spread metrics from partner data",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T04",
+          "title": "Implement stale/outage market-data states",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T05",
+          "title": "Implement music-specific surveillance signal adapter",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T06",
+          "title": "Implement self-trade, linked-account, and promotion alerts",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T07",
+          "title": "Implement restricted-list and employee conflict controls",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T08",
+          "title": "Implement approved communication library",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T09",
+          "title": "Implement offering post and promoter archive",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-09-T10",
+          "title": "Implement partner escalation and investigation cases",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-10",
+      "name": "Portfolio, distributions, tax, and issuer reporting",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-10-T01",
+          "title": "Build synchronized investor portfolio",
+          "status": "not_started",
+          "dependencies": [
+            "P4-09-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T02",
+          "title": "Implement position and activity statements",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T03",
+          "title": "Link distributions to Phase 3 payout and partner records",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T04",
+          "title": "Implement tax-document responsibility and links",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T05",
+          "title": "Implement 1099-DA readiness fields where applicable",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T06",
+          "title": "Implement issuer reporting calendars",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T07",
+          "title": "Implement material-event reporting workflow",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T08",
+          "title": "Implement report amendment and restatement versions",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T09",
+          "title": "Implement delinquency notices and trading holds",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-10-T10",
+          "title": "Test portfolio, statements, corrections, and exports",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-11",
+      "name": "Admin operations, security, and resilience",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-11-T01",
+          "title": "Build role-separated marketplace admin queues",
+          "status": "not_started",
+          "dependencies": [
+            "P4-10-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T02",
+          "title": "Implement maker-checker financial approvals",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T03",
+          "title": "Implement partner health and webhook lag dashboards",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T04",
+          "title": "Implement reconciliation-break dashboards",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T05",
+          "title": "Implement complaints and regulatory case routing",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T06",
+          "title": "Implement high-risk action reauthentication",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T07",
+          "title": "Run RLS, IDOR, webhook, and authorization security tests",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T08",
+          "title": "Run smart-contract audit and invariant tests if enabled",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T09",
+          "title": "Run backup, restore, provider-exit, and disaster drills",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-11-T10",
+          "title": "Complete staff training and runbooks",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "P4-12",
+      "name": "Pilot, rollout, and Phase 5 handoff",
+      "status": "not_started",
+      "tasks": [
+        {
+          "id": "P4-12-T01",
+          "title": "Run synthetic offering and position pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P4-11-T10"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T02",
+          "title": "Run partner sandbox onboarding and subscription pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T01"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T03",
+          "title": "Run closing, refund, and allocation pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T02"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T04",
+          "title": "Run transfer-agent and position reconciliation pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T03"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T05",
+          "title": "Run distribution and issuer-reporting cycle",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T04"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T06",
+          "title": "Run transfer-request and repurchase pilot",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T05"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T07",
+          "title": "Run limited ATS access pilot if approved",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T06"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T08",
+          "title": "Complete accessibility, mobile, build, and legacy regression",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T07"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T09",
+          "title": "Obtain legal, compliance, finance, security, and executive sign-off",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T08"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        },
+        {
+          "id": "P4-12-T10",
+          "title": "Produce Phase 4 implementation report and Phase 5 backlog",
+          "status": "not_started",
+          "dependencies": [
+            "P4-12-T09"
+          ],
+          "scope": "Replace with audited repository paths, partner responsibilities, implementation details, and applicable feature flag.",
+          "acceptanceCriteria": [
+            "Implementation matches the applicable Phase 4 documents and audited repository architecture.",
+            "Focused tests and required regression tests pass.",
+            "Security, RLS, partner, reconciliation, and rollback evidence applicable to this task is recorded."
+          ],
+          "evidence": [],
+          "blockers": [],
+          "filesChanged": [],
+          "tests": []
+        }
+      ]
+    }
+  ]
+}

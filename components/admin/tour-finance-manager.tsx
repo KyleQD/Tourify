@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { formatSafeCurrency } from "@/lib/events/admin-event-normalization"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface Transaction {
   id: string
@@ -32,34 +33,45 @@ const STATUS_COLORS: Record<string, string> = {
   overdue: 'bg-red-500/20 text-red-400',
 }
 
-const INCOME_CATS = ['ticket_revenue','sponsorship','merchandise','other']
-const EXPENSE_CATS = ['venue','production','staff','marketing','travel','catering','equipment','other']
+const INCOME_CATS = ['ticket_revenue','merchandise','sponsorship','appearance_fee','other_income']
+const EXPENSE_CATS = ['venue_rental','equipment','catering','staff_pay','marketing','travel','insurance','permits','production','other_expense']
 const STATUSES = ['pending','paid','overdue','cancelled']
 
 interface Props { tourId: string }
 
 export function TourFinanceManager({ tourId }: Props) {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const requestScopeKey = `${actingContextKey}:${tourId}`
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedScopeKey, setLoadedScopeKey] = useState('')
   const [showDialog, setShowDialog] = useState(false)
   const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [deleteTx, setDeleteTx] = useState<Transaction | null>(null)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ type: 'expense' as 'income'|'expense', category: 'other', amount: 0, description: '', vendor_name: '', payment_status: 'pending', due_date: '' })
+  const [form, setForm] = useState({ type: 'expense' as 'income'|'expense', category: 'other_expense', amount: 0, description: '', vendor_name: '', payment_status: 'pending', due_date: '' })
 
   const fetchData = useCallback(async () => {
+    if (!isActingReady) return
     setLoading(true)
+    setTransactions([])
     try {
-      const res = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}&limit=200`, { credentials: 'include' })
+      const res = await fetch(`/api/admin/finances?type=transactions&tour_id=${tourId}&limit=200`, {
+        credentials: 'include',
+        headers: actingHeaders,
+      })
       if (res.ok) { const d = await res.json(); setTransactions(d.transactions || []) }
-    } finally { setLoading(false) }
-  }, [tourId])
+    } finally {
+      setLoadedScopeKey(requestScopeKey)
+      setLoading(false)
+    }
+  }, [actingHeaders, isActingReady, requestScopeKey, tourId])
 
   useEffect(() => { void fetchData() }, [fetchData])
 
   function openCreate() {
     setEditingTx(null)
-    setForm({ type: 'expense', category: 'other', amount: 0, description: '', vendor_name: '', payment_status: 'pending', due_date: '' })
+    setForm({ type: 'expense', category: 'other_expense', amount: 0, description: '', vendor_name: '', payment_status: 'pending', due_date: '' })
     setShowDialog(true)
   }
 
@@ -70,15 +82,16 @@ export function TourFinanceManager({ tourId }: Props) {
   }
 
   async function save() {
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     if (form.amount <= 0) { toast.error('Amount must be greater than 0'); return }
     setSaving(true)
     try {
       if (editingTx) {
-        const res = await fetch('/api/admin/finances', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: editingTx.id, table: 'transaction', ...form, amount: Number(form.amount) }) })
+        const res = await fetch('/api/admin/finances', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json', ...actingHeaders }, body: JSON.stringify({ id: editingTx.id, table: 'transaction', ...form, amount: Number(form.amount) }) })
         if (!res.ok) throw new Error(await res.text())
         toast.success('Transaction updated')
       } else {
-        const res = await fetch('/api/admin/finances', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create_transaction', tour_id: tourId, ...form, amount: Number(form.amount) }) })
+        const res = await fetch('/api/admin/finances', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', ...actingHeaders }, body: JSON.stringify({ action: 'create_transaction', tour_id: tourId, ...form, amount: Number(form.amount) }) })
         if (!res.ok) throw new Error(await res.text())
         toast.success('Transaction added')
       }
@@ -89,8 +102,9 @@ export function TourFinanceManager({ tourId }: Props) {
 
   async function confirmDelete() {
     if (!deleteTx) return
+    if (!isActingReady) { toast.error('Organization account is still loading'); return }
     try {
-      const res = await fetch(`/api/admin/finances?id=${deleteTx.id}`, { method: 'DELETE', credentials: 'include' })
+      const res = await fetch(`/api/admin/finances?id=${deleteTx.id}`, { method: 'DELETE', credentials: 'include', headers: actingHeaders })
       if (!res.ok) throw new Error(await res.text())
       toast.success('Transaction deleted')
       setDeleteTx(null)
@@ -113,7 +127,7 @@ export function TourFinanceManager({ tourId }: Props) {
   const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
   const net = totalIncome - totalExpenses
 
-  if (loading) return <div className="flex items-center justify-center py-12"><RefreshCw className="h-5 w-5 animate-spin text-purple-400" /></div>
+  if (loading || !isActingReady || loadedScopeKey !== requestScopeKey) return <div className="flex items-center justify-center py-12"><RefreshCw className="h-5 w-5 animate-spin text-purple-400" /></div>
 
   return (
     <div className="space-y-4">
@@ -164,7 +178,11 @@ export function TourFinanceManager({ tourId }: Props) {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5"><Label className="text-slate-300">Type</Label>
-                <Select value={form.type} onValueChange={(v: 'income'|'expense') => setForm(p => ({ ...p, type: v, category: 'other' }))}>
+                <Select value={form.type} onValueChange={(v: 'income'|'expense') => setForm(p => ({
+                  ...p,
+                  type: v,
+                  category: v === 'income' ? 'other_income' : 'other_expense',
+                }))}>
                   <SelectTrigger className="bg-slate-800/50 border-slate-700/50 text-white"><SelectValue /></SelectTrigger>
                   <SelectContent className="bg-slate-900 border-slate-700 text-white"><SelectItem value="income">Income</SelectItem><SelectItem value="expense">Expense</SelectItem></SelectContent>
                 </Select>

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { JukeboxProvider } from '@/contexts/jukebox-context'
+import { AchievementUnlockProvider } from '@/components/achievements/achievement-unlock-provider'
 
 const Nav = dynamic(() => import('@/components/nav').then((mod) => ({ default: mod.Nav })))
 const PersistentPlayerBar = dynamic(() =>
@@ -33,18 +34,20 @@ export function AppChrome({ children }: AppChromeProps) {
 
   return (
     <JukeboxProvider>
-      <div className="flex min-h-screen flex-col">
-        {!hideRootNav ? <Nav /> : null}
-        <main className={`flex-1 ${isAdminRoute ? '' : 'pb-[var(--player-height,0px)]'}`}>
-          {children}
-        </main>
-        {!isAdminRoute ? (
-          <>
-            <PersistentPlayerBar />
-            <FullPlayerView />
-          </>
-        ) : null}
-      </div>
+      <AchievementUnlockProvider>
+        <div className="flex min-h-screen flex-col">
+          {!hideRootNav ? <Nav /> : null}
+          <main className={`flex-1 ${isAdminRoute ? '' : 'pb-[var(--player-height,0px)]'}`}>
+            {children}
+          </main>
+          {!isAdminRoute ? (
+            <>
+              <PersistentPlayerBar />
+              <FullPlayerView />
+            </>
+          ) : null}
+        </div>
+      </AchievementUnlockProvider>
     </JukeboxProvider>
   )
 }

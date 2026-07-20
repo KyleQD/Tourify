@@ -34,6 +34,11 @@ interface ManagerOption {
   label: string
 }
 
+interface TourOption {
+  id: string
+  label: string
+}
+
 interface RosterAssignmentDialogProps {
   employer: HiringEntity
   member: RosterMember | null
@@ -41,6 +46,7 @@ interface RosterAssignmentDialogProps {
   onOpenChange: (open: boolean) => void
   onAssigned: (member: RosterMember) => void
   contextEventId?: string | null
+  contextTourId?: string | null
 }
 
 export function RosterAssignmentDialog({
@@ -50,9 +56,12 @@ export function RosterAssignmentDialog({
   onOpenChange,
   onAssigned,
   contextEventId = null,
+  contextTourId = null,
 }: RosterAssignmentDialogProps) {
   const [eventId, setEventId] = useState(contextEventId || "")
+  const [tourId, setTourId] = useState(contextTourId || employer.scope?.tourId || "")
   const [events, setEvents] = useState<EventOption[]>([])
+  const [tours, setTours] = useState<TourOption[]>([])
   const [shiftId, setShiftId] = useState("")
   const [shifts, setShifts] = useState<ShiftOption[]>([])
   const [managers, setManagers] = useState<ManagerOption[]>([])
@@ -66,13 +75,14 @@ export function RosterAssignmentDialog({
   useEffect(() => {
     if (open) {
       setEventId(contextEventId || "")
+      setTourId(contextTourId || employer.scope?.tourId || "")
       setShiftId("")
       setZone(member?.assignedZone ?? "")
       setAssignedManagerId(member?.assignedManagerId ?? "")
       setNotes("")
       setError(null)
     }
-  }, [open, contextEventId, member])
+  }, [open, contextEventId, contextTourId, employer.scope?.tourId, member])
 
   useEffect(() => {
     if (!open) return
@@ -80,8 +90,9 @@ export function RosterAssignmentDialog({
     let cancelled = false
     async function loadOptions() {
       try {
-        const [eventsResponse, managersResponse] = await Promise.allSettled([
+        const [eventsResponse, toursResponse, managersResponse] = await Promise.allSettled([
           fetch("/api/admin/events", { credentials: "include", cache: "no-store" }),
+          fetch("/api/admin/tours", { credentials: "include", cache: "no-store" }),
           fetch(
             `/api/hiring/roster?entity_type=${encodeURIComponent(employer.entityType)}&entity_id=${encodeURIComponent(
               employer.entityId
@@ -105,6 +116,19 @@ export function RosterAssignmentDialog({
           )
         }
 
+        if (toursResponse.status === "fulfilled") {
+          const payload = await toursResponse.value.json().catch(() => ({}))
+          const rows = Array.isArray(payload?.tours) ? payload.tours : Array.isArray(payload?.data) ? payload.data : []
+          setTours(
+            rows
+              .map((tour: any) => ({
+                id: String(tour.id),
+                label: String(tour.name ?? tour.title ?? "Untitled tour"),
+              }))
+              .filter((tour: TourOption) => tour.id)
+          )
+        }
+
         if (managersResponse.status === "fulfilled") {
           const payload = await managersResponse.value.json().catch(() => ({}))
           const rows = Array.isArray(payload?.data?.members) ? payload.data.members : []
@@ -120,6 +144,7 @@ export function RosterAssignmentDialog({
       } catch {
         if (!cancelled) {
           setEvents([])
+          setTours([])
           setManagers([])
         }
       }
@@ -206,6 +231,7 @@ export function RosterAssignmentDialog({
           employer_entity_type: employer.entityType,
           employer_entity_id: employer.entityId,
           event_id: eventId || undefined,
+          tour_id: tourId || undefined,
           shift_id: resolvedShiftId || undefined,
           zone: zone || undefined,
           assigned_manager_id: assignedManagerId || undefined,
@@ -231,11 +257,31 @@ export function RosterAssignmentDialog({
         <DialogHeader>
           <DialogTitle>Assign staff member</DialogTitle>
           <DialogDescription>
-            Assign {member?.profile.fullName ?? "this staff member"} to a shift, zone, or manager.
+            Assign {member?.profile.fullName ?? "this staff member"} to a tour, event, shift, zone, or manager.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="grid gap-2">
+            <Label htmlFor="tour-id">Tour</Label>
+            {contextTourId || employer.scope?.tourId ? (
+              <Input id="tour-id" value={tourId} readOnly />
+            ) : (
+              <Select value={tourId || "__none__"} onValueChange={(value) => setTourId(value === "__none__" ? "" : value)}>
+                <SelectTrigger id="tour-id">
+                  <SelectValue placeholder="Select tour" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">No tour</SelectItem>
+                  {tours.map((tour) => (
+                    <SelectItem key={tour.id} value={tour.id}>
+                      {tour.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="event-id">Event</Label>
             {contextEventId ? (

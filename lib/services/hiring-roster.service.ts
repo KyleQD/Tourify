@@ -892,7 +892,7 @@ export class HiringRosterService {
       }
     }
 
-    if (args.shiftId || args.eventId) {
+    if (args.shiftId || args.eventId || args.tourId) {
       await this.supabase.from("staff_shift_assignments").insert({
         staff_member_id: args.memberId,
         event_id: args.eventId ?? null,
@@ -905,6 +905,29 @@ export class HiringRosterService {
       })
     }
 
+    const { data: memberRow } = await this.supabase
+      .from("staff_members")
+      .select("user_id")
+      .eq("id", args.memberId)
+      .maybeSingle()
+
+    if (memberRow?.user_id && (args.eventId || args.tourId)) {
+      const assignmentPatch: Record<string, unknown> = {
+        staff_member_id: args.memberId,
+        updated_at: new Date().toISOString(),
+      }
+      if (args.eventId) assignmentPatch.event_id = args.eventId
+      if (args.tourId) assignmentPatch.tour_id = args.tourId
+      if (args.zone) assignmentPatch.zone = args.zone
+
+      await this.supabase
+        .from("employment_assignments")
+        .update(assignmentPatch)
+        .eq("user_id", memberRow.user_id)
+        .eq("employer_entity_type", args.employer.entityType)
+        .eq("employer_entity_id", args.employer.entityId)
+    }
+
     await this.supabase.from("hiring_audit_events").insert({
       employer_entity_type: args.employer.entityType,
       employer_entity_id: args.employer.entityId,
@@ -914,6 +937,7 @@ export class HiringRosterService {
       subject_id: args.memberId,
       metadata: {
         event_id: args.eventId ?? null,
+        tour_id: args.tourId ?? null,
         shift_id: args.shiftId ?? null,
         zone: args.zone ?? null,
         assigned_manager_id: args.assignedManagerId ?? null,
@@ -999,11 +1023,14 @@ export class HiringRosterService {
 
     const { data: existingAssignment } = await this.supabase
       .from("employment_assignments")
-      .select("id, event_id")
+      .select("id, event_id, tour_id")
       .eq("user_id", args.userId)
       .eq("employer_entity_type", args.employer.entityType)
       .eq("employer_entity_id", args.employer.entityId)
       .maybeSingle()
+
+    const eventId = args.eventId ?? existingAssignment?.event_id ?? null
+    const tourId = args.tourId ?? existingAssignment?.tour_id ?? null
 
     const assignmentPayload: Record<string, unknown> = {
       user_id: args.userId,
@@ -1018,6 +1045,8 @@ export class HiringRosterService {
       status: completed ? "active" : "invited",
       source: "hiring_onboarding",
       updated_at: now,
+      ...(eventId ? { event_id: eventId } : {}),
+      ...(tourId ? { tour_id: tourId } : {}),
     }
 
     if (existingAssignment?.id) {
@@ -1049,6 +1078,8 @@ export class HiringRosterService {
         position,
         department,
         completed,
+        event_id: eventId,
+        tour_id: tourId,
       },
     })
 

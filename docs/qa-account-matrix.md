@@ -87,3 +87,48 @@ Local agent run (repo state at implementation):
 - `npm run lint`: **pass**
 - `npm test`: **pass** (20 suites), including session-init helper tests.
 - `npm run check:integration-env`: Stripe keys missing in dev env (expected unless configured).
+
+## Last verified (platform audit)
+
+**2026-07-18** — Full hybrid platform audit (static + persona agents + anonymous live crawl).
+
+| Check | Result |
+|-------|--------|
+| Inventory | 338 pages, 680 APIs → `docs/audits/page-inventory.json`, `api-inventory.json` |
+| Nav dead links | 61 unique product dead hrefs; 31 live 404s → `docs/audits/nav-dead-links-product.json` |
+| Missing client APIs | 7 confirmed 404 (search/unified, business/settings, staff-onboarding, demo-accounts, posts, validate-invitation) |
+| Live crawl (`localhost:3000`) | 259 static pages: 35 ok, 217 auth_redirect, 7 redirect, **0 server errors** |
+| Demo probe | `/`, `/login`, `/faq`, `/discover`, `/search` 200; `/licensing` `/institutional` `/cooperative` **404** (deploy lag vs local) |
+| Report | [`docs/audits/PLATFORM_AUDIT_REPORT.md`](audits/PLATFORM_AUDIT_REPORT.md) · canvas `platform-audit-report.canvas.tsx` |
+
+## Authenticated multi-persona QA (2026-07-18)
+
+Env vars (also in `.env.example`):
+
+```bash
+QA_USER_A_EMAIL=qa-multi-a@tourify.test
+QA_USER_A_PASSWORD=QaAuditPass123!
+QA_USER_B_EMAIL=qa-multi-b@tourify.test
+QA_USER_B_PASSWORD=QaAuditPass123!
+QA_BASE_URL=http://localhost:3000
+```
+
+Commands:
+
+| Command | Purpose |
+|---------|---------|
+| `npm run qa:seed` | Create/adopt multi-persona QA A/B → `docs/audits/qa-accounts.json` |
+| `npm run qa:seed:flow` | Seed 7-account West Coast tour cast → `docs/audits/qa-flow-accounts.json` |
+| `npm run qa:seed:flow:scenario` | Bootstrap tour + 3 jobs + hire tokens → `docs/audits/qa-flow-scenario.json` |
+| `npm run qa:flow:clickthrough` | Playwright click-through for the West Coast flow cast |
+| `npm run qa:audit:interactions` | API: switch, artist/band posts, booking, messages |
+| `npm run qa:audit:clickthrough` | Playwright cookie-session click-through |
+
+| Check | Result |
+|-------|--------|
+| Seed | Adopted existing multi-persona users (create-path blocked by `artist_profiles` trigger `owner_user_id`) |
+| API interactions | 17 pass / 1 fail (DM conversation bootstrap) |
+| Playwright | **7/7** (dashboard, switcher, artist, bookings, venue, messages, admin) |
+| Report | [`docs/audits/AUTHENTICATED_INTERACTION_AUDIT.md`](audits/AUTHENTICATED_INTERACTION_AUDIT.md) |
+
+**Caution:** Seed adopt mode may remap real Demo-project user emails to the QA addresses; previous emails are in `user_metadata.qa_previous_email`.

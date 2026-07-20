@@ -19,6 +19,7 @@ import {
   FileText,
   Calendar,
 } from "lucide-react"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 
 function buildNoStoreInit(input?: RequestInit): RequestInit {
   return {
@@ -123,7 +124,7 @@ export default function EventCommandCenterPage() {
   async function broadcastToTeam() {
     setBroadcasting(true)
     try {
-      await fetch(`/api/admin/events/${eventId}/work-mode`, buildNoStoreInit({
+      const res = await fetch(`/api/admin/events/${eventId}/work-mode`, buildNoStoreInit({
         method: 'POST',
         body: JSON.stringify({
           publication_type: 'command_broadcast',
@@ -136,6 +137,14 @@ export default function EventCommandCenterPage() {
           },
         }),
       }))
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        if (isFeatureUnavailableResponse(res.status, payload)) {
+          setError(featureUnavailableMessage(payload, 'Work Mode broadcast is temporarily unavailable.'))
+          return
+        }
+        setError(payload?.error || 'Failed to broadcast update')
+      }
     } finally {
       setBroadcasting(false)
     }

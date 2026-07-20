@@ -59,6 +59,13 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      // AUD-0114: forward-only alias; /admin remains canonical until Phase-later rename.
+      // See docs/audits/ADMIN_ORG_RENAME.md
+      {
+        source: '/org/:slug/dashboard',
+        destination: '/admin/dashboard',
+        permanent: false,
+      },
       {
         source: '/feed',
         destination: '/news',

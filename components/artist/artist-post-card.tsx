@@ -64,6 +64,8 @@ export interface ArtistFeedPost {
   visibility: string
   location?: string | null
   hashtags?: string[]
+  tagged_users?: string[]
+  collaborators?: ArtistFeedCollaborator[]
   media_items?: ArtistFeedMediaItem[]
   media_urls?: string[]
   metadata?: Record<string, unknown> | null
@@ -82,6 +84,14 @@ export interface ArtistFeedPost {
   is_liked: boolean
   is_pinned?: boolean
   poll?: PollPayload | null
+}
+
+export interface ArtistFeedCollaborator {
+  user_id?: string
+  profile_id?: string | null
+  status?: string
+  username?: string
+  avatar_url?: string | null
 }
 
 interface ArtistFeedMediaItem {
@@ -258,6 +268,16 @@ export function ArtistPostCard({
               <Link href={profileHref} className="font-semibold text-white hover:text-purple-200 transition-colors truncate">
                 {post.user.username}
               </Link>
+              {Array.isArray(post.collaborators) && post.collaborators.length > 0 && (
+                <span className="text-sm text-slate-300 truncate">
+                  and{' '}
+                  {post.collaborators
+                    .map((c) => c.username || 'collaborator')
+                    .slice(0, 3)
+                    .join(', ')}
+                  {post.collaborators.length > 3 ? ` +${post.collaborators.length - 3}` : ''}
+                </span>
+              )}
               {isPinned && (
                 <Badge className="bg-blue-500/15 text-blue-300 border-blue-500/30 text-[10px]">
                   <Pin className="h-3 w-3 mr-1" />
@@ -268,6 +288,11 @@ export function ArtistPostCard({
                 <Badge className="bg-purple-500/15 text-purple-300 border-purple-500/30 text-[10px]">
                   <BarChart3 className="h-3 w-3 mr-1" />
                   Poll
+                </Badge>
+              )}
+              {Array.isArray(post.collaborators) && post.collaborators.length > 0 && (
+                <Badge className="bg-emerald-500/15 text-emerald-300 border-emerald-500/30 text-[10px]">
+                  Collaborative
                 </Badge>
               )}
               {showFollow && !isOwner && onFollow && (

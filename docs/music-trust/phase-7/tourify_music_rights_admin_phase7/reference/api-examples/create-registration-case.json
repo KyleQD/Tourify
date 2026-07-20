@@ -1,0 +1,8 @@
+{
+  "target": "mlc",
+  "subjectType": "musical_work",
+  "subjectId": "00000000-0000-0000-0000-000000000000",
+  "mandateVersionId": "AUDIT_REQUIRED",
+  "requestedAction": "register_or_claim",
+  "idempotencyKey": "example-registration-001"
+}

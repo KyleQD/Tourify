@@ -18,9 +18,12 @@ This checklist is used after store release submission is approved and rollout st
 
 ### 0-2 Hours
 
-- Verify crash-free sessions are at least 99%.
+- Verify crash-free sessions are at least 99% (Sentry release health).
 - Verify auth sign-in completion does not regress from baseline.
-- Verify booking entry flow works and web checkout fallback opens successfully.
+- Verify password-reset deep link completion (no spike in reset-password errors).
+- Verify event checkout **verification** success (not browser-open alone).
+- Verify push notification open → in-app navigation works.
+- Verify venue booking-requests API list/approve path for venue accounts.
 - Verify connect claim + confirm flows succeed in production telemetry.
 
 ### 2-6 Hours
@@ -43,6 +46,7 @@ This checklist is used after store release submission is approved and rollout st
 - Compare retention and conversion against pre-launch forecast.
 - Ship metadata-only hotfixes if store listing corrections are needed.
 - Decide whether to move to 100% rollout.
+- Architecture checkpoint: with two production cycles of crash/startup telemetry, reassess Expo SDK upgrade only if hard native blockers appear.
 
 ## Rollback Triggers
 

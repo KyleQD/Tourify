@@ -4,6 +4,22 @@ import { AdminPageHeader } from "../components/admin-page-header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { MusicCertificationReviewPanel } from "@/components/admin/music-certification-review-panel"
+import { MusicRoyaltiesOpsPanel } from "@/components/admin/music-royalties-ops-panel"
+import { MusicMarketplaceOpsPanel } from "@/components/admin/music-marketplace-ops-panel"
+import { MusicInstitutionalOpsPanel } from "@/components/admin/music-institutional-ops-panel"
+import { MusicLicensingOpsPanel } from "@/components/admin/music-licensing-ops-panel"
+import { MusicRightsAdminOpsPanel } from "@/components/admin/music-rights-admin-ops-panel"
+import { MusicRightsIntelligenceOpsPanel } from "@/components/admin/music-rights-intelligence-ops-panel"
+import { MusicCreatorCooperativeOpsPanel } from "@/components/admin/music-creator-cooperative-ops-panel"
+import { MusicCreatorFederationOpsPanel } from "@/components/admin/music-creator-federation-ops-panel"
+import { MusicCreatorPublicInfrastructureOpsPanel } from "@/components/admin/music-creator-public-infrastructure-ops-panel"
+import { MusicCreatorDigitalCommonsOpsPanel } from "@/components/admin/music-creator-digital-commons-ops-panel"
+import { MusicCreatorProtocolConstitutionOpsPanel } from "@/components/admin/music-creator-protocol-constitution-ops-panel"
+import { MusicCreatorInteropConventionOpsPanel } from "@/components/admin/music-creator-interop-convention-ops-panel"
+import { MusicCreatorInteropOrganizationOpsPanel } from "@/components/admin/music-creator-interop-organization-ops-panel"
+import { MusicCreatorInteropInstitutionOpsPanel } from "@/components/admin/music-creator-interop-institution-ops-panel"
+import { MusicCreatorTreatyOpsPanel } from "@/components/admin/music-creator-treaty-ops-panel"
 
 interface AdminTrack {
   id: string
@@ -89,6 +105,22 @@ export default async function MusicPage() {
           )}
         </CardContent>
       </Card>
+      <MusicCertificationReviewPanel />
+      <MusicRoyaltiesOpsPanel />
+      <MusicMarketplaceOpsPanel />
+      <MusicInstitutionalOpsPanel />
+      <MusicLicensingOpsPanel />
+      <MusicRightsAdminOpsPanel />
+      <MusicRightsIntelligenceOpsPanel />
+      <MusicCreatorCooperativeOpsPanel />
+      <MusicCreatorFederationOpsPanel />
+      <MusicCreatorPublicInfrastructureOpsPanel />
+      <MusicCreatorDigitalCommonsOpsPanel />
+      <MusicCreatorProtocolConstitutionOpsPanel />
+      <MusicCreatorInteropConventionOpsPanel />
+      <MusicCreatorInteropOrganizationOpsPanel />
+      <MusicCreatorInteropInstitutionOpsPanel />
+      <MusicCreatorTreatyOpsPanel />
     </div>
   )
 }

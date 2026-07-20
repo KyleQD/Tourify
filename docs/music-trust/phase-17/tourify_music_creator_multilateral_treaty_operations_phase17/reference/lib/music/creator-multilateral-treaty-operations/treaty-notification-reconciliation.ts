@@ -1,0 +1,2 @@
+export interface NotificationMirror { localHash:string; externalHash?:string; externalStatus?:string; receivedAt?:string; }
+export function reconcileNotification(m:NotificationMirror){ if(!m.externalHash)return {status:'pending_external_confirmation'}; if(m.localHash!==m.externalHash)return {status:'mismatch_requires_review'}; return {status:'reconciled',externalStatus:m.externalStatus,receivedAt:m.receivedAt}; }

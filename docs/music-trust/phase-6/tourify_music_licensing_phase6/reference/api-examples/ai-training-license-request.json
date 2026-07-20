@@ -1,0 +1,24 @@
+{
+  "projectId": "uuid",
+  "assets": [
+    {
+      "assetId": "uuid",
+      "version": 1
+    }
+  ],
+  "purpose": "fine_tuning",
+  "modelProvider": "Example AI Company",
+  "modelName": "Example Music Model",
+  "commercial": true,
+  "datasetRedistribution": false,
+  "voiceModel": false,
+  "retentionMonths": 24,
+  "outputRestrictions": [
+    "no_artist_impersonation",
+    "no_voice_cloning"
+  ],
+  "territories": [
+    "EU",
+    "US"
+  ]
+}

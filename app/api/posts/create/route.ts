@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
       media_urls,
       poll_options: rawPollOptions,
       poll_duration: rawPollDuration,
+      tagged_users: rawTaggedUsers,
+      collaborators: rawCollaborators,
+      collaborator_user_ids: rawCollaboratorUserIds,
     } = body
 
     const isPoll = type === 'poll'
@@ -40,6 +43,20 @@ export async function POST(request: NextRequest) {
     if (!content?.trim()) {
       return NextResponse.json({ error: 'Content is required' }, { status: 400 })
     }
+
+    const {
+      normalizeTaggedUserIds,
+      normalizeCollaboratorInvites,
+      insertFeedPostCollaborators,
+      notifyTaggedUsers,
+      notifyCollaboratorInvites,
+    } = await import('@/lib/feed/post-collaborators')
+
+    const taggedUsers = normalizeTaggedUserIds(rawTaggedUsers, userId)
+    const collaboratorInvites = normalizeCollaboratorInvites(
+      rawCollaborators || rawCollaboratorUserIds,
+      userId
+    )
 
     let pollOptions: string[] = []
     let pollEndsAt: Date | null = null
@@ -69,6 +86,7 @@ export async function POST(request: NextRequest) {
       location,
       hashtags: cleanHashtags,
       media_urls: cleanMediaUrls,
+      tagged_users: taggedUsers,
       posted_as_type: accountType,
       posted_as_profile_id: profileId,
       account_display_name: author.name,
@@ -151,6 +169,28 @@ export async function POST(request: NextRequest) {
       resourceId: post.id,
     })
 
+    const insertedCollaborators = await insertFeedPostCollaborators({
+      supabase,
+      postId: post.id,
+      invitedByUserId: userId,
+      invites: collaboratorInvites,
+    })
+
+    await Promise.all([
+      notifyTaggedUsers({
+        taggedUserIds: taggedUsers,
+        actorUserId: userId,
+        postId: post.id,
+        actorName: author.name || author.username,
+      }),
+      notifyCollaboratorInvites({
+        invites: collaboratorInvites,
+        actorUserId: userId,
+        postId: post.id,
+        actorName: author.name || author.username,
+      }),
+    ])
+
     const authorProfile = {
       id: author.id,
       username: author.username || 'user',
@@ -177,6 +217,8 @@ export async function POST(request: NextRequest) {
 
     const normalizedPost = {
       ...post,
+      tagged_users: taggedUsers,
+      collaborators: insertedCollaborators,
       posted_as_profile_id: author.id,
       posted_as_type: author.type,
       account_display_name: author.name,

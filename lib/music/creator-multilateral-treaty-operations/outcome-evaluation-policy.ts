@@ -1,0 +1,2 @@
+export interface OutcomeMetric { id:string; category:'access'|'portability'|'correction'|'remedy'|'reliability'|'equity'|'independence'; value:number; evidenceQuality:number; }
+export function summarizeOutcomeMetrics(metrics:OutcomeMetric[]){ if(metrics.length===0)return {score:null,warning:'no_evidence'}; const weighted=metrics.reduce((s,m)=>s+m.value*Math.max(0,Math.min(1,m.evidenceQuality)),0); const weight=metrics.reduce((s,m)=>s+Math.max(0,Math.min(1,m.evidenceQuality)),0); return {score:weight?weighted/weight:null,warning:weight?'':'zero_weight'}; }

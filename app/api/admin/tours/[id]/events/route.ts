@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
@@ -13,18 +13,28 @@ function extractTourId(url: string): string | null {
   return index >= 0 ? segments[index + 1] || null : null
 }
 
-async function getTourContext(supabase: any, userId: string, tourId: string) {
-  const tour = await AdminTourEventOperationsService.getTour({ supabase, userId, tourId })
+async function getTourContext(supabase: any, userId: string, tourId: string, actingOrgId: string) {
+  const tour = await AdminTourEventOperationsService.getTour({
+    supabase,
+    userId,
+    tourId,
+    orgId: actingOrgId,
+  })
   const orgId = (tour as any).org_id
   if (!orgId) throw new Error("Tour organization could not be resolved.")
   return { tour, orgId }
 }
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const GET = withAdminCapability("tour.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const tourId = extractTourId(request.url)
     if (!tourId) return NextResponse.json({ success: false, error: "Missing tour id" }, { status: 400 })
-    const tour = await AdminTourEventOperationsService.getTour({ supabase, userId: user.id, tourId })
+    const tour = await AdminTourEventOperationsService.getTour({
+      supabase,
+      userId: user.id,
+      tourId,
+      orgId: admin.orgId,
+    })
     return NextResponse.json({ success: true, events: (tour as any).events ?? [] })
   } catch (error: any) {
     const status = getAdminTourEventErrorStatus(error, 400)
@@ -32,12 +42,12 @@ export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }
   }
 })
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("routing.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const tourId = extractTourId(request.url)
     if (!tourId) return NextResponse.json({ success: false, error: "Missing tour id" }, { status: 400 })
     const body = await request.json().catch(() => ({}))
-    const { orgId } = await getTourContext(supabase, user.id, tourId)
+    const { orgId } = await getTourContext(supabase, user.id, tourId, admin.orgId)
 
     if (body.event_id) {
       const assignment = tourAssignmentInputSchema.parse({
@@ -61,6 +71,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     const event = await AdminTourEventOperationsService.createEvent({
       supabase,
       userId: user.id,
+      orgId,
       input: {
         ...body,
         tour_assignments: [
@@ -84,11 +95,11 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability("routing.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const tourId = extractTourId(request.url)
     if (!tourId) return NextResponse.json({ success: false, error: "Missing tour id" }, { status: 400 })
-    const { orgId } = await getTourContext(supabase, user.id, tourId)
+    const { orgId } = await getTourContext(supabase, user.id, tourId, admin.orgId)
     const url = new URL(request.url)
     const body = await request.json().catch(() => ({}))
     const eventId = url.searchParams.get("event_id") || body.event_id

@@ -1,0 +1,11 @@
+{
+  "organizationId": "org_uuid",
+  "federationId": "federation_uuid",
+  "jurisdiction": "US-NV",
+  "authorizedSignerId": "user_uuid",
+  "localApprovalEvidenceId": "document_uuid",
+  "requestedServices": [
+    "credential_interoperability",
+    "service_discovery"
+  ]
+}

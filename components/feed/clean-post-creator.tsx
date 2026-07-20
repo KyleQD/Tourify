@@ -70,11 +70,19 @@ interface CleanPostCreatorProps {
   className?: string
   defaultVisibility?: 'public' | 'followers' | 'private'
   showAdvancedOptions?: boolean
+  enableTagging?: boolean
+  enableCollaborators?: boolean
   user?: {
     id: string
     username?: string
     avatar_url?: string
   }
+}
+
+interface TaggedPerson {
+  id: string
+  username: string
+  avatar_url?: string | null
 }
 
 interface PostData {
@@ -86,6 +94,8 @@ interface PostData {
   scheduledFor?: Date
   allowComments: boolean
   allowSharing: boolean
+  taggedUsers: TaggedPerson[]
+  collaborators: TaggedPerson[]
 }
 
 export function CleanPostCreator({
@@ -95,6 +105,8 @@ export function CleanPostCreator({
   className,
   defaultVisibility = 'public',
   showAdvancedOptions = true,
+  enableTagging = false,
+  enableCollaborators = false,
   user: propUser
 }: CleanPostCreatorProps) {
   const { user: authUser } = useAuth()
@@ -107,12 +119,20 @@ export function CleanPostCreator({
     hashtags: [],
     mediaItems: [],
     allowComments: true,
-    allowSharing: true
+    allowSharing: true,
+    taggedUsers: [],
+    collaborators: [],
   })
   
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [hashtagInput, setHashtagInput] = useState('')
+  const [tagSearch, setTagSearch] = useState('')
+  const [collabSearch, setCollabSearch] = useState('')
+  const [tagResults, setTagResults] = useState<TaggedPerson[]>([])
+  const [collabResults, setCollabResults] = useState<TaggedPerson[]>([])
+  const [isSearchingTags, setIsSearchingTags] = useState(false)
+  const [isSearchingCollabs, setIsSearchingCollabs] = useState(false)
   const [showScheduleDialog, setShowScheduleDialog] = useState(false)
   const [scheduledTime, setScheduledTime] = useState('')
   const [scheduledDate, setScheduledDate] = useState('')
@@ -245,6 +265,75 @@ export function CleanPostCreator({
     }
   }, [hashtagInput, addHashtag])
 
+  const searchPeople = useCallback(async (query: string): Promise<TaggedPerson[]> => {
+    const q = query.trim()
+    if (q.length < 2) return []
+
+    try {
+      const { supabase } = await import('@/lib/supabase')
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .or(`username.ilike.%${q}%,full_name.ilike.%${q}%`)
+        .neq('id', user?.id || '')
+        .limit(8)
+
+      return (data || []).map((row: any) => ({
+        id: row.id,
+        username: row.full_name || row.username || 'User',
+        avatar_url: row.avatar_url || null,
+      }))
+    } catch {
+      return []
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!enableTagging) return
+    const handle = setTimeout(async () => {
+      if (tagSearch.trim().length < 2) {
+        setTagResults([])
+        return
+      }
+      setIsSearchingTags(true)
+      setTagResults(await searchPeople(tagSearch))
+      setIsSearchingTags(false)
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [tagSearch, enableTagging, searchPeople])
+
+  useEffect(() => {
+    if (!enableCollaborators) return
+    const handle = setTimeout(async () => {
+      if (collabSearch.trim().length < 2) {
+        setCollabResults([])
+        return
+      }
+      setIsSearchingCollabs(true)
+      setCollabResults(await searchPeople(collabSearch))
+      setIsSearchingCollabs(false)
+    }, 250)
+    return () => clearTimeout(handle)
+  }, [collabSearch, enableCollaborators, searchPeople])
+
+  function addTaggedUser(person: TaggedPerson) {
+    setPostData((prev) => {
+      if (prev.taggedUsers.some((p) => p.id === person.id)) return prev
+      return { ...prev, taggedUsers: [...prev.taggedUsers, person] }
+    })
+    setTagSearch('')
+    setTagResults([])
+  }
+
+  function addCollaborator(person: TaggedPerson) {
+    setPostData((prev) => {
+      if (prev.collaborators.some((p) => p.id === person.id)) return prev
+      return { ...prev, collaborators: [...prev.collaborators, person] }
+    })
+    setCollabSearch('')
+    setCollabResults([])
+  }
+
   // Remove media item
   const removeMediaItem = useCallback((id: string) => {
     setPostData(prev => ({
@@ -328,6 +417,10 @@ export function CleanPostCreator({
         scheduled_for: postData.scheduledFor?.toISOString(),
         allow_comments: postData.allowComments,
         allow_sharing: postData.allowSharing,
+        tagged_users: postData.taggedUsers.map((person) => person.id),
+        collaborators: postData.collaborators.map((person) => ({
+          userId: person.id,
+        })),
       }
 
       if (isPollMode) {
@@ -359,9 +452,13 @@ export function CleanPostCreator({
         hashtags: [],
         mediaItems: [],
         allowComments: true,
-        allowSharing: true
+        allowSharing: true,
+        taggedUsers: [],
+        collaborators: [],
       })
       setHashtagInput('')
+      setTagSearch('')
+      setCollabSearch('')
       setIsExpanded(false)
       setShowMediaUpload(false)
       setIsPollMode(false)
@@ -587,6 +684,118 @@ export function CleanPostCreator({
               </Button>
             </div>
           </div>
+
+          {(enableTagging || enableCollaborators) && (
+            <div className="mt-4 space-y-4">
+              {enableTagging && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Tag people</p>
+                  {postData.taggedUsers.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {postData.taggedUsers.map((person) => (
+                        <Badge
+                          key={person.id}
+                          variant="secondary"
+                          className="rounded-full border border-blue-400/25 bg-blue-500/15 text-blue-200"
+                        >
+                          {person.username}
+                          <button
+                            type="button"
+                            className="ml-1"
+                            onClick={() => setPostData((prev) => ({
+                              ...prev,
+                              taggedUsers: prev.taggedUsers.filter((p) => p.id !== person.id),
+                            }))}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <Input
+                    placeholder="Search people to tag..."
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    className={ARTIST_INPUT}
+                  />
+                  {(isSearchingTags || tagResults.length > 0) && (
+                    <div className="rounded-xl border border-white/10 bg-black/40 p-2">
+                      {isSearchingTags ? (
+                        <p className="px-2 py-1 text-xs text-slate-400">Searching...</p>
+                      ) : (
+                        tagResults.map((person) => (
+                          <button
+                            key={person.id}
+                            type="button"
+                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-white/10"
+                            onClick={() => addTaggedUser(person)}
+                          >
+                            {person.username}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {enableCollaborators && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                    Invite collaborators (share through their network)
+                  </p>
+                  {postData.collaborators.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {postData.collaborators.map((person) => (
+                        <Badge
+                          key={person.id}
+                          variant="secondary"
+                          className="rounded-full border border-emerald-400/25 bg-emerald-500/15 text-emerald-200"
+                        >
+                          {person.username}
+                          <button
+                            type="button"
+                            className="ml-1"
+                            onClick={() => setPostData((prev) => ({
+                              ...prev,
+                              collaborators: prev.collaborators.filter((p) => p.id !== person.id),
+                            }))}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  <Input
+                    placeholder="Search collaborators to invite..."
+                    value={collabSearch}
+                    onChange={(e) => setCollabSearch(e.target.value)}
+                    className={ARTIST_INPUT}
+                  />
+                  {(isSearchingCollabs || collabResults.length > 0) && (
+                    <div className="rounded-xl border border-white/10 bg-black/40 p-2">
+                      {isSearchingCollabs ? (
+                        <p className="px-2 py-1 text-xs text-slate-400">Searching...</p>
+                      ) : (
+                        collabResults.map((person) => (
+                          <button
+                            key={person.id}
+                            type="button"
+                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-white/10"
+                            onClick={() => addCollaborator(person)}
+                          >
+                            {person.username}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Error message */}
           {errorMessage && (

@@ -6,6 +6,7 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { ArrowLeft, Clock3, Eye, ShieldCheck, Tag } from 'lucide-react'
 
 import { ArticleActionBar } from '@/components/blog/article-action-bar'
+import { ArticleViewTracker } from '@/components/blog/article-view-tracker'
 import { Button } from '@/components/ui/button'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { getMoreFromAuthor, getPublicArticleBySlug, type PublicArticle } from '@/lib/blog/public-articles'
@@ -404,7 +405,9 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
                   </div>
                 </div>
 
+                <ArticleViewTracker articleId={article.id} />
                 <ArticleActionBar
+                  articleId={article.id}
                   articleTitle={article.title}
                   canonicalPath={`/blog/${article.slug}`}
                   metrics={{

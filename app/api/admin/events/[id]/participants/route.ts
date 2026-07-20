@@ -34,13 +34,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
 
+    // Include invited (post-application-approve) so hires are assignable before
+    // onboarding finalize upgrades them to active.
     const { data: assignmentRows } = roleFilter
       ? { data: [] }
       : await supabase
           .from('employment_assignments')
           .select('id, user_id, role_title, department, status')
           .eq('event_id', id)
-          .in('status', ['confirmed', 'active', 'completed'])
+          .in('status', ['invited', 'confirmed', 'active', 'completed'])
 
     const participantIds = Array.from(new Set([
       ...(data ?? []).map((row) => row.participant_id as string),

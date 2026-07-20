@@ -33,7 +33,7 @@ const featureSections: FeatureSection[] = [
       { name: "Videos", icon: <FileVideo className="h-4 w-4" />, path: "/artist/videos" },
       { name: "Photos", icon: <Image className="h-4 w-4" />, path: "/artist/photos" },
       { name: "EPK", icon: <Tag className="h-4 w-4" />, path: "/artist/epk", isPro: true },
-      { name: "Blog", icon: <FileText className="h-4 w-4" />, path: "/artist/blog" },
+      { name: "Press", icon: <FileText className="h-4 w-4" />, path: "/artist/press" },
     ]
   },
   {

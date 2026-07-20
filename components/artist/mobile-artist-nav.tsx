@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Briefcase,
   FileText,
+  BookOpen,
   MessageSquare,
   User,
 } from 'lucide-react'
@@ -24,10 +25,10 @@ export function MobileArtistNav() {
   const pathname = usePathname()
 
   const primaryItems: MobileNavItem[] = [
-    { label: 'Dashboard', href: '/artist', icon: LayoutDashboard },
-    { label: 'Feed', href: '/artist/feed', icon: Home },
+    { label: 'Home', href: '/artist', icon: Home },
     { label: 'Music', href: '/artist/music', icon: Music2 },
     { label: 'Events', href: '/artist/events', icon: Calendar },
+    { label: 'Overview', href: '/artist/overview', icon: LayoutDashboard },
   ]
 
   const overflowGroups: MobileNavGroup[] = [
@@ -35,6 +36,7 @@ export function MobileArtistNav() {
       label: 'Create & Publish',
       items: [
         { label: 'Content', href: '/artist/content', icon: Video },
+        { label: 'Press', href: '/artist/press', icon: BookOpen },
         { label: 'EPK', href: '/artist/epk', icon: FileText },
       ],
     },
@@ -74,8 +76,7 @@ export function MobileArtistNav() {
     >
       <ul className="grid grid-cols-5 items-center">
         {primaryItems.map((item) => {
-          const isActive =
-            pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+          const isActive = isArtistNavActive(pathname, item.href)
           const Icon = item.icon
           return (
             <li key={item.href} className="text-center">
@@ -121,9 +122,7 @@ export function MobileArtistNav() {
                     </div>
                     <div className="grid grid-cols-3 gap-2">
                       {group.items.map((item) => {
-                        const isActive =
-                          pathname === item.href ||
-                          (item.href !== '/' && pathname.startsWith(item.href))
+                        const isActive = isArtistNavActive(pathname, item.href)
                         const Icon = item.icon
                         return (
                           <Link
@@ -151,6 +150,11 @@ export function MobileArtistNav() {
       </ul>
     </nav>
   )
+}
+
+function isArtistNavActive(pathname: string, href: string) {
+  if (href === '/artist') return pathname === '/artist'
+  return pathname === href || pathname.startsWith(`${href}/`)
 }
 
 interface MobileNavItem {

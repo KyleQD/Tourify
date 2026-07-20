@@ -558,18 +558,6 @@ export default function TeamManagementPage() {
               </Card>
             </div>
 
-            <Card className="bg-slate-800 border-slate-700">
-              <CardHeader>
-                <CardTitle className="text-white">Team Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-slate-400">
-                  <TrendingUp className="h-12 w-12 mx-auto mb-4 text-slate-500" />
-                  <p>Performance analytics coming soon</p>
-                  <p className="text-sm">Detailed team performance metrics and insights</p>
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
         </Tabs>
       </div>

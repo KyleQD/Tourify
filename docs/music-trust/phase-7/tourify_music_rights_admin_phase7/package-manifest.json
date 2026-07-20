@@ -1,0 +1,317 @@
+{
+  "package": "tourify-music-rights-admin-phase7",
+  "generatedAt": "2026-07-18T01:25:11.820368+00:00",
+  "fileCount": 63,
+  "files": [
+    {
+      "path": "00_PHASE_7_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "sizeBytes": 4309,
+      "sha256": "1d899acb96954924681e892576e669c03932777096ca13b8193376928a3e6357"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_USER_JOURNEYS.md",
+      "sizeBytes": 4146,
+      "sha256": "90cb822874e89cbf488f1f99ef140e6ce0b39b62245a23ef8c94e3588604e491"
+    },
+    {
+      "path": "02_ADMINISTRATION_MANDATES_ROLE_AND_ENTITY_BOUNDARIES.md",
+      "sizeBytes": 3730,
+      "sha256": "421a42297cd0bc53197ab97a72324b75a2f4bd36851c026ef5a700092856cac0"
+    },
+    {
+      "path": "03_REGISTRATION_ORCHESTRATION_WORKS_RECORDINGS_RELEASES_PARTIES.md",
+      "sizeBytes": 3835,
+      "sha256": "28ca36f9c1a17966221ce86f3f422a426b3fda23582fa4c865f39bfc260b4884"
+    },
+    {
+      "path": "04_CORRECTIONS_OVERCLAIMS_CONFLICTS_AND_LETTERS_OF_DIRECTION.md",
+      "sizeBytes": 3589,
+      "sha256": "257bce9beecf72bad02e97f59cd16bd85ca761c4917e3d57ba48d0d2317db303"
+    },
+    {
+      "path": "05_GLOBAL_WORK_RECORDING_MATCHING_AND_DATA_QUALITY.md",
+      "sizeBytes": 3563,
+      "sha256": "c90905397787c45f578f242a211b75f8efcfe3a6c598e85146d9c0924b16dbca"
+    },
+    {
+      "path": "06_USAGE_INGESTION_CUE_BROADCAST_PERFORMANCE_AND_UGC.md",
+      "sizeBytes": 3530,
+      "sha256": "a54c0715eb91211df77cc92293141ba59a11d3e8782591360b8697010ba5f852"
+    },
+    {
+      "path": "07_ROYALTY_CLAIMS_COLLECTIONS_AND_ALLOCATION_HANDOFF.md",
+      "sizeBytes": 3505,
+      "sha256": "254ae504b52fa905d12bd2ecf4f28960bc53910ea51e37e35ed24061b28a90cd"
+    },
+    {
+      "path": "08_MECHANICAL_PUBLISHING_ADMINISTRATION_AND_MLC_WORKFLOWS.md",
+      "sizeBytes": 3412,
+      "sha256": "4d8b0f480824820e7945a0ab7ef87471d684b713c44019111971ac80796d9cce"
+    },
+    {
+      "path": "09_NEIGHBORING_RIGHTS_REGISTRATION_AND_INTERNATIONAL_COLLECTION.md",
+      "sizeBytes": 3518,
+      "sha256": "bc54c4a0a8748e2dbafaad82b9eae35eda4435d1498039129f1370f56c05971b"
+    },
+    {
+      "path": "10_PLATFORM_FINGERPRINT_CLAIMS_AND_POLICY_MANAGEMENT.md",
+      "sizeBytes": 3604,
+      "sha256": "40ccd4093b8b8a4e215965756aacf57bf44a5807851e2d60fe4bc5f8dca0947e"
+    },
+    {
+      "path": "11_INFRINGEMENT_DETECTION_MONITORING_AND_TRIAGE.md",
+      "sizeBytes": 3484,
+      "sha256": "fdb727dae5b49e636c480703ac5b9b4877ac8836cb1cda69ce05eb12acb6a4b6"
+    },
+    {
+      "path": "12_DMCA_NOTICE_TAKEDOWN_COUNTER_NOTICE_AND_REPEAT_INFRINGER.md",
+      "sizeBytes": 4039,
+      "sha256": "b0b8951c5ff737f06764d6e62ddc2adb34bef2fe954e8ac45952cdd4f7ec0c1b"
+    },
+    {
+      "path": "13_CLAIM_DISPUTES_APPEALS_AND_FALSE_CLAIM_PREVENTION.md",
+      "sizeBytes": 3433,
+      "sha256": "4ae1de23bc2420dabe6cf40d4ff2c802d93777fb3dbcbb2c0ab09f7b383c4214"
+    },
+    {
+      "path": "14_LEGAL_ESCALATION_CCB_COUNSEL_AND_LITIGATION_BOUNDARY.md",
+      "sizeBytes": 3496,
+      "sha256": "ac96b52b97b8adc453a338fc7f5aa5b510f487dff4c6345579b245622e8bc238"
+    },
+    {
+      "path": "15_SETTLEMENTS_RECOVERIES_FEES_AND_COLLECTION_ACCOUNTING.md",
+      "sizeBytes": 3419,
+      "sha256": "c01d42202907ca9194bbdc3764a5fe4e72113e2817f1c255dcbb91057fb27651"
+    },
+    {
+      "path": "16_RIGHTS_REVERSION_TERMINATION_AND_CONTRACT_EXPIRY_MONITORING.md",
+      "sizeBytes": 3514,
+      "sha256": "86a24aaa794e29337ad6cfaf6c632c4763557badbd1fd2c5a4e45281cde99d8f"
+    },
+    {
+      "path": "17_GLOBAL_CMO_PUBLISHER_LABEL_AND_ADMINISTRATOR_NETWORK.md",
+      "sizeBytes": 3361,
+      "sha256": "baabbb749b0beda085fa7c5aba0af0216e937acd4dcf1c27c0bcfc32080d172f"
+    },
+    {
+      "path": "18_UNMATCHED_ROYALTIES_COLLECTION_OPTIMIZATION_AND_BLACK_BOX.md",
+      "sizeBytes": 3382,
+      "sha256": "4e3ce550d1d466f1611eb24aaa7d56661f2db1029e336e31ffbaced7b7d72440"
+    },
+    {
+      "path": "19_CATALOG_TRANSFERS_CHANGE_OF_CONTROL_AND_RECORDATION.md",
+      "sizeBytes": 3597,
+      "sha256": "1c0ed7de8ad655319611158db9bb26beb51be50e50fbfb7dd249fe05b6d40e38"
+    },
+    {
+      "path": "20_AI_TRAINING_DATASET_SYNTHETIC_VOICE_AND_MODEL_ENFORCEMENT.md",
+      "sizeBytes": 3610,
+      "sha256": "976634448710b26c17b767f61a67db66d157343a5a5965af4ea0c221c6372cf5"
+    },
+    {
+      "path": "21_ENTERPRISE_RIGHTS_ADMINISTRATION_PORTAL_APIS_AND_EXPORTS.md",
+      "sizeBytes": 3439,
+      "sha256": "4f9e3a478dec40ff87e5e83176de5a7f9daa348743fac8601a1d466352c56254"
+    },
+    {
+      "path": "22_BUSINESS_MODEL_SERVICE_TIERS_AND_UNIT_ECONOMICS.md",
+      "sizeBytes": 3477,
+      "sha256": "0cf45fd00b6034e6e16e14ed91af720a5003f6f9002cbcd0586215c5ee6fcbcb"
+    },
+    {
+      "path": "23_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "sizeBytes": 3487,
+      "sha256": "4aee3d6b821db49b6ecf4e08d4d53f7ea7b08a5207b398eb0eb7d85acb792b26"
+    },
+    {
+      "path": "24_API_EVENTS_BACKGROUND_JOBS_AND_PARTNER_ADAPTERS.md",
+      "sizeBytes": 3324,
+      "sha256": "6737a484b44197b5b98e49fc91f0bbbfe78e7788a1137fd30b40cac612ca73fa"
+    },
+    {
+      "path": "25_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "sizeBytes": 3476,
+      "sha256": "16fb4e11bfe021f730e95449dfeca341968f73cc7d33c011199b17d969fb356d"
+    },
+    {
+      "path": "26_ADMIN_RIGHTS_OPERATIONS_CASES_QUEUES_AND_SLA.md",
+      "sizeBytes": 3216,
+      "sha256": "ccca992ff98d145af7400da81415036a84def972069c10be8e54b8695a8ad4a5"
+    },
+    {
+      "path": "27_SECURITY_PRIVACY_EVIDENCE_CHAIN_AND_LEGAL_HOLDS.md",
+      "sizeBytes": 3318,
+      "sha256": "76383705aea860557c348c3a625bff5a19da00ba3c7fdff0cb506876ac103fbc"
+    },
+    {
+      "path": "28_ANALYTICS_REPORTING_AUDIT_AND_SERVICE_LEVELS.md",
+      "sizeBytes": 3312,
+      "sha256": "6b9f73ab9d8b446672e166e5f3d9c47cc2a0968b0adfbd56199ab3676f13bd89"
+    },
+    {
+      "path": "29_COMPLAINTS_INCIDENTS_ABUSE_FRAUD_AND_MODEL_RISK.md",
+      "sizeBytes": 3377,
+      "sha256": "6edb5c5619a631e712a82761b959c4136d7eaea389072272290ca1f85cd0b977"
+    },
+    {
+      "path": "30_TESTING_PILOT_AND_ROLLOUT.md",
+      "sizeBytes": 3460,
+      "sha256": "9ca77a74674945e0694145a6df1475cda1056c5ec9836b234117cc4a43b65e35"
+    },
+    {
+      "path": "31_PHASE_8_GLOBAL_RIGHTS_INTELLIGENCE_AND_COLLECTIVE_NEGOTIATION.md",
+      "sizeBytes": 3339,
+      "sha256": "6472d0641f2f7c8e7104474f8f7b1db713c5b8e8fc898e81380acc5421254cc6"
+    },
+    {
+      "path": "32_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "sizeBytes": 3100,
+      "sha256": "8a6c511e2c1ef3f911da246763f3bf5471f43a9150423481777c64909a4d79b3"
+    },
+    {
+      "path": "33_DEFINITION_OF_DONE.md",
+      "sizeBytes": 3149,
+      "sha256": "a57afd2fe148993480fe1a88da83dfd9f6928fabcdb31674216ee22b40256928"
+    },
+    {
+      "path": "34_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "sizeBytes": 5564,
+      "sha256": "67733e1887d9ee59f8d2e1c132bb263269e7c8c07f8e84b063da7f12f25b76e5"
+    },
+    {
+      "path": "35_CURRENT_STANDARDS_LEGAL_AND_PROVIDER_RESEARCH.md",
+      "sizeBytes": 8833,
+      "sha256": "4dd55c6d885eccd0bfce4470ec8872498a0aab8b24081dce91ff5535ec9d746b"
+    },
+    {
+      "path": "36_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "sizeBytes": 3058,
+      "sha256": "cd5818e6518ea0ed1fa9b21138d77495a61fade5b511c2b7a1fbc7785b393fa6"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "sizeBytes": 21046,
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "sizeBytes": 2285,
+      "sha256": "833398196e5cd39d7a1c460d6fd5b2af9cd70e26c53678ad22d4dd9a328aabbe"
+    },
+    {
+      "path": "README.md",
+      "sizeBytes": 4227,
+      "sha256": "75e7ece4e740f76aec6b06b9762380ee640064a2f54b75f4722fb53578a7c812"
+    },
+    {
+      "path": "SOURCE_PHASE_6_HANDOFF.md",
+      "sizeBytes": 4073,
+      "sha256": "86d8fdfbf19e6ca5eef3f9e87daa5ddd3f703b0598e6dc007a9530732e5877d4"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "sizeBytes": 308,
+      "sha256": "1698c9d5fe9a96aa0e68f54db4e9ab679216c5ed2c83e476b81bfba50f5dcf03"
+    },
+    {
+      "path": "phase-7-execution-plan.schema.json",
+      "sizeBytes": 3140,
+      "sha256": "68e1f6ddb0c8b67eee3a9cbbeeb9ecf000d9ca0b3dedf0427e974db65e9f1771"
+    },
+    {
+      "path": "phase-7-execution-plan.template.json",
+      "sizeBytes": 244068,
+      "sha256": "580db9f96034efed283a026ddd3b267bff546aca839da69b5ad115f140ae5e7c"
+    },
+    {
+      "path": "reference/api-examples/create-enforcement-observation.json",
+      "sizeBytes": 217,
+      "sha256": "629be769634d65a4f0fa80882f192752c45f7252459a5571d9656431696df659"
+    },
+    {
+      "path": "reference/api-examples/create-registration-case.json",
+      "sizeBytes": 239,
+      "sha256": "b71df4bc86d8be403a17a764b25384ebc1d806921bed3ad641e53717b0ca4745"
+    },
+    {
+      "path": "reference/api-examples/inbound-dmca-notice.json",
+      "sizeBytes": 370,
+      "sha256": "c7d14228740b8644ae0a8cce76e029d61841466726d399dc9e3ce1a22bdd7cfa"
+    },
+    {
+      "path": "reference/api-examples/partner-registration-webhook.json",
+      "sizeBytes": 226,
+      "sha256": "5dcea3dcd6f284b644de0b76128d39c1028e513656f003d8aae6ca27b42d6bc1"
+    },
+    {
+      "path": "reference/api-examples/submit-usage-claim.json",
+      "sizeBytes": 251,
+      "sha256": "fe1a556cac376c0e7db5b3765eb54a9092d17378b6b9150ed209319156e01889"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/claim-state-machine.ts",
+      "sizeBytes": 835,
+      "sha256": "1d28f611d482ff98d7d04d498a36cde9c8d8510d2a13d7650976409dabda8b8b"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/collection-reconciliation.ts",
+      "sizeBytes": 485,
+      "sha256": "caa7abbd5b6c3c84c07ce370973fa373b7cd7873533fdf28280b61c0ac270a48"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/dmca-case-state-machine.ts",
+      "sizeBytes": 504,
+      "sha256": "7ac8281ac2d01c28907c64e518eea51212d569978d4cb2632ad4e037eb1ddfc7"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/external-record-reconciliation.ts",
+      "sizeBytes": 641,
+      "sha256": "35c3fddd42eb574c91cde85c462458dea41bdaca12b9a5182376f74397747d55"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/mandate-policy.ts",
+      "sizeBytes": 1104,
+      "sha256": "966507cd137c528eba128a93ca0dfb52940e4d0dcb3e0a3cc7741932918c5b92"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/registration-state-machine.ts",
+      "sizeBytes": 697,
+      "sha256": "b896de772b9b441dbb9b9fff297e180bbda4dc0bffd136e94018e6f4151e3d65"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/reversion-window.ts",
+      "sizeBytes": 948,
+      "sha256": "71502e3082ebacd177c00b6bebc7f525e38d9daeaec953ea09dc3905271b9505"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/rights-admin-domain.ts",
+      "sizeBytes": 802,
+      "sha256": "42b0cdca717db045817c196f027af88dd8df87ca6cdbe79b80b718f51c313ac7"
+    },
+    {
+      "path": "reference/lib/music/rights-admin/usage-match.ts",
+      "sizeBytes": 724,
+      "sha256": "429446e25e7a44b93c67b21e87467bee1077d895e9b9fd367b5f8f5cc6d2a713"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_mandates_cases_registrations.sql",
+      "sizeBytes": 1255,
+      "sha256": "27db394acffb75d7501e0ff4de3bf38713d6a51b99e983fe25d6efb3c6c84a0e"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_external_records_matches_usage_claims.sql",
+      "sizeBytes": 1376,
+      "sha256": "d075540e433399db28e8a36d977bddb85528a9b6e5c5dd8c830c7d58db13fa46"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_enforcement_dmca_disputes_settlements.sql",
+      "sizeBytes": 1289,
+      "sha256": "46258215c9bb8762798cb5073f2d15c8c66d6d79a1aacf2984a5b6a14bda2811"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_partners_deadlines_audit_outbox.sql",
+      "sizeBytes": 1620,
+      "sha256": "1506089f8d1392e4b890ac716fbf369d1cdb8295f7e0d540a4a8583cba0520a6"
+    }
+  ]
+}

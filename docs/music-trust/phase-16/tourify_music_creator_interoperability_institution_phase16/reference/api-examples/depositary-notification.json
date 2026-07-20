@@ -1,0 +1,8 @@
+{
+  "notificationId": "sandbox-cn-001",
+  "custodianCharacter": "private_instrument_custodian",
+  "instrumentId": "example-protocol",
+  "eventType": "instrument_received",
+  "effectiveStatus": "not_yet_effective",
+  "signature": "EXAMPLE_ONLY"
+}

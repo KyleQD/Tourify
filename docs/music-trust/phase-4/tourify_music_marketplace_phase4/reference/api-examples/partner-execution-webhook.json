@@ -1,0 +1,17 @@
+{
+  "id": "evt_partner_456",
+  "type": "execution.created",
+  "created": "2026-07-17T21:00:00Z",
+  "data": {
+    "partnerOrderId": "ord_123",
+    "partnerExecutionId": "exe_123",
+    "partnerSecurityId": "sec_123",
+    "side": "buy",
+    "quantityMinor": "1000",
+    "quantityScale": 2,
+    "priceMinor": "1250",
+    "currency": "USD",
+    "feeMinor": "25",
+    "executedAt": "2026-07-17T20:59:58Z"
+  }
+}

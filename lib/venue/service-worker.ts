@@ -273,7 +273,7 @@ async function syncPosts() {
     // Send each post
     for (const post of pendingPosts) {
       try {
-        const response = await fetch("/api/posts", {
+        const response = await fetch("/api/feed/posts", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -26,6 +26,8 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(false)
   const completedTrackIds = useRef(new Set<string>())
   const lastHeartbeatByTrack = useRef(new Map<string, number>())
+  const streamUrlCache = useRef(new Map<string, { url: string; accessLevel: MobileMusicAccessLevel; cachedAt: number }>())
+  const STREAM_CACHE_TTL_MS = 10 * 60_000
 
   useEffect(() => {
     void setAudioModeAsync({
@@ -41,7 +43,20 @@ export function MusicPlayerProvider({ children }: { children: ReactNode }) {
     async (track: MobileMusicTrack) => {
       setIsLoading(true)
       try {
-        const stream = await getMusicStreamUrl(track.id)
+        const cached = streamUrlCache.current.get(track.id)
+        const stream =
+          cached && Date.now() - cached.cachedAt < STREAM_CACHE_TTL_MS
+            ? { url: cached.url, accessLevel: cached.accessLevel }
+            : await getMusicStreamUrl(track.id)
+
+        if (!cached || Date.now() - cached.cachedAt >= STREAM_CACHE_TTL_MS) {
+          streamUrlCache.current.set(track.id, {
+            url: stream.url,
+            accessLevel: stream.accessLevel,
+            cachedAt: Date.now(),
+          })
+        }
+
         completedTrackIds.current.delete(track.id)
         lastHeartbeatByTrack.current.delete(track.id)
         setCurrentTrack(track)

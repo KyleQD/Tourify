@@ -54,8 +54,8 @@ export function ToolPalette({ selectedTool, onToolSelect, className }: ToolPalet
                   className={cn(
                     'flex items-center gap-2 px-2 py-2 rounded-lg text-left text-xs transition-colors border',
                     isActive
-                      ? 'bg-slate-700 text-white border-slate-500'
-                      : 'text-slate-400 border-transparent hover:bg-slate-800/60 hover:text-white'
+                      ? 'border-teal-500/40 bg-teal-500/15 text-teal-50'
+                      : 'border-transparent text-slate-400 hover:bg-slate-800/60 hover:text-white'
                   )}
                 >
                   <Icon className="h-3.5 w-3.5 shrink-0" />

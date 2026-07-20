@@ -222,8 +222,8 @@ function DraggableElementButton({
       className={cn(
         'flex items-center gap-2 w-full px-2 py-2 rounded-lg transition-all duration-150 text-left cursor-grab active:cursor-grabbing',
         isSelected
-          ? 'bg-slate-700/80 border border-slate-500/50 shadow-sm'
-          : 'hover:bg-slate-800/50 border border-transparent hover:border-slate-700/30'
+          ? 'border border-teal-500/40 bg-teal-500/15 shadow-sm'
+          : 'border border-transparent hover:border-slate-700/40 hover:bg-slate-800/50'
       )}
     >
       <div className="shrink-0 p-1.5 rounded-md" style={{ backgroundColor: isSelected ? color : `${color}33` }}>

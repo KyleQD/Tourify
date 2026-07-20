@@ -45,6 +45,7 @@ import {
 } from "@/lib/admin/tour-builder"
 import { EntityAccountPicker, type EntityAccountSelection } from "@/components/admin/operations-builder/entity-account-picker"
 import { useBuilderAutosave } from "@/lib/admin/use-builder-autosave"
+import { useActingContext } from "@/hooks/use-acting-context"
 
 interface ExistingEventOption {
   id: string
@@ -169,6 +170,16 @@ function makeStop(): RouteStopDraft {
 
 export default function TourBuilderPage() {
   const router = useRouter()
+  const { actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = React.useCallback((input?: RequestInit): RequestInit => ({
+    credentials: "include",
+    cache: "no-store",
+    ...input,
+    headers: {
+      ...actingHeaders,
+      ...(input?.headers || {}),
+    },
+  }), [actingHeaders])
   const [form, setForm] = React.useState<TourBuilderFormState>(() => ({ ...initialTourBuilderForm, stops: [makeTourStop()] }))
   const [tourId, setTourId] = React.useState<string | null>(null)
   const [isHydrating, setIsHydrating] = React.useState(true)
@@ -181,9 +192,9 @@ export default function TourBuilderPage() {
   const [eventQuery, setEventQuery] = React.useState("")
   const [events, setEvents] = React.useState<ExistingEventOption[]>([])
   const [isLoadingEvents, setIsLoadingEvents] = React.useState(false)
-  const pendingEventAttachRef = React.useRef(false)
 
   React.useEffect(() => {
+    if (!isActingReady) return
     const params = new URLSearchParams(window.location.search)
     const id = params.get("draft") || params.get("id")
     if (!id) {
@@ -195,8 +206,8 @@ export default function TourBuilderPage() {
       setIsHydrating(true)
       try {
         const [tourRes, eventsRes] = await Promise.all([
-          fetch(`/api/admin/tours/${id}`, { credentials: "include", cache: "no-store" }),
-          fetch(`/api/admin/tours/${id}/events`, { credentials: "include", cache: "no-store" }),
+          fetch(`/api/admin/tours/${id}`, adminRequest()),
+          fetch(`/api/admin/tours/${id}/events`, adminRequest()),
         ])
         const tourData = await tourRes.json().catch(() => ({}))
         const eventsData = await eventsRes.json().catch(() => ({}))
@@ -225,7 +236,7 @@ export default function TourBuilderPage() {
     }
     void hydrate()
     return () => { cancelled = true }
-  }, [])
+  }, [adminRequest, isActingReady])
 
   React.useEffect(() => {
     const sectionsForMode = sectionConfig.filter((section) => section.mode === activeMode)
@@ -235,11 +246,12 @@ export default function TourBuilderPage() {
   }, [activeMode, activeSection])
 
   React.useEffect(() => {
+    if (!isActingReady) return
     let cancelled = false
     async function loadEvents() {
       setIsLoadingEvents(true)
       try {
-        const response = await fetch("/api/admin/events", { credentials: "include", cache: "no-store" })
+        const response = await fetch("/api/admin/events", adminRequest())
         const data = await response.json().catch(() => ({}))
         if (!response.ok) throw new Error(data?.error || "Failed to load events")
         if (!cancelled) setEvents(data.events || [])
@@ -253,7 +265,7 @@ export default function TourBuilderPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [adminRequest, isActingReady])
 
   const updateForm = (patch: Partial<TourBuilderFormState>) => {
     setForm((current) => ({ ...current, ...patch }))
@@ -269,7 +281,11 @@ export default function TourBuilderPage() {
   }
 
   const removeStop = (id: string) => {
-    setForm((current) => ({ ...current, stops: current.stops.filter((stop) => stop.id !== id) }))
+    setForm((current) => ({
+      ...current,
+      stops: current.stops.filter((stop) => stop.id !== id),
+      attachedEventIds: current.attachedEventIds.filter((eventId) => eventId !== id),
+    }))
     setSaveStatus("unsaved")
   }
 
@@ -277,24 +293,27 @@ export default function TourBuilderPage() {
 
   const attachEvent = (eventId: string) => {
     if (form.attachedEventIds.includes(eventId)) return
-    updateForm({ attachedEventIds: [...form.attachedEventIds, eventId] })
-  }
-
-  React.useEffect(() => {
-    if (isHydrating || pendingEventAttachRef.current) return
-    const eventId = new URLSearchParams(window.location.search).get("event_id")
-    if (!eventId) return
-    pendingEventAttachRef.current = true
-    setForm((current) => current.attachedEventIds.includes(eventId)
-      ? current
-      : { ...current, attachedEventIds: [...current.attachedEventIds, eventId] })
-    setActiveMode("plan")
-    setActiveSection("events")
-    setSaveStatus("unsaved")
-    sonnerToast.info("Event staged for this tour", {
-      description: "Save the tour draft to keep this event attached.",
+    const event = events.find((candidate) => candidate.id === eventId)
+    const nextStop: RouteStopDraft | null = event
+      ? {
+          id: event.id,
+          name: event.name,
+          venue: event.venue_name || "",
+          date: event.event_date ? event.event_date.slice(0, 10) : "",
+          time: event.event_date?.includes("T") ? event.event_date.slice(11, 16) : "",
+          market: "",
+          leg_name: "",
+          capacity: "",
+          advance_status: "not_started",
+        }
+      : null
+    updateForm({
+      attachedEventIds: [...form.attachedEventIds, eventId],
+      stops: nextStop && !form.stops.some((stop) => stop.id === eventId)
+        ? [...form.stops.filter((stop) => stop.name || stop.venue || stop.date), nextStop]
+        : form.stops,
     })
-  }, [isHydrating])
+  }
 
   const readiness = React.useMemo(() => getTourReadiness({
     name: form.name,
@@ -336,6 +355,7 @@ export default function TourBuilderPage() {
     publish = false,
     { redirect = true, silent = false }: { redirect?: boolean; silent?: boolean } = {}
   ) => {
+    if (!isActingReady) return null
     if (publish && readiness.blockers.length > 0) {
       const first = readiness.blockers[0]
       sonnerToast.error("Publish blockers remain", {
@@ -350,10 +370,11 @@ export default function TourBuilderPage() {
     try {
       const payload = buildTourBuilderPayload(form, { publish, readinessScore: readiness.score })
       const response = await fetch(tourId ? `/api/admin/tours/${tourId}` : "/api/admin/tours", {
-        method: tourId ? "PATCH" : "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        ...adminRequest({
+          method: tourId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }),
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data?.error || "Failed to save tour")
@@ -378,12 +399,14 @@ export default function TourBuilderPage() {
       }
 
       if (publish && savedId) {
-        const publishRes = await fetch(`/api/admin/tours/${savedId}/publish`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({}),
-        })
+        const publishRes = await fetch(
+          `/api/admin/tours/${savedId}/publish`,
+          adminRequest({
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          }),
+        )
         if (!publishRes.ok) {
           const publishData = await publishRes.json().catch(() => ({}))
           throw new Error(publishData?.error || "Tour saved but publish fanout failed")
@@ -413,7 +436,7 @@ export default function TourBuilderPage() {
     } finally {
       setIsSaving(false)
     }
-  }, [form, readiness.blockers, readiness.score, router, tourId])
+  }, [adminRequest, form, isActingReady, readiness.blockers, readiness.score, router, tourId])
 
   const saveTour = async (publish = false) => {
     await persistTour(publish, { redirect: true })
@@ -499,7 +522,8 @@ export default function TourBuilderPage() {
                 <EntityAccountPicker
                   label="Headliner artist account"
                   placeholder="Search artists…"
-                  searchUrl="/api/tours/planner/artists"
+                  searchUrl="/api/admin/tours/artists"
+                  requestHeaders={actingHeaders}
                   multi={false}
                   mapResult={(row) => ({
                     id: String(row.id || ""),

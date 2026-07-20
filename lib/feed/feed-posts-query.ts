@@ -1,5 +1,7 @@
 import { isAccountAttributionSchemaError } from '@/lib/accounts/account-author'
 
+// Intentionally no `profiles:user_id (...)` embed: many environments lack a posts→profiles
+// FK (PGRST200). Owner profiles are hydrated in enrichFeedPosts instead.
 const POST_SELECT_COLUMNS = `
   id,
   user_id,
@@ -15,6 +17,7 @@ const POST_SELECT_COLUMNS = `
   visibility,
   location,
   hashtags,
+  tagged_users,
   posted_as_profile_id,
   posted_as_type,
   account_display_name,
@@ -24,14 +27,7 @@ const POST_SELECT_COLUMNS = `
   content_ref_id,
   metadata,
   poll_ends_at,
-  poll_total_votes,
-  profiles:user_id (
-    id,
-    username,
-    full_name,
-    avatar_url,
-    is_verified
-  )
+  poll_total_votes
 `
 
 const POST_SELECT_COLUMNS_LEGACY = `
@@ -48,14 +44,7 @@ const POST_SELECT_COLUMNS_LEGACY = `
   type,
   visibility,
   location,
-  hashtags,
-  profiles:user_id (
-    id,
-    username,
-    full_name,
-    avatar_url,
-    is_verified
-  )
+  hashtags
 `
 
 const POST_SELECT_COLUMNS_CORE_WITH_PROFILE = `
@@ -67,14 +56,7 @@ const POST_SELECT_COLUMNS_CORE_WITH_PROFILE = `
   comments_count,
   shares_count,
   created_at,
-  updated_at,
-  profiles:user_id (
-    id,
-    username,
-    full_name,
-    avatar_url,
-    is_verified
-  )
+  updated_at
 `
 
 const POST_SELECT_COLUMNS_CORE = `
@@ -179,6 +161,11 @@ export type FeedQueryScope = {
   followingUserIds?: string[]
   followingProfileIds?: string[]
   ownedProfileIds?: string[]
+  membershipProfileIds?: string[]
+  /** Tagged + collab (and similar) post IDs to OR into home/following-style feeds */
+  extraPostIds?: string[]
+  /** For type=user: accepted collab posts that should appear on this profile */
+  acceptedCollabPostIds?: string[]
   viewerOwnsProfile?: boolean
   viewerCanSeeFollowersPosts?: boolean
   /** legacy (default): profile_id OR user_id owner posts. strict: posted_as_profile_id only. */
@@ -196,7 +183,13 @@ export function isPostReadSchemaError(error: unknown): boolean {
   const hint = String(record.hint || '')
   const combined = `${message} ${details} ${hint}`
 
-  if (code === 'PGRST200' && combined.includes('profiles')) return true
+  // Missing posts↔profiles (or posts.user_id) relationship for embeds — retry without join.
+  if (
+    code === 'PGRST200' &&
+    (combined.includes('profiles') || combined.includes("between 'posts' and 'user_id'"))
+  ) {
+    return true
+  }
   if (code === '42703' || code === 'PGRST204') {
     return OPTIONAL_POST_READ_FIELDS.some(field => combined.includes(field))
   }
@@ -274,7 +267,8 @@ function buildBasePostsQuery(
 
 function getAllowedVisibilityValues(scope: FeedQueryScope): string[] | null {
   if (scope.type === 'all') return ['public']
-  if (scope.type === 'following') return ['public', 'followers']
+  if (scope.type === 'following' || scope.type === 'home' || scope.type === 'tagged')
+    return ['public', 'followers']
 
   if (scope.type === 'user') {
     if (scope.viewerOwnsProfile) return null
@@ -299,7 +293,8 @@ function isVisiblePost(row: any, scope: FeedQueryScope) {
 
   const visibility = row?.visibility || 'public'
   if (scope.type === 'all') return visibility === 'public'
-  if (scope.type === 'following') return visibility === 'public' || visibility === 'followers'
+  if (scope.type === 'following' || scope.type === 'home' || scope.type === 'tagged')
+    return visibility === 'public' || visibility === 'followers'
 
   if (scope.type === 'user') {
     if (scope.viewerOwnsProfile) return true
@@ -311,7 +306,15 @@ function isVisiblePost(row: any, scope: FeedQueryScope) {
   return true
 }
 
+function rowTaggedUsers(row: any): string[] {
+  if (!Array.isArray(row?.tagged_users)) return []
+  return row.tagged_users.map((id: unknown) => String(id))
+}
+
 function matchesUserScope(row: any, scope: FeedQueryScope) {
+  const acceptedCollabIds = unique(scope.acceptedCollabPostIds || [])
+  if (acceptedCollabIds.length > 0 && acceptedCollabIds.includes(row?.id)) return true
+
   if (scope.attribution === 'strict' && scope.profileIdFilter)
     return row?.posted_as_profile_id === scope.profileIdFilter
 
@@ -347,13 +350,44 @@ function matchesFollowingScope(row: any, scope: FeedQueryScope) {
   return false
 }
 
+function matchesHomeScope(row: any, scope: FeedQueryScope) {
+  if (matchesFollowingScope(row, scope)) return true
+
+  const membershipProfileIds = unique(scope.membershipProfileIds || [])
+  if (membershipProfileIds.length > 0 && membershipProfileIds.includes(row?.posted_as_profile_id))
+    return true
+
+  const extraPostIds = unique(scope.extraPostIds || [])
+  if (extraPostIds.length > 0 && extraPostIds.includes(row?.id)) return true
+
+  if (scope.authUserId && rowTaggedUsers(row).includes(scope.authUserId)) return true
+
+  return false
+}
+
+function matchesTaggedScope(row: any, scope: FeedQueryScope) {
+  if (!scope.authUserId) return false
+  return rowTaggedUsers(row).includes(scope.authUserId)
+}
+
 function applyScopeInMemory(rows: any[], scope: FeedQueryScope) {
   return rows.filter(row => {
     if (!isVisiblePost(row, scope)) return false
     if (scope.type === 'user') return matchesUserScope(row, scope)
     if (scope.type === 'following') return matchesFollowingScope(row, scope)
+    if (scope.type === 'home') return matchesHomeScope(row, scope)
+    if (scope.type === 'tagged') return matchesTaggedScope(row, scope)
     return true
   })
+}
+
+/** Exported for unit tests */
+export function matchesHomeFeedScope(row: any, scope: FeedQueryScope) {
+  return matchesHomeScope(row, scope)
+}
+
+export function matchesTaggedFeedScope(row: any, scope: FeedQueryScope) {
+  return matchesTaggedScope(row, scope)
 }
 
 function compareCreatedAtDesc(left: any, right: any) {
@@ -398,52 +432,101 @@ async function fetchPostsWithStarFallback(
   return { data: scoped, error: null }
 }
 
+function buildAuthorOrExtraFilter(
+  userIds: string[],
+  profileIds: string[],
+  extraPostIds: string[],
+  supportsAccountAttribution: boolean
+) {
+  const clauses: string[] = []
+  if (userIds.length > 0) clauses.push(`user_id.in.(${formatPostgrestList(userIds)})`)
+  if (supportsAccountAttribution && profileIds.length > 0)
+    clauses.push(`posted_as_profile_id.in.(${formatPostgrestList(profileIds)})`)
+  if (extraPostIds.length > 0) clauses.push(`id.in.(${formatPostgrestList(extraPostIds)})`)
+  return clauses
+}
+
 export function applyFeedScopeToQuery(query: any, variant: FeedPostSelectVariant, scope: FeedQueryScope) {
   if (scope.type === 'user') {
     const ownerUserId = getOwnerUserIdForFallback(scope)
+    const acceptedCollabIds = unique(scope.acceptedCollabPostIds || [])
 
     if (scope.attribution === 'strict' && scope.profileIdFilter) {
-      if (variant.supportsAccountAttribution)
+      if (variant.supportsAccountAttribution) {
+        if (acceptedCollabIds.length > 0) {
+          return query.or(
+            `posted_as_profile_id.eq.${scope.profileIdFilter},id.in.(${formatPostgrestList(acceptedCollabIds)})`
+          )
+        }
         return query.eq('posted_as_profile_id', scope.profileIdFilter)
+      }
       // Without attribution columns, strict mode cannot safely include owner-wide posts.
+      if (acceptedCollabIds.length > 0) {
+        return query.or(
+          `user_id.eq.${scope.profileIdFilter},id.in.(${formatPostgrestList(acceptedCollabIds)})`
+        )
+      }
       return query.eq('user_id', scope.profileIdFilter)
     }
 
     if (scope.profileIdFilter && variant.supportsAccountAttribution) {
       const legacyOwnerIds = unique([ownerUserId, scope.profileIdFilter])
-      return query.or(
-        `posted_as_profile_id.eq.${scope.profileIdFilter},user_id.in.(${formatPostgrestList(legacyOwnerIds)})`
-      )
+      const clauses = [
+        `posted_as_profile_id.eq.${scope.profileIdFilter}`,
+        `user_id.in.(${formatPostgrestList(legacyOwnerIds)})`,
+      ]
+      if (acceptedCollabIds.length > 0)
+        clauses.push(`id.in.(${formatPostgrestList(acceptedCollabIds)})`)
+      return query.or(clauses.join(','))
     }
 
     const fallbackOwnerIds = unique([ownerUserId, scope.profileIdFilter])
+    if (acceptedCollabIds.length > 0 && fallbackOwnerIds.length > 0) {
+      return query.or(
+        `user_id.in.(${formatPostgrestList(fallbackOwnerIds)}),id.in.(${formatPostgrestList(acceptedCollabIds)})`
+      )
+    }
     if (fallbackOwnerIds.length > 1) return query.in('user_id', fallbackOwnerIds)
     if (fallbackOwnerIds.length === 1) return query.eq('user_id', fallbackOwnerIds[0])
+    if (acceptedCollabIds.length > 0) return query.in('id', acceptedCollabIds)
     if (scope.profileIdFilter) return query.eq('user_id', scope.profileIdFilter)
     return query
   }
 
-  if (scope.type === 'following' && scope.authUserId) {
+  if (scope.type === 'tagged' && scope.authUserId) {
+    return query.contains('tagged_users', [scope.authUserId])
+  }
+
+  if ((scope.type === 'following' || scope.type === 'home') && scope.authUserId) {
     const userIds = unique(scope.followingUserIds || [])
     const profileIds = unique([
       ...(scope.ownedProfileIds || []),
       ...(scope.followingProfileIds || []),
+      ...(scope.type === 'home' ? (scope.membershipProfileIds || []) : []),
     ])
+    const extraPostIds = scope.type === 'home' ? unique(scope.extraPostIds || []) : []
 
-    if (userIds.length === 0 && profileIds.length === 0)
+    if (userIds.length === 0 && profileIds.length === 0 && extraPostIds.length === 0)
       return query.eq('user_id', scope.authUserId)
 
-    if (variant.supportsAccountAttribution && profileIds.length > 0 && userIds.length > 0) {
-      return query.or(
-        `user_id.in.(${formatPostgrestList(userIds)}),posted_as_profile_id.in.(${formatPostgrestList(profileIds)})`
-      )
+    const clauses = buildAuthorOrExtraFilter(
+      userIds,
+      profileIds,
+      extraPostIds,
+      variant.supportsAccountAttribution
+    )
+
+    if (clauses.length === 0) return query.eq('user_id', scope.authUserId)
+    if (clauses.length === 1) {
+      if (userIds.length > 0 && !variant.supportsAccountAttribution && extraPostIds.length === 0)
+        return query.in('user_id', userIds)
+      if (extraPostIds.length > 0 && userIds.length === 0 && profileIds.length === 0)
+        return query.in('id', extraPostIds)
+      if (variant.supportsAccountAttribution && profileIds.length > 0 && userIds.length === 0 && extraPostIds.length === 0)
+        return query.in('posted_as_profile_id', profileIds)
     }
 
-    if (variant.supportsAccountAttribution && profileIds.length > 0)
-      return query.in('posted_as_profile_id', profileIds)
-
-    if (userIds.length > 0) return query.in('user_id', userIds)
-    return query.eq('user_id', scope.authUserId)
+    return query.or(clauses.join(','))
   }
 
   return query
@@ -458,11 +541,18 @@ export async function fetchFeedPostsWithFallback(
   let lastError: any = null
 
   for (const variant of FEED_POST_SELECT_VARIANTS) {
+    // #region agent log
+    const __variantStart = Date.now()
+    // #endregion
     let query = buildBasePostsQuery(supabase, variant, scope, limit, offset)
     query = applyFeedScopeToQuery(query, variant, scope)
     query = applyVisibilityScopeToQuery(query, variant, scope)
 
     const { data, error } = await query
+
+    // #region agent log
+    fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'881a75'},body:JSON.stringify({sessionId:'881a75',runId:'post-fix',hypothesisId:'B',location:'lib/feed/feed-posts-query.ts:fetchFeedPostsWithFallback',message:'variant_attempt',data:{variant:variant.name,stageMs:Date.now()-__variantStart,hasError:Boolean(error),errorCode:error?.code||null,isSchemaError:error?isPostReadSchemaError(error):false,rowCount:data?.length||0,scopeType:scope.type},timestamp:Date.now()})}).catch(()=>{})
+    // #endregion
 
     if (!error) {
       return { data, error: null, variantName: variant.name }
@@ -477,7 +567,13 @@ export async function fetchFeedPostsWithFallback(
     console.warn(`[Feed Posts API] ${variant.name} posts query hit a schema mismatch; trying a safer select.`)
   }
 
+  // #region agent log
+  const __rawStart = Date.now()
+  // #endregion
   const rawFallback = await fetchPostsWithStarFallback(supabase, scope, limit, offset)
+  // #region agent log
+  fetch('http://127.0.0.1:7556/ingest/15f15573-361b-4909-ba46-1f6afc0001bf',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'881a75'},body:JSON.stringify({sessionId:'881a75',runId:'post-fix',hypothesisId:'B',location:'lib/feed/feed-posts-query.ts:fetchPostsWithStarFallback',message:'raw_star_fallback',data:{stageMs:Date.now()-__rawStart,hasError:Boolean(rawFallback.error),rowCount:rawFallback.data?.length||0,scopeType:scope.type},timestamp:Date.now()})}).catch(()=>{})
+  // #endregion
   if (!rawFallback.error) {
     return { data: rawFallback.data, error: null, variantName: 'raw_star' }
   }

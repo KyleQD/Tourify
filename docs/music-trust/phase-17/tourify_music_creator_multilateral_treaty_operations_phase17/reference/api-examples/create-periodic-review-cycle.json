@@ -1,0 +1,17 @@
+{
+  "idempotencyKey": "p17-review-2029-001",
+  "institutionId": "00000000-0000-0000-0000-000000000001",
+  "mandateSource": {
+    "type": "constitutive_instrument",
+    "id": "instrument-1",
+    "version": "3"
+  },
+  "scope": [
+    "creator_access",
+    "portability",
+    "remedy",
+    "service_continuity"
+  ],
+  "baselineAt": "2029-01-01T00:00:00Z",
+  "jurisdiction": "multilateral-sandbox"
+}

@@ -446,6 +446,22 @@ export function TokenOnboardingFlow({ token }: TokenOnboardingFlowProps) {
             <p className="mt-3 max-w-xl text-slate-300">
               Your answers and documents were sent to {payload.employer.displayName || "your hiring team"}. They will review anything that needs approval and activate your roster access.
             </p>
+            <ul className="mt-6 space-y-2 text-sm text-slate-300">
+              <li className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                Status: pending employer review
+              </li>
+              <li className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                Next: your hiring team verifies documents and required fields
+              </li>
+              <li className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
+                You will get access after they approve your onboarding
+              </li>
+            </ul>
+            {(payload.template.required_documents?.length ?? 0) > 0 ? (
+              <p className="mt-4 text-xs text-slate-400">
+                Documents typically reviewed: {(payload.template.required_documents ?? []).join(", ")}
+              </p>
+            ) : null}
           </div>
         </div>
       </main>

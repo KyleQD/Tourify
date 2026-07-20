@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ProductionAuthService } from '@/lib/auth/production-auth'
 import { presentFollowRequests } from '@/lib/social/follow-request-presenter'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import { generalNotificationTarget } from '@/lib/notifications/notification-target'
 
 export async function POST(request: NextRequest) {
   try {
@@ -326,8 +328,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (isBrokenPrefsGate) {
-        // Best-effort acceptance notify (trigger skipped when we delete instead of update)
-        await supabase.from('notifications').insert({
+        // Best-effort acceptance notify (trigger skipped when we delete instead of update).
+        // Use service role — RLS only allows insert where user_id = auth.uid().
+        const target = generalNotificationTarget(followRequest.requester_id)
+        const service = createServiceRoleClient()
+        await service.from('notifications').insert({
           user_id: followRequest.requester_id,
           type: 'follow_accepted',
           title: 'Follow Request Accepted',
@@ -336,6 +341,8 @@ export async function POST(request: NextRequest) {
           related_user_id: user.id,
           priority: 'normal',
           is_read: false,
+          target_profile_id: target.targetProfileId,
+          target_account_type: target.targetAccountType,
         })
       }
 

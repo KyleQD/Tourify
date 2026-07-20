@@ -43,6 +43,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { getArtistPublicProfilePath } from "@/lib/utils/public-profile-routes"
 import { ARTIST_OUTLINE_BTN } from "@/components/dashboard/artist-tokens"
+import { getAccountAvatarUrl } from "@/lib/accounts/account-presentation"
 
 // View Profile Button Component
 function ViewProfileButton() {
@@ -125,13 +126,16 @@ function ProfileCard() {
           }
         }
 
-        // Load unread notifications count
-        const { count: notificationsCount } = await supabase
-          .from('notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('read', false)
-        
+        const { fetchUnreadNotificationCount } = await import(
+          '@/lib/notifications/fetch-user-notifications'
+        )
+        const notificationsCount = await fetchUnreadNotificationCount({
+          supabase,
+          userId: user.id,
+          targetProfileId: currentAccount.profile_id,
+          accountType: currentAccount.account_type,
+        })
+
         setNotifications(notificationsCount || 0)
       } catch (error) {
         console.error('Error loading profile data:', error)
@@ -187,7 +191,7 @@ function ProfileCard() {
         <div className="flex items-center space-x-3 mb-4">
           <div className="relative">
             <Avatar className="h-12 w-12 ring-2 ring-purple-500/30">
-              <AvatarImage src={currentAccount.profile_data?.avatar_url} alt={displayName} />
+              <AvatarImage src={getAccountAvatarUrl(currentAccount) || undefined} alt={displayName} />
               <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white font-semibold">
                 {displayName.charAt(0).toUpperCase()}
               </AvatarFallback>
@@ -459,14 +463,13 @@ interface ArtistNavGroup {
 
 const artistNavigationGroups: ArtistNavGroup[] = [
   {
-    items: [{ name: 'Home', href: '/artist', icon: LayoutDashboard }],
+    items: [{ name: 'Home', href: '/artist', icon: Home }],
   },
   {
     label: 'Create & Publish',
     items: [
-      { name: 'Feed', href: '/artist/feed', icon: Home },
       { name: 'Content', href: '/artist/content', icon: Video },
-      { name: 'Blog', href: '/artist/features/blog', icon: BookOpen },
+      { name: 'Press', href: '/artist/press', icon: BookOpen },
       { name: 'Music', href: '/artist/music', icon: Music2 },
       { name: 'EPK', href: '/artist/epk', icon: FileText },
     ],
@@ -489,6 +492,7 @@ const artistNavigationGroups: ArtistNavGroup[] = [
   {
     label: 'Career',
     items: [
+      { name: 'Overview', href: '/artist/overview', icon: LayoutDashboard },
       { name: 'Business', href: '/artist/business', icon: Briefcase },
       { name: 'Profile', href: '/artist/profile', icon: User },
     ],

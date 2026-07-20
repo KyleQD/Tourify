@@ -2,6 +2,7 @@
 // Do not add auth checks here. RLS on underlying tables restricts to published listings only.
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { normalizeUsername } from "@/lib/auth/tourify-auth-helpers"
 import { getSchemaNotReadyMessage, isSchemaCacheMissingError } from "@/lib/marketplace/schema-readiness"
 
 export const dynamic = "force-dynamic"
@@ -19,13 +20,32 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(Math.max(Number(searchParams.get("limit") || "24"), 1), 100)
 
     let resolvedSellerId = sellerUserId
+    let resolvedSellerUsername: string | null = null
+
     if (!resolvedSellerId && sellerUsername) {
+      const normalizedUsername = normalizeUsername(sellerUsername)
+      if (!normalizedUsername) {
+        return NextResponse.json(
+          { error: { code: "seller_not_found", message: "Seller not found" } },
+          { status: 404 }
+        )
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id")
-        .eq("username", sellerUsername)
+        .select("id, username")
+        .eq("username", normalizedUsername)
         .maybeSingle()
-      resolvedSellerId = profile?.id || null
+
+      if (!profile?.id) {
+        return NextResponse.json(
+          { error: { code: "seller_not_found", message: "Seller not found" } },
+          { status: 404 }
+        )
+      }
+
+      resolvedSellerId = profile.id
+      resolvedSellerUsername = profile.username || normalizedUsername
     }
 
     let query = supabase
@@ -61,7 +81,17 @@ export async function GET(request: NextRequest) {
         )
       : data || []
 
-    return NextResponse.json({ data: filtered })
+    return NextResponse.json({
+      data: filtered,
+      ...(resolvedSellerId
+        ? {
+            seller: {
+              id: resolvedSellerId,
+              username: resolvedSellerUsername,
+            },
+          }
+        : {}),
+    })
   } catch (error) {
     console.error("Unexpected marketplace discover error", error)
     return NextResponse.json({ error: "Unexpected error discovering listings" }, { status: 500 })

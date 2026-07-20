@@ -131,7 +131,7 @@ export default function NewArticlePage() {
 
       toast.success('Article published! It will appear in your followers\' feeds.')
       if (isFromArtist)
-        router.push('/artist/features/blog')
+        router.push('/artist/press')
       else
         router.push(data.article?.url || `/blog/${data.article?.slug}`)
     } catch (error) {
@@ -171,7 +171,7 @@ export default function NewArticlePage() {
 
       toast.success('Draft saved')
       if (isFromArtist)
-        router.push('/artist/features/blog?status=draft')
+        router.push('/artist/press?status=draft')
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save draft')
     } finally {
@@ -192,14 +192,14 @@ export default function NewArticlePage() {
           <div className="flex items-center gap-4">
             <button
               type="button"
-              onClick={() => (isFromArtist ? router.push('/artist/features/blog') : router.back())}
+              onClick={() => (isFromArtist ? router.push('/artist/press') : router.back())}
               className="inline-flex items-center gap-2 text-sm text-slate-400 transition hover:text-white"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
             </button>
             <Link
-              href="/artist/features/blog"
+              href="/artist/press"
               className="text-sm text-slate-400 transition hover:text-white"
             >
               Manage posts

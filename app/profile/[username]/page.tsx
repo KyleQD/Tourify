@@ -3,13 +3,13 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { EnhancedPublicProfileView } from "@/components/profile/enhanced-public-profile-view"
+import { CustomPublicProfileView } from "@/components/profile/custom-public-profile-view"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Loader2, Users } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { MessageModal } from "@/components/messaging/message-modal"
-import { FollowRequestsModal } from "@/components/profile/follow-requests-modal"
-import { ProfileShareCard } from "@/components/profile/profile-share-card"
 import { useAuth } from "@/contexts/auth-context"
+import type { CustomProfileLayout } from "@/lib/profile/custom-profile-layout"
 
 interface ProfileData {
   id: string
@@ -43,11 +43,11 @@ export default function ProfilePage() {
   const [portfolio, setPortfolio] = useState<any[]>([])
   const [experiences, setExperiences] = useState<any[]>([])
   const [certifications, setCertifications] = useState<any[]>([])
+  const [customLayout, setCustomLayout] = useState<CustomProfileLayout | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isOwnProfile, setIsOwnProfile] = useState(false)
   const [showMessageModal, setShowMessageModal] = useState(false)
-  const [showFollowRequestsModal, setShowFollowRequestsModal] = useState(false)
   
   const { user, isAuthenticated } = useAuth()
 
@@ -56,6 +56,34 @@ export default function ProfilePage() {
       fetchProfile()
     }
   }, [username])
+
+  // Re-hydrate avatar/cover on own profile after Appearance uploads.
+  useEffect(() => {
+    if (!isOwnProfile) return
+
+    function handleProfileImagesUpdated(event: Event) {
+      const detail = (event as CustomEvent<{ avatarUrl?: string | null; coverUrl?: string | null }>).detail
+      if (detail) {
+        setProfile((prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            ...(detail.avatarUrl !== undefined ? { avatar_url: detail.avatarUrl ?? undefined } : {}),
+            ...(detail.coverUrl !== undefined ? { cover_image: detail.coverUrl ?? undefined } : {}),
+            profile_data: {
+              ...prev.profile_data,
+              ...(detail.avatarUrl !== undefined ? { avatar_url: detail.avatarUrl } : {}),
+              ...(detail.coverUrl !== undefined ? { cover_image: detail.coverUrl } : {}),
+            },
+          }
+        })
+      }
+      void fetchProfile()
+    }
+
+    window.addEventListener('profile-images-updated', handleProfileImagesUpdated)
+    return () => window.removeEventListener('profile-images-updated', handleProfileImagesUpdated)
+  }, [isOwnProfile, username])
 
   const fetchProfile = async () => {
     try {
@@ -78,6 +106,11 @@ export default function ProfilePage() {
               setPortfolio(currentUserData.portfolio || [])
               setExperiences(currentUserData.experiences || [])
               setCertifications(currentUserData.certifications || [])
+              setCustomLayout(
+                currentUserData.profile?.custom_profile_layout ||
+                  currentUserData.custom_profile_layout ||
+                  null
+              )
               setIsOwnProfile(true)
               return
             }
@@ -97,6 +130,9 @@ export default function ProfilePage() {
           setPortfolio(data.portfolio || [])
           setExperiences(data.experiences || [])
           setCertifications(data.certifications || [])
+          setCustomLayout(
+            data.profile?.custom_profile_layout || data.custom_profile_layout || null
+          )
           setIsOwnProfile(false)
         } else {
           setError('Profile not found')
@@ -233,7 +269,7 @@ export default function ProfilePage() {
 
   return (
     <div className="relative">
-      {/* Back Button and Follow Requests */}
+      {/* Back Button */}
       <div className="absolute top-4 left-4 z-50 flex gap-2">
         <Button
           onClick={() => router.back()}
@@ -244,51 +280,33 @@ export default function ProfilePage() {
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        
-        {/* Follow Requests Button - only show for authenticated users */}
-        {user && isAuthenticated && (
-          <Button
-            onClick={() => setShowFollowRequestsModal(true)}
-            variant="outline"
-            size="sm"
-            className="bg-black/20 backdrop-blur-sm border-purple-400/50 text-purple-300 hover:bg-purple-400/20"
-          >
-            <Users className="h-4 w-4 mr-2" />
-            Requests
-          </Button>
-        )}
-      </div>
-
-      <div className="absolute right-4 top-4 z-50 hidden w-[420px] max-w-[calc(100vw-2rem)] lg:block">
-        <ProfileShareCard
-          username={profile.username}
-          displayName={profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name || profile.username}
-          sharePath="/profile"
-          compact
-        />
       </div>
 
       {/* Profile View */}
-      <EnhancedPublicProfileView
-        profile={profile}
-        isOwnProfile={isOwnProfile}
-        onFollow={handleFollow}
-        onMessage={handleMessage}
-        onShare={handleShare}
-        // @ts-ignore pass-through extended props
-        portfolio={portfolio}
-        experiences={experiences}
-        certifications={certifications}
-      />
-
-      <div className="mx-4 mt-4 lg:hidden">
-        <ProfileShareCard
-          username={profile.username}
-          displayName={profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name || profile.username}
-          sharePath="/profile"
-          compact
+      {customLayout && profile.account_type === 'general' ? (
+        <CustomPublicProfileView
+          layout={customLayout}
+          profile={profile}
+          isOwnProfile={isOwnProfile}
+          onMessage={handleMessage}
+          onShare={handleShare}
+          portfolio={portfolio}
+          experiences={experiences}
+          certifications={certifications}
         />
-      </div>
+      ) : (
+        <EnhancedPublicProfileView
+          profile={profile}
+          isOwnProfile={isOwnProfile}
+          onFollow={handleFollow}
+          onMessage={handleMessage}
+          onShare={handleShare}
+          // @ts-ignore pass-through extended props
+          portfolio={portfolio}
+          experiences={experiences}
+          certifications={certifications}
+        />
+      )}
 
       {/* Message Modal */}
       {profile && (
@@ -301,14 +319,6 @@ export default function ProfilePage() {
             full_name: profile.profile_data?.name || profile.profile_data?.artist_name || profile.profile_data?.venue_name,
             avatar_url: profile.avatar_url
           }}
-        />
-      )}
-
-      {/* Follow Requests Modal */}
-      {user && isAuthenticated && (
-        <FollowRequestsModal
-          isOpen={showFollowRequestsModal}
-          onClose={() => setShowFollowRequestsModal(false)}
         />
       )}
     </div>

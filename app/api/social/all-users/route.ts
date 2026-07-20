@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
-import { parseUserFromRequestCookieHeader } from '@/lib/supabase/tourify-session-cookie'
 
 function asRecord(value: unknown): Record<string, any> | null {
   return value && typeof value === 'object' ? (value as Record<string, any>) : null
@@ -51,10 +50,10 @@ async function resolveRequestUser(request: NextRequest): Promise<User | null> {
     const { data: { user }, error } = await authClient.auth.getUser()
     if (!error && user) return user
   } catch (error) {
-    console.warn('all-users getUser failed, trying cookie fallback:', error)
+    console.warn('all-users getUser failed:', error)
   }
 
-  return parseUserFromRequestCookieHeader(request.headers.get('cookie'))
+  return null
 }
 
 export async function GET(request: NextRequest) {

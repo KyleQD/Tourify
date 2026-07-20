@@ -51,7 +51,7 @@ describe("shift-assignment-notify", () => {
     expect(payload.content).toContain("Stagehand")
     expect(payload.metadata.shift_id).toBe("shift_1")
     expect(payload.metadata.assignment_id).toBe("assign_1")
-    expect(payload.metadata.link).toBe("/messages?tab=work")
+    expect(payload.metadata.link).toBe("/dashboard/staff-ops")
   })
 
   it("sends update and cancellation notifications", async () => {

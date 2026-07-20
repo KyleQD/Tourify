@@ -1,13 +1,14 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { X, Send, MessageCircle, Loader2 } from "lucide-react"
-import { toast } from "sonner"
-import { useAuth } from "@/contexts/auth-context"
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Send, MessageCircle, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '@/contexts/auth-context'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 interface MessageModalProps {
   isOpen: boolean
@@ -18,16 +19,28 @@ interface MessageModalProps {
     full_name?: string
     avatar_url?: string
   }
+  /** Entity account the message should land in (artist/org/venue inbox). */
+  recipientAccount?: {
+    profileId: string
+    accountType: string
+  }
   prefill?: {
     text?: string
-    attachment?: any
+    attachment?: unknown
   }
 }
 
-export function MessageModal({ isOpen, onClose, recipient, prefill }: MessageModalProps) {
-  const [message, setMessage] = useState(prefill?.text || "")
+export function MessageModal({
+  isOpen,
+  onClose,
+  recipient,
+  recipientAccount,
+  prefill,
+}: MessageModalProps) {
+  const [message, setMessage] = useState(prefill?.text || '')
   const [isLoading, setIsLoading] = useState(false)
   const { user, isAuthenticated } = useAuth()
+  const { actingHeaders } = useActingContext()
 
   const handleSendMessage = async () => {
     if (!user || !isAuthenticated) {
@@ -53,21 +66,27 @@ export function MessageModal({ isOpen, onClose, recipient, prefill }: MessageMod
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          ...actingHeaders,
         },
         body: JSON.stringify({
           recipientId: recipient.id,
+          recipientProfileId: recipientAccount?.profileId,
+          recipientAccountType: recipientAccount?.accountType,
           content: message.trim(),
-          attachment: prefill?.attachment || null
-        })
+          attachment: prefill?.attachment || null,
+        }),
       })
 
       if (response.ok) {
-        const result = await response.json()
-        toast.success('Message sent successfully! 📩')
-        setMessage("")
+        toast.success(
+          recipientAccount && recipientAccount.accountType !== 'general'
+            ? 'Message request sent to their account inbox'
+            : 'Message sent successfully',
+        )
+        setMessage('')
         onClose()
       } else {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({}))
         toast.error(error.error || 'Failed to send message')
       }
     } catch (error) {
@@ -78,95 +97,66 @@ export function MessageModal({ isOpen, onClose, recipient, prefill }: MessageMod
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
-
-  const displayName = recipient.full_name || recipient.username
-  const characterCount = message.length
-  const maxCharacters = 1000
-
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px] bg-slate-900 border-slate-700">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md border-slate-700 bg-slate-900 text-white">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-white">
+          <DialogTitle className="flex items-center gap-2">
             <MessageCircle className="h-5 w-5 text-purple-400" />
             Send Message
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Recipient Info */}
-          <div className="flex items-center gap-3 p-3 bg-slate-800 rounded-lg">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={recipient.avatar_url || ''} />
-              <AvatarFallback>
-                {displayName.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-medium text-white">{displayName}</p>
-              <p className="text-sm text-gray-400">@{recipient.username}</p>
-            </div>
+        <div className="flex items-center gap-3 rounded-lg border border-slate-700 bg-slate-800/50 p-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={recipient.avatar_url || undefined} alt="" />
+            <AvatarFallback className="bg-slate-700">
+              {(recipient.full_name || recipient.username || '?').charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="truncate font-medium">{recipient.full_name || recipient.username}</p>
+            <p className="truncate text-sm text-slate-400">@{recipient.username}</p>
           </div>
+        </div>
 
-          {/* Message Input */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-gray-300">
-              Your Message
-            </label>
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={`Send a message to ${displayName}...`}
-              className="min-h-[120px] bg-slate-800 border-slate-600 text-white placeholder-gray-400 focus:border-purple-500 focus:ring-purple-500"
-              disabled={isLoading}
-            />
-            <div className="flex justify-between items-center text-xs">
-              <span className="text-gray-400">
-                Press Enter to send, Shift+Enter for new line
-              </span>
-              <span className={`${characterCount > maxCharacters ? 'text-red-400' : 'text-gray-400'}`}>
-                {characterCount}/{maxCharacters}
-              </span>
-            </div>
-          </div>
+        <p className="text-xs text-slate-400">
+          If you are not friends, this will appear in their message requests inbox
+          {recipientAccount && recipientAccount.accountType !== 'general'
+            ? ` for this ${recipientAccount.accountType} account`
+            : ''}
+          .
+        </p>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={isLoading}
-              className="border-slate-600 text-gray-300 hover:bg-slate-800"
-            >
+        <Textarea
+          value={message}
+          onChange={(event) => setMessage(event.target.value)}
+          placeholder="Write your introduction…"
+          className="min-h-[120px] border-slate-600 bg-slate-800 text-white"
+          maxLength={1000}
+        />
+
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-slate-500">{message.length}/1000</span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={onClose} className="border-slate-600">
               Cancel
             </Button>
             <Button
               onClick={handleSendMessage}
-              disabled={isLoading || !message.trim() || characterCount > maxCharacters}
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+              disabled={isLoading || !message.trim()}
+              className="bg-gradient-to-r from-purple-600 to-blue-600"
             >
               {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Sending...
-                </>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <>
-                  <Send className="h-4 w-4 mr-2" />
-                  Send Message
-                </>
+                <Send className="mr-2 h-4 w-4" />
               )}
+              Send
             </Button>
           </div>
         </div>
       </DialogContent>
     </Dialog>
   )
-} 
+}

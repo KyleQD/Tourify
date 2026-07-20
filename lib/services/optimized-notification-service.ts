@@ -10,6 +10,13 @@ import { createServiceRoleClient } from '@/lib/supabase/service-role'
 import { supabase as browserSupabase } from '@/lib/supabase'
 import { z } from 'zod'
 import { deliverNotificationOutbound } from '@/lib/services/notification-delivery'
+import { applyNotificationAccountScope } from '@/lib/notifications/account-scope'
+import {
+  collectRelatedUserIds,
+  hydrateNotificationsWithProfiles,
+  type NotificationRow,
+} from '@/lib/notifications/hydrate-notifications'
+import { generalNotificationTarget } from '@/lib/notifications/notification-target'
 
 /** Route handlers need service role; browser hooks use the session-scoped client. */
 function getNotificationsDb(): SupabaseClient<Database> {
@@ -127,6 +134,10 @@ export class OptimizedNotificationService {
         throw new Error('Notification blocked by user preferences')
       }
 
+      const defaultTarget = generalNotificationTarget(validatedData.userId)
+      const targetProfileId = validatedData.targetProfileId ?? defaultTarget.targetProfileId
+      const targetAccountType = validatedData.targetAccountType ?? defaultTarget.targetAccountType
+
       const { data: notification, error } = await getNotificationsDb()
         .from('notifications')
         .insert({
@@ -142,8 +153,8 @@ export class OptimizedNotificationService {
           priority: validatedData.priority || 'normal',
           expires_at: validatedData.expiresAt,
           is_read: false,
-          target_profile_id: validatedData.targetProfileId ?? null,
-          target_account_type: validatedData.targetAccountType ?? null,
+          target_profile_id: targetProfileId,
+          target_account_type: targetAccountType,
         })
         .select()
         .single()
@@ -184,6 +195,7 @@ export class OptimizedNotificationService {
         )
         
         if (shouldSend) {
+          const defaultTarget = generalNotificationTarget(notification.userId)
           filteredNotifications.push({
             user_id: notification.userId,
             type: notification.type,
@@ -196,7 +208,9 @@ export class OptimizedNotificationService {
             related_content_type: notification.relatedContentType,
             priority: notification.priority || 'normal',
             expires_at: notification.expiresAt,
-            is_read: false
+            is_read: false,
+            target_profile_id: notification.targetProfileId ?? defaultTarget.targetProfileId,
+            target_account_type: notification.targetAccountType ?? defaultTarget.targetAccountType,
           })
         }
       }
@@ -243,6 +257,8 @@ export class OptimizedNotificationService {
       type?: string
       priority?: string
       includeExpired?: boolean
+      targetProfileId?: string | null
+      accountType?: string | null
     } = {}
   ): Promise<{
     notifications: OptimizedNotification[]
@@ -256,7 +272,9 @@ export class OptimizedNotificationService {
         unreadOnly = false,
         type,
         priority,
-        includeExpired = false
+        includeExpired = false,
+        targetProfileId,
+        accountType,
       } = options
 
       const inboxPrefs = await this.getPreferences(userId).catch(() => null)
@@ -268,19 +286,15 @@ export class OptimizedNotificationService {
         }
       }
 
+      const scope = { userId, targetProfileId, accountType }
+
       let query = getNotificationsDb()
         .from('notifications')
-        .select(`
-          *,
-          related_user:profiles!notifications_related_user_id_fkey(
-            id,
-            full_name,
-            username,
-            avatar_url
-          )
-        `, { count: 'exact' })
+        .select('*', { count: 'exact' })
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
+
+      query = applyNotificationAccountScope(query, scope)
 
       if (unreadOnly) {
         query = query.eq('is_read', false)
@@ -294,24 +308,51 @@ export class OptimizedNotificationService {
         query = query.eq('priority', priority)
       }
 
-      if (!includeExpired) {
-        query = query.or('expires_at.is.null,expires_at.gt.now()')
-      }
-
+      // Do not stack a second `.or()` for expires_at — account scope already uses
+      // `.or()` for the personal inbox. Filter expired rows after fetch instead.
       const { data: notifications, error, count } = await query
         .range(offset, offset + limit - 1)
 
       if (error) throw error
 
-      // Get unread count separately for better performance
-      const { count: unreadCount } = await getNotificationsDb()
+      const nowMs = Date.now()
+      const rows = ((notifications || []) as NotificationRow[]).filter((row) => {
+        if (includeExpired) return true
+        if (!row.expires_at) return true
+        return new Date(row.expires_at).getTime() > nowMs
+      })
+      const relatedIds = collectRelatedUserIds(rows)
+      let profiles: Array<{
+        id: string
+        full_name: string | null
+        username: string
+        avatar_url: string | null
+      }> = []
+
+      if (relatedIds.length > 0) {
+        const { data: profileRows } = await getNotificationsDb()
+          .from('profiles')
+          .select('id, full_name, username, avatar_url')
+          .in('id', relatedIds)
+        profiles = profileRows || []
+      }
+
+      const hydrated = hydrateNotificationsWithProfiles({
+        notifications: rows,
+        profiles,
+      })
+
+      let unreadQuery = getNotificationsDb()
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', userId)
         .eq('is_read', false)
 
+      unreadQuery = applyNotificationAccountScope(unreadQuery, scope)
+      const { count: unreadCount } = await unreadQuery
+
       return {
-        notifications: notifications.map(this.transformNotification),
+        notifications: hydrated.map((row) => this.transformNotification(row)),
         totalCount: count || 0,
         unreadCount: unreadCount || 0
       }
@@ -348,17 +389,30 @@ export class OptimizedNotificationService {
   /**
    * Mark all notifications as read for a user
    */
-  static async markAllAsRead(userId: string): Promise<number> {
+  static async markAllAsRead(
+    userId: string,
+    options: {
+      targetProfileId?: string | null
+      accountType?: string | null
+    } = {}
+  ): Promise<number> {
     try {
-      const { data, error } = await getNotificationsDb()
+      let query = getNotificationsDb()
         .from('notifications')
-        .update({ 
+        .update({
           is_read: true,
           read_at: new Date().toISOString()
         })
         .eq('user_id', userId)
         .eq('is_read', false)
-        .select('id')
+
+      query = applyNotificationAccountScope(query, {
+        userId,
+        targetProfileId: options.targetProfileId,
+        accountType: options.accountType,
+      })
+
+      const { data, error } = await query.select('id')
 
       if (error) throw error
 

@@ -81,11 +81,11 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
             <Building className="mr-2 h-4 w-4" />
             <span>Venues</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/equipment"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/equipment"))}>
             <Mic className="mr-2 h-4 w-4" />
             <span>Equipment</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/finances"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/venue/finances"))}>
             <DollarSign className="mr-2 h-4 w-4" />
             <span>Finances</span>
           </CommandItem>
@@ -96,7 +96,7 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/help"))}>
+          <CommandItem onSelect={() => runCommand(() => router.push("/faq"))}>
             <HelpCircle className="mr-2 h-4 w-4" />
             <span>Help & Support</span>
           </CommandItem>

@@ -1,0 +1,14 @@
+-- REFERENCE ONLY.
+-- Suggested entities:
+-- music_rights_passports
+-- music_rights_passport_versions
+-- music_rights_credentials
+-- music_rights_credential_status
+-- music_rights_derivatives
+-- music_rights_c2pa_manifests
+-- music_rights_watermarks
+-- music_rights_blockchain_anchors
+-- music_rights_outbox_events
+--
+-- Public verification should use a narrow security-invoker view or route
+-- projection, never direct broad table access.

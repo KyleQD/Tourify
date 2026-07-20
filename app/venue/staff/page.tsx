@@ -104,7 +104,13 @@ export default function VenueStaffPage() {
             <Link href="/venue/dashboard/jobs">Post Job</Link>
           </Button>
           <Button asChild variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100">
+            <Link href="/venue/dashboard/hiring-kanban">Hiring Board</Link>
+          </Button>
+          <Button asChild variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100">
             <Link href="/venue/staff/scheduling">Open Schedule</Link>
+          </Button>
+          <Button asChild variant="outline" className="border-zinc-700 bg-zinc-950 text-zinc-100">
+            <Link href="/venue/staff/roles-permissions">Roles</Link>
           </Button>
         </div>
       </section>

@@ -9,7 +9,6 @@ import { formatSafeTime } from "@/lib/events/admin-event-normalization"
 import DetailsTab from "./details-tab"
 import AttendeesTab from "./attendees-tab"
 import EquipmentTab from "./equipment-tab"
-import FinancialsTab from "./financials-tab"
 import type { Event as UiEvent } from "@/app/types/events.types"
 
 interface EventTabsProps {
@@ -42,11 +41,10 @@ export default function EventTabs({ event }: EventTabsProps) {
   return (
     <Tabs defaultValue="details" className="w-full">
       <div className="flex justify-between items-center mb-4">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-3 w-full max-w-2xl">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="attendees">Attendees</TabsTrigger>
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
-          <TabsTrigger value="financials">Financials</TabsTrigger>
         </TabsList>
 
         <Button onClick={() => router.push(`/venue/events/${event.id}`)}>
@@ -65,10 +63,6 @@ export default function EventTabs({ event }: EventTabsProps) {
 
       <TabsContent value="equipment">
         <EquipmentTab event={uiEvent} />
-      </TabsContent>
-
-      <TabsContent value="financials">
-        <FinancialsTab />
       </TabsContent>
     </Tabs>
   )

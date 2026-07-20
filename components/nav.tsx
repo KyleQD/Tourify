@@ -6,6 +6,11 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
+  PROFILE_IMAGES_UPDATED_EVENT,
+  PROFILE_UPDATED_STORAGE_KEY,
+  type ProfileImagesUpdatedDetail,
+} from "@/lib/profile/profile-image-events"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -99,7 +104,7 @@ function resolveNavDisplayName(
 export function Nav() {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const { profileData } = useProfile()
   const { currentAccount } = useMultiAccount()
   const [notifications, setNotifications] = useState(0)
@@ -142,8 +147,29 @@ export function Nav() {
 
     void loadPrimaryProfile()
 
+    function handleProfileImagesUpdated(event: Event) {
+      const detail = (event as CustomEvent<ProfileImagesUpdatedDetail>).detail
+      if (detail && 'avatarUrl' in detail) {
+        setPrimaryProfile((prev) =>
+          prev
+            ? { ...prev, avatar_url: detail.avatarUrl ?? null }
+            : prev
+        )
+      }
+      void loadPrimaryProfile()
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key === PROFILE_UPDATED_STORAGE_KEY) void loadPrimaryProfile()
+    }
+
+    window.addEventListener(PROFILE_IMAGES_UPDATED_EVENT, handleProfileImagesUpdated)
+    window.addEventListener('storage', handleStorage)
+
     return () => {
       cancelled = true
+      window.removeEventListener(PROFILE_IMAGES_UPDATED_EVENT, handleProfileImagesUpdated)
+      window.removeEventListener('storage', handleStorage)
     }
   }, [])
 
@@ -228,13 +254,24 @@ export function Nav() {
     return null
   }
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
+    // Clear legacy client storage before the server clears SSR cookies.
     try {
-      await signOut()
-      router.push('/login')
-    } catch (error) {
-      console.error('Error signing out:', error)
+      const keys = Object.keys(localStorage).filter(
+        (key) =>
+          key.includes('sb-cloudify-auth') ||
+          key.includes('supabase.auth') ||
+          key === 'sb-cloudify-auth-token' ||
+          key === 'cloudify_remember_session' ||
+          key === 'onboardingData'
+      )
+      for (const key of keys) localStorage.removeItem(key)
+    } catch {
+      /* noop */
     }
+
+    // Server route clears SSR cookies on the redirect response.
+    window.location.assign('/auth/signout')
   }
 
   return (

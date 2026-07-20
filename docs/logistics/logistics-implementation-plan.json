@@ -1,0 +1,394 @@
+{
+  "version": 1,
+  "updated_at": "2026-07-19T21:20:33.741Z",
+  "program": "admin-logistics-full",
+  "tasks": [
+    {
+      "id": "LOG-000",
+      "area": "shared",
+      "title": "Complete Phase 0 repository audit documentation",
+      "status": "completed",
+      "priority": "blocker",
+      "dependencies": [],
+      "existing_evidence": [
+        "docs/logistics/LOGISTICS_AUDIT.md"
+      ],
+      "files_expected": [
+        "docs/logistics/LOGISTICS_AUDIT.md"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "Per-tab audit matrix with severity and evidence"
+      ],
+      "verification": [
+        "docs/logistics/LOGISTICS_AUDIT.md exists"
+      ],
+      "completion_evidence": [
+        "docs/logistics/LOGISTICS_AUDIT.md"
+      ]
+    },
+    {
+      "id": "LOG-001",
+      "area": "shared",
+      "title": "Create Phase 1 docs and JSON ledger",
+      "status": "completed",
+      "priority": "blocker",
+      "dependencies": [
+        "LOG-000"
+      ],
+      "existing_evidence": [],
+      "files_expected": [
+        "docs/logistics/FUNCTIONAL_SPEC.md",
+        "docs/logistics/DATA_MODEL_AND_INTEGRATIONS.md",
+        "docs/logistics/USER_FLOWS_AND_PERMISSIONS.md",
+        "docs/logistics/TEST_PLAN.md",
+        "docs/logistics/logistics-implementation-plan.json"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "All Phase 1 docs present and valid JSON ledger"
+      ],
+      "verification": [
+        "JSON.parse ledger"
+      ],
+      "completion_evidence": [
+        "docs/logistics/*"
+      ]
+    },
+    {
+      "id": "LOG-010",
+      "area": "shared",
+      "title": "Shared logistics lib: status, money, time, conflicts, adapters",
+      "status": "completed",
+      "priority": "blocker",
+      "dependencies": [
+        "LOG-001"
+      ],
+      "existing_evidence": [
+        "lib/admin/resolve-authorized-org.ts",
+        "lib/format/number-format.ts"
+      ],
+      "files_expected": [
+        "lib/logistics/status.ts",
+        "lib/logistics/money.ts",
+        "lib/logistics/time.ts",
+        "lib/logistics/conflicts.ts",
+        "lib/logistics/tasks-adapter.ts",
+        "lib/logistics/notifications-adapter.ts",
+        "lib/logistics/activity.ts",
+        "lib/logistics/readiness.ts",
+        "lib/logistics/acknowledgements.ts"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "Unit tests for status/time/money/conflicts"
+      ],
+      "verification": [
+        "vitest __tests__/logistics/shared-foundation.test.ts"
+      ],
+      "completion_evidence": [
+        "lib/logistics/status.ts",
+        "lib/logistics/money.ts",
+        "lib/logistics/time.ts",
+        "lib/logistics/conflicts.ts",
+        "lib/logistics/tasks-adapter.ts",
+        "lib/logistics/notifications-adapter.ts",
+        "lib/logistics/activity.ts",
+        "lib/logistics/readiness.ts",
+        "lib/logistics/acknowledgements.ts"
+      ]
+    },
+    {
+      "id": "LOG-011",
+      "area": "shared",
+      "title": "Additive migration for logistics source links, acks, domain tables",
+      "status": "completed",
+      "priority": "blocker",
+      "dependencies": [
+        "LOG-010"
+      ],
+      "existing_evidence": [
+        "supabase/migrations/20250813094500_logistics_tasks.sql"
+      ],
+      "files_expected": [
+        "supabase/migrations/20260719210000_logistics_ops_foundation.sql"
+      ],
+      "migration_required": true,
+      "acceptance_criteria": [
+        "Additive tables/columns only; RLS enabled"
+      ],
+      "verification": [
+        "migration file reviewed"
+      ],
+      "completion_evidence": [
+        "supabase/migrations/20260719210000_logistics_ops_foundation.sql"
+      ]
+    },
+    {
+      "id": "LOG-012",
+      "area": "shared",
+      "title": "Fix overview metrics and scoped travel hooks on logistics page",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-010"
+      ],
+      "existing_evidence": [
+        "app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ],
+      "files_expected": [
+        "app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "Backline metrics from apiMetrics; travel hooks scoped"
+      ],
+      "verification": [
+        "unit/contract + manual overview"
+      ],
+      "completion_evidence": [
+        "app/admin/dashboard/logistics/logistics-page-client.tsx"
+      ]
+    },
+    {
+      "id": "LOG-020",
+      "area": "transport",
+      "title": "Transport API and UI over ground_transportation_coordination",
+      "status": "completed",
+      "priority": "blocker",
+      "dependencies": [
+        "LOG-011"
+      ],
+      "existing_evidence": [
+        "app/api/admin/travel-coordination/route.ts"
+      ],
+      "files_expected": [
+        "app/api/admin/logistics/transport/route.ts",
+        "components/admin/logistics/transport/transport-manager.tsx"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "CRUD segments + passengers; conflict warnings; tasks linked"
+      ],
+      "verification": [
+        "__tests__/logistics/transport-conflicts.test.ts"
+      ],
+      "completion_evidence": [
+        "app/api/admin/logistics/transport/route.ts",
+        "components/admin/logistics/transport/transport-manager.tsx"
+      ]
+    },
+    {
+      "id": "LOG-030",
+      "area": "travel",
+      "title": "Hotels & Flights hub: forms, traveler matrix, real activity",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-011",
+        "LOG-020"
+      ],
+      "existing_evidence": [
+        "components/admin/travel-coordination-hub.tsx"
+      ],
+      "files_expected": [
+        "components/admin/logistics/travel/travel-ops-hub.tsx",
+        "lib/logistics/traveler-matrix.ts"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "No window.prompt; matrix gaps; timeline from DB"
+      ],
+      "verification": [
+        "__tests__/logistics/traveler-matrix.test.ts"
+      ],
+      "completion_evidence": [
+        "components/admin/logistics/travel/travel-ops-hub.tsx",
+        "lib/logistics/traveler-matrix.ts"
+      ]
+    },
+    {
+      "id": "LOG-040",
+      "area": "equipment",
+      "title": "Equipment catalog/reservations wired; remove mock from mounted path",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-011"
+      ],
+      "existing_evidence": [
+        "app/api/admin/logistics/equipment/catalog/route.ts"
+      ],
+      "files_expected": [
+        "app/api/admin/logistics/equipment/reservations/route.ts",
+        "components/admin/logistics/equipment-ops-panel.tsx"
+      ],
+      "migration_required": true,
+      "acceptance_criteria": [
+        "Reservations persist; conflict on overlap"
+      ],
+      "verification": [
+        "__tests__/logistics/equipment-reservations.test.ts"
+      ],
+      "completion_evidence": [
+        "app/api/admin/logistics/equipment/reservations/route.ts",
+        "components/admin/logistics/equipment-ops-panel.tsx"
+      ]
+    },
+    {
+      "id": "LOG-050",
+      "area": "backline",
+      "title": "Backline requirements/fulfillment/substitutions",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-011",
+        "LOG-040"
+      ],
+      "existing_evidence": [
+        "advancing backline notes"
+      ],
+      "files_expected": [
+        "app/api/admin/logistics/backline/route.ts",
+        "components/admin/logistics/backline/backline-ops-panel.tsx"
+      ],
+      "migration_required": true,
+      "acceptance_criteria": [
+        "Requirement vs fulfillment; substitution approval trail"
+      ],
+      "verification": [
+        "__tests__/logistics/backline-fulfillment.test.ts"
+      ],
+      "completion_evidence": [
+        "app/api/admin/logistics/backline/route.ts",
+        "components/admin/logistics/backline/backline-ops-panel.tsx"
+      ]
+    },
+    {
+      "id": "LOG-060",
+      "area": "catering",
+      "title": "Catering services, headcount snapshots, dietary privacy",
+      "status": "completed",
+      "priority": "blocker",
+      "dependencies": [
+        "LOG-011"
+      ],
+      "existing_evidence": [
+        "advancing catering fields"
+      ],
+      "files_expected": [
+        "app/api/admin/logistics/catering/route.ts",
+        "components/admin/logistics/catering/catering-ops-panel.tsx",
+        "lib/logistics/dietary-privacy.ts"
+      ],
+      "migration_required": true,
+      "acceptance_criteria": [
+        "Snapshot freeze; kitchen counts without raw PII"
+      ],
+      "verification": [
+        "__tests__/logistics/dietary-privacy.test.ts"
+      ],
+      "completion_evidence": [
+        "app/api/admin/logistics/catering/route.ts",
+        "components/admin/logistics/catering/catering-ops-panel.tsx",
+        "lib/logistics/dietary-privacy.ts"
+      ]
+    },
+    {
+      "id": "LOG-070",
+      "area": "comms",
+      "title": "Comms scope, siteMapId, notify, plans, ack",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-010",
+        "LOG-011"
+      ],
+      "existing_evidence": [
+        "app/api/admin/communications/route.ts"
+      ],
+      "files_expected": [
+        "app/api/admin/communications/route.ts",
+        "app/api/admin/logistics/comms-plans/route.ts",
+        "components/admin/logistics-collaboration.tsx"
+      ],
+      "migration_required": true,
+      "acceptance_criteria": [
+        "Org scope; notifications; siteMapId passed; ack support"
+      ],
+      "verification": [
+        "logistics-route-contract.test.ts updated"
+      ],
+      "completion_evidence": [
+        "app/api/admin/communications/route.ts",
+        "app/api/admin/logistics/comms-plans/route.ts",
+        "components/admin/logistics-collaboration.tsx"
+      ]
+    },
+    {
+      "id": "LOG-080",
+      "area": "site-map",
+      "title": "Publish snapshots via map_versions; access fix; task/note version links",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-011"
+      ],
+      "existing_evidence": [
+        "map_versions table",
+        "publish-work-mode route"
+      ],
+      "files_expected": [
+        "app/api/admin/logistics/site-maps/[id]/versions/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/publish-work-mode/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/collaborators/route.ts"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "Publish creates map_versions; collaborators GET ACL; no builder changes"
+      ],
+      "verification": [
+        "__tests__/logistics/site-map-versions.test.ts"
+      ],
+      "completion_evidence": [
+        "app/api/admin/logistics/site-maps/[id]/versions/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/publish-work-mode/route.ts",
+        "app/api/admin/logistics/site-maps/[id]/collaborators/route.ts"
+      ]
+    },
+    {
+      "id": "LOG-090",
+      "area": "shared",
+      "title": "Calendar aggregate travel/catering + hardening tests + final report",
+      "status": "completed",
+      "priority": "high",
+      "dependencies": [
+        "LOG-020",
+        "LOG-030",
+        "LOG-040",
+        "LOG-050",
+        "LOG-060",
+        "LOG-070",
+        "LOG-080"
+      ],
+      "existing_evidence": [
+        "lib/admin/calendar/aggregate.ts"
+      ],
+      "files_expected": [
+        "lib/admin/calendar/aggregate.ts",
+        "docs/logistics/FINAL_REPORT.md"
+      ],
+      "migration_required": false,
+      "acceptance_criteria": [
+        "Calendar includes ground/flight/lodging windows; final matrix"
+      ],
+      "verification": [
+        "calendar-aggregate tests; FINAL_REPORT.md"
+      ],
+      "completion_evidence": [
+        "lib/admin/calendar/aggregate.ts",
+        "docs/logistics/FINAL_REPORT.md"
+      ]
+    }
+  ]
+}

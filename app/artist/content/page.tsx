@@ -91,10 +91,10 @@ const staticFeatures: Omit<ContentFeature, 'stats'>[] = [
     statsLabel: "Open compose",
   },
   {
-    label: "Blog",
+    label: "Press",
     icon: FileText,
-    href: "/artist/features/blog",
-    description: "Create and manage blog posts",
+    href: "/artist/press",
+    description: "Blogs, articles, and press releases",
     color: "from-orange-500 to-red-600",
     category: "content"
   },
@@ -363,7 +363,7 @@ function ContentDashboardInner() {
       Music: stats.musicCount,
       Videos: 0,
       Photos: 0,
-      Blog: stats.blogCount,
+      Press: stats.blogCount,
       'Press Kit': 1,
       Socials: integrations.filter(i => i.is_connected).length,
     } as Record<string, number>
@@ -371,17 +371,17 @@ function ContentDashboardInner() {
       Music: overview?.recent.music || 0,
       Videos: 0,
       Photos: 0,
-      Blog: overview?.recent.blog || 0,
+      Press: overview?.recent.blog || 0,
       'Press Kit': 0,
       Socials: 0,
     } as Record<string, number>
     return staticFeatures.map(f => {
-      if (f.label === 'Blog') {
+      if (f.label === 'Press') {
         const published = stats.blogCount
         const draftSuffix = blogDrafts > 0 ? ` · ${blogDrafts} draft${blogDrafts === 1 ? '' : 's'}` : ''
         return {
           ...f,
-          stats: { total: published, recent: recent.Blog },
+          stats: { total: published, recent: recent.Press },
           statsLabel: `${published} published${draftSuffix}`,
         }
       }
@@ -687,7 +687,7 @@ function ContentDashboardInner() {
                   {[
                     { label: "Upload Music", icon: Upload, href: "/artist/music/upload" },
                     { label: "Compose Post", icon: Share2, tab: "compose" as HubTab },
-                    { label: "Write Blog", icon: FileText, href: "/artist/features/blog?new=1" },
+                    { label: "Write Press", icon: FileText, href: "/artist/press?new=1" },
                     { label: "Manage Socials", icon: Link2, tab: "socials" as HubTab },
                   ].map((action) => (
                     <motion.div

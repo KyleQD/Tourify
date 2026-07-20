@@ -1,0 +1,16 @@
+{
+  "cohort_code": "independent-artists-us-catalog-1-5y",
+  "definition": {
+    "territory": "US",
+    "catalog_age_years": {
+      "min": 1,
+      "max": 5
+    }
+  },
+  "threshold_policy": {
+    "minimum_participants": 12,
+    "minimum_independent_controllers": 8,
+    "maximum_participant_weight_bps": 1500,
+    "minimum_age_days": 120
+  }
+}

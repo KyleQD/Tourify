@@ -1,0 +1,2 @@
+export const CREATOR_COOPERATIVE_DISCLAIMER =
+  "Cooperative readiness only — not membership by Tourify account, not legal/tax/investment advice, and not collective representation. Data contribution requires a separately executed licence. Research access is default-deny. Tourify is a technical service provider, not the cooperative entity, CMO, union, or bargaining representative. Feature flags are never legal authority."

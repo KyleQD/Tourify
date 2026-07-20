@@ -46,6 +46,7 @@ import {
   FileText,
   ChevronLeft,
   ChevronRight,
+  ClipboardList,
 } from "lucide-react"
 
 interface BookingRequest {
@@ -75,15 +76,15 @@ const statusIcons = {
 }
 
 const statusColors = {
-  pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  approved: "bg-green-100 text-green-800 border-green-200",
-  rejected: "bg-red-100 text-red-800 border-red-200",
-  cancelled: "bg-gray-100 text-gray-800 border-gray-200",
+  pending: "bg-amber-500/15 text-amber-200 border-amber-500/30",
+  approved: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
+  rejected: "bg-red-500/15 text-red-200 border-red-500/30",
+  cancelled: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30",
 }
 
 export default function BookingsPage() {
   const router = useRouter()
-  const { venue, isLoading: venueLoading } = useCurrentVenue()
+  const { venue, isLoading: venueLoading, updateVenue } = useCurrentVenue()
   const { toast } = useToast()
   
   const [bookings, setBookings] = useState<BookingRequest[]>([])
@@ -95,6 +96,17 @@ export default function BookingsPage() {
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
   const [activeTab, setActiveTab] = useState("requests")
+  const [leadTime, setLeadTime] = useState("1week")
+  const [maxAdvance, setMaxAdvance] = useState("1year")
+  const [autoApprove, setAutoApprove] = useState("manual")
+  const [notificationEmail, setNotificationEmail] = useState("")
+  const [responseTemplate, setResponseTemplate] = useState(
+    "Thank you for your booking request. We'll review and respond within 24 hours.",
+  )
+  const [rejectionTemplate, setRejectionTemplate] = useState(
+    "Unfortunately, we cannot accommodate your request for the requested date.",
+  )
+  const [isSavingSettings, setIsSavingSettings] = useState(false)
   const {
     bookings: calendarEvents,
     venueEvents: calendarVenueEvents,
@@ -125,6 +137,48 @@ export default function BookingsPage() {
     }
   }, [venue?.id])
 
+  useEffect(() => {
+    if (!venue) return
+    const policies = (venue.settings as any)?.booking_policies || {}
+    if (policies.lead_time) setLeadTime(String(policies.lead_time))
+    if (policies.max_advance) setMaxAdvance(String(policies.max_advance))
+    if (policies.auto_approve) setAutoApprove(String(policies.auto_approve))
+    if (policies.response_template) setResponseTemplate(String(policies.response_template))
+    if (policies.rejection_template) setRejectionTemplate(String(policies.rejection_template))
+    setNotificationEmail(
+      String(policies.notification_email || venue.contact_info?.booking_email || venue.contact_info?.email || ""),
+    )
+  }, [venue?.id, venue?.settings, venue?.contact_info])
+
+  async function saveBookingSettings() {
+    if (!venue?.id) return
+    setIsSavingSettings(true)
+    try {
+      const nextSettings = {
+        ...(venue.settings && typeof venue.settings === "object" ? venue.settings : {}),
+        booking_policies: {
+          lead_time: leadTime,
+          max_advance: maxAdvance,
+          auto_approve: autoApprove,
+          notification_email: notificationEmail,
+          response_template: responseTemplate,
+          rejection_template: rejectionTemplate,
+        },
+      }
+      const ok = await updateVenue({ settings: nextSettings })
+      if (!ok) throw new Error("Could not save booking settings")
+      toast({ title: "Settings saved", description: "Booking policies are updated for this venue." })
+    } catch (error) {
+      toast({
+        title: "Save failed",
+        description: error instanceof Error ? error.message : "Could not save settings",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingSettings(false)
+    }
+  }
+
   const fetchBookings = async ({ showLoading = false }: { showLoading?: boolean } = {}) => {
     if (!venue?.id) return
     
@@ -153,8 +207,26 @@ export default function BookingsPage() {
 
   const handleBookingAction = async (bookingId: string, action: "approved" | "rejected", message?: string) => {
     const previousBookings = [...bookings]
+    const target = bookings.find((row) => row.id === bookingId)
     try {
       setIsActionInProgress(bookingId)
+
+      if (action === "approved" && target) {
+        const sameDayConflict = bookings.some(
+          (row) =>
+            row.id !== bookingId &&
+            row.status === "approved" &&
+            isSameCalendarDay(row.event_date, new Date(target.event_date)),
+        )
+        if (sameDayConflict) {
+          toast({
+            title: "Date conflict",
+            description: "Another approved booking already exists on this date. Review the calendar before confirming.",
+            variant: "destructive",
+          })
+        }
+      }
+
       setBookings(prev => prev.map(booking =>
         booking.id === bookingId
           ? { ...booking, status: action, response_message: message || "", responded_at: new Date().toISOString() }
@@ -484,14 +556,37 @@ export default function BookingsPage() {
           {/* Booking Requests List */}
           <div className="space-y-4">
           {filteredBookings.length === 0 ? (
-            <Card>
-                <CardContent className="pt-6 text-center">
-                  <div className="text-muted-foreground">
-                    {bookings.length === 0 ? 
-                      "No booking requests yet. When clients request to book your venue, they'll appear here." :
-                      "No bookings match your current filters."
-                    }
-                  </div>
+            <Card className="border-zinc-800 bg-zinc-900">
+              <CardContent className="pt-2">
+                <div className="flex flex-col items-center justify-center px-4 py-12 text-center">
+                  <ClipboardList className="mb-3 h-10 w-10 text-zinc-500" />
+                  <h3 className="text-lg font-medium text-zinc-100">
+                    {bookings.length === 0 ? "No booking requests yet" : "No matching bookings"}
+                  </h3>
+                  <p className="mt-1 max-w-md text-sm text-zinc-500">
+                    {bookings.length === 0
+                      ? "When artists or organizers request your venue, they will appear here for review."
+                      : "Try clearing filters to see all requests."}
+                  </p>
+                  {bookings.length === 0 ? (
+                    <Button asChild className="mt-4 bg-emerald-600 hover:bg-emerald-500">
+                      <a href={venue?.url_slug ? `/venues/${venue.url_slug}` : "/venues"}>View public listing</a>
+                    </Button>
+                  ) : (
+                    <Button
+                      className="mt-4"
+                      variant="outline"
+                      onClick={() => {
+                        setSearchTerm("")
+                        setStatusFilter("all")
+                        setEventTypeFilter("all")
+                        setDateFilter(undefined)
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -784,7 +879,7 @@ export default function BookingsPage() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="lead-time">Minimum Lead Time</Label>
-                    <Select defaultValue="1week">
+                    <Select value={leadTime} onValueChange={setLeadTime}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select lead time" />
                       </SelectTrigger>
@@ -800,7 +895,7 @@ export default function BookingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="max-advance">Maximum Advance Booking</Label>
-                    <Select defaultValue="1year">
+                    <Select value={maxAdvance} onValueChange={setMaxAdvance}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select maximum advance" />
                       </SelectTrigger>
@@ -815,7 +910,7 @@ export default function BookingsPage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="auto-approve">Auto-Approval Settings</Label>
-                    <Select defaultValue="manual">
+                    <Select value={autoApprove} onValueChange={setAutoApprove}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select auto-approval policy" />
                       </SelectTrigger>
@@ -838,7 +933,8 @@ export default function BookingsPage() {
                       id="notification-email"
                       type="email"
                       placeholder="bookings@yourvenue.com"
-                      defaultValue={venue.contact_info?.booking_email || venue.contact_info?.email || ""}
+                      value={notificationEmail}
+                      onChange={(e) => setNotificationEmail(e.target.value)}
                     />
                   </div>
 
@@ -846,7 +942,8 @@ export default function BookingsPage() {
                     <Label htmlFor="response-template">Default Response Template</Label>
                     <Textarea
                       id="response-template"
-                      placeholder="Thank you for your booking request. We'll review and respond within 24 hours."
+                      value={responseTemplate}
+                      onChange={(e) => setResponseTemplate(e.target.value)}
                       rows={4}
                     />
                   </div>
@@ -855,7 +952,8 @@ export default function BookingsPage() {
                     <Label htmlFor="rejection-template">Rejection Template</Label>
                     <Textarea
                       id="rejection-template"
-                      placeholder="Unfortunately, we cannot accommodate your request for the requested date."
+                      value={rejectionTemplate}
+                      onChange={(e) => setRejectionTemplate(e.target.value)}
                       rows={3}
                     />
                   </div>
@@ -863,7 +961,9 @@ export default function BookingsPage() {
               </div>
 
               <div className="pt-6 border-t">
-                <Button>Save Settings</Button>
+                <Button onClick={() => void saveBookingSettings()} disabled={isSavingSettings}>
+                  {isSavingSettings ? "Saving…" : "Save Settings"}
+                </Button>
               </div>
             </CardContent>
           </Card>

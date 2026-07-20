@@ -1,5 +1,9 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
+  applyNotificationAccountScope,
+  type NotificationAccountScope,
+} from '@/lib/notifications/account-scope'
+import {
   collectRelatedUserIds,
   hydrateNotificationsWithProfiles,
   type HydratedNotification,
@@ -12,7 +16,7 @@ export interface FetchUserNotificationsParams {
   limit?: number
   unreadOnly?: boolean
   type?: string
-  /** When set and not general, filter by target_profile_id if column exists */
+  /** Acting-entity profile UUID when not on personal/general */
   targetProfileId?: string | null
   accountType?: string | null
 }
@@ -24,44 +28,62 @@ export interface FetchUserNotificationsResult {
   inAppDisabled: boolean
 }
 
-let targetProfileColumnSupported: boolean | null = null
-
-async function supportsTargetProfileColumn(supabase: SupabaseClient): Promise<boolean> {
-  if (targetProfileColumnSupported !== null)
-    return targetProfileColumnSupported
-
-  const { error } = await supabase
-    .from('notifications')
-    .select('target_profile_id')
-    .limit(1)
-
-  if (!error) {
-    targetProfileColumnSupported = true
-    return true
+function toScope(params: {
+  userId: string
+  targetProfileId?: string | null
+  accountType?: string | null
+}): NotificationAccountScope {
+  return {
+    userId: params.userId,
+    targetProfileId: params.targetProfileId,
+    accountType: params.accountType,
   }
-
-  if (/column .*target_profile_id.* does not exist/i.test(error.message || '')) {
-    targetProfileColumnSupported = false
-    return false
-  }
-
-  // Unknown error — do not apply entity filter
-  return false
 }
 
 /** Cheap unread badge query — does not load the full notification list. */
 export async function fetchUnreadNotificationCount(args: {
   supabase: SupabaseClient
   userId: string
+  targetProfileId?: string | null
+  accountType?: string | null
 }): Promise<number> {
-  const { supabase, userId } = args
-  const { count } = await supabase
+  const { supabase, userId, targetProfileId, accountType } = args
+  let query = supabase
     .from('notifications')
     .select('*', { count: 'exact', head: true })
     .eq('user_id', userId)
     .eq('is_read', false)
 
+  query = applyNotificationAccountScope(query, toScope({ userId, targetProfileId, accountType }))
+
+  const { count } = await query
   return count ?? 0
+}
+
+/** Mark all unread notifications in the active account inbox as read. */
+export async function markAccountNotificationsAsRead(args: {
+  supabase: SupabaseClient
+  userId: string
+  targetProfileId?: string | null
+  accountType?: string | null
+}): Promise<{ error: string | null }> {
+  const { supabase, userId, targetProfileId, accountType } = args
+  const readAt = new Date().toISOString()
+
+  let query = supabase
+    .from('notifications')
+    .update({
+      is_read: true,
+      read_at: readAt,
+    })
+    .eq('user_id', userId)
+    .eq('is_read', false)
+
+  query = applyNotificationAccountScope(query, toScope({ userId, targetProfileId, accountType }))
+
+  const { error } = await query
+  if (error) return { error: error.message || 'Failed to mark notifications as read' }
+  return { error: null }
 }
 
 export async function fetchUserNotifications(
@@ -76,6 +98,8 @@ export async function fetchUserNotifications(
     targetProfileId,
     accountType,
   } = params
+
+  const scope = toScope({ userId, targetProfileId, accountType })
 
   const { data: prefsRow } = await supabase
     .from('notification_preferences')
@@ -105,19 +129,7 @@ export async function fetchUserNotifications(
   if (type)
     notifQuery = notifQuery.eq('type', type)
 
-  const shouldScopeEntity =
-    accountType &&
-    accountType !== 'general' &&
-    targetProfileId
-
-  if (shouldScopeEntity) {
-    const hasTargetColumn = await supportsTargetProfileColumn(supabase)
-    if (hasTargetColumn) {
-      notifQuery = notifQuery.or(
-        `target_profile_id.eq.${targetProfileId},target_profile_id.is.null`
-      )
-    }
-  }
+  notifQuery = applyNotificationAccountScope(notifQuery, scope)
 
   const { data, error } = await notifQuery
 
@@ -153,15 +165,16 @@ export async function fetchUserNotifications(
     profiles,
   })
 
-  const { count } = await supabase
-    .from('notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .eq('is_read', false)
+  const unreadCount = await fetchUnreadNotificationCount({
+    supabase,
+    userId,
+    targetProfileId,
+    accountType,
+  })
 
   return {
     notifications,
-    unreadCount: count ?? notifications.filter((n) => !n.is_read).length,
+    unreadCount,
     error: null,
     inAppDisabled: false,
   }

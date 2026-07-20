@@ -260,15 +260,21 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
       } catch { /* noop */ }
     }
 
+    const handleProfileImagesUpdated = () => {
+      fetchUserProfile().catch(() => {})
+    }
+
     try {
       window.addEventListener('focus', handleFocus)
       window.addEventListener('storage', handleStorageChange)
+      window.addEventListener('profile-images-updated', handleProfileImagesUpdated)
     } catch { /* noop */ }
 
     return () => {
       try {
         window.removeEventListener('focus', handleFocus)
         window.removeEventListener('storage', handleStorageChange)
+        window.removeEventListener('profile-images-updated', handleProfileImagesUpdated)
       } catch { /* noop */ }
     }
   }, [user, loading, router, dashboardUserId])
@@ -283,7 +289,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
   if (!user && !hasServerSession) {
     if (authError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 px-4">
+        <div className="min-h-screen flex items-center justify-center dashboard-theme-bg px-4">
           <Card className="max-w-md w-full bg-white/10 border-white/20 text-white backdrop-blur-xl">
             <CardHeader>
               <CardTitle className="text-white">We couldn&apos;t verify your session</CardTitle>
@@ -293,7 +299,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row">
               <Button
-                className="rounded-xl bg-purple-600 hover:bg-purple-500"
+                className="rounded-xl dashboard-theme-accent-bg hover:brightness-110"
                 disabled={isRetryingSession}
                 onClick={async () => {
                   setIsRetryingSession(true)
@@ -318,13 +324,13 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white">
+    <div className="min-h-screen dashboard-theme-bg dashboard-theme-foreground">
       {/* Animated Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] bg-center bg-repeat opacity-5"></div>
-        <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 dashboard-theme-glow-a rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 dashboard-theme-glow-b rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+        <div className="absolute bottom-0 left-1/2 w-96 h-96 dashboard-theme-glow-c rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
       </div>
 
       {/* Content */}
@@ -344,7 +350,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                       }
                       alt={`${getDisplayName()} profile photo`}
                     />
-                    <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-lg font-semibold">
+                    <AvatarFallback className="dashboard-theme-avatar text-white text-lg font-semibold">
                       {getDisplayName().charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
@@ -353,7 +359,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                   </div>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-white via-purple-200 to-blue-200 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold dashboard-theme-heading bg-clip-text text-transparent">
                     Welcome back, {getDisplayName()}
                   </h1>
                   <p className="text-gray-400 flex items-center gap-2">
@@ -368,7 +374,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                 <Button
                   onClick={handleViewPublicProfile}
                   disabled={!publicProfileRoute.path}
-                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white border-0 rounded-2xl px-6 py-3 font-medium transition-all duration-300 flex items-center gap-2 hover:scale-105 disabled:opacity-50 disabled:pointer-events-none"
+                  className="dashboard-theme-cta text-white border-0 rounded-2xl px-6 py-3 font-medium transition-all duration-300 flex items-center gap-2 hover:scale-105 disabled:opacity-50 disabled:pointer-events-none"
                 >
                   <User className="h-4 w-4" />
                   View Public Profile
@@ -405,21 +411,23 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
             <div className="lg:col-span-6 space-y-6">
               <QuickPostCreator />
 
-              {/* Write Article CTA */}
-              <button
-                type="button"
-                onClick={() => router.push('/artist/features/blog?new=1')}
-                className="group flex w-full items-center gap-3 rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-4 text-left backdrop-blur-sm transition-all hover:border-purple-500/40 hover:bg-white/10"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500/20 to-fuchsia-500/20 transition-colors group-hover:from-purple-500/30 group-hover:to-fuchsia-500/30">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-purple-400"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-white group-hover:text-purple-200">Write an Article</p>
-                  <p className="text-xs text-gray-400">Share news, reviews, or stories — published to your followers&apos; feeds</p>
-                </div>
-                <ChevronRight className="h-4 w-4 shrink-0 text-gray-500 group-hover:text-purple-400" />
-              </button>
+              {/* Write for Press — artist active account only */}
+              {currentAccount?.account_type === 'artist' && currentAccount.is_active ? (
+                <button
+                  type="button"
+                  onClick={() => router.push('/artist/press?new=1')}
+                  className="group flex w-full items-center gap-3 rounded-3xl border border-dashed border-white/15 bg-white/5 px-5 py-4 text-left backdrop-blur-sm transition-all hover:border-white/30 hover:bg-white/10"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/10 transition-colors group-hover:bg-white/15">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dashboard-theme-accent-text"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-white">Write for Press</p>
+                    <p className="text-xs text-gray-400">Share news, reviews, or stories — published to your followers&apos; feeds</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-gray-500 group-hover:text-white" />
+                </button>
+              ) : null}
 
               {/* Dashboard Feed */}
               <DashboardFeed />
@@ -427,13 +435,13 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
               {/* Content Tabs */}
               <Tabs defaultValue="overview" className="w-full">
                 <TabsList className="grid w-full grid-cols-3 bg-white/10 backdrop-blur-sm rounded-2xl p-1">
-                  <TabsTrigger value="overview" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-xl">
+                  <TabsTrigger value="overview" className="dashboard-theme-tab-active data-[state=active]:text-white rounded-xl">
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger value="activity" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-xl">
+                  <TabsTrigger value="activity" className="dashboard-theme-tab-active data-[state=active]:text-white rounded-xl">
                     Activity
                   </TabsTrigger>
-                  <TabsTrigger value="insights" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white rounded-xl">
+                  <TabsTrigger value="insights" className="dashboard-theme-tab-active data-[state=active]:text-white rounded-xl">
                     Insights
                   </TabsTrigger>
                 </TabsList>
@@ -450,7 +458,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                           <h4 className="font-semibold text-white flex items-center gap-2">
-                            <Target className="h-4 w-4 text-purple-400" />
+                            <Target className="h-4 w-4 dashboard-theme-accent-text" />
                             Your Goals
                           </h4>
                           <div className="space-y-2">
@@ -482,7 +490,7 @@ export function DashboardPageClient({ serverUserId }: DashboardPageClientProps =
                           </h4>
                           <div className="space-y-2">
                             <div className="flex items-center gap-3 p-3 rounded-lg bg-white/5">
-                              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                              <div className="w-8 h-8 dashboard-theme-avatar rounded-lg flex items-center justify-center">
                                 <Award className="h-4 w-4 text-white" />
                               </div>
                               <div>

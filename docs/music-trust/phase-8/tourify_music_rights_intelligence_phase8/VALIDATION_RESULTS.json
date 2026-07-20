@@ -1,0 +1,10 @@
+{
+  "validated_at": "2026-07-18T01:47:59.490251+00:00",
+  "task_count": 207,
+  "stage_count": 15,
+  "schema_valid": true,
+  "unique_task_ids": true,
+  "dependencies_valid": true,
+  "zip_integrity": true,
+  "errors": []
+}

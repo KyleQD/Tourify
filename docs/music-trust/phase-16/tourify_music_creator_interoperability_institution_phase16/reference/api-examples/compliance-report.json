@@ -1,0 +1,7 @@
+{
+  "idempotencyKey": "compliance-report-001",
+  "participantId": "00000000-0000-0000-0000-000000000003",
+  "period": "2026-Q2",
+  "sourceManifestId": "00000000-0000-0000-0000-000000000006",
+  "status": "submitted"
+}

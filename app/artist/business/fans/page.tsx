@@ -141,7 +141,7 @@ export default function FanEngagementPage() {
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
             <Button asChild variant="outline" className="justify-start border-slate-700">
-              <Link href="/artist/feed">Feed</Link>
+              <Link href="/artist">Feed</Link>
             </Button>
             <Button asChild variant="outline" className="justify-start border-slate-700">
               <Link href="/artist/community">Community</Link>

@@ -118,9 +118,6 @@ export const POST = withAuth(async (request: NextRequest, { user }) => {
       .single()
 
     if (error) {
-      if (error.code === '42P01') {
-        return NextResponse.json({ success: false, error: 'table not yet created' }, { status: 501 })
-      }
       console.error('[Event Documents] Insert error:', error)
       return NextResponse.json({ error: 'Failed to create document' }, { status: 500 })
     }

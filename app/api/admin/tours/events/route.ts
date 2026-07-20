@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 
-import { withAdminAuth } from "@/lib/auth/api-auth"
+import { withAdminCapability } from "@/lib/auth/api-auth"
 import {
   AdminTourEventOperationsService,
   getAdminTourEventErrorStatus,
   tourAssignmentInputSchema,
 } from "@/lib/admin/tour-event-operations.service"
 
-export const POST = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const POST = withAdminCapability("routing.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const body = await request.json().catch(() => ({}))
     const tourId = body.tour_id
@@ -16,7 +16,12 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
       return NextResponse.json({ success: false, error: "tour_id and event_id required" }, { status: 400 })
     }
 
-    const tour = await AdminTourEventOperationsService.getTour({ supabase, userId: user.id, tourId })
+    const tour = await AdminTourEventOperationsService.getTour({
+      supabase,
+      userId: user.id,
+      tourId,
+      orgId: admin.orgId,
+    })
     const orgId = (tour as any).org_id
     if (!orgId) return NextResponse.json({ success: false, error: "Tour organization could not be resolved" }, { status: 400 })
 
@@ -44,7 +49,7 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
   }
 })
 
-export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+export const DELETE = withAdminCapability("routing.manage", async (request: NextRequest, { supabase, user, admin }) => {
   try {
     const params = new URL(request.url).searchParams
     const body = await request.json().catch(() => ({}))
@@ -54,7 +59,12 @@ export const DELETE = withAdminAuth(async (request: NextRequest, { supabase, use
       return NextResponse.json({ success: false, error: "tour_id and event_id required" }, { status: 400 })
     }
 
-    const tour = await AdminTourEventOperationsService.getTour({ supabase, userId: user.id, tourId })
+    const tour = await AdminTourEventOperationsService.getTour({
+      supabase,
+      userId: user.id,
+      tourId,
+      orgId: admin.orgId,
+    })
     const orgId = (tour as any).org_id
     if (!orgId) return NextResponse.json({ success: false, error: "Tour organization could not be resolved" }, { status: 400 })
 

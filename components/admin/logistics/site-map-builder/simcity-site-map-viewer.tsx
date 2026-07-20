@@ -43,7 +43,6 @@ import {
   getGridAlignedDimensions as alignDims,
   getOccupiedGridCells as occupiedCells,
   checkPlacementValidity as placementValid,
-  screenToMapCoords,
   hitTestRect,
   normalizeZoneBounds as normZone,
   normalizeTentBounds as normTent,
@@ -55,7 +54,18 @@ import {
   type LibraryDragPayload,
   type ResizeHandle,
 } from './canvas-coords'
-import { drawElementSymbol, roundRect, drawFittedLabel } from './canvas-draw'
+import {
+  resizeViewportCanvas,
+  screenToWorld,
+  zoomAtPoint,
+  fitWorldToViewport,
+  getVisibleWorldBounds,
+  rectIntersectsBounds,
+  getAdaptiveGridStep,
+  pickScaleBarWorldLength,
+} from './canvas-viewport'
+import { drawElementSymbol, roundRect, drawFittedLabel, drawSelectionOutline, drawScaleBarHud, drawWorldBoundary } from './canvas-draw'
+import { formatGroundSizeLabel } from '@/lib/site-map/ground-size'
 import { ElementLibraryPanel } from './element-library-panel'
 import { ElementInspector } from './element-inspector'
 import { ToolPalette } from './tool-palette'
@@ -160,6 +170,9 @@ function CanvasDropZone({ children }: { children: React.ReactNode }) {
 
 export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPublish, isReadOnly = false, eventId }: SimCitySiteMapViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
+  const [viewportCss, setViewportCss] = useState({ width: 800, height: 600 })
+  const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [selectedTool, setSelectedTool] = useState<string>('select')
@@ -718,36 +731,86 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     onClose()
   }, [hasUnsavedChanges, isReadOnly, onClose])
 
+  const fitEntireMap = useCallback(() => {
+    const fitted = fitWorldToViewport({
+      worldWidth: siteMap.width,
+      worldHeight: siteMap.height,
+      cssWidth: viewportCss.width,
+      cssHeight: viewportCss.height,
+      padding: 48,
+    })
+    setZoom(fitted.zoom)
+    setPan(fitted.pan)
+  }, [siteMap.height, siteMap.width, viewportCss.height, viewportCss.width])
+
   // Fit to content
   const fitToContent = useCallback(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
     const bounds = [
       ...getVisibleElements().map(element => ({ x: element.x, y: element.y, width: element.width, height: element.height })),
       ...zones.map((zone, index) => normalizeZoneBounds(zone, index)),
       ...tents.map((tent, index) => normalizeTentBounds(tent, index)),
     ]
     if (bounds.length === 0) {
-      setZoom(1)
-      setPan({ x: 0, y: 0 })
+      fitEntireMap()
       return
     }
     const minX = Math.min(...bounds.map(e => e.x))
     const minY = Math.min(...bounds.map(e => e.y))
     const maxX = Math.max(...bounds.map(e => e.x + e.width))
     const maxY = Math.max(...bounds.map(e => e.y + e.height))
-    const contentW = maxX - minX + 80
-    const contentH = maxY - minY + 80
-    const rect = canvas.getBoundingClientRect()
-    const scaleX = rect.width / contentW
-    const scaleY = rect.height / contentH
-    const newZoom = Math.min(scaleX, scaleY, 3) * 0.9
-    setZoom(newZoom)
-    setPan({
-      x: -minX * newZoom + (rect.width - contentW * newZoom) / 2 + 40 * newZoom,
-      y: -minY * newZoom + (rect.height - contentH * newZoom) / 2 + 40 * newZoom
+    const contentW = Math.max(1, maxX - minX + 80)
+    const contentH = Math.max(1, maxY - minY + 80)
+    const fitted = fitWorldToViewport({
+      worldWidth: contentW,
+      worldHeight: contentH,
+      cssWidth: viewportCss.width,
+      cssHeight: viewportCss.height,
+      padding: 40,
     })
-  }, [getVisibleElements, normalizeTentBounds, normalizeZoneBounds, tents, zones])
+    setZoom(fitted.zoom)
+    setPan({
+      x: -minX * fitted.zoom + (viewportCss.width - contentW * fitted.zoom) / 2,
+      y: -minY * fitted.zoom + (viewportCss.height - contentH * fitted.zoom) / 2,
+    })
+  }, [fitEntireMap, getVisibleElements, normalizeTentBounds, normalizeZoneBounds, tents, viewportCss.height, viewportCss.width, zones])
+
+  const resetZoom100 = useCallback(() => {
+    setZoom(1)
+    setPan({
+      x: (viewportCss.width - siteMap.width) / 2,
+      y: (viewportCss.height - siteMap.height) / 2,
+    })
+  }, [siteMap.height, siteMap.width, viewportCss.height, viewportCss.width])
+
+  useEffect(() => {
+    const container = canvasContainerRef.current
+    const canvas = canvasRef.current
+    if (!container || !canvas) return
+
+    function applySize(width: number, height: number) {
+      resizeViewportCanvas({ canvas: canvas!, cssWidth: width, cssHeight: height })
+      setViewportCss({ width, height })
+    }
+
+    const rect = container.getBoundingClientRect()
+    applySize(rect.width, rect.height)
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      applySize(entry.contentRect.width, entry.contentRect.height)
+    })
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
+
+  // Initial fit once viewport is known
+  const didInitialFit = useRef(false)
+  useEffect(() => {
+    if (didInitialFit.current || viewportCss.width < 2) return
+    didInitialFit.current = true
+    fitEntireMap()
+  }, [fitEntireMap, viewportCss.width])
 
   // Export as PNG
   const exportAsPNG = useCallback(() => {
@@ -906,119 +969,123 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    // Clear canvas
+    const cssW = viewportCss.width
+    const cssH = viewportCss.height
+    // Clear in CSS pixel space (DPR transform already applied by resizeViewportCanvas)
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+    const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
-    // Apply transformations
+    ctx.fillStyle = canvasTheme === 'light' ? '#e8eef4' : '#0a1018'
+    ctx.fillRect(0, 0, cssW, cssH)
+
     ctx.save()
     ctx.translate(pan.x, pan.y)
     ctx.scale(zoom, zoom)
+
+    const visible = getVisibleWorldBounds({
+      cssWidth: cssW,
+      cssHeight: cssH,
+      pan,
+      zoom,
+      worldWidth: siteMap.width,
+      worldHeight: siteMap.height,
+      pad: 80,
+    })
 
     if (backgroundImage) {
       ctx.drawImage(backgroundImage, 0, 0, siteMap.width, siteMap.height)
     } else {
       const gradient = ctx.createLinearGradient(0, 0, siteMap.width, siteMap.height)
       if (canvasTheme === 'light') {
-        gradient.addColorStop(0, '#f8fafc')
-        gradient.addColorStop(1, '#e2e8f0')
+        gradient.addColorStop(0, '#f1f5f9')
+        gradient.addColorStop(1, '#dbe4ee')
       } else {
-        gradient.addColorStop(0, '#0f172a')
-        gradient.addColorStop(1, '#1e293b')
+        gradient.addColorStop(0, '#0f1720')
+        gradient.addColorStop(1, '#15202b')
       }
       ctx.fillStyle = gradient
       ctx.fillRect(0, 0, siteMap.width, siteMap.height)
     }
 
-    // Draw grid
+    drawWorldBoundary(ctx, siteMap.width, siteMap.height, canvasTheme)
+
     if (showGrid) {
-      // Draw highlighted grid cells first (SimCity-style)
       if (highlightedGridCells.length > 0) {
         highlightedGridCells.forEach(cell => {
-          ctx.fillStyle = isValidPlacement 
-            ? 'rgba(34, 197, 94, 0.3)' // Green for valid placement
-            : 'rgba(239, 68, 68, 0.3)' // Red for invalid placement
+          ctx.fillStyle = isValidPlacement ? 'rgba(45, 212, 191, 0.28)' : 'rgba(239, 68, 68, 0.28)'
           ctx.fillRect(cell.x, cell.y, gridSize, gridSize)
-          
-          // Draw border for highlighted cells
-          ctx.strokeStyle = isValidPlacement 
-            ? 'rgba(34, 197, 94, 0.8)' 
-            : 'rgba(239, 68, 68, 0.8)'
-          ctx.lineWidth = 2
+          ctx.strokeStyle = isValidPlacement ? 'rgba(45, 212, 191, 0.85)' : 'rgba(239, 68, 68, 0.85)'
+          ctx.lineWidth = 1.5 / Math.max(zoom, 0.01)
           ctx.strokeRect(cell.x, cell.y, gridSize, gridSize)
         })
       }
-      
-      const majorGridSize = gridSize * 5
-      ctx.strokeStyle = canvasTheme === 'light' ? 'rgba(71, 85, 105, 0.3)' : 'rgba(148, 163, 184, 0.4)'
-      ctx.lineWidth = 1.5
-      
-      for (let x = 0; x <= siteMap.width; x += majorGridSize) {
+
+      const { minor, major, drawMinor } = getAdaptiveGridStep({ baseGridSize: gridSize, zoom })
+      const startX = Math.floor(visible.x / minor) * minor
+      const startY = Math.floor(visible.y / minor) * minor
+      const endX = Math.min(siteMap.width, visible.x + visible.width)
+      const endY = Math.min(siteMap.height, visible.y + visible.height)
+      const lineScale = 1 / Math.max(zoom, 0.01)
+
+      if (drawMinor) {
+        ctx.strokeStyle = canvasTheme === 'light' ? 'rgba(71, 85, 105, 0.12)' : 'rgba(148, 163, 184, 0.12)'
+        ctx.lineWidth = 0.5 * lineScale
+        for (let x = startX; x <= endX; x += minor) {
+          if (x % major === 0) continue
+          ctx.beginPath()
+          ctx.moveTo(x, Math.max(0, visible.y))
+          ctx.lineTo(x, endY)
+          ctx.stroke()
+        }
+        for (let y = startY; y <= endY; y += minor) {
+          if (y % major === 0) continue
+          ctx.beginPath()
+          ctx.moveTo(Math.max(0, visible.x), y)
+          ctx.lineTo(endX, y)
+          ctx.stroke()
+        }
+      }
+
+      ctx.strokeStyle = canvasTheme === 'light' ? 'rgba(15, 118, 110, 0.28)' : 'rgba(45, 212, 191, 0.22)'
+      ctx.lineWidth = 1.25 * lineScale
+      const majorStartX = Math.floor(visible.x / major) * major
+      const majorStartY = Math.floor(visible.y / major) * major
+      for (let x = majorStartX; x <= endX; x += major) {
         ctx.beginPath()
-        ctx.moveTo(x, 0)
-        ctx.lineTo(x, siteMap.height)
+        ctx.moveTo(x, Math.max(0, visible.y))
+        ctx.lineTo(x, endY)
         ctx.stroke()
       }
-      
-      for (let y = 0; y <= siteMap.height; y += majorGridSize) {
+      for (let y = majorStartY; y <= endY; y += major) {
         ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(siteMap.width, y)
+        ctx.moveTo(Math.max(0, visible.x), y)
+        ctx.lineTo(endX, y)
         ctx.stroke()
-      }
-      
-      ctx.strokeStyle = canvasTheme === 'light' ? 'rgba(71, 85, 105, 0.15)' : 'rgba(148, 163, 184, 0.2)'
-      ctx.lineWidth = 0.5
-      
-      for (let x = 0; x <= siteMap.width; x += gridSize) {
-        if (x % majorGridSize !== 0) {
-          ctx.beginPath()
-          ctx.moveTo(x, 0)
-          ctx.lineTo(x, siteMap.height)
-          ctx.stroke()
-        }
-      }
-      
-      for (let y = 0; y <= siteMap.height; y += gridSize) {
-        if (y % majorGridSize !== 0) {
-          ctx.beginPath()
-          ctx.moveTo(0, y)
-          ctx.lineTo(siteMap.width, y)
-          ctx.stroke()
-        }
-      }
-      
-      // Draw grid cell borders for better visibility
-      if (selectedElementForPlacement && snapToGrid) {
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)'
-        ctx.lineWidth = 0.5
-        
-        for (let x = 0; x <= siteMap.width; x += gridSize) {
-          ctx.beginPath()
-          ctx.moveTo(x, 0)
-          ctx.lineTo(x, siteMap.height)
-          ctx.stroke()
-        }
-        
-        for (let y = 0; y <= siteMap.height; y += gridSize) {
-          ctx.beginPath()
-          ctx.moveTo(0, y)
-          ctx.lineTo(siteMap.width, y)
-          ctx.stroke()
-        }
       }
     }
 
-    // Draw first-class site map objects
     getVisibleZones().forEach((zone, index) => {
+      const bounds = normalizeZoneBounds(zone, index)
+      if (!rectIntersectsBounds(bounds, visible)) return
       drawZone(ctx, zone, index)
     })
 
     tents.forEach((tent, index) => {
+      const bounds = normalizeTentBounds(tent, index)
+      if (!rectIntersectsBounds(bounds, visible)) return
       drawTent(ctx, tent, index)
     })
 
     getVisibleElements().forEach(element => {
+      if (!rectIntersectsBounds(element, visible)) return
       drawElement(ctx, element)
+      if (element.id === selectedElement || selectedElements.includes(element.id)) {
+        drawSelectionOutline(ctx, element, '#2dd4bf')
+      }
     })
 
     measurements.forEach(measurement => {
@@ -1038,13 +1105,25 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
       drawNotePin(ctx, note)
     })
 
-    // Draw placement preview
     if (selectedElementForPlacement && hoverPosition) {
       drawPlacementPreview(ctx, selectedElementForPlacement, hoverPosition)
     }
 
     ctx.restore()
-  }, [siteMap, canvasFilters.unresolvedNotesOnly, getUnresolvedNotes, getVisibleElements, getVisibleIssues, getVisibleZones, zones, tents, measurements, measureStart, measureHover, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElements, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses, backgroundImage, notes, marqueeStart, marqueeEnd, tasks, selectedObject])
+
+    const scale = getNumber(siteMap.scale, 1)
+    const unit = siteMap.scaleUnit || siteMap.scale_unit || 'meters'
+    const barWorld = pickScaleBarWorldLength({ zoom, scale })
+    const barScreen = barWorld * zoom
+    const barGround = barWorld * scale
+    drawScaleBarHud(ctx, {
+      cssWidth: cssW,
+      cssHeight: cssH,
+      worldLength: barWorld,
+      screenLength: barScreen,
+      label: `${barGround >= 1000 ? barGround.toLocaleString(undefined, { maximumFractionDigits: 0 }) : barGround.toFixed(barGround < 10 ? 1 : 0)} ${unit}`,
+    })
+  }, [siteMap, canvasFilters.unresolvedNotesOnly, getUnresolvedNotes, getVisibleElements, getVisibleIssues, getVisibleZones, zones, tents, measurements, measureStart, measureHover, zoom, pan, showGrid, gridSize, snapToGrid, selectedElement, selectedElements, selectedElementForPlacement, hoverPosition, highlightedGridCells, isValidPlacement, canvasTheme, elementStatuses, backgroundImage, notes, marqueeStart, marqueeEnd, tasks, selectedObject, viewportCss, normalizeZoneBounds, normalizeTentBounds, getNumber])
 
   const countOpenTasksForObject = (objectId: string) =>
     tasks.filter((task) => {
@@ -1086,9 +1165,9 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
   const drawZone = (ctx: CanvasRenderingContext2D, zone: any, index: number) => {
     const bounds = normalizeZoneBounds(zone, index)
-    const color = zone.color || '#9333ea'
-    const borderColor = zone.border_color || zone.borderColor || color
-    const opacity = getNumber(zone.opacity, 0.22)
+    const color = zone.color || '#0f766e'
+    const borderColor = zone.border_color || zone.borderColor || '#2dd4bf'
+    const opacity = getNumber(zone.opacity, 0.2)
     const rotation = getNumber(zone.rotation, 0)
     const isSelected = selectedObject?.kind === 'zone' && selectedObject.id === zone.id
 
@@ -1099,27 +1178,27 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
 
     ctx.globalAlpha = Math.min(0.85, Math.max(0.12, opacity))
     ctx.fillStyle = color
-    roundRect(ctx, 0, 0, bounds.width, bounds.height, 8)
+    roundRect(ctx, 0, 0, bounds.width, bounds.height, 6)
     ctx.fill()
     ctx.globalAlpha = 1
 
-    ctx.strokeStyle = isSelected ? '#fbbf24' : borderColor
-    ctx.lineWidth = isSelected ? 3 : getNumber(zone.border_width ?? zone.borderWidth, 2)
-    ctx.setLineDash(isSelected ? [] : [10, 6])
-    roundRect(ctx, 0, 0, bounds.width, bounds.height, 8)
+    ctx.strokeStyle = isSelected ? '#f59e0b' : borderColor
+    ctx.lineWidth = isSelected ? 2.5 : getNumber(zone.border_width ?? zone.borderWidth, 1.5)
+    ctx.setLineDash(isSelected ? [] : [8, 5])
+    roundRect(ctx, 0, 0, bounds.width, bounds.height, 6)
     ctx.stroke()
     ctx.setLineDash([])
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)'
-    roundRect(ctx, 8, 8, Math.min(bounds.width - 16, 180), 34, 6)
+    ctx.fillStyle = 'rgba(8, 14, 20, 0.88)'
+    roundRect(ctx, 8, 8, Math.min(bounds.width - 16, 180), 34, 4)
     ctx.fill()
-    ctx.fillStyle = '#ffffff'
-    ctx.font = '700 12px Inter, system-ui, sans-serif'
+    ctx.fillStyle = '#f8fafc'
+    ctx.font = '600 12px ui-sans-serif, system-ui, sans-serif'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
     drawFittedLabel(ctx, zone.name || `Zone ${index + 1}`, 18, 21, Math.min(bounds.width - 36, 150))
-    ctx.fillStyle = '#cbd5e1'
-    ctx.font = '500 10px Inter, system-ui, sans-serif'
+    ctx.fillStyle = '#94a3b8'
+    ctx.font = '500 10px ui-monospace, SFMono-Regular, Menlo, monospace'
     drawFittedLabel(ctx, (zone.zone_type || zone.zoneType || 'zone').replace(/_/g, ' '), 18, 35, Math.min(bounds.width - 36, 150))
 
     const leadId = zone.lead_user_id || zone.leadUserId
@@ -1471,7 +1550,13 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
   const getMapCoords = useCallback((event: { clientX: number; clientY: number }) => {
     const canvas = canvasRef.current
     if (!canvas) return { x: 0, y: 0 }
-    return screenToMapCoords(event.clientX, event.clientY, canvas.getBoundingClientRect(), pan, zoom)
+    return screenToWorld({
+      clientX: event.clientX,
+      clientY: event.clientY,
+      canvasRect: canvas.getBoundingClientRect(),
+      pan,
+      zoom,
+    })
   }, [pan, zoom])
 
   const hitTestElement = useCallback((mx: number, my: number) => hitTestRect(elements, mx, my), [elements])
@@ -1790,7 +1875,7 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     const activator = event.activatorEvent as PointerEvent | undefined
     const dropX = (activator?.clientX ?? rect.left + rect.width / 2) + event.delta.x
     const dropY = (activator?.clientY ?? rect.top + rect.height / 2) + event.delta.y
-    const coords = screenToMapCoords(dropX, dropY, rect, pan, zoom)
+    const coords = screenToWorld({ clientX: dropX, clientY: dropY, canvasRect: rect, pan, zoom })
     placeCannedElementAt(canned || payload!, coords.x, coords.y)
   }, [isReadOnly, pan, placeCannedElementAt, zoom])
 
@@ -2094,42 +2179,57 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
     drawCanvas()
   }, [drawCanvas])
 
+  const groundLabel = formatGroundSizeLabel({
+    width: siteMap.width,
+    height: siteMap.height,
+    scale: getNumber(siteMap.scale, 1),
+    scaleUnit: siteMap.scaleUnit || siteMap.scale_unit || 'meters',
+  })
+
   return (
     <DndContext sensors={dndSensors} onDragStart={handleLibraryDragStart} onDragEnd={handleLibraryDragEnd}>
     <div className={cn(
-      "fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center",
+      "fixed inset-0 z-50 flex items-center justify-center bg-[#05080c]/92 backdrop-blur-md",
       isFullscreen && "p-0"
     )}>
       <div className={cn(
-        "bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl border border-slate-700/30 rounded-3xl shadow-2xl shadow-slate-900/50 w-full max-w-[95vw] h-full max-h-[95vh] flex flex-col overflow-hidden",
-        isFullscreen && "max-w-none max-h-none h-full w-full rounded-none"
+        "flex h-full max-h-[95vh] w-full max-w-[95vw] flex-col overflow-hidden rounded-2xl border border-teal-900/35 bg-[#0c1219] shadow-2xl shadow-black/50",
+        isFullscreen && "max-h-none max-w-none h-full w-full rounded-none"
       )}>
         {/* Compact Header */}
-        <div className="relative px-4 py-2.5 border-b border-slate-700/30 bg-gradient-to-r from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-2xl">
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-purple-500/10"></div>
+        <div className="relative border-b border-teal-900/40 bg-[#0a1017] px-4 py-2.5">
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-teal-500/30 to-transparent" />
           
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="p-2 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl shadow-lg">
-                <MapPin className="h-4 w-4 text-white" />
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="rounded-lg border border-teal-500/30 bg-teal-500/15 p-2">
+                <MapPin className="h-4 w-4 text-teal-300" />
               </div>
               
               <div className="min-w-0">
                 <div className="flex items-center gap-3">
-                  <h1 className="text-lg font-bold text-white truncate">{siteMap.name}</h1>
+                  <h1 className="truncate text-lg font-semibold tracking-tight text-white">{siteMap.name}</h1>
                   <Badge
                     variant="secondary"
                     className={cn(
-                      "px-2 py-0.5 text-[10px] font-medium rounded-full border shrink-0",
+                      "shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium",
                       mapStatus === 'published'
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-                        : "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                        ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+                        : "border-amber-500/30 bg-amber-500/15 text-amber-300"
                     )}
                   >
-                    <div className={cn("w-1.5 h-1.5 rounded-full mr-1", mapStatus === 'published' ? "bg-emerald-400" : "bg-amber-400")}></div>
+                    <div className={cn("mr-1 h-1.5 w-1.5 rounded-full", mapStatus === 'published' ? "bg-emerald-400" : "bg-amber-400")} />
                     {mapStatus}
                   </Badge>
-                  <span className="text-xs text-slate-400 font-mono shrink-0">{siteMap.width}×{siteMap.height}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-teal-200/80">{groundLabel}</span>
+                  <span className="hidden shrink-0 font-mono text-[10px] text-slate-500 sm:inline">
+                    {siteMap.width}×{siteMap.height} u
+                  </span>
+                  {cursorWorld && (
+                    <span className="hidden shrink-0 font-mono text-[10px] text-slate-400 md:inline">
+                      {Math.round(cursorWorld.x)},{Math.round(cursorWorld.y)}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -2392,14 +2492,44 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
                   <div className="w-px h-4 bg-slate-700/40"></div>
 
                   <div className="flex items-center gap-0.5 bg-slate-800/50 rounded-lg p-0.5">
-                    <Button variant="ghost" size="sm" onClick={() => setZoom(prev => Math.max(0.1, prev - 0.1))} className="h-6 w-6 p-0 text-slate-400 hover:text-white">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const cx = viewportCss.width / 2
+                        const cy = viewportCss.height / 2
+                        const next = zoomAtPoint({ currentZoom: zoom, nextZoom: zoom * 0.85, pan, screenX: cx, screenY: cy })
+                        setZoom(next.zoom)
+                        setPan(next.pan)
+                      }}
+                      className="h-6 w-6 p-0 text-slate-400 hover:text-teal-200"
+                      title="Zoom out"
+                    >
                       <ZoomOut className="h-3 w-3" />
                     </Button>
-                    <span className="text-[10px] text-slate-300 w-9 text-center font-mono">{Math.round(zoom * 100)}%</span>
-                    <Button variant="ghost" size="sm" onClick={() => setZoom(prev => Math.min(5, prev + 0.1))} className="h-6 w-6 p-0 text-slate-400 hover:text-white">
+                    <span className="w-12 text-center font-mono text-[10px] text-teal-100/90">{Math.round(zoom * 100)}%</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        const cx = viewportCss.width / 2
+                        const cy = viewportCss.height / 2
+                        const next = zoomAtPoint({ currentZoom: zoom, nextZoom: zoom * 1.15, pan, screenX: cx, screenY: cy })
+                        setZoom(next.zoom)
+                        setPan(next.pan)
+                      }}
+                      className="h-6 w-6 p-0 text-slate-400 hover:text-teal-200"
+                      title="Zoom in"
+                    >
                       <ZoomIn className="h-3 w-3" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={fitToContent} className="h-6 w-6 p-0 text-slate-400 hover:text-white" title="Fit to content">
+                    <Button variant="ghost" size="sm" onClick={fitEntireMap} className="h-6 px-1.5 text-[10px] text-slate-400 hover:text-amber-200" title="Fit entire map">
+                      Fit
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={resetZoom100} className="h-6 px-1.5 font-mono text-[10px] text-slate-400 hover:text-amber-200" title="100% zoom">
+                      100%
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={fitToContent} className="h-6 w-6 p-0 text-slate-400 hover:text-teal-200" title="Fit to content">
                       <Maximize className="h-3 w-3" />
                     </Button>
                   </div>
@@ -2433,17 +2563,29 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
             </div>
 
             <CanvasDropZone>
-            <div className="flex-1 p-2 relative z-10 h-full">
-              <div className="relative w-full h-full bg-slate-950/30 rounded-xl border border-slate-700/30 overflow-hidden shadow-inner">
+            <div className="flex-1 p-2 relative z-10 h-full min-h-0">
+              <div
+                ref={canvasContainerRef}
+                className="relative w-full h-full min-h-[280px] bg-[#070b10] rounded-xl border border-teal-900/40 overflow-hidden shadow-inner"
+              >
                 <canvas
                   ref={canvasRef}
-                  width={siteMap.width}
-                  height={siteMap.height}
-                  className="absolute inset-0 w-full h-full"
+                  className="absolute inset-0"
                   onMouseDown={handleCanvasMouseDown}
                   onMouseUp={handleCanvasMouseUp}
-                  onMouseMove={handleCanvasMouseMove}
-                  onMouseLeave={() => { setIsPanning(false); if (isDragging) { setIsDragging(false); pushHistory(elements) } }}
+                  onMouseMove={(event) => {
+                    const coords = getMapCoords(event)
+                    setCursorWorld(coords)
+                    handleCanvasMouseMove(event)
+                  }}
+                  onMouseLeave={() => {
+                    setCursorWorld(null)
+                    setIsPanning(false)
+                    if (isDragging) {
+                      setIsDragging(false)
+                      pushHistory(elements)
+                    }
+                  }}
                   onContextMenu={handleContextMenu}
                   onTouchStart={(event) => {
                     const touch = event.touches[0]
@@ -2463,15 +2605,21 @@ export function SimCitySiteMapViewer({ siteMap, onClose, onSave, onDelete, onPub
                     const mx = e.clientX - rect.left
                     const my = e.clientY - rect.top
                     const factor = e.deltaY > 0 ? 0.9 : 1.1
-                    const newZoom = Math.max(0.1, Math.min(5, zoom * factor))
-                    setPan(prev => ({
-                      x: mx - (mx - prev.x) * (newZoom / zoom),
-                      y: my - (my - prev.y) * (newZoom / zoom)
-                    }))
-                    setZoom(newZoom)
+                    const next = zoomAtPoint({
+                      currentZoom: zoom,
+                      nextZoom: zoom * factor,
+                      pan,
+                      screenX: mx,
+                      screenY: my,
+                    })
+                    setPan(next.pan)
+                    setZoom(next.zoom)
                   }}
                   style={{
                     touchAction: 'none',
+                    width: '100%',
+                    height: '100%',
+                    display: 'block',
                     cursor: isPanning || isSpaceHeld || selectedTool === 'pan'
                       ? (isPanning ? 'grabbing' : 'grab')
                       : isDragging ? 'move'

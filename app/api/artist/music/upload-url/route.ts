@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { requireApiUser, jsonError } from "@/lib/api/route-helpers"
 import { createServiceRoleClient } from "@/lib/supabase/service-role"
+import { createRateLimiter } from "@/lib/utils/rate-limit"
 
 export const dynamic = "force-dynamic"
+
+const uploadLimiter = createRateLimiter({ namespace: "music:upload:prepare", limit: 20, windowSec: 60 })
 
 const uploadUrlSchema = z.object({
   fileName: z.string().min(1).max(240),
@@ -26,6 +29,11 @@ export async function POST(request: NextRequest) {
     const authResult = await requireApiUser(request)
     if (!authResult.success) return authResult.response
     const { user } = authResult.auth
+
+    const rateLimit = await uploadLimiter.check(user.id)
+    if (!rateLimit.success) {
+      return jsonError({ status: 429, code: "rate_limited", message: "Too many upload requests.", retryable: true })
+    }
 
     const payload = uploadUrlSchema.parse(await request.json())
     const isAudio = payload.contentType.startsWith("audio/")
@@ -80,4 +88,3 @@ export async function POST(request: NextRequest) {
     })
   }
 }
-

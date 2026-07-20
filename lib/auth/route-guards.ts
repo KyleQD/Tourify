@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 /**
- * Internal/debug routes: in production require `INTERNAL_API_SECRET` or `CRON_SECRET`
- * via `Authorization: Bearer …` or `x-internal-api-secret`. Non-production allows all
- * callers so local dev works without secrets.
+ * Internal/debug routes require `INTERNAL_API_SECRET` or `CRON_SECRET`
+ * via `Authorization: Bearer …` or `x-internal-api-secret`.
+ * Non-production still requires a configured secret when one is present,
+ * so preview/dev cannot stay accidentally open.
  */
 function hasBearerAuthMatch(request: NextRequest, secret: string) {
   const authorizationHeader = request.headers.get('authorization')
@@ -14,18 +15,16 @@ function hasBearerAuthMatch(request: NextRequest, secret: string) {
 }
 
 export function isAuthorizedInternalRequest(request: NextRequest) {
-  if (process.env.NODE_ENV !== 'production') return true
-
   const secret = process.env.INTERNAL_API_SECRET || process.env.CRON_SECRET
-  if (!secret) return false
+  if (!secret) {
+    // Fail closed outside local development when secrets are missing.
+    return process.env.NODE_ENV !== 'production' && process.env.ALLOW_OPEN_INTERNAL_ROUTES === '1'
+  }
 
   return hasBearerAuthMatch(request, secret)
 }
 
 export function isAuthorizedCronRequest(request: NextRequest) {
-  if (process.env.VERCEL === '1' && request.headers.get('x-vercel-cron') === '1')
-    return true
-
   const secret = process.env.CRON_SECRET
   if (!secret) return false
 

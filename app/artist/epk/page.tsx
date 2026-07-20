@@ -713,7 +713,7 @@ export default function EPKPage() {
             </div>
           )}
 
-          <div className="mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
               <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
                 Electronic Press Kit
@@ -722,6 +722,12 @@ export default function EPKPage() {
                 Manage the content that populates your EPK. Design stays in Builder.
               </p>
             </div>
+            <Button asChild variant="outline" className="border-white/15 bg-white/5 text-white hover:bg-white/10">
+              <Link href="/artist/press">
+                <FileText className="mr-2 h-4 w-4" />
+                Latest Press
+              </Link>
+            </Button>
           </div>
 
           <EpkCommandHeader

@@ -3,6 +3,7 @@
  */
 
 import { OptimizedNotificationService } from "@/lib/services/optimized-notification-service"
+import { generalNotificationTarget } from "@/lib/notifications/notification-target"
 
 export interface RosterAddedNotificationContext {
   workerUserId: string
@@ -32,6 +33,7 @@ export async function sendRosterAddedNotification(
       title,
       content,
       priority: "high",
+      ...generalNotificationTarget(workerUserId),
       metadata: {
         candidate_id: candidateId,
         staff_member_id: staffMemberId ?? null,

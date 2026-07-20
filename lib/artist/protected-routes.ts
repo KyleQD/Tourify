@@ -1,6 +1,8 @@
 /**
- * Artist app surfaces that require an artist profile or artist account_type.
+ * Artist app surfaces that require an artist profile or artist/service account_type.
  * Public handles live at /artist/[handle] and must stay outside this set.
+ * Middleware grants access when artist_profiles exists OR accountTypeMatchesSection(..., 'artist')
+ * (artist | service) — see lib/navigation/account-dashboard-routes.ts.
  */
 
 const ARTIST_APP_SEGMENTS = new Set([
@@ -8,6 +10,7 @@ const ARTIST_APP_SEGMENTS = new Set([
   'feed',
   'music',
   'content',
+  'press',
   'events',
   'bookings',
   'profile',
@@ -19,6 +22,12 @@ const ARTIST_APP_SEGMENTS = new Set([
   'store',
   'tickets',
   'merchandise',
+  'overview',
+  'messages',
+  'jobs',
+  'collaborations',
+  'network',
+  'debug',
 ])
 
 export function pathnameRequiresArtistAccount(pathname: string): boolean {

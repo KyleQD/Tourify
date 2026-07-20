@@ -25,6 +25,9 @@ export default async function NewHiringJobPage({ searchParams }: NewHiringJobPag
     )
   }
 
+  const templateParam = resolvedSearchParams.onboarding_template_id
+  const onboardingTemplateId = Array.isArray(templateParam) ? templateParam[0] : templateParam
+
   return (
     <WorkforcePageShell className="lg:px-10">
       <WorkforceHero
@@ -32,7 +35,16 @@ export default async function NewHiringJobPage({ searchParams }: NewHiringJobPag
         description={`Create a scoped workforce job for ${employer.displayName}. Applicant intake fields are saved with the posting and onboarding is resolved after approval.`}
         badge={employer.entityType}
       />
-      <JobPostingBuilder employer={employer} />
+      <JobPostingBuilder
+        employer={employer}
+        initialData={
+          onboardingTemplateId
+            ? {
+                onboarding_template_id: onboardingTemplateId,
+              }
+            : undefined
+        }
+      />
     </WorkforcePageShell>
   )
 }

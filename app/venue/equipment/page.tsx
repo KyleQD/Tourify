@@ -305,7 +305,6 @@ export default function EquipmentPage() {
         <TabsList className="h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto p-1 [&>*]:shrink-0">
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="rentals">Rentals</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -554,22 +553,6 @@ export default function EquipmentPage() {
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
-
-        <TabsContent value="rentals">
-          <Card>
-            <CardHeader>
-              <CardTitle>Equipment Rentals</CardTitle>
-              <CardDescription>Manage equipment rental bookings</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8">
-                <DollarSign className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-muted-foreground">Rental management coming soon</p>
-                <p className="text-sm text-muted-foreground">Track equipment rentals and generate revenue</p>
-              </div>
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="analytics">

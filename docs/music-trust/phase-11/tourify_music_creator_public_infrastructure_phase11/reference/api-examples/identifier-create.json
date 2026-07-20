@@ -1,0 +1,14 @@
+{
+  "method": "POST",
+  "path": "/api/creator-public-infrastructure/identifiers",
+  "body": {
+    "participationId": "uuid",
+    "method": "approved-method",
+    "publicFields": {
+      "displayName": "Artist Name"
+    }
+  },
+  "expected": {
+    "status": "pending_control_proof"
+  }
+}

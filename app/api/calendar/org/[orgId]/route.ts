@@ -31,8 +31,8 @@ export async function GET(
   if (org.calendar_feed_enabled === false)
     return new Response('Calendar feed disabled', { status: 403 })
 
-  if (org.calendar_token && token !== String(org.calendar_token))
-    return new Response('Invalid token', { status: 401 })
+  if (!org.calendar_token || !token || token !== String(org.calendar_token))
+    return new Response('Unauthorized', { status: 401 })
 
   const startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   const endDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]

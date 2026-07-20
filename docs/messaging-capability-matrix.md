@@ -58,6 +58,11 @@ All notification inserts are gated through `should_send_notification`.
 | Area                                                                 | Web                                | Mobile                                 |
 | -------------------------------------------------------------------- | ---------------------------------- | -------------------------------------- |
 | Inbox tabs (Primary / Requests / Work)                                | Implemented (`app/messages/`)      | Implemented (segmented bar)            |
+| Account inbox selector (acting account scoped DMs)                    | Implemented (`InboxAccountSelector` + acting headers) | Not yet |
+| Public-page Message CTA → account Requests inbox                      | Profile, artist, org, venue        | N/A                                    |
+| New Message + mutual-friends recipient picker                         | Implemented (`ComposeNewMessageDialog`) | Not yet                            |
+| Images / emoji / document attachments in main composer                | Implemented                        | Not yet                                |
+| Work tab ops (channels, tasks, docs/bulletins, work-mode pubs)        | Implemented (`unified-list` sections) | Partial (tabs only)                 |
 | Optimistic accept / decline + sender waiting state                    | Implemented                        | Not yet                                |
 | Trust-tier context chips                                              | Implemented                        | Request badge only                     |
 | Composer disabled for viewer accounts (`profiles.role = 'viewer'`)    | Implemented via `viewer.canSend`   | Composer respects API rejection        |
@@ -66,6 +71,15 @@ All notification inserts are gated through `should_send_notification`.
 | Event group chat realtime (admin hub + viewer)                        | Realtime subscription              | Realtime via shared Supabase channel   |
 | Mention extraction filtered to thread members                         | Implemented                        | N/A (mention syntax not surfaced yet)  |
 | Cursor pagination on messages / group messages / unified list         | Implemented                        | Reads default page (uses API limits)   |
+
+## Account-scoped inboxes
+
+Conversations remain between auth user ids (`participant_1` / `participant_2`), but each side is tagged with:
+
+- `participant_*_profile_id` — entity UUID (or user id for general)
+- `participant_*_account_type` — `general` | `artist` | `venue` | `organization` | …
+
+Inbox APIs resolve the acting account via `resolveActingContext` (`x-acting-profile-id` / `x-acting-account-type`) and filter threads where the viewer's side matches that account. Cold outreach from a public artist/org/venue page sets the recipient account side so the request lands in that account's Requests tab.
 
 ## Realtime Channels (Appendix)
 

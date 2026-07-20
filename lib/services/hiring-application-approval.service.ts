@@ -279,6 +279,39 @@ export async function approveStaffApplication({
     source: "approve",
   })
 
+  // Nudge the hiring manager to recognize the new hire with a badge or endorsement.
+  try {
+    const applicantId = (application.applicant_id as string | null) ?? null
+    if (applicantId && actorUserId !== applicantId) {
+      const { OptimizedNotificationService } = await import(
+        '@/lib/services/optimized-notification-service'
+      )
+      const candidateName =
+        (typeof candidate.name === 'string' && candidate.name) ||
+        (typeof candidate.full_name === 'string' && candidate.full_name) ||
+        'your new hire'
+      await OptimizedNotificationService.createNotification({
+        userId: actorUserId,
+        type: 'feature_update',
+        title: `Recognize ${candidateName}`,
+        content: `They were just approved${jobTitle ? ` for ${jobTitle}` : ''}. Award a badge or send a verified endorsement from your jobs team panel.`,
+        summary: 'Recognize your team',
+        relatedUserId: applicantId,
+        relatedContentId: applicationId,
+        relatedContentType: 'job_application',
+        metadata: {
+          link: '/admin/dashboard/jobs',
+          prompt: 'recognition',
+          application_id: applicationId,
+          job_posting_id: application.job_posting_id,
+          endorsee_id: applicantId,
+        },
+      })
+    }
+  } catch (recognitionPromptError) {
+    console.warn('[HiringApproval] Recognition prompt skipped:', recognitionPromptError)
+  }
+
   let contract: Record<string, unknown> | null = null
   const shouldSendContract = options.sendContract !== false
   const provider = CONTRACT_PROVIDERS.includes(options.contractProvider as (typeof CONTRACT_PROVIDERS)[number])
@@ -358,6 +391,8 @@ export async function approveStaffApplication({
       applicantUserId: candidateUserId,
       candidateId: typeof candidate.id === "string" ? candidate.id : null,
       venueId: application.venue_id,
+      employerEntityType: employer.entityType,
+      employerEntityId: employer.entityId,
       jobPostingId: application.job_posting_id,
       actorUserId,
       onboardingUrl,

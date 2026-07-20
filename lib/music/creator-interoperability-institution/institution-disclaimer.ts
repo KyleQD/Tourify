@@ -1,0 +1,2 @@
+export const CREATOR_INTEROP_INSTITUTION_DISCLAIMER =
+  "Interoperability-institution readiness sandbox only — not a treaty system, international organization, privilege, immunity, diplomatic status, formal depositary, UN relationship, or public regulatory authority. Phase 15 organization records are inputs only. Phase 16 cannot launch from Phase 15 flags. Feature flags are never legal authority."

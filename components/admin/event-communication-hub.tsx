@@ -25,6 +25,7 @@ import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
 import { EventTaskMessages } from "@/components/admin/event-task-messages"
 import { EventSecureUploads } from "@/components/admin/event-secure-uploads"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import { supabase } from "@/lib/supabase"
 import {
   Megaphone,
@@ -312,7 +313,9 @@ function BulletinsSection({ eventId, userRole, isAdmin }: { eventId: string; use
         body: JSON.stringify(newBulletin),
       }))
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
+        if (isFeatureUnavailableResponse(res.status, err))
+          throw new Error(featureUnavailableMessage(err, 'Bulletins are temporarily unavailable.'))
         throw new Error(err.error || 'Failed')
       }
       toast.success('Bulletin posted')
@@ -702,7 +705,11 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
         body: JSON.stringify(newGroup),
       }))
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.error || data.details?.member_ids?.[0] || 'Failed to create group')
+      if (!res.ok) {
+        if (isFeatureUnavailableResponse(res.status, data))
+          throw new Error(featureUnavailableMessage(data, 'Group chats are temporarily unavailable.'))
+        throw new Error(data.error || data.details?.member_ids?.[0] || 'Failed to create group')
+      }
       toast.success('Group created')
       setShowCreate(false)
       setNewGroup({ name: '', description: '', group_type: 'general', member_ids: [] })
@@ -727,6 +734,8 @@ function GroupChatsSection({ eventId, userRole, isAdmin }: { eventId: string; us
       }))
       if (!res.ok) {
         const error = await res.json().catch(() => ({}))
+        if (isFeatureUnavailableResponse(res.status, error))
+          throw new Error(featureUnavailableMessage(error, 'Group chats are temporarily unavailable.'))
         throw new Error(error.error || 'Failed to send')
       }
       const data = await res.json().catch(() => ({}))
@@ -1149,13 +1158,18 @@ function DocumentsSection({ eventId, userRole, isAdmin }: { eventId: string; use
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDoc),
       }))
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        if (isFeatureUnavailableResponse(res.status, err))
+          throw new Error(featureUnavailableMessage(err, 'Documents are temporarily unavailable.'))
+        throw new Error(err.error || 'Failed to create document')
+      }
       toast.success('Document created')
       setShowCreate(false)
       setNewDoc({ title: '', content: '', document_type: 'general', visible_to: ['all'], pinned: false })
       await fetchDocuments()
-    } catch {
-      toast.error('Failed to create document')
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to create document')
     } finally {
       setCreating(false)
     }

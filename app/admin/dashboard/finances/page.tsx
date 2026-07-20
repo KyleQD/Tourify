@@ -48,6 +48,8 @@ import { AdminEmptyState } from "../components/admin-empty-state"
 import { AdminStatCard } from "../components/admin-stat-card"
 import { toast } from "sonner"
 import { formatSafeDate } from "@/lib/events/admin-event-normalization"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { mapAdminScopeError, readAdminErrorMessage } from "@/lib/admin/admin-request"
 
 interface FinancialOverview {
   totalIncome: number
@@ -102,7 +104,10 @@ function statusColor(status: string): string {
   }
 }
 
-function buildNoStoreInit(input?: RequestInit): RequestInit {
+function buildNoStoreInit(
+  actingHeaders: Record<string, string>,
+  input?: RequestInit,
+): RequestInit {
   return {
     credentials: 'include',
     cache: 'no-store',
@@ -111,13 +116,20 @@ function buildNoStoreInit(input?: RequestInit): RequestInit {
       'Content-Type': 'application/json',
       'Cache-Control': 'no-cache',
       Pragma: 'no-cache',
+      ...actingHeaders,
       ...(input?.headers || {}),
     },
   }
 }
 
 export default function FinancesPage() {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback(
+    (input?: RequestInit) => buildNoStoreInit(actingHeaders, input),
+    [actingHeaders],
+  )
   const [loading, setLoading] = useState(true)
+  const [loadedContextKey, setLoadedContextKey] = useState('')
   const [overview, setOverview] = useState<FinancialOverview | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [budgets, setBudgets] = useState<Budget[]>([])
@@ -137,10 +149,6 @@ export default function FinancesPage() {
   const [deleteTxId, setDeleteTxId] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ type: 'expense' as 'income'|'expense', category: '', amount: '', description: '', vendor_name: '', payment_status: 'pending' })
 
-  // Event/tour scope selector
-  const [scopeEventId, setScopeEventId] = useState('')
-  const [scopeTourId, setScopeTourId] = useState('')
-
   const [newTx, setNewTx] = useState({
     type: 'expense' as 'income' | 'expense',
     category: 'other_expense',
@@ -151,26 +159,37 @@ export default function FinancesPage() {
   })
 
   const fetchData = useCallback(async () => {
+    if (!isActingReady) return
     try {
       setLoading(true)
-      const res = await fetch('/api/admin/finances?type=overview', buildNoStoreInit())
-      if (!res.ok) throw new Error('Failed to fetch')
-      const data = await res.json()
+      setOverview(null)
+      setTransactions([])
+      setBudgets([])
+      setSettlements([])
+      const [res, settlementsRes] = await Promise.all([
+        fetch('/api/admin/finances?type=overview', adminRequest()),
+        fetch('/api/admin/finances/settlements', adminRequest()),
+      ])
+      if (!res.ok) {
+        const message = await readAdminErrorMessage(res)
+        const mapped = mapAdminScopeError(res.status, null, message)
+        throw new Error(mapped.message)
+      }
+      const [data, settlementsData] = await Promise.all([
+        res.json(),
+        settlementsRes.ok ? settlementsRes.json() : Promise.resolve({ settlements: [] }),
+      ])
       setOverview(data.overview)
       setTransactions(data.recentTransactions || [])
       setBudgets(data.budgets || [])
-
-      // Fetch settlements
-      fetch('/api/admin/finances/settlements', buildNoStoreInit())
-        .then(r => r.ok ? r.json() : { settlements: [] })
-        .then(d => setSettlements(d.settlements || []))
-        .catch(() => {})
-    } catch {
-      toast.error('Failed to load financial data')
+      setSettlements(settlementsData.settlements || [])
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load financial data')
     } finally {
+      setLoadedContextKey(actingContextKey)
       setLoading(false)
     }
-  }, [])
+  }, [actingContextKey, adminRequest, isActingReady])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -182,7 +201,7 @@ export default function FinancesPage() {
 
     setAddingTx(true)
     try {
-      const res = await fetch('/api/admin/finances', buildNoStoreInit({
+      const res = await fetch('/api/admin/finances', adminRequest({
         method: 'POST',
         body: JSON.stringify({
           action: 'create_transaction',
@@ -222,7 +241,7 @@ export default function FinancesPage() {
     }
     setAddingBudget(true)
     try {
-      const res = await fetch('/api/admin/finances', buildNoStoreInit({
+      const res = await fetch('/api/admin/finances', adminRequest({
         method: 'POST',
         body: JSON.stringify({
           action: 'create_budget',
@@ -254,7 +273,7 @@ export default function FinancesPage() {
   async function handleEditTx() {
     if (!editingTx) return
     try {
-      const res = await fetch('/api/admin/finances', buildNoStoreInit({ method: 'PATCH', body: JSON.stringify({ id: editingTx.id, table: 'transaction', ...editForm, amount: Number(editForm.amount) }) }))
+      const res = await fetch('/api/admin/finances', adminRequest({ method: 'PATCH', body: JSON.stringify({ id: editingTx.id, table: 'transaction', ...editForm, amount: Number(editForm.amount) }) }))
       if (!res.ok) throw new Error(await res.text())
       toast.success('Transaction updated')
       setShowEditDialog(false)
@@ -265,7 +284,7 @@ export default function FinancesPage() {
   async function handleDeleteTx() {
     if (!deleteTxId) return
     try {
-      const res = await fetch(`/api/admin/finances?id=${deleteTxId}`, buildNoStoreInit({ method: 'DELETE' }))
+      const res = await fetch(`/api/admin/finances?id=${deleteTxId}`, adminRequest({ method: 'DELETE' }))
       if (!res.ok) throw new Error(await res.text())
       toast.success('Transaction deleted')
       setDeleteTxId(null)
@@ -296,7 +315,9 @@ export default function FinancesPage() {
     return Object.values(grouped).sort((a, b) => a.month.localeCompare(b.month))
   }, [transactions])
 
-  if (loading) return <AdminPageSkeleton />
+  if (loading || !isActingReady || loadedContextKey !== actingContextKey) {
+    return <AdminPageSkeleton />
+  }
 
   const incomeCategories = ['ticket_revenue', 'merchandise', 'sponsorship', 'appearance_fee', 'other_income']
   const expenseCategories = ['venue_rental', 'equipment', 'catering', 'staff_pay', 'marketing', 'travel', 'insurance', 'permits', 'production', 'other_expense']
@@ -674,7 +695,7 @@ export default function FinancesPage() {
                       onClick={async () => {
                         setAddingSettlement(true)
                         try {
-                          const res = await fetch('/api/admin/finances/settlements', buildNoStoreInit({
+                          const res = await fetch('/api/admin/finances/settlements', adminRequest({
                             method: 'POST',
                             body: JSON.stringify({
                               event_id: settlementForm.event_id || null,
@@ -735,9 +756,15 @@ export default function FinancesPage() {
                           variant="outline"
                           className="h-7 text-xs border-slate-700 text-slate-300"
                           onClick={async () => {
-                            const newStatus = s.status === 'draft' ? 'finalized' : 'paid'
-                            await fetch('/api/admin/finances/settlements', buildNoStoreInit({ method: 'PATCH', body: JSON.stringify({ id: s.id, status: newStatus }) }))
-                            fetchData()
+                            try {
+                              const newStatus = s.status === 'draft' ? 'finalized' : 'paid'
+                              const res = await fetch('/api/admin/finances/settlements', adminRequest({ method: 'PATCH', body: JSON.stringify({ id: s.id, status: newStatus }) }))
+                              if (!res.ok) throw new Error(await res.text())
+                              toast.success(newStatus === 'paid' ? 'Settlement marked paid' : 'Settlement finalized')
+                              void fetchData()
+                            } catch (error) {
+                              toast.error(error instanceof Error ? error.message : 'Failed to update settlement')
+                            }
                           }}
                         >
                           {s.status === 'draft' ? 'Finalize' : 'Mark Paid'}

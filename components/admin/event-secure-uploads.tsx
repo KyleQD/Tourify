@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress"
 import { toast } from "sonner"
 import { formatDistanceToNow } from "date-fns"
+import { featureUnavailableMessage, isFeatureUnavailableResponse } from "@/lib/api/feature-unavailable"
 import {
   Upload,
   FileText,
@@ -147,7 +148,9 @@ export function EventSecureUploads({ eventId, isAdmin, taskMessageId }: EventSec
       setUploadProgress(80)
 
       if (!res.ok) {
-        const err = await res.json()
+        const err = await res.json().catch(() => ({}))
+        if (isFeatureUnavailableResponse(res.status, err))
+          throw new Error(featureUnavailableMessage(err, 'Secure uploads are temporarily unavailable.'))
         throw new Error(err.error || 'Upload failed')
       }
 

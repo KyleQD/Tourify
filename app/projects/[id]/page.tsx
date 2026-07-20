@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Calendar, Users, Settings, MessageSquare, DollarSign, FileText } from "lucide-react"
+import { Loader2, Users, Settings, FileText } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,8 +10,6 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { supabase } from "@/lib/supabase"
 import type { Project, ProjectMember } from "@/types/database.types"
-import { formatSafeDate } from "@/lib/events/admin-event-normalization"
-
 interface ProjectWithMembers extends Project {
   members: ProjectMember[]
 }
@@ -121,21 +119,9 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
             <FileText className="w-4 h-4 mr-2" />
             Overview
           </TabsTrigger>
-          <TabsTrigger value="schedule" className="data-[state=active]:bg-slate-700">
-            <Calendar className="w-4 h-4 mr-2" />
-            Schedule
-          </TabsTrigger>
           <TabsTrigger value="team" className="data-[state=active]:bg-slate-700">
             <Users className="w-4 h-4 mr-2" />
             Team
-          </TabsTrigger>
-          <TabsTrigger value="budget" className="data-[state=active]:bg-slate-700">
-            <DollarSign className="w-4 h-4 mr-2" />
-            Budget
-          </TabsTrigger>
-          <TabsTrigger value="messages" className="data-[state=active]:bg-slate-700">
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Messages
           </TabsTrigger>
         </TabsList>
 
@@ -199,23 +185,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </TabsContent>
 
-        <TabsContent value="schedule">
-          <Card className="bg-slate-900/70 border-slate-700/50">
-            <CardHeader>
-              <CardTitle>Project Timeline</CardTitle>
-              <CardDescription>
-                {project.start_date && project.end_date
-                  ? `${formatSafeDate(project.start_date)} - ${formatSafeDate(project.end_date)}`
-                  : 'No dates specified'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Add Calendar or Timeline component here */}
-              <div className="text-slate-400">Calendar implementation coming soon...</div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="team">
           <Card className="bg-slate-900/70 border-slate-700/50">
             <CardHeader>
@@ -246,34 +215,6 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="budget">
-          <Card className="bg-slate-900/70 border-slate-700/50">
-            <CardHeader>
-              <CardTitle>Budget Overview</CardTitle>
-              <CardDescription>
-                Total Budget: ${project.budget?.toLocaleString() || '0'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Add Budget breakdown component here */}
-              <div className="text-slate-400">Budget tracking implementation coming soon...</div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="messages">
-          <Card className="bg-slate-900/70 border-slate-700/50">
-            <CardHeader>
-              <CardTitle>Project Messages</CardTitle>
-              <CardDescription>Team communication</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {/* Add Messages component here */}
-              <div className="text-slate-400">Messages implementation coming soon...</div>
             </CardContent>
           </Card>
         </TabsContent>

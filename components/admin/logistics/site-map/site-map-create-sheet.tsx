@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { ArrowLeft, ArrowRight, Loader2, MapPin, Upload } from 'lucide-react'
+import {
+  GROUND_SIZE_PRESETS,
+  assertGroundSizeWithinLimit,
+  formatGroundSizeLabel,
+  feetToUnit,
+  normalizeScaleUnit,
+  presetToWorldSize,
+  type ScaleUnit,
+} from '@/lib/site-map/ground-size'
 
 export interface SiteMapCreateFormState {
   name: string
@@ -17,8 +26,11 @@ export interface SiteMapCreateFormState {
   approximateSize: string
   templateId: string
   backgroundImage: File | null
+  /** Real-world units per map unit (default 1 = 1 ft or 1 m per unit). */
   pixelsPerUnit: string
-  scaleUnit: 'feet' | 'meters'
+  scaleUnit: ScaleUnit
+  customGroundWidth: string
+  customGroundHeight: string
 }
 
 export interface MapTemplateOption {
@@ -31,19 +43,27 @@ export interface MapTemplateOption {
 export const defaultCreateForm: SiteMapCreateFormState = {
   name: '',
   description: '',
-  approximateSize: 'medium',
+  approximateSize: 'parking',
   templateId: 'blank',
   backgroundImage: null,
   pixelsPerUnit: '1',
-  scaleUnit: 'meters',
+  scaleUnit: 'feet',
+  customGroundWidth: '500',
+  customGroundHeight: '400',
 }
 
-export const sizePresets = {
-  small: { width: 800, height: 600, label: 'Small', hint: '800×600' },
-  medium: { width: 1200, height: 900, label: 'Medium', hint: '1200×900' },
-  large: { width: 1600, height: 1200, label: 'Large', hint: '1600×1200' },
-  xlarge: { width: 2000, height: 1500, label: 'X-Large', hint: '2000×1500' },
-} as const
+/** @deprecated Use GROUND_SIZE_PRESETS — kept for import compatibility. */
+export const sizePresets = Object.fromEntries(
+  Object.entries(GROUND_SIZE_PRESETS).map(([key, preset]) => [
+    key,
+    {
+      width: preset.groundWidthFt,
+      height: preset.groundHeightFt,
+      label: preset.label,
+      hint: preset.hint,
+    },
+  ])
+) as Record<string, { width: number; height: number; label: string; hint: string }>
 
 interface SiteMapCreateSheetProps {
   open: boolean
@@ -56,6 +76,18 @@ interface SiteMapCreateSheetProps {
   eventLabel?: string | null
   isCreating?: boolean
   onSubmit: () => void | Promise<void>
+}
+
+export function resolveCreateWorldSize(form: SiteMapCreateFormState) {
+  const scale = Number(form.pixelsPerUnit) || 1
+  const unit = normalizeScaleUnit(form.scaleUnit)
+  return presetToWorldSize({
+    presetId: form.approximateSize,
+    scaleUnit: unit,
+    scale,
+    customGroundWidth: Number(form.customGroundWidth) || undefined,
+    customGroundHeight: Number(form.customGroundHeight) || undefined,
+  })
 }
 
 export function SiteMapCreateSheet({
@@ -83,16 +115,36 @@ export function SiteMapCreateSheet({
   const nameInvalid = nameTouched && !form.name.trim()
   const canContinue = Boolean(form.name.trim())
 
+  const preview = useMemo(() => {
+    try {
+      const world = resolveCreateWorldSize(form)
+      const limit = assertGroundSizeWithinLimit(world)
+      return {
+        world,
+        label: formatGroundSizeLabel(world),
+        error: limit.ok ? null : limit.error,
+      }
+    } catch (error) {
+      return {
+        world: null,
+        label: '—',
+        error: error instanceof Error ? error.message : 'Invalid ground size',
+      }
+    }
+  }, [form])
+
+  const presetKeys = Object.keys(GROUND_SIZE_PRESETS)
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg border-slate-700/60 bg-slate-950/95 backdrop-blur-xl">
+      <DialogContent className="max-w-lg border-teal-900/40 bg-[#0c1219]/95 backdrop-blur-xl">
         <DialogHeader>
-          <DialogTitle className="text-white">Create Site Map</DialogTitle>
+          <DialogTitle className="text-white tracking-tight">Create Site Map</DialogTitle>
           <div className="mt-2 flex items-center gap-2">
             <Badge
               className={cn(
-                'text-[10px] uppercase tracking-wide',
-                step === 1 ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : 'border-slate-600 bg-slate-800 text-slate-400'
+                'rounded-md text-[10px] uppercase tracking-wide',
+                step === 1 ? 'border-teal-400/40 bg-teal-400/15 text-teal-100' : 'border-slate-600 bg-slate-800 text-slate-400'
               )}
             >
               1 · Essentials
@@ -100,16 +152,16 @@ export function SiteMapCreateSheet({
             <div className="h-px flex-1 bg-slate-700/60" />
             <Badge
               className={cn(
-                'text-[10px] uppercase tracking-wide',
-                step === 2 ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : 'border-slate-600 bg-slate-800 text-slate-400'
+                'rounded-md text-[10px] uppercase tracking-wide',
+                step === 2 ? 'border-amber-400/40 bg-amber-400/15 text-amber-100' : 'border-slate-600 bg-slate-800 text-slate-400'
               )}
             >
-              2 · Layout
+              2 · Ground size
             </Badge>
           </div>
         </DialogHeader>
 
-        <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-3 py-2 text-xs text-cyan-100/90">
+        <div className="rounded-lg border border-teal-500/20 bg-teal-500/5 px-3 py-2 text-xs text-teal-100/90">
           <div className="flex items-center gap-2">
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             {eventId || tourId ? (
@@ -135,7 +187,7 @@ export function SiteMapCreateSheet({
                 onChange={(e) => onFormChange({ ...form, name: e.target.value })}
                 placeholder="Main stage layout"
                 className={cn(
-                  'mt-1 border-slate-700 bg-slate-900 text-white',
+                  'mt-1 border-slate-700 bg-slate-950 text-white',
                   nameInvalid && 'border-rose-500/60'
                 )}
               />
@@ -148,34 +200,70 @@ export function SiteMapCreateSheet({
                 value={form.description}
                 onChange={(e) => onFormChange({ ...form, description: e.target.value })}
                 placeholder="Optional notes for the crew"
-                className="mt-1 min-h-[72px] border-slate-700 bg-slate-900 text-white"
+                className="mt-1 min-h-[72px] border-slate-700 bg-slate-950 text-white"
               />
             </div>
 
             <div>
-              <Label className="mb-2 block text-slate-300">Canvas size</Label>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {(Object.keys(sizePresets) as Array<keyof typeof sizePresets>).map((key) => {
-                  const preset = sizePresets[key]
+              <Label className="mb-2 block text-slate-300">Ground size (max 1×1 mile)</Label>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {presetKeys.map((key) => {
+                  const preset = GROUND_SIZE_PRESETS[key]
                   const active = form.approximateSize === key
                   return (
                     <button
                       key={key}
                       type="button"
-                      onClick={() => onFormChange({ ...form, approximateSize: key })}
+                      onClick={() => {
+                        const unit = normalizeScaleUnit(form.scaleUnit)
+                        onFormChange({
+                          ...form,
+                          approximateSize: key,
+                          customGroundWidth: String(Math.round(feetToUnit(preset.groundWidthFt, unit))),
+                          customGroundHeight: String(Math.round(feetToUnit(preset.groundHeightFt, unit))),
+                        })
+                      }}
                       className={cn(
-                        'rounded-xl border px-2 py-2.5 text-left transition',
+                        'rounded-lg border px-2 py-2.5 text-left transition',
                         active
-                          ? 'border-cyan-400/40 bg-cyan-400/10 text-white'
-                          : 'border-slate-700/60 bg-slate-900/60 text-slate-300 hover:border-slate-500'
+                          ? 'border-teal-400/45 bg-teal-400/10 text-white'
+                          : 'border-slate-700/60 bg-slate-950/60 text-slate-300 hover:border-slate-500'
                       )}
                     >
                       <div className="text-xs font-semibold">{preset.label}</div>
-                      <div className="text-[10px] text-slate-500">{preset.hint}</div>
+                      <div className="font-mono text-[10px] text-slate-500">{preset.hint}</div>
                     </button>
                   )
                 })}
               </div>
+              {form.approximateSize === 'custom' && (
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[11px] text-slate-400">Width ({form.scaleUnit})</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={form.customGroundWidth}
+                      onChange={(e) => onFormChange({ ...form, customGroundWidth: e.target.value })}
+                      className="mt-1 border-slate-700 bg-slate-950 font-mono text-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] text-slate-400">Height ({form.scaleUnit})</Label>
+                    <Input
+                      type="number"
+                      min="1"
+                      value={form.customGroundHeight}
+                      onChange={(e) => onFormChange({ ...form, customGroundHeight: e.target.value })}
+                      className="mt-1 border-slate-700 bg-slate-950 font-mono text-white"
+                    />
+                  </div>
+                </div>
+              )}
+              <p className="mt-2 font-mono text-[11px] text-amber-200/90">
+                Preview: {preview.label}
+                {preview.error ? <span className="ml-2 text-rose-400">{preview.error}</span> : null}
+              </p>
             </div>
 
             <div>
@@ -184,7 +272,7 @@ export function SiteMapCreateSheet({
                 value={form.templateId}
                 onValueChange={(value) => onFormChange({ ...form, templateId: value })}
               >
-                <SelectTrigger className="mt-1 border-slate-700 bg-slate-900 text-white">
+                <SelectTrigger className="mt-1 border-slate-700 bg-slate-950 text-white">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -196,18 +284,13 @@ export function SiteMapCreateSheet({
                   ))}
                 </SelectContent>
               </Select>
-              <p className="mt-1 text-[11px] text-slate-500">
-                {form.templateId === 'blank'
-                  ? 'Start empty and place zones, structures, and elements in the builder.'
-                  : templates.find((t) => t.id === form.templateId)?.description || 'Seeds starter elements from the template.'}
-              </p>
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
               <Button
                 type="button"
-                disabled={!canContinue}
-                className="bg-cyan-500/90 text-slate-950 hover:bg-cyan-400"
+                disabled={!canContinue || Boolean(preview.error)}
+                className="bg-teal-500 text-slate-950 hover:bg-teal-400"
                 onClick={() => setStep(2)}
               >
                 Continue
@@ -219,7 +302,7 @@ export function SiteMapCreateSheet({
           <div className="space-y-4">
             <div>
               <Label className="text-slate-300">Floor plan / aerial (optional)</Label>
-              <label className="mt-1 flex cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-slate-600 bg-slate-900/50 px-4 py-6 text-center hover:border-cyan-400/40">
+              <label className="mt-1 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-600 bg-slate-950/50 px-4 py-6 text-center hover:border-teal-400/40">
                 <Upload className="mb-2 h-5 w-5 text-slate-400" />
                 <span className="text-xs text-slate-300">
                   {form.backgroundImage ? form.backgroundImage.name : 'Choose image file'}
@@ -237,33 +320,38 @@ export function SiteMapCreateSheet({
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-slate-300">Pixels per unit</Label>
+                <Label className="text-slate-300">Units per map unit</Label>
                 <Input
                   type="number"
                   min="0.1"
                   step="0.1"
                   value={form.pixelsPerUnit}
                   onChange={(e) => onFormChange({ ...form, pixelsPerUnit: e.target.value })}
-                  className="mt-1 border-slate-700 bg-slate-900 text-white"
+                  className="mt-1 border-slate-700 bg-slate-950 font-mono text-white"
                 />
+                <p className="mt-1 text-[10px] text-slate-500">Default 1 = one foot/meter per grid unit</p>
               </div>
               <div>
                 <Label className="text-slate-300">Unit</Label>
                 <Select
                   value={form.scaleUnit}
-                  onValueChange={(value: 'feet' | 'meters') =>
+                  onValueChange={(value: ScaleUnit) =>
                     onFormChange({ ...form, scaleUnit: value })
                   }
                 >
-                  <SelectTrigger className="mt-1 border-slate-700 bg-slate-900 text-white">
+                  <SelectTrigger className="mt-1 border-slate-700 bg-slate-950 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="meters">Meters</SelectItem>
                     <SelectItem value="feet">Feet</SelectItem>
+                    <SelectItem value="meters">Meters</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-700/60 bg-slate-950/70 px-3 py-2 font-mono text-[11px] text-slate-300">
+              World: {preview.world ? `${preview.world.width}×${preview.world.height} units` : '—'} · Ground: {preview.label}
             </div>
 
             <div className="flex items-center justify-between gap-2 pt-1">
@@ -279,8 +367,8 @@ export function SiteMapCreateSheet({
               </Button>
               <Button
                 type="button"
-                disabled={isCreating || !canContinue}
-                className="bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+                disabled={isCreating || !canContinue || Boolean(preview.error)}
+                className="bg-amber-500 text-slate-950 hover:bg-amber-400"
                 onClick={() => void onSubmit()}
               >
                 {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

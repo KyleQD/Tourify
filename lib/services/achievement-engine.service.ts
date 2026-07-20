@@ -3,6 +3,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 export interface AchievementRow {
   id: string
   name: string
+  description?: string | null
+  icon?: string | null
+  color?: string | null
+  rarity?: string | null
+  category?: string | null
+  group_key?: string | null
   requirements: Record<string, any> | null
   metric_key: string | null
   target_value: number | null
@@ -89,7 +95,7 @@ export const achievementEngine = {
 
     const { data: achievementRows, error: achievementsError } = await args.supabase
       .from('achievements')
-      .select('id, name, requirements, metric_key, target_value, evaluation_mode, points')
+      .select('id, name, description, icon, color, rarity, category, group_key, requirements, metric_key, target_value, evaluation_mode, points')
       .eq('is_active', true)
 
     if (achievementsError || !achievementRows?.length) {
@@ -221,8 +227,122 @@ export async function awardUnlockedAchievementRewards(args: {
       })),
       { onConflict: 'user_id,achievement_id' }
     )
+
+    await notifyAchievementUnlocks({
+      userId: args.userId,
+      unlockedAchievements: args.unlockedAchievements,
+    })
   } catch (error) {
     console.warn('[achievement-engine] reward wallet/highlight sync skipped:', error)
+  }
+}
+
+async function notifyAchievementUnlocks(args: {
+  userId: string
+  unlockedAchievements: AchievementRow[]
+}) {
+  if (!args.unlockedAchievements.length) return
+
+  try {
+    const { OptimizedNotificationService } = await import(
+      '@/lib/services/optimized-notification-service'
+    )
+
+    const rarePlus = args.unlockedAchievements.filter((achievement) =>
+      ['rare', 'epic', 'legendary'].includes(String(achievement.rarity || 'common'))
+    )
+    const toNotify =
+      args.unlockedAchievements.length > 3 && rarePlus.length > 0
+        ? rarePlus
+        : args.unlockedAchievements.slice(0, 5)
+
+    if (args.unlockedAchievements.length > 1) {
+      const names = args.unlockedAchievements.map((a) => a.name).slice(0, 3)
+      const extra = args.unlockedAchievements.length - names.length
+      try {
+        await OptimizedNotificationService.createNotification({
+          userId: args.userId,
+          type: 'achievement_unlocked',
+          title:
+            args.unlockedAchievements.length === 1
+              ? 'Achievement unlocked!'
+              : `${args.unlockedAchievements.length} achievements unlocked!`,
+          content:
+            extra > 0
+              ? `You unlocked ${names.join(', ')} and ${extra} more.`
+              : `You unlocked ${names.join(', ')}.`,
+          summary: 'Achievements unlocked',
+          relatedContentType: 'achievement',
+          priority: rarePlus.length > 0 ? 'high' : 'normal',
+          metadata: {
+            link: '/achievements?tab=achievements',
+            unlock_count: args.unlockedAchievements.length,
+            achievements: args.unlockedAchievements.map((achievement) => ({
+              id: achievement.id,
+              name: achievement.name,
+              description: achievement.description,
+              icon: achievement.icon,
+              color: achievement.color,
+              rarity: achievement.rarity || 'common',
+              category: achievement.category,
+              points: achievement.points || 0,
+              group_key: achievement.group_key,
+            })),
+          },
+        })
+      } catch (notifyError) {
+        console.warn('[achievement-engine] summary unlock notification skipped:', notifyError)
+      }
+      return
+    }
+
+    for (const achievement of toNotify) {
+      try {
+        await OptimizedNotificationService.createNotification({
+          userId: args.userId,
+          type: 'achievement_unlocked',
+          title: 'Achievement unlocked!',
+          content: `You earned "${achievement.name}"${
+            achievement.points ? ` (+${achievement.points} pts)` : ''
+          }.`,
+          summary: achievement.name,
+          relatedContentId: achievement.id,
+          relatedContentType: 'achievement',
+          priority: ['epic', 'legendary'].includes(String(achievement.rarity || ''))
+            ? 'high'
+            : 'normal',
+          metadata: {
+            link: `/achievements?tab=achievements&highlight=${achievement.id}`,
+            achievement_id: achievement.id,
+            name: achievement.name,
+            description: achievement.description,
+            icon: achievement.icon,
+            color: achievement.color,
+            rarity: achievement.rarity || 'common',
+            category: achievement.category,
+            points: achievement.points || 0,
+            group_key: achievement.group_key,
+            achievements: [
+              {
+                id: achievement.id,
+                name: achievement.name,
+                description: achievement.description,
+                icon: achievement.icon,
+                color: achievement.color,
+                rarity: achievement.rarity || 'common',
+                category: achievement.category,
+                points: achievement.points || 0,
+                group_key: achievement.group_key,
+              },
+            ],
+          },
+        })
+      } catch (notifyError) {
+        console.warn('[achievement-engine] unlock notification skipped:', notifyError)
+      }
+    }
+  } catch (error) {
+    console.warn('[achievement-engine] unlock notify import/run skipped:', error)
   }
 }
 

@@ -1,0 +1,16 @@
+{
+  "idempotencyKey": "p17-outcome-001",
+  "reviewCycleId": "review-1",
+  "decisionAuthorityId": "session-decision-1",
+  "outcomes": [
+    {
+      "type": "continue_with_operational_corrections",
+      "scope": "public_status_freshness"
+    },
+    {
+      "type": "recommend_formal_amendment",
+      "scope": "appeal_deadline"
+    }
+  ],
+  "effectiveAt": null
+}

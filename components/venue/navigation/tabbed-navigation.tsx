@@ -4,41 +4,33 @@ import { useState } from "react"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 import {
-  Music,
   Calendar,
   Users,
   MessageSquare,
-  FileText,
   Ticket,
   ShoppingBag,
   BarChart3,
-  Upload,
   PenTool,
   Video,
   ImageIcon,
   Briefcase,
-  Zap,
   Globe,
   Headphones,
   TrendingUp,
-  Layers,
   BookOpen,
   Mic,
-  Share2,
   DollarSign,
   CreditCard,
   Map,
   Building,
   Award,
-  Heart,
   Bell,
 } from "lucide-react"
 
 export function TabbedNavigation() {
-  const [activeTab, setActiveTab] = useState("music")
+  const [activeTab, setActiveTab] = useState("events")
 
   const tabs = [
-    { id: "music", label: "Music", icon: Music },
     { id: "content", label: "Content", icon: PenTool },
     { id: "events", label: "Events", icon: Calendar },
     { id: "business", label: "Business", icon: Briefcase },
@@ -47,45 +39,15 @@ export function TabbedNavigation() {
   ]
 
   const tabContent = {
-    music: [
-      {
-        title: "Upload Music",
-        icon: Upload,
-        href: "/music/upload",
-        description: "Upload your tracks, albums, and EPs",
-      },
-      { title: "Music Library", icon: Music, href: "/music/library", description: "Manage your uploaded music" },
-      {
-        title: "Music Analytics",
-        icon: BarChart3,
-        href: "/music/analytics",
-        description: "Track your music performance",
-      },
-      {
-        title: "Music Promotion",
-        icon: TrendingUp,
-        href: "/music/promotion",
-        description: "Promote your music to new audiences",
-      },
-      { title: "Playlists", icon: Layers, href: "/music/playlists", description: "Create and share playlists" },
-      {
-        title: "Distribution",
-        icon: Share2,
-        href: "/music/distribution",
-        description: "Distribute your music to platforms",
-        badge: "Pro",
-      },
-    ],
     content: [
-      { title: "Posts", icon: PenTool, href: "/content/posts", description: "Create and manage your posts" },
-      { title: "Videos", icon: Video, href: "/content/videos", description: "Upload and manage your videos" },
-      { title: "Photos", icon: ImageIcon, href: "/content/photos", description: "Upload and manage your photos" },
-      { title: "EPK", icon: FileText, href: "/epk", description: "Create your electronic press kit", badge: "Pro" },
-      { title: "Blog", icon: BookOpen, href: "/content/blog", description: "Write and publish blog posts" },
+      { title: "Posts", icon: PenTool, href: "/venue/dashboard", description: "Create and manage your posts" },
+      { title: "Videos", icon: Video, href: "/venue/dashboard", description: "Upload and manage your videos" },
+      { title: "Photos", icon: ImageIcon, href: "/venue/documents", description: "Upload and manage your photos" },
+      { title: "Blog", icon: BookOpen, href: "/venue/dashboard", description: "Write and publish blog posts" },
       {
         title: "Podcasts",
         icon: Mic,
-        href: "/content/podcasts",
+        href: "/venue/dashboard",
         description: "Create and manage podcasts",
         badge: "New",
       },
@@ -93,7 +55,7 @@ export function TabbedNavigation() {
     events: [
       { title: "Events", icon: Calendar, href: "/events", description: "Create and manage your events" },
       { title: "Event Map", icon: Map, href: "/events/map", description: "Discover events on the map" },
-      { title: "Tickets", icon: Ticket, href: "/tickets", description: "Sell tickets for your events" },
+      { title: "Tickets", icon: Ticket, href: "/venue/dashboard/tickets", description: "Sell tickets for your events" },
       { title: "Venues", icon: Building, href: "/venues", description: "Discover and manage venues" },
       {
         title: "Tour Planning",
@@ -112,27 +74,18 @@ export function TabbedNavigation() {
     business: [
       { title: "Merchandise", icon: ShoppingBag, href: "/venue/dashboard/store", description: "Sell your merchandise" },
       { title: "Jobs", icon: Briefcase, href: "/jobs", description: "Find and post music industry jobs" },
-      { title: "Promotions", icon: Zap, href: "/promotions", description: "Create promotional campaigns" },
-      { title: "Payments", icon: DollarSign, href: "/payments", description: "Manage your payments", badge: "Pro" },
-      { title: "Subscriptions", icon: CreditCard, href: "/subscriptions", description: "Manage your subscriptions" },
+      { title: "Payments", icon: DollarSign, href: "/venue/finances", description: "Manage your payments", badge: "Pro" },
+      { title: "Subscriptions", icon: CreditCard, href: "/venue/settings", description: "Manage your subscriptions" },
       { title: "Licensing", icon: Award, href: "/licensing", description: "License your music", badge: "Pro" },
     ],
     networking: [
-      { title: "Network", icon: Users, href: "/network", description: "Connect with other musicians" },
+      { title: "Discover", icon: Users, href: "/discover", description: "Discover artists and venues" },
       { title: "Messages", icon: MessageSquare, href: "/messages", description: "Chat with your connections" },
-      { title: "Groups", icon: Users, href: "/groups", description: "Join and create groups" },
       {
         title: "Collaborations",
         icon: Headphones,
-        href: "/collaborations",
+        href: "/projects",
         description: "Find collaboration opportunities",
-      },
-      {
-        title: "Fan Management",
-        icon: Heart,
-        href: "/fans",
-        description: "Manage your fan relationships",
-        badge: "Pro",
       },
       { title: "Notifications", icon: Bell, href: "/notifications", description: "Manage your notifications" },
     ],
@@ -140,20 +93,20 @@ export function TabbedNavigation() {
       {
         title: "Analytics Dashboard",
         icon: BarChart3,
-        href: "/analytics",
+        href: "/venue/analytics",
         description: "View your overall performance",
       },
-      { title: "Audience Insights", icon: Users, href: "/analytics/audience", description: "Understand your audience" },
+      { title: "Audience Insights", icon: Users, href: "/venue/analytics", description: "Understand your audience" },
       {
         title: "Content Performance",
         icon: TrendingUp,
-        href: "/analytics/content",
+        href: "/venue/analytics",
         description: "Track your content performance",
       },
       {
         title: "Revenue Analytics",
         icon: DollarSign,
-        href: "/analytics/revenue",
+        href: "/venue/analytics",
         description: "Track your revenue",
         badge: "Pro",
       },
@@ -161,8 +114,8 @@ export function TabbedNavigation() {
   }
 
   return (
-    <Tabs defaultValue="music" value={activeTab} onValueChange={setActiveTab} className="w-full">
-      <TabsList className="grid grid-cols-3 md:grid-cols-6 bg-gray-800/50 p-1 rounded-lg">
+    <Tabs defaultValue="events" value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <TabsList className="grid grid-cols-3 md:grid-cols-5 bg-gray-800/50 p-1 rounded-lg">
         {tabs.map((tab) => (
           <TabsTrigger
             key={tab.id}

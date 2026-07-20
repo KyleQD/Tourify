@@ -35,17 +35,29 @@ export interface NewsFeedItem {
   moderation: NewsModeration
   relevanceScore: number
   score: number
+  pressFormat?: 'article' | 'blog'
   isSubscribedSource?: boolean
+  musicTrust?: {
+    originStatus: string
+    certificationStatus: string
+    certificationLevel: number
+    certificationPublicId: string | null
+    publicLabel: string
+  }
 }
+
+export type NewsSortMode = 'score' | 'engagement' | 'recent'
 
 export interface NewsFeedCursor {
   score: number
   publishedAt: string
   id: string
+  sort?: NewsSortMode
+  sortValue?: number
 }
 
 export type NewsFacet = 'top' | 'following' | 'local' | 'industry' | 'gossip' | 'verified'
-export type NewsCategory = 'featured' | 'new-music' | 'events' | 'gossip' | 'editorial' | 'global'
+export type NewsCategory = 'featured' | 'articles' | 'new-music' | 'events' | 'gossip' | 'editorial' | 'global'
 
 export interface NewsFeedQuery {
   limit: number
@@ -54,6 +66,7 @@ export interface NewsFeedQuery {
   category?: NewsCategory
   query?: string
   userId?: string
+  sort?: NewsSortMode
 }
 
 export interface RankedNewsFeedResult {

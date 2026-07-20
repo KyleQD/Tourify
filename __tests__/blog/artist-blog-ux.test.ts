@@ -8,9 +8,9 @@ function read(path: string) {
   return readFileSync(join(root, path), 'utf8')
 }
 
-describe('artist blog UX / integration', () => {
+describe('artist press UX / integration', () => {
   it('gates list loading on artist and acting readiness to avoid infinite skeletons', () => {
-    const page = read('app/artist/features/blog/page.tsx')
+    const page = read('app/artist/press/page.tsx')
 
     expect(page).toContain('isLoading: isArtistLoading')
     expect(page).toContain('isActingReady')
@@ -22,7 +22,7 @@ describe('artist blog UX / integration', () => {
   })
 
   it('supports deep links for new, edit, and status filters', () => {
-    const page = read('app/artist/features/blog/page.tsx')
+    const page = read('app/artist/press/page.tsx')
 
     expect(page).toContain("searchParams.get('new') === '1'")
     expect(page).toContain("searchParams.get('edit')")
@@ -32,12 +32,25 @@ describe('artist blog UX / integration', () => {
     expect(page).toContain('href="/artist/content"')
     expect(page).toContain('refreshStats')
     expect(page).toContain("label: 'View live'")
+    expect(page).toContain('Filter by title')
+    expect(page).toContain('totalShares')
+    expect(page).not.toContain('Search posts...')
     expect(page).not.toContain('<SelectItem value="scheduled">')
     expect(page).not.toContain('<SelectItem value="archived">')
   })
 
+  it('presents a management library with aggregate analytics and desktop rows', () => {
+    const page = read('app/artist/press/page.tsx')
+
+    expect(page).toContain('Manage blogs, articles, and press releases you authored')
+    expect(page).toContain('totalShares')
+    expect(page).toContain('post.stats?.shares')
+    expect(page).toContain('<table')
+    expect(page).toContain('PressRowActions')
+  })
+
   it('adds editor parity markers from the public composer', () => {
-    const editor = read('app/artist/features/blog/blog-editor.tsx')
+    const editor = read('app/artist/press/press-editor.tsx')
 
     expect(editor).toContain('isActingReady')
     expect(editor).toContain('Preparing account')
@@ -55,33 +68,49 @@ describe('artist blog UX / integration', () => {
     expect(editor).not.toContain('<SelectItem value="scheduled">')
   })
 
-  it('wires Blog into sidebar Create & Publish navigation', () => {
+  it('wires Press into sidebar Create & Publish navigation', () => {
     const sidebar = read('components/app-sidebar.tsx')
 
-    expect(sidebar).toContain("name: 'Blog'")
-    expect(sidebar).toContain("href: '/artist/features/blog'")
+    expect(sidebar).toContain("name: 'Press'")
+    expect(sidebar).toContain("href: '/artist/press'")
     expect(sidebar).toContain('BookOpen')
+  })
+
+  it('wires Press into mobile Create & Publish navigation', () => {
+    const mobile = read('components/artist/mobile-artist-nav.tsx')
+
+    expect(mobile).toContain("label: 'Press'")
+    expect(mobile).toContain("href: '/artist/press'")
   })
 
   it('routes Content Hub write actions into the in-shell create flow', () => {
     const hub = read('app/artist/content/page.tsx')
 
-    expect(hub).toContain('/artist/features/blog?new=1')
+    expect(hub).toContain('/artist/press?new=1')
     expect(hub).toContain('published')
     expect(hub).toContain('blogDrafts')
   })
 
-  it('redirects orphan blog id drafts into the edit deep link', () => {
-    const orphan = read('app/artist/features/blog/[id]/page.tsx')
+  it('redirects orphan press id drafts into the edit deep link', () => {
+    const orphan = read('app/artist/press/[id]/page.tsx')
 
     expect(orphan).toContain('isActingReady')
     expect(orphan).toContain('router.replace(`/blog/${data.article.slug}`)')
-    expect(orphan).toContain('`/artist/features/blog?edit=${encodeURIComponent(id)}`')
+    expect(orphan).toContain('`/artist/press?edit=${encodeURIComponent(id)}`')
   })
 
-  it('points dashboard write-article CTA at artist blog create', () => {
+  it('redirects legacy blog routes to press', () => {
+    const blogPage = read('app/artist/features/blog/page.tsx')
+    const blogId = read('app/artist/features/blog/[id]/page.tsx')
+
+    expect(blogPage).toContain("redirect(suffix ? `/artist/press?${suffix}` : '/artist/press')")
+    expect(blogId).toContain("redirect(`/artist/press/${id}`)")
+  })
+
+  it('points dashboard write CTA at artist press create', () => {
     const dashboard = read('components/dashboard/dashboard-page-client.tsx')
 
-    expect(dashboard).toContain("router.push('/artist/features/blog?new=1')")
+    expect(dashboard).toContain("router.push('/artist/press?new=1')")
+    expect(dashboard).toContain("currentAccount?.account_type === 'artist' && currentAccount.is_active")
   })
 })

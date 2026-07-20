@@ -48,6 +48,32 @@ export interface QueuedApiRequest {
 const OFFLINE_CACHE_PREFIX = "tourify-mobile:api-cache:v1:"
 const OFFLINE_QUEUE_KEY = "tourify-mobile:api-queue:v1"
 const CONNECTIVITY_TIMEOUT_MS = 4500
+const REACHABILITY_TTL_MS = 20_000
+
+let reachabilityCache: { checkedAt: number; isReachable: boolean } | null = null
+let reachabilityInFlight: Promise<boolean> | null = null
+
+function invalidateReachabilityCache() {
+  reachabilityCache = null
+}
+
+async function probeApiHealth() {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), CONNECTIVITY_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(`${env.apiBaseUrl}/api/health`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal
+    })
+    return response.status < 500
+  } catch {
+    return false
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 async function buildHeaders(options?: ApiRequestOptions) {
   const headers = new Headers(options?.headers)
@@ -67,27 +93,39 @@ function getCacheKey(path: string) {
   return `${OFFLINE_CACHE_PREFIX}${encodeURIComponent(path)}`
 }
 
-async function isApiReachable() {
+async function isApiReachable(options?: { forceProbe?: boolean }) {
   const networkState = await Network.getNetworkStateAsync()
   const isConnected = Boolean(networkState.isConnected)
-  if (!isConnected) return false
-  if (networkState.isInternetReachable === false) return false
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), CONNECTIVITY_TIMEOUT_MS)
-
-  try {
-    const response = await fetch(`${env.apiBaseUrl}/api/health`, {
-      method: "GET",
-      cache: "no-store",
-      signal: controller.signal
-    })
-    return response.status < 500
-  } catch {
+  if (!isConnected) {
+    invalidateReachabilityCache()
     return false
-  } finally {
-    clearTimeout(timeout)
   }
+  if (networkState.isInternetReachable === false) {
+    invalidateReachabilityCache()
+    return false
+  }
+
+  const now = Date.now()
+  if (
+    !options?.forceProbe &&
+    reachabilityCache &&
+    now - reachabilityCache.checkedAt < REACHABILITY_TTL_MS
+  ) {
+    return reachabilityCache.isReachable
+  }
+
+  if (reachabilityInFlight) return reachabilityInFlight
+
+  reachabilityInFlight = probeApiHealth()
+    .then((isReachable) => {
+      reachabilityCache = { checkedAt: Date.now(), isReachable }
+      return isReachable
+    })
+    .finally(() => {
+      reachabilityInFlight = null
+    })
+
+  return reachabilityInFlight
 }
 
 async function readCachedResponse(path: string) {
@@ -196,16 +234,21 @@ export async function apiRequest<T>(path: string, options?: ApiRequestOptions): 
   try {
     response = await sendRequestWithSessionRefresh(path, options)
   } catch {
-    return getOfflineFallback<T>(path, options)
+    invalidateReachabilityCache()
+    const stillReachable = await isApiReachable({ forceProbe: true })
+    if (!stillReachable) return getOfflineFallback<T>(path, options)
+    throw new ApiError("Network request failed.", 0)
   }
 
   if (!response.ok) {
+    if (response.status >= 500) invalidateReachabilityCache()
     const rawMessage = await response.text()
     const parsedMessage = tryExtractErrorMessage(rawMessage)
     const message = parsedMessage || rawMessage || `API request failed: ${response.status}`
     throw new ApiError(message, response.status)
   }
 
+  reachabilityCache = { checkedAt: Date.now(), isReachable: true }
   const payload = await response.text()
   if (method === "GET" && payload && options?.cacheResponse !== false) await writeCachedResponse(path, payload)
   return parseJsonPayload<T>(payload)

@@ -1,97 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
 import { isArtistEventDiscoverable } from '@/lib/artist/artist-event-visibility'
+import {
+  isEventsV2PubliclyListable,
+  matchesLocationFields,
+  mergeEventSourcesSoft,
+  sortEventsByLocationBoost,
+} from '@/lib/discover/location-match'
+import { createServiceRoleClient } from '@/lib/supabase/service-role'
+
+function todayDateUtc() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function countAttendance(
+  rows: Array<{ event_id: string; status: string }> | null | undefined
+) {
+  const byEventId = new Map<string, { attending: number; interested: number }>()
+  for (const attendance of rows || []) {
+    const current = byEventId.get(attendance.event_id) || { attending: 0, interested: 0 }
+    if (attendance.status === 'attending') current.attending += 1
+    if (attendance.status === 'interested') current.interested += 1
+    byEventId.set(attendance.event_id, current)
+  }
+  return byEventId
+}
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    const supabase = createServiceRoleClient()
     const { searchParams } = new URL(request.url)
-    
-    const limit = parseInt(searchParams.get('limit') || '20')
-    const offset = parseInt(searchParams.get('offset') || '0')
+
+    const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const offset = parseInt(searchParams.get('offset') || '0', 10)
     const type = searchParams.get('type')
     const location = searchParams.get('location')
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
-    const tags = searchParams.get('tags')?.split(',')
-    const sortBy = searchParams.get('sortBy') || 'date' // date, popularity, relevance
+    const tags = searchParams.get('tags')?.split(',').filter(Boolean)
+    const sortBy = searchParams.get('sortBy') || 'date'
+    const strictLocation = searchParams.get('strictLocation') === 'true'
 
-    // Build legacy events query
-    let legacyQuery = supabase
-      .from('events')
-      .select(`
-        *,
-        profiles:artist_id (
-          id,
-          username,
-          full_name,
-          avatar_url,
-          is_verified
-        ),
-        event_attendance!left (
-          status
-        )
-      `)
-      .eq('status', 'published')
-      .gte('event_date', new Date().toISOString().split('T')[0]) // Only future events
-      .order('event_date', { ascending: true })
-
-    // Apply filters
-    if (type) {
-      legacyQuery = legacyQuery.eq('event_type', type)
-    }
-
-    if (location) {
-      legacyQuery = legacyQuery.or(`city.ilike.%${location}%,state.ilike.%${location}%`)
-    }
-
-    if (dateFrom) {
-      legacyQuery = legacyQuery.gte('event_date', dateFrom)
-    }
-
-    if (dateTo) {
-      legacyQuery = legacyQuery.lte('event_date', dateTo)
-    }
-
-    if (tags && tags.length > 0) {
-      legacyQuery = legacyQuery.overlaps('tags', tags)
-    }
-
+    const futureDate = dateFrom || todayDateUtc()
     const normalizedDateFrom = dateFrom || new Date().toISOString()
     const normalizedDateTo = dateTo ? `${dateTo}T23:59:59.999Z` : null
 
-    // Build events_v2 query in parallel to support canonical model
+    // Location is boosted in-memory; do not hard-filter SQL (wipes "City, State" matches).
+    // Select * without fragile embeds so schema drift / FK mismatches cannot 500 the rail.
+    let legacyQuery = supabase
+      .from('events')
+      .select('*')
+      .eq('status', 'published')
+      .gte('event_date', futureDate)
+      .order('event_date', { ascending: true })
+      .limit(200)
+
+    if (type) legacyQuery = legacyQuery.eq('event_type', type)
+    if (dateTo) legacyQuery = legacyQuery.lte('event_date', dateTo)
+    if (tags && tags.length > 0) legacyQuery = legacyQuery.overlaps('tags', tags)
+
     let v2Query = supabase
       .from('events_v2')
       .select('id, title, slug, status, start_at, end_at, created_by, capacity, settings, created_at, updated_at')
       .in('status', ['confirmed', 'advancing', 'onsite'])
       .gte('start_at', normalizedDateFrom)
+      .order('start_at', { ascending: true })
+      .limit(200)
 
-    if (normalizedDateTo) {
-      v2Query = v2Query.lte('start_at', normalizedDateTo)
-    }
+    if (normalizedDateTo) v2Query = v2Query.lte('start_at', normalizedDateTo)
 
-    if (location) {
-      v2Query = v2Query.or(`settings->>venue_city.ilike.%${location}%,settings->>venue_state.ilike.%${location}%`)
-    }
-
-    // Build artist_events query for backward compatibility
     let artistEventsQuery = supabase
       .from('artist_events')
       .select('*')
       .eq('status', 'published')
-      .gte('event_date', new Date().toISOString().split('T')[0])
+      .gte('event_date', futureDate)
       .order('event_date', { ascending: true })
+      .limit(200)
 
-    if (dateFrom) {
-      artistEventsQuery = artistEventsQuery.gte('event_date', dateFrom)
-    }
-    if (dateTo) {
-      artistEventsQuery = artistEventsQuery.lte('event_date', dateTo)
-    }
-    if (tags && tags.length > 0) {
-      artistEventsQuery = artistEventsQuery.overlaps('tags', tags)
-    }
+    if (dateFrom) artistEventsQuery = artistEventsQuery.gte('event_date', dateFrom)
+    if (dateTo) artistEventsQuery = artistEventsQuery.lte('event_date', dateTo)
+    if (tags && tags.length > 0) artistEventsQuery = artistEventsQuery.overlaps('tags', tags)
 
     const [legacyResult, v2Result, artistEventsResult] = await Promise.all([
       legacyQuery,
@@ -99,20 +86,31 @@ export async function GET(request: NextRequest) {
       artistEventsQuery,
     ])
 
-    if (legacyResult.error || v2Result.error || artistEventsResult.error) {
-      console.error('Error fetching events:', legacyResult.error || v2Result.error || artistEventsResult.error)
-      return NextResponse.json(
-        { error: 'Failed to fetch events' },
-        { status: 500 }
-      )
+    if (legacyResult.error) console.error('[events/discover] events query failed:', legacyResult.error)
+    if (v2Result.error) console.error('[events/discover] events_v2 query failed:', v2Result.error)
+    if (artistEventsResult.error)
+      console.error('[events/discover] artist_events query failed:', artistEventsResult.error)
+
+    const allSourcesFailed =
+      Boolean(legacyResult.error) && Boolean(v2Result.error) && Boolean(artistEventsResult.error)
+
+    if (allSourcesFailed) {
+      return NextResponse.json({ error: 'Failed to fetch events' }, { status: 500 })
     }
 
-    const legacyEvents = (legacyResult.data || []).filter(isArtistEventDiscoverable)
-    const v2Events = v2Result.data || []
-    const artistEvents = artistEventsResult.data || []
-    const legacyIds = legacyEvents.map(event => event.id)
-    const v2Ids = v2Events.map(event => event.id)
-    const artistEventIds = artistEvents.map(event => event.id)
+    const legacyEvents = (legacyResult.error ? [] : legacyResult.data || []).filter(
+      isArtistEventDiscoverable
+    )
+    const v2Events = (v2Result.error ? [] : v2Result.data || []).filter((event) =>
+      isEventsV2PubliclyListable(event)
+    )
+    const artistEvents = (artistEventsResult.error ? [] : artistEventsResult.data || []).filter(
+      isArtistEventDiscoverable
+    )
+
+    const legacyIds = legacyEvents.map((event) => event.id)
+    const v2Ids = v2Events.map((event) => event.id)
+    const artistEventIds = artistEvents.map((event) => event.id)
 
     const [legacyAttendanceResult, v2AttendanceResult, artistAttendanceResult] = await Promise.all([
       legacyIds.length > 0
@@ -139,56 +137,50 @@ export async function GET(request: NextRequest) {
     ])
 
     if (legacyAttendanceResult.error || v2AttendanceResult.error || artistAttendanceResult.error) {
-      console.error('Error fetching attendance counts:', legacyAttendanceResult.error || v2AttendanceResult.error || artistAttendanceResult.error)
+      console.error(
+        '[events/discover] attendance query failed:',
+        legacyAttendanceResult.error || v2AttendanceResult.error || artistAttendanceResult.error
+      )
     }
 
-    const legacyAttendanceByEventId = new Map<string, { attending: number; interested: number }>()
-    for (const attendance of legacyAttendanceResult.data || []) {
-      const current = legacyAttendanceByEventId.get(attendance.event_id) || { attending: 0, interested: 0 }
-      if (attendance.status === 'attending') current.attending += 1
-      if (attendance.status === 'interested') current.interested += 1
-      legacyAttendanceByEventId.set(attendance.event_id, current)
-    }
+    const legacyAttendanceByEventId = countAttendance(legacyAttendanceResult.data)
+    const v2AttendanceByEventId = countAttendance(v2AttendanceResult.data)
+    const artistAttendanceByEventId = countAttendance(artistAttendanceResult.data)
 
-    const v2AttendanceByEventId = new Map<string, { attending: number; interested: number }>()
-    for (const attendance of v2AttendanceResult.data || []) {
-      const current = v2AttendanceByEventId.get(attendance.event_id) || { attending: 0, interested: 0 }
-      if (attendance.status === 'attending') current.attending += 1
-      if (attendance.status === 'interested') current.interested += 1
-      v2AttendanceByEventId.set(attendance.event_id, current)
-    }
-
-    const artistAttendanceByEventId = new Map<string, { attending: number; interested: number }>()
-    for (const attendance of artistAttendanceResult.data || []) {
-      const current = artistAttendanceByEventId.get(attendance.event_id) || { attending: 0, interested: 0 }
-      if (attendance.status === 'attending') current.attending += 1
-      if (attendance.status === 'interested') current.interested += 1
-      artistAttendanceByEventId.set(attendance.event_id, current)
-    }
-
-    const transformedLegacyEvents = legacyEvents.map(event => {
+    const transformedLegacyEvents = legacyEvents.map((event) => {
       const counts = legacyAttendanceByEventId.get(event.id) || { attending: 0, interested: 0 }
       return {
         ...event,
-        title: event.name,
+        title: event.name || event.title || 'Event',
         type: event.event_type,
         venue_city: event.city,
         venue_state: event.state,
+        poster_url: event.poster_url || null,
+        ticket_price_min: event.ticket_price_min ?? event.ticket_price ?? null,
+        ticket_price_max: event.ticket_price_max ?? event.ticket_price ?? null,
         event_table: 'events',
         attendance: {
           attending: counts.attending,
           interested: counts.interested,
-          total: counts.attending + counts.interested
-        }
+          total: counts.attending + counts.interested,
+        },
       }
     })
 
-    const transformedV2Events = v2Events.map(event => {
+    const transformedV2Events = v2Events.map((event) => {
       const counts = v2AttendanceByEventId.get(event.id) || { attending: 0, interested: 0 }
-      const settings = event.settings && typeof event.settings === 'object'
-        ? event.settings as Record<string, unknown>
-        : {}
+      const settings =
+        event.settings && typeof event.settings === 'object'
+          ? (event.settings as Record<string, unknown>)
+          : {}
       const startAt = typeof event.start_at === 'string' ? event.start_at : ''
+
+      const ticketPrice =
+        typeof settings.ticket_price === 'number'
+          ? settings.ticket_price
+          : typeof settings.ticket_price_min === 'number'
+            ? settings.ticket_price_min
+            : null
 
       return {
         id: event.id,
@@ -197,10 +189,25 @@ export async function GET(request: NextRequest) {
         type: typeof settings.event_type === 'string' ? settings.event_type : null,
         event_type: typeof settings.event_type === 'string' ? settings.event_type : null,
         description: typeof settings.description === 'string' ? settings.description : null,
-        venue_name: typeof settings.venue_label === 'string' ? settings.venue_label : null,
+        venue_name:
+          typeof settings.venue_label === 'string'
+            ? settings.venue_label
+            : typeof settings.venue_name === 'string'
+              ? settings.venue_name
+              : null,
         venue_city: typeof settings.venue_city === 'string' ? settings.venue_city : null,
         venue_state: typeof settings.venue_state === 'string' ? settings.venue_state : null,
         venue_country: typeof settings.venue_country === 'string' ? settings.venue_country : null,
+        poster_url:
+          typeof settings.poster_url === 'string'
+            ? settings.poster_url
+            : typeof settings.cover_image_url === 'string'
+              ? settings.cover_image_url
+              : null,
+        ticket_price_min:
+          typeof settings.ticket_price_min === 'number' ? settings.ticket_price_min : ticketPrice,
+        ticket_price_max:
+          typeof settings.ticket_price_max === 'number' ? settings.ticket_price_max : ticketPrice,
         slug: event.slug,
         status: event.status,
         capacity: event.capacity,
@@ -211,12 +218,12 @@ export async function GET(request: NextRequest) {
         attendance: {
           attending: counts.attending,
           interested: counts.interested,
-          total: counts.attending + counts.interested
-        }
+          total: counts.attending + counts.interested,
+        },
       }
     })
 
-    const transformedArtistEvents = artistEvents.map(event => {
+    const transformedArtistEvents = artistEvents.map((event) => {
       const counts = artistAttendanceByEventId.get(event.id) || { attending: 0, interested: 0 }
       return {
         ...event,
@@ -226,29 +233,51 @@ export async function GET(request: NextRequest) {
         event_type: event.type || event.event_type || null,
         venue_city: event.venue_city || event.city || null,
         venue_state: event.venue_state || event.state || null,
+        poster_url: event.poster_url || null,
+        ticket_price_min: event.ticket_price_min ?? event.ticket_price ?? null,
+        ticket_price_max: event.ticket_price_max ?? event.ticket_price ?? null,
         event_table: 'artist_events',
         attendance: {
           attending: counts.attending,
           interested: counts.interested,
-          total: counts.attending + counts.interested
-        }
+          total: counts.attending + counts.interested,
+        },
       }
     })
 
-    let transformedEvents = [...transformedLegacyEvents, ...transformedV2Events, ...transformedArtistEvents]
+    let transformedEvents = mergeEventSourcesSoft([
+      transformedLegacyEvents,
+      transformedV2Events,
+      transformedArtistEvents,
+    ])
+
+    if (type) {
+      transformedEvents = transformedEvents.filter(
+        (event) => event.type === type || event.event_type === type
+      )
+    }
+
+    // Optional strict location filter (Discover does not pass this).
+    if (strictLocation && location?.trim()) {
+      transformedEvents = transformedEvents.filter((event) =>
+        matchesLocationFields(
+          location,
+          event.venue_city,
+          event.venue_state,
+          event.city,
+          event.state
+        )
+      )
+    }
 
     switch (sortBy) {
       case 'popularity':
-        transformedEvents = transformedEvents.sort((a, b) => (b.attendance?.total || 0) - (a.attendance?.total || 0))
+        transformedEvents = transformedEvents.sort(
+          (a, b) => (b.attendance?.total || 0) - (a.attendance?.total || 0)
+        )
         break
       case 'relevance':
-        transformedEvents = transformedEvents.sort((a, b) => {
-          const aPopularity = a.attendance?.total || 0
-          const bPopularity = b.attendance?.total || 0
-          const aDate = a.event_date ? new Date(a.event_date).getTime() : Number.MAX_SAFE_INTEGER
-          const bDate = b.event_date ? new Date(b.event_date).getTime() : Number.MAX_SAFE_INTEGER
-          return (bPopularity - aPopularity) || (aDate - bDate)
-        })
+        transformedEvents = sortEventsByLocationBoost(transformedEvents, location)
         break
       default:
         transformedEvents = transformedEvents.sort((a, b) => {
@@ -256,6 +285,9 @@ export async function GET(request: NextRequest) {
           const bDate = b.event_date ? new Date(b.event_date).getTime() : Number.MAX_SAFE_INTEGER
           return aDate - bDate
         })
+        if (location?.trim())
+          transformedEvents = sortEventsByLocationBoost(transformedEvents, location)
+        break
     }
 
     const paginatedEvents = transformedEvents.slice(offset, offset + limit)
@@ -265,14 +297,16 @@ export async function GET(request: NextRequest) {
       pagination: {
         limit,
         offset,
-        hasMore: transformedEvents.length > offset + limit
-      }
+        hasMore: transformedEvents.length > offset + limit,
+      },
+      sources: {
+        events: !legacyResult.error,
+        events_v2: !v2Result.error,
+        artist_events: !artistEventsResult.error,
+      },
     })
   } catch (error) {
     console.error('Error in events discover API:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -59,9 +59,6 @@ export const POST = withAdminAuth(async (request: NextRequest, { supabase, user 
     .single()
 
   if (error) {
-    if (error.code === '42P01') {
-      return NextResponse.json({ error: 'Work Mode publication table is not migrated yet' }, { status: 501 })
-    }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 

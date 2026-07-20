@@ -1,0 +1,22 @@
+-- REFERENCE ONLY.
+-- Convert to a real migration after auditing the actual artist_music ID type,
+-- schema conventions, capability functions, RLS, grants, and migration order.
+-- Never apply this file directly to production.
+
+-- Suggested entities:
+-- music_rights_projects
+-- music_rights_musical_works
+-- music_rights_sound_recordings
+-- music_rights_parties
+-- music_rights_contributions
+-- music_rights_claims
+-- music_rights_invitations
+--
+-- Requirements:
+-- * additive only
+-- * stable public IDs separate from PKs
+-- * exact share representation (numeric or numerator/denominator)
+-- * RLS on every exposed table
+-- * owner/team/contributor/capability policies
+-- * created_at/updated_at/version columns
+-- * no generic TO authenticated policy without row predicate

@@ -1,0 +1,7 @@
+{
+  "membershipId": "00000000-0000-0000-0000-000000000000",
+  "instrumentType": "ratification",
+  "signedBy": "authorized-official",
+  "instrumentHash": "sha256:example",
+  "receivedAt": "2027-01-02T00:00:00Z"
+}

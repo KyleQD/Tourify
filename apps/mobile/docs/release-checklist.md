@@ -2,34 +2,56 @@
 
 ## Build + test
 
-- Run `npm run typecheck`
-- Run `npm run lint`
-- Run `npm run launch:ready`
-- Run `npm run test:android-release-readiness`
-- Verify auth flows: email/password + Google/Apple/Facebook
-- Verify API auth using bearer token for discover, follow, notifications, and payment endpoints
-- Verify checkout redirect flow returns users to `tourify://bookings`
-- Verify realtime notification refresh in app
+- [ ] Run `npm run test:unit` (push routing, checkout verify status, reset-password guard)
+- [ ] Run `npm run typecheck`
+- [ ] Run `npm run lint`
+- [ ] Run `npm run launch:ready`
+- [ ] Run root `npm run test:mobile-redirect`
+- [ ] Run root `npm run mobile:verify` (typecheck + lint + unit)
+- [ ] Verify auth flows: email/password + Google/Apple/Facebook
+- [ ] Verify password reset deep link lands on `/(auth)/reset-password`
+- [ ] Verify API auth using bearer token for discover, follow, notifications, payment, venue booking-requests
+- [ ] Verify event checkout opens browser then **server-verifies** before showing completed
+- [ ] Verify push notification tap navigates via `data.url`
+- [ ] Verify realtime notification refresh in app
 
 ## Observability
 
-- Configure crash capture provider (Sentry or Crashlytics)
-- Set release and environment tags in `lib/observability/logger.ts`
-- Confirm logs include `appVersion`, `runtimeVersion`, `releaseChannel`, and `buildEnvironment`
-- Confirm production errors include `feature` and `userId` context
+- [ ] Set `EXPO_PUBLIC_SENTRY_DSN` for preview/production builds
+- [ ] Confirm Sentry initializes via `lib/observability/sentry.ts`
+- [ ] Confirm release tags: `appVersion`, `runtimeVersion`, `releaseChannel`, `buildEnvironment`
+- [ ] Confirm production errors include `feature` and `userId` context when provided
+- [ ] Smoke: force a handled exception in an internal build and confirm it appears in Sentry
 
 ## Store distribution
 
-- iOS: submit preview via TestFlight
-- OTA lane (JS/content only): `npm run mobile:ota:production`
-- Native lane (runtime/plugin/dependency changes): `npm run mobile:ios:build:production` then `npm run mobile:ios:submit:production`
-- Android OTA lane (JS/content only): automatic via `.github/workflows/android-ota-production.yml` or manual `npm run mobile:ota:production:android`
-- Android native lane (runtime/plugin/dependency changes): run `.github/workflows/android-native-release.yml` or use `npm run mobile:android:build:production` then `npm run mobile:android:submit:production`
-- Android Play release flow: internal testing track -> staged rollout -> production
-- Validate deep links:
+- [ ] iOS: submit preview via TestFlight (`eas build --profile preview` or workflow `mobile-preview-release.yml`)
+- [ ] Android: Play Internal testing track before staged production
+- [ ] OTA lane (JS/content only): `npm run mobile:ota:production`
+- [ ] Native lane (runtime/plugin/dependency changes): rebuild with production profile (plugins, permissions, SDK)
+- [ ] Android OTA lane: `.github/workflows/android-ota-production.yml` or `npm run mobile:ota:production:android`
+- [ ] Android native lane: `.github/workflows/android-native-release.yml`
+- [ ] Validate deep links:
   - `tourify://callback`
+  - `tourify://reset-password`
+  - `tourify://checkout`
   - `https://tourify.app/callback`
+  - `https://tourify.app/reset-password`
+  - `https://tourify.app/checkout`
+  - `https://tourify.app/connect`
   - `https://tourify.app/.well-known/assetlinks.json`
-- Validate privacy labels and permission descriptions
-- Validate launch package docs and assets in `docs/launch/launch-runbook.md`
-- Validate rollback execution steps in `docs/launch/rollback-playbooks.md`
+- [ ] Validate privacy labels and permission descriptions (notifications, location, photo library)
+- [ ] Validate launch package docs and assets in `docs/launch/launch-runbook.md`
+- [ ] Validate rollback execution steps in `docs/launch/rollback-playbooks.md`
+
+## Post-launch telemetry gate (first 72 hours)
+
+Track funnel in Sentry + API logs:
+
+1. Auth success → Home feed load
+2. Follow action
+3. Notification open (push `data.url`)
+4. Event checkout verify success
+5. Venue booking approve/reject (venue accounts)
+
+Hold or roll back if any Phase-5 trigger in `docs/launch/production-rollout-monitoring.md` fires.

@@ -14,6 +14,9 @@ import { fail, ok } from "@/types/hiring-service"
 import { assertCanManageHiring } from "@/lib/auth/hiring-permissions"
 import { resolveWorkModePermissions } from "@/lib/hiring/work-mode-permissions"
 import { buildFieldTypeMap, redactSensitiveResponses } from "@/lib/hiring/sensitive-field-utils"
+import { buildOnboardingTemplateSnapshot } from "@/lib/hiring/template-snapshot"
+import { publishJobTemplateToBoardSurfaces } from "@/lib/job-board/publish-template-to-board"
+import { StaffOnboardingSensitiveVaultService } from "@/lib/services/staff-onboarding-sensitive-vault.service"
 import {
   collectHiringAuditReferenceIds,
   presentHiringAuditActivity,
@@ -254,12 +257,16 @@ async function getOrCreateCandidateFromApplication({
   application,
   jobPosting,
   templateId,
+  templateSnapshot,
+  templateVersion,
 }: {
   supabase: SupabaseClient
   actor: HiringActor
   application: Record<string, unknown>
   jobPosting?: Record<string, unknown> | null
   templateId?: string | null
+  templateSnapshot?: Record<string, unknown> | null
+  templateVersion?: string | null
 }): Promise<HiringServiceResult<Record<string, unknown>>> {
   const applicationId = String(application.id)
 
@@ -290,10 +297,17 @@ async function getOrCreateCandidateFromApplication({
     // candidate row so the onboarding tab reflects the choice (the invitation sync
     // happens separately in createInvitationForCandidate).
     const existingTemplateId = typeof existing.data.template_id === "string" ? existing.data.template_id : null
-    if (templateId && templateId !== existingTemplateId) {
+    const shouldPatchTemplate = Boolean(templateId && templateId !== existingTemplateId)
+    const shouldPatchSnapshot = Boolean(templateSnapshot) && !existing.data.template_snapshot
+    if (shouldPatchTemplate || shouldPatchSnapshot) {
       const { data: patched, error: patchError } = await supabase
         .from("staff_onboarding_candidates")
-        .update({ template_id: templateId, updated_at: getNowIso() })
+        .update({
+          ...(templateId ? { template_id: templateId } : {}),
+          ...(templateSnapshot ? { template_snapshot: templateSnapshot } : {}),
+          ...(templateVersion ? { template_version: templateVersion } : {}),
+          updated_at: getNowIso(),
+        })
         .eq("id", existing.data.id)
         .select("*")
         .single()
@@ -347,6 +361,8 @@ async function getOrCreateCandidateFromApplication({
     onboarding_progress: 0,
     compliance_issues: [],
     template_id: templateId ?? null,
+    template_snapshot: templateSnapshot ?? null,
+    template_version: templateVersion ?? null,
     notes: `job_application_id:${applicationId}`,
     created_at: getNowIso(),
     updated_at: getNowIso(),
@@ -374,16 +390,59 @@ async function getOrCreateCandidateFromApplication({
   return ok(data as Record<string, unknown>)
 }
 
+async function buildSnapshotForTemplateId({
+  supabase,
+  templateId,
+}: {
+  supabase: SupabaseClient
+  templateId?: string | null
+}): Promise<{ templateSnapshot: Record<string, unknown> | null; templateVersion: string | null }> {
+  if (!templateId) return { templateSnapshot: null, templateVersion: null }
+  const templateResult = await getTemplateById({ supabase, id: templateId })
+  if (!templateResult.data) return { templateSnapshot: null, templateVersion: null }
+
+  const snapshot = buildOnboardingTemplateSnapshot({
+    id: String(templateResult.data.id),
+    name: String(templateResult.data.name ?? "Onboarding template"),
+    description: typeof templateResult.data.description === "string" ? templateResult.data.description : null,
+    department: typeof templateResult.data.department === "string" ? templateResult.data.department : null,
+    position: typeof templateResult.data.position === "string" ? templateResult.data.position : null,
+    employment_type:
+      templateResult.data.employment_type === "full_time" ||
+      templateResult.data.employment_type === "part_time" ||
+      templateResult.data.employment_type === "contractor" ||
+      templateResult.data.employment_type === "volunteer" ||
+      templateResult.data.employment_type === "intern"
+        ? templateResult.data.employment_type
+        : null,
+    fields: Array.isArray(templateResult.data.fields) ? (templateResult.data.fields as never[]) : [],
+    required_documents: Array.isArray(templateResult.data.required_documents)
+      ? (templateResult.data.required_documents as string[])
+      : [],
+    estimated_days: typeof templateResult.data.estimated_days === "number" ? templateResult.data.estimated_days : null,
+    version: typeof templateResult.data.version === "number" ? templateResult.data.version : 1,
+  })
+
+  return {
+    templateSnapshot: snapshot as unknown as Record<string, unknown>,
+    templateVersion: `v${snapshot.version}`,
+  }
+}
+
 async function createInvitationForCandidate({
   supabase,
   actor,
   candidate,
   templateId,
+  templateSnapshot,
+  templateVersion,
 }: {
   supabase: SupabaseClient
   actor: HiringActor
   candidate: Record<string, unknown>
   templateId?: string | null
+  templateSnapshot?: Record<string, unknown> | null
+  templateVersion?: string | null
 }): Promise<HiringServiceResult<Record<string, unknown>>> {
   const positionDetails = {
     candidate_id: candidate.id,
@@ -420,6 +479,8 @@ async function createInvitationForCandidate({
       .update({
         position_details: positionDetails,
         template_id: templateId ?? candidate.template_id ?? existingInvitation.template_id ?? null,
+        ...(templateSnapshot ? { template_snapshot: templateSnapshot } : {}),
+        ...(templateVersion ? { template_version: templateVersion } : {}),
         updated_at: getNowIso(),
       })
       .eq("id", existingInvitation.id)
@@ -430,7 +491,14 @@ async function createInvitationForCandidate({
 
     const reuseUpdate = await supabase
       .from("staff_onboarding_candidates")
-      .update({ invitation_token: reuseToken, stage: "invitation", updated_at: getNowIso() })
+      .update({
+        invitation_token: reuseToken,
+        stage: "invitation",
+        ...(templateId ? { template_id: templateId } : {}),
+        ...(templateSnapshot ? { template_snapshot: templateSnapshot } : {}),
+        ...(templateVersion ? { template_version: templateVersion } : {}),
+        updated_at: getNowIso(),
+      })
       .eq("id", candidate.id)
 
     if (reuseUpdate.error) {
@@ -459,6 +527,8 @@ async function createInvitationForCandidate({
       origin: "hiring_onboarding",
       status: "pending",
       template_id: templateId ?? candidate.template_id ?? null,
+      template_snapshot: templateSnapshot ?? null,
+      template_version: templateVersion ?? null,
       created_by: actor.userId,
       created_at: getNowIso(),
       updated_at: getNowIso(),
@@ -475,6 +545,9 @@ async function createInvitationForCandidate({
     .update({
       invitation_token: token,
       stage: "invitation",
+      ...(templateId ? { template_id: templateId } : {}),
+      ...(templateSnapshot ? { template_snapshot: templateSnapshot } : {}),
+      ...(templateVersion ? { template_version: templateVersion } : {}),
       updated_at: getNowIso(),
     })
     .eq("id", candidate.id)
@@ -557,22 +630,142 @@ async function resolveAssignmentEventId({
   supabase: SupabaseClient
   application: Record<string, unknown>
 }): Promise<string | null> {
-  const jobPostingId = typeof application.job_posting_id === "string" ? application.job_posting_id : null
-  if (!jobPostingId) return null
+  const context = await resolveAssignmentJobContext({ supabase, application })
+  return context.eventId
+}
 
-  const { data: posting } = await supabase
-    .from("job_posting_templates")
-    .select("event_id")
-    .eq("id", jobPostingId)
-    .maybeSingle()
+async function resolveAssignmentJobContext({
+  supabase,
+  application,
+  jobPosting,
+}: {
+  supabase: SupabaseClient
+  application: Record<string, unknown>
+  jobPosting?: Record<string, unknown> | null
+}): Promise<{ eventId: string | null; tourId: string | null }> {
+  const jobPostingId = typeof application.job_posting_id === "string" ? application.job_posting_id : null
+
+  let posting = jobPosting ?? null
+  if (!posting && jobPostingId) {
+    const { data } = await supabase
+      .from("job_posting_templates")
+      .select("event_id, tour_id")
+      .eq("id", jobPostingId)
+      .maybeSingle()
+    posting = (data as Record<string, unknown> | null) ?? null
+  }
 
   const postingEventId = posting && typeof posting.event_id === "string" ? posting.event_id : null
-  if (!postingEventId) return null
+  const postingTourId = posting && typeof posting.tour_id === "string" ? posting.tour_id : null
 
-  // employment_assignments.event_id references the `events` table; skip when the
-  // posting's event is not present there to keep the insert safe.
-  const { data: eventRow } = await supabase.from("events").select("id").eq("id", postingEventId).maybeSingle()
-  return eventRow?.id ? postingEventId : null
+  let eventId: string | null = null
+  if (postingEventId) {
+    // employment_assignments.event_id references the `events` table; skip when the
+    // posting's event is not present there to keep the insert safe.
+    const { data: eventRow } = await supabase.from("events").select("id").eq("id", postingEventId).maybeSingle()
+    eventId = eventRow?.id ? postingEventId : null
+  }
+
+  let tourId: string | null = null
+  if (postingTourId) {
+    const { data: tourRow } = await supabase.from("tours").select("id").eq("id", postingTourId).maybeSingle()
+    tourId = tourRow?.id ? postingTourId : null
+  }
+
+  return { eventId, tourId }
+}
+
+async function projectHireToTourCrew({
+  supabase,
+  tourId,
+  userId,
+  role,
+  name,
+  email,
+}: {
+  supabase: SupabaseClient
+  tourId: string
+  userId: string
+  role: string
+  name?: string | null
+  email?: string | null
+}): Promise<{ ok: boolean; warning?: string }> {
+  const { data: existing } = await supabase
+    .from("tour_team_members")
+    .select("id, role, status")
+    .eq("tour_id", tourId)
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (existing?.id) {
+    const { error: updateError } = await supabase
+      .from("tour_team_members")
+      .update({
+        role: existing.role || role,
+        name: name ?? null,
+        email: email ?? null,
+        contact_email: email ?? null,
+        status: existing.status || "confirmed",
+        is_active: true,
+        updated_at: getNowIso(),
+      })
+      .eq("id", existing.id)
+
+    if (updateError) {
+      return { ok: false, warning: `Tour crew sync failed: ${updateError.message}` }
+    }
+    return { ok: true }
+  }
+
+  // Prefer attaching to an existing crew team; create a default Crew team when missing.
+  let teamId: string | null = null
+  const { data: crewTeam } = await supabase
+    .from("tour_teams")
+    .select("id")
+    .eq("tour_id", tourId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  if (crewTeam?.id) {
+    teamId = crewTeam.id as string
+  } else {
+    const { data: createdTeam, error: teamError } = await supabase
+      .from("tour_teams")
+      .insert({
+        tour_id: tourId,
+        name: "Crew",
+        description: "Auto-created from hiring approvals",
+      })
+      .select("id")
+      .single()
+
+    if (teamError || !createdTeam?.id) {
+      return {
+        ok: false,
+        warning: `Tour crew sync failed: ${teamError?.message || "unable to create crew team"}`,
+      }
+    }
+    teamId = createdTeam.id as string
+  }
+
+  const { error: insertError } = await supabase.from("tour_team_members").insert({
+    tour_id: tourId,
+    team_id: teamId,
+    user_id: userId,
+    role,
+    name: name ?? null,
+    email: email ?? null,
+    contact_email: email ?? null,
+    status: "confirmed",
+    is_active: true,
+  })
+
+  if (insertError) {
+    return { ok: false, warning: `Tour crew sync failed: ${insertError.message}` }
+  }
+
+  return { ok: true }
 }
 
 export async function resolveOrganizerId({
@@ -623,10 +816,9 @@ async function createEmploymentAssignmentShell({
   const department = typeof application.department === "string" ? application.department : null
   const permissions = resolveWorkModePermissions({ position, department })
 
-  // Pre-scope the assignment to the job posting's event so approved hires land on
-  // the roster already attached to the right event. Only copy the id when it
-  // resolves to a real events row to avoid a foreign-key violation on insert.
-  const eventId = await resolveAssignmentEventId({ supabase, application })
+  // Pre-scope the assignment to the job posting's event/tour so approved hires land
+  // on the roster already attached to the right ops context.
+  const { eventId, tourId } = await resolveAssignmentJobContext({ supabase, application })
 
   const { data: existing } = await supabase
     .from("employment_assignments")
@@ -643,6 +835,7 @@ async function createEmploymentAssignmentShell({
         permissions,
         status: "invited",
         ...(eventId && !existing.event_id ? { event_id: eventId } : {}),
+        ...(tourId && !existing.tour_id ? { tour_id: tourId } : {}),
         updated_at: getNowIso(),
       })
       .eq("id", existing.id)
@@ -671,6 +864,7 @@ async function createEmploymentAssignmentShell({
     permissions,
     organizer_id: organizerId,
     ...(eventId ? { event_id: eventId } : {}),
+    ...(tourId ? { tour_id: tourId } : {}),
     created_at: getNowIso(),
     updated_at: getNowIso(),
   }
@@ -736,6 +930,19 @@ export const HiringOnboardingService = {
     const permission = await assertCanManageHiring({ supabase, userId: actor.userId, employer: actor.employer })
     if (!permission.ok) return permission
 
+    const status = data.status ?? "draft"
+    const onboardingTemplateId =
+      typeof data.onboarding_template_id === "string" && data.onboarding_template_id
+        ? data.onboarding_template_id
+        : null
+
+    if (status === "published" && !onboardingTemplateId) {
+      return fail({
+        code: "BAD_REQUEST",
+        message: "An onboarding template is required before publishing a job posting.",
+      })
+    }
+
     const payload = {
       ...getEmployerColumns(actor.employer),
       title: data.title,
@@ -756,11 +963,11 @@ export const HiringOnboardingService = {
       urgent: data.urgent ?? false,
       required_certifications: data.required_certifications ?? [],
       application_form_template: data.application_form_template ?? { fields: [] },
-      onboarding_template_id: data.onboarding_template_id ?? null,
+      onboarding_template_id: onboardingTemplateId,
       event_id: data.event_id ?? actor.employer.scope?.eventId ?? null,
       tour_id: data.tour_id ?? actor.employer.scope?.tourId ?? null,
       event_date: data.event_date ?? null,
-      status: data.status ?? "draft",
+      status,
       created_by: actor.userId,
       created_at: getNowIso(),
       updated_at: getNowIso(),
@@ -773,6 +980,60 @@ export const HiringOnboardingService = {
       .single()
 
     if (error) return fail({ code: "DATABASE_ERROR", message: "Unable to create job posting.", details: error })
+
+    if (status === "published") {
+      const displayName = await resolveHiringEntityDisplayName({
+        supabase,
+        entityType: actor.employer.entityType,
+        entityId: actor.employer.entityId,
+        fallback: actor.employer.displayName,
+      })
+
+      await publishJobTemplateToBoardSurfaces(supabase, {
+        template: {
+          id: String(inserted.id),
+          venue_id: typeof inserted.venue_id === "string" ? inserted.venue_id : null,
+          title: String(inserted.title),
+          description: typeof inserted.description === "string" ? inserted.description : null,
+          department: typeof inserted.department === "string" ? inserted.department : null,
+          position: typeof inserted.position === "string" ? inserted.position : null,
+          employment_type: typeof inserted.employment_type === "string" ? inserted.employment_type : null,
+          location: typeof inserted.location === "string" ? inserted.location : null,
+          number_of_positions:
+            typeof inserted.number_of_positions === "number" ? inserted.number_of_positions : null,
+          salary_range:
+            inserted.salary_range && typeof inserted.salary_range === "object"
+              ? (inserted.salary_range as Record<string, unknown>)
+              : null,
+          requirements: Array.isArray(inserted.requirements) ? (inserted.requirements as string[]) : null,
+          responsibilities: Array.isArray(inserted.responsibilities)
+            ? (inserted.responsibilities as string[])
+            : null,
+          benefits: Array.isArray(inserted.benefits) ? (inserted.benefits as string[]) : null,
+          skills: Array.isArray(inserted.skills) ? (inserted.skills as string[]) : null,
+          experience_level: typeof inserted.experience_level === "string" ? inserted.experience_level : null,
+          remote: Boolean(inserted.remote),
+          urgent: Boolean(inserted.urgent),
+          required_certifications: Array.isArray(inserted.required_certifications)
+            ? (inserted.required_certifications as string[])
+            : null,
+          role_type: typeof inserted.role_type === "string" ? inserted.role_type : null,
+          status: typeof inserted.status === "string" ? inserted.status : "published",
+        },
+        userId: actor.userId,
+        organizationId: actor.employer.entityId,
+        organizationName: displayName,
+      })
+
+      if (onboardingTemplateId) {
+        const existingTemplate = await getTemplateById({ supabase, id: onboardingTemplateId })
+        const nextUseCount = (Number(existingTemplate.data?.use_count) || 0) + 1
+        await supabase
+          .from("staff_onboarding_templates")
+          .update({ use_count: nextUseCount, updated_at: getNowIso() })
+          .eq("id", onboardingTemplateId)
+      }
+    }
 
     await insertHiringAuditEvent({
       supabase,
@@ -947,7 +1208,7 @@ export const HiringOnboardingService = {
     if (jobPostingId) {
       const { data: postingRow } = await supabase
         .from("job_posting_templates")
-        .select("id, title, department, position, onboarding_template_id")
+        .select("id, title, department, position, onboarding_template_id, event_id, tour_id, employment_type")
         .eq("id", jobPostingId)
         .maybeSingle()
       jobPosting = (postingRow as Record<string, unknown> | null) ?? null
@@ -986,6 +1247,13 @@ export const HiringOnboardingService = {
     const persistableTemplateId =
       resolvedTemplate.source === "static_safe_fallback" ? null : resolvedTemplate.template.id
 
+    const templateSnapshot = persistableTemplateId
+      ? (buildOnboardingTemplateSnapshot(resolvedTemplate.template) as unknown as Record<string, unknown>)
+      : null
+    const templateVersion = templateSnapshot
+      ? `v${typeof templateSnapshot.version === "number" ? templateSnapshot.version : 1}`
+      : null
+
     // Classify template state so callers can prompt the admin when no employer
     // template is actually configured for this hire yet.
     const templateState: "explicit" | "employerResolved" | "pending" = explicitTemplateId
@@ -1012,6 +1280,8 @@ export const HiringOnboardingService = {
       application: updateResult.data as Record<string, unknown>,
       jobPosting,
       templateId: persistableTemplateId,
+      templateSnapshot,
+      templateVersion,
     })
     if (!candidateResult.ok) {
       await revertApproval()
@@ -1023,6 +1293,8 @@ export const HiringOnboardingService = {
       actor,
       candidate: candidateResult.data,
       templateId: persistableTemplateId,
+      templateSnapshot,
+      templateVersion,
     })
     if (!invitationResult.ok) {
       await revertApproval()
@@ -1035,22 +1307,8 @@ export const HiringOnboardingService = {
       return workflowResult
     }
 
-    // The roster shell is a best-effort convenience; approval must not fail if it
-    // cannot be created (e.g. missing organizer account). Surface it as a warning.
-    const assignmentResult = await createEmploymentAssignmentShell({
-      supabase,
-      actor,
-      application: updateResult.data as Record<string, unknown>,
-    })
-    let employmentAssignment: Record<string, unknown> | null = null
-    if (assignmentResult.ok) {
-      employmentAssignment = assignmentResult.data
-    } else {
-      console.error("[approveApplication] employment assignment shell failed", assignmentResult.error)
-      warnings.push("Applicant approved, but adding them to the roster failed. You can add them manually.")
-    }
-
-    // Create/update staff_members so the hire appears on Roster + scheduling immediately.
+    // Create/update staff_members + employment_assignments so the hire appears on
+    // Roster and ops pickers immediately. This is required when a user account is linked.
     const approvedApplication = updateResult.data as Record<string, unknown>
     const rosterUserId =
       (typeof approvedApplication.applicant_id === "string" && approvedApplication.applicant_id) ||
@@ -1059,20 +1317,29 @@ export const HiringOnboardingService = {
       (typeof candidateResult.data.applicant_id === "string" && candidateResult.data.applicant_id) ||
       null
 
+    const jobContext = await resolveAssignmentJobContext({
+      supabase,
+      application: approvedApplication,
+      jobPosting,
+    })
+
+    const jobPosition =
+      (typeof jobPosting?.position === "string" && jobPosting.position) ||
+      (typeof candidateResult.data.position === "string" && candidateResult.data.position) ||
+      (typeof jobPosting?.title === "string" && jobPosting.title) ||
+      "Staff"
+    const jobDepartment =
+      (typeof jobPosting?.department === "string" && jobPosting.department) ||
+      (typeof candidateResult.data.department === "string" && candidateResult.data.department) ||
+      null
+
+    let employmentAssignment: Record<string, unknown> | null = null
+    let rosterMemberId: string | null = null
+
     if (rosterUserId) {
       try {
         const rosterService = new HiringRosterService({ supabase })
-        const jobPosition =
-          (typeof jobPosting?.position === "string" && jobPosting.position) ||
-          (typeof candidateResult.data.position === "string" && candidateResult.data.position) ||
-          (typeof jobPosting?.title === "string" && jobPosting.title) ||
-          "Staff"
-        const jobDepartment =
-          (typeof jobPosting?.department === "string" && jobPosting.department) ||
-          (typeof candidateResult.data.department === "string" && candidateResult.data.department) ||
-          null
-
-        await rosterService.upsertRosterFromApproval({
+        const member = await rosterService.upsertRosterFromApproval({
           employer: actor.employer,
           actorUserId: actor.userId,
           userId: rosterUserId,
@@ -1096,13 +1363,64 @@ export const HiringOnboardingService = {
             (typeof approvedApplication.employment_type === "string" && approvedApplication.employment_type) ||
             null,
           completed: false,
+          eventId: jobContext.eventId,
+          tourId: jobContext.tourId,
         })
+
+        rosterMemberId = member?.id ?? null
+
+        const { data: assignmentRow } = await supabase
+          .from("employment_assignments")
+          .select("*")
+          .eq("user_id", rosterUserId)
+          .eq("employer_entity_type", actor.employer.entityType)
+          .eq("employer_entity_id", actor.employer.entityId)
+          .maybeSingle()
+        employmentAssignment = (assignmentRow as Record<string, unknown> | null) ?? null
+
+        if (jobContext.tourId) {
+          const tourProjection = await projectHireToTourCrew({
+            supabase,
+            tourId: jobContext.tourId,
+            userId: rosterUserId,
+            role: jobPosition,
+            name:
+              (typeof candidateResult.data.name === "string" && candidateResult.data.name) ||
+              (typeof approvedApplication.applicant_name === "string" && approvedApplication.applicant_name) ||
+              null,
+            email:
+              (typeof candidateResult.data.email === "string" && candidateResult.data.email) ||
+              (typeof approvedApplication.contact_email === "string" && approvedApplication.contact_email) ||
+              null,
+          })
+          if (!tourProjection.ok && tourProjection.warning) warnings.push(tourProjection.warning)
+        }
       } catch (rosterError) {
         console.error("[approveApplication] roster upsert failed", rosterError)
-        warnings.push("Applicant approved, but adding them to the team roster failed. You can add them manually.")
+        warnings.push(
+          "Applicant approved, but adding them to the team roster failed. Open the Roster tab to add them manually, then retry assignment."
+        )
+        // Fallback shell so event/tour context is not completely lost.
+        const assignmentResult = await createEmploymentAssignmentShell({
+          supabase,
+          actor,
+          application: approvedApplication,
+        })
+        if (assignmentResult.ok) employmentAssignment = assignmentResult.data
       }
     } else {
-      warnings.push("Applicant approved, but no user account was linked — they will not appear on the roster until they complete onboarding with an account.")
+      warnings.push(
+        "Applicant approved, but no user account was linked — they will not appear on the roster until they complete onboarding with an account."
+      )
+      const assignmentResult = await createEmploymentAssignmentShell({
+        supabase,
+        actor,
+        application: approvedApplication,
+      })
+      if (assignmentResult.ok) employmentAssignment = assignmentResult.data
+      else if (!assignmentResult.ok) {
+        warnings.push("Applicant approved, but adding them to the roster failed. You can add them manually.")
+      }
     }
 
     await insertHiringAuditEvent({
@@ -1120,6 +1438,9 @@ export const HiringOnboardingService = {
         invitationId: invitationResult.data.id,
         workflowId: workflowResult.data?.id,
         employmentAssignmentId: employmentAssignment?.id ?? null,
+        rosterMemberId,
+        eventId: jobContext.eventId,
+        tourId: jobContext.tourId,
         onboardingTemplateId: persistableTemplateId,
         onboardingTemplateSource: resolvedTemplate.source,
         onboardingTemplateState: templateState,
@@ -1132,6 +1453,7 @@ export const HiringOnboardingService = {
       invitation: invitationResult.data,
       workflow: workflowResult.data,
       employmentAssignment,
+      rosterMemberId,
       jobPosting,
       onboardingTemplate: {
         id: persistableTemplateId,
@@ -1353,11 +1675,25 @@ export const HiringOnboardingService = {
 
     if (error) return fail({ code: "DATABASE_ERROR", message: "Unable to create direct invite candidate.", details: error })
 
+    const snapshotFields = await buildSnapshotForTemplateId({ supabase, templateId })
+    if (snapshotFields.templateSnapshot) {
+      await supabase
+        .from("staff_onboarding_candidates")
+        .update({
+          template_snapshot: snapshotFields.templateSnapshot,
+          template_version: snapshotFields.templateVersion,
+          updated_at: getNowIso(),
+        })
+        .eq("id", candidate.id)
+    }
+
     const invitationResult = await createInvitationForCandidate({
       supabase,
       actor,
       candidate: candidate as Record<string, unknown>,
       templateId,
+      templateSnapshot: snapshotFields.templateSnapshot,
+      templateVersion: snapshotFields.templateVersion,
     })
     if (!invitationResult.ok) return invitationResult
 
@@ -1422,10 +1758,23 @@ export const HiringOnboardingService = {
 
       resolvedTemplateId = templateId
       templateName = typeof template.name === "string" ? template.name : null
+    }
 
+    const snapshotFields = await buildSnapshotForTemplateId({ supabase, templateId: resolvedTemplateId })
+
+    if (templateId || snapshotFields.templateSnapshot) {
       const { error: updateError } = await supabase
         .from("staff_onboarding_candidates")
-        .update({ template_id: templateId, updated_at: getNowIso() })
+        .update({
+          ...(resolvedTemplateId ? { template_id: resolvedTemplateId } : {}),
+          ...(snapshotFields.templateSnapshot
+            ? {
+                template_snapshot: snapshotFields.templateSnapshot,
+                template_version: snapshotFields.templateVersion,
+              }
+            : {}),
+          updated_at: getNowIso(),
+        })
         .eq("id", candidateId)
 
       if (updateError) {
@@ -1439,6 +1788,8 @@ export const HiringOnboardingService = {
       actor,
       candidate: { ...candidate, template_id: resolvedTemplateId } as Record<string, unknown>,
       templateId: resolvedTemplateId,
+      templateSnapshot: snapshotFields.templateSnapshot,
+      templateVersion: snapshotFields.templateVersion,
     })
     if (!invitationResult.ok) return invitationResult
 
@@ -1704,6 +2055,20 @@ export const HiringOnboardingService = {
       : []
     const fieldTypeById = buildFieldTypeMap(templateFields)
     const redactedResponses = redactSensitiveResponses({ responses, fieldTypeById })
+
+    try {
+      const vaultResult = await StaffOnboardingSensitiveVaultService.upsertFromResponses({
+        supabase,
+        candidateId,
+        employer,
+        responses,
+        fieldTypeById,
+      })
+      if (!vaultResult.ok) warnings.push("sensitive_vault_upsert_failed")
+    } catch (vaultError) {
+      console.error("[submitTokenOnboarding] sensitive vault upsert failed", vaultError)
+      warnings.push("sensitive_vault_upsert_failed")
+    }
 
     const requiredFieldNames = templateFields
       .filter((field) => {

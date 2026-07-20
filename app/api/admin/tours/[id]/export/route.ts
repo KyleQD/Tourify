@@ -1,179 +1,183 @@
-import { NextRequest, NextResponse } from 'next/server'
-import {
-  adminAccessErrorResponse,
-  assertAdminTourAccess,
-} from '@/lib/admin/admin-tour-event-access'
-import { withAdminAuth } from '@/lib/auth/api-auth'
+import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 
-export const GET = withAdminAuth(async (request: NextRequest, { supabase, user }) => {
+import { adminAccessErrorResponse, assertAdminTourAccess } from "@/lib/admin/admin-tour-event-access"
+import { presentTourMember, presentTourVendor, spreadsheetCsvCell } from "@/lib/admin/tour-collaboration"
+import { renderTourReportPdf, type TourReportData } from "@/lib/admin/tour-export-document"
+import { withAdminCapability } from "@/lib/auth/api-auth"
+import { requireAdminCapability } from "@/lib/auth/admin-context"
+
+export const runtime = "nodejs"
+
+const formatSchema = z.enum(["pdf", "csv"])
+const allowedSections = new Set(["tourInfo", "events", "team", "vendors", "finances"])
+
+function extractTourId(url: string): string | null {
+  const segments = new URL(url).pathname.split("/")
+  const index = segments.indexOf("tours")
+  return index >= 0 ? segments[index + 1] || null : null
+}
+
+function safeFilename(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 80) || "tour"
+}
+
+export const GET = withAdminCapability("tour.view", async (request: NextRequest, { supabase, user, admin }) => {
   try {
-  const url = new URL(request.url)
-  const segments = url.pathname.split('/')
-  const idIndex = segments.indexOf('tours') + 1
-  const id = segments[idIndex]
-  const format = url.searchParams.get('format') || 'pdf'
-  const sectionsParam = url.searchParams.get('sections') || 'tourInfo,events,team,vendors,finances'
-  const sections = new Set(sectionsParam.split(',').map((part) => part.trim()).filter(Boolean))
+    const url = new URL(request.url)
+    const tourId = extractTourId(request.url)
+    if (!tourId) return NextResponse.json({ error: "Missing tour id" }, { status: 400 })
+    const format = formatSchema.parse(url.searchParams.get("format") || "pdf")
+    const requestedSections = (url.searchParams.get("sections") || "tourInfo,events,team,vendors,finances")
+      .split(",")
+      .map(section => section.trim())
+      .filter(section => allowedSections.has(section))
+    const sections = new Set(requestedSections.length > 0 ? requestedSections : ["tourInfo", "events"])
 
-  if (!id) return NextResponse.json({ error: 'Missing tour id' }, { status: 400 })
-  await assertAdminTourAccess({ supabase, userId: user.id, tourId: id })
-
-  // Fetch tour data
-  const { data: tour } = await supabase
-    .from('tours')
-    .select('id, name, description, start_date, end_date, status, genre, main_artist, cover_image_url')
-    .eq('id', id)
-    .maybeSingle()
-
-  if (!tour) return NextResponse.json({ error: 'Tour not found' }, { status: 404 })
-
-  // Fetch tour events
-  const { data: tourEvents } = sections.has('events') || sections.has('tourInfo')
-    ? await supabase
-        .from('tour_events')
-        .select('event_id, events_v2(id, title, start_at, venue_id, capacity, settings)')
-        .eq('tour_id', id)
-        .order('event_id')
-    : { data: [] as any[] }
-
-  const events: any[] = []
-  for (const te of tourEvents || []) {
-    const ev = (te as any).events_v2
-    if (ev) {
-      const settings = ev.settings || {}
-      events.push({
-        id: ev.id,
-        title: ev.title,
-        start_at: ev.start_at,
-        venue: settings.venue_label || 'TBD',
-        capacity: ev.capacity,
-      })
+    for (const [section, capability] of [
+      ["team", "workforce.view"],
+      ["vendors", "vendor.view"],
+      ["finances", "finance.view"],
+    ] as const) {
+      if (!sections.has(section)) continue
+      const denied = requireAdminCapability(admin, capability)
+      if (denied) return denied
     }
-  }
-  events.sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
 
-  // Fetch team
-  const { data: teamRows } = sections.has('team')
-    ? await supabase
-        .from('tour_team_members')
-        .select('user_id, role, profiles(full_name, username)')
-        .eq('tour_id', id)
-        .limit(50)
-    : { data: [] as any[] }
+    const tour = await assertAdminTourAccess({ supabase, userId: user.id, tourId, orgId: admin.orgId }) as Record<string, any>
+    const [eventResult, teamResult, vendorResult, financeResult] = await Promise.all([
+      sections.has("events") || sections.has("tourInfo")
+        ? supabase
+            .from("tour_events")
+            .select("ordinal, events_v2(id, title, start_at, venue_id, capacity, settings)")
+            .eq("tour_id", tourId)
+            .order("ordinal", { ascending: true })
+        : Promise.resolve({ data: [], error: null }),
+      sections.has("team")
+        ? supabase.from("tour_team_members").select("*").eq("tour_id", tourId).order("created_at", { ascending: true })
+        : Promise.resolve({ data: [], error: null }),
+      sections.has("vendors")
+        ? supabase.from("tour_vendors").select("*").eq("tour_id", tourId).order("created_at", { ascending: true })
+        : Promise.resolve({ data: [], error: null }),
+      sections.has("finances")
+        ? supabase.from("financial_transactions").select("type, amount, category, description, transaction_date").eq("tour_id", tourId)
+        : Promise.resolve({ data: [], error: null }),
+    ])
+    for (const result of [eventResult, teamResult, vendorResult, financeResult]) {
+      if (result.error) throw new Error(result.error.message)
+    }
 
-  // Fetch financials
-  const { data: transactions } = sections.has('finances')
-    ? await supabase
-        .from('financial_transactions')
-        .select('type, amount, category')
-        .eq('tour_id', id)
-    : { data: [] as any[] }
-
-  const totalIncome = (transactions || []).filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
-  const totalExpenses = (transactions || []).filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
-
-  if (format === 'pdf') {
-    const startLabel = tour.start_date ? new Date(tour.start_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD'
-    const endLabel = tour.end_date ? new Date(tour.end_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'TBD'
-
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>${tour.name} — Tour Report</title>
-<style>
-  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; color: #1a1a1a; }
-  h1 { color: #7c3aed; border-bottom: 3px solid #7c3aed; padding-bottom: 10px; }
-  h2 { color: #374151; margin-top: 28px; font-size: 1.1rem; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-  th { background: #f3f4f6; padding: 8px 12px; text-align: left; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
-  td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
-  .meta { color: #6b7280; font-size: 14px; margin-bottom: 6px; }
-  .stat { display: inline-block; margin: 0 24px 12px 0; }
-  .stat-value { font-size: 22px; font-weight: bold; color: #7c3aed; }
-  .stat-label { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; }
-  .cover { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 16px; }
-</style>
-</head>
-<body>
-${sections.has('tourInfo') && tour.cover_image_url ? `<img class="cover" src="${tour.cover_image_url}" alt="${tour.name}" />` : ''}
-${sections.has('tourInfo') ? `<h1>${tour.name}</h1>
-<p class="meta">${tour.main_artist || ''} ${tour.genre ? `· ${tour.genre}` : ''} · ${startLabel} – ${endLabel}</p>
-${tour.description ? `<p style="color:#374151;margin-bottom:16px">${tour.description}</p>` : ''}
-
-<h2>Summary</h2>
-<div>
-  <div class="stat"><div class="stat-value">${events.length}</div><div class="stat-label">Shows</div></div>
-  <div class="stat"><div class="stat-value">${(teamRows || []).length}</div><div class="stat-label">Team Members</div></div>
-  <div class="stat"><div class="stat-value">$${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Revenue</div></div>
-  <div class="stat"><div class="stat-value">$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Expenses</div></div>
-</div>` : `<h1>${tour.name}</h1>`}
-
-${sections.has('events') && events.length > 0 ? `
-<h2>Shows (${events.length})</h2>
-<table>
-<tr><th>#</th><th>Date</th><th>Title</th><th>Venue</th><th>Capacity</th></tr>
-${events.map((e, i) => `<tr><td>${i + 1}</td><td>${new Date(e.start_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' })}</td><td>${e.title}</td><td>${e.venue}</td><td>${e.capacity || '—'}</td></tr>`).join('')}
-</table>
-` : ''}
-
-${sections.has('team') && (teamRows || []).length > 0 ? `
-<h2>Team Roster</h2>
-<table>
-<tr><th>Name</th><th>Role</th></tr>
-${(teamRows || []).map((m: any) => `<tr><td>${m.profiles?.full_name || m.profiles?.username || '—'}</td><td>${m.role || '—'}</td></tr>`).join('')}
-</table>
-` : ''}
-
-${sections.has('vendors') ? `<h2>Vendors</h2><p class="meta">Vendor details are managed per show in the event hub.</p>` : ''}
-
-${sections.has('finances') ? `<h2>Financials</h2>
-<div>
-  <div class="stat"><div class="stat-value">$${totalIncome.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Revenue</div></div>
-  <div class="stat"><div class="stat-value">$${totalExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div><div class="stat-label">Expenses</div></div>
-</div>` : ''}
-
-<p style="margin-top:40px;color:#9ca3af;font-size:11px">Generated by Tourify · ${new Date().toLocaleString()}</p>
-</body></html>`
-
-    const filename = `${(tour.name || 'tour').replace(/[^a-z0-9]/gi, '-').toLowerCase()}-report.html`
-    return new NextResponse(html, {
-      headers: {
-        'Content-Type': 'text/html; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${filename}"`,
-      },
+    const events: TourReportData["events"] = (eventResult.data ?? []).flatMap((link: any) => {
+      const event = link.events_v2
+      if (!event) return []
+      const settings = event.settings && typeof event.settings === "object" ? event.settings : {}
+      return [{
+        title: String(event.title || "Event"),
+        date: String(event.start_at || ""),
+        venue: String(settings.venue_label || "TBD"),
+        capacity: event.capacity == null ? null : Number(event.capacity),
+      }]
     })
-  }
+    const team: TourReportData["team"] = (teamResult.data ?? []).map((row: Record<string, unknown>) => {
+      const member = presentTourMember(row)
+      return { name: member.name, role: member.role, status: member.status }
+    })
+    const vendors: TourReportData["vendors"] = (vendorResult.data ?? []).map((row: Record<string, unknown>) => {
+      const vendor = presentTourVendor(row)
+      return {
+        name: vendor.name,
+        type: vendor.type,
+        status: vendor.status,
+        amount: vendor.contract_amount == null ? null : Number(vendor.contract_amount),
+      }
+    })
+    const transactions: Array<{
+      type: string | null
+      amount: number | string | null
+      category: string | null
+      description: string | null
+      transaction_date: string | null
+    }> = financeResult.data ?? []
+    const income = transactions.filter((row: any) => row.type === "income").reduce((sum: number, row: any) => sum + (Number(row.amount) || 0), 0)
+    const expenses = transactions.filter((row: any) => row.type === "expense").reduce((sum: number, row: any) => sum + (Number(row.amount) || 0), 0)
+    const settings = tour.settings && typeof tour.settings === "object" ? tour.settings : {}
+    const report: TourReportData = {
+      tour: {
+        name: String(tour.name || "Tour"),
+        artist: String(tour.main_artist || tour.artist || settings.main_artist || ""),
+        genre: String(tour.genre || settings.genre || ""),
+        description: String(tour.description || ""),
+        status: String(tour.status || "planning"),
+        startDate: String(tour.start_date || tour.startDate || ""),
+        endDate: String(tour.end_date || tour.endDate || ""),
+      },
+      sections,
+      events,
+      team,
+      vendors,
+      finances: { income, expenses },
+      generatedAt: new Date().toISOString(),
+    }
+    const filename = safeFilename(report.tour.name)
 
-  if (format === 'csv') {
-    if (!sections.has('events')) {
-      return new NextResponse('section,note\nevents,not selected', {
+    if (format === "pdf") {
+      const pdf = await renderTourReportPdf(report)
+      return new NextResponse(pdf, {
         headers: {
-          'Content-Type': 'text/csv',
-          'Content-Disposition': `attachment; filename="${(tour.name || 'tour').replace(/\s/g, '-')}-export.csv"`,
+          "Content-Type": "application/pdf",
+          "Content-Disposition": `attachment; filename="${filename}-report.pdf"`,
+          "Cache-Control": "private, no-store",
         },
       })
     }
-    const rows = events.map((e, i) => [
-      i + 1,
-      `"${e.title}"`,
-      `"${new Date(e.start_at).toLocaleDateString()}"`,
-      `"${e.venue}"`,
-      e.capacity || '',
-    ].join(','))
 
-    const csv = ['#,Title,Date,Venue,Capacity', ...rows].join('\n')
-    return new NextResponse(csv, {
+    const rows: unknown[][] = [["Section", "Name", "Role or type", "Date", "Venue", "Status", "Amount", "Notes"]]
+    if (sections.has("tourInfo")) {
+      rows.push([
+        "Tour",
+        report.tour.name,
+        [report.tour.artist, report.tour.genre].filter(Boolean).join(" · "),
+        [report.tour.startDate, report.tour.endDate].filter(Boolean).join(" – "),
+        "",
+        report.tour.status,
+        "",
+        [report.tour.description, `Shows: ${events.length}`].filter(Boolean).join(" | "),
+      ])
+    }
+    if (sections.has("events")) {
+      events.forEach(event => rows.push(["Event", event.title, "", event.date, event.venue, "", "", event.capacity == null ? "" : `Capacity: ${event.capacity}`]))
+    }
+    if (sections.has("team")) {
+      team.forEach(member => rows.push(["Team", member.name, member.role, "", "", member.status, "", ""]))
+    }
+    if (sections.has("vendors")) {
+      vendors.forEach(vendor => rows.push(["Vendor", vendor.name, vendor.type, "", "", vendor.status, vendor.amount ?? "", ""]))
+    }
+    if (sections.has("finances")) {
+      transactions.forEach(transaction => rows.push([
+        "Finance",
+        transaction.description || transaction.category || transaction.type,
+        transaction.type,
+        transaction.transaction_date || "",
+        "",
+        "",
+        transaction.amount ?? "",
+        transaction.category || "",
+      ]))
+    }
+    const csv = rows.map(row => row.map(spreadsheetCsvCell).join(",")).join("\r\n")
+    return new NextResponse(`\uFEFF${csv}`, {
       headers: {
-        'Content-Type': 'text/csv',
-        'Content-Disposition': `attachment; filename="${(tour.name || 'tour').replace(/\s/g, '-')}-shows.csv"`,
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="${filename}-report.csv"`,
+        "Cache-Control": "private, no-store",
       },
     })
-  }
-
-  return NextResponse.json({ error: 'Invalid format. Use: pdf, csv' }, { status: 400 })
-  } catch (error: any) {
-    const { status, message } = adminAccessErrorResponse(error, 'Failed to export tour', 400)
-    return NextResponse.json({ error: message }, { status })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid export request", details: error.issues }, { status: 400 })
+    }
+    const resolved = adminAccessErrorResponse(error, "Failed to export tour", 500)
+    return NextResponse.json({ error: resolved.message }, { status: resolved.status })
   }
 })

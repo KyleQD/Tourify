@@ -127,7 +127,6 @@ describe("admin tour/event operation schemas", () => {
       security_notes: "Barricade confirmed",
       ticket_price: "35",
       team_count: 3,
-      staff_count: 1,
     })
     expect(ready.score).toBeGreaterThan(missing.score)
     expect(ready.blockers).toHaveLength(0)
@@ -148,5 +147,33 @@ describe("admin tour/event operation schemas", () => {
 
     expect(summary.score).toBeGreaterThan(0)
     expect(summary.conflicts.some((conflict) => conflict.id.startsWith("event-outside-dates"))).toBe(true)
+  })
+
+  it("does not count an empty draft row as a tour stop", () => {
+    const summary = getTourReadiness({
+      name: "Draft run",
+      main_artist: "Headliner",
+      start_date: "2026-08-10",
+      end_date: "2026-08-20",
+      events: [{ name: "", venue: "", date: "" }],
+    })
+
+    expect(summary.blockers.some((item) => item.id === "events")).toBe(true)
+    expect(summary.conflicts.some((conflict) => conflict.id === "no-stops")).toBe(true)
+  })
+
+  it("reports duplicate canonical route positions", () => {
+    const summary = getTourReadiness({
+      name: "Duplicate route",
+      main_artist: "Headliner",
+      start_date: "2026-08-10",
+      end_date: "2026-08-20",
+      events: [
+        { id: "one", name: "One", venue: "Hall", date: "2026-08-11", ordinal: 0 },
+        { id: "two", name: "Two", venue: "Hall", date: "2026-08-12", ordinal: 0 },
+      ],
+    })
+
+    expect(summary.conflicts.some((conflict) => conflict.id === "duplicate-ordinal-0")).toBe(true)
   })
 })

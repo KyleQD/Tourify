@@ -28,7 +28,6 @@ import {
   Globe,
   Star,
   Headphones,
-  Ticket,
   UserCheck,
   Check,
   Sparkles,
@@ -838,19 +837,22 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
           {/* Right Column - Content */}
           <div className="lg:col-span-2">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-1">
+              <TabsList
+                className={`grid w-full bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-1 ${
+                  profile.account_type === 'artist' ? 'grid-cols-5' : 'grid-cols-4'
+                }`}
+              >
                 <TabsTrigger value="overview" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                   Overview
                 </TabsTrigger>
                 <TabsTrigger value="posts" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                   Posts
                 </TabsTrigger>
-                <TabsTrigger value="music" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
-                  Music
-                </TabsTrigger>
-                <TabsTrigger value="events" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
-                  Events
-                </TabsTrigger>
+                {profile.account_type === 'artist' && (
+                  <TabsTrigger value="music" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
+                    Music
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="jobs" className="rounded-xl data-[state=active]:bg-white/20 data-[state=active]:text-white text-white/70">
                   Jobs
                 </TabsTrigger>
@@ -1155,40 +1157,14 @@ export function PublicProfileView({ profile, isOwnProfile = false, onFollow, onM
                 </div>
               </TabsContent>
 
-              <TabsContent value="music" className="mt-8">
-                {profile.account_type === 'artist' ? (
-                  <PublicMusicDisplay 
-                    artistId={profile.id} 
+              {profile.account_type === 'artist' && (
+                <TabsContent value="music" className="mt-8">
+                  <PublicMusicDisplay
+                    artistId={profile.id}
                     isOwnProfile={isOwnProfile}
                   />
-                ) : (
-                  <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl">
-                    <CardContent className="p-12 text-center">
-                      <div className="w-20 h-20 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Music className="h-10 w-10 text-purple-400" />
-                      </div>
-                      <h3 className="text-2xl font-semibold text-white mb-3">Music Coming Soon</h3>
-                      <p className="text-gray-400 text-lg">
-                        Music showcase and streaming features are in development.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="events" className="mt-8">
-                <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl">
-                  <CardContent className="p-12 text-center">
-                    <div className="w-20 h-20 bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <Ticket className="h-10 w-10 text-purple-400" />
-                    </div>
-                    <h3 className="text-2xl font-semibold text-white mb-3">Events Coming Soon</h3>
-                    <p className="text-gray-400 text-lg">
-                      Event management and ticketing features are in development.
-                    </p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                </TabsContent>
+              )}
 
               <TabsContent value="jobs" className="mt-8">
                 <Card className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden">

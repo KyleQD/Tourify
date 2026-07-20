@@ -167,10 +167,9 @@ export default function PerformanceManagement() {
 
       {/* Main Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 grid w-full grid-cols-3">
+        <TabsList className="bg-slate-800/50 backdrop-blur-sm border border-slate-700/50 grid w-full grid-cols-2">
           <TabsTrigger value="reviews">Performance Reviews</TabsTrigger>
           <TabsTrigger value="goals">Goals & Objectives</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
 
         {/* Performance Reviews Tab */}
@@ -281,43 +280,6 @@ export default function PerformanceManagement() {
           </div>
         </TabsContent>
 
-        {/* Analytics Tab */}
-        <TabsContent value="analytics" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-slate-800/30 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-purple-400">Performance Trends</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center bg-slate-700/30 rounded-lg">
-                  <div className="text-center">
-                    <BarChart3 className="h-12 w-12 text-purple-400 mx-auto mb-4 opacity-50" />
-                    <p className="text-slate-400">Performance charts coming soon</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-slate-800/30 border-slate-700/50">
-              <CardHeader>
-                <CardTitle className="text-green-400">Goal Completion</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {['Technical Skills', 'Leadership', 'Communication', 'Reliability'].map((category, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-slate-300">{category}</span>
-                        <span className="text-green-400">{85 + i * 3}%</span>
-                      </div>
-                      <Progress value={85 + i * 3} className="h-2" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
       </Tabs>
     </div>
   )

@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react"
 import { ActivityIndicator, Alert, Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View } from "react-native"
+import * as ImagePicker from "expo-image-picker"
 import { useRouter } from "expo-router"
 import { useAuth } from "@/lib/auth/auth-provider"
 import { useSession } from "@/hooks/use-session"
 import { useAccountMode } from "@/hooks/use-account-mode"
-import { supabase } from "@/lib/supabase"
 import { getCreatorCapabilities, updateCreatorCapabilities } from "@/lib/api/creator-capabilities"
 import { isQueuedOfflineError } from "@/lib/api/client"
+import { listVenueBookingRequests } from "@/lib/api/venue-booking-requests"
+import { uploadPortfolioFile } from "@/lib/api/uploads"
 import {
   clearMeshRelayPackets,
   getMeshSyncStats,
@@ -68,25 +70,23 @@ export default function ProfileScreen() {
     relayablePackets: 0,
     seenPackets: 0
   })
+  const [hasAcceptedUploadTos, setHasAcceptedUploadTos] = useState(false)
+  const [isUploadingPortfolio, setIsUploadingPortfolio] = useState(false)
 
   useEffect(() => {
     async function loadVenueStats() {
       if (!venueProfile?.id) return
 
-      const { data, error } = await supabase
-        .from("venue_booking_requests")
-        .select("status")
-        .eq("venue_id", venueProfile.id)
-        .limit(200)
-
-      if (error) return
-
-      const rows = data || []
-      setStats({
-        totalRequests: rows.length,
-        pendingRequests: rows.filter((row) => row.status === "pending").length,
-        approvedRequests: rows.filter((row) => row.status === "approved").length,
-      })
+      try {
+        const rows = await listVenueBookingRequests({ venueId: venueProfile.id, limit: 200 })
+        setStats({
+          totalRequests: rows.length,
+          pendingRequests: rows.filter((row) => row.status === "pending").length,
+          approvedRequests: rows.filter((row) => row.status === "approved" || row.status === "accepted").length,
+        })
+      } catch {
+        // Stats are non-blocking on profile.
+      }
     }
 
     void loadVenueStats()
@@ -183,6 +183,45 @@ export default function ProfileScreen() {
     }
   }
 
+  async function handleUploadPortfolioPhoto() {
+    if (!hasAcceptedUploadTos) {
+      Alert.alert("Accept terms", "Accept the upload terms before adding portfolio media.")
+      return
+    }
+
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!permission.granted) {
+      Alert.alert("Permission required", "Allow photo access to upload portfolio media.")
+      return
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: "images",
+      quality: 0.85,
+    })
+    if (result.canceled || !result.assets[0]) return
+
+    const asset = result.assets[0]
+    setIsUploadingPortfolio(true)
+    try {
+      await uploadPortfolioFile({
+        uri: asset.uri,
+        name: asset.fileName || `portfolio-${Date.now()}.jpg`,
+        mimeType: asset.mimeType || "image/jpeg",
+        kind: "image",
+        tosAccepted: true,
+      })
+      Alert.alert("Uploaded", "Portfolio photo uploaded successfully.")
+    } catch (error) {
+      Alert.alert(
+        "Upload failed",
+        error instanceof Error ? error.message : "Please try again."
+      )
+    } finally {
+      setIsUploadingPortfolio(false)
+    }
+  }
+
   async function handleSaveCapabilities() {
     try {
       setIsSavingCapabilities(true)
@@ -239,6 +278,42 @@ export default function ProfileScreen() {
             <Text style={{ color: "#cbd5e1" }}>Total requests: {stats.totalRequests}</Text>
             <Text style={{ color: "#cbd5e1" }}>Pending approvals: {stats.pendingRequests}</Text>
             <Text style={{ color: "#cbd5e1" }}>Approved this period: {stats.approvedRequests}</Text>
+          </View>
+        ) : null}
+
+        {!isVenueMode ? (
+          <View style={{ borderWidth: 1, borderColor: "#334155", borderRadius: 12, padding: 12, gap: 10 }}>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "700" }}>Portfolio upload</Text>
+            <Text style={{ color: "#94a3b8", fontSize: 13 }}>
+              Upload images through the authenticated portfolio API (`kind` + terms acceptance).
+            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={{ color: "#cbd5e1", flex: 1, paddingRight: 12 }}>
+                I accept Tourify upload terms
+              </Text>
+              <Switch
+                value={hasAcceptedUploadTos}
+                onValueChange={setHasAcceptedUploadTos}
+                trackColor={{ false: "#334155", true: "#7c3aed" }}
+              />
+            </View>
+            <Pressable
+              onPress={() => void handleUploadPortfolioPhoto()}
+              disabled={isUploadingPortfolio || !hasAcceptedUploadTos}
+              style={{
+                borderRadius: 10,
+                backgroundColor: isUploadingPortfolio || !hasAcceptedUploadTos ? "#334155" : "#7c3aed",
+                paddingVertical: 12,
+              }}
+            >
+              {isUploadingPortfolio ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>
+                  Upload portfolio photo
+                </Text>
+              )}
+            </Pressable>
           </View>
         ) : null}
 

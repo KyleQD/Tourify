@@ -58,6 +58,21 @@ const notificationSettingsSchema = z.object({
       email: z.boolean(),
       push: z.boolean(),
       sms: z.boolean()
+    }),
+    achievement_unlocked: z.object({
+      email: z.boolean(),
+      push: z.boolean(),
+      sms: z.boolean()
+    }),
+    badge_granted: z.object({
+      email: z.boolean(),
+      push: z.boolean(),
+      sms: z.boolean()
+    }),
+    endorsement_received: z.object({
+      email: z.boolean(),
+      push: z.boolean(),
+      sms: z.boolean()
     })
   }),
   
@@ -114,6 +129,24 @@ const notificationTypes = [
     label: 'System Alerts',
     description: 'Important system notifications and updates',
     icon: '⚠️'
+  },
+  {
+    key: 'achievement_unlocked',
+    label: 'Achievements',
+    description: 'When you unlock achievements and milestones',
+    icon: '🏆'
+  },
+  {
+    key: 'badge_granted',
+    label: 'Badges',
+    description: 'When someone awards you a badge',
+    icon: '🎖️'
+  },
+  {
+    key: 'endorsement_received',
+    label: 'Endorsements',
+    description: 'When someone endorses your skills',
+    icon: '👍'
   }
 ]
 
@@ -140,7 +173,10 @@ export function NotificationSettings() {
         message: { email: true, push: true, sms: true },
         event_invite: { email: true, push: true, sms: true },
         booking_request: { email: true, push: true, sms: true },
-        system_alert: { email: true, push: false, sms: false }
+        system_alert: { email: true, push: false, sms: false },
+        achievement_unlocked: { email: false, push: true, sms: false },
+        badge_granted: { email: true, push: true, sms: false },
+        endorsement_received: { email: true, push: true, sms: false }
       },
       digestFrequency: 'daily',
       quietHoursEnabled: false,
@@ -169,12 +205,13 @@ export function NotificationSettings() {
         }
 
         if (data) {
+          const defaults = form.getValues().preferences
           form.reset({
             emailEnabled: data.email_enabled,
             pushEnabled: data.push_enabled,
             smsEnabled: data.sms_enabled,
             inAppEnabled: data.in_app_enabled,
-            preferences: data.preferences,
+            preferences: { ...defaults, ...(data.preferences || {}) },
             digestFrequency: data.digest_frequency,
             quietHoursEnabled: data.quiet_hours_enabled,
             quietHoursStart: data.quiet_hours_start,
@@ -202,6 +239,11 @@ export function NotificationSettings() {
         return
       }
 
+      const recognitionEnabled =
+        data.preferences.achievement_unlocked.push ||
+        data.preferences.badge_granted.push ||
+        data.preferences.endorsement_received.push
+
       const { error } = await supabase
         .from('notification_preferences')
         .upsert({
@@ -210,6 +252,7 @@ export function NotificationSettings() {
           push_enabled: data.pushEnabled,
           sms_enabled: data.smsEnabled,
           in_app_enabled: data.inAppEnabled,
+          enable_achievements: recognitionEnabled,
           preferences: data.preferences,
           digest_frequency: data.digestFrequency,
           quiet_hours_enabled: data.quietHoursEnabled,

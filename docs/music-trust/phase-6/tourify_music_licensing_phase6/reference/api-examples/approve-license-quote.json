@@ -1,0 +1,12 @@
+{
+  "requestId": "uuid",
+  "requestVersion": 3,
+  "quoteId": "uuid",
+  "quoteVersion": 2,
+  "decision": "approved",
+  "authorityRecordId": "uuid",
+  "conditions": [
+    "final_cut_approval"
+  ],
+  "idempotencyKey": "approval_..."
+}

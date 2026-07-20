@@ -53,6 +53,10 @@ export async function GET(
         preview_status,
         allow_library_add,
         allow_profile_feature,
+        origin_status,
+        certification_status,
+        certification_level,
+        certification_public_id,
         stats,
         created_at,
         updated_at
@@ -122,6 +126,15 @@ export async function GET(
       comments_count: track.stats?.comments || 0,
       shares_count: track.stats?.shares || 0,
       downloads_count: track.stats?.downloads || 0
+      ,trust: {
+        origin_status: track.origin_status || 'not_recorded',
+        certification_status: track.certification_status || 'not_requested',
+        certification_level: track.certification_level || 0,
+        certification_public_id: track.certification_status === 'approved' ? track.certification_public_id || null : null,
+        public_label: track.certification_status === 'approved' && Number(track.certification_level || 0) > 0
+          ? 'Human-created certified'
+          : track.origin_status === 'recorded' ? 'Origin recorded' : 'Artist submitted',
+      }
     }))
 
     // Get total count for pagination

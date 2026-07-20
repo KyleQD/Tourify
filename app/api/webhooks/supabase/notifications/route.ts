@@ -8,8 +8,15 @@ import { deliverNotificationOutbound } from '@/lib/services/notification-deliver
  */
 export async function POST(request: NextRequest) {
   const secret = process.env.NOTIFICATION_INSERT_WEBHOOK_SECRET
-  if (!secret)
-    return NextResponse.json({ error: 'NOTIFICATION_INSERT_WEBHOOK_SECRET not set' }, { status: 501 })
+  if (!secret) {
+    return NextResponse.json(
+      {
+        error: 'Notification webhook is unavailable: NOTIFICATION_INSERT_WEBHOOK_SECRET is not configured',
+        featureUnavailable: true,
+      },
+      { status: 503 },
+    )
+  }
 
   const auth = request.headers.get('authorization') || ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : request.headers.get('x-notification-webhook-secret')

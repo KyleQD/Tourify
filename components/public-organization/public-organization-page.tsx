@@ -1,11 +1,13 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import { Building2, CalendarDays, Briefcase, Users, MapPin, ExternalLink } from 'lucide-react'
+import { Building2, CalendarDays, Briefcase, Users, MapPin, ExternalLink, MessageCircle } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { FollowFriendButton } from '@/components/social/follow-friend-button'
+import { MessageModal } from '@/components/messaging/message-modal'
 import { getArtistPublicProfilePath } from '@/lib/utils/public-profile-routes'
 import type { PublicOrganizationPageDTO } from '@/lib/public-organization/public-organization-types'
 import {
@@ -27,9 +29,11 @@ function initials(name: string) {
 }
 
 export function PublicOrganizationPage({ dto }: { dto: PublicOrganizationPageDTO }) {
+  const [isMessageOpen, setIsMessageOpen] = useState(false)
   const website =
     typeof dto.contactInfo.website === 'string' ? dto.contactInfo.website : null
   const email = typeof dto.contactInfo.email === 'string' ? dto.contactInfo.email : null
+  const canMessage = Boolean(dto.ownerUserId) && !dto.isOwnOrganization
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-black text-slate-100">
@@ -76,6 +80,16 @@ export function PublicOrganizationPage({ dto }: { dto: PublicOrganizationPageDTO
                 size="default"
               />
             ) : null}
+            {canMessage ? (
+              <Button
+                variant="outline"
+                className="border-white/20 bg-white/5"
+                onClick={() => setIsMessageOpen(true)}
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Message
+              </Button>
+            ) : null}
             {dto.canManage ? (
               <Button asChild variant="outline" className="border-white/20 bg-white/5">
                 <Link href={`/admin/dashboard?account=${encodeURIComponent(dto.id)}`}>Open Admin</Link>
@@ -83,6 +97,23 @@ export function PublicOrganizationPage({ dto }: { dto: PublicOrganizationPageDTO
             ) : null}
           </div>
         </header>
+
+        {canMessage ? (
+          <MessageModal
+            isOpen={isMessageOpen}
+            onClose={() => setIsMessageOpen(false)}
+            recipient={{
+              id: dto.ownerUserId,
+              username: dto.slug,
+              full_name: dto.name,
+              avatar_url: dto.avatarUrl || undefined,
+            }}
+            recipientAccount={{
+              profileId: dto.id,
+              accountType: 'organization',
+            }}
+          />
+        ) : null}
 
         <section className="mb-10">
           <h2 className="text-lg font-medium mb-3">About</h2>

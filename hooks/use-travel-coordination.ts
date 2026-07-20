@@ -325,8 +325,13 @@ export interface TravelGroupUtilization {
 // MAIN TRAVEL COORDINATION HOOK
 // =============================================================================
 
-export function useTravelCoordination() {
+export function useTravelCoordination(scope?: {
+  event_id?: string
+  tour_id?: string
+}) {
   const { toast } = useToast()
+  const scopedEventId = scope?.event_id
+  const scopedTourId = scope?.tour_id
 
   function buildReadRequestInit(): RequestInit {
     return {
@@ -742,6 +747,8 @@ export function useTravelCoordination() {
   const fetchAnalytics = useCallback(async (params?: {
     limit?: number
     offset?: number
+    event_id?: string
+    tour_id?: string
   }) => {
     setAnalyticsLoading(true)
     setAnalyticsError(null)
@@ -752,6 +759,8 @@ export function useTravelCoordination() {
         limit: params?.limit?.toString() || '50',
         offset: params?.offset?.toString() || '0'
       })
+      if (params?.event_id) searchParams.append('event_id', params.event_id)
+      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
 
       const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
@@ -777,6 +786,8 @@ export function useTravelCoordination() {
   const fetchUtilization = useCallback(async (params?: {
     limit?: number
     offset?: number
+    event_id?: string
+    tour_id?: string
   }) => {
     setUtilizationLoading(true)
     setUtilizationError(null)
@@ -787,6 +798,8 @@ export function useTravelCoordination() {
         limit: params?.limit?.toString() || '50',
         offset: params?.offset?.toString() || '0'
       })
+      if (params?.event_id) searchParams.append('event_id', params.event_id)
+      if (params?.tour_id) searchParams.append('tour_id', params.tour_id)
 
       const response = await fetch(`/api/admin/travel-coordination?${searchParams}`, buildReadRequestInit())
 
@@ -1047,22 +1060,29 @@ export function useTravelCoordination() {
   // =============================================================================
 
   useEffect(() => {
-    // Load initial data
-    fetchGroups()
-    fetchAnalytics()
-    fetchUtilization()
-  }, [fetchGroups, fetchAnalytics, fetchUtilization])
+    const scopeParams = {
+      event_id: scopedEventId,
+      tour_id: scopedTourId,
+    }
+    fetchGroups(scopeParams)
+    fetchAnalytics(scopeParams)
+    fetchUtilization(scopeParams)
+  }, [fetchGroups, fetchAnalytics, fetchUtilization, scopedEventId, scopedTourId])
 
   // Auto-refresh data every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchGroups()
-      fetchAnalytics()
-      fetchUtilization()
+      const scopeParams = {
+        event_id: scopedEventId,
+        tour_id: scopedTourId,
+      }
+      fetchGroups(scopeParams)
+      fetchAnalytics(scopeParams)
+      fetchUtilization(scopeParams)
     }, 5 * 60 * 1000)
 
     return () => clearInterval(interval)
-  }, [fetchGroups, fetchAnalytics, fetchUtilization])
+  }, [fetchGroups, fetchAnalytics, fetchUtilization, scopedEventId, scopedTourId])
 
   // =============================================================================
   // RETURN OBJECT

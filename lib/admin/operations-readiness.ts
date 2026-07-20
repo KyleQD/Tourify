@@ -65,12 +65,14 @@ export interface TourReadinessInput {
     name?: string | null
     venue?: string | null
     venue_name?: string | null
+    venue_id?: string | null
     date?: string | null
     event_date?: string | null
     time?: string | null
     market?: string | null
     leg_name?: string | null
     advance_status?: string | null
+    ordinal?: number | null
   }>
   route?: Array<{
     city?: string | null
@@ -233,6 +235,14 @@ export function getEventReadiness(input: EventReadinessInput): BuilderReadinessS
 
 export function getTourReadiness(input: TourReadinessInput): BuilderReadinessSummary {
   const events = input.events ?? []
+  const populatedEvents = events.filter((event) =>
+    filled(event.id) || filled(event.name) || filled(event.date) || filled(event.event_date),
+  )
+  const incompleteEvents = populatedEvents.filter((event) =>
+    !filled(event.name)
+    || !filled(event.date ?? event.event_date)
+    || !(filled(event.venue_id) || filled(event.venue ?? event.venue_name)),
+  )
   const route = input.route ?? []
   const hasDates = filled(input.start_date) && filled(input.end_date)
   const hasHeadlinerAccount = filled(input.artist_account_id)
@@ -255,20 +265,26 @@ export function getTourReadiness(input: TourReadinessInput): BuilderReadinessSum
     {
       id: "events",
       label: "Events and holds",
-      state: events.length > 0 ? "in_progress" : "missing",
+      state: populatedEvents.length === 0
+        ? "missing"
+        : incompleteEvents.length > 0
+          ? "blocked"
+          : "ready",
       blocksPublish: true,
-      detail: "Tours need at least one stop, hold, or confirmed show.",
+      detail: incompleteEvents.length > 0
+        ? "Every published stop needs a name, date, and venue."
+        : "Tours need at least one stop, hold, or confirmed show.",
     },
     {
       id: "route",
       label: "Route",
-      state: route.length > 0 || events.length > 0 ? "in_progress" : "missing",
+      state: route.length > 0 || populatedEvents.length > 0 ? "in_progress" : "missing",
       detail: "Routing controls markets, travel days, and conflict checks.",
     },
     {
       id: "advancing",
       label: "Advancing matrix",
-      state: events.some((event) => event.advance_status === "ready" || event.advance_status === "settled") ? "in_progress" : "needs_advance",
+      state: populatedEvents.some((event) => event.advance_status === "ready" || event.advance_status === "settled") ? "in_progress" : "needs_advance",
       detail: "Per-event readiness tracks venue, production, hospitality, security, staffing, docs, and settlement.",
     },
     {
@@ -300,7 +316,7 @@ export function getTourReadiness(input: TourReadinessInput): BuilderReadinessSum
       detail: "Attach an artist account so tour hiring and party links resolve.",
     })
   }
-  if (events.length === 0) {
+  if (populatedEvents.length === 0) {
     conflicts.push({
       id: "no-stops",
       severity: "critical",
@@ -318,7 +334,7 @@ export function getTourReadiness(input: TourReadinessInput): BuilderReadinessSum
   }
 
   const seenOrdinals = new Set<number>()
-  events.forEach((event, index) => {
+  populatedEvents.forEach((event, index) => {
     const date = event.date ?? event.event_date
     if (hasDates && filled(date)) {
       const eventDate = new Date(String(date))
@@ -331,15 +347,16 @@ export function getTourReadiness(input: TourReadinessInput): BuilderReadinessSum
         })
       }
     }
-    if (seenOrdinals.has(index)) {
+    const ordinal = event.ordinal ?? index
+    if (seenOrdinals.has(ordinal)) {
       conflicts.push({
-        id: `duplicate-ordinal-${index}`,
+        id: `duplicate-ordinal-${ordinal}`,
         severity: "warning",
         label: "Duplicate route order",
         detail: "Two stops share the same route order.",
       })
     }
-    seenOrdinals.add(index)
+    seenOrdinals.add(ordinal)
   })
 
   return summarize(items, conflicts)

@@ -26,6 +26,9 @@ import {
   Users,
   Inbox,
   Briefcase,
+  Paperclip,
+  FileText,
+  Hash,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useAuth } from "@/contexts/auth-context"
@@ -33,6 +36,19 @@ import { formatDistanceToNow } from 'date-fns'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { GroupCreateDialog } from '@/components/messages/group-create-dialog'
+import { InboxAccountSelector } from '@/components/messages/inbox-account-selector'
+import { ComposeNewMessageDialog } from '@/components/messages/compose-new-message-dialog'
+import { MessageAttachments } from '@/components/messages/message-attachments'
+import { MessageEmojiPicker } from '@/components/messages/message-emoji-picker'
+import { useActingContext } from '@/hooks/use-acting-context'
+import {
+  MESSAGE_ATTACHMENT_BUCKET,
+  MESSAGE_ATTACHMENT_MAX_BYTES,
+  buildAttachmentStoragePath,
+  inferAttachmentType,
+  isAllowedAttachmentMime,
+  type MessageAttachment,
+} from '@/lib/messaging/attachments'
 import { MessagesSkeleton } from './messages-skeleton'
 
 interface Message {
@@ -40,6 +56,7 @@ interface Message {
   content: string
   sender_id: string
   created_at: string
+  attachments?: MessageAttachment[]
   sender: {
     id: string
     username: string
@@ -59,6 +76,10 @@ interface Conversation {
   id: string
   participant_1: string
   participant_2: string
+  participant_1_profile_id?: string | null
+  participant_1_account_type?: string | null
+  participant_2_profile_id?: string | null
+  participant_2_account_type?: string | null
   created_at: string
   updated_at: string
   trust_tier?: 'open' | 'request' | 'context'
@@ -83,13 +104,18 @@ interface ConversationChip {
 
 interface UnifiedListItem {
   id: string
-  source: 'direct' | 'group' | 'event_group'
+  source: 'direct' | 'group' | 'event_group' | 'task' | 'bulletin' | 'document' | 'work_mode'
   badge: string
   name?: string | null
   last_message: string | null
   last_activity: string | null
   event_id?: string | null
+  action_url?: string | null
+  priority?: string | null
+  status?: string | null
 }
+
+type WorkSectionId = 'all' | 'messages' | 'channels' | 'tasks' | 'docs'
 
 interface ViewerCapability {
   role: 'member' | 'viewer' | 'admin' | string
@@ -135,16 +161,23 @@ const TAB_DEFINITIONS: Array<{ id: TabId; label: string; icon: typeof Inbox }> =
 const EMPTY_COPY: Record<TabId, { title: string; body: string }> = {
   primary: {
     title: 'No conversations yet',
-    body: 'When mutual followers or contacts message you, they will appear here.',
+    body: 'Messages from friends and from people who follow this account appear here.',
   },
   requests: {
     title: 'No pending requests',
-    body: 'Strangers who reach out will land here. You will see one intro message until you accept.',
+    body: 'Non-friends and people who do not follow this account land here until you accept.',
   },
   work: {
     title: 'No work threads yet',
-    body: 'Job applications, event teams, and group chats live here.',
+    body: 'Event channels, team chats, tasks, and docs from your dashboards appear here.',
   },
+}
+
+interface PendingRecipient {
+  id: string
+  username: string
+  full_name: string
+  avatar_url?: string | null
 }
 
 interface MessagesPageClientProps {
@@ -165,14 +198,21 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
   const [sending, setSending] = useState(false)
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [respondingTo, setRespondingTo] = useState<string | null>(null)
+  const [workSection, setWorkSection] = useState<WorkSectionId>('all')
+  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([])
+  const [uploadingAttachment, setUploadingAttachment] = useState(false)
+  const [inboxEpoch, setInboxEpoch] = useState(0)
+  const [pendingRecipient, setPendingRecipient] = useState<PendingRecipient | null>(null)
 
   const { user, isAuthenticated, loading: authLoading } = useAuth()
+  const { actingHeaders, actingAccount } = useActingContext()
   const hasServerSession = Boolean(serverUserId)
   const effectiveUserId = user?.id ?? serverUserId ?? null
   const canAccessMessages = Boolean(effectiveUserId) && (isAuthenticated || hasServerSession)
   const router = useRouter()
   const searchParams = useSearchParams()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const profileCacheRef = useRef<Map<string, ConversationProfile>>(new Map())
 
   const tabParam = searchParams.get('tab') as TabId | null
@@ -187,7 +227,10 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
     if (!effectiveUserId) return
     try {
       setLoading(true)
-      const response = await fetch(`/api/messages?tab=${activeTab}`, { credentials: 'include' })
+      const response = await fetch(`/api/messages?tab=${activeTab}`, {
+        credentials: 'include',
+        headers: { ...actingHeaders },
+      })
 
       if (response.ok) {
         const data = await response.json()
@@ -207,24 +250,28 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
     } finally {
       setLoading(false)
     }
-  }, [effectiveUserId, activeTab])
+  }, [effectiveUserId, activeTab, actingHeaders])
 
   useEffect(() => {
     if (canAccessMessages) {
       void fetchConversations()
     }
-  }, [canAccessMessages, fetchConversations])
+  }, [canAccessMessages, fetchConversations, inboxEpoch, actingAccount?.profile_id, actingAccount?.account_type])
 
   const loadUnifiedList = useCallback(async () => {
     try {
-      const response = await fetch('/api/messages/unified-list', { credentials: 'include' })
+      const params = new URLSearchParams({ section: workSection })
+      const response = await fetch(`/api/messages/unified-list?${params.toString()}`, {
+        credentials: 'include',
+        headers: { ...actingHeaders },
+      })
       if (!response.ok) return
       const data = await response.json()
       setUnifiedList(data.data || [])
     } catch (error) {
       console.error('Error loading unified list:', error)
     }
-  }, [])
+  }, [actingHeaders, workSection])
 
   useEffect(() => {
     if (!canAccessMessages || activeTab !== 'work') {
@@ -232,7 +279,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       return
     }
     void loadUnifiedList()
-  }, [canAccessMessages, activeTab, loadUnifiedList])
+  }, [canAccessMessages, activeTab, loadUnifiedList, inboxEpoch])
 
   useEffect(() => {
     if (!conversationParam || conversations.length === 0) return
@@ -245,6 +292,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       setLoadingMessages(true)
       const response = await fetch(`/api/messages?conversationId=${conversationId}`, {
         credentials: 'include',
+        headers: { ...actingHeaders },
       })
 
       if (response.ok) {
@@ -263,12 +311,13 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
     } finally {
       setLoadingMessages(false)
     }
-  }, [])
+  }, [actingHeaders])
 
   const fetchConversationContext = useCallback(async (conversationId: string) => {
     try {
       const response = await fetch(`/api/messages/${conversationId}/context`, {
         credentials: 'include',
+        headers: { ...actingHeaders },
       })
       if (!response.ok) return
       const data = await response.json()
@@ -276,7 +325,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
     } catch (error) {
       console.error('Error loading conversation context chips:', error)
     }
-  }, [])
+  }, [actingHeaders])
 
   useEffect(() => {
     if (selectedConversation) {
@@ -432,6 +481,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       const response = await fetch(`/api/messages/${selectedConversation}/accept`, {
         method: 'POST',
         credentials: 'include',
+        headers: { ...actingHeaders },
       })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
@@ -448,7 +498,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
     } finally {
       setRespondingTo(null)
     }
-  }, [selectedConversation, conversations, fetchConversationContext])
+  }, [selectedConversation, conversations, fetchConversationContext, actingHeaders])
 
   const declineConversationRequest = useCallback(async () => {
     if (!selectedConversation) return
@@ -460,6 +510,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
       const response = await fetch(`/api/messages/${selectedConversation}/decline`, {
         method: 'POST',
         credentials: 'include',
+        headers: { ...actingHeaders },
       })
       if (!response.ok) {
         const data = await response.json().catch(() => ({}))
@@ -478,61 +529,177 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
     } finally {
       setRespondingTo(null)
     }
-  }, [selectedConversation, conversations])
+  }, [selectedConversation, conversations, actingHeaders])
+
+  const uploadAttachment = useCallback(async (file: File): Promise<MessageAttachment | null> => {
+    if (!effectiveUserId) return null
+    if (file.size > MESSAGE_ATTACHMENT_MAX_BYTES) {
+      toast.error('File must be under 25MB')
+      return null
+    }
+    if (!isAllowedAttachmentMime(file.type)) {
+      toast.error('Unsupported file type')
+      return null
+    }
+
+    const path = buildAttachmentStoragePath({
+      userId: effectiveUserId,
+      threadKey: selectedConversation || 'compose',
+      fileName: file.name,
+    })
+
+    const { error } = await supabase.storage.from(MESSAGE_ATTACHMENT_BUCKET).upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+    })
+    if (error) {
+      toast.error('Failed to upload attachment')
+      return null
+    }
+
+    const { data } = supabase.storage.from(MESSAGE_ATTACHMENT_BUCKET).getPublicUrl(path)
+    return {
+      url: data.publicUrl,
+      name: file.name,
+      type: inferAttachmentType(file.type),
+      size: file.size,
+    }
+  }, [effectiveUserId, selectedConversation])
+
+  const handleAttachmentPick = useCallback(async (files: FileList | null) => {
+    if (!files?.length) return
+    setUploadingAttachment(true)
+    try {
+      const uploaded: MessageAttachment[] = []
+      for (const file of Array.from(files)) {
+        const attachment = await uploadAttachment(file)
+        if (attachment) uploaded.push(attachment)
+      }
+      if (uploaded.length)
+        setPendingAttachments((prev) => [...prev, ...uploaded])
+    } finally {
+      setUploadingAttachment(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }, [uploadAttachment])
 
   const sendMessage = useCallback(async () => {
-    if (!newMessage.trim() || !selectedConversation || !effectiveUserId) return
+    if ((!newMessage.trim() && pendingAttachments.length === 0) || !effectiveUserId) return
+    if (!selectedConversation && !pendingRecipient) return
 
-    const conversation = conversations.find((c) => c.id === selectedConversation)
-    if (!conversation) return
+    let recipientId: string
+    let recipientProfileId: string | undefined
+    let recipientAccountType: string | undefined
 
-    const recipientId =
-      conversation.participant_1 === effectiveUserId ? conversation.participant_2 : conversation.participant_1
+    if (pendingRecipient && !selectedConversation) {
+      recipientId = pendingRecipient.id
+      recipientProfileId = pendingRecipient.id
+      recipientAccountType = 'general'
+    } else {
+      const conversation = conversations.find((c) => c.id === selectedConversation)
+      if (!conversation) return
+      recipientId =
+        conversation.participant_1 === effectiveUserId
+          ? conversation.participant_2
+          : conversation.participant_1
+      recipientProfileId =
+        conversation.participant_1 === effectiveUserId
+          ? conversation.participant_2_profile_id || undefined
+          : conversation.participant_1_profile_id || undefined
+      recipientAccountType =
+        conversation.participant_1 === effectiveUserId
+          ? conversation.participant_2_account_type || undefined
+          : conversation.participant_1_account_type || undefined
+    }
 
     setSending(true)
     const messageContent = newMessage.trim()
-    setNewMessage("")
+    const attachmentsToSend = [...pendingAttachments]
+    setNewMessage('')
+    setPendingAttachments([])
 
     try {
       const response = await fetch('/api/messages', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId, content: messageContent }),
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
+        body: JSON.stringify({
+          recipientId,
+          recipientProfileId,
+          recipientAccountType,
+          content: messageContent || undefined,
+          attachments: attachmentsToSend,
+        }),
       })
 
       if (response.ok) {
         const result = await response.json()
-        setMessages((prev) => [...prev, result.message])
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === selectedConversation
-              ? {
-                  ...conv,
-                  last_message: {
-                    id: result.message.id,
-                    content: messageContent,
-                    created_at: result.message.created_at,
-                    sender_id: effectiveUserId,
-                  },
-                  updated_at: new Date().toISOString(),
-                }
-              : conv,
-          ),
-        )
+        const conversationId = result.conversationId as string | undefined
+        setPendingRecipient(null)
+        if (conversationId) {
+          setSelectedConversation(conversationId)
+          await fetchConversations()
+          setMessages((prev) => {
+            if (selectedConversation && conversationId === selectedConversation)
+              return [...prev, { ...result.message, attachments: attachmentsToSend }]
+            return [{ ...result.message, attachments: attachmentsToSend }]
+          })
+        }
       } else {
         const error = await response.json().catch(() => ({}))
         toast.error(error.error || 'Failed to send message')
         setNewMessage(messageContent)
+        setPendingAttachments(attachmentsToSend)
       }
     } catch (error) {
       console.error('Error sending message:', error)
       toast.error('Failed to send message')
       setNewMessage(messageContent)
+      setPendingAttachments(attachmentsToSend)
     } finally {
       setSending(false)
     }
-  }, [newMessage, selectedConversation, effectiveUserId, conversations])
+  }, [
+    newMessage,
+    pendingAttachments,
+    selectedConversation,
+    pendingRecipient,
+    effectiveUserId,
+    conversations,
+    actingHeaders,
+    fetchConversations,
+  ])
+
+  const handleComposeFriendSelected = useCallback((friend: PendingRecipient) => {
+    const existing = conversations.find((conversation) =>
+      conversation.participant_1 === friend.id || conversation.participant_2 === friend.id,
+    )
+    if (existing) {
+      setPendingRecipient(null)
+      setActiveTab('primary')
+      setSelectedConversation(existing.id)
+      return
+    }
+
+    setActiveTab('primary')
+    setSelectedConversation(null)
+    setMessages([])
+    setConversationChips([])
+    setNewMessage('')
+    setPendingAttachments([])
+    setPendingRecipient({
+      id: friend.id,
+      username: friend.username,
+      full_name: friend.full_name || friend.username,
+      avatar_url: friend.avatar_url,
+    })
+  }, [conversations])
+
+  const clearPendingCompose = useCallback(() => {
+    setPendingRecipient(null)
+    setNewMessage('')
+    setPendingAttachments([])
+  }, [])
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -592,6 +759,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
   }
 
   const handleSelectConversation = (id: string) => {
+    setPendingRecipient(null)
     setSelectedConversation(id)
     const params = new URLSearchParams(searchParams.toString())
     params.set('conversation', id)
@@ -601,6 +769,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
 
   const composerPlaceholder = (() => {
     if (!viewer.canSend) return 'Viewer accounts cannot send messages'
+    if (pendingRecipient) return `Message ${pendingRecipient.full_name || pendingRecipient.username}…`
     if (viewerIsRequestSender) return 'Waiting for them to accept your request'
     if (selected?.trust_tier === 'request') return 'Introduce yourself…'
     if (selected?.context_type === 'job_application') return 'Reply about the application'
@@ -609,7 +778,12 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
   })()
 
   const isComposerDisabled =
-    !viewer.canSend || sending || viewerIsRequestSender || viewerIsRequestRecipient
+    !viewer.canSend
+    || sending
+    || uploadingAttachment
+    || (!pendingRecipient && (viewerIsRequestSender || viewerIsRequestRecipient))
+
+  const showThreadPane = Boolean((selectedConversation && selected) || pendingRecipient)
 
   if (authLoading && !user && !hasServerSession) {
     return <MessagesSkeleton />
@@ -645,12 +819,25 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
           <div
             className={cn(
               'w-full md:w-1/3 bg-slate-900/50 rounded-2xl border border-slate-700/50 backdrop-blur-sm flex-col',
-              selectedConversation ? 'hidden md:flex' : 'flex',
+              showThreadPane ? 'hidden md:flex' : 'flex',
             )}
           >
-            <div className="p-4 border-b border-slate-700/60">
-              <h1 className="text-2xl font-bold text-white mb-4">Messages</h1>
-              <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as TabId)} className="mb-4">
+            <div className="p-4 border-b border-slate-700/60 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <h1 className="text-2xl font-bold text-white">Messages</h1>
+                <ComposeNewMessageDialog
+                  onSelected={(friend) => handleComposeFriendSelected(friend)}
+                  disabled={!viewer.canSend}
+                />
+              </div>
+              <InboxAccountSelector
+                onInboxChange={() => {
+                  setSelectedConversation(null)
+                  clearPendingCompose()
+                  setInboxEpoch((value) => value + 1)
+                }}
+              />
+              <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as TabId)}>
                 <TabsList className="grid w-full grid-cols-3 bg-slate-800/60 backdrop-blur-sm p-1 rounded-xl border border-slate-700/30">
                   {TAB_DEFINITIONS.map(({ id, label }) => (
                     <TabsTrigger
@@ -664,9 +851,36 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                 </TabsList>
               </Tabs>
               {activeTab === 'work' && (
-                <div className="mb-4 flex items-center justify-between gap-2">
-                  <p className="text-xs text-slate-400">Groups and context threads</p>
-                  <GroupCreateDialog onCreated={loadUnifiedList} />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-slate-400">Channels, tasks, and docs</p>
+                    <GroupCreateDialog onCreated={loadUnifiedList} />
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {([
+                      ['all', 'All'],
+                      ['messages', 'Messages'],
+                      ['channels', 'Channels'],
+                      ['tasks', 'Tasks'],
+                      ['docs', 'Docs'],
+                    ] as Array<[WorkSectionId, string]>).map(([id, label]) => (
+                      <Button
+                        key={id}
+                        type="button"
+                        size="sm"
+                        variant={workSection === id ? 'default' : 'outline'}
+                        className={cn(
+                          'h-7 px-2 text-[11px]',
+                          workSection === id
+                            ? 'bg-purple-600 hover:bg-purple-700'
+                            : 'border-slate-600 bg-transparent text-slate-300',
+                        )}
+                        onClick={() => setWorkSection(id)}
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="relative">
@@ -684,13 +898,21 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
               {activeTab === 'work' && unifiedList.length > 0 && (
                 <div className="px-3 pt-3 space-y-2">
                   {unifiedList
-                    .filter((item) => item.source !== 'direct')
-                    .slice(0, 8)
+                    .filter((item) => item.source !== 'direct' || workSection === 'messages' || workSection === 'all')
+                    .slice(0, 24)
                     .map((item) => (
                       <button
                         key={`${item.source}-${item.id}`}
                         type="button"
                         onClick={() => {
+                          if (item.source === 'direct') {
+                            handleSelectConversation(item.id)
+                            return
+                          }
+                          if (item.action_url) {
+                            router.push(item.action_url)
+                            return
+                          }
                           if (item.source === 'group') router.push(`/groups/${item.id}`)
                           else if (item.source === 'event_group' && item.event_id)
                             router.push(`/events/${item.event_id}?group=${item.id}`)
@@ -698,13 +920,22 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                         className="block w-full rounded-lg border border-slate-700 bg-slate-800/40 px-3 py-2 text-left transition-all hover:border-purple-500/40 hover:bg-slate-800/60 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm font-medium text-white truncate">{item.name || item.id}</p>
+                          <p className="text-sm font-medium text-white truncate flex items-center gap-1.5">
+                            {item.source === 'event_group' || item.source === 'group' ? (
+                              <Hash className="h-3.5 w-3.5 text-slate-400" />
+                            ) : item.source === 'task' ? (
+                              <ClipboardCheck className="h-3.5 w-3.5 text-purple-400" />
+                            ) : item.source === 'document' || item.source === 'bulletin' || item.source === 'work_mode' ? (
+                              <FileText className="h-3.5 w-3.5 text-sky-400" />
+                            ) : null}
+                            {item.name || item.id}
+                          </p>
                           <Badge variant="outline" className="border-slate-600 text-[10px] text-slate-300">
                             {item.badge}
                           </Badge>
                         </div>
                         <p className="mt-1 text-xs text-slate-400 truncate">
-                          {item.last_message || 'No messages yet'}
+                          {item.last_message || 'No updates yet'}
                         </p>
                       </button>
                     ))}
@@ -789,10 +1020,10 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
           <div
             className={cn(
               'flex-1 bg-slate-900/50 rounded-2xl border border-slate-700/50 backdrop-blur-sm flex flex-col',
-              !selectedConversation && 'hidden md:flex',
+              !showThreadPane && 'hidden md:flex',
             )}
           >
-            {selectedConversation && selected ? (
+            {showThreadPane ? (
               <>
                 {/* Header */}
                 <div className="p-4 border-b border-slate-700/60 flex items-center justify-between gap-3">
@@ -800,13 +1031,25 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => setSelectedConversation(null)}
+                      onClick={() => {
+                        setSelectedConversation(null)
+                        clearPendingCompose()
+                      }}
                       className="md:hidden text-slate-300 hover:bg-slate-800/60"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </Button>
                     {(() => {
-                      const otherParticipant = getOtherParticipant(selected)
+                      const otherParticipant = pendingRecipient
+                        ? {
+                            id: pendingRecipient.id,
+                            username: pendingRecipient.username,
+                            full_name: pendingRecipient.full_name,
+                            avatar_url: pendingRecipient.avatar_url || undefined,
+                          }
+                        : selected
+                          ? getOtherParticipant(selected)
+                          : undefined
                       return otherParticipant ? (
                         <>
                           <Avatar className="h-9 w-9">
@@ -818,7 +1061,10 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                           <div className="min-w-0">
                             <h3 className="font-semibold text-white truncate">{otherParticipant.full_name}</h3>
                             <p className="text-xs text-slate-400 truncate">@{otherParticipant.username}</p>
-                            {conversationChips.length > 0 && (
+                            {pendingRecipient ? (
+                              <p className="mt-1 text-[11px] text-slate-500">New conversation — nothing sent yet</p>
+                            ) : null}
+                            {!pendingRecipient && conversationChips.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-1">
                                 {conversationChips.map((chip) => (
                                   <Badge
@@ -837,7 +1083,17 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                     })()}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {viewerIsRequestRecipient && (
+                    {pendingRecipient ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-400"
+                        onClick={clearPendingCompose}
+                      >
+                        Cancel
+                      </Button>
+                    ) : null}
+                    {!pendingRecipient && viewerIsRequestRecipient && (
                       <>
                         <Button
                           variant="outline"
@@ -870,7 +1126,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                         </Button>
                       </>
                     )}
-                    {viewerIsRequestSender && (
+                    {!pendingRecipient && viewerIsRequestSender && (
                       <Badge variant="outline" className="border-amber-500/40 text-amber-300">
                         Waiting for response
                       </Badge>
@@ -883,7 +1139,13 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
 
                 {/* Messages List */}
                 <ScrollArea className="flex-1 p-4">
-                  {loadingMessages ? (
+                  {pendingRecipient ? (
+                    <div className="text-center py-12 text-gray-400">
+                      <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p>No messages yet</p>
+                      <p className="text-sm">Write a message below to start the conversation.</p>
+                    </div>
+                  ) : loadingMessages ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2 className="h-6 w-6 animate-spin text-purple-400" />
                     </div>
@@ -964,7 +1226,10 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                                           : 'bg-slate-700 text-white',
                                       )}
                                     >
-                                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                                      {message.content && message.content !== '(attachment)' ? (
+                                        <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                                      ) : null}
+                                      <MessageAttachments attachments={message.attachments || []} />
                                     </div>
                                   )}
                                   <p className="text-xs text-gray-400 mt-1 text-right">
@@ -989,19 +1254,68 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                       Viewer accounts can read messages but cannot send new messages.
                     </div>
                   )}
-                  {viewerIsRequestRecipient && (
+                  {!pendingRecipient && viewerIsRequestRecipient && (
                     <div className="rounded-md border border-purple-500/30 bg-purple-500/10 px-3 py-2 text-sm text-purple-200 flex items-center gap-2">
                       <MessageSquare className="h-4 w-4" />
                       Accept this request to start replying.
                     </div>
                   )}
-                  {viewerIsRequestSender && (
+                  {!pendingRecipient && viewerIsRequestSender && (
                     <div className="rounded-md border border-slate-600 bg-slate-800/40 px-3 py-2 text-sm text-slate-300 flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       Only one intro message is allowed until they accept your request.
                     </div>
                   )}
-                  <div className="flex gap-3">
+                  {pendingAttachments.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {pendingAttachments.map((attachment) => (
+                        <div
+                          key={attachment.url}
+                          className="flex items-center gap-2 rounded-md border border-slate-600 bg-slate-800/70 px-2 py-1 text-xs text-slate-200"
+                        >
+                          <span className="max-w-[140px] truncate">{attachment.name}</span>
+                          <button
+                            type="button"
+                            className="text-slate-400 hover:text-white"
+                            onClick={() =>
+                              setPendingAttachments((prev) => prev.filter((item) => item.url !== attachment.url))
+                            }
+                            aria-label={`Remove ${attachment.name}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="flex gap-2 items-end">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      className="hidden"
+                      multiple
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,text/plain,audio/*"
+                      onChange={(event) => void handleAttachmentPick(event.target.files)}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      className="border-slate-600 bg-slate-800"
+                      disabled={isComposerDisabled}
+                      onClick={() => fileInputRef.current?.click()}
+                      aria-label="Attach file"
+                    >
+                      {uploadingAttachment ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Paperclip className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <MessageEmojiPicker
+                      disabled={isComposerDisabled}
+                      onEmojiSelect={(emoji) => setNewMessage((prev) => `${prev}${emoji}`)}
+                    />
                     <Textarea
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
@@ -1013,7 +1327,7 @@ export function MessagesPageClient({ serverUserId }: MessagesPageClientProps = {
                     />
                     <Button
                       onClick={() => void sendMessage()}
-                      disabled={isComposerDisabled || !newMessage.trim()}
+                      disabled={isComposerDisabled || (!newMessage.trim() && pendingAttachments.length === 0)}
                       className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                       aria-label="Send message"
                     >

@@ -18,6 +18,7 @@ export interface NotificationRow {
   created_at: string
   target_profile_id?: string | null
   target_account_type?: string | null
+  expires_at?: string | null
   [key: string]: unknown
 }
 

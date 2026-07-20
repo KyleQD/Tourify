@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service-role'
+import {
+  getStoredCalendarToken,
+  isValidCalendarFeedToken,
+} from '@/lib/calendar/feed-token'
 
 function formatICalDate(d: Date): string {
   return d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
@@ -28,6 +32,15 @@ export async function GET(request: NextRequest) {
   if (!event) return new NextResponse('Event not found', { status: 404 })
 
   const settings = event.settings || {}
+  if (!isValidCalendarFeedToken({
+    resourceType: 'event',
+    resourceId: event.id,
+    token,
+    storedToken: getStoredCalendarToken(settings),
+  })) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
   const venueLabel = escapeIcal(settings.venue_label || '')
   const startAt = new Date(event.start_at)
   const endAt = event.end_at ? new Date(event.end_at) : new Date(startAt.getTime() + 2 * 60 * 60 * 1000)
@@ -35,7 +48,6 @@ export async function GET(request: NextRequest) {
 
   const vevents: string[] = []
 
-  // Main show event
   vevents.push(
     'BEGIN:VEVENT',
     `UID:${event.id}-show@tourify`,
@@ -47,19 +59,16 @@ export async function GET(request: NextRequest) {
     'END:VEVENT',
   )
 
-  // Load-in
   if (settings.load_in_time) {
     const t = new Date(`${startDate}T${settings.load_in_time}:00Z`)
     vevents.push('BEGIN:VEVENT', `UID:${event.id}-load-in@tourify`, `DTSTART:${formatICalDate(t)}`, `DTEND:${formatICalDate(new Date(t.getTime() + 60 * 60 * 1000))}`, `SUMMARY:Load In — ${escapeIcal(event.title)}`, `LOCATION:${venueLabel}`, 'END:VEVENT')
   }
 
-  // Sound check
   if (settings.sound_check_time) {
     const t = new Date(`${startDate}T${settings.sound_check_time}:00Z`)
     vevents.push('BEGIN:VEVENT', `UID:${event.id}-soundcheck@tourify`, `DTSTART:${formatICalDate(t)}`, `DTEND:${formatICalDate(new Date(t.getTime() + 60 * 60 * 1000))}`, `SUMMARY:Sound Check — ${escapeIcal(event.title)}`, `LOCATION:${venueLabel}`, 'END:VEVENT')
   }
 
-  // Doors
   if (settings.doors_open) {
     const t = new Date(`${startDate}T${settings.doors_open}:00Z`)
     vevents.push('BEGIN:VEVENT', `UID:${event.id}-doors@tourify`, `DTSTART:${formatICalDate(t)}`, `DTEND:${formatICalDate(new Date(t.getTime() + 30 * 60 * 1000))}`, `SUMMARY:Doors Open — ${escapeIcal(event.title)}`, `LOCATION:${venueLabel}`, 'END:VEVENT')
@@ -80,7 +89,7 @@ export async function GET(request: NextRequest) {
     headers: {
       'Content-Type': 'text/calendar; charset=utf-8',
       'Content-Disposition': `attachment; filename="event-${eventId}.ics"`,
-      'Cache-Control': 'public, max-age=3600',
+      'Cache-Control': 'private, max-age=300',
     },
   })
 }

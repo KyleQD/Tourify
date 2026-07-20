@@ -877,13 +877,9 @@ export default function ArtistsPage() {
                           </Badge>
                         </div>
                         <div className="flex flex-col items-center py-4 text-center space-y-3">
-                          <p className="text-slate-400">Manage contracts and agreements for this artist in the Contracts section</p>
-                          <Link href="/admin/dashboard/contracts">
-                            <Button variant="outline" className="border-slate-700 text-slate-300 hover:bg-slate-800">
-                              <FileText className="h-4 w-4 mr-2" />
-                              View Contracts
-                            </Button>
-                          </Link>
+                          <p className="text-slate-400">
+                            Contract status for this artist is shown above. Org-wide contract tooling is managed outside this admin artists view.
+                          </p>
                         </div>
                       </CardContent>
                     </Card>

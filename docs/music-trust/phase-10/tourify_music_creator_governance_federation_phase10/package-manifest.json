@@ -1,0 +1,357 @@
+{
+  "package": "tourify_music_creator_governance_federation_phase10",
+  "generatedAt": "2026-07-18T02:18:36.921168+00:00",
+  "fileCount": 70,
+  "files": [
+    {
+      "path": "00_PHASE_10_SCOPE_DEPENDENCIES_AND_BOUNDARIES.md",
+      "bytes": 3681,
+      "sha256": "505fd861a1fa109b04f5a22fc414347d9ccf6a2fa799142ff2a4110781eb5dc8"
+    },
+    {
+      "path": "01_PRODUCT_MODEL_AND_FEDERATION_USER_JOURNEYS.md",
+      "bytes": 3701,
+      "sha256": "97fdb821d90996aedd73a361a8c81ce8c02e589079e9c7f5fa550b3ecbefa397"
+    },
+    {
+      "path": "02_FEDERATION_ENTITY_LEGAL_AND_FIDUCIARY_ARCHITECTURE.md",
+      "bytes": 3557,
+      "sha256": "9448bfec2563ed090cb76611ee551be11d8721eedda103c250138df488f4ef0f"
+    },
+    {
+      "path": "03_FEDERATION_MEMBERSHIP_ADMISSION_WITHDRAWAL_AND_SOVEREIGNTY.md",
+      "bytes": 3596,
+      "sha256": "c5f298998332799be50e38b8e6be484036974bd805663dfab4ad5c8e7ee7c07c"
+    },
+    {
+      "path": "04_SUBSIDIARITY_RESERVED_POWERS_AND_LOCAL_DECISION_CONTROL.md",
+      "bytes": 3493,
+      "sha256": "a1a0cbf93c583621731cb827b75deaee37753d6b3e3a3eb66f94b5bae2112b35"
+    },
+    {
+      "path": "05_TRUST_FRAMEWORK_ISSUER_REGISTRY_AND_RECOGNITION.md",
+      "bytes": 3531,
+      "sha256": "aa5d9d0a555244d8fddf1f769292cfc5e0dc90d06a34522e64769fee363d8d56"
+    },
+    {
+      "path": "06_INTEROPERABLE_MEMBER_ORG_CREDENTIALS_AND_PRESENTATIONS.md",
+      "bytes": 3516,
+      "sha256": "dcbf2eb12531c1da5001f83d8207d9e5ce4063d5fbc67ece9cc2496e37df3eff"
+    },
+    {
+      "path": "07_MANDATE_DELEGATION_SUBDELEGATION_AND_REVOCATION.md",
+      "bytes": 3517,
+      "sha256": "a19614780fb3b5a7f0261f47c6aac2e222389b44e5cf2f9197b8cc254f823835"
+    },
+    {
+      "path": "08_CROSS_BORDER_DATA_GOVERNANCE_TRANSFER_AND_LOCALIZATION.md",
+      "bytes": 3553,
+      "sha256": "6751c9aa24cf3cacc542540efd1b7fb0b02349388175607e5da1223ea40548bb"
+    },
+    {
+      "path": "09_DATA_CONTRIBUTION_PORTABILITY_AND_NO_AUTOMATIC_POOLING.md",
+      "bytes": 3496,
+      "sha256": "c1ee5bc847997340c2ed5db5e37fdd9e49e0f893c75800506439ed9ef121bc2f"
+    },
+    {
+      "path": "10_WALLETS_IDENTITY_PROOFING_AND_ACCOUNT_RECOVERY.md",
+      "bytes": 3549,
+      "sha256": "9ff535ac5fcad71ae9baaaeadede599969ae9314e8da9bef7698cb06c44e17bc"
+    },
+    {
+      "path": "11_FEDERATION_GOVERNANCE_COUNCILS_COMMITTEES_AND_CONFLICTS.md",
+      "bytes": 3495,
+      "sha256": "6bb2af458752269a4b2fe647be2ded31f7629838d8fdf01437aac42afaf31b89"
+    },
+    {
+      "path": "12_VOTING_CONSENSUS_VETO_RATIFICATION_AND_POLICY_SYNC.md",
+      "bytes": 3470,
+      "sha256": "0c921c6673dd6e1cd5c3442124f986b3ef3220f6df906808e568cd3b330456c3"
+    },
+    {
+      "path": "13_FEDERATION_FINANCE_DUES_GRANTS_AND_BENEFIT_FLOWS.md",
+      "bytes": 3514,
+      "sha256": "1fca4881a7e80a07189154e448b2ca7c017dfd09ae7e0e2357e40b0a33c54365"
+    },
+    {
+      "path": "14_DISPUTES_APPEALS_MEDIATION_AND_NON_RETALIATION.md",
+      "bytes": 3477,
+      "sha256": "636c52b05f1c28eb4c02675897715e048997418636dbe2fa7c0abb55a470db0a"
+    },
+    {
+      "path": "15_REGULATOR_STANDARDS_AND_PUBLIC_INSTITUTION_ENGAGEMENT.md",
+      "bytes": 3516,
+      "sha256": "f32aaabc179728b48b1e7db89978462ab9c3098e0c1c65707025fee1cafd94df"
+    },
+    {
+      "path": "16_CROSS_BORDER_REPRESENTATION_NETWORK_BOUNDARIES.md",
+      "bytes": 3510,
+      "sha256": "07e51bb732d659be263cf6b24d12c36ca2906592d428501b9e2cb3e635e75f27"
+    },
+    {
+      "path": "17_COLLECTIVE_LICENSING_BARGAINING_AND_COMPETITION_BOUNDARY.md",
+      "bytes": 3565,
+      "sha256": "334d3c960741f40d9e41594bf09fa524fe6483f4ed97da0ca1bae4eea4e9397e"
+    },
+    {
+      "path": "18_FEDERATED_RESEARCH_CLEAN_ROOMS_AND_PRIVACY_BUDGETS.md",
+      "bytes": 3480,
+      "sha256": "f7337944f4369acb05b8de7223d235b14ab2444cdb33609944e545932f82dd2b"
+    },
+    {
+      "path": "19_FEDERATED_POLICY_OBSERVATORY_AND_JURISDICTION_ALERTS.md",
+      "bytes": 3433,
+      "sha256": "c83de86ce4dc660b69187c988907f188ae7713b072609ea11fd2f58e2c111c17"
+    },
+    {
+      "path": "20_STANDARDS_IPR_OPEN_SOURCE_AND_CONFORMANCE_PROGRAM.md",
+      "bytes": 3460,
+      "sha256": "de7e8a6854d41ddd080f8f0faaa1ad362c257caa96557bb99c452a1df94c649b"
+    },
+    {
+      "path": "21_JURISDICTION_MODULES_LOCALIZATION_SANCTIONS_AND_EXPORT.md",
+      "bytes": 3489,
+      "sha256": "ea8849394ebae1cc69ba0f6e0772360a9c6cdb95ae388b62a0f09b28bdef5ffc"
+    },
+    {
+      "path": "22_FEDERATION_DIRECTORY_SERVICE_DISCOVERY_AND_ROUTING.md",
+      "bytes": 3481,
+      "sha256": "4af5f9e2891e481665a6e038544eb68ec8befa19f2bd1ca3d04c219d02d07ca3"
+    },
+    {
+      "path": "23_CREDENTIAL_STATUS_REVOCATION_SUSPENSION_AND_RECOVERY.md",
+      "bytes": 3460,
+      "sha256": "2049aa730c490392eec0c84ae070f10cf89dbc8d83d7484a5822a2831e18e899"
+    },
+    {
+      "path": "24_DATA_MODEL_MIGRATIONS_RLS_STORAGE_AND_RETENTION.md",
+      "bytes": 3470,
+      "sha256": "85a144945fa143e05fc03e05316d78f24b4367c4b9e6d6d41563886ec2a9e8dd"
+    },
+    {
+      "path": "25_API_EVENTS_BACKGROUND_JOBS_AND_PARTNER_ADAPTERS.md",
+      "bytes": 3436,
+      "sha256": "cf5ece6b22c1d213abc24f8cd9a0a1224cceeaa5b5696a03dc46e16112d7908e"
+    },
+    {
+      "path": "26_UI_UX_AND_EXISTING_SURFACE_INTEGRATION.md",
+      "bytes": 3502,
+      "sha256": "0f0c254120d6eedd7d98c395fbebeaf01ff33c7523035b419d68df7134448a1d"
+    },
+    {
+      "path": "27_ADMIN_FEDERATION_OPERATIONS_GOVERNANCE_AND_APPROVALS.md",
+      "bytes": 3374,
+      "sha256": "3afdaf1a9ab99557c3fb61a652e5aeb48ef45c316dcf0bd3a7f31c457c35ede5"
+    },
+    {
+      "path": "28_SECURITY_KEYS_THREAT_MODEL_AND_ZERO_TRUST.md",
+      "bytes": 3474,
+      "sha256": "44b5547d7fe1b93832362c44ed254d1ae149cd6ff191e0fc1cec877d58ae30b1"
+    },
+    {
+      "path": "29_INCIDENT_RESPONSE_BUSINESS_CONTINUITY_AND_FEDERATION_PARTITION.md",
+      "bytes": 3494,
+      "sha256": "28e79db257765d7f047e6c082a56d47e618676a2e24806b55612b8823561713d"
+    },
+    {
+      "path": "30_TRANSPARENCY_AUDIT_ACCOUNTABILITY_AND_PUBLIC_REPORTING.md",
+      "bytes": 3543,
+      "sha256": "86cb7031e512f2da2842f2f7d57b0adebb0143f971801b7a1a65289286c4d815"
+    },
+    {
+      "path": "31_TESTING_PILOT_AND_ROLLOUT.md",
+      "bytes": 3482,
+      "sha256": "cee767ef2523392fc6fda3914dbd9471793506535ba185a949153f20d6baec20"
+    },
+    {
+      "path": "32_PHASE_11_GLOBAL_CREATOR_PUBLIC_INFRASTRUCTURE_HANDOFF.md",
+      "bytes": 3466,
+      "sha256": "58925008dfe933fb06f368b055adfc66963910d47ac5760005d11ae2144a5905"
+    },
+    {
+      "path": "33_NON_DESTRUCTIVE_INTEGRATION_CHECKLIST.md",
+      "bytes": 2559,
+      "sha256": "79f9be4890311cd8b9e234f40856dbb851331716fc3fbeb118e4c5fc04b1aab5"
+    },
+    {
+      "path": "34_DEFINITION_OF_DONE.md",
+      "bytes": 2360,
+      "sha256": "7301af281912d0080e8bb7845da0a525d7a9542a313fa7fb01b1f5a8b0e61a12"
+    },
+    {
+      "path": "35_CODEX_MASTER_IMPLEMENTATION_PROMPT.md",
+      "bytes": 5017,
+      "sha256": "cf3808b572e733e649571567da88615895e9db93974eed0b0794d9340d670ded"
+    },
+    {
+      "path": "36_CURRENT_STANDARDS_LEGAL_PRIVACY_AND_FEDERATION_REVIEW.md",
+      "bytes": 5190,
+      "sha256": "7c0783c4306b87b8a6f38f3dbbdc3629da3658f880123281355712a40b9de177"
+    },
+    {
+      "path": "37_GLOSSARY_STATE_MACHINES_AND_SOURCE_OF_TRUTH_MATRIX.md",
+      "bytes": 3377,
+      "sha256": "8ba149461efab08736ccc833310e960e651c7de858cf4768f2839d5214dfbf67"
+    },
+    {
+      "path": "38_FEDERATION_CAPTURE_POWER_CONCENTRATION_AND_MEMBER_PROTECTION.md",
+      "bytes": 1596,
+      "sha256": "b6046a27d724f318c1b55b6110f6e5636f490e9ce2469c05a1230e39f8f6801c"
+    },
+    {
+      "path": "39_PRODUCTION_OPERATING_MODEL_STAFFING_AND_SERVICE_LEVELS.md",
+      "bytes": 1297,
+      "sha256": "51e4b1fac8f01de3faa2da7eef02dccc1725434c50ab5ead519405eb15813bf4"
+    },
+    {
+      "path": "CANONICAL_MUSIC_INTEGRATION_GUIDE.md",
+      "bytes": 21046,
+      "sha256": "b3abdce93edc94fdfe82c0ea8dd1168512ab929d760766c090a23a1c4a82ee82"
+    },
+    {
+      "path": "CURRENT_STATE_AUDIT_TEMPLATE.md",
+      "bytes": 1826,
+      "sha256": "d738b8fcbdc19edcca771b472e9b1cf81be2e9d06d59de8bafca3b3f73f21ef3"
+    },
+    {
+      "path": "README.md",
+      "bytes": 4919,
+      "sha256": "710a43bc6eb54448a1b4b39d198727fde65ee9d5674a94d89e0e132060dcbce6"
+    },
+    {
+      "path": "SOURCE_PHASE_9_HANDOFF.md",
+      "bytes": 2969,
+      "sha256": "4fc0194cd2d29d00a54f4a0015fc0c878375d2b69f0322917577779c5da95454"
+    },
+    {
+      "path": "VALIDATION_RESULTS.json",
+      "bytes": 224,
+      "sha256": "ca42c1894254a9d06c36a94d3390d5b6bd1171db02fead7c1dc96667cba7ff3f"
+    },
+    {
+      "path": "phase-10-execution-plan.schema.json",
+      "bytes": 3584,
+      "sha256": "69b9365fd180b9c115c653b94097e94aa01f08d268b90a83baa1040a47f42850"
+    },
+    {
+      "path": "phase-10-execution-plan.template.json",
+      "bytes": 389864,
+      "sha256": "6a03f0d70eeb59e39ea3c638c97d6ee7b2d559bebdfb40ebd47d6917b8f15a13"
+    },
+    {
+      "path": "reference/FIRST_IMPLEMENTATION_SLICE.md",
+      "bytes": 1103,
+      "sha256": "e5ea45c909413e20ee95766a7ec255f07f0e8c2add86571825c6e27c6008a1e8"
+    },
+    {
+      "path": "reference/api-examples/credential-issuance-offer.json",
+      "bytes": 279,
+      "sha256": "d3cc4e9749fbba9b0458e2a851222e179778c60899fb7e657cb3f3b553277de9"
+    },
+    {
+      "path": "reference/api-examples/cross-border-transfer-request.json",
+      "bytes": 310,
+      "sha256": "e1d27e34031f4ff995b9eab3b372a8c2a471a8fbc208bb172b962decde6b2f74"
+    },
+    {
+      "path": "reference/api-examples/mandate-delegation-request.json",
+      "bytes": 310,
+      "sha256": "a781d4b2e552ced34f1b64b7f903601e4d78ae2344995a7fcd082bce69b23ac1"
+    },
+    {
+      "path": "reference/api-examples/organization-membership-application.json",
+      "bytes": 271,
+      "sha256": "34b94a0a3d30934a577416bca7e6649145408bbe41abbd53d858d5a1743c3931"
+    },
+    {
+      "path": "reference/api-examples/partner-credential-status-webhook.json",
+      "bytes": 309,
+      "sha256": "7fa824ffb72536f08a1054894d5a73ef0c4b79a3a198174ea94b5ea69e286ad0"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/__tests__/credential-trust-policy.test.ts",
+      "bytes": 511,
+      "sha256": "14834497239d4231f31a549c8006611154fcea38ab77f291aef0d7efa1293e4b"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/__tests__/cross-border-transfer-gate.test.ts",
+      "bytes": 613,
+      "sha256": "501451042b80ba9d15a46adf4908961b3e093927a6a5d7ee3ae105dcec437afb"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/__tests__/sovereignty-policy.test.ts",
+      "bytes": 706,
+      "sha256": "3ac36d94e79575fe42ccd91800893fd9125a7b0eedc01a6e2f43a969580fa52d"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/credential-status-policy.ts",
+      "bytes": 515,
+      "sha256": "c067be7b5bfa9e666ef70ce4b0efed383b4ef68238a853928e86d05991882f48"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/credential-trust-policy.ts",
+      "bytes": 1123,
+      "sha256": "34f5ec3daea5c07d49b3a4e3a9e249eb8d17af71ab4e72a990b9da11a977cddf"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/cross-border-transfer-gate.ts",
+      "bytes": 1040,
+      "sha256": "6c609c555fd2312c25350a081786709c025aedd85f57303fc770c26d78265dae"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/federation-activation-gate.ts",
+      "bytes": 728,
+      "sha256": "5b8a72e0ee88c472be1b38558ee482e3571fe656def13bd46d79c25163494f50"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/federation-decision-state-machine.ts",
+      "bytes": 1035,
+      "sha256": "28f5e7d293d561301561e1cf43f7b2508e9efa1d170dcf7bc5e8b2e8e6b4e2af"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/federation-domain.ts",
+      "bytes": 516,
+      "sha256": "e25817432000b6d103fc58ec397bddda560ce60988fc86430f802f72deb69d75"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/mandate-delegation.ts",
+      "bytes": 1016,
+      "sha256": "5c40bae88578a886a46462f1eb8d9be42027bfd7060cc09285ba3d37e9133fcd"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/membership-state-machine.ts",
+      "bytes": 792,
+      "sha256": "64b6bd9354ad0e1251b2884bdda061e4acab3ac44c5bb951eca0127df6ad2553"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/service-discovery.ts",
+      "bytes": 633,
+      "sha256": "3081271c09ef03ed8883b743de7fbb4960b51b355132c598afd1fb5f0a272c25"
+    },
+    {
+      "path": "reference/lib/music/creator-federation/sovereignty-policy.ts",
+      "bytes": 695,
+      "sha256": "031127ac6b33df3a036e3200c92b4c7225b594305f4a4ce36a2ea7452c282b76"
+    },
+    {
+      "path": "reference/supabase/migration-templates/01_federation_entities_memberships_governance.sql",
+      "bytes": 1417,
+      "sha256": "6b92a830e8fd637a8a6551289741ca4d18d9b0bc144653849f97f0f2808d3d10"
+    },
+    {
+      "path": "reference/supabase/migration-templates/02_trust_credentials_mandates.sql",
+      "bytes": 1585,
+      "sha256": "9f1ac2528dbd45b787c68cc7f02738ee53afd1a7e13c46064628e6bde3ff0f4d"
+    },
+    {
+      "path": "reference/supabase/migration-templates/03_transfers_directory_conformance.sql",
+      "bytes": 1329,
+      "sha256": "32e0e061c01628ad4dc8c2ce2c3c7049b5129938f2e840578ee0f27acedaec0a"
+    },
+    {
+      "path": "reference/supabase/migration-templates/04_decisions_disputes_incidents_outbox.sql",
+      "bytes": 1578,
+      "sha256": "4ec4f31870fe2dbc255dab21dc94f354a691e819533cf9b5bd8d5d91325c786d"
+    }
+  ]
+}

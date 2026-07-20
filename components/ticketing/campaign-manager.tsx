@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -25,14 +25,17 @@ import {
 } from 'lucide-react'
 import { type TicketCampaign, type PromoCode, CAMPAIGN_TYPES } from '@/types/ticketing'
 import { formatSafeDate } from '@/lib/events/admin-event-normalization'
+import { useActingContext } from '@/hooks/use-acting-context'
 
 interface CampaignManagerProps {
   campaigns: TicketCampaign[]
   promoCodes: PromoCode[]
   onRefresh: () => void
+  eventId: string | null
 }
 
-export function CampaignManager({ campaigns, promoCodes, onRefresh }: CampaignManagerProps) {
+export function CampaignManager({ campaigns, promoCodes, onRefresh, eventId }: CampaignManagerProps) {
+  const { actingHeaders, isActingReady } = useActingContext()
   const [activeTab, setActiveTab] = useState('campaigns')
   const [showCreateCampaign, setShowCreateCampaign] = useState(false)
   const [showCreatePromo, setShowCreatePromo] = useState(false)
@@ -57,16 +60,27 @@ export function CampaignManager({ campaigns, promoCodes, onRefresh }: CampaignMa
       title: 'Code copied!',
       description: 'Promo code has been copied to clipboard',
     })
-    setTimeout(() => setCopiedCode(null), 2000)
   }
 
+  useEffect(() => {
+    if (!copiedCode) return
+    const timer = window.setTimeout(() => setCopiedCode(null), 2000)
+    return () => window.clearTimeout(timer)
+  }, [copiedCode])
+
   const handleCreateCampaign = async (campaignData: any) => {
+    if (!eventId || !isActingReady) {
+      toast({ title: 'Select an event', description: 'Choose an event before creating a campaign.', variant: 'destructive' })
+      return
+    }
     try {
       const response = await fetch('/api/admin/ticketing/enhanced', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify({
           action: 'create_campaign',
+          event_id: eventId,
           ...campaignData
         })
       })
@@ -96,12 +110,18 @@ export function CampaignManager({ campaigns, promoCodes, onRefresh }: CampaignMa
   }
 
   const handleCreatePromoCode = async (promoData: any) => {
+    if (!eventId || !isActingReady) {
+      toast({ title: 'Select an event', description: 'Choose an event before creating a promo code.', variant: 'destructive' })
+      return
+    }
     try {
       const response = await fetch('/api/admin/ticketing/enhanced', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...actingHeaders },
         body: JSON.stringify({
           action: 'create_promo_code',
+          event_id: eventId,
           ...promoData
         })
       })
@@ -224,7 +244,7 @@ export function CampaignManager({ campaigns, promoCodes, onRefresh }: CampaignMa
           <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-slate-100">Promotional Campaigns</CardTitle>
-              <Button onClick={() => setShowCreateCampaign(true)} className="flex items-center gap-2">
+              <Button onClick={() => setShowCreateCampaign(true)} disabled={!eventId || !isActingReady} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Create Campaign
               </Button>
@@ -361,7 +381,7 @@ export function CampaignManager({ campaigns, promoCodes, onRefresh }: CampaignMa
           <Card className="bg-slate-900/50 border-slate-700/50 backdrop-blur-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-slate-100">Promotional Codes</CardTitle>
-              <Button onClick={() => setShowCreatePromo(true)} className="flex items-center gap-2">
+              <Button onClick={() => setShowCreatePromo(true)} disabled={!eventId || !isActingReady} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Create Promo Code
               </Button>
@@ -752,4 +772,4 @@ function CreatePromoCodeModal({ onClose, onSubmit }: { onClose: () => void; onSu
       </div>
     </div>
   )
-} 
+}

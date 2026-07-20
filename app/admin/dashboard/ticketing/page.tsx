@@ -20,6 +20,8 @@ import { TicketSharingTools } from "@/components/ticketing/ticket-sharing-tools"
 import { CampaignManager } from "@/components/ticketing/campaign-manager"
 import { type TicketingMetrics, type TicketType, type TicketSale, type TicketCampaign, type PromoCode, type SocialMediaPerformance } from "@/types/ticketing"
 import { formatSafeDate, normalizeAdminEvent } from "@/lib/events/admin-event-normalization"
+import { useActingContext } from "@/hooks/use-acting-context"
+import { mapAdminScopeError, readAdminErrorMessage } from "@/lib/admin/admin-request"
 
 /** API aggregates use `clicks`, `conversions`, `revenue`; UI uses ticketing types. */
 function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] {
@@ -48,7 +50,32 @@ function mapApiSocialPerformanceToUi(rows: unknown[]): SocialMediaPerformance[] 
   })
 }
 
+function buildNoStoreInit(
+  actingHeaders: Record<string, string>,
+  input?: RequestInit,
+): RequestInit {
+  return {
+    credentials: 'include',
+    cache: 'no-store',
+    ...input,
+    headers: {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache',
+      Pragma: 'no-cache',
+      ...actingHeaders,
+      ...(input?.headers || {}),
+    },
+  }
+}
+
+type AdminRequestBuilder = (input?: RequestInit) => RequestInit
+
 export default function TicketingPage() {
+  const { actingContextKey, actingHeaders, isActingReady } = useActingContext()
+  const adminRequest = useCallback(
+    (input?: RequestInit) => buildNoStoreInit(actingHeaders, input),
+    [actingHeaders],
+  )
   const [metrics, setMetrics] = useState<TicketingMetrics | null>(null)
   const [ticketTypes, setTicketTypes] = useState<TicketType[]>([])
   const [sales, setSales] = useState<TicketSale[]>([])
@@ -56,28 +83,22 @@ export default function TicketingPage() {
   const [promoCodes, setPromoCodes] = useState<PromoCode[]>([])
   const [socialPerformance, setSocialPerformance] = useState<SocialMediaPerformance[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadedContextKey, setLoadedContextKey] = useState('')
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<string>('all')
   const [events, setEvents] = useState<Array<{ id: string; title: string; event_date: string }>>([])
   const [activeTab, setActiveTab] = useState('overview')
   const { toast } = useToast()
-
-  function buildNoStoreInit(input?: RequestInit): RequestInit {
-    return {
-      credentials: 'include',
-      cache: 'no-store',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-        ...(input?.headers || {}),
-      },
-      ...input,
-    }
-  }
+  const actingOrgLabel =
+    typeof actingHeaders['x-acting-org-id'] === 'string' && actingHeaders['x-acting-org-id']
+      ? `Showing organization ${actingHeaders['x-acting-org-id'].slice(0, 8)}…`
+      : 'Showing the selected organization account only'
 
   const fetchEvents = useCallback(async () => {
+    if (!isActingReady) return
     try {
-      const response = await fetch('/api/admin/events', buildNoStoreInit())
+      setEvents([])
+      const response = await fetch('/api/admin/events', adminRequest())
       
       if (response.ok) {
         const data = await response.json()
@@ -100,122 +121,118 @@ export default function TicketingPage() {
       console.error('Error fetching events:', error)
       setEvents([])
     }
-  }, [])
+  }, [adminRequest, isActingReady])
 
   const fetchTicketingData = useCallback(async () => {
+    if (!isActingReady) return
     try {
       setLoading(true)
-      
-      // Build query parameters for event filtering
-      const eventFilter = selectedEvent !== 'all' ? `&event_id=${selectedEvent}` : ''
-      
-      // Fetch comprehensive overview
-      const overviewResponse = await fetch(`/api/admin/ticketing/enhanced?type=overview${eventFilter}`, buildNoStoreInit())
-      const overviewData = await overviewResponse.json()
-      
-      if (overviewResponse.ok) {
-        setMetrics({
-          total_tickets_sold: overviewData.metrics?.total_tickets_sold || 0,
-          revenue_generated: overviewData.metrics?.total_revenue || 0,
-          average_ticket_price: overviewData.metrics?.average_ticket_price || 0,
-          weekly_trend: overviewData.metrics?.weekly_trend || 0,
-          revenue_trend: overviewData.metrics?.revenue_trend || 0,
-          conversion_rate: overviewData.metrics?.conversion_rate || 0,
-          social_shares: overviewData.metrics?.social_shares || 0,
-          referral_revenue: overviewData.metrics?.referral_revenue || 0
-        })
-      } else {
-        // Set default metrics if API is not ready
-        setMetrics({
-          total_tickets_sold: 0,
-          revenue_generated: 0,
-          average_ticket_price: 0,
-          weekly_trend: 0,
-          revenue_trend: 0,
-          conversion_rate: 0,
-          social_shares: 0,
-          referral_revenue: 0
-        })
-      }
-
-      // Fetch ticket types
-      const ticketTypesResponse = await fetch(`/api/admin/ticketing/enhanced?type=ticket_types${eventFilter}`, buildNoStoreInit())
-      const ticketTypesData = await ticketTypesResponse.json()
-      
-      if (ticketTypesResponse.ok) {
-        setTicketTypes(ticketTypesData.ticket_types || [])
-      } else {
-        setTicketTypes([])
-      }
-
-      // Fetch sales
-      const salesResponse = await fetch(`/api/admin/ticketing/enhanced?type=sales${eventFilter}`, buildNoStoreInit())
-      const salesData = await salesResponse.json()
-      
-      if (salesResponse.ok) {
-        setSales(salesData.sales || [])
-      } else {
-        setSales([])
-      }
-
-      // Fetch campaigns
-      const campaignsResponse = await fetch(`/api/admin/ticketing/enhanced?type=campaigns${eventFilter}`, buildNoStoreInit())
-      const campaignsData = await campaignsResponse.json()
-      
-      if (campaignsResponse.ok) {
-        setCampaigns(campaignsData.campaigns || [])
-      } else {
-        setCampaigns([])
-      }
-
-      // Fetch promo codes
-      const promoCodesResponse = await fetch(`/api/admin/ticketing/enhanced?type=promo_codes${eventFilter}`, buildNoStoreInit())
-      const promoCodesData = await promoCodesResponse.json()
-      
-      if (promoCodesResponse.ok) {
-        setPromoCodes(promoCodesData.promo_codes || [])
-      } else {
-        setPromoCodes([])
-      }
-
-      // Fetch social performance
-      const socialResponse = await fetch(`/api/admin/ticketing/enhanced?type=social_performance${eventFilter}`, buildNoStoreInit())
-      const socialData = await socialResponse.json()
-      
-      if (socialResponse.ok) {
-        setSocialPerformance(mapApiSocialPerformanceToUi(socialData.social_performance))
-      } else {
-        setSocialPerformance([])
-      }
-
-    } catch (error) {
-      console.error('Error fetching ticketing data:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to load ticketing data. Some features may not be available.',
-        variant: 'destructive'
-      })
-      
-      // Set default data on error
-      setMetrics({
-        total_tickets_sold: 0,
-        revenue_generated: 0,
-        average_ticket_price: 0,
-        weekly_trend: 0,
-        revenue_trend: 0,
-        conversion_rate: 0,
-        social_shares: 0,
-        referral_revenue: 0
-      })
+      setLoadError(null)
+      setMetrics(null)
       setTicketTypes([])
       setSales([])
       setCampaigns([])
       setPromoCodes([])
       setSocialPerformance([])
+
+      const selectedEventForRequest = loadedContextKey === actingContextKey
+        ? selectedEvent
+        : 'all'
+      const eventFilter = selectedEventForRequest !== 'all'
+        ? `&event_id=${selectedEventForRequest}`
+        : ''
+
+      const [
+        overviewResponse,
+        ticketTypesResponse,
+        salesResponse,
+        campaignsResponse,
+        promoCodesResponse,
+        socialResponse,
+      ] = await Promise.all([
+        fetch(`/api/admin/ticketing/enhanced?type=overview${eventFilter}`, adminRequest()),
+        fetch(`/api/admin/ticketing/enhanced?type=ticket_types${eventFilter}`, adminRequest()),
+        fetch(`/api/admin/ticketing/enhanced?type=sales${eventFilter}`, adminRequest()),
+        fetch(`/api/admin/ticketing/enhanced?type=campaigns${eventFilter}`, adminRequest()),
+        fetch(`/api/admin/ticketing/enhanced?type=promo_codes${eventFilter}`, adminRequest()),
+        fetch(`/api/admin/ticketing/enhanced?type=social_performance${eventFilter}`, adminRequest()),
+      ])
+
+      if (!overviewResponse.ok) {
+        const message = await readAdminErrorMessage(overviewResponse)
+        const mapped = mapAdminScopeError(overviewResponse.status, null, message)
+        setLoadError(mapped.message)
+        setMetrics(null)
+        toast({
+          title: mapped.title,
+          description: mapped.message,
+          variant: 'destructive',
+        })
+        return
+      }
+
+      const [
+        overviewData,
+        ticketTypesData,
+        salesData,
+        campaignsData,
+        promoCodesData,
+        socialData,
+      ] = await Promise.all([
+        overviewResponse.json(),
+        ticketTypesResponse.json(),
+        salesResponse.json(),
+        campaignsResponse.json(),
+        promoCodesResponse.json(),
+        socialResponse.json(),
+      ])
+
+      setMetrics({
+        total_tickets_sold: overviewData.metrics?.total_tickets_sold || 0,
+        revenue_generated: overviewData.metrics?.total_revenue || 0,
+        average_ticket_price: overviewData.metrics?.average_ticket_price || 0,
+        weekly_trend: overviewData.metrics?.weekly_trend || 0,
+        revenue_trend: overviewData.metrics?.revenue_trend || 0,
+        conversion_rate: overviewData.metrics?.conversion_rate || 0,
+        social_shares: overviewData.metrics?.social_shares || 0,
+        referral_revenue: overviewData.metrics?.referral_revenue || 0
+      })
+
+      setTicketTypes(ticketTypesResponse.ok ? (ticketTypesData.ticket_types || []) : [])
+      setSales(salesResponse.ok ? (salesData.sales || []) : [])
+      setCampaigns(campaignsResponse.ok ? (campaignsData.campaigns || []) : [])
+      setPromoCodes(promoCodesResponse.ok ? (promoCodesData.promo_codes || []) : [])
+      setSocialPerformance(
+        socialResponse.ok
+          ? mapApiSocialPerformanceToUi(socialData.social_performance)
+          : [],
+      )
+    } catch (error) {
+      console.error('Error fetching ticketing data:', error)
+      const message = error instanceof Error
+        ? error.message
+        : 'Failed to load ticketing data for this organization.'
+      setLoadError(message)
+      setMetrics(null)
+      setTicketTypes([])
+      setSales([])
+      setCampaigns([])
+      setPromoCodes([])
+      setSocialPerformance([])
+      toast({
+        title: 'Unable to load ticketing',
+        description: message,
+        variant: 'destructive'
+      })
     } finally {
+      setLoadedContextKey(actingContextKey)
       setLoading(false)
     }
-  }, [selectedEvent, toast])
+  }, [actingContextKey, adminRequest, isActingReady, loadedContextKey, selectedEvent, toast])
+
+  useEffect(() => {
+    setSelectedEvent('all')
+  }, [actingContextKey])
 
   useEffect(() => {
     void fetchEvents()
@@ -248,7 +265,7 @@ export default function TicketingPage() {
     return 'Unknown Event'
   }
 
-  if (loading) {
+  if (loading || !isActingReady || loadedContextKey !== actingContextKey) {
     return (
       <div className="space-y-6">
         <AdminPageHeader
@@ -270,6 +287,16 @@ export default function TicketingPage() {
         subtitle="Manage ticket sales and analytics"
         icon={Ticket}
       />
+
+      <div className="rounded-md border border-slate-700/50 bg-slate-900/40 px-4 py-3 text-sm text-slate-300">
+        {actingOrgLabel}
+      </div>
+
+      {loadError ? (
+        <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          {loadError}
+        </div>
+      ) : null}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="bg-slate-800/60 backdrop-blur-sm border border-slate-700/30 p-1 rounded-sm flex flex-wrap gap-0.5">
@@ -300,13 +327,15 @@ export default function TicketingPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          {/* Enhanced Metrics Cards */}
+          {/* Enhanced Metrics Cards — never show zero KPIs for a failed org-scoped load */}
+          {!loadError && metrics ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics?.total_tickets_sold || 0)} icon={Ticket} color="purple" size="lg" change={metrics?.weekly_trend || undefined} trend={(metrics?.weekly_trend ?? 0) > 0 ? 'up' : (metrics?.weekly_trend ?? 0) < 0 ? 'down' : 'neutral'} />
-            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics?.revenue_generated || 0)} icon={DollarSign} color="green" size="lg" change={metrics?.revenue_trend || undefined} trend={(metrics?.revenue_trend ?? 0) > 0 ? 'up' : (metrics?.revenue_trend ?? 0) < 0 ? 'down' : 'neutral'} />
-            <AdminStatCard title="Conversion Rate" value={`${metrics?.conversion_rate || 0}%`} icon={TrendingUp} color="blue" size="lg" />
-            <AdminStatCard title="Social Shares" value={formatNumber(metrics?.social_shares || 0)} icon={Share2} color="cyan" size="lg" />
+            <AdminStatCard title="Total Tickets Sold" value={formatNumber(metrics.total_tickets_sold || 0)} icon={Ticket} color="purple" size="lg" change={metrics.weekly_trend || undefined} trend={(metrics.weekly_trend ?? 0) > 0 ? 'up' : (metrics.weekly_trend ?? 0) < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Revenue Generated" value={formatCurrency(metrics.revenue_generated || 0)} icon={DollarSign} color="green" size="lg" change={metrics.revenue_trend || undefined} trend={(metrics.revenue_trend ?? 0) > 0 ? 'up' : (metrics.revenue_trend ?? 0) < 0 ? 'down' : 'neutral'} />
+            <AdminStatCard title="Conversion Rate" value={`${metrics.conversion_rate || 0}%`} icon={TrendingUp} color="blue" size="lg" />
+            <AdminStatCard title="Social Shares" value={formatNumber(metrics.social_shares || 0)} icon={Share2} color="cyan" size="lg" />
           </div>
+          ) : null}
 
           {/* Ticket Types and Sales Overview */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -585,6 +614,7 @@ export default function TicketingPage() {
             campaigns={campaigns}
             promoCodes={promoCodes}
             onRefresh={fetchTicketingData}
+            eventId={selectedEvent === 'all' ? null : selectedEvent}
           />
         </TabsContent>
 
@@ -721,12 +751,12 @@ export default function TicketingPage() {
 
         {/* Ticket Types Tab */}
         <TabsContent value="ticket-types" className="space-y-6">
-          <TicketTypesCRUD events={events} selectedEvent={selectedEvent} onEventChange={setSelectedEvent} />
+          <TicketTypesCRUD events={events} selectedEvent={selectedEvent} onEventChange={setSelectedEvent} adminRequest={adminRequest} />
         </TabsContent>
 
         {/* Promo Codes Tab */}
         <TabsContent value="promo-codes" className="space-y-6">
-          <PromoCodesPanel events={events} selectedEvent={selectedEvent} />
+          <PromoCodesPanel selectedEvent={selectedEvent} adminRequest={adminRequest} />
         </TabsContent>
 
         {/* Refunds Tab */}
@@ -736,7 +766,7 @@ export default function TicketingPage() {
               <CardTitle className="text-white text-base">Refunded Tickets</CardTitle>
             </CardHeader>
             <CardContent>
-              <RefundsList selectedEvent={selectedEvent} />
+              <RefundsList selectedEvent={selectedEvent} adminRequest={adminRequest} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -745,7 +775,17 @@ export default function TicketingPage() {
   )
 }
 
-function TicketTypesCRUD({ events, selectedEvent, onEventChange }: { events: any[]; selectedEvent: string; onEventChange: (v: string) => void }) {
+function TicketTypesCRUD({
+  events,
+  selectedEvent,
+  onEventChange,
+  adminRequest,
+}: {
+  events: any[]
+  selectedEvent: string
+  onEventChange: (value: string) => void
+  adminRequest: AdminRequestBuilder
+}) {
   const [types, setTypes] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
@@ -757,14 +797,18 @@ function TicketTypesCRUD({ events, selectedEvent, onEventChange }: { events: any
     try {
       const params = new URLSearchParams({ type: 'ticket_types' })
       if (selectedEvent && selectedEvent !== 'all') params.set('event_id', selectedEvent)
-      const res = await fetch(`/api/admin/ticketing/enhanced?${params}`, { credentials: 'include' })
+      const res = await fetch(`/api/admin/ticketing/enhanced?${params}`, adminRequest())
       if (res.ok) { const d = await res.json(); setTypes(d.ticket_types || d.data || []) }
     } finally { setLoading(false) }
-  }, [selectedEvent])
+  }, [adminRequest, selectedEvent])
 
   useEffect(() => { void fetchTypes() }, [fetchTypes])
 
   function openCreate() {
+    if (selectedEvent === 'all') {
+      sonnerToast.error('Select an event before creating a ticket type')
+      return
+    }
     setEditingType(null)
     setForm({ name: '', price: '', quantity_available: '', category: 'general', is_active: true })
     setShowDialog(true)
@@ -779,13 +823,13 @@ function TicketTypesCRUD({ events, selectedEvent, onEventChange }: { events: any
     const body = editingType
       ? { action: 'update_ticket_type', id: editingType.id, ...form, price: Number(form.price), quantity_available: Number(form.quantity_available) }
       : { action: 'create_ticket_type', event_id: selectedEvent !== 'all' ? selectedEvent : undefined, ...form, price: Number(form.price), quantity_available: Number(form.quantity_available) }
-    const res = await fetch('/api/admin/ticketing/enhanced', { method: editingType ? 'PATCH' : 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const res = await fetch('/api/admin/ticketing/enhanced', adminRequest({ method: editingType ? 'PATCH' : 'POST', body: JSON.stringify(body) }))
     if (res.ok) { sonnerToast.success(editingType ? 'Updated' : 'Created'); setShowDialog(false); void fetchTypes() }
     else { sonnerToast.error('Failed to save') }
   }
 
   async function toggleActive(t: any) {
-    await fetch('/api/admin/ticketing/enhanced', { method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'update_ticket_type', id: t.id, is_active: !t.is_active }) })
+    await fetch('/api/admin/ticketing/enhanced', adminRequest({ method: 'PATCH', body: JSON.stringify({ action: 'update_ticket_type', id: t.id, is_active: !t.is_active }) }))
     void fetchTypes()
   }
 
@@ -801,7 +845,7 @@ function TicketTypesCRUD({ events, selectedEvent, onEventChange }: { events: any
             {events.map((e: any) => <SelectItem key={e.id} value={e.id}>{e.title}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button size="sm" onClick={openCreate} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8">
+        <Button size="sm" onClick={openCreate} disabled={selectedEvent === 'all'} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8">
           <Plus className="h-3.5 w-3.5 mr-1.5" />Add Type
         </Button>
       </div>
@@ -855,7 +899,13 @@ function TicketTypesCRUD({ events, selectedEvent, onEventChange }: { events: any
   )
 }
 
-function PromoCodesPanel({ events, selectedEvent }: { events: any[]; selectedEvent: string }) {
+function PromoCodesPanel({
+  selectedEvent,
+  adminRequest,
+}: {
+  selectedEvent: string
+  adminRequest: AdminRequestBuilder
+}) {
   const [codes, setCodes] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showDialog, setShowDialog] = useState(false)
@@ -866,16 +916,18 @@ function PromoCodesPanel({ events, selectedEvent }: { events: any[]; selectedEve
     try {
       const params = new URLSearchParams({ type: 'promo_codes' })
       if (selectedEvent && selectedEvent !== 'all') params.set('event_id', selectedEvent)
-      const res = await fetch(`/api/admin/ticketing/enhanced?${params}`, { credentials: 'include' })
+      const res = await fetch(`/api/admin/ticketing/enhanced?${params}`, adminRequest())
       if (res.ok) { const d = await res.json(); setCodes(d.promo_codes || d.data || []) }
     } finally { setLoading(false) }
-  }, [selectedEvent])
+  }, [adminRequest, selectedEvent])
 
   useEffect(() => { void fetchCodes() }, [fetchCodes])
 
   async function createCode() {
+    if (selectedEvent === 'all') { sonnerToast.error('Select an event first'); return }
     if (!form.code.trim()) { sonnerToast.error('Code is required'); return }
-    const res = await fetch('/api/admin/ticketing/enhanced', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create_promo_code', event_id: selectedEvent !== 'all' ? selectedEvent : undefined, ...form, discount_value: Number(form.discount_value), max_uses: form.max_uses ? Number(form.max_uses) : null }) })
+    if (!form.expires_at) { sonnerToast.error('Expiration date is required'); return }
+    const res = await fetch('/api/admin/ticketing/enhanced', adminRequest({ method: 'POST', body: JSON.stringify({ action: 'create_promo_code', event_id: selectedEvent, ...form, discount_value: Number(form.discount_value), max_uses: form.max_uses ? Number(form.max_uses) : null }) }))
     if (res.ok) { sonnerToast.success('Promo code created'); setShowDialog(false); setForm({ code: '', discount_type: 'percentage', discount_value: '', max_uses: '', expires_at: '' }); void fetchCodes() }
     else { sonnerToast.error('Failed to create') }
   }
@@ -885,7 +937,7 @@ function PromoCodesPanel({ events, selectedEvent }: { events: any[]; selectedEve
       <div className="flex justify-end">
         <Dialog open={showDialog} onOpenChange={setShowDialog}>
           <DialogTrigger asChild>
-            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8"><Plus className="h-3.5 w-3.5 mr-1.5" />Create Promo Code</Button>
+            <Button size="sm" disabled={selectedEvent === 'all'} className="bg-gradient-to-r from-purple-600 to-blue-600 text-white border-0 h-8"><Plus className="h-3.5 w-3.5 mr-1.5" />Create Promo Code</Button>
           </DialogTrigger>
           <DialogContent className="bg-slate-900 border-slate-700">
             <DialogHeader><DialogTitle className="text-white">Create Promo Code</DialogTitle></DialogHeader>
@@ -930,18 +982,24 @@ function PromoCodesPanel({ events, selectedEvent }: { events: any[]; selectedEve
   )
 }
 
-function RefundsList({ selectedEvent }: { selectedEvent: string }) {
+function RefundsList({
+  selectedEvent,
+  adminRequest,
+}: {
+  selectedEvent: string
+  adminRequest: AdminRequestBuilder
+}) {
   const [refunds, setRefunds] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const params = new URLSearchParams({ type: 'sales' })
     if (selectedEvent && selectedEvent !== 'all') params.set('event_id', selectedEvent)
-    fetch(`/api/admin/ticketing/enhanced?${params}`, { credentials: 'include' })
+    fetch(`/api/admin/ticketing/enhanced?${params}`, adminRequest())
       .then(r => r.ok ? r.json() : { sales: [] })
       .then(d => setRefunds((d.sales || d.data || []).filter((s: any) => s.payment_status === 'refunded')))
       .finally(() => setLoading(false))
-  }, [selectedEvent])
+  }, [adminRequest, selectedEvent])
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-8">Loading refunds...</p>
   if (refunds.length === 0) return <p className="text-slate-400 text-sm text-center py-8">No refunded tickets.</p>

@@ -105,6 +105,17 @@ export const jobPostingFormSchema = z
         message: "Maximum compensation cannot be lower than minimum compensation.",
       })
     }
+
+    if (data.status === "published") {
+      const templateId = data.onboarding_template_id
+      if (!templateId || templateId === "") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["onboarding_template_id"],
+          message: "Select an onboarding template before publishing.",
+        })
+      }
+    }
   })
 
 export const createJobPostingActionSchema = z.intersection(

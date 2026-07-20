@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
+    "test:unit": "tsx --test lib/notifications/push-routing.test.ts lib/api/checkout-status.test.ts lib/auth/reset-password-guard.test.ts",
     "ota:preview": "eas update --branch preview --non-interactive",
     "ota:production": "eas update --branch production --non-interactive",
     "ota:production:android": "eas update --platform android --branch production --non-interactive",
@@ -29,7 +30,9 @@
     "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-navigation/native": "^7.0.14",
+    "@sentry/react-native": "~6.10.0",
     "@supabase/supabase-js": "^2.56.0",
+    "@tanstack/react-query": "^5.101.2",
     "expo": "^52.0.35",
     "expo-asset": "~11.0.5",
     "expo-audio": "~0.3.5",
@@ -40,6 +43,7 @@
     "expo-document-picker": "~13.0.3",
     "expo-file-system": "~18.0.12",
     "expo-font": "~13.0.4",
+    "expo-image": "~2.0.7",
     "expo-image-picker": "~16.0.6",
     "expo-linking": "~7.0.5",
     "expo-location": "~18.0.10",
@@ -59,6 +63,7 @@
     "@types/react": "~18.3.12",
     "eslint": "^8.57.1",
     "eslint-config-expo": "~8.0.1",
+    "tsx": "^4.23.1",
     "typescript": "^5.6.3"
   },
   "overrides": {

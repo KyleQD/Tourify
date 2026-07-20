@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, Globe, Link, Music, Video } from "lucide-react"
+import { Check, Link, Music, Video } from "lucide-react"
 import { useProfile } from "../../context/profile-context"
 import { useToast } from "@/hooks/use-toast"
 
@@ -106,13 +106,6 @@ export function EPKUpgradeModal({ isOpen, onClose }: EPKUpgradeModalProps) {
                 </div>
               </div>
 
-              <div className="flex items-start gap-2">
-                <Globe className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-medium">Custom Domain (Coming Soon)</p>
-                  <p className="text-sm text-gray-400">Use your own domain for your EPK</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>

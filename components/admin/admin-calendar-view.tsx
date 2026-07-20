@@ -36,6 +36,11 @@ import {
   CalendarAgendaItemCard,
   CalendarDaySheet,
 } from '@/components/admin/calendar-day-sheet'
+import {
+  CalendarScopeDropdown,
+  type CalendarScopeOption,
+  type CalendarScopeValue,
+} from '@/components/admin/calendar-context-bar'
 import { OrgCalendarSync } from '@/components/admin/org-calendar-sync'
 import { Button } from '@/components/admin/scheduling/ui/button'
 import { Input } from '@/components/admin/scheduling/ui/input'
@@ -46,8 +51,15 @@ import {
   SheetTitle,
 } from '@/components/admin/scheduling/ui/sheet'
 import { useAdminCalendar } from '@/hooks/use-admin-calendar'
-import type { AdminCalendarItem, AdminCalendarKind } from '@/lib/admin/calendar/types'
-import { ADMIN_CALENDAR_KINDS, KIND_LABELS } from '@/lib/admin/calendar/types'
+import type {
+  AdminCalendarItem,
+  AdminCalendarKind,
+  AdminCalendarScopeMode,
+} from '@/lib/admin/calendar/types'
+import {
+  SCOPED_KIND_LABELS,
+  kindsForScope,
+} from '@/lib/admin/calendar/types'
 import { cn } from '@/lib/utils'
 
 type CalendarViewMode = 'month' | 'week' | 'day'
@@ -68,26 +80,98 @@ const KIND_CHIP: Record<AdminCalendarKind, string> = {
   hiring: 'bg-neon-pink/15 text-neon-pink',
 }
 
+const SCOPE_STORAGE_PREFIX = 'tourify.admin.calendar.scope'
+
 function parseDateParam(value: string | null): Date {
   if (!value) return new Date()
   const parsed = parseISO(value)
   return Number.isNaN(parsed.getTime()) ? new Date() : parsed
 }
 
-function parseTypesParam(value: string | null): AdminCalendarKind[] {
-  if (!value) return [...ADMIN_CALENDAR_KINDS]
-  const allowed = new Set(ADMIN_CALENDAR_KINDS)
-  const parsed = value
-    .split(',')
-    .map((part) => part.trim())
-    .filter((part): part is AdminCalendarKind => allowed.has(part as AdminCalendarKind))
-  return parsed.length > 0 ? parsed : [...ADMIN_CALENDAR_KINDS]
+function parseScopeMode(value: string | null): AdminCalendarScopeMode | null {
+  if (value === 'tour' || value === 'event') return value
+  return null
 }
 
+function readStoredScope(orgKey: string): { mode: 'tour' | 'event'; id: string } | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(`${SCOPE_STORAGE_PREFIX}.${orgKey}`)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { mode?: string; id?: string | null }
+    const mode = parseScopeMode(parsed.mode || null)
+    if ((mode !== 'tour' && mode !== 'event') || !parsed.id) return null
+    return { mode, id: parsed.id }
+  } catch {
+    return null
+  }
+}
+
+function writeStoredScope(orgKey: string, mode: 'tour' | 'event' | null, id: string | null) {
+  if (typeof window === 'undefined') return
+  const key = `${SCOPE_STORAGE_PREFIX}.${orgKey}`
+  if (!mode || !id) {
+    window.localStorage.removeItem(key)
+    return
+  }
+  window.localStorage.setItem(key, JSON.stringify({ mode, id }))
+}
+
+function toStartMs(option: CalendarScopeOption): number {
+  if (!option.startDate) return Number.POSITIVE_INFINITY
+  const ms = new Date(`${option.startDate}T00:00:00`).getTime()
+  return Number.isNaN(ms) ? Number.POSITIVE_INFINITY : ms
+}
+
+/** Soonest upcoming tour/event; if none upcoming, nearest past. */
+function pickSoonestScope(
+  tours: CalendarScopeOption[],
+  events: CalendarScopeOption[],
+): CalendarScopeValue | null {
+  const today = startOfDay(new Date()).getTime()
+  const candidates: Array<CalendarScopeValue & { startMs: number }> = [
+    ...tours.map((tour) => ({ mode: 'tour' as const, id: tour.id, startMs: toStartMs(tour) })),
+    ...events.map((event) => ({ mode: 'event' as const, id: event.id, startMs: toStartMs(event) })),
+  ].filter((item) => Number.isFinite(item.startMs))
+
+  if (candidates.length === 0) {
+    const fallback = tours[0]
+      ? { mode: 'tour' as const, id: tours[0].id }
+      : events[0]
+        ? { mode: 'event' as const, id: events[0].id }
+        : null
+    return fallback
+  }
+
+  const upcoming = candidates
+    .filter((item) => item.startMs >= today)
+    .sort((a, b) => a.startMs - b.startMs)
+  if (upcoming[0]) return { mode: upcoming[0].mode, id: upcoming[0].id }
+
+  const past = candidates.sort((a, b) => b.startMs - a.startMs)
+  return { mode: past[0].mode, id: past[0].id }
+}
+
+function isValidScope(
+  mode: AdminCalendarScopeMode | null,
+  id: string | null,
+  tours: CalendarScopeOption[],
+  events: CalendarScopeOption[],
+): mode is 'tour' | 'event' {
+  if (!id) return false
+  if (mode === 'tour') return tours.some((tour) => tour.id === id)
+  if (mode === 'event') return events.some((event) => event.id === id)
+  return false
+}
+
+/** Day-anchored occupancy: tours never paint; multi-day work items still span their dates. */
 function itemOccursOnDay(item: AdminCalendarItem, day: Date): boolean {
+  if (item.kind === 'tour') return false
   const start = startOfDay(new Date(item.start))
   const end = endOfDay(new Date(item.end || item.start))
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false
+  if (item.allDay && item.kind === 'event' && !isSameDay(start, end))
+    return isSameDay(start, day)
   return isWithinInterval(day, { start, end }) || isSameDay(start, day)
 }
 
@@ -106,12 +190,30 @@ export function AdminCalendarView({
     const view = searchParams.get('view')
     return view === 'week' || view === 'day' || view === 'month' ? view : 'month'
   })
-  const [enabledKinds, setEnabledKinds] = useState<AdminCalendarKind[]>(() =>
-    parseTypesParam(searchParams.get('types')),
-  )
+  const [scopeMode, setScopeMode] = useState<'tour' | 'event' | null>(() => {
+    const mode = parseScopeMode(searchParams.get('scope'))
+    return mode === 'tour' || mode === 'event' ? mode : null
+  })
+  const [scopeId, setScopeId] = useState<string | null>(() => searchParams.get('scopeId'))
+  const [enabledKinds, setEnabledKinds] = useState<AdminCalendarKind[]>(() => {
+    const scope = parseScopeMode(searchParams.get('scope'))
+    const defaults = kindsForScope(scope === 'tour' || scope === 'event' ? scope : 'tour')
+    const typesParam = searchParams.get('types')
+    if (!typesParam) return defaults
+    const allowed = new Set(defaults)
+    const parsed = typesParam
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part): part is AdminCalendarKind => allowed.has(part as AdminCalendarKind))
+    return parsed.length > 0 ? parsed : defaults
+  })
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [daySheetOpen, setDaySheetOpen] = useState(false)
   const [subscribeOpen, setSubscribeOpen] = useState(false)
+  const [tours, setTours] = useState<CalendarScopeOption[]>([])
+  const [events, setEvents] = useState<CalendarScopeOption[]>([])
+  const [isLoadingOptions, setIsLoadingOptions] = useState(true)
+  const [scopeResolved, setScopeResolved] = useState(false)
 
   const range = useMemo(() => {
     if (viewMode === 'day') {
@@ -132,17 +234,110 @@ export function AdminCalendarView({
     }
   }, [selectedDate, viewMode])
 
-  const { items, summary, isLoading, error, refetch } = useAdminCalendar({
+  const hasScope = (scopeMode === 'tour' || scopeMode === 'event') && Boolean(scopeId)
+
+  const { items, summary, context, orgId, isLoading, error, refetch } = useAdminCalendar({
     startDate: range.startDate,
     endDate: range.endDate,
     types: enabledKinds,
+    scope: hasScope ? scopeMode : null,
+    tourId: scopeMode === 'tour' ? scopeId : null,
+    eventId: scopeMode === 'event' ? scopeId : null,
+    enabled: hasScope,
   })
+
+  useEffect(() => {
+    let cancelled = false
+    async function loadOptions() {
+      setIsLoadingOptions(true)
+      try {
+        const [toursRes, eventsRes] = await Promise.all([
+          fetch('/api/admin/tours', { credentials: 'include', cache: 'no-store' }),
+          fetch('/api/admin/events', { credentials: 'include', cache: 'no-store' }),
+        ])
+        const toursPayload = await toursRes.json().catch(() => ({}))
+        const eventsPayload = await eventsRes.json().catch(() => ({}))
+        if (cancelled) return
+
+        const nextTours: CalendarScopeOption[] = (toursPayload.tours || []).map((tour: Record<string, unknown>) => ({
+          id: String(tour.id),
+          name: String(tour.name || 'Untitled tour'),
+          status: typeof tour.status === 'string' ? tour.status : null,
+          startDate: tour.start_date ? String(tour.start_date).slice(0, 10) : null,
+          endDate: tour.end_date ? String(tour.end_date).slice(0, 10) : null,
+        }))
+        const nextEvents: CalendarScopeOption[] = (eventsPayload.events || []).map((event: Record<string, unknown>) => ({
+          id: String(event.id),
+          name: String(event.title || event.name || 'Untitled event'),
+          status: typeof event.status === 'string' ? event.status : null,
+          startDate: event.start_at || event.event_date
+            ? String(event.start_at || event.event_date).slice(0, 10)
+            : null,
+          endDate: event.end_at || event.end_date
+            ? String(event.end_at || event.end_date).slice(0, 10)
+            : null,
+        }))
+        setTours(nextTours)
+        setEvents(nextEvents)
+      } catch {
+        if (!cancelled) {
+          setTours([])
+          setEvents([])
+        }
+      } finally {
+        if (!cancelled) setIsLoadingOptions(false)
+      }
+    }
+    void loadOptions()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Resolve scope: URL → localStorage → soonest upcoming
+  useEffect(() => {
+    if (isLoadingOptions || scopeResolved) return
+
+    const urlMode = parseScopeMode(searchParams.get('scope'))
+    const urlId = searchParams.get('scopeId')
+    if (isValidScope(urlMode, urlId, tours, events)) {
+      setScopeMode(urlMode)
+      setScopeId(urlId)
+      setEnabledKinds(kindsForScope(urlMode))
+      setScopeResolved(true)
+      return
+    }
+
+    const stored = readStoredScope(orgId || 'default')
+    if (stored && isValidScope(stored.mode, stored.id, tours, events)) {
+      setScopeMode(stored.mode)
+      setScopeId(stored.id)
+      setEnabledKinds(kindsForScope(stored.mode))
+      setScopeResolved(true)
+      return
+    }
+
+    const soonest = pickSoonestScope(tours, events)
+    if (soonest) {
+      setScopeMode(soonest.mode)
+      setScopeId(soonest.id)
+      setEnabledKinds(kindsForScope(soonest.mode))
+    }
+    setScopeResolved(true)
+  }, [events, isLoadingOptions, orgId, scopeResolved, searchParams, tours])
+
+  useEffect(() => {
+    if (!scopeResolved || !scopeMode || !scopeId) return
+    writeStoredScope(orgId || 'default', scopeMode, scopeId)
+  }, [orgId, scopeId, scopeMode, scopeResolved])
 
   const syncUrl = useCallback((next: {
     date?: Date
     view?: CalendarViewMode
     types?: AdminCalendarKind[]
     q?: string
+    scope?: 'tour' | 'event' | null
+    scopeId?: string | null
   }) => {
     if (!syncUrlState) return
 
@@ -151,9 +346,15 @@ export function AdminCalendarView({
     const view = next.view || viewMode
     const types = next.types || enabledKinds
     const q = next.q !== undefined ? next.q : searchQuery
+    const nextScope = next.scope !== undefined ? next.scope : scopeMode
+    const nextScopeId = next.scopeId !== undefined ? next.scopeId : scopeId
 
     const nextDate = format(date, 'yyyy-MM-dd')
-    const nextTypes = types.length === ADMIN_CALENDAR_KINDS.length ? '' : types.join(',')
+    const defaultKinds = kindsForScope(nextScope || 'tour')
+    const nextTypes = types.length === defaultKinds.length
+      && types.every((kind) => defaultKinds.includes(kind))
+      ? ''
+      : types.join(',')
     const nextQ = q.trim()
 
     if (
@@ -161,6 +362,8 @@ export function AdminCalendarView({
       && params.get('view') === view
       && (params.get('types') || '') === nextTypes
       && (params.get('q') || '') === nextQ
+      && (params.get('scope') || '') === (nextScope || '')
+      && (params.get('scopeId') || '') === (nextScopeId || '')
     ) {
       return
     }
@@ -171,17 +374,46 @@ export function AdminCalendarView({
     else params.delete('types')
     if (nextQ) params.set('q', nextQ)
     else params.delete('q')
+    if (nextScope) params.set('scope', nextScope)
+    else params.delete('scope')
+    if (nextScopeId) params.set('scopeId', nextScopeId)
+    else params.delete('scopeId')
 
     router.replace(`${pathname}?${params.toString()}`, { scroll: false })
-  }, [enabledKinds, pathname, router, searchParams, searchQuery, selectedDate, syncUrlState, viewMode])
+  }, [
+    enabledKinds,
+    pathname,
+    router,
+    scopeId,
+    scopeMode,
+    searchParams,
+    searchQuery,
+    selectedDate,
+    syncUrlState,
+    viewMode,
+  ])
 
   useEffect(() => {
+    if (!scopeResolved) return
     syncUrl({})
-  }, [selectedDate, viewMode, enabledKinds, searchQuery, syncUrl])
+  }, [selectedDate, viewMode, enabledKinds, searchQuery, scopeMode, scopeId, scopeResolved, syncUrl])
+
+  const availableKinds = useMemo(
+    () => kindsForScope(scopeMode || 'tour'),
+    [scopeMode],
+  )
+
+  useEffect(() => {
+    setEnabledKinds((prev) => {
+      const next = prev.filter((kind) => availableKinds.includes(kind))
+      return next.length > 0 ? next : availableKinds
+    })
+  }, [availableKinds])
 
   const visibleItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return items.filter((item) => {
+      if (item.kind === 'tour') return false
       if (!enabledKinds.includes(item.kind)) return false
       if (!query) return true
       return (
@@ -202,6 +434,30 @@ export function AdminCalendarView({
     () => getItemsForDay(selectedDate),
     [getItemsForDay, selectedDate],
   )
+
+  const linkableEvents = useMemo(() => {
+    const fromItems = visibleItems.filter((item) => item.kind === 'event')
+    if (scopeMode === 'event' && scopeId) {
+      const match = fromItems.filter((item) => item.sourceId === scopeId)
+      if (match.length > 0) return match
+      const option = events.find((event) => event.id === scopeId)
+      if (!option) return match
+      return [{
+        id: `event-${option.id}`,
+        sourceId: option.id,
+        kind: 'event' as const,
+        title: option.name,
+        start: option.startDate || format(selectedDate, 'yyyy-MM-dd'),
+        end: option.endDate || option.startDate || format(selectedDate, 'yyyy-MM-dd'),
+        status: option.status || 'scheduled',
+        priority: 'medium' as const,
+        href: `/admin/dashboard/events/${option.id}`,
+        color: 'blue',
+        allDay: false,
+      }]
+    }
+    return fromItems
+  }, [events, scopeId, scopeMode, selectedDate, visibleItems])
 
   const monthDays = useMemo(() => {
     return eachDayOfInterval({
@@ -247,6 +503,13 @@ export function AdminCalendarView({
     setSelectedDate(day)
     if (viewMode === 'month' || viewMode === 'week')
       setDaySheetOpen(true)
+  }
+
+  function handleScopeChange(value: CalendarScopeValue) {
+    setScopeMode(value.mode)
+    setScopeId(value.id)
+    setEnabledKinds(kindsForScope(value.mode))
+    setScopeResolved(true)
   }
 
   function titleForView() {
@@ -348,17 +611,12 @@ export function AdminCalendarView({
   return (
     <div className={cn('staff-scheduling-prototype space-y-4', className)}>
       {showHeader ? (
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="mb-1 flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-md bg-neon-purple/15 text-neon-purple">
-                <CalendarIcon className="size-4" />
-              </div>
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">Calendar</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex size-8 items-center justify-center rounded-md bg-neon-purple/15 text-neon-purple">
+              <CalendarIcon className="size-4" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              Ops schedule across events, tours, shifts, tasks, production, and hiring
-            </p>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">Calendar</h1>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {showSubscribePanel ? (
@@ -370,9 +628,7 @@ export function AdminCalendarView({
             <Button
               size="sm"
               className="bg-neon-purple text-primary-foreground hover:bg-neon-purple/85 shadow-[0_0_20px_-6px_var(--color-neon-purple)]"
-              onClick={() => {
-                setDaySheetOpen(true)
-              }}
+              onClick={() => setDaySheetOpen(true)}
             >
               <CalendarPlus className="size-3.5" />
               Add to schedule
@@ -383,10 +639,15 @@ export function AdminCalendarView({
 
       <div className="rounded-xl border border-border/60 bg-card/70 p-3 backdrop-blur sm:p-4">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-              Viewing
-            </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <CalendarScopeDropdown
+              scopeMode={scopeMode}
+              scopeId={scopeId}
+              tours={tours}
+              events={events}
+              isLoadingOptions={isLoadingOptions}
+              onChange={handleScopeChange}
+            />
             <h2 className="text-base font-semibold tracking-tight text-foreground">
               {titleForView()}
             </h2>
@@ -437,7 +698,7 @@ export function AdminCalendarView({
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {ADMIN_CALENDAR_KINDS.map((kind) => {
+            {availableKinds.map((kind) => {
               const active = enabledKinds.includes(kind)
               return (
                 <button
@@ -451,7 +712,7 @@ export function AdminCalendarView({
                       : 'border-border/60 bg-background/40 text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {KIND_LABELS[kind]}
+                  {SCOPED_KIND_LABELS[kind]}
                   {summary ? (
                     <span className="ml-1 opacity-70">{summary[kind]}</span>
                   ) : null}
@@ -470,9 +731,11 @@ export function AdminCalendarView({
           </div>
         ) : null}
 
-        {isLoading ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">Loading calendar…</p>
-        ) : viewMode === 'day' ? (
+        {isLoading && hasScope ? (
+          <p className="mb-3 text-center text-xs text-muted-foreground">Updating…</p>
+        ) : null}
+
+        {viewMode === 'day' ? (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -535,7 +798,10 @@ export function AdminCalendarView({
         onOpenChange={setDaySheetOpen}
         date={selectedDate}
         items={selectedDayItems}
-        linkableEvents={visibleItems.filter((item) => item.kind === 'event')}
+        linkableEvents={linkableEvents}
+        scopeMode={scopeMode}
+        scopeId={scopeId}
+        scopeName={context?.name || null}
         onCreated={async () => {
           await refetch()
         }}

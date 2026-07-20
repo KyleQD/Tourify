@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -786,56 +787,36 @@ export function ComprehensiveArtistProfile({
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {profile.stats.events && profile.stats.events > 0 ? (
-                      <div className="space-y-3">
-                        {/* Placeholder for actual events */}
-                        <motion.div 
-                          className="p-3 rounded-lg bg-gradient-to-r from-white/5 to-white/10 border border-orange-500/20"
-                          whileHover={{ scale: 1.02, borderColor: "rgba(249, 115, 22, 0.4)" }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <h4 className="text-white font-medium text-sm">Live Performance</h4>
-                              <p className="text-white/60 text-xs">Coming Soon</p>
-                              <p className="text-white/50 text-xs mt-1">Location TBA</p>
-                            </div>
-                            <motion.div
-                              animate={{ scale: [1, 1.1, 1] }}
-                              transition={{ duration: 2, repeat: Infinity }}
-                            >
-                              <Badge variant="outline" className="border-orange-500/30 text-orange-300 text-xs">
-                                TBA
-                              </Badge>
-                            </motion.div>
-                          </div>
-                        </motion.div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
+                    <div className="text-center py-6">
+                      <motion.div
+                        animate={{ y: [0, -5, 0] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        <Calendar className="h-8 w-8 text-white/40 mx-auto mb-2" />
+                      </motion.div>
+                      <p className="text-white/60 text-sm">No upcoming events</p>
+                      <p className="text-white/40 text-xs mt-1">
+                        {isOwnProfile ? "Schedule your next performance!" : "Check back for updates!"}
+                      </p>
+                      {isOwnProfile && (
                         <motion.div
-                          animate={{ y: [0, -5, 0] }}
-                          transition={{ duration: 2, repeat: Infinity }}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
                         >
-                          <Calendar className="h-8 w-8 text-white/40 mx-auto mb-2" />
-                        </motion.div>
-                        <p className="text-white/60 text-sm">No upcoming events</p>
-                        <p className="text-white/40 text-xs mt-1">
-                          {isOwnProfile ? "Schedule your next performance!" : "Check back for updates!"}
-                        </p>
-                        {isOwnProfile && (
-                          <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="mt-3 border-orange-500/30 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/50"
+                            asChild
                           >
-                            <Button size="sm" variant="outline" className="mt-3 border-orange-500/30 text-orange-300 hover:bg-orange-500/10 hover:border-orange-500/50">
+                            <Link href="/artist/events">
                               <Plus className="h-3 w-3 mr-1" />
                               Add Event
-                            </Button>
-                          </motion.div>
-                        )}
-                      </div>
-                    )}
+                            </Link>
+                          </Button>
+                        </motion.div>
+                      )}
+                    </div>
                   </CardContent>
                 </Card>
               </motion.div>

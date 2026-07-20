@@ -1,11 +1,11 @@
 import { Suspense } from 'react'
-import { ArtistPageClient } from '@/components/dashboard/artist-page-client'
+import { ArtistHomeFeed } from '@/components/artist/artist-home-feed'
 import ArtistLoading from './loading'
 
-export default function ArtistDashboardPage() {
+export default function ArtistHomePage() {
   return (
     <Suspense fallback={<ArtistLoading />}>
-      <ArtistPageClient />
+      <ArtistHomeFeed />
     </Suspense>
   )
 }
